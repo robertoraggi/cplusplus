@@ -29,7 +29,7 @@ async function main() {
   const std = argv.std ?? "c++20";
 
   const predefinedMacros = String(
-    await $`${gcc} -E -dM -x c++ -std=${std} - < /dev/null`.quiet()
+    await $`${gcc} -E -dM -x c++ -std=${std} - < /dev/null`.quiet(),
   );
 
   const out = [];

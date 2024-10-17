@@ -45,13 +45,13 @@ const astFile = path.join(astOutputDir, path.basename(sourceFile) + ".ast");
 // Path to the AST dump baseline file
 const baselineAstFile = path.join(
   astOutputDir,
-  path.basename(sourceFile) + ".ast.base"
+  path.basename(sourceFile) + ".ast.base",
 );
 
 async function main() {
   // Create the ast output directory if it doesn't exist
   await spinner("Setting up...", () =>
-    fs.mkdir(astOutputDir, { recursive: true })
+    fs.mkdir(astOutputDir, { recursive: true }),
   );
 
   // Build the project
@@ -63,7 +63,7 @@ async function main() {
   // Run the AST dump
   await spinner(
     "Create AST",
-    () => $`${cxx} -ast-dump ${sourceFile} > ${astFile}`
+    () => $`${cxx} -ast-dump ${sourceFile} > ${astFile}`,
   );
 
   const hasBaseline = await fs.exists(baselineAstFile);

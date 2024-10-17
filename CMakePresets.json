@@ -1,0 +1,171 @@
+{
+  "version": 9,
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "default",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_INSTALL_WASI_SYSROOT": "YES"
+      }
+    },
+    {
+      "inherits": "default",
+      "name": "debug",
+      "displayName": "debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "NO"
+      }
+    },
+    {
+      "name": "emscripten",
+      "displayName": "emscripten",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build.em",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_TOOLCHAIN_FILE": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_ENABLE_FLATBUFFERS": "NO",
+        "CXX_INSTALL_WASI_SYSROOT": "YES"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{EMSCRIPTEN_ROOT}",
+        "rhs": ""
+      }
+    },
+    {
+      "name": "wasi",
+      "displayName": "wasi",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build.wasi",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_TOOLCHAIN_FILE": "$env{WASI_SDK_ROOT}/share/cmake/wasi-sdk.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.wasi/install/usr",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_ENABLE_FLATBUFFERS": "NO",
+        "CXX_INSTALL_WASI_SYSROOT": "YES"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{WASI_SDK_ROOT}",
+        "rhs": ""
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "default"
+    },
+    {
+      "name": "install",
+      "configurePreset": "default",
+      "targets": ["install"]
+    },
+    {
+      "name": "build-emscripten",
+      "configurePreset": "emscripten"
+    },
+    {
+      "name": "install-emscripten",
+      "configurePreset": "emscripten",
+      "targets": ["install"]
+    },
+    {
+      "name": "build-wasi",
+      "configurePreset": "wasi"
+    },
+    {
+      "name": "install-wasi",
+      "configurePreset": "wasi",
+      "targets": ["install"]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "emscripten",
+      "configurePreset": "emscripten"
+    },
+    {
+      "name": "wasi",
+      "configurePreset": "wasi"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "default",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "default"
+        },
+        {
+          "type": "test",
+          "name": "default"
+        },
+        {
+          "type": "build",
+          "name": "install"
+        }
+      ]
+    },
+    {
+      "name": "emscripten",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "emscripten"
+        },
+        {
+          "type": "build",
+          "name": "build-emscripten"
+        },
+        {
+          "type": "build",
+          "name": "install-emscripten"
+        }
+      ]
+    },
+    {
+      "name": "wasi",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "wasi"
+        },
+        {
+          "type": "build",
+          "name": "install-wasi"
+        }
+      ]
+    }
+  ]
+}

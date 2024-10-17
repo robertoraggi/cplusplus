@@ -41,7 +41,7 @@ if (EMSCRIPTEN)
 endif()
 
 target_link_libraries(cxx-parser
-    PUBLIC  $<BUILD_INTERFACE:utf8cpp::utf8cpp>
+    PUBLIC  $<BUILD_INTERFACE:utf8cpp>
 )
 
 add_custom_command(OUTPUT keywords-priv.h

@@ -6,3 +6,5 @@ node_modules
 *.tgz
 .vscode/launch.json
 .cache
+.clangd
+*.pch

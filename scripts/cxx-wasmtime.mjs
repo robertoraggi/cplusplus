@@ -35,7 +35,7 @@ const cxxArgs = [
 
 try {
   const result = await $`${wasmtime} ${cxxArgs} ${process.argv.slice(
-    3
+    3,
   )}`.quiet();
 
   echo`${result}`;
