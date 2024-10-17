@@ -9,7 +9,7 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+  URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
 )
 
 FetchContent_MakeAvailable(googletest)

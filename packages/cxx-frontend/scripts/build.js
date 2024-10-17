@@ -42,8 +42,12 @@ build().catch(console.error);
 async function build() {
   const sdk = await detectEmsdk();
 
-  if (argv.docker === true || !sdk) {
+  if ($.env.EMSCRIPTEN_ROOT) {
+    await emsdkBuildPresets();
+  } else if (argv.docker === true || !sdk) {
     await dockerBuild();
+  } else if ($.env.EMSCRIPTEN_ROOT) {
+    await emsdkBuildPresets();
   } else {
     await emsdkBuild(sdk);
   }
@@ -135,6 +139,14 @@ async function emsdkBuild({ cmake, emcmake, flatc, kwgen }) {
   }
 
   await $`${emcmake} ${cmake} ${cmakeOptions}`;
+
+  await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
+}
+
+async function emsdkBuildPresets() {
+  const cmake = await which("cmake", { nothrow: true });
+
+  await $`${cmake} -S ${projectRootSourcePath} --preset emscripten`;
 
   await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
 }

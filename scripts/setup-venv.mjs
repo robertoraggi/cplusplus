@@ -30,7 +30,7 @@ const pip = path.join(venvPath, "bin/pip");
 
 const requirements = path.join(
   workspacePath,
-  "tests/unit_tests/requirements.txt"
+  "tests/unit_tests/requirements.txt",
 );
 
 await spinner("Setting up virtual environment", async () => {

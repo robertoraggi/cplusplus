@@ -32,6 +32,7 @@ endif()
 include(FetchContent)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(ExternalProject)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/package.json" package_json)
 
@@ -54,16 +55,12 @@ endif()
 
 FetchContent_Declare(
     utfcpp
-    GIT_REPOSITORY      https://github.com/nemtrif/utfcpp
-    GIT_TAG             v4.0.5
-    GIT_SHALLOW         1
+    URL                 https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.5.tar.gz
+    PATCH_COMMAND       patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/utfcpp.patch
 )
 
-FetchContent_Populate(utfcpp)
+FetchContent_MakeAvailable(utfcpp)
 FetchContent_GetProperties(utfcpp)
-
-add_library(utf8cpp::utf8cpp INTERFACE IMPORTED)
-set_target_properties(utf8cpp::utf8cpp PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${utfcpp_SOURCE_DIR}/source")
 
 FetchContent_Declare(
     wasi_sysroot
@@ -96,7 +93,26 @@ if (CXX_ENABLE_FLATBUFFERS)
     set_target_properties(flatbuffers::header-only PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${flatbuffers_SOURCE_DIR}/include")
 endif()
 
-add_subdirectory(tools/kwgen)
+if (NOT KWGEN_EXECUTABLE AND CMAKE_SYSTEM_NAME STREQUAL "WASI")
+
+    ExternalProject_Add(
+        kwgen_host
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tools/kwgen
+        INSTALL_COMMAND ""
+    )
+
+    ExternalProject_Get_property(kwgen_host BINARY_DIR)
+
+    add_executable(kwgen IMPORTED)
+    set_target_properties(kwgen PROPERTIES IMPORTED_LOCATION "${BINARY_DIR}/kwgen")
+    add_dependencies(kwgen kwgen_host)
+
+else()
+
+    add_subdirectory(tools/kwgen)
+
+endif()
+
 add_subdirectory(src)
 
 if (CXX_BUILD_TESTS)
@@ -127,4 +143,16 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/cxxConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/cxxConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/cxx
+)
+
+set(CLANGD_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/clangd.in")
+
+if (EMSCRIPTEN)
+    set(CLANGD_CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/clangd_emscripten.in")
+endif()
+
+configure_file(
+    ${CLANGD_CONFIG_FILE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/.clangd
+    @ONLY
 )

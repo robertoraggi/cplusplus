@@ -1,14 +1,16 @@
-FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-22 as wasi
+FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-24 as wasi
 
 RUN apt-get update && apt-get install -y \
+    g++ \
     git \
     binaryen \
     wget \
-    unzip
+    unzip \
+    ninja-build
 
 COPY tools/kwgen/kwgen.cc /tmp/kwgen.cc
 
-RUN $CXX -std=c++20 /tmp/kwgen.cc -o /usr/bin/kwgen
+RUN g++ -std=c++20 /tmp/kwgen.cc -o /usr/bin/kwgen
 
 RUN wget https://github.com/google/flatbuffers/releases/download/v24.3.25/Linux.flatc.binary.clang++-15.zip && \
     unzip Linux.flatc.binary.clang++-15.zip && \
