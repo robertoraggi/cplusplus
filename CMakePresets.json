@@ -31,7 +31,7 @@
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
         "CMAKE_TOOLCHAIN_FILE": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
-        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
         "CXX_ENABLE_FLATBUFFERS": "NO",
@@ -51,7 +51,7 @@
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
         "CMAKE_TOOLCHAIN_FILE": "$env{WASI_SDK_ROOT}/share/cmake/wasi-sdk.cmake",
-        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.wasi/install/usr",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
         "CXX_ENABLE_FLATBUFFERS": "NO",
