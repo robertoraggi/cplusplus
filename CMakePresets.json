@@ -50,7 +50,7 @@
       "binaryDir": "${sourceDir}/build.wasi",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
-        "CMAKE_TOOLCHAIN_FILE": "$env{WASI_SDK_ROOT}/share/cmake/wasi-sdk.cmake",
+        "CMAKE_TOOLCHAIN_FILE": "$env{WASI_SDK_PATH}/share/cmake/wasi-sdk.cmake",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.wasi/install/usr",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
@@ -59,7 +59,7 @@
       },
       "condition": {
         "type": "notEquals",
-        "lhs": "$env{WASI_SDK_ROOT}",
+        "lhs": "$env{WASI_SDK_PATH}",
         "rhs": ""
       }
     }
@@ -76,7 +76,9 @@
     {
       "name": "install",
       "configurePreset": "default",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     },
     {
       "name": "build-emscripten",
@@ -85,7 +87,9 @@
     {
       "name": "install-emscripten",
       "configurePreset": "emscripten",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     },
     {
       "name": "build-wasi",
@@ -94,7 +98,9 @@
     {
       "name": "install-wasi",
       "configurePreset": "wasi",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     }
   ],
   "testPresets": [
