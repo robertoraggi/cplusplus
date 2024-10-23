@@ -6,6 +6,6 @@
     "ghcr.io/devcontainers/features/common-utils": {}
   },
   "containerEnv": {
-    "WASI_SDK_ROOT": "/opt/wasi-sdk"
+    "WASI_SDK_PATH": "/opt/wasi-sdk"
   }
 }
