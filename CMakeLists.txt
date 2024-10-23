@@ -53,6 +53,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
 endif()
 
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 FetchContent_Declare(
     utfcpp
     URL                 https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.5.tar.gz
