@@ -17,8 +17,33 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-add_subdirectory(lib)
-add_subdirectory(parser)
-add_subdirectory(lsp)
-add_subdirectory(js)
-add_subdirectory(frontend)
+file(GLOB CXX_LSP_INCLUDE_HEADER_FILES cxx/lsp/*.h)
+
+aux_source_directory(cxx/lsp LSP_SOURCES)
+
+add_library(cxx-lsp
+    ${LSP_SOURCES}
+    ${CXX_LSP_INCLUDE_HEADER_FILES}
+)
+
+target_include_directories(cxx-lsp
+    PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+target_compile_features(cxx-lsp PUBLIC cxx_std_20)
+
+# disable exception when targeting emscripten
+if (EMSCRIPTEN)
+    target_compile_options(cxx-lsp PUBLIC -fno-exceptions)
+endif()
+
+install(
+    FILES ${CXX_LSP_INCLUDE_HEADER_FILES}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx/lsp
+)
+
+install(
+    TARGETS cxx-lsp
+    EXPORT cxxTargets
+)
