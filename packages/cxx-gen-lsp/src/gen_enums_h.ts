@@ -18,33 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import {
-  getEnumBaseType,
-  getEnumeratorInitializer,
-  getEnumeratorName,
-  MetaModel,
-} from "./MetaModel.js";
+import { getEnumBaseType, getEnumeratorInitializer, getEnumeratorName, MetaModel } from "./MetaModel.js";
 
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
+import { copyrightHeader } from "./copyrightHeader.js";
 
-export async function gen_enums_h({
-  model,
-  outputDirectory,
-}: {
-  model: MetaModel;
-  outputDirectory: string;
-}) {
+export function gen_enums_h({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
   let out = "";
 
   const emit = (s: string = "") => {
     out += `${s}\n`;
   };
 
+  emit(copyrightHeader);
+  emit();
   emit(`#pragma once`);
   emit();
-  emit();
   emit(`#include <string>`);
+  emit(`#include <cxx/lsp/fwd.h>`);
   emit();
   emit(`namespace cxx::lsp {`);
 
@@ -54,10 +46,7 @@ export async function gen_enums_h({
     emit(`enum class ${enumeration.name}${enumBaseType} {`);
     enumeration.values.forEach((value) => {
       const enumeratorName = getEnumeratorName(value);
-      const enumeratorInitializer = getEnumeratorInitializer(
-        enumeration,
-        value
-      );
+      const enumeratorInitializer = getEnumeratorInitializer(enumeration, value);
       emit(`  ${enumeratorName}${enumeratorInitializer},`);
     });
     emit(`};`);
@@ -70,5 +59,5 @@ export async function gen_enums_h({
   emit(`} // namespace cxx::lsp`);
 
   const outputFile = path.join(outputDirectory, "enums.h");
-  await writeFile(outputFile, out);
+  writeFileSync(outputFile, out);
 }

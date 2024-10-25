@@ -18,49 +18,66 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { getEnumeratorName, MetaModel } from "./MetaModel.js";
-
-import path from "node:path";
+import * as path from "node:path";
+import { getStructureProperties, MetaModel, Property, toCppType } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
-export function gen_enums_cc({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
+export function gen_types_h({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
   let out = "";
 
   const emit = (s: string = "") => {
     out += `${s}\n`;
   };
 
+  const getReturnType = (property: Property) => {
+    let propertyType = toCppType(property.type);
+    if (property.optional) {
+      propertyType = `std::optional<${propertyType}>`;
+    }
+    return propertyType;
+  };
+
   emit(copyrightHeader);
   emit();
-  emit(`#include <cxx/lsp/enums.h>`);
+  emit(`#pragma once`);
+  emit();
+  emit(`#include <cxx/lsp/fwd.h>`);
+  emit();
+  emit(`namespace cxx::lsp {`);
   emit();
 
-  emit(`namespace cxx::lsp {`);
-
-  model.enumerations.forEach((enumeration) => {
+  model.structures.forEach((structure) => {
+    const typeName = structure.name;
     emit();
-    emit(`auto to_string(${enumeration.name} value) -> std::string {`);
-    emit(`  switch (value) {`);
+    emit(`class ${typeName} final : public LSPObject {`);
+    emit(`  public:`);
+    emit(`    using LSPObject::LSPObject;`);
+    emit();
+    emit(`  explicit operator bool() const;`);
 
-    enumeration.values.forEach((enumerator) => {
-      const enumeratorName = getEnumeratorName(enumerator);
+    const properties = getStructureProperties(model, structure);
 
-      const text = enumeration.type.name === "string" ? enumerator.value : enumerator.name;
-
-      emit(`    case ${enumeration.name}::${enumeratorName}:`);
-      emit(`      return "${text}";`);
+    properties.forEach((property) => {
+      const propertyName = property.name;
+      const returnType = getReturnType(property);
+      emit();
+      emit(`    [[nodiscard ]]auto ${propertyName}() const -> ${returnType};`);
     });
 
-    emit(`  }`);
     emit();
-    emit(`  lsp_runtime_error("invalid enumerator value");`);
-    emit(`}`);
+    properties.forEach((property) => {
+      const propertyName = property.name;
+      const argumentType = getReturnType(property);
+      emit();
+      emit(`    auto ${propertyName}(${argumentType} ${propertyName}) -> ${typeName}&;`);
+    });
+
+    emit(`};`);
   });
 
-  emit();
-  emit(`} // namespace cxx::lsp`);
+  emit(`}`);
 
-  const outputFile = path.join(outputDirectory, "enums.cc");
+  const outputFile = path.join(outputDirectory, "types.h");
   writeFileSync(outputFile, out);
 }

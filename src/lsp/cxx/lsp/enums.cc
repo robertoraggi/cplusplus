@@ -1,3 +1,23 @@
+// Copyright (c) 2024 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include <cxx/lsp/enums.h>
 
 namespace cxx::lsp {
@@ -53,6 +73,8 @@ auto to_string(SemanticTokenTypes value) -> std::string {
     case SemanticTokenTypes::kLabel:
       return "label";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(SemanticTokenModifiers value) -> std::string {
@@ -78,6 +100,8 @@ auto to_string(SemanticTokenModifiers value) -> std::string {
     case SemanticTokenModifiers::kDefaultLibrary:
       return "defaultLibrary";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(DocumentDiagnosticReportKind value) -> std::string {
@@ -87,6 +111,8 @@ auto to_string(DocumentDiagnosticReportKind value) -> std::string {
     case DocumentDiagnosticReportKind::kUnchanged:
       return "unchanged";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(ErrorCodes value) -> std::string {
@@ -106,6 +132,8 @@ auto to_string(ErrorCodes value) -> std::string {
     case ErrorCodes::kUnknownErrorCode:
       return "UnknownErrorCode";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(LSPErrorCodes value) -> std::string {
@@ -119,6 +147,8 @@ auto to_string(LSPErrorCodes value) -> std::string {
     case LSPErrorCodes::kRequestCancelled:
       return "RequestCancelled";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(FoldingRangeKind value) -> std::string {
@@ -130,6 +160,8 @@ auto to_string(FoldingRangeKind value) -> std::string {
     case FoldingRangeKind::kRegion:
       return "region";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(SymbolKind value) -> std::string {
@@ -187,6 +219,8 @@ auto to_string(SymbolKind value) -> std::string {
     case SymbolKind::kTypeParameter:
       return "TypeParameter";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(SymbolTag value) -> std::string {
@@ -194,6 +228,8 @@ auto to_string(SymbolTag value) -> std::string {
     case SymbolTag::kDeprecated:
       return "Deprecated";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(UniquenessLevel value) -> std::string {
@@ -209,6 +245,8 @@ auto to_string(UniquenessLevel value) -> std::string {
     case UniquenessLevel::kGlobal:
       return "global";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(MonikerKind value) -> std::string {
@@ -220,6 +258,8 @@ auto to_string(MonikerKind value) -> std::string {
     case MonikerKind::kLocal:
       return "local";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(InlayHintKind value) -> std::string {
@@ -229,6 +269,8 @@ auto to_string(InlayHintKind value) -> std::string {
     case InlayHintKind::kParameter:
       return "Parameter";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(MessageType value) -> std::string {
@@ -244,6 +286,8 @@ auto to_string(MessageType value) -> std::string {
     case MessageType::kDebug:
       return "Debug";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(TextDocumentSyncKind value) -> std::string {
@@ -255,6 +299,8 @@ auto to_string(TextDocumentSyncKind value) -> std::string {
     case TextDocumentSyncKind::kIncremental:
       return "Incremental";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(TextDocumentSaveReason value) -> std::string {
@@ -266,6 +312,8 @@ auto to_string(TextDocumentSaveReason value) -> std::string {
     case TextDocumentSaveReason::kFocusOut:
       return "FocusOut";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(CompletionItemKind value) -> std::string {
@@ -321,6 +369,8 @@ auto to_string(CompletionItemKind value) -> std::string {
     case CompletionItemKind::kTypeParameter:
       return "TypeParameter";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(CompletionItemTag value) -> std::string {
@@ -328,6 +378,8 @@ auto to_string(CompletionItemTag value) -> std::string {
     case CompletionItemTag::kDeprecated:
       return "Deprecated";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(InsertTextFormat value) -> std::string {
@@ -337,6 +389,8 @@ auto to_string(InsertTextFormat value) -> std::string {
     case InsertTextFormat::kSnippet:
       return "Snippet";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(InsertTextMode value) -> std::string {
@@ -346,6 +400,8 @@ auto to_string(InsertTextMode value) -> std::string {
     case InsertTextMode::kAdjustIndentation:
       return "adjustIndentation";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(DocumentHighlightKind value) -> std::string {
@@ -357,6 +413,8 @@ auto to_string(DocumentHighlightKind value) -> std::string {
     case DocumentHighlightKind::kWrite:
       return "Write";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(CodeActionKind value) -> std::string {
@@ -384,6 +442,8 @@ auto to_string(CodeActionKind value) -> std::string {
     case CodeActionKind::kNotebook:
       return "notebook";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(CodeActionTag value) -> std::string {
@@ -391,6 +451,8 @@ auto to_string(CodeActionTag value) -> std::string {
     case CodeActionTag::kLLMGenerated:
       return "LLMGenerated";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(TraceValue value) -> std::string {
@@ -402,6 +464,8 @@ auto to_string(TraceValue value) -> std::string {
     case TraceValue::kVerbose:
       return "verbose";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(MarkupKind value) -> std::string {
@@ -411,6 +475,8 @@ auto to_string(MarkupKind value) -> std::string {
     case MarkupKind::kMarkdown:
       return "markdown";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(LanguageKind value) -> std::string {
@@ -538,6 +604,8 @@ auto to_string(LanguageKind value) -> std::string {
     case LanguageKind::kYAML:
       return "yaml";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(InlineCompletionTriggerKind value) -> std::string {
@@ -547,6 +615,8 @@ auto to_string(InlineCompletionTriggerKind value) -> std::string {
     case InlineCompletionTriggerKind::kAutomatic:
       return "Automatic";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(PositionEncodingKind value) -> std::string {
@@ -558,6 +628,8 @@ auto to_string(PositionEncodingKind value) -> std::string {
     case PositionEncodingKind::kUTF32:
       return "utf-32";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(FileChangeType value) -> std::string {
@@ -569,6 +641,8 @@ auto to_string(FileChangeType value) -> std::string {
     case FileChangeType::kDeleted:
       return "Deleted";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(WatchKind value) -> std::string {
@@ -580,6 +654,8 @@ auto to_string(WatchKind value) -> std::string {
     case WatchKind::kDelete:
       return "Delete";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(DiagnosticSeverity value) -> std::string {
@@ -593,6 +669,8 @@ auto to_string(DiagnosticSeverity value) -> std::string {
     case DiagnosticSeverity::kHint:
       return "Hint";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(DiagnosticTag value) -> std::string {
@@ -602,6 +680,8 @@ auto to_string(DiagnosticTag value) -> std::string {
     case DiagnosticTag::kDeprecated:
       return "Deprecated";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(CompletionTriggerKind value) -> std::string {
@@ -613,6 +693,8 @@ auto to_string(CompletionTriggerKind value) -> std::string {
     case CompletionTriggerKind::kTriggerForIncompleteCompletions:
       return "TriggerForIncompleteCompletions";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(ApplyKind value) -> std::string {
@@ -622,6 +704,8 @@ auto to_string(ApplyKind value) -> std::string {
     case ApplyKind::kMerge:
       return "Merge";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(SignatureHelpTriggerKind value) -> std::string {
@@ -633,6 +717,8 @@ auto to_string(SignatureHelpTriggerKind value) -> std::string {
     case SignatureHelpTriggerKind::kContentChange:
       return "ContentChange";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(CodeActionTriggerKind value) -> std::string {
@@ -642,6 +728,8 @@ auto to_string(CodeActionTriggerKind value) -> std::string {
     case CodeActionTriggerKind::kAutomatic:
       return "Automatic";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(FileOperationPatternKind value) -> std::string {
@@ -651,6 +739,8 @@ auto to_string(FileOperationPatternKind value) -> std::string {
     case FileOperationPatternKind::kFolder:
       return "folder";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(NotebookCellKind value) -> std::string {
@@ -660,6 +750,8 @@ auto to_string(NotebookCellKind value) -> std::string {
     case NotebookCellKind::kCode:
       return "Code";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(ResourceOperationKind value) -> std::string {
@@ -671,6 +763,8 @@ auto to_string(ResourceOperationKind value) -> std::string {
     case ResourceOperationKind::kDelete:
       return "delete";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(FailureHandlingKind value) -> std::string {
@@ -684,6 +778,8 @@ auto to_string(FailureHandlingKind value) -> std::string {
     case FailureHandlingKind::kUndo:
       return "undo";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(PrepareSupportDefaultBehavior value) -> std::string {
@@ -691,6 +787,8 @@ auto to_string(PrepareSupportDefaultBehavior value) -> std::string {
     case PrepareSupportDefaultBehavior::kIdentifier:
       return "Identifier";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 auto to_string(TokenFormat value) -> std::string {
@@ -698,6 +796,8 @@ auto to_string(TokenFormat value) -> std::string {
     case TokenFormat::kRelative:
       return "relative";
   }
+
+  lsp_runtime_error("invalid enumerator value");
 }
 
 }  // namespace cxx::lsp

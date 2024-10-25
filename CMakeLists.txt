@@ -48,13 +48,38 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CXX_LIBCXX_WITH_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 
-# if CMAKE_SYSTEM_NAME is WASI disable the exceptions
+# if CMAKE_SYSTEM_NAME is WASI disable the exceptions, and the tests
 if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+    set(CXX_BUILD_TESTS OFF)
+
+    # set the executable suffix to .wasm
+    set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
 endif()
 
-set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+#
+# google test
+#
+if(CXX_BUILD_TESTS)
 
+    set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    )
+
+    FetchContent_MakeAvailable(googletest)
+
+    include(GoogleTest)
+
+endif()
+
+#
+# utfcpp
+#
 FetchContent_Declare(
     utfcpp
     URL                 https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.5.tar.gz
@@ -63,6 +88,21 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(utfcpp)
 FetchContent_GetProperties(utfcpp)
+
+#
+# nlohmann_json
+#
+FetchContent_Declare(
+    nlohmann_json
+    URL             https://github.com/nlohmann/json/releases/download/v3.11.3/include.zip
+    URL_HASH        SHA256=a22461d13119ac5c78f205d3df1db13403e58ce1bb1794edc9313677313f4a9d
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
+add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_json_SOURCE_DIR}/single_include")
 
 FetchContent_Declare(
     wasi_sysroot
