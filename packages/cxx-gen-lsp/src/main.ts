@@ -25,6 +25,9 @@ import { readFile, mkdir } from "node:fs/promises";
 import { MetaModel } from "./MetaModel.js";
 import { gen_enums_h } from "./gen_enums_h.js";
 import { gen_enums_cc } from "./gen_enums_cc.js";
+import { gen_fwd_h } from "./gen_fwd_h.js";
+import { gen_types_h } from "./gen_types_h.js";
+import { gen_types_cc } from "./gen_types_cc.js";
 
 async function main() {
   try {
@@ -58,24 +61,25 @@ async function main() {
 
     await mkdir(outputDirectory, { recursive: true });
 
-    await gen_enums_h({ outputDirectory, model });
-    await gen_enums_cc({ outputDirectory, model });
+    gen_fwd_h({ outputDirectory, model });
+    gen_enums_h({ outputDirectory, model });
+    gen_enums_cc({ outputDirectory, model });
+    gen_types_h({ outputDirectory, model });
+    gen_types_cc({ outputDirectory, model });
 
     console.log(
       child_process
         .execSync("clang-format --verbose -i *.h *.cc", {
           cwd: outputDirectory,
         })
-        .toString()
+        .toString(),
     );
   } catch (error) {
     if (error instanceof Error) {
       console.error(`${error.message}\n`);
     }
 
-    console.error(
-      "usage: cxx-gen-lsp --output output-directory <path to metaModel.json>"
-    );
+    console.error("usage: cxx-gen-lsp --output output-directory <path to metaModel.json>");
 
     process.exit(1);
   }

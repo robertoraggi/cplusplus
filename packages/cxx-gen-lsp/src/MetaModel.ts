@@ -18,13 +18,65 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export type Type = BaseType;
+export type Type =
+  | BaseType
+  | TupleType
+  | OrType
+  | AndType
+  | ReferenceType
+  | ArrayType
+  | MapType
+  | StringLiteralType
+  | LiteralType;
 
-export type BaseTypeName = "string" | "integer" | "uinteger";
+export type BaseTypeName = "null" | "string" | "integer" | "uinteger" | "decimal" | "boolean" | "DocumentUri" | "URI";
 
 export type BaseType = {
   kind: "base";
   name: BaseTypeName;
+};
+
+export type TupleType = {
+  kind: "tuple";
+  items: Type[];
+};
+
+export type OrType = {
+  kind: "or";
+  items: Type[];
+};
+
+export type AndType = {
+  kind: "and";
+  items: Type[];
+};
+
+export type ReferenceType = {
+  kind: "reference";
+  name: string;
+};
+
+export type ArrayType = {
+  kind: "array";
+  element: Type;
+};
+
+export type MapType = {
+  kind: "map";
+  key: Type;
+  value: Type;
+};
+
+export type StringLiteralType = {
+  kind: "stringLiteral";
+  value: string;
+};
+
+export type LiteralType = {
+  kind: "literal";
+  value: {
+    properties: unknown[];
+  };
 };
 
 export type EnumerationValue = {
@@ -47,9 +99,25 @@ export type Notification = {};
 
 export type Request = {};
 
-export type Structure = {};
+export type Property = {
+  documentation?: string;
+  name: string;
+  type: Type;
+  optional?: boolean;
+};
 
-export type TypeAlias = {};
+export type Structure = {
+  extends?: ReferenceType[];
+  mixins?: ReferenceType[];
+  name: string;
+  properties: Property[];
+};
+
+export type TypeAlias = {
+  documentation?: string;
+  name: string;
+  type: Type;
+};
 
 export type MetaModel = {
   metaData: MetaData;
@@ -65,7 +133,7 @@ export function getEnumBaseType(enumeration: Enumeration) {
     case "integer":
       return " : int";
     case "uinteger":
-      return " : unsigned int";
+      return " : long";
     default:
       return "";
   }
@@ -80,12 +148,117 @@ export function getEnumeratorName(enumerator: EnumerationValue) {
   return `k${name}`;
 }
 
-export function getEnumeratorInitializer(
-  enumeration: Enumeration,
-  enumerator: EnumerationValue
-) {
+export function getEnumeratorInitializer(enumeration: Enumeration, enumerator: EnumerationValue) {
   if (enumeration.type.name === "string") {
     return "";
   }
   return ` = ${enumerator.value}`;
+}
+
+export function toCppType(type: Type): string {
+  switch (type.kind) {
+    case "base": {
+      switch (type.name) {
+        case "null":
+          return "std::nullptr_t";
+        case "string":
+          return "std::string";
+        case "integer":
+          return "int";
+        case "uinteger":
+          return "long";
+        case "decimal":
+          return "double";
+        case "boolean":
+          return "bool";
+        case "DocumentUri":
+          return "std::string";
+        case "URI":
+          return "std::string";
+        default:
+          throw new Error(`Unknown base type: ${JSON.stringify(type)}`);
+      } // switch type.name
+    } // case "base"
+
+    case "stringLiteral":
+      return "std::string";
+
+    case "literal":
+      return "json";
+
+    case "reference":
+      return type.name;
+
+    case "array":
+      return `Vector<${toCppType(type.element)}>`;
+
+    case "map":
+      return `Map<${toCppType(type.key)}, ${toCppType(type.value)}>`;
+
+    case "tuple":
+      return `std::tuple<${type.items.map(toCppType).join(", ")}>`;
+
+    case "or":
+      return `std::variant<std::monostate, ${type.items.map(toCppType).join(", ")}>`;
+
+    case "and":
+      return `std::tuple<${type.items.map(toCppType).join(", ")}>`;
+
+    default:
+      throw new Error(`Unknown type kind: ${JSON.stringify(type)}`);
+  } // switch
+}
+
+export function getStructureProperties(model: MetaModel, structure: Structure): Property[] {
+  const structByName = new Map(model.structures.map((s) => [s.name, s]));
+  const added = new Set<string>();
+  return getStructurePropertiesHelper({ structure, added, structByName });
+}
+
+function getStructurePropertiesHelper({
+  structure,
+  added,
+  structByName,
+}: {
+  structure: Structure;
+  added: Set<string>;
+  structByName: Map<string, Structure>;
+}): Property[] {
+  const properties: Property[] = [];
+
+  for (const property of structure.properties) {
+    if (added.has(property.name)) {
+      continue;
+    }
+    added.add(property.name);
+    properties.push(property);
+  }
+
+  structure.extends?.forEach((ref) => {
+    const extend = structByName.get(ref.name);
+
+    if (!extend) {
+      throw new Error(`Unknown extends ${ref.name}`);
+    }
+
+    properties.push(
+      ...getStructurePropertiesHelper({
+        structure: extend,
+        added,
+        structByName,
+      }),
+    );
+  });
+
+  structure.mixins?.forEach((ref) => {
+    const mixin = structByName.get(ref.name);
+
+    if (!mixin) {
+      throw new Error(`Unknown mixin ${ref.name}`);
+    }
+
+    properties.push(...getStructurePropertiesHelper({ structure: mixin, added, structByName }));
+  });
+
+  return properties;
 }

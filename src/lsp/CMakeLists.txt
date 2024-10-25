@@ -31,6 +31,8 @@ target_include_directories(cxx-lsp
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+target_link_libraries(cxx-lsp PUBLIC nlohmann_json::nlohmann_json)
+
 target_compile_features(cxx-lsp PUBLIC cxx_std_20)
 
 # disable exception when targeting emscripten
@@ -38,12 +40,16 @@ if (EMSCRIPTEN)
     target_compile_options(cxx-lsp PUBLIC -fno-exceptions)
 endif()
 
-install(
-    FILES ${CXX_LSP_INCLUDE_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx/lsp
-)
+if(CXX_INSTALL_LSP)
 
-install(
-    TARGETS cxx-lsp
-    EXPORT cxxTargets
-)
+    install(
+        FILES ${CXX_LSP_INCLUDE_HEADER_FILES}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx/lsp
+    )
+
+    install(
+        TARGETS cxx-lsp
+        EXPORT cxxTargets
+    )
+
+endif()

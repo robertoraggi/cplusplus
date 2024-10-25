@@ -1,4 +1,26 @@
+// Copyright (c) 2024 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #pragma once
+
+#include <cxx/lsp/fwd.h>
 
 #include <string>
 
@@ -72,7 +94,7 @@ enum class FoldingRangeKind {
   kRegion,
 };
 
-enum class SymbolKind : unsigned int {
+enum class SymbolKind : long {
   kFile = 1,
   kModule = 2,
   kNamespace = 3,
@@ -101,7 +123,7 @@ enum class SymbolKind : unsigned int {
   kTypeParameter = 26,
 };
 
-enum class SymbolTag : unsigned int {
+enum class SymbolTag : long {
   kDeprecated = 1,
 };
 
@@ -119,12 +141,12 @@ enum class MonikerKind {
   kLocal,
 };
 
-enum class InlayHintKind : unsigned int {
+enum class InlayHintKind : long {
   kType = 1,
   kParameter = 2,
 };
 
-enum class MessageType : unsigned int {
+enum class MessageType : long {
   kError = 1,
   kWarning = 2,
   kInfo = 3,
@@ -132,19 +154,19 @@ enum class MessageType : unsigned int {
   kDebug = 5,
 };
 
-enum class TextDocumentSyncKind : unsigned int {
+enum class TextDocumentSyncKind : long {
   kNone = 0,
   kFull = 1,
   kIncremental = 2,
 };
 
-enum class TextDocumentSaveReason : unsigned int {
+enum class TextDocumentSaveReason : long {
   kManual = 1,
   kAfterDelay = 2,
   kFocusOut = 3,
 };
 
-enum class CompletionItemKind : unsigned int {
+enum class CompletionItemKind : long {
   kText = 1,
   kMethod = 2,
   kFunction = 3,
@@ -172,21 +194,21 @@ enum class CompletionItemKind : unsigned int {
   kTypeParameter = 25,
 };
 
-enum class CompletionItemTag : unsigned int {
+enum class CompletionItemTag : long {
   kDeprecated = 1,
 };
 
-enum class InsertTextFormat : unsigned int {
+enum class InsertTextFormat : long {
   kPlainText = 1,
   kSnippet = 2,
 };
 
-enum class InsertTextMode : unsigned int {
+enum class InsertTextMode : long {
   kAsIs = 1,
   kAdjustIndentation = 2,
 };
 
-enum class DocumentHighlightKind : unsigned int {
+enum class DocumentHighlightKind : long {
   kText = 1,
   kRead = 2,
   kWrite = 3,
@@ -206,7 +228,7 @@ enum class CodeActionKind {
   kNotebook,
 };
 
-enum class CodeActionTag : unsigned int {
+enum class CodeActionTag : long {
   kLLMGenerated = 1,
 };
 
@@ -285,7 +307,7 @@ enum class LanguageKind {
   kYAML,
 };
 
-enum class InlineCompletionTriggerKind : unsigned int {
+enum class InlineCompletionTriggerKind : long {
   kInvoked = 1,
   kAutomatic = 2,
 };
@@ -296,48 +318,48 @@ enum class PositionEncodingKind {
   kUTF32,
 };
 
-enum class FileChangeType : unsigned int {
+enum class FileChangeType : long {
   kCreated = 1,
   kChanged = 2,
   kDeleted = 3,
 };
 
-enum class WatchKind : unsigned int {
+enum class WatchKind : long {
   kCreate = 1,
   kChange = 2,
   kDelete = 4,
 };
 
-enum class DiagnosticSeverity : unsigned int {
+enum class DiagnosticSeverity : long {
   kError = 1,
   kWarning = 2,
   kInformation = 3,
   kHint = 4,
 };
 
-enum class DiagnosticTag : unsigned int {
+enum class DiagnosticTag : long {
   kUnnecessary = 1,
   kDeprecated = 2,
 };
 
-enum class CompletionTriggerKind : unsigned int {
+enum class CompletionTriggerKind : long {
   kInvoked = 1,
   kTriggerCharacter = 2,
   kTriggerForIncompleteCompletions = 3,
 };
 
-enum class ApplyKind : unsigned int {
+enum class ApplyKind : long {
   kReplace = 1,
   kMerge = 2,
 };
 
-enum class SignatureHelpTriggerKind : unsigned int {
+enum class SignatureHelpTriggerKind : long {
   kInvoked = 1,
   kTriggerCharacter = 2,
   kContentChange = 3,
 };
 
-enum class CodeActionTriggerKind : unsigned int {
+enum class CodeActionTriggerKind : long {
   kInvoked = 1,
   kAutomatic = 2,
 };
@@ -347,7 +369,7 @@ enum class FileOperationPatternKind {
   kFolder,
 };
 
-enum class NotebookCellKind : unsigned int {
+enum class NotebookCellKind : long {
   kMarkup = 1,
   kCode = 2,
 };
@@ -365,7 +387,7 @@ enum class FailureHandlingKind {
   kUndo,
 };
 
-enum class PrepareSupportDefaultBehavior : unsigned int {
+enum class PrepareSupportDefaultBehavior : long {
   kIdentifier = 1,
 };
 
