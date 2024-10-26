@@ -4,7 +4,7 @@
 #include "cxx/lsp/enums.h"
 #include "cxx/lsp/fwd.h"
 
-TEST(SampleTest, AssertionTrue) {
+TEST(LSP, Initialization) {
   using namespace cxx::lsp;
 
   // storage

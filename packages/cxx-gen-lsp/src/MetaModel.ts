@@ -199,7 +199,7 @@ export function toCppType(type: Type): string {
       return `std::tuple<${type.items.map(toCppType).join(", ")}>`;
 
     case "or":
-      return `std::variant<std::monostate, ${type.items.map(toCppType).join(", ")}>`;
+      return `std::variant<${type.items.map(toCppType).join(", ")}>`;
 
     case "and":
       return `std::tuple<${type.items.map(toCppType).join(", ")}>`;

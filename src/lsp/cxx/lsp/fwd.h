@@ -463,8 +463,10 @@ using Pattern = std::string;
 
 class LSPObject {
  public:
+  LSPObject() = default;
   explicit LSPObject(json& repr) : repr_(&repr) {}
 
+  [[nodiscard]] explicit operator bool() const { return repr_ != nullptr; }
   [[nodiscard]] operator const json&() const { return *repr_; }
   [[nodiscard]] auto get() const -> json& { return *repr_; }
 
@@ -477,7 +479,9 @@ class Vector final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_array(); }
+  [[nodiscard]] explicit operator bool() const {
+    return repr_ && repr_->is_array();
+  }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> const T& {
@@ -504,11 +508,6 @@ template <typename... Ts>
 auto try_emplace(std::variant<Ts...>& result, json& value) -> bool {
   return (details::TryEmplace<Ts>{}(result, value) || ...);
 }
-
-template <>
-struct TryEmplace<std::monostate> {
-  auto operator()(auto&, const json&) const -> bool { return false; }
-};
 
 template <>
 struct TryEmplace<std::nullptr_t> {
@@ -603,7 +602,9 @@ class Vector<std::variant<Ts...>> final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_array(); }
+  [[nodiscard]] explicit operator bool() const {
+    return repr_ && repr_->is_array();
+  }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> std::variant<Ts...> {
@@ -618,7 +619,9 @@ class Map final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_object(); }
+  [[nodiscard]] explicit operator bool() const {
+    return repr_ && repr_->is_object();
+  }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(const Key& key) const -> const Value& {
@@ -631,7 +634,9 @@ class Map<Key, std::variant<Ts...>> final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_object(); }
+  [[nodiscard]] explicit operator bool() const {
+    return repr_ && repr_->is_object();
+  }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
 
@@ -645,53 +650,50 @@ class Map<Key, std::variant<Ts...>> final : public LSPObject {
 using RegularExpressionEngineKind = std::string;
 
 using NotebookDocumentFilter =
-    std::variant<std::monostate, NotebookDocumentFilterNotebookType,
+    std::variant<NotebookDocumentFilterNotebookType,
                  NotebookDocumentFilterScheme, NotebookDocumentFilterPattern>;
 
 using TextDocumentFilter =
-    std::variant<std::monostate, TextDocumentFilterLanguage,
-                 TextDocumentFilterScheme, TextDocumentFilterPattern>;
+    std::variant<TextDocumentFilterLanguage, TextDocumentFilterScheme,
+                 TextDocumentFilterPattern>;
 
-using GlobPattern = std::variant<std::monostate, Pattern, RelativePattern>;
+using GlobPattern = std::variant<Pattern, RelativePattern>;
 
-using DocumentFilter = std::variant<std::monostate, TextDocumentFilter,
-                                    NotebookCellTextDocumentFilter>;
+using DocumentFilter =
+    std::variant<TextDocumentFilter, NotebookCellTextDocumentFilter>;
 
-using MarkedString =
-    std::variant<std::monostate, std::string, MarkedStringWithLanguage>;
+using MarkedString = std::variant<std::string, MarkedStringWithLanguage>;
 
 using TextDocumentContentChangeEvent =
-    std::variant<std::monostate, TextDocumentContentChangePartial,
+    std::variant<TextDocumentContentChangePartial,
                  TextDocumentContentChangeWholeDocument>;
 
 using WorkspaceDocumentDiagnosticReport =
-    std::variant<std::monostate, WorkspaceFullDocumentDiagnosticReport,
+    std::variant<WorkspaceFullDocumentDiagnosticReport,
                  WorkspaceUnchangedDocumentDiagnosticReport>;
 
 using ChangeAnnotationIdentifier = std::string;
 
-using ProgressToken = std::variant<std::monostate, int, std::string>;
+using ProgressToken = std::variant<int, std::string>;
 
 using DocumentSelector = Vector<DocumentFilter>;
 
 using PrepareRenameResult =
-    std::variant<std::monostate, Range, PrepareRenamePlaceholder,
-                 PrepareRenameDefaultBehavior>;
+    std::variant<Range, PrepareRenamePlaceholder, PrepareRenameDefaultBehavior>;
 
 using DocumentDiagnosticReport =
-    std::variant<std::monostate, RelatedFullDocumentDiagnosticReport,
+    std::variant<RelatedFullDocumentDiagnosticReport,
                  RelatedUnchangedDocumentDiagnosticReport>;
 
-using InlineValue =
-    std::variant<std::monostate, InlineValueText, InlineValueVariableLookup,
-                 InlineValueEvaluatableExpression>;
+using InlineValue = std::variant<InlineValueText, InlineValueVariableLookup,
+                                 InlineValueEvaluatableExpression>;
 
 using DeclarationLink = LocationLink;
 
-using Declaration = std::variant<std::monostate, Location, Vector<Location>>;
+using Declaration = std::variant<Location, Vector<Location>>;
 
 using DefinitionLink = LocationLink;
 
-using Definition = std::variant<std::monostate, Location, Vector<Location>>;
+using Definition = std::variant<Location, Vector<Location>>;
 
 }  // namespace cxx::lsp

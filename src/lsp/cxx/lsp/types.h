@@ -72,15 +72,15 @@ class ImplementationRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> ImplementationRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> ImplementationRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> ImplementationRegistrationOptions&;
@@ -121,15 +121,15 @@ class TypeDefinitionRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> TypeDefinitionRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> TypeDefinitionRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> TypeDefinitionRegistrationOptions&;
@@ -219,15 +219,15 @@ class DocumentColorRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentColorRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentColorRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DocumentColorRegistrationOptions&;
@@ -305,11 +305,11 @@ class TextDocumentRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> TextDocumentRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> TextDocumentRegistrationOptions&;
 };
 
 class FoldingRangeParams final : public LSPObject {
@@ -371,15 +371,15 @@ class FoldingRangeRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> FoldingRangeRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> FoldingRangeRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> FoldingRangeRegistrationOptions&;
@@ -421,7 +421,7 @@ class DeclarationRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
@@ -429,8 +429,8 @@ class DeclarationRegistrationOptions final : public LSPObject {
       -> DeclarationRegistrationOptions&;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DeclarationRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DeclarationRegistrationOptions&;
 
   auto id(std::optional<std::string> id) -> DeclarationRegistrationOptions&;
 };
@@ -485,7 +485,7 @@ class SelectionRangeRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
@@ -493,8 +493,8 @@ class SelectionRangeRegistrationOptions final : public LSPObject {
       -> SelectionRangeRegistrationOptions&;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> SelectionRangeRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> SelectionRangeRegistrationOptions&;
 
   auto id(std::optional<std::string> id) -> SelectionRangeRegistrationOptions&;
 };
@@ -588,15 +588,15 @@ class CallHierarchyRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> CallHierarchyRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> CallHierarchyRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> CallHierarchyRegistrationOptions&;
@@ -731,33 +731,31 @@ class SemanticTokensRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto legend() const -> SemanticTokensLegend;
 
-  [[nodiscard]] auto range() const
-      -> std::optional<std::variant<std::monostate, bool, json>>;
+  [[nodiscard]] auto range() const -> std::optional<std::variant<bool, json>>;
 
-  [[nodiscard]] auto full() const -> std::optional<
-      std::variant<std::monostate, bool, SemanticTokensFullDelta>>;
+  [[nodiscard]] auto full() const
+      -> std::optional<std::variant<bool, SemanticTokensFullDelta>>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> SemanticTokensRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> SemanticTokensRegistrationOptions&;
 
   auto legend(SemanticTokensLegend legend)
       -> SemanticTokensRegistrationOptions&;
 
-  auto range(std::optional<std::variant<std::monostate, bool, json>> range)
+  auto range(std::optional<std::variant<bool, json>> range)
       -> SemanticTokensRegistrationOptions&;
 
-  auto full(
-      std::optional<std::variant<std::monostate, bool, SemanticTokensFullDelta>>
-          full) -> SemanticTokensRegistrationOptions&;
+  auto full(std::optional<std::variant<bool, SemanticTokensFullDelta>> full)
+      -> SemanticTokensRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> SemanticTokensRegistrationOptions&;
@@ -923,15 +921,15 @@ class LinkedEditingRangeRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> LinkedEditingRangeRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> LinkedEditingRangeRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> LinkedEditingRangeRegistrationOptions&;
@@ -960,9 +958,8 @@ class WorkspaceEdit final : public LSPObject {
   [[nodiscard]] auto changes() const
       -> std::optional<Map<std::string, Vector<TextEdit>>>;
 
-  [[nodiscard]] auto
-  documentChanges() const -> std::optional<Vector<std::variant<
-      std::monostate, TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>>;
+  [[nodiscard]] auto documentChanges() const -> std::optional<Vector<
+      std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>>;
 
   [[nodiscard]] auto changeAnnotations() const
       -> std::optional<Map<ChangeAnnotationIdentifier, ChangeAnnotation>>;
@@ -971,8 +968,8 @@ class WorkspaceEdit final : public LSPObject {
       -> WorkspaceEdit&;
 
   auto documentChanges(
-      std::optional<Vector<std::variant<std::monostate, TextDocumentEdit,
-                                        CreateFile, RenameFile, DeleteFile>>>
+      std::optional<Vector<
+          std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>>
           documentChanges) -> WorkspaceEdit&;
 
   auto changeAnnotations(
@@ -1069,13 +1066,13 @@ class MonikerRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> MonikerRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> MonikerRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> MonikerRegistrationOptions&;
@@ -1148,15 +1145,15 @@ class TypeHierarchyRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> TypeHierarchyRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> TypeHierarchyRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> TypeHierarchyRegistrationOptions&;
@@ -1239,7 +1236,7 @@ class InlineValueRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
@@ -1247,8 +1244,8 @@ class InlineValueRegistrationOptions final : public LSPObject {
       -> InlineValueRegistrationOptions&;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> InlineValueRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> InlineValueRegistrationOptions&;
 
   auto id(std::optional<std::string> id) -> InlineValueRegistrationOptions&;
 };
@@ -1282,14 +1279,14 @@ class InlayHint final : public LSPObject {
   [[nodiscard]] auto position() const -> Position;
 
   [[nodiscard]] auto label() const
-      -> std::variant<std::monostate, std::string, Vector<InlayHintLabelPart>>;
+      -> std::variant<std::string, Vector<InlayHintLabelPart>>;
 
   [[nodiscard]] auto kind() const -> std::optional<InlayHintKind>;
 
   [[nodiscard]] auto textEdits() const -> std::optional<Vector<TextEdit>>;
 
-  [[nodiscard]] auto tooltip() const -> std::optional<
-      std::variant<std::monostate, std::string, MarkupContent>>;
+  [[nodiscard]] auto tooltip() const
+      -> std::optional<std::variant<std::string, MarkupContent>>;
 
   [[nodiscard]] auto paddingLeft() const -> std::optional<bool>;
 
@@ -1299,17 +1296,15 @@ class InlayHint final : public LSPObject {
 
   auto position(Position position) -> InlayHint&;
 
-  auto label(
-      std::variant<std::monostate, std::string, Vector<InlayHintLabelPart>>
-          label) -> InlayHint&;
+  auto label(std::variant<std::string, Vector<InlayHintLabelPart>> label)
+      -> InlayHint&;
 
   auto kind(std::optional<InlayHintKind> kind) -> InlayHint&;
 
   auto textEdits(std::optional<Vector<TextEdit>> textEdits) -> InlayHint&;
 
-  auto tooltip(
-      std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-          tooltip) -> InlayHint&;
+  auto tooltip(std::optional<std::variant<std::string, MarkupContent>> tooltip)
+      -> InlayHint&;
 
   auto paddingLeft(std::optional<bool> paddingLeft) -> InlayHint&;
 
@@ -1329,7 +1324,7 @@ class InlayHintRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
@@ -1340,8 +1335,8 @@ class InlayHintRegistrationOptions final : public LSPObject {
       -> InlayHintRegistrationOptions&;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> InlayHintRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> InlayHintRegistrationOptions&;
 
   auto id(std::optional<std::string> id) -> InlayHintRegistrationOptions&;
 };
@@ -1385,14 +1380,12 @@ class DocumentDiagnosticReportPartialResult final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto relatedDocuments() const
-      -> Map<std::string,
-             std::variant<std::monostate, FullDocumentDiagnosticReport,
-                          UnchangedDocumentDiagnosticReport>>;
+      -> Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                       UnchangedDocumentDiagnosticReport>>;
 
   auto relatedDocuments(
-      Map<std::string,
-          std::variant<std::monostate, FullDocumentDiagnosticReport,
-                       UnchangedDocumentDiagnosticReport>>
+      Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                    UnchangedDocumentDiagnosticReport>>
           relatedDocuments) -> DocumentDiagnosticReportPartialResult&;
 };
 
@@ -1415,7 +1408,7 @@ class DiagnosticRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto identifier() const -> std::optional<std::string>;
 
@@ -1428,8 +1421,8 @@ class DiagnosticRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DiagnosticRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DiagnosticRegistrationOptions&;
 
   auto identifier(std::optional<std::string> identifier)
       -> DiagnosticRegistrationOptions&;
@@ -1521,17 +1514,17 @@ class NotebookDocumentSyncRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto notebookSelector() const
-      -> Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+      -> Vector<std::variant<NotebookDocumentFilterWithNotebook,
                              NotebookDocumentFilterWithCells>>;
 
   [[nodiscard]] auto save() const -> std::optional<bool>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
-  auto notebookSelector(
-      Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
-                          NotebookDocumentFilterWithCells>>
-          notebookSelector) -> NotebookDocumentSyncRegistrationOptions&;
+  auto notebookSelector(Vector<std::variant<NotebookDocumentFilterWithNotebook,
+                                            NotebookDocumentFilterWithCells>>
+                            notebookSelector)
+      -> NotebookDocumentSyncRegistrationOptions&;
 
   auto save(std::optional<bool> save)
       -> NotebookDocumentSyncRegistrationOptions&;
@@ -1631,7 +1624,7 @@ class InlineCompletionItem final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto insertText() const
-      -> std::variant<std::monostate, std::string, StringValue>;
+      -> std::variant<std::string, StringValue>;
 
   [[nodiscard]] auto filterText() const -> std::optional<std::string>;
 
@@ -1639,8 +1632,7 @@ class InlineCompletionItem final : public LSPObject {
 
   [[nodiscard]] auto command() const -> std::optional<Command>;
 
-  auto insertText(
-      std::variant<std::monostate, std::string, StringValue> insertText)
+  auto insertText(std::variant<std::string, StringValue> insertText)
       -> InlineCompletionItem&;
 
   auto filterText(std::optional<std::string> filterText)
@@ -1660,7 +1652,7 @@ class InlineCompletionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
@@ -1668,8 +1660,8 @@ class InlineCompletionRegistrationOptions final : public LSPObject {
       -> InlineCompletionRegistrationOptions&;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> InlineCompletionRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> InlineCompletionRegistrationOptions&;
 
   auto id(std::optional<std::string> id)
       -> InlineCompletionRegistrationOptions&;
@@ -1754,18 +1746,17 @@ class InitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto processId() const
-      -> std::variant<std::monostate, int, std::nullptr_t>;
+  [[nodiscard]] auto processId() const -> std::variant<int, std::nullptr_t>;
 
   [[nodiscard]] auto clientInfo() const -> std::optional<ClientInfo>;
 
   [[nodiscard]] auto locale() const -> std::optional<std::string>;
 
-  [[nodiscard]] auto rootPath() const -> std::optional<
-      std::variant<std::monostate, std::string, std::nullptr_t>>;
+  [[nodiscard]] auto rootPath() const
+      -> std::optional<std::variant<std::string, std::nullptr_t>>;
 
   [[nodiscard]] auto rootUri() const
-      -> std::variant<std::monostate, std::string, std::nullptr_t>;
+      -> std::variant<std::string, std::nullptr_t>;
 
   [[nodiscard]] auto capabilities() const -> ClientCapabilities;
 
@@ -1775,10 +1766,10 @@ class InitializeParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
-  [[nodiscard]] auto workspaceFolders() const -> std::optional<
-      std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>>;
+  [[nodiscard]] auto workspaceFolders() const
+      -> std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>;
 
-  auto processId(std::variant<std::monostate, int, std::nullptr_t> processId)
+  auto processId(std::variant<int, std::nullptr_t> processId)
       -> InitializeParams&;
 
   auto clientInfo(std::optional<ClientInfo> clientInfo) -> InitializeParams&;
@@ -1786,11 +1777,10 @@ class InitializeParams final : public LSPObject {
   auto locale(std::optional<std::string> locale) -> InitializeParams&;
 
   auto rootPath(
-      std::optional<std::variant<std::monostate, std::string, std::nullptr_t>>
-          rootPath) -> InitializeParams&;
+      std::optional<std::variant<std::string, std::nullptr_t>> rootPath)
+      -> InitializeParams&;
 
-  auto rootUri(
-      std::variant<std::monostate, std::string, std::nullptr_t> rootUri)
+  auto rootUri(std::variant<std::string, std::nullptr_t> rootUri)
       -> InitializeParams&;
 
   auto capabilities(ClientCapabilities capabilities) -> InitializeParams&;
@@ -1804,8 +1794,7 @@ class InitializeParams final : public LSPObject {
       -> InitializeParams&;
 
   auto workspaceFolders(
-      std::optional<
-          std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>>
+      std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>
           workspaceFolders) -> InitializeParams&;
 };
 
@@ -1859,12 +1848,12 @@ class DidChangeConfigurationRegistrationOptions final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto section() const -> std::optional<
-      std::variant<std::monostate, std::string, Vector<std::string>>>;
+  [[nodiscard]] auto section() const
+      -> std::optional<std::variant<std::string, Vector<std::string>>>;
 
-  auto section(std::optional<
-               std::variant<std::monostate, std::string, Vector<std::string>>>
-                   section) -> DidChangeConfigurationRegistrationOptions&;
+  auto section(
+      std::optional<std::variant<std::string, Vector<std::string>>> section)
+      -> DidChangeConfigurationRegistrationOptions&;
 };
 
 class ShowMessageParams final : public LSPObject {
@@ -1968,14 +1957,14 @@ class TextDocumentChangeRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto syncKind() const -> TextDocumentSyncKind;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   auto syncKind(TextDocumentSyncKind syncKind)
       -> TextDocumentChangeRegistrationOptions&;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> TextDocumentChangeRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> TextDocumentChangeRegistrationOptions&;
 };
 
 class DidCloseTextDocumentParams final : public LSPObject {
@@ -2013,13 +2002,13 @@ class TextDocumentSaveRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto includeText() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> TextDocumentSaveRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> TextDocumentSaveRegistrationOptions&;
 
   auto includeText(std::optional<bool> includeText)
       -> TextDocumentSaveRegistrationOptions&;
@@ -2144,8 +2133,8 @@ class CompletionItem final : public LSPObject {
 
   [[nodiscard]] auto detail() const -> std::optional<std::string>;
 
-  [[nodiscard]] auto documentation() const -> std::optional<
-      std::variant<std::monostate, std::string, MarkupContent>>;
+  [[nodiscard]] auto documentation() const
+      -> std::optional<std::variant<std::string, MarkupContent>>;
 
   [[nodiscard]] auto deprecated() const -> std::optional<bool>;
 
@@ -2162,8 +2151,8 @@ class CompletionItem final : public LSPObject {
 
   [[nodiscard]] auto insertTextMode() const -> std::optional<InsertTextMode>;
 
-  [[nodiscard]] auto textEdit() const -> std::optional<
-      std::variant<std::monostate, TextEdit, InsertReplaceEdit>>;
+  [[nodiscard]] auto textEdit() const
+      -> std::optional<std::variant<TextEdit, InsertReplaceEdit>>;
 
   [[nodiscard]] auto textEditText() const -> std::optional<std::string>;
 
@@ -2189,8 +2178,8 @@ class CompletionItem final : public LSPObject {
   auto detail(std::optional<std::string> detail) -> CompletionItem&;
 
   auto documentation(
-      std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-          documentation) -> CompletionItem&;
+      std::optional<std::variant<std::string, MarkupContent>> documentation)
+      -> CompletionItem&;
 
   auto deprecated(std::optional<bool> deprecated) -> CompletionItem&;
 
@@ -2209,8 +2198,8 @@ class CompletionItem final : public LSPObject {
       -> CompletionItem&;
 
   auto textEdit(
-      std::optional<std::variant<std::monostate, TextEdit, InsertReplaceEdit>>
-          textEdit) -> CompletionItem&;
+      std::optional<std::variant<TextEdit, InsertReplaceEdit>> textEdit)
+      -> CompletionItem&;
 
   auto textEditText(std::optional<std::string> textEditText) -> CompletionItem&;
 
@@ -2259,7 +2248,7 @@ class CompletionRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto triggerCharacters() const
       -> std::optional<Vector<std::string>>;
@@ -2275,8 +2264,8 @@ class CompletionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> CompletionRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> CompletionRegistrationOptions&;
 
   auto triggerCharacters(std::optional<Vector<std::string>> triggerCharacters)
       -> CompletionRegistrationOptions&;
@@ -2322,14 +2311,13 @@ class Hover final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto contents() const
-      -> std::variant<std::monostate, MarkupContent, MarkedString,
-                      Vector<MarkedString>>;
+      -> std::variant<MarkupContent, MarkedString, Vector<MarkedString>>;
 
   [[nodiscard]] auto range() const -> std::optional<Range>;
 
-  auto contents(std::variant<std::monostate, MarkupContent, MarkedString,
-                             Vector<MarkedString>>
-                    contents) -> Hover&;
+  auto contents(
+      std::variant<MarkupContent, MarkedString, Vector<MarkedString>> contents)
+      -> Hover&;
 
   auto range(std::optional<Range> range) -> Hover&;
 };
@@ -2341,13 +2329,13 @@ class HoverRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> HoverRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> HoverRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> HoverRegistrationOptions&;
@@ -2390,15 +2378,15 @@ class SignatureHelp final : public LSPObject {
   [[nodiscard]] auto activeSignature() const -> std::optional<long>;
 
   [[nodiscard]] auto activeParameter() const
-      -> std::optional<std::variant<std::monostate, long, std::nullptr_t>>;
+      -> std::optional<std::variant<long, std::nullptr_t>>;
 
   auto signatures(Vector<SignatureInformation> signatures) -> SignatureHelp&;
 
   auto activeSignature(std::optional<long> activeSignature) -> SignatureHelp&;
 
   auto activeParameter(
-      std::optional<std::variant<std::monostate, long, std::nullptr_t>>
-          activeParameter) -> SignatureHelp&;
+      std::optional<std::variant<long, std::nullptr_t>> activeParameter)
+      -> SignatureHelp&;
 };
 
 class SignatureHelpRegistrationOptions final : public LSPObject {
@@ -2408,7 +2396,7 @@ class SignatureHelpRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto triggerCharacters() const
       -> std::optional<Vector<std::string>>;
@@ -2419,8 +2407,8 @@ class SignatureHelpRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> SignatureHelpRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> SignatureHelpRegistrationOptions&;
 
   auto triggerCharacters(std::optional<Vector<std::string>> triggerCharacters)
       -> SignatureHelpRegistrationOptions&;
@@ -2465,13 +2453,13 @@ class DefinitionRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DefinitionRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DefinitionRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DefinitionRegistrationOptions&;
@@ -2513,13 +2501,13 @@ class ReferenceRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> ReferenceRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> ReferenceRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> ReferenceRegistrationOptions&;
@@ -2573,13 +2561,13 @@ class DocumentHighlightRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentHighlightRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentHighlightRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DocumentHighlightRegistrationOptions&;
@@ -2686,15 +2674,15 @@ class DocumentSymbolRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto label() const -> std::optional<std::string>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentSymbolRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentSymbolRegistrationOptions&;
 
   auto label(std::optional<std::string> label)
       -> DocumentSymbolRegistrationOptions&;
@@ -2806,7 +2794,7 @@ class CodeActionRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto codeActionKinds() const
       -> std::optional<Vector<CodeActionKind>>;
@@ -2819,8 +2807,8 @@ class CodeActionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> CodeActionRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> CodeActionRegistrationOptions&;
 
   auto codeActionKinds(std::optional<Vector<CodeActionKind>> codeActionKinds)
       -> CodeActionRegistrationOptions&;
@@ -2864,7 +2852,7 @@ class WorkspaceSymbol final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto location() const
-      -> std::variant<std::monostate, Location, LocationUriOnly>;
+      -> std::variant<Location, LocationUriOnly>;
 
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
 
@@ -2876,8 +2864,7 @@ class WorkspaceSymbol final : public LSPObject {
 
   [[nodiscard]] auto containerName() const -> std::optional<std::string>;
 
-  auto location(
-      std::variant<std::monostate, Location, LocationUriOnly> location)
+  auto location(std::variant<Location, LocationUriOnly> location)
       -> WorkspaceSymbol&;
 
   auto data(std::optional<LSPAny> data) -> WorkspaceSymbol&;
@@ -2956,15 +2943,15 @@ class CodeLensRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> CodeLensRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> CodeLensRegistrationOptions&;
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> CodeLensRegistrationOptions&;
@@ -3024,15 +3011,15 @@ class DocumentLinkRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentLinkRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentLinkRegistrationOptions&;
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> DocumentLinkRegistrationOptions&;
@@ -3069,13 +3056,13 @@ class DocumentFormattingRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentFormattingRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentFormattingRegistrationOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DocumentFormattingRegistrationOptions&;
@@ -3113,15 +3100,15 @@ class DocumentRangeFormattingRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto rangesSupport() const -> std::optional<bool>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentRangeFormattingRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentRangeFormattingRegistrationOptions&;
 
   auto rangesSupport(std::optional<bool> rangesSupport)
       -> DocumentRangeFormattingRegistrationOptions&;
@@ -3186,7 +3173,7 @@ class DocumentOnTypeFormattingRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto firstTriggerCharacter() const -> std::string;
 
@@ -3194,8 +3181,8 @@ class DocumentOnTypeFormattingRegistrationOptions final : public LSPObject {
       -> std::optional<Vector<std::string>>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> DocumentOnTypeFormattingRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> DocumentOnTypeFormattingRegistrationOptions&;
 
   auto firstTriggerCharacter(std::string firstTriggerCharacter)
       -> DocumentOnTypeFormattingRegistrationOptions&;
@@ -3236,15 +3223,15 @@ class RenameRegistrationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto documentSelector() const
-      -> std::variant<std::monostate, DocumentSelector, std::nullptr_t>;
+      -> std::variant<DocumentSelector, std::nullptr_t>;
 
   [[nodiscard]] auto prepareProvider() const -> std::optional<bool>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto documentSelector(
-      std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-          documentSelector) -> RenameRegistrationOptions&;
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> RenameRegistrationOptions&;
 
   auto prepareProvider(std::optional<bool> prepareProvider)
       -> RenameRegistrationOptions&;
@@ -3450,10 +3437,9 @@ class CancelParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto id() const
-      -> std::variant<std::monostate, int, std::string>;
+  [[nodiscard]] auto id() const -> std::variant<int, std::string>;
 
-  auto id(std::variant<std::monostate, int, std::string> id) -> CancelParams&;
+  auto id(std::variant<int, std::string> id) -> CancelParams&;
 };
 
 class ProgressParams final : public LSPObject {
@@ -3732,22 +3718,20 @@ class SemanticTokensOptions final : public LSPObject {
 
   [[nodiscard]] auto legend() const -> SemanticTokensLegend;
 
-  [[nodiscard]] auto range() const
-      -> std::optional<std::variant<std::monostate, bool, json>>;
+  [[nodiscard]] auto range() const -> std::optional<std::variant<bool, json>>;
 
-  [[nodiscard]] auto full() const -> std::optional<
-      std::variant<std::monostate, bool, SemanticTokensFullDelta>>;
+  [[nodiscard]] auto full() const
+      -> std::optional<std::variant<bool, SemanticTokensFullDelta>>;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
   auto legend(SemanticTokensLegend legend) -> SemanticTokensOptions&;
 
-  auto range(std::optional<std::variant<std::monostate, bool, json>> range)
+  auto range(std::optional<std::variant<bool, json>> range)
       -> SemanticTokensOptions&;
 
-  auto full(
-      std::optional<std::variant<std::monostate, bool, SemanticTokensFullDelta>>
-          full) -> SemanticTokensOptions&;
+  auto full(std::optional<std::variant<bool, SemanticTokensFullDelta>> full)
+      -> SemanticTokensOptions&;
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> SemanticTokensOptions&;
@@ -3805,15 +3789,14 @@ class TextDocumentEdit final : public LSPObject {
       -> OptionalVersionedTextDocumentIdentifier;
 
   [[nodiscard]] auto edits() const
-      -> Vector<std::variant<std::monostate, TextEdit, AnnotatedTextEdit,
-                             SnippetTextEdit>>;
+      -> Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>>;
 
   auto textDocument(OptionalVersionedTextDocumentIdentifier textDocument)
       -> TextDocumentEdit&;
 
-  auto edits(Vector<std::variant<std::monostate, TextEdit, AnnotatedTextEdit,
-                                 SnippetTextEdit>>
-                 edits) -> TextDocumentEdit&;
+  auto edits(
+      Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>> edits)
+      -> TextDocumentEdit&;
 };
 
 class CreateFile final : public LSPObject {
@@ -4067,8 +4050,8 @@ class InlayHintLabelPart final : public LSPObject {
 
   [[nodiscard]] auto value() const -> std::string;
 
-  [[nodiscard]] auto tooltip() const -> std::optional<
-      std::variant<std::monostate, std::string, MarkupContent>>;
+  [[nodiscard]] auto tooltip() const
+      -> std::optional<std::variant<std::string, MarkupContent>>;
 
   [[nodiscard]] auto location() const -> std::optional<Location>;
 
@@ -4076,9 +4059,8 @@ class InlayHintLabelPart final : public LSPObject {
 
   auto value(std::string value) -> InlayHintLabelPart&;
 
-  auto tooltip(
-      std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-          tooltip) -> InlayHintLabelPart&;
+  auto tooltip(std::optional<std::variant<std::string, MarkupContent>> tooltip)
+      -> InlayHintLabelPart&;
 
   auto location(std::optional<Location> location) -> InlayHintLabelPart&;
 
@@ -4123,9 +4105,9 @@ class RelatedFullDocumentDiagnosticReport final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto relatedDocuments() const -> std::optional<Map<
-      std::string, std::variant<std::monostate, FullDocumentDiagnosticReport,
-                                UnchangedDocumentDiagnosticReport>>>;
+  [[nodiscard]] auto relatedDocuments() const -> std::optional<
+      Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                    UnchangedDocumentDiagnosticReport>>>;
 
   [[nodiscard]] auto kind() const -> std::string;
 
@@ -4135,9 +4117,8 @@ class RelatedFullDocumentDiagnosticReport final : public LSPObject {
 
   auto relatedDocuments(
       std::optional<
-          Map<std::string,
-              std::variant<std::monostate, FullDocumentDiagnosticReport,
-                           UnchangedDocumentDiagnosticReport>>>
+          Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                        UnchangedDocumentDiagnosticReport>>>
           relatedDocuments) -> RelatedFullDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> RelatedFullDocumentDiagnosticReport&;
@@ -4154,9 +4135,9 @@ class RelatedUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto relatedDocuments() const -> std::optional<Map<
-      std::string, std::variant<std::monostate, FullDocumentDiagnosticReport,
-                                UnchangedDocumentDiagnosticReport>>>;
+  [[nodiscard]] auto relatedDocuments() const -> std::optional<
+      Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                    UnchangedDocumentDiagnosticReport>>>;
 
   [[nodiscard]] auto kind() const -> std::string;
 
@@ -4164,9 +4145,8 @@ class RelatedUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   auto relatedDocuments(
       std::optional<
-          Map<std::string,
-              std::variant<std::monostate, FullDocumentDiagnosticReport,
-                           UnchangedDocumentDiagnosticReport>>>
+          Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                        UnchangedDocumentDiagnosticReport>>>
           relatedDocuments) -> RelatedUnchangedDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> RelatedUnchangedDocumentDiagnosticReport&;
@@ -4306,15 +4286,14 @@ class NotebookDocumentSyncOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto notebookSelector() const
-      -> Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+      -> Vector<std::variant<NotebookDocumentFilterWithNotebook,
                              NotebookDocumentFilterWithCells>>;
 
   [[nodiscard]] auto save() const -> std::optional<bool>;
 
-  auto notebookSelector(
-      Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
-                          NotebookDocumentFilterWithCells>>
-          notebookSelector) -> NotebookDocumentSyncOptions&;
+  auto notebookSelector(Vector<std::variant<NotebookDocumentFilterWithNotebook,
+                                            NotebookDocumentFilterWithCells>>
+                            notebookSelector) -> NotebookDocumentSyncOptions&;
 
   auto save(std::optional<bool> save) -> NotebookDocumentSyncOptions&;
 };
@@ -4460,18 +4439,17 @@ class _InitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto processId() const
-      -> std::variant<std::monostate, int, std::nullptr_t>;
+  [[nodiscard]] auto processId() const -> std::variant<int, std::nullptr_t>;
 
   [[nodiscard]] auto clientInfo() const -> std::optional<ClientInfo>;
 
   [[nodiscard]] auto locale() const -> std::optional<std::string>;
 
-  [[nodiscard]] auto rootPath() const -> std::optional<
-      std::variant<std::monostate, std::string, std::nullptr_t>>;
+  [[nodiscard]] auto rootPath() const
+      -> std::optional<std::variant<std::string, std::nullptr_t>>;
 
   [[nodiscard]] auto rootUri() const
-      -> std::variant<std::monostate, std::string, std::nullptr_t>;
+      -> std::variant<std::string, std::nullptr_t>;
 
   [[nodiscard]] auto capabilities() const -> ClientCapabilities;
 
@@ -4481,7 +4459,7 @@ class _InitializeParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
-  auto processId(std::variant<std::monostate, int, std::nullptr_t> processId)
+  auto processId(std::variant<int, std::nullptr_t> processId)
       -> _InitializeParams&;
 
   auto clientInfo(std::optional<ClientInfo> clientInfo) -> _InitializeParams&;
@@ -4489,11 +4467,10 @@ class _InitializeParams final : public LSPObject {
   auto locale(std::optional<std::string> locale) -> _InitializeParams&;
 
   auto rootPath(
-      std::optional<std::variant<std::monostate, std::string, std::nullptr_t>>
-          rootPath) -> _InitializeParams&;
+      std::optional<std::variant<std::string, std::nullptr_t>> rootPath)
+      -> _InitializeParams&;
 
-  auto rootUri(
-      std::variant<std::monostate, std::string, std::nullptr_t> rootUri)
+  auto rootUri(std::variant<std::string, std::nullptr_t> rootUri)
       -> _InitializeParams&;
 
   auto capabilities(ClientCapabilities capabilities) -> _InitializeParams&;
@@ -4513,12 +4490,11 @@ class WorkspaceFoldersInitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto workspaceFolders() const -> std::optional<
-      std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>>;
+  [[nodiscard]] auto workspaceFolders() const
+      -> std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>;
 
   auto workspaceFolders(
-      std::optional<
-          std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>>
+      std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>
           workspaceFolders) -> WorkspaceFoldersInitializeParams&;
 };
 
@@ -4531,49 +4507,47 @@ class ServerCapabilities final : public LSPObject {
   [[nodiscard]] auto positionEncoding() const
       -> std::optional<PositionEncodingKind>;
 
-  [[nodiscard]] auto textDocumentSync() const
-      -> std::optional<std::variant<std::monostate, TextDocumentSyncOptions,
-                                    TextDocumentSyncKind>>;
+  [[nodiscard]] auto textDocumentSync() const -> std::optional<
+      std::variant<TextDocumentSyncOptions, TextDocumentSyncKind>>;
 
   [[nodiscard]] auto notebookDocumentSync() const
-      -> std::optional<std::variant<std::monostate, NotebookDocumentSyncOptions,
+      -> std::optional<std::variant<NotebookDocumentSyncOptions,
                                     NotebookDocumentSyncRegistrationOptions>>;
 
   [[nodiscard]] auto completionProvider() const
       -> std::optional<CompletionOptions>;
 
   [[nodiscard]] auto hoverProvider() const
-      -> std::optional<std::variant<std::monostate, bool, HoverOptions>>;
+      -> std::optional<std::variant<bool, HoverOptions>>;
 
   [[nodiscard]] auto signatureHelpProvider() const
       -> std::optional<SignatureHelpOptions>;
 
-  [[nodiscard]] auto declarationProvider() const
-      -> std::optional<std::variant<std::monostate, bool, DeclarationOptions,
-                                    DeclarationRegistrationOptions>>;
+  [[nodiscard]] auto declarationProvider() const -> std::optional<
+      std::variant<bool, DeclarationOptions, DeclarationRegistrationOptions>>;
 
   [[nodiscard]] auto definitionProvider() const
-      -> std::optional<std::variant<std::monostate, bool, DefinitionOptions>>;
+      -> std::optional<std::variant<bool, DefinitionOptions>>;
 
   [[nodiscard]] auto typeDefinitionProvider() const
-      -> std::optional<std::variant<std::monostate, bool, TypeDefinitionOptions,
+      -> std::optional<std::variant<bool, TypeDefinitionOptions,
                                     TypeDefinitionRegistrationOptions>>;
 
   [[nodiscard]] auto implementationProvider() const
-      -> std::optional<std::variant<std::monostate, bool, ImplementationOptions,
+      -> std::optional<std::variant<bool, ImplementationOptions,
                                     ImplementationRegistrationOptions>>;
 
   [[nodiscard]] auto referencesProvider() const
-      -> std::optional<std::variant<std::monostate, bool, ReferenceOptions>>;
+      -> std::optional<std::variant<bool, ReferenceOptions>>;
 
-  [[nodiscard]] auto documentHighlightProvider() const -> std::optional<
-      std::variant<std::monostate, bool, DocumentHighlightOptions>>;
+  [[nodiscard]] auto documentHighlightProvider() const
+      -> std::optional<std::variant<bool, DocumentHighlightOptions>>;
 
-  [[nodiscard]] auto documentSymbolProvider() const -> std::optional<
-      std::variant<std::monostate, bool, DocumentSymbolOptions>>;
+  [[nodiscard]] auto documentSymbolProvider() const
+      -> std::optional<std::variant<bool, DocumentSymbolOptions>>;
 
   [[nodiscard]] auto codeActionProvider() const
-      -> std::optional<std::variant<std::monostate, bool, CodeActionOptions>>;
+      -> std::optional<std::variant<bool, CodeActionOptions>>;
 
   [[nodiscard]] auto codeLensProvider() const -> std::optional<CodeLensOptions>;
 
@@ -4581,69 +4555,63 @@ class ServerCapabilities final : public LSPObject {
       -> std::optional<DocumentLinkOptions>;
 
   [[nodiscard]] auto colorProvider() const
-      -> std::optional<std::variant<std::monostate, bool, DocumentColorOptions,
+      -> std::optional<std::variant<bool, DocumentColorOptions,
                                     DocumentColorRegistrationOptions>>;
 
-  [[nodiscard]] auto workspaceSymbolProvider() const -> std::optional<
-      std::variant<std::monostate, bool, WorkspaceSymbolOptions>>;
+  [[nodiscard]] auto workspaceSymbolProvider() const
+      -> std::optional<std::variant<bool, WorkspaceSymbolOptions>>;
 
-  [[nodiscard]] auto documentFormattingProvider() const -> std::optional<
-      std::variant<std::monostate, bool, DocumentFormattingOptions>>;
+  [[nodiscard]] auto documentFormattingProvider() const
+      -> std::optional<std::variant<bool, DocumentFormattingOptions>>;
 
-  [[nodiscard]] auto documentRangeFormattingProvider() const -> std::optional<
-      std::variant<std::monostate, bool, DocumentRangeFormattingOptions>>;
+  [[nodiscard]] auto documentRangeFormattingProvider() const
+      -> std::optional<std::variant<bool, DocumentRangeFormattingOptions>>;
 
   [[nodiscard]] auto documentOnTypeFormattingProvider() const
       -> std::optional<DocumentOnTypeFormattingOptions>;
 
   [[nodiscard]] auto renameProvider() const
-      -> std::optional<std::variant<std::monostate, bool, RenameOptions>>;
+      -> std::optional<std::variant<bool, RenameOptions>>;
 
-  [[nodiscard]] auto foldingRangeProvider() const
-      -> std::optional<std::variant<std::monostate, bool, FoldingRangeOptions,
-                                    FoldingRangeRegistrationOptions>>;
+  [[nodiscard]] auto foldingRangeProvider() const -> std::optional<
+      std::variant<bool, FoldingRangeOptions, FoldingRangeRegistrationOptions>>;
 
   [[nodiscard]] auto selectionRangeProvider() const
-      -> std::optional<std::variant<std::monostate, bool, SelectionRangeOptions,
+      -> std::optional<std::variant<bool, SelectionRangeOptions,
                                     SelectionRangeRegistrationOptions>>;
 
   [[nodiscard]] auto executeCommandProvider() const
       -> std::optional<ExecuteCommandOptions>;
 
   [[nodiscard]] auto callHierarchyProvider() const
-      -> std::optional<std::variant<std::monostate, bool, CallHierarchyOptions,
+      -> std::optional<std::variant<bool, CallHierarchyOptions,
                                     CallHierarchyRegistrationOptions>>;
 
-  [[nodiscard]] auto linkedEditingRangeProvider() const -> std::optional<
-      std::variant<std::monostate, bool, LinkedEditingRangeOptions,
-                   LinkedEditingRangeRegistrationOptions>>;
+  [[nodiscard]] auto linkedEditingRangeProvider() const
+      -> std::optional<std::variant<bool, LinkedEditingRangeOptions,
+                                    LinkedEditingRangeRegistrationOptions>>;
 
-  [[nodiscard]] auto semanticTokensProvider() const
-      -> std::optional<std::variant<std::monostate, SemanticTokensOptions,
-                                    SemanticTokensRegistrationOptions>>;
+  [[nodiscard]] auto semanticTokensProvider() const -> std::optional<
+      std::variant<SemanticTokensOptions, SemanticTokensRegistrationOptions>>;
 
-  [[nodiscard]] auto monikerProvider() const
-      -> std::optional<std::variant<std::monostate, bool, MonikerOptions,
-                                    MonikerRegistrationOptions>>;
+  [[nodiscard]] auto monikerProvider() const -> std::optional<
+      std::variant<bool, MonikerOptions, MonikerRegistrationOptions>>;
 
   [[nodiscard]] auto typeHierarchyProvider() const
-      -> std::optional<std::variant<std::monostate, bool, TypeHierarchyOptions,
+      -> std::optional<std::variant<bool, TypeHierarchyOptions,
                                     TypeHierarchyRegistrationOptions>>;
 
-  [[nodiscard]] auto inlineValueProvider() const
-      -> std::optional<std::variant<std::monostate, bool, InlineValueOptions,
-                                    InlineValueRegistrationOptions>>;
+  [[nodiscard]] auto inlineValueProvider() const -> std::optional<
+      std::variant<bool, InlineValueOptions, InlineValueRegistrationOptions>>;
 
-  [[nodiscard]] auto inlayHintProvider() const
-      -> std::optional<std::variant<std::monostate, bool, InlayHintOptions,
-                                    InlayHintRegistrationOptions>>;
+  [[nodiscard]] auto inlayHintProvider() const -> std::optional<
+      std::variant<bool, InlayHintOptions, InlayHintRegistrationOptions>>;
 
-  [[nodiscard]] auto diagnosticProvider() const
-      -> std::optional<std::variant<std::monostate, DiagnosticOptions,
-                                    DiagnosticRegistrationOptions>>;
+  [[nodiscard]] auto diagnosticProvider() const -> std::optional<
+      std::variant<DiagnosticOptions, DiagnosticRegistrationOptions>>;
 
-  [[nodiscard]] auto inlineCompletionProvider() const -> std::optional<
-      std::variant<std::monostate, bool, InlineCompletionOptions>>;
+  [[nodiscard]] auto inlineCompletionProvider() const
+      -> std::optional<std::variant<bool, InlineCompletionOptions>>;
 
   [[nodiscard]] auto workspace() const -> std::optional<WorkspaceOptions>;
 
@@ -4653,12 +4621,11 @@ class ServerCapabilities final : public LSPObject {
       -> ServerCapabilities&;
 
   auto textDocumentSync(
-      std::optional<std::variant<std::monostate, TextDocumentSyncOptions,
-                                 TextDocumentSyncKind>>
+      std::optional<std::variant<TextDocumentSyncOptions, TextDocumentSyncKind>>
           textDocumentSync) -> ServerCapabilities&;
 
   auto notebookDocumentSync(
-      std::optional<std::variant<std::monostate, NotebookDocumentSyncOptions,
+      std::optional<std::variant<NotebookDocumentSyncOptions,
                                  NotebookDocumentSyncRegistrationOptions>>
           notebookDocumentSync) -> ServerCapabilities&;
 
@@ -4666,48 +4633,47 @@ class ServerCapabilities final : public LSPObject {
       -> ServerCapabilities&;
 
   auto hoverProvider(
-      std::optional<std::variant<std::monostate, bool, HoverOptions>>
-          hoverProvider) -> ServerCapabilities&;
+      std::optional<std::variant<bool, HoverOptions>> hoverProvider)
+      -> ServerCapabilities&;
 
   auto signatureHelpProvider(
       std::optional<SignatureHelpOptions> signatureHelpProvider)
       -> ServerCapabilities&;
 
   auto declarationProvider(
-      std::optional<std::variant<std::monostate, bool, DeclarationOptions,
+      std::optional<std::variant<bool, DeclarationOptions,
                                  DeclarationRegistrationOptions>>
           declarationProvider) -> ServerCapabilities&;
 
   auto definitionProvider(
-      std::optional<std::variant<std::monostate, bool, DefinitionOptions>>
-          definitionProvider) -> ServerCapabilities&;
+      std::optional<std::variant<bool, DefinitionOptions>> definitionProvider)
+      -> ServerCapabilities&;
 
   auto typeDefinitionProvider(
-      std::optional<std::variant<std::monostate, bool, TypeDefinitionOptions,
+      std::optional<std::variant<bool, TypeDefinitionOptions,
                                  TypeDefinitionRegistrationOptions>>
           typeDefinitionProvider) -> ServerCapabilities&;
 
   auto implementationProvider(
-      std::optional<std::variant<std::monostate, bool, ImplementationOptions,
+      std::optional<std::variant<bool, ImplementationOptions,
                                  ImplementationRegistrationOptions>>
           implementationProvider) -> ServerCapabilities&;
 
   auto referencesProvider(
-      std::optional<std::variant<std::monostate, bool, ReferenceOptions>>
-          referencesProvider) -> ServerCapabilities&;
+      std::optional<std::variant<bool, ReferenceOptions>> referencesProvider)
+      -> ServerCapabilities&;
 
   auto documentHighlightProvider(
-      std::optional<
-          std::variant<std::monostate, bool, DocumentHighlightOptions>>
+      std::optional<std::variant<bool, DocumentHighlightOptions>>
           documentHighlightProvider) -> ServerCapabilities&;
 
   auto documentSymbolProvider(
-      std::optional<std::variant<std::monostate, bool, DocumentSymbolOptions>>
+      std::optional<std::variant<bool, DocumentSymbolOptions>>
           documentSymbolProvider) -> ServerCapabilities&;
 
   auto codeActionProvider(
-      std::optional<std::variant<std::monostate, bool, CodeActionOptions>>
-          codeActionProvider) -> ServerCapabilities&;
+      std::optional<std::variant<bool, CodeActionOptions>> codeActionProvider)
+      -> ServerCapabilities&;
 
   auto codeLensProvider(std::optional<CodeLensOptions> codeLensProvider)
       -> ServerCapabilities&;
@@ -4717,22 +4683,20 @@ class ServerCapabilities final : public LSPObject {
       -> ServerCapabilities&;
 
   auto colorProvider(
-      std::optional<std::variant<std::monostate, bool, DocumentColorOptions,
+      std::optional<std::variant<bool, DocumentColorOptions,
                                  DocumentColorRegistrationOptions>>
           colorProvider) -> ServerCapabilities&;
 
   auto workspaceSymbolProvider(
-      std::optional<std::variant<std::monostate, bool, WorkspaceSymbolOptions>>
+      std::optional<std::variant<bool, WorkspaceSymbolOptions>>
           workspaceSymbolProvider) -> ServerCapabilities&;
 
   auto documentFormattingProvider(
-      std::optional<
-          std::variant<std::monostate, bool, DocumentFormattingOptions>>
+      std::optional<std::variant<bool, DocumentFormattingOptions>>
           documentFormattingProvider) -> ServerCapabilities&;
 
   auto documentRangeFormattingProvider(
-      std::optional<
-          std::variant<std::monostate, bool, DocumentRangeFormattingOptions>>
+      std::optional<std::variant<bool, DocumentRangeFormattingOptions>>
           documentRangeFormattingProvider) -> ServerCapabilities&;
 
   auto documentOnTypeFormattingProvider(
@@ -4740,16 +4704,16 @@ class ServerCapabilities final : public LSPObject {
           documentOnTypeFormattingProvider) -> ServerCapabilities&;
 
   auto renameProvider(
-      std::optional<std::variant<std::monostate, bool, RenameOptions>>
-          renameProvider) -> ServerCapabilities&;
+      std::optional<std::variant<bool, RenameOptions>> renameProvider)
+      -> ServerCapabilities&;
 
   auto foldingRangeProvider(
-      std::optional<std::variant<std::monostate, bool, FoldingRangeOptions,
+      std::optional<std::variant<bool, FoldingRangeOptions,
                                  FoldingRangeRegistrationOptions>>
           foldingRangeProvider) -> ServerCapabilities&;
 
   auto selectionRangeProvider(
-      std::optional<std::variant<std::monostate, bool, SelectionRangeOptions,
+      std::optional<std::variant<bool, SelectionRangeOptions,
                                  SelectionRangeRegistrationOptions>>
           selectionRangeProvider) -> ServerCapabilities&;
 
@@ -4758,48 +4722,47 @@ class ServerCapabilities final : public LSPObject {
       -> ServerCapabilities&;
 
   auto callHierarchyProvider(
-      std::optional<std::variant<std::monostate, bool, CallHierarchyOptions,
+      std::optional<std::variant<bool, CallHierarchyOptions,
                                  CallHierarchyRegistrationOptions>>
           callHierarchyProvider) -> ServerCapabilities&;
 
   auto linkedEditingRangeProvider(
-      std::optional<
-          std::variant<std::monostate, bool, LinkedEditingRangeOptions,
-                       LinkedEditingRangeRegistrationOptions>>
+      std::optional<std::variant<bool, LinkedEditingRangeOptions,
+                                 LinkedEditingRangeRegistrationOptions>>
           linkedEditingRangeProvider) -> ServerCapabilities&;
 
   auto semanticTokensProvider(
-      std::optional<std::variant<std::monostate, SemanticTokensOptions,
+      std::optional<std::variant<SemanticTokensOptions,
                                  SemanticTokensRegistrationOptions>>
           semanticTokensProvider) -> ServerCapabilities&;
 
   auto monikerProvider(
-      std::optional<std::variant<std::monostate, bool, MonikerOptions,
-                                 MonikerRegistrationOptions>>
+      std::optional<
+          std::variant<bool, MonikerOptions, MonikerRegistrationOptions>>
           monikerProvider) -> ServerCapabilities&;
 
   auto typeHierarchyProvider(
-      std::optional<std::variant<std::monostate, bool, TypeHierarchyOptions,
+      std::optional<std::variant<bool, TypeHierarchyOptions,
                                  TypeHierarchyRegistrationOptions>>
           typeHierarchyProvider) -> ServerCapabilities&;
 
   auto inlineValueProvider(
-      std::optional<std::variant<std::monostate, bool, InlineValueOptions,
+      std::optional<std::variant<bool, InlineValueOptions,
                                  InlineValueRegistrationOptions>>
           inlineValueProvider) -> ServerCapabilities&;
 
   auto inlayHintProvider(
-      std::optional<std::variant<std::monostate, bool, InlayHintOptions,
-                                 InlayHintRegistrationOptions>>
+      std::optional<
+          std::variant<bool, InlayHintOptions, InlayHintRegistrationOptions>>
           inlayHintProvider) -> ServerCapabilities&;
 
   auto diagnosticProvider(
-      std::optional<std::variant<std::monostate, DiagnosticOptions,
-                                 DiagnosticRegistrationOptions>>
+      std::optional<
+          std::variant<DiagnosticOptions, DiagnosticRegistrationOptions>>
           diagnosticProvider) -> ServerCapabilities&;
 
   auto inlineCompletionProvider(
-      std::optional<std::variant<std::monostate, bool, InlineCompletionOptions>>
+      std::optional<std::variant<bool, InlineCompletionOptions>>
           inlineCompletionProvider) -> ServerCapabilities&;
 
   auto workspace(std::optional<WorkspaceOptions> workspace)
@@ -4890,7 +4853,7 @@ class Diagnostic final : public LSPObject {
   [[nodiscard]] auto severity() const -> std::optional<DiagnosticSeverity>;
 
   [[nodiscard]] auto code() const
-      -> std::optional<std::variant<std::monostate, int, std::string>>;
+      -> std::optional<std::variant<int, std::string>>;
 
   [[nodiscard]] auto codeDescription() const -> std::optional<CodeDescription>;
 
@@ -4909,8 +4872,7 @@ class Diagnostic final : public LSPObject {
 
   auto severity(std::optional<DiagnosticSeverity> severity) -> Diagnostic&;
 
-  auto code(std::optional<std::variant<std::monostate, int, std::string>> code)
-      -> Diagnostic&;
+  auto code(std::optional<std::variant<int, std::string>> code) -> Diagnostic&;
 
   auto codeDescription(std::optional<CodeDescription> codeDescription)
       -> Diagnostic&;
@@ -4988,8 +4950,8 @@ class CompletionItemDefaults final : public LSPObject {
   [[nodiscard]] auto commitCharacters() const
       -> std::optional<Vector<std::string>>;
 
-  [[nodiscard]] auto editRange() const -> std::optional<
-      std::variant<std::monostate, Range, EditRangeWithInsertReplace>>;
+  [[nodiscard]] auto editRange() const
+      -> std::optional<std::variant<Range, EditRangeWithInsertReplace>>;
 
   [[nodiscard]] auto insertTextFormat() const
       -> std::optional<InsertTextFormat>;
@@ -5002,9 +4964,8 @@ class CompletionItemDefaults final : public LSPObject {
       -> CompletionItemDefaults&;
 
   auto editRange(
-      std::optional<
-          std::variant<std::monostate, Range, EditRangeWithInsertReplace>>
-          editRange) -> CompletionItemDefaults&;
+      std::optional<std::variant<Range, EditRangeWithInsertReplace>> editRange)
+      -> CompletionItemDefaults&;
 
   auto insertTextFormat(std::optional<InsertTextFormat> insertTextFormat)
       -> CompletionItemDefaults&;
@@ -5113,27 +5074,27 @@ class SignatureInformation final : public LSPObject {
 
   [[nodiscard]] auto label() const -> std::string;
 
-  [[nodiscard]] auto documentation() const -> std::optional<
-      std::variant<std::monostate, std::string, MarkupContent>>;
+  [[nodiscard]] auto documentation() const
+      -> std::optional<std::variant<std::string, MarkupContent>>;
 
   [[nodiscard]] auto parameters() const
       -> std::optional<Vector<ParameterInformation>>;
 
   [[nodiscard]] auto activeParameter() const
-      -> std::optional<std::variant<std::monostate, long, std::nullptr_t>>;
+      -> std::optional<std::variant<long, std::nullptr_t>>;
 
   auto label(std::string label) -> SignatureInformation&;
 
   auto documentation(
-      std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-          documentation) -> SignatureInformation&;
+      std::optional<std::variant<std::string, MarkupContent>> documentation)
+      -> SignatureInformation&;
 
   auto parameters(std::optional<Vector<ParameterInformation>> parameters)
       -> SignatureInformation&;
 
   auto activeParameter(
-      std::optional<std::variant<std::monostate, long, std::nullptr_t>>
-          activeParameter) -> SignatureInformation&;
+      std::optional<std::variant<long, std::nullptr_t>> activeParameter)
+      -> SignatureInformation&;
 };
 
 class SignatureHelpOptions final : public LSPObject {
@@ -5551,12 +5512,11 @@ class OptionalVersionedTextDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const
-      -> std::variant<std::monostate, int, std::nullptr_t>;
+  [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(std::variant<std::monostate, int, std::nullptr_t> version)
+  auto version(std::variant<int, std::nullptr_t> version)
       -> OptionalVersionedTextDocumentIdentifier&;
 
   auto uri(std::string uri) -> OptionalVersionedTextDocumentIdentifier&;
@@ -5696,8 +5656,7 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const
-      -> std::variant<std::monostate, int, std::nullptr_t>;
+  [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
 
   [[nodiscard]] auto kind() const -> std::string;
 
@@ -5707,7 +5666,7 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   auto uri(std::string uri) -> WorkspaceFullDocumentDiagnosticReport&;
 
-  auto version(std::variant<std::monostate, int, std::nullptr_t> version)
+  auto version(std::variant<int, std::nullptr_t> version)
       -> WorkspaceFullDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> WorkspaceFullDocumentDiagnosticReport&;
@@ -5727,8 +5686,7 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const
-      -> std::variant<std::monostate, int, std::nullptr_t>;
+  [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
 
   [[nodiscard]] auto kind() const -> std::string;
 
@@ -5736,7 +5694,7 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   auto uri(std::string uri) -> WorkspaceUnchangedDocumentDiagnosticReport&;
 
-  auto version(std::variant<std::monostate, int, std::nullptr_t> version)
+  auto version(std::variant<int, std::nullptr_t> version)
       -> WorkspaceUnchangedDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> WorkspaceUnchangedDocumentDiagnosticReport&;
@@ -5777,14 +5735,13 @@ class NotebookDocumentFilterWithNotebook final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto notebook() const
-      -> std::variant<std::monostate, std::string, NotebookDocumentFilter>;
+      -> std::variant<std::string, NotebookDocumentFilter>;
 
   [[nodiscard]] auto cells() const
       -> std::optional<Vector<NotebookCellLanguage>>;
 
-  auto notebook(
-      std::variant<std::monostate, std::string, NotebookDocumentFilter>
-          notebook) -> NotebookDocumentFilterWithNotebook&;
+  auto notebook(std::variant<std::string, NotebookDocumentFilter> notebook)
+      -> NotebookDocumentFilterWithNotebook&;
 
   auto cells(std::optional<Vector<NotebookCellLanguage>> cells)
       -> NotebookDocumentFilterWithNotebook&;
@@ -5796,15 +5753,14 @@ class NotebookDocumentFilterWithCells final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto notebook() const -> std::optional<
-      std::variant<std::monostate, std::string, NotebookDocumentFilter>>;
+  [[nodiscard]] auto notebook() const
+      -> std::optional<std::variant<std::string, NotebookDocumentFilter>>;
 
   [[nodiscard]] auto cells() const -> Vector<NotebookCellLanguage>;
 
   auto notebook(
-      std::optional<
-          std::variant<std::monostate, std::string, NotebookDocumentFilter>>
-          notebook) -> NotebookDocumentFilterWithCells&;
+      std::optional<std::variant<std::string, NotebookDocumentFilter>> notebook)
+      -> NotebookDocumentFilterWithCells&;
 
   auto cells(Vector<NotebookCellLanguage> cells)
       -> NotebookDocumentFilterWithCells&;
@@ -5921,7 +5877,7 @@ class TextDocumentSyncOptions final : public LSPObject {
   [[nodiscard]] auto willSaveWaitUntil() const -> std::optional<bool>;
 
   [[nodiscard]] auto save() const
-      -> std::optional<std::variant<std::monostate, bool, SaveOptions>>;
+      -> std::optional<std::variant<bool, SaveOptions>>;
 
   auto openClose(std::optional<bool> openClose) -> TextDocumentSyncOptions&;
 
@@ -5933,7 +5889,7 @@ class TextDocumentSyncOptions final : public LSPObject {
   auto willSaveWaitUntil(std::optional<bool> willSaveWaitUntil)
       -> TextDocumentSyncOptions&;
 
-  auto save(std::optional<std::variant<std::monostate, bool, SaveOptions>> save)
+  auto save(std::optional<std::variant<bool, SaveOptions>> save)
       -> TextDocumentSyncOptions&;
 };
 
@@ -5950,7 +5906,7 @@ class WorkspaceOptions final : public LSPObject {
       -> std::optional<FileOperationOptions>;
 
   [[nodiscard]] auto textDocumentContent() const
-      -> std::optional<std::variant<std::monostate, TextDocumentContentOptions,
+      -> std::optional<std::variant<TextDocumentContentOptions,
                                     TextDocumentContentRegistrationOptions>>;
 
   auto workspaceFolders(
@@ -5961,7 +5917,7 @@ class WorkspaceOptions final : public LSPObject {
       -> WorkspaceOptions&;
 
   auto textDocumentContent(
-      std::optional<std::variant<std::monostate, TextDocumentContentOptions,
+      std::optional<std::variant<TextDocumentContentOptions,
                                  TextDocumentContentRegistrationOptions>>
           textDocumentContent) -> WorkspaceOptions&;
 };
@@ -6072,18 +6028,17 @@ class ParameterInformation final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto label() const
-      -> std::variant<std::monostate, std::string, std::tuple<long, long>>;
+      -> std::variant<std::string, std::tuple<long, long>>;
 
-  [[nodiscard]] auto documentation() const -> std::optional<
-      std::variant<std::monostate, std::string, MarkupContent>>;
+  [[nodiscard]] auto documentation() const
+      -> std::optional<std::variant<std::string, MarkupContent>>;
 
-  auto label(
-      std::variant<std::monostate, std::string, std::tuple<long, long>> label)
+  auto label(std::variant<std::string, std::tuple<long, long>> label)
       -> ParameterInformation&;
 
   auto documentation(
-      std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-          documentation) -> ParameterInformation&;
+      std::optional<std::variant<std::string, MarkupContent>> documentation)
+      -> ParameterInformation&;
 };
 
 class CodeActionKindDocumentation final : public LSPObject {
@@ -6108,13 +6063,12 @@ class NotebookCellTextDocumentFilter final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto notebook() const
-      -> std::variant<std::monostate, std::string, NotebookDocumentFilter>;
+      -> std::variant<std::string, NotebookDocumentFilter>;
 
   [[nodiscard]] auto language() const -> std::optional<std::string>;
 
-  auto notebook(
-      std::variant<std::monostate, std::string, NotebookDocumentFilter>
-          notebook) -> NotebookCellTextDocumentFilter&;
+  auto notebook(std::variant<std::string, NotebookDocumentFilter> notebook)
+      -> NotebookCellTextDocumentFilter&;
 
   auto language(std::optional<std::string> language)
       -> NotebookCellTextDocumentFilter&;
@@ -6602,14 +6556,14 @@ class WorkspaceFoldersServerCapabilities final : public LSPObject {
   [[nodiscard]] auto supported() const -> std::optional<bool>;
 
   [[nodiscard]] auto changeNotifications() const
-      -> std::optional<std::variant<std::monostate, std::string, bool>>;
+      -> std::optional<std::variant<std::string, bool>>;
 
   auto supported(std::optional<bool> supported)
       -> WorkspaceFoldersServerCapabilities&;
 
   auto changeNotifications(
-      std::optional<std::variant<std::monostate, std::string, bool>>
-          changeNotifications) -> WorkspaceFoldersServerCapabilities&;
+      std::optional<std::variant<std::string, bool>> changeNotifications)
+      -> WorkspaceFoldersServerCapabilities&;
 };
 
 class FileOperationOptions final : public LSPObject {
@@ -6662,12 +6616,11 @@ class RelativePattern final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto baseUri() const
-      -> std::variant<std::monostate, WorkspaceFolder, std::string>;
+      -> std::variant<WorkspaceFolder, std::string>;
 
   [[nodiscard]] auto pattern() const -> Pattern;
 
-  auto baseUri(
-      std::variant<std::monostate, WorkspaceFolder, std::string> baseUri)
+  auto baseUri(std::variant<WorkspaceFolder, std::string> baseUri)
       -> RelativePattern&;
 
   auto pattern(Pattern pattern) -> RelativePattern&;
@@ -8118,18 +8071,17 @@ class ClientSemanticTokensRequestOptions final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto range() const
-      -> std::optional<std::variant<std::monostate, bool, json>>;
+  [[nodiscard]] auto range() const -> std::optional<std::variant<bool, json>>;
 
   [[nodiscard]] auto full() const -> std::optional<
-      std::variant<std::monostate, bool, ClientSemanticTokensRequestFullDelta>>;
+      std::variant<bool, ClientSemanticTokensRequestFullDelta>>;
 
-  auto range(std::optional<std::variant<std::monostate, bool, json>> range)
+  auto range(std::optional<std::variant<bool, json>> range)
       -> ClientSemanticTokensRequestOptions&;
 
-  auto full(std::optional<std::variant<std::monostate, bool,
-                                       ClientSemanticTokensRequestFullDelta>>
-                full) -> ClientSemanticTokensRequestOptions&;
+  auto full(
+      std::optional<std::variant<bool, ClientSemanticTokensRequestFullDelta>>
+          full) -> ClientSemanticTokensRequestOptions&;
 };
 
 class ClientInlayHintResolveOptions final : public LSPObject {
