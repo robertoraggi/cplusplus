@@ -36,13 +36,15 @@ jobs:
 
       - name: Parse C++ source files (WASI toolchain)
         run: |
-          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
               -I src/parser \
+              -I src/lsp \
               -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \
               -I build/_deps/flatbuffers-src/include \
+              -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
               -DCXX_NO_FILESYSTEM \
               $i
@@ -50,14 +52,16 @@ jobs:
 
       - name: Parse C++ source files (Linux toolchain)
         run: |
-          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
               -toolchain linux \
               -I src/parser \
+              -I src/lsp \
               -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \
               -I build/_deps/flatbuffers-src/include \
+              -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
               $i
           done
@@ -153,14 +157,16 @@ jobs:
 
       - name: Parse C++ source files (macOS toolchain)
         run: |
-          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
               -toolchain macos \
               -I src/parser \
+              -I src/lsp \
               -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \
               -I build/_deps/flatbuffers-src/include \
+              -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
               $i
           done
@@ -195,18 +201,21 @@ jobs:
         run: |
           PATH=~/wasmtime-v${{ env.WASMTIME_VERSION }}-x86_64-linux:$PATH
 
-          for i in src/parser/cxx/*.cc src/frontend/cxx/*.cc; do
+          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             wasmtime \
                   --dir=src::/src \
                   --dir=build.wasi/_deps::/build.wasi/_deps \
                   --dir=build.wasi/src/parser::build.wasi/src/parser \
+                  --dir=build.wasi/src/lsp::build.wasi/src/lsp \
                   --dir=build.wasi/install/usr::/usr \
                   build.wasi/install/usr/bin/cxx.wasm \
               -I src/parser \
+              -I src/lsp \
               -I build.wasi/_deps/fmt-src/include \
               -I build.wasi/_deps/utfcpp-src/source \
               -I build.wasi/_deps/flatbuffers-src/include \
+              -I build.wasi/_deps/nlohmann_json-src/include \
               -I build.wasi/src/parser \
               -DCXX_NO_FILESYSTEM \
               $i

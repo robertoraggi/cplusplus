@@ -24,9 +24,6 @@
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
-#include <cxx/lsp/enums.h>
-#include <cxx/lsp/requests.h>
-#include <cxx/lsp/types.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
@@ -40,6 +37,7 @@
 #include <format>
 
 #include "ast_printer.h"
+#include "lsp_server.h"
 #include "verify_diagnostics_client.h"
 
 // std
@@ -292,124 +290,6 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   return !diagnosticsClient.hasErrors();
 }
 
-auto startServer(const CLI& cli) -> bool {
-  Control control;
-  VerifyDiagnosticsClient diagnosticsClient;
-  TranslationUnit unit(&control, &diagnosticsClient);
-
-  auto preprocesor = unit.preprocessor();
-
-  std::unique_ptr<Toolchain> toolchain;
-
-  if (cli.opt_verify) {
-    diagnosticsClient.setVerify(true);
-    preprocesor->setCommentHandler(&diagnosticsClient);
-  }
-
-  auto toolchainId = cli.getSingle("-toolchain");
-
-  if (!toolchainId) {
-    toolchainId = "wasm32";
-  }
-
-  if (toolchainId == "darwin" || toolchainId == "macos") {
-    toolchain = std::make_unique<MacOSToolchain>(preprocesor);
-  } else if (toolchainId == "wasm32") {
-    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
-
-    fs::path app_dir;
-
-#if __wasi__
-    app_dir = fs::path("/usr/bin/");
-#elif !defined(CXX_NO_FILESYSTEM)
-    app_dir = std::filesystem::canonical(
-        std::filesystem::path(cli.app_name).remove_filename());
-#elif __unix__ || __APPLE__
-    char* app_name = realpath(cli.app_name.c_str(), nullptr);
-    app_dir = fs::path(app_name).remove_filename().string();
-    std::free(app_name);
-#endif
-
-    wasmToolchain->setAppdir(app_dir.string());
-
-    if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-      wasmToolchain->setSysroot(paths.back());
-    } else {
-      auto sysroot_dir = app_dir / std::string("../lib/wasi-sysroot");
-      wasmToolchain->setSysroot(sysroot_dir.string());
-    }
-
-    toolchain = std::move(wasmToolchain);
-  } else if (toolchainId == "linux") {
-    std::string host;
-#ifdef __aarch64__
-    host = "aarch64";
-#elif __x86_64__
-    host = "x86_64";
-#endif
-
-    std::string arch = cli.getSingle("-arch").value_or(host);
-    toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor, arch);
-  } else if (toolchainId == "windows") {
-    auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
-
-    if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
-      windowsToolchain->setVctoolsdir(paths.back());
-    }
-
-    if (auto paths = cli.get("-winsdkdir"); !paths.empty()) {
-      windowsToolchain->setWinsdkdir(paths.back());
-    }
-
-    if (auto versions = cli.get("-winsdkversion"); !versions.empty()) {
-      windowsToolchain->setWinsdkversion(versions.back());
-    }
-
-    toolchain = std::move(windowsToolchain);
-  }
-
-  if (toolchain) {
-    control.setMemoryLayout(toolchain->memoryLayout());
-
-    if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
-
-    if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();
-
-    toolchain->addPredefinedMacros();
-  }
-
-  for (const auto& path : cli.get("-I")) {
-    preprocesor->addSystemIncludePath(path);
-  }
-
-  if (cli.opt_v) {
-    std::cerr << std::format("#include <...> search starts here:\n");
-    const auto& paths = preprocesor->systemIncludePaths();
-    for (auto it = rbegin(paths); it != rend(paths); ++it) {
-      std::cerr << std::format(" {}\n", *it);
-    }
-    std::cerr << std::format("End of search list.\n");
-  }
-
-  for (const auto& macro : cli.get("-D")) {
-    auto sep = macro.find_first_of("=");
-
-    if (sep == std::string::npos) {
-      preprocesor->defineMacro(macro, "1");
-    } else {
-      preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-    }
-  }
-
-  for (const auto& macro : cli.get("-U")) {
-    preprocesor->undefMacro(macro);
-  }
-
-  std::cerr << "Starting LSP server" << std::endl;
-
-  return true;
-}
-
 }  // namespace
 
 auto main(int argc, char* argv[]) -> int {
@@ -434,9 +314,7 @@ auto main(int argc, char* argv[]) -> int {
   int existStatus = EXIT_SUCCESS;
 
   if (cli.opt_lsp) {
-    if (!startServer(cli)) {
-      existStatus = EXIT_FAILURE;
-    }
+    existStatus = lsp::startServer(cli);
   } else {
     for (const auto& fileName : inputFiles) {
       if (!runOnFile(cli, fileName)) {

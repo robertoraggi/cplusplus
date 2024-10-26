@@ -24,6 +24,105 @@
 
 namespace cxx::lsp {
 
+#define FOR_EACH_LSP_REQUEST_TYPE(V)                                     \
+  V(Implementation, "textDocument/implementation")                       \
+  V(TypeDefinition, "textDocument/typeDefinition")                       \
+  V(WorkspaceFolders, "workspace/workspaceFolders")                      \
+  V(Configuration, "workspace/configuration")                            \
+  V(DocumentColor, "textDocument/documentColor")                         \
+  V(ColorPresentation, "textDocument/colorPresentation")                 \
+  V(FoldingRange, "textDocument/foldingRange")                           \
+  V(FoldingRangeRefresh, "workspace/foldingRange/refresh")               \
+  V(Declaration, "textDocument/declaration")                             \
+  V(SelectionRange, "textDocument/selectionRange")                       \
+  V(WorkDoneProgressCreate, "window/workDoneProgress/create")            \
+  V(CallHierarchyPrepare, "textDocument/prepareCallHierarchy")           \
+  V(CallHierarchyIncomingCalls, "callHierarchy/incomingCalls")           \
+  V(CallHierarchyOutgoingCalls, "callHierarchy/outgoingCalls")           \
+  V(SemanticTokens, "textDocument/semanticTokens/full")                  \
+  V(SemanticTokensDelta, "textDocument/semanticTokens/full/delta")       \
+  V(SemanticTokensRange, "textDocument/semanticTokens/range")            \
+  V(SemanticTokensRefresh, "workspace/semanticTokens/refresh")           \
+  V(ShowDocument, "window/showDocument")                                 \
+  V(LinkedEditingRange, "textDocument/linkedEditingRange")               \
+  V(WillCreateFiles, "workspace/willCreateFiles")                        \
+  V(WillRenameFiles, "workspace/willRenameFiles")                        \
+  V(WillDeleteFiles, "workspace/willDeleteFiles")                        \
+  V(Moniker, "textDocument/moniker")                                     \
+  V(TypeHierarchyPrepare, "textDocument/prepareTypeHierarchy")           \
+  V(TypeHierarchySupertypes, "typeHierarchy/supertypes")                 \
+  V(TypeHierarchySubtypes, "typeHierarchy/subtypes")                     \
+  V(InlineValue, "textDocument/inlineValue")                             \
+  V(InlineValueRefresh, "workspace/inlineValue/refresh")                 \
+  V(InlayHint, "textDocument/inlayHint")                                 \
+  V(InlayHintResolve, "inlayHint/resolve")                               \
+  V(InlayHintRefresh, "workspace/inlayHint/refresh")                     \
+  V(DocumentDiagnostic, "textDocument/diagnostic")                       \
+  V(WorkspaceDiagnostic, "workspace/diagnostic")                         \
+  V(DiagnosticRefresh, "workspace/diagnostic/refresh")                   \
+  V(InlineCompletion, "textDocument/inlineCompletion")                   \
+  V(TextDocumentContent, "workspace/textDocumentContent")                \
+  V(TextDocumentContentRefresh, "workspace/textDocumentContent/refresh") \
+  V(Registration, "client/registerCapability")                           \
+  V(Unregistration, "client/unregisterCapability")                       \
+  V(Initialize, "initialize")                                            \
+  V(Shutdown, "shutdown")                                                \
+  V(ShowMessage, "window/showMessageRequest")                            \
+  V(WillSaveTextDocumentWaitUntil, "textDocument/willSaveWaitUntil")     \
+  V(Completion, "textDocument/completion")                               \
+  V(CompletionResolve, "completionItem/resolve")                         \
+  V(Hover, "textDocument/hover")                                         \
+  V(SignatureHelp, "textDocument/signatureHelp")                         \
+  V(Definition, "textDocument/definition")                               \
+  V(References, "textDocument/references")                               \
+  V(DocumentHighlight, "textDocument/documentHighlight")                 \
+  V(DocumentSymbol, "textDocument/documentSymbol")                       \
+  V(CodeAction, "textDocument/codeAction")                               \
+  V(CodeActionResolve, "codeAction/resolve")                             \
+  V(WorkspaceSymbol, "workspace/symbol")                                 \
+  V(WorkspaceSymbolResolve, "workspaceSymbol/resolve")                   \
+  V(CodeLens, "textDocument/codeLens")                                   \
+  V(CodeLensResolve, "codeLens/resolve")                                 \
+  V(CodeLensRefresh, "workspace/codeLens/refresh")                       \
+  V(DocumentLink, "textDocument/documentLink")                           \
+  V(DocumentLinkResolve, "documentLink/resolve")                         \
+  V(DocumentFormatting, "textDocument/formatting")                       \
+  V(DocumentRangeFormatting, "textDocument/rangeFormatting")             \
+  V(DocumentRangesFormatting, "textDocument/rangesFormatting")           \
+  V(DocumentOnTypeFormatting, "textDocument/onTypeFormatting")           \
+  V(Rename, "textDocument/rename")                                       \
+  V(PrepareRename, "textDocument/prepareRename")                         \
+  V(ExecuteCommand, "workspace/executeCommand")                          \
+  V(ApplyWorkspaceEdit, "workspace/applyEdit")
+
+#define FOR_EACH_LSP_NOTIFICATION_TYPE(V)                             \
+  V(DidChangeWorkspaceFolders, "workspace/didChangeWorkspaceFolders") \
+  V(WorkDoneProgressCancel, "window/workDoneProgress/cancel")         \
+  V(DidCreateFiles, "workspace/didCreateFiles")                       \
+  V(DidRenameFiles, "workspace/didRenameFiles")                       \
+  V(DidDeleteFiles, "workspace/didDeleteFiles")                       \
+  V(DidOpenNotebookDocument, "notebookDocument/didOpen")              \
+  V(DidChangeNotebookDocument, "notebookDocument/didChange")          \
+  V(DidSaveNotebookDocument, "notebookDocument/didSave")              \
+  V(DidCloseNotebookDocument, "notebookDocument/didClose")            \
+  V(Initialized, "initialized")                                       \
+  V(Exit, "exit")                                                     \
+  V(DidChangeConfiguration, "workspace/didChangeConfiguration")       \
+  V(ShowMessage, "window/showMessage")                                \
+  V(LogMessage, "window/logMessage")                                  \
+  V(TelemetryEvent, "telemetry/event")                                \
+  V(DidOpenTextDocument, "textDocument/didOpen")                      \
+  V(DidChangeTextDocument, "textDocument/didChange")                  \
+  V(DidCloseTextDocument, "textDocument/didClose")                    \
+  V(DidSaveTextDocument, "textDocument/didSave")                      \
+  V(WillSaveTextDocument, "textDocument/willSave")                    \
+  V(DidChangeWatchedFiles, "workspace/didChangeWatchedFiles")         \
+  V(PublishDiagnostics, "textDocument/publishDiagnostics")            \
+  V(SetTrace, "$/setTrace")                                           \
+  V(LogTrace, "$/logTrace")                                           \
+  V(Cancel, "$/cancelRequest")                                        \
+  V(Progress, "$/progress")
+
 class ImplementationRequest final : public LSPRequest {
  public:
   using LSPRequest::LSPRequest;
@@ -2443,5 +2542,33 @@ class ProgressNotification final : public LSPRequest {
   [[nodiscard]] auto params() const -> ProgressParams;
   auto params(ProgressParams result) -> ProgressNotification&;
 };
+
+template <typename Visitor>
+auto visitRequest(Visitor&& visitor, const LSPRequest& request,
+                  const std::string_view& method) -> void {
+#define PROCESS_REQUEST_TYPE(NAME, METHOD) \
+  if (method == METHOD)                    \
+    return visitor(static_cast<const NAME##Request&>(request));
+
+  FOR_EACH_LSP_REQUEST_TYPE(PROCESS_REQUEST_TYPE)
+
+#undef PROCESS_REQUEST_TYPE
+
+  lsp_runtime_error("unknown request type");
+}
+
+template <typename Visitor>
+auto visitNotification(Visitor&& visitor, const LSPRequest& notification,
+                       const std::string_view& method) -> void {
+#define PROCESS_NOTIFICATION_TYPE(NAME, METHOD) \
+  if (method == METHOD)                         \
+    return visitor(static_cast<const NAME##Notification&>(notification));
+
+  FOR_EACH_LSP_NOTIFICATION_TYPE(PROCESS_NOTIFICATION_TYPE)
+
+#undef PROCESS_NOTIFICATION_TYPE
+
+  lsp_runtime_error("unknown notification type");
+}
 
 }  // namespace cxx::lsp

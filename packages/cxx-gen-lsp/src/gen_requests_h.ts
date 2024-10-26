@@ -44,6 +44,22 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
 
   const requestsAndNotifications: Array<Request | Notification> = [...model.requests, ...model.notifications];
 
+  emit();
+  emit(`#define FOR_EACH_LSP_REQUEST_TYPE(V) \\`);
+  model.requests.forEach((request, index) => {
+    const nameWithoutSuffix = request.typeName.replace(/Request$/, "");
+    const sep = index + 1 < model.requests.length ? " \\" : "";
+    emit(`  V(${nameWithoutSuffix}, "${request.method}")${sep}`);
+  });
+
+  emit();
+  emit(`#define FOR_EACH_LSP_NOTIFICATION_TYPE(V) \\`);
+  model.notifications.forEach((notification, index) => {
+    const nameWithoutSuffix = notification.typeName.replace(/Notification$/, "");
+    const sep = index + 1 < model.notifications.length ? " \\" : "";
+    emit(`  V(${nameWithoutSuffix}, "${notification.method}")${sep}`);
+  });
+
   requestsAndNotifications.forEach((request) => {
     const typeName = request.typeName;
     emit();
@@ -88,6 +104,35 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
       emit(`};`);
     }
   });
+
+  emit();
+  emit(`template <typename Visitor>`);
+  emit(`auto visitRequest(Visitor&& visitor, const LSPRequest& request, const std::string_view& method) -> void {`);
+  emit(`#define PROCESS_REQUEST_TYPE(NAME, METHOD) \\`);
+  emit(`  if (method == METHOD) \\`);
+  emit(`    return visitor(static_cast<const NAME##Request&>(request));`);
+  emit();
+  emit(`FOR_EACH_LSP_REQUEST_TYPE(PROCESS_REQUEST_TYPE)`);
+  emit();
+  emit(`#undef PROCESS_REQUEST_TYPE`);
+  emit();
+  emit(`  lsp_runtime_error("unknown request type");`);
+  emit(`}`);
+  emit();
+  emit(`template <typename Visitor>`);
+  emit(
+    `auto visitNotification(Visitor&& visitor, const LSPRequest& notification, const std::string_view& method) -> void {`,
+  );
+  emit(`#define PROCESS_NOTIFICATION_TYPE(NAME, METHOD) \\`);
+  emit(`  if (method == METHOD) \\`);
+  emit(`    return visitor(static_cast<const NAME##Notification&>(notification));`);
+  emit();
+  emit(`FOR_EACH_LSP_NOTIFICATION_TYPE(PROCESS_NOTIFICATION_TYPE)`);
+  emit();
+  emit(`#undef PROCESS_NOTIFICATION_TYPE`);
+  emit();
+  emit(`  lsp_runtime_error("unknown notification type");`);
+  emit(`}`);
 
   emit();
   emit(`}`);

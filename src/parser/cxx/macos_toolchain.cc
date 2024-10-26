@@ -49,6 +49,7 @@ void MacOSToolchain::addSystemIncludePaths() {
   addSystemIncludePath(std::format("{}/usr/include", platformPath_));
 
   std::vector<std::string_view> versions{
+      "16.0.0",
       "15.0.0",
   };
 
@@ -74,6 +75,7 @@ void MacOSToolchain::addPredefinedMacros() {
   defineMacro("_Nullable", "");
   defineMacro("_Nonnull", "");
   defineMacro("__autoreleasing", "");
+  defineMacro("__building_module(a)", "0");
 
   defineMacro("_LP64", "1");
   defineMacro("__AARCH64EL__", "1");
