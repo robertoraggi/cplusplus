@@ -31,8 +31,10 @@ using Pattern = std::string;
 
 class LSPObject {
   public:
+    LSPObject() = default;
     explicit LSPObject(json& repr): repr_(&repr) {}
 
+    [[nodiscard]] explicit operator bool() const { return repr_ != nullptr; }
     [[nodiscard]] operator const json&() const { return *repr_; }
     [[nodiscard]] auto get() const -> json& { return *repr_; }
 
@@ -45,7 +47,7 @@ class Vector final : public LSPObject {
 public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_array(); }
+  [[nodiscard]] explicit operator bool() const { return repr_ && repr_->is_array(); }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> const T& { return repr_->at(index); }
@@ -70,11 +72,6 @@ template <typename... Ts>
 auto try_emplace(std::variant<Ts...>& result, json& value) -> bool {
   return (details::TryEmplace<Ts>{}(result, value) || ...);
 }
-
-template <>
-struct TryEmplace<std::monostate> {
-  auto operator()(auto&, const json&) const -> bool { return false; }
-};
 
 template <>
 struct TryEmplace<std::nullptr_t> {
@@ -169,7 +166,7 @@ class Vector<std::variant<Ts...>> final : public LSPObject {
   public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_array(); }
+  [[nodiscard]] explicit operator bool() const { return repr_ && repr_->is_array(); }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> std::variant<Ts...> {
@@ -184,7 +181,7 @@ class Map final : public LSPObject {
 public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_object(); }
+  [[nodiscard]] explicit operator bool() const { return repr_ && repr_->is_object(); }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(const Key& key) const -> const Value& { return repr_->at(key); }
@@ -195,7 +192,7 @@ class Map<Key, std::variant<Ts...>> final : public LSPObject {
   public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_->is_object(); }
+  [[nodiscard]] explicit operator bool() const { return repr_ && repr_->is_object(); }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
 

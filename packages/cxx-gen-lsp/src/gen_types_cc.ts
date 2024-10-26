@@ -408,14 +408,8 @@ class TypeGenerator {
     if (property.type.kind !== "or") return false;
 
     this.emit();
-    this.emit("// or type");
-    this.emit();
     this.emit(`struct {`);
     this.emit(`json* repr_;`);
-    this.emit();
-    this.emit(`void operator()(std::monostate) {`);
-    this.emit(`lsp_runtime_error("monostate is not a valid a property value");`);
-    this.emit(`}`);
 
     property.type.items.forEach((item) => {
       const itemType = this.getPropertyType({ type: item });

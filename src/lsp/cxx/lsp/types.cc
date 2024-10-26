@@ -137,10 +137,10 @@ ImplementationRegistrationOptions::operator bool() const {
 }
 
 auto ImplementationRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -168,16 +168,10 @@ auto ImplementationRegistrationOptions::id() const
 }
 
 auto ImplementationRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> ImplementationRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> ImplementationRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -301,10 +295,10 @@ TypeDefinitionRegistrationOptions::operator bool() const {
 }
 
 auto TypeDefinitionRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -332,16 +326,10 @@ auto TypeDefinitionRegistrationOptions::id() const
 }
 
 auto TypeDefinitionRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> TypeDefinitionRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> TypeDefinitionRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -550,10 +538,10 @@ DocumentColorRegistrationOptions::operator bool() const {
 }
 
 auto DocumentColorRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -581,16 +569,10 @@ auto DocumentColorRegistrationOptions::id() const
 }
 
 auto DocumentColorRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentColorRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentColorRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -807,10 +789,10 @@ TextDocumentRegistrationOptions::operator bool() const {
 }
 
 auto TextDocumentRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -818,16 +800,10 @@ auto TextDocumentRegistrationOptions::documentSelector() const
 }
 
 auto TextDocumentRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> TextDocumentRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> TextDocumentRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -1021,10 +997,10 @@ FoldingRangeRegistrationOptions::operator bool() const {
 }
 
 auto FoldingRangeRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -1051,16 +1027,10 @@ auto FoldingRangeRegistrationOptions::id() const -> std::optional<std::string> {
 }
 
 auto FoldingRangeRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> FoldingRangeRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> FoldingRangeRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -1190,10 +1160,10 @@ auto DeclarationRegistrationOptions::workDoneProgress() const
 }
 
 auto DeclarationRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -1220,16 +1190,10 @@ auto DeclarationRegistrationOptions::workDoneProgress(
 }
 
 auto DeclarationRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DeclarationRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DeclarationRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -1388,10 +1352,10 @@ auto SelectionRangeRegistrationOptions::workDoneProgress() const
 }
 
 auto SelectionRangeRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -1420,16 +1384,10 @@ auto SelectionRangeRegistrationOptions::workDoneProgress(
 }
 
 auto SelectionRangeRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> SelectionRangeRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> SelectionRangeRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -1688,10 +1646,10 @@ CallHierarchyRegistrationOptions::operator bool() const {
 }
 
 auto CallHierarchyRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -1719,16 +1677,10 @@ auto CallHierarchyRegistrationOptions::id() const
 }
 
 auto CallHierarchyRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> CallHierarchyRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> CallHierarchyRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -2097,10 +2049,10 @@ SemanticTokensRegistrationOptions::operator bool() const {
 }
 
 auto SemanticTokensRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -2114,25 +2066,25 @@ auto SemanticTokensRegistrationOptions::legend() const -> SemanticTokensLegend {
 }
 
 auto SemanticTokensRegistrationOptions::range() const
-    -> std::optional<std::variant<std::monostate, bool, json>> {
+    -> std::optional<std::variant<bool, json>> {
   if (!repr_->contains("range")) return std::nullopt;
 
   auto& value = (*repr_)["range"];
 
-  std::variant<std::monostate, bool, json> result;
+  std::variant<bool, json> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto SemanticTokensRegistrationOptions::full() const -> std::optional<
-    std::variant<std::monostate, bool, SemanticTokensFullDelta>> {
+auto SemanticTokensRegistrationOptions::full() const
+    -> std::optional<std::variant<bool, SemanticTokensFullDelta>> {
   if (!repr_->contains("full")) return std::nullopt;
 
   auto& value = (*repr_)["full"];
 
-  std::variant<std::monostate, bool, SemanticTokensFullDelta> result;
+  std::variant<bool, SemanticTokensFullDelta> result;
 
   details::try_emplace(result, value);
 
@@ -2160,16 +2112,10 @@ auto SemanticTokensRegistrationOptions::id() const
 }
 
 auto SemanticTokensRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> SemanticTokensRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> SemanticTokensRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -2194,21 +2140,15 @@ auto SemanticTokensRegistrationOptions::legend(SemanticTokensLegend legend)
 }
 
 auto SemanticTokensRegistrationOptions::range(
-    std::optional<std::variant<std::monostate, bool, json>> range)
+    std::optional<std::variant<bool, json>> range)
     -> SemanticTokensRegistrationOptions& {
   if (!range.has_value()) {
     repr_->erase("range");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool range) { repr_->emplace("range", std::move(range)); }
 
@@ -2224,21 +2164,15 @@ auto SemanticTokensRegistrationOptions::range(
 }
 
 auto SemanticTokensRegistrationOptions::full(
-    std::optional<std::variant<std::monostate, bool, SemanticTokensFullDelta>>
-        full) -> SemanticTokensRegistrationOptions& {
+    std::optional<std::variant<bool, SemanticTokensFullDelta>> full)
+    -> SemanticTokensRegistrationOptions& {
   if (!full.has_value()) {
     repr_->erase("full");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool full) { repr_->emplace("full", std::move(full)); }
 
@@ -2684,10 +2618,10 @@ LinkedEditingRangeRegistrationOptions::operator bool() const {
 }
 
 auto LinkedEditingRangeRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -2715,16 +2649,10 @@ auto LinkedEditingRangeRegistrationOptions::id() const
 }
 
 auto LinkedEditingRangeRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> LinkedEditingRangeRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> LinkedEditingRangeRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -2796,16 +2724,16 @@ auto WorkspaceEdit::changes() const
   return Map<std::string, Vector<TextEdit>>(value);
 }
 
-auto WorkspaceEdit::documentChanges() const
-    -> std::optional<Vector<std::variant<std::monostate, TextDocumentEdit,
-                                         CreateFile, RenameFile, DeleteFile>>> {
+auto WorkspaceEdit::documentChanges() const -> std::optional<Vector<
+    std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>> {
   if (!repr_->contains("documentChanges")) return std::nullopt;
 
   auto& value = (*repr_)["documentChanges"];
 
   assert(value.is_array());
-  return Vector<std::variant<std::monostate, TextDocumentEdit, CreateFile,
-                             RenameFile, DeleteFile>>(value);
+  return Vector<
+      std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>(
+      value);
 }
 
 auto WorkspaceEdit::changeAnnotations() const
@@ -2830,8 +2758,8 @@ auto WorkspaceEdit::changes(
 }
 
 auto WorkspaceEdit::documentChanges(
-    std::optional<Vector<std::variant<std::monostate, TextDocumentEdit,
-                                      CreateFile, RenameFile, DeleteFile>>>
+    std::optional<Vector<
+        std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>>
         documentChanges) -> WorkspaceEdit& {
   if (!documentChanges.has_value()) {
     repr_->erase("documentChanges");
@@ -3050,10 +2978,10 @@ MonikerRegistrationOptions::operator bool() const {
 }
 
 auto MonikerRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -3071,16 +2999,10 @@ auto MonikerRegistrationOptions::workDoneProgress() const
 }
 
 auto MonikerRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> MonikerRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> MonikerRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -3294,10 +3216,10 @@ TypeHierarchyRegistrationOptions::operator bool() const {
 }
 
 auto TypeHierarchyRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -3325,16 +3247,10 @@ auto TypeHierarchyRegistrationOptions::id() const
 }
 
 auto TypeHierarchyRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> TypeHierarchyRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> TypeHierarchyRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -3590,10 +3506,10 @@ auto InlineValueRegistrationOptions::workDoneProgress() const
 }
 
 auto InlineValueRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -3620,16 +3536,10 @@ auto InlineValueRegistrationOptions::workDoneProgress(
 }
 
 auto InlineValueRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> InlineValueRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> InlineValueRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -3723,10 +3633,10 @@ auto InlayHint::position() const -> Position {
 }
 
 auto InlayHint::label() const
-    -> std::variant<std::monostate, std::string, Vector<InlayHintLabelPart>> {
+    -> std::variant<std::string, Vector<InlayHintLabelPart>> {
   auto& value = (*repr_)["label"];
 
-  std::variant<std::monostate, std::string, Vector<InlayHintLabelPart>> result;
+  std::variant<std::string, Vector<InlayHintLabelPart>> result;
 
   details::try_emplace(result, value);
 
@@ -3751,12 +3661,12 @@ auto InlayHint::textEdits() const -> std::optional<Vector<TextEdit>> {
 }
 
 auto InlayHint::tooltip() const
-    -> std::optional<std::variant<std::monostate, std::string, MarkupContent>> {
+    -> std::optional<std::variant<std::string, MarkupContent>> {
   if (!repr_->contains("tooltip")) return std::nullopt;
 
   auto& value = (*repr_)["tooltip"];
 
-  std::variant<std::monostate, std::string, MarkupContent> result;
+  std::variant<std::string, MarkupContent> result;
 
   details::try_emplace(result, value);
 
@@ -3796,16 +3706,9 @@ auto InlayHint::position(Position position) -> InlayHint& {
 }
 
 auto InlayHint::label(
-    std::variant<std::monostate, std::string, Vector<InlayHintLabelPart>> label)
-    -> InlayHint& {
-  // or type
-
+    std::variant<std::string, Vector<InlayHintLabelPart>> label) -> InlayHint& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string label) {
       repr_->emplace("label", std::move(label));
@@ -3841,21 +3744,15 @@ auto InlayHint::textEdits(std::optional<Vector<TextEdit>> textEdits)
 }
 
 auto InlayHint::tooltip(
-    std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-        tooltip) -> InlayHint& {
+    std::optional<std::variant<std::string, MarkupContent>> tooltip)
+    -> InlayHint& {
   if (!tooltip.has_value()) {
     repr_->erase("tooltip");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string tooltip) {
       repr_->emplace("tooltip", std::move(tooltip));
@@ -3925,10 +3822,10 @@ auto InlayHintRegistrationOptions::workDoneProgress() const
 }
 
 auto InlayHintRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -3965,16 +3862,10 @@ auto InlayHintRegistrationOptions::workDoneProgress(
 }
 
 auto InlayHintRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> InlayHintRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> InlayHintRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -4115,19 +4006,18 @@ DocumentDiagnosticReportPartialResult::operator bool() const {
 }
 
 auto DocumentDiagnosticReportPartialResult::relatedDocuments() const
-    -> Map<std::string,
-           std::variant<std::monostate, FullDocumentDiagnosticReport,
-                        UnchangedDocumentDiagnosticReport>> {
+    -> Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                     UnchangedDocumentDiagnosticReport>> {
   auto& value = (*repr_)["relatedDocuments"];
 
   assert(value.is_object());
-  return Map<std::string,
-             std::variant<std::monostate, FullDocumentDiagnosticReport,
-                          UnchangedDocumentDiagnosticReport>>(value);
+  return Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                       UnchangedDocumentDiagnosticReport>>(
+      value);
 }
 
 auto DocumentDiagnosticReportPartialResult::relatedDocuments(
-    Map<std::string, std::variant<std::monostate, FullDocumentDiagnosticReport,
+    Map<std::string, std::variant<FullDocumentDiagnosticReport,
                                   UnchangedDocumentDiagnosticReport>>
         relatedDocuments) -> DocumentDiagnosticReportPartialResult& {
   lsp_runtime_error(
@@ -4164,10 +4054,10 @@ DiagnosticRegistrationOptions::operator bool() const {
 }
 
 auto DiagnosticRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -4218,16 +4108,10 @@ auto DiagnosticRegistrationOptions::id() const -> std::optional<std::string> {
 }
 
 auto DiagnosticRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DiagnosticRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DiagnosticRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -4462,12 +4346,12 @@ NotebookDocumentSyncRegistrationOptions::operator bool() const {
 }
 
 auto NotebookDocumentSyncRegistrationOptions::notebookSelector() const
-    -> Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+    -> Vector<std::variant<NotebookDocumentFilterWithNotebook,
                            NotebookDocumentFilterWithCells>> {
   auto& value = (*repr_)["notebookSelector"];
 
   assert(value.is_array());
-  return Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+  return Vector<std::variant<NotebookDocumentFilterWithNotebook,
                              NotebookDocumentFilterWithCells>>(value);
 }
 
@@ -4492,7 +4376,7 @@ auto NotebookDocumentSyncRegistrationOptions::id() const
 }
 
 auto NotebookDocumentSyncRegistrationOptions::notebookSelector(
-    Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+    Vector<std::variant<NotebookDocumentFilterWithNotebook,
                         NotebookDocumentFilterWithCells>>
         notebookSelector) -> NotebookDocumentSyncRegistrationOptions& {
   lsp_runtime_error(
@@ -4705,10 +4589,10 @@ InlineCompletionItem::operator bool() const {
 }
 
 auto InlineCompletionItem::insertText() const
-    -> std::variant<std::monostate, std::string, StringValue> {
+    -> std::variant<std::string, StringValue> {
   auto& value = (*repr_)["insertText"];
 
-  std::variant<std::monostate, std::string, StringValue> result;
+  std::variant<std::string, StringValue> result;
 
   details::try_emplace(result, value);
 
@@ -4741,16 +4625,10 @@ auto InlineCompletionItem::command() const -> std::optional<Command> {
 }
 
 auto InlineCompletionItem::insertText(
-    std::variant<std::monostate, std::string, StringValue> insertText)
+    std::variant<std::string, StringValue> insertText)
     -> InlineCompletionItem& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string insertText) {
       repr_->emplace("insertText", std::move(insertText));
@@ -4813,10 +4691,10 @@ auto InlineCompletionRegistrationOptions::workDoneProgress() const
 }
 
 auto InlineCompletionRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -4845,16 +4723,10 @@ auto InlineCompletionRegistrationOptions::workDoneProgress(
 }
 
 auto InlineCompletionRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> InlineCompletionRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> InlineCompletionRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -5027,11 +4899,10 @@ InitializeParams::operator bool() const {
   return true;
 }
 
-auto InitializeParams::processId() const
-    -> std::variant<std::monostate, int, std::nullptr_t> {
+auto InitializeParams::processId() const -> std::variant<int, std::nullptr_t> {
   auto& value = (*repr_)["processId"];
 
-  std::variant<std::monostate, int, std::nullptr_t> result;
+  std::variant<int, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5055,13 +4926,13 @@ auto InitializeParams::locale() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto InitializeParams::rootPath() const -> std::optional<
-    std::variant<std::monostate, std::string, std::nullptr_t>> {
+auto InitializeParams::rootPath() const
+    -> std::optional<std::variant<std::string, std::nullptr_t>> {
   if (!repr_->contains("rootPath")) return std::nullopt;
 
   auto& value = (*repr_)["rootPath"];
 
-  std::variant<std::monostate, std::string, std::nullptr_t> result;
+  std::variant<std::string, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5069,10 +4940,10 @@ auto InitializeParams::rootPath() const -> std::optional<
 }
 
 auto InitializeParams::rootUri() const
-    -> std::variant<std::monostate, std::string, std::nullptr_t> {
+    -> std::variant<std::string, std::nullptr_t> {
   auto& value = (*repr_)["rootUri"];
 
-  std::variant<std::monostate, std::string, std::nullptr_t> result;
+  std::variant<std::string, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5114,30 +4985,23 @@ auto InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
-auto InitializeParams::workspaceFolders() const -> std::optional<
-    std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>> {
+auto InitializeParams::workspaceFolders() const
+    -> std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>> {
   if (!repr_->contains("workspaceFolders")) return std::nullopt;
 
   auto& value = (*repr_)["workspaceFolders"];
 
-  std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t> result;
+  std::variant<Vector<WorkspaceFolder>, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto InitializeParams::processId(
-    std::variant<std::monostate, int, std::nullptr_t> processId)
+auto InitializeParams::processId(std::variant<int, std::nullptr_t> processId)
     -> InitializeParams& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int processId) {
       repr_->emplace("processId", std::move(processId));
@@ -5174,21 +5038,15 @@ auto InitializeParams::locale(std::optional<std::string> locale)
 }
 
 auto InitializeParams::rootPath(
-    std::optional<std::variant<std::monostate, std::string, std::nullptr_t>>
-        rootPath) -> InitializeParams& {
+    std::optional<std::variant<std::string, std::nullptr_t>> rootPath)
+    -> InitializeParams& {
   if (!rootPath.has_value()) {
     repr_->erase("rootPath");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string rootPath) {
       repr_->emplace("rootPath", std::move(rootPath));
@@ -5205,16 +5063,9 @@ auto InitializeParams::rootPath(
 }
 
 auto InitializeParams::rootUri(
-    std::variant<std::monostate, std::string, std::nullptr_t> rootUri)
-    -> InitializeParams& {
-  // or type
-
+    std::variant<std::string, std::nullptr_t> rootUri) -> InitializeParams& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string rootUri) {
       repr_->emplace("rootUri", std::move(rootUri));
@@ -5268,22 +5119,15 @@ auto InitializeParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
 }
 
 auto InitializeParams::workspaceFolders(
-    std::optional<
-        std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>>
+    std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>
         workspaceFolders) -> InitializeParams& {
   if (!workspaceFolders.has_value()) {
     repr_->erase("workspaceFolders");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(Vector<WorkspaceFolder> workspaceFolders) {
       lsp_runtime_error(
@@ -5385,13 +5229,12 @@ DidChangeConfigurationRegistrationOptions::operator bool() const {
 }
 
 auto DidChangeConfigurationRegistrationOptions::section() const
-    -> std::optional<
-        std::variant<std::monostate, std::string, Vector<std::string>>> {
+    -> std::optional<std::variant<std::string, Vector<std::string>>> {
   if (!repr_->contains("section")) return std::nullopt;
 
   auto& value = (*repr_)["section"];
 
-  std::variant<std::monostate, std::string, Vector<std::string>> result;
+  std::variant<std::string, Vector<std::string>> result;
 
   details::try_emplace(result, value);
 
@@ -5399,22 +5242,15 @@ auto DidChangeConfigurationRegistrationOptions::section() const
 }
 
 auto DidChangeConfigurationRegistrationOptions::section(
-    std::optional<
-        std::variant<std::monostate, std::string, Vector<std::string>>>
-        section) -> DidChangeConfigurationRegistrationOptions& {
+    std::optional<std::variant<std::string, Vector<std::string>>> section)
+    -> DidChangeConfigurationRegistrationOptions& {
   if (!section.has_value()) {
     repr_->erase("section");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string section) {
       repr_->emplace("section", std::move(section));
@@ -5633,10 +5469,10 @@ auto TextDocumentChangeRegistrationOptions::syncKind() const
 }
 
 auto TextDocumentChangeRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5650,16 +5486,10 @@ auto TextDocumentChangeRegistrationOptions::syncKind(
 }
 
 auto TextDocumentChangeRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> TextDocumentChangeRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> TextDocumentChangeRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -5740,10 +5570,10 @@ TextDocumentSaveRegistrationOptions::operator bool() const {
 }
 
 auto TextDocumentSaveRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5761,16 +5591,10 @@ auto TextDocumentSaveRegistrationOptions::includeText() const
 }
 
 auto TextDocumentSaveRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> TextDocumentSaveRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> TextDocumentSaveRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -6095,12 +5919,12 @@ auto CompletionItem::detail() const -> std::optional<std::string> {
 }
 
 auto CompletionItem::documentation() const
-    -> std::optional<std::variant<std::monostate, std::string, MarkupContent>> {
+    -> std::optional<std::variant<std::string, MarkupContent>> {
   if (!repr_->contains("documentation")) return std::nullopt;
 
   auto& value = (*repr_)["documentation"];
 
-  std::variant<std::monostate, std::string, MarkupContent> result;
+  std::variant<std::string, MarkupContent> result;
 
   details::try_emplace(result, value);
 
@@ -6169,13 +5993,13 @@ auto CompletionItem::insertTextMode() const -> std::optional<InsertTextMode> {
   return InsertTextMode(value);
 }
 
-auto CompletionItem::textEdit() const -> std::optional<
-    std::variant<std::monostate, TextEdit, InsertReplaceEdit>> {
+auto CompletionItem::textEdit() const
+    -> std::optional<std::variant<TextEdit, InsertReplaceEdit>> {
   if (!repr_->contains("textEdit")) return std::nullopt;
 
   auto& value = (*repr_)["textEdit"];
 
-  std::variant<std::monostate, TextEdit, InsertReplaceEdit> result;
+  std::variant<TextEdit, InsertReplaceEdit> result;
 
   details::try_emplace(result, value);
 
@@ -6274,21 +6098,15 @@ auto CompletionItem::detail(std::optional<std::string> detail)
 }
 
 auto CompletionItem::documentation(
-    std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-        documentation) -> CompletionItem& {
+    std::optional<std::variant<std::string, MarkupContent>> documentation)
+    -> CompletionItem& {
   if (!documentation.has_value()) {
     repr_->erase("documentation");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string documentation) {
       repr_->emplace("documentation", std::move(documentation));
@@ -6376,21 +6194,15 @@ auto CompletionItem::insertTextMode(
 }
 
 auto CompletionItem::textEdit(
-    std::optional<std::variant<std::monostate, TextEdit, InsertReplaceEdit>>
-        textEdit) -> CompletionItem& {
+    std::optional<std::variant<TextEdit, InsertReplaceEdit>> textEdit)
+    -> CompletionItem& {
   if (!textEdit.has_value()) {
     repr_->erase("textEdit");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(TextEdit textEdit) { repr_->emplace("textEdit", textEdit); }
 
@@ -6529,10 +6341,10 @@ CompletionRegistrationOptions::operator bool() const {
 }
 
 auto CompletionRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -6589,16 +6401,10 @@ auto CompletionRegistrationOptions::workDoneProgress() const
 }
 
 auto CompletionRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> CompletionRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> CompletionRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -6729,13 +6535,10 @@ Hover::operator bool() const {
 }
 
 auto Hover::contents() const
-    -> std::variant<std::monostate, MarkupContent, MarkedString,
-                    Vector<MarkedString>> {
+    -> std::variant<MarkupContent, MarkedString, Vector<MarkedString>> {
   auto& value = (*repr_)["contents"];
 
-  std::variant<std::monostate, MarkupContent, MarkedString,
-               Vector<MarkedString>>
-      result;
+  std::variant<MarkupContent, MarkedString, Vector<MarkedString>> result;
 
   details::try_emplace(result, value);
 
@@ -6750,17 +6553,11 @@ auto Hover::range() const -> std::optional<Range> {
   return Range(value);
 }
 
-auto Hover::contents(std::variant<std::monostate, MarkupContent, MarkedString,
-                                  Vector<MarkedString>>
-                         contents) -> Hover& {
-  // or type
-
+auto Hover::contents(
+    std::variant<MarkupContent, MarkedString, Vector<MarkedString>> contents)
+    -> Hover& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(MarkupContent contents) {
       repr_->emplace("contents", contents);
@@ -6796,10 +6593,10 @@ HoverRegistrationOptions::operator bool() const {
 }
 
 auto HoverRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -6816,16 +6613,10 @@ auto HoverRegistrationOptions::workDoneProgress() const -> std::optional<bool> {
 }
 
 auto HoverRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> HoverRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> HoverRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -6947,12 +6738,12 @@ auto SignatureHelp::activeSignature() const -> std::optional<long> {
 }
 
 auto SignatureHelp::activeParameter() const
-    -> std::optional<std::variant<std::monostate, long, std::nullptr_t>> {
+    -> std::optional<std::variant<long, std::nullptr_t>> {
   if (!repr_->contains("activeParameter")) return std::nullopt;
 
   auto& value = (*repr_)["activeParameter"];
 
-  std::variant<std::monostate, long, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -6976,21 +6767,15 @@ auto SignatureHelp::activeSignature(std::optional<long> activeSignature)
 }
 
 auto SignatureHelp::activeParameter(
-    std::optional<std::variant<std::monostate, long, std::nullptr_t>>
-        activeParameter) -> SignatureHelp& {
+    std::optional<std::variant<long, std::nullptr_t>> activeParameter)
+    -> SignatureHelp& {
   if (!activeParameter.has_value()) {
     repr_->erase("activeParameter");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(long activeParameter) {
       repr_->emplace("activeParameter", std::move(activeParameter));
@@ -7013,10 +6798,10 @@ SignatureHelpRegistrationOptions::operator bool() const {
 }
 
 auto SignatureHelpRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -7054,16 +6839,10 @@ auto SignatureHelpRegistrationOptions::workDoneProgress() const
 }
 
 auto SignatureHelpRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> SignatureHelpRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> SignatureHelpRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -7198,10 +6977,10 @@ DefinitionRegistrationOptions::operator bool() const {
 }
 
 auto DefinitionRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -7219,16 +6998,10 @@ auto DefinitionRegistrationOptions::workDoneProgress() const
 }
 
 auto DefinitionRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DefinitionRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DefinitionRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -7349,10 +7122,10 @@ ReferenceRegistrationOptions::operator bool() const {
 }
 
 auto ReferenceRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -7370,16 +7143,10 @@ auto ReferenceRegistrationOptions::workDoneProgress() const
 }
 
 auto ReferenceRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> ReferenceRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> ReferenceRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -7528,10 +7295,10 @@ DocumentHighlightRegistrationOptions::operator bool() const {
 }
 
 auto DocumentHighlightRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -7549,16 +7316,10 @@ auto DocumentHighlightRegistrationOptions::workDoneProgress() const
 }
 
 auto DocumentHighlightRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentHighlightRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentHighlightRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -7888,10 +7649,10 @@ DocumentSymbolRegistrationOptions::operator bool() const {
 }
 
 auto DocumentSymbolRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -7919,16 +7680,10 @@ auto DocumentSymbolRegistrationOptions::workDoneProgress() const
 }
 
 auto DocumentSymbolRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentSymbolRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentSymbolRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -8289,10 +8044,10 @@ CodeActionRegistrationOptions::operator bool() const {
 }
 
 auto CodeActionRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -8340,16 +8095,10 @@ auto CodeActionRegistrationOptions::workDoneProgress() const
 }
 
 auto CodeActionRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> CodeActionRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> CodeActionRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -8484,10 +8233,10 @@ WorkspaceSymbol::operator bool() const {
 }
 
 auto WorkspaceSymbol::location() const
-    -> std::variant<std::monostate, Location, LocationUriOnly> {
+    -> std::variant<Location, LocationUriOnly> {
   auto& value = (*repr_)["location"];
 
-  std::variant<std::monostate, Location, LocationUriOnly> result;
+  std::variant<Location, LocationUriOnly> result;
 
   details::try_emplace(result, value);
 
@@ -8534,17 +8283,10 @@ auto WorkspaceSymbol::containerName() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto WorkspaceSymbol::location(
-    std::variant<std::monostate, Location, LocationUriOnly> location)
+auto WorkspaceSymbol::location(std::variant<Location, LocationUriOnly> location)
     -> WorkspaceSymbol& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(Location location) { repr_->emplace("location", location); }
 
@@ -8766,10 +8508,10 @@ CodeLensRegistrationOptions::operator bool() const {
 }
 
 auto CodeLensRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -8797,16 +8539,10 @@ auto CodeLensRegistrationOptions::workDoneProgress() const
 }
 
 auto CodeLensRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> CodeLensRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> CodeLensRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -8986,10 +8722,10 @@ DocumentLinkRegistrationOptions::operator bool() const {
 }
 
 auto DocumentLinkRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -9017,16 +8753,10 @@ auto DocumentLinkRegistrationOptions::workDoneProgress() const
 }
 
 auto DocumentLinkRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentLinkRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentLinkRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -9126,10 +8856,10 @@ DocumentFormattingRegistrationOptions::operator bool() const {
 }
 
 auto DocumentFormattingRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -9147,16 +8877,10 @@ auto DocumentFormattingRegistrationOptions::workDoneProgress() const
 }
 
 auto DocumentFormattingRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentFormattingRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentFormattingRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -9262,10 +8986,10 @@ DocumentRangeFormattingRegistrationOptions::operator bool() const {
 }
 
 auto DocumentRangeFormattingRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -9293,16 +9017,10 @@ auto DocumentRangeFormattingRegistrationOptions::workDoneProgress() const
 }
 
 auto DocumentRangeFormattingRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentRangeFormattingRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentRangeFormattingRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -9481,10 +9199,10 @@ DocumentOnTypeFormattingRegistrationOptions::operator bool() const {
 }
 
 auto DocumentOnTypeFormattingRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -9510,16 +9228,10 @@ auto DocumentOnTypeFormattingRegistrationOptions::moreTriggerCharacter() const
 }
 
 auto DocumentOnTypeFormattingRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> DocumentOnTypeFormattingRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> DocumentOnTypeFormattingRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -9629,10 +9341,10 @@ RenameRegistrationOptions::operator bool() const {
 }
 
 auto RenameRegistrationOptions::documentSelector() const
-    -> std::variant<std::monostate, DocumentSelector, std::nullptr_t> {
+    -> std::variant<DocumentSelector, std::nullptr_t> {
   auto& value = (*repr_)["documentSelector"];
 
-  std::variant<std::monostate, DocumentSelector, std::nullptr_t> result;
+  std::variant<DocumentSelector, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -9659,16 +9371,10 @@ auto RenameRegistrationOptions::workDoneProgress() const
 }
 
 auto RenameRegistrationOptions::documentSelector(
-    std::variant<std::monostate, DocumentSelector, std::nullptr_t>
-        documentSelector) -> RenameRegistrationOptions& {
-  // or type
-
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> RenameRegistrationOptions& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
@@ -10239,27 +9945,19 @@ CancelParams::operator bool() const {
   return true;
 }
 
-auto CancelParams::id() const
-    -> std::variant<std::monostate, int, std::string> {
+auto CancelParams::id() const -> std::variant<int, std::string> {
   auto& value = (*repr_)["id"];
 
-  std::variant<std::monostate, int, std::string> result;
+  std::variant<int, std::string> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto CancelParams::id(std::variant<std::monostate, int, std::string> id)
-    -> CancelParams& {
-  // or type
-
+auto CancelParams::id(std::variant<int, std::string> id) -> CancelParams& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int id) { repr_->emplace("id", std::move(id)); }
 
@@ -10871,25 +10569,25 @@ auto SemanticTokensOptions::legend() const -> SemanticTokensLegend {
 }
 
 auto SemanticTokensOptions::range() const
-    -> std::optional<std::variant<std::monostate, bool, json>> {
+    -> std::optional<std::variant<bool, json>> {
   if (!repr_->contains("range")) return std::nullopt;
 
   auto& value = (*repr_)["range"];
 
-  std::variant<std::monostate, bool, json> result;
+  std::variant<bool, json> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto SemanticTokensOptions::full() const -> std::optional<
-    std::variant<std::monostate, bool, SemanticTokensFullDelta>> {
+auto SemanticTokensOptions::full() const
+    -> std::optional<std::variant<bool, SemanticTokensFullDelta>> {
   if (!repr_->contains("full")) return std::nullopt;
 
   auto& value = (*repr_)["full"];
 
-  std::variant<std::monostate, bool, SemanticTokensFullDelta> result;
+  std::variant<bool, SemanticTokensFullDelta> result;
 
   details::try_emplace(result, value);
 
@@ -10911,22 +10609,15 @@ auto SemanticTokensOptions::legend(SemanticTokensLegend legend)
   return *this;
 }
 
-auto SemanticTokensOptions::range(
-    std::optional<std::variant<std::monostate, bool, json>> range)
+auto SemanticTokensOptions::range(std::optional<std::variant<bool, json>> range)
     -> SemanticTokensOptions& {
   if (!range.has_value()) {
     repr_->erase("range");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool range) { repr_->emplace("range", std::move(range)); }
 
@@ -10941,21 +10632,15 @@ auto SemanticTokensOptions::range(
 }
 
 auto SemanticTokensOptions::full(
-    std::optional<std::variant<std::monostate, bool, SemanticTokensFullDelta>>
-        full) -> SemanticTokensOptions& {
+    std::optional<std::variant<bool, SemanticTokensFullDelta>> full)
+    -> SemanticTokensOptions& {
   if (!full.has_value()) {
     repr_->erase("full");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool full) { repr_->emplace("full", std::move(full)); }
 
@@ -11087,13 +10772,12 @@ auto TextDocumentEdit::textDocument() const
 }
 
 auto TextDocumentEdit::edits() const
-    -> Vector<std::variant<std::monostate, TextEdit, AnnotatedTextEdit,
-                           SnippetTextEdit>> {
+    -> Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>> {
   auto& value = (*repr_)["edits"];
 
   assert(value.is_array());
-  return Vector<std::variant<std::monostate, TextEdit, AnnotatedTextEdit,
-                             SnippetTextEdit>>(value);
+  return Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>>(
+      value);
 }
 
 auto TextDocumentEdit::textDocument(
@@ -11103,9 +10787,8 @@ auto TextDocumentEdit::textDocument(
 }
 
 auto TextDocumentEdit::edits(
-    Vector<std::variant<std::monostate, TextEdit, AnnotatedTextEdit,
-                        SnippetTextEdit>>
-        edits) -> TextDocumentEdit& {
+    Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>> edits)
+    -> TextDocumentEdit& {
   lsp_runtime_error("TextDocumentEdit::edits: not implement yet");
   return *this;
 }
@@ -11713,12 +11396,12 @@ auto InlayHintLabelPart::value() const -> std::string {
 }
 
 auto InlayHintLabelPart::tooltip() const
-    -> std::optional<std::variant<std::monostate, std::string, MarkupContent>> {
+    -> std::optional<std::variant<std::string, MarkupContent>> {
   if (!repr_->contains("tooltip")) return std::nullopt;
 
   auto& value = (*repr_)["tooltip"];
 
-  std::variant<std::monostate, std::string, MarkupContent> result;
+  std::variant<std::string, MarkupContent> result;
 
   details::try_emplace(result, value);
 
@@ -11747,21 +11430,15 @@ auto InlayHintLabelPart::value(std::string value) -> InlayHintLabelPart& {
 }
 
 auto InlayHintLabelPart::tooltip(
-    std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-        tooltip) -> InlayHintLabelPart& {
+    std::optional<std::variant<std::string, MarkupContent>> tooltip)
+    -> InlayHintLabelPart& {
   if (!tooltip.has_value()) {
     repr_->erase("tooltip");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string tooltip) {
       repr_->emplace("tooltip", std::move(tooltip));
@@ -11879,17 +11556,17 @@ RelatedFullDocumentDiagnosticReport::operator bool() const {
 }
 
 auto RelatedFullDocumentDiagnosticReport::relatedDocuments() const
-    -> std::optional<Map<
-        std::string, std::variant<std::monostate, FullDocumentDiagnosticReport,
-                                  UnchangedDocumentDiagnosticReport>>> {
+    -> std::optional<
+        Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                      UnchangedDocumentDiagnosticReport>>> {
   if (!repr_->contains("relatedDocuments")) return std::nullopt;
 
   auto& value = (*repr_)["relatedDocuments"];
 
   assert(value.is_object());
-  return Map<std::string,
-             std::variant<std::monostate, FullDocumentDiagnosticReport,
-                          UnchangedDocumentDiagnosticReport>>(value);
+  return Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                       UnchangedDocumentDiagnosticReport>>(
+      value);
 }
 
 auto RelatedFullDocumentDiagnosticReport::kind() const -> std::string {
@@ -11917,9 +11594,9 @@ auto RelatedFullDocumentDiagnosticReport::items() const -> Vector<Diagnostic> {
 }
 
 auto RelatedFullDocumentDiagnosticReport::relatedDocuments(
-    std::optional<Map<std::string,
-                      std::variant<std::monostate, FullDocumentDiagnosticReport,
-                                   UnchangedDocumentDiagnosticReport>>>
+    std::optional<
+        Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                      UnchangedDocumentDiagnosticReport>>>
         relatedDocuments) -> RelatedFullDocumentDiagnosticReport& {
   if (!relatedDocuments.has_value()) {
     repr_->erase("relatedDocuments");
@@ -11965,17 +11642,17 @@ RelatedUnchangedDocumentDiagnosticReport::operator bool() const {
 }
 
 auto RelatedUnchangedDocumentDiagnosticReport::relatedDocuments() const
-    -> std::optional<Map<
-        std::string, std::variant<std::monostate, FullDocumentDiagnosticReport,
-                                  UnchangedDocumentDiagnosticReport>>> {
+    -> std::optional<
+        Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                      UnchangedDocumentDiagnosticReport>>> {
   if (!repr_->contains("relatedDocuments")) return std::nullopt;
 
   auto& value = (*repr_)["relatedDocuments"];
 
   assert(value.is_object());
-  return Map<std::string,
-             std::variant<std::monostate, FullDocumentDiagnosticReport,
-                          UnchangedDocumentDiagnosticReport>>(value);
+  return Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                       UnchangedDocumentDiagnosticReport>>(
+      value);
 }
 
 auto RelatedUnchangedDocumentDiagnosticReport::kind() const -> std::string {
@@ -11993,9 +11670,9 @@ auto RelatedUnchangedDocumentDiagnosticReport::resultId() const -> std::string {
 }
 
 auto RelatedUnchangedDocumentDiagnosticReport::relatedDocuments(
-    std::optional<Map<std::string,
-                      std::variant<std::monostate, FullDocumentDiagnosticReport,
-                                   UnchangedDocumentDiagnosticReport>>>
+    std::optional<
+        Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                      UnchangedDocumentDiagnosticReport>>>
         relatedDocuments) -> RelatedUnchangedDocumentDiagnosticReport& {
   if (!relatedDocuments.has_value()) {
     repr_->erase("relatedDocuments");
@@ -12352,12 +12029,12 @@ NotebookDocumentSyncOptions::operator bool() const {
 }
 
 auto NotebookDocumentSyncOptions::notebookSelector() const
-    -> Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+    -> Vector<std::variant<NotebookDocumentFilterWithNotebook,
                            NotebookDocumentFilterWithCells>> {
   auto& value = (*repr_)["notebookSelector"];
 
   assert(value.is_array());
-  return Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+  return Vector<std::variant<NotebookDocumentFilterWithNotebook,
                              NotebookDocumentFilterWithCells>>(value);
 }
 
@@ -12371,7 +12048,7 @@ auto NotebookDocumentSyncOptions::save() const -> std::optional<bool> {
 }
 
 auto NotebookDocumentSyncOptions::notebookSelector(
-    Vector<std::variant<std::monostate, NotebookDocumentFilterWithNotebook,
+    Vector<std::variant<NotebookDocumentFilterWithNotebook,
                         NotebookDocumentFilterWithCells>>
         notebookSelector) -> NotebookDocumentSyncOptions& {
   lsp_runtime_error(
@@ -12688,11 +12365,10 @@ _InitializeParams::operator bool() const {
   return true;
 }
 
-auto _InitializeParams::processId() const
-    -> std::variant<std::monostate, int, std::nullptr_t> {
+auto _InitializeParams::processId() const -> std::variant<int, std::nullptr_t> {
   auto& value = (*repr_)["processId"];
 
-  std::variant<std::monostate, int, std::nullptr_t> result;
+  std::variant<int, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -12716,13 +12392,13 @@ auto _InitializeParams::locale() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto _InitializeParams::rootPath() const -> std::optional<
-    std::variant<std::monostate, std::string, std::nullptr_t>> {
+auto _InitializeParams::rootPath() const
+    -> std::optional<std::variant<std::string, std::nullptr_t>> {
   if (!repr_->contains("rootPath")) return std::nullopt;
 
   auto& value = (*repr_)["rootPath"];
 
-  std::variant<std::monostate, std::string, std::nullptr_t> result;
+  std::variant<std::string, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -12730,10 +12406,10 @@ auto _InitializeParams::rootPath() const -> std::optional<
 }
 
 auto _InitializeParams::rootUri() const
-    -> std::variant<std::monostate, std::string, std::nullptr_t> {
+    -> std::variant<std::string, std::nullptr_t> {
   auto& value = (*repr_)["rootUri"];
 
-  std::variant<std::monostate, std::string, std::nullptr_t> result;
+  std::variant<std::string, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -12775,17 +12451,10 @@ auto _InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
-auto _InitializeParams::processId(
-    std::variant<std::monostate, int, std::nullptr_t> processId)
+auto _InitializeParams::processId(std::variant<int, std::nullptr_t> processId)
     -> _InitializeParams& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int processId) {
       repr_->emplace("processId", std::move(processId));
@@ -12822,21 +12491,15 @@ auto _InitializeParams::locale(std::optional<std::string> locale)
 }
 
 auto _InitializeParams::rootPath(
-    std::optional<std::variant<std::monostate, std::string, std::nullptr_t>>
-        rootPath) -> _InitializeParams& {
+    std::optional<std::variant<std::string, std::nullptr_t>> rootPath)
+    -> _InitializeParams& {
   if (!rootPath.has_value()) {
     repr_->erase("rootPath");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string rootPath) {
       repr_->emplace("rootPath", std::move(rootPath));
@@ -12853,16 +12516,9 @@ auto _InitializeParams::rootPath(
 }
 
 auto _InitializeParams::rootUri(
-    std::variant<std::monostate, std::string, std::nullptr_t> rootUri)
-    -> _InitializeParams& {
-  // or type
-
+    std::variant<std::string, std::nullptr_t> rootUri) -> _InitializeParams& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string rootUri) {
       repr_->emplace("rootUri", std::move(rootUri));
@@ -12921,13 +12577,12 @@ WorkspaceFoldersInitializeParams::operator bool() const {
 }
 
 auto WorkspaceFoldersInitializeParams::workspaceFolders() const
-    -> std::optional<
-        std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>> {
+    -> std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>> {
   if (!repr_->contains("workspaceFolders")) return std::nullopt;
 
   auto& value = (*repr_)["workspaceFolders"];
 
-  std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t> result;
+  std::variant<Vector<WorkspaceFolder>, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -12935,22 +12590,15 @@ auto WorkspaceFoldersInitializeParams::workspaceFolders() const
 }
 
 auto WorkspaceFoldersInitializeParams::workspaceFolders(
-    std::optional<
-        std::variant<std::monostate, Vector<WorkspaceFolder>, std::nullptr_t>>
+    std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>
         workspaceFolders) -> WorkspaceFoldersInitializeParams& {
   if (!workspaceFolders.has_value()) {
     repr_->erase("workspaceFolders");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(Vector<WorkspaceFolder> workspaceFolders) {
       lsp_runtime_error(
@@ -12982,15 +12630,13 @@ auto ServerCapabilities::positionEncoding() const
   lsp_runtime_error("ServerCapabilities::positionEncoding: not implement yet");
 }
 
-auto ServerCapabilities::textDocumentSync() const
-    -> std::optional<std::variant<std::monostate, TextDocumentSyncOptions,
-                                  TextDocumentSyncKind>> {
+auto ServerCapabilities::textDocumentSync() const -> std::optional<
+    std::variant<TextDocumentSyncOptions, TextDocumentSyncKind>> {
   if (!repr_->contains("textDocumentSync")) return std::nullopt;
 
   auto& value = (*repr_)["textDocumentSync"];
 
-  std::variant<std::monostate, TextDocumentSyncOptions, TextDocumentSyncKind>
-      result;
+  std::variant<TextDocumentSyncOptions, TextDocumentSyncKind> result;
 
   details::try_emplace(result, value);
 
@@ -12998,13 +12644,13 @@ auto ServerCapabilities::textDocumentSync() const
 }
 
 auto ServerCapabilities::notebookDocumentSync() const
-    -> std::optional<std::variant<std::monostate, NotebookDocumentSyncOptions,
+    -> std::optional<std::variant<NotebookDocumentSyncOptions,
                                   NotebookDocumentSyncRegistrationOptions>> {
   if (!repr_->contains("notebookDocumentSync")) return std::nullopt;
 
   auto& value = (*repr_)["notebookDocumentSync"];
 
-  std::variant<std::monostate, NotebookDocumentSyncOptions,
+  std::variant<NotebookDocumentSyncOptions,
                NotebookDocumentSyncRegistrationOptions>
       result;
 
@@ -13023,12 +12669,12 @@ auto ServerCapabilities::completionProvider() const
 }
 
 auto ServerCapabilities::hoverProvider() const
-    -> std::optional<std::variant<std::monostate, bool, HoverOptions>> {
+    -> std::optional<std::variant<bool, HoverOptions>> {
   if (!repr_->contains("hoverProvider")) return std::nullopt;
 
   auto& value = (*repr_)["hoverProvider"];
 
-  std::variant<std::monostate, bool, HoverOptions> result;
+  std::variant<bool, HoverOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13044,16 +12690,13 @@ auto ServerCapabilities::signatureHelpProvider() const
   return SignatureHelpOptions(value);
 }
 
-auto ServerCapabilities::declarationProvider() const
-    -> std::optional<std::variant<std::monostate, bool, DeclarationOptions,
-                                  DeclarationRegistrationOptions>> {
+auto ServerCapabilities::declarationProvider() const -> std::optional<
+    std::variant<bool, DeclarationOptions, DeclarationRegistrationOptions>> {
   if (!repr_->contains("declarationProvider")) return std::nullopt;
 
   auto& value = (*repr_)["declarationProvider"];
 
-  std::variant<std::monostate, bool, DeclarationOptions,
-               DeclarationRegistrationOptions>
-      result;
+  std::variant<bool, DeclarationOptions, DeclarationRegistrationOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13061,12 +12704,12 @@ auto ServerCapabilities::declarationProvider() const
 }
 
 auto ServerCapabilities::definitionProvider() const
-    -> std::optional<std::variant<std::monostate, bool, DefinitionOptions>> {
+    -> std::optional<std::variant<bool, DefinitionOptions>> {
   if (!repr_->contains("definitionProvider")) return std::nullopt;
 
   auto& value = (*repr_)["definitionProvider"];
 
-  std::variant<std::monostate, bool, DefinitionOptions> result;
+  std::variant<bool, DefinitionOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13074,14 +12717,13 @@ auto ServerCapabilities::definitionProvider() const
 }
 
 auto ServerCapabilities::typeDefinitionProvider() const
-    -> std::optional<std::variant<std::monostate, bool, TypeDefinitionOptions,
+    -> std::optional<std::variant<bool, TypeDefinitionOptions,
                                   TypeDefinitionRegistrationOptions>> {
   if (!repr_->contains("typeDefinitionProvider")) return std::nullopt;
 
   auto& value = (*repr_)["typeDefinitionProvider"];
 
-  std::variant<std::monostate, bool, TypeDefinitionOptions,
-               TypeDefinitionRegistrationOptions>
+  std::variant<bool, TypeDefinitionOptions, TypeDefinitionRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13090,14 +12732,13 @@ auto ServerCapabilities::typeDefinitionProvider() const
 }
 
 auto ServerCapabilities::implementationProvider() const
-    -> std::optional<std::variant<std::monostate, bool, ImplementationOptions,
+    -> std::optional<std::variant<bool, ImplementationOptions,
                                   ImplementationRegistrationOptions>> {
   if (!repr_->contains("implementationProvider")) return std::nullopt;
 
   auto& value = (*repr_)["implementationProvider"];
 
-  std::variant<std::monostate, bool, ImplementationOptions,
-               ImplementationRegistrationOptions>
+  std::variant<bool, ImplementationOptions, ImplementationRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13106,38 +12747,38 @@ auto ServerCapabilities::implementationProvider() const
 }
 
 auto ServerCapabilities::referencesProvider() const
-    -> std::optional<std::variant<std::monostate, bool, ReferenceOptions>> {
+    -> std::optional<std::variant<bool, ReferenceOptions>> {
   if (!repr_->contains("referencesProvider")) return std::nullopt;
 
   auto& value = (*repr_)["referencesProvider"];
 
-  std::variant<std::monostate, bool, ReferenceOptions> result;
+  std::variant<bool, ReferenceOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::documentHighlightProvider() const -> std::optional<
-    std::variant<std::monostate, bool, DocumentHighlightOptions>> {
+auto ServerCapabilities::documentHighlightProvider() const
+    -> std::optional<std::variant<bool, DocumentHighlightOptions>> {
   if (!repr_->contains("documentHighlightProvider")) return std::nullopt;
 
   auto& value = (*repr_)["documentHighlightProvider"];
 
-  std::variant<std::monostate, bool, DocumentHighlightOptions> result;
+  std::variant<bool, DocumentHighlightOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::documentSymbolProvider() const -> std::optional<
-    std::variant<std::monostate, bool, DocumentSymbolOptions>> {
+auto ServerCapabilities::documentSymbolProvider() const
+    -> std::optional<std::variant<bool, DocumentSymbolOptions>> {
   if (!repr_->contains("documentSymbolProvider")) return std::nullopt;
 
   auto& value = (*repr_)["documentSymbolProvider"];
 
-  std::variant<std::monostate, bool, DocumentSymbolOptions> result;
+  std::variant<bool, DocumentSymbolOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13145,12 +12786,12 @@ auto ServerCapabilities::documentSymbolProvider() const -> std::optional<
 }
 
 auto ServerCapabilities::codeActionProvider() const
-    -> std::optional<std::variant<std::monostate, bool, CodeActionOptions>> {
+    -> std::optional<std::variant<bool, CodeActionOptions>> {
   if (!repr_->contains("codeActionProvider")) return std::nullopt;
 
   auto& value = (*repr_)["codeActionProvider"];
 
-  std::variant<std::monostate, bool, CodeActionOptions> result;
+  std::variant<bool, CodeActionOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13176,14 +12817,13 @@ auto ServerCapabilities::documentLinkProvider() const
 }
 
 auto ServerCapabilities::colorProvider() const
-    -> std::optional<std::variant<std::monostate, bool, DocumentColorOptions,
+    -> std::optional<std::variant<bool, DocumentColorOptions,
                                   DocumentColorRegistrationOptions>> {
   if (!repr_->contains("colorProvider")) return std::nullopt;
 
   auto& value = (*repr_)["colorProvider"];
 
-  std::variant<std::monostate, bool, DocumentColorOptions,
-               DocumentColorRegistrationOptions>
+  std::variant<bool, DocumentColorOptions, DocumentColorRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13191,26 +12831,26 @@ auto ServerCapabilities::colorProvider() const
   return result;
 }
 
-auto ServerCapabilities::workspaceSymbolProvider() const -> std::optional<
-    std::variant<std::monostate, bool, WorkspaceSymbolOptions>> {
+auto ServerCapabilities::workspaceSymbolProvider() const
+    -> std::optional<std::variant<bool, WorkspaceSymbolOptions>> {
   if (!repr_->contains("workspaceSymbolProvider")) return std::nullopt;
 
   auto& value = (*repr_)["workspaceSymbolProvider"];
 
-  std::variant<std::monostate, bool, WorkspaceSymbolOptions> result;
+  std::variant<bool, WorkspaceSymbolOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::documentFormattingProvider() const -> std::optional<
-    std::variant<std::monostate, bool, DocumentFormattingOptions>> {
+auto ServerCapabilities::documentFormattingProvider() const
+    -> std::optional<std::variant<bool, DocumentFormattingOptions>> {
   if (!repr_->contains("documentFormattingProvider")) return std::nullopt;
 
   auto& value = (*repr_)["documentFormattingProvider"];
 
-  std::variant<std::monostate, bool, DocumentFormattingOptions> result;
+  std::variant<bool, DocumentFormattingOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13218,13 +12858,12 @@ auto ServerCapabilities::documentFormattingProvider() const -> std::optional<
 }
 
 auto ServerCapabilities::documentRangeFormattingProvider() const
-    -> std::optional<
-        std::variant<std::monostate, bool, DocumentRangeFormattingOptions>> {
+    -> std::optional<std::variant<bool, DocumentRangeFormattingOptions>> {
   if (!repr_->contains("documentRangeFormattingProvider")) return std::nullopt;
 
   auto& value = (*repr_)["documentRangeFormattingProvider"];
 
-  std::variant<std::monostate, bool, DocumentRangeFormattingOptions> result;
+  std::variant<bool, DocumentRangeFormattingOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13241,27 +12880,25 @@ auto ServerCapabilities::documentOnTypeFormattingProvider() const
 }
 
 auto ServerCapabilities::renameProvider() const
-    -> std::optional<std::variant<std::monostate, bool, RenameOptions>> {
+    -> std::optional<std::variant<bool, RenameOptions>> {
   if (!repr_->contains("renameProvider")) return std::nullopt;
 
   auto& value = (*repr_)["renameProvider"];
 
-  std::variant<std::monostate, bool, RenameOptions> result;
+  std::variant<bool, RenameOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::foldingRangeProvider() const
-    -> std::optional<std::variant<std::monostate, bool, FoldingRangeOptions,
-                                  FoldingRangeRegistrationOptions>> {
+auto ServerCapabilities::foldingRangeProvider() const -> std::optional<
+    std::variant<bool, FoldingRangeOptions, FoldingRangeRegistrationOptions>> {
   if (!repr_->contains("foldingRangeProvider")) return std::nullopt;
 
   auto& value = (*repr_)["foldingRangeProvider"];
 
-  std::variant<std::monostate, bool, FoldingRangeOptions,
-               FoldingRangeRegistrationOptions>
+  std::variant<bool, FoldingRangeOptions, FoldingRangeRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13270,14 +12907,13 @@ auto ServerCapabilities::foldingRangeProvider() const
 }
 
 auto ServerCapabilities::selectionRangeProvider() const
-    -> std::optional<std::variant<std::monostate, bool, SelectionRangeOptions,
+    -> std::optional<std::variant<bool, SelectionRangeOptions,
                                   SelectionRangeRegistrationOptions>> {
   if (!repr_->contains("selectionRangeProvider")) return std::nullopt;
 
   auto& value = (*repr_)["selectionRangeProvider"];
 
-  std::variant<std::monostate, bool, SelectionRangeOptions,
-               SelectionRangeRegistrationOptions>
+  std::variant<bool, SelectionRangeOptions, SelectionRangeRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13295,14 +12931,13 @@ auto ServerCapabilities::executeCommandProvider() const
 }
 
 auto ServerCapabilities::callHierarchyProvider() const
-    -> std::optional<std::variant<std::monostate, bool, CallHierarchyOptions,
+    -> std::optional<std::variant<bool, CallHierarchyOptions,
                                   CallHierarchyRegistrationOptions>> {
   if (!repr_->contains("callHierarchyProvider")) return std::nullopt;
 
   auto& value = (*repr_)["callHierarchyProvider"];
 
-  std::variant<std::monostate, bool, CallHierarchyOptions,
-               CallHierarchyRegistrationOptions>
+  std::variant<bool, CallHierarchyOptions, CallHierarchyRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13310,14 +12945,14 @@ auto ServerCapabilities::callHierarchyProvider() const
   return result;
 }
 
-auto ServerCapabilities::linkedEditingRangeProvider() const -> std::optional<
-    std::variant<std::monostate, bool, LinkedEditingRangeOptions,
-                 LinkedEditingRangeRegistrationOptions>> {
+auto ServerCapabilities::linkedEditingRangeProvider() const
+    -> std::optional<std::variant<bool, LinkedEditingRangeOptions,
+                                  LinkedEditingRangeRegistrationOptions>> {
   if (!repr_->contains("linkedEditingRangeProvider")) return std::nullopt;
 
   auto& value = (*repr_)["linkedEditingRangeProvider"];
 
-  std::variant<std::monostate, bool, LinkedEditingRangeOptions,
+  std::variant<bool, LinkedEditingRangeOptions,
                LinkedEditingRangeRegistrationOptions>
       result;
 
@@ -13326,31 +12961,26 @@ auto ServerCapabilities::linkedEditingRangeProvider() const -> std::optional<
   return result;
 }
 
-auto ServerCapabilities::semanticTokensProvider() const
-    -> std::optional<std::variant<std::monostate, SemanticTokensOptions,
-                                  SemanticTokensRegistrationOptions>> {
+auto ServerCapabilities::semanticTokensProvider() const -> std::optional<
+    std::variant<SemanticTokensOptions, SemanticTokensRegistrationOptions>> {
   if (!repr_->contains("semanticTokensProvider")) return std::nullopt;
 
   auto& value = (*repr_)["semanticTokensProvider"];
 
-  std::variant<std::monostate, SemanticTokensOptions,
-               SemanticTokensRegistrationOptions>
-      result;
+  std::variant<SemanticTokensOptions, SemanticTokensRegistrationOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::monikerProvider() const
-    -> std::optional<std::variant<std::monostate, bool, MonikerOptions,
-                                  MonikerRegistrationOptions>> {
+auto ServerCapabilities::monikerProvider() const -> std::optional<
+    std::variant<bool, MonikerOptions, MonikerRegistrationOptions>> {
   if (!repr_->contains("monikerProvider")) return std::nullopt;
 
   auto& value = (*repr_)["monikerProvider"];
 
-  std::variant<std::monostate, bool, MonikerOptions, MonikerRegistrationOptions>
-      result;
+  std::variant<bool, MonikerOptions, MonikerRegistrationOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13358,14 +12988,13 @@ auto ServerCapabilities::monikerProvider() const
 }
 
 auto ServerCapabilities::typeHierarchyProvider() const
-    -> std::optional<std::variant<std::monostate, bool, TypeHierarchyOptions,
+    -> std::optional<std::variant<bool, TypeHierarchyOptions,
                                   TypeHierarchyRegistrationOptions>> {
   if (!repr_->contains("typeHierarchyProvider")) return std::nullopt;
 
   auto& value = (*repr_)["typeHierarchyProvider"];
 
-  std::variant<std::monostate, bool, TypeHierarchyOptions,
-               TypeHierarchyRegistrationOptions>
+  std::variant<bool, TypeHierarchyOptions, TypeHierarchyRegistrationOptions>
       result;
 
   details::try_emplace(result, value);
@@ -13373,60 +13002,52 @@ auto ServerCapabilities::typeHierarchyProvider() const
   return result;
 }
 
-auto ServerCapabilities::inlineValueProvider() const
-    -> std::optional<std::variant<std::monostate, bool, InlineValueOptions,
-                                  InlineValueRegistrationOptions>> {
+auto ServerCapabilities::inlineValueProvider() const -> std::optional<
+    std::variant<bool, InlineValueOptions, InlineValueRegistrationOptions>> {
   if (!repr_->contains("inlineValueProvider")) return std::nullopt;
 
   auto& value = (*repr_)["inlineValueProvider"];
 
-  std::variant<std::monostate, bool, InlineValueOptions,
-               InlineValueRegistrationOptions>
-      result;
+  std::variant<bool, InlineValueOptions, InlineValueRegistrationOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::inlayHintProvider() const
-    -> std::optional<std::variant<std::monostate, bool, InlayHintOptions,
-                                  InlayHintRegistrationOptions>> {
+auto ServerCapabilities::inlayHintProvider() const -> std::optional<
+    std::variant<bool, InlayHintOptions, InlayHintRegistrationOptions>> {
   if (!repr_->contains("inlayHintProvider")) return std::nullopt;
 
   auto& value = (*repr_)["inlayHintProvider"];
 
-  std::variant<std::monostate, bool, InlayHintOptions,
-               InlayHintRegistrationOptions>
-      result;
+  std::variant<bool, InlayHintOptions, InlayHintRegistrationOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::diagnosticProvider() const
-    -> std::optional<std::variant<std::monostate, DiagnosticOptions,
-                                  DiagnosticRegistrationOptions>> {
+auto ServerCapabilities::diagnosticProvider() const -> std::optional<
+    std::variant<DiagnosticOptions, DiagnosticRegistrationOptions>> {
   if (!repr_->contains("diagnosticProvider")) return std::nullopt;
 
   auto& value = (*repr_)["diagnosticProvider"];
 
-  std::variant<std::monostate, DiagnosticOptions, DiagnosticRegistrationOptions>
-      result;
+  std::variant<DiagnosticOptions, DiagnosticRegistrationOptions> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ServerCapabilities::inlineCompletionProvider() const -> std::optional<
-    std::variant<std::monostate, bool, InlineCompletionOptions>> {
+auto ServerCapabilities::inlineCompletionProvider() const
+    -> std::optional<std::variant<bool, InlineCompletionOptions>> {
   if (!repr_->contains("inlineCompletionProvider")) return std::nullopt;
 
   auto& value = (*repr_)["inlineCompletionProvider"];
 
-  std::variant<std::monostate, bool, InlineCompletionOptions> result;
+  std::variant<bool, InlineCompletionOptions> result;
 
   details::try_emplace(result, value);
 
@@ -13462,22 +13083,15 @@ auto ServerCapabilities::positionEncoding(
 }
 
 auto ServerCapabilities::textDocumentSync(
-    std::optional<std::variant<std::monostate, TextDocumentSyncOptions,
-                               TextDocumentSyncKind>>
+    std::optional<std::variant<TextDocumentSyncOptions, TextDocumentSyncKind>>
         textDocumentSync) -> ServerCapabilities& {
   if (!textDocumentSync.has_value()) {
     repr_->erase("textDocumentSync");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(TextDocumentSyncOptions textDocumentSync) {
       repr_->emplace("textDocumentSync", textDocumentSync);
@@ -13494,7 +13108,7 @@ auto ServerCapabilities::textDocumentSync(
 }
 
 auto ServerCapabilities::notebookDocumentSync(
-    std::optional<std::variant<std::monostate, NotebookDocumentSyncOptions,
+    std::optional<std::variant<NotebookDocumentSyncOptions,
                                NotebookDocumentSyncRegistrationOptions>>
         notebookDocumentSync) -> ServerCapabilities& {
   if (!notebookDocumentSync.has_value()) {
@@ -13502,14 +13116,8 @@ auto ServerCapabilities::notebookDocumentSync(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(NotebookDocumentSyncOptions notebookDocumentSync) {
       repr_->emplace("notebookDocumentSync", notebookDocumentSync);
@@ -13538,21 +13146,15 @@ auto ServerCapabilities::completionProvider(
 }
 
 auto ServerCapabilities::hoverProvider(
-    std::optional<std::variant<std::monostate, bool, HoverOptions>>
-        hoverProvider) -> ServerCapabilities& {
+    std::optional<std::variant<bool, HoverOptions>> hoverProvider)
+    -> ServerCapabilities& {
   if (!hoverProvider.has_value()) {
     repr_->erase("hoverProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool hoverProvider) {
       repr_->emplace("hoverProvider", std::move(hoverProvider));
@@ -13580,22 +13182,16 @@ auto ServerCapabilities::signatureHelpProvider(
 }
 
 auto ServerCapabilities::declarationProvider(
-    std::optional<std::variant<std::monostate, bool, DeclarationOptions,
-                               DeclarationRegistrationOptions>>
+    std::optional<
+        std::variant<bool, DeclarationOptions, DeclarationRegistrationOptions>>
         declarationProvider) -> ServerCapabilities& {
   if (!declarationProvider.has_value()) {
     repr_->erase("declarationProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool declarationProvider) {
       repr_->emplace("declarationProvider", std::move(declarationProvider));
@@ -13616,21 +13212,15 @@ auto ServerCapabilities::declarationProvider(
 }
 
 auto ServerCapabilities::definitionProvider(
-    std::optional<std::variant<std::monostate, bool, DefinitionOptions>>
-        definitionProvider) -> ServerCapabilities& {
+    std::optional<std::variant<bool, DefinitionOptions>> definitionProvider)
+    -> ServerCapabilities& {
   if (!definitionProvider.has_value()) {
     repr_->erase("definitionProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool definitionProvider) {
       repr_->emplace("definitionProvider", std::move(definitionProvider));
@@ -13647,7 +13237,7 @@ auto ServerCapabilities::definitionProvider(
 }
 
 auto ServerCapabilities::typeDefinitionProvider(
-    std::optional<std::variant<std::monostate, bool, TypeDefinitionOptions,
+    std::optional<std::variant<bool, TypeDefinitionOptions,
                                TypeDefinitionRegistrationOptions>>
         typeDefinitionProvider) -> ServerCapabilities& {
   if (!typeDefinitionProvider.has_value()) {
@@ -13655,14 +13245,8 @@ auto ServerCapabilities::typeDefinitionProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool typeDefinitionProvider) {
       repr_->emplace("typeDefinitionProvider",
@@ -13684,7 +13268,7 @@ auto ServerCapabilities::typeDefinitionProvider(
 }
 
 auto ServerCapabilities::implementationProvider(
-    std::optional<std::variant<std::monostate, bool, ImplementationOptions,
+    std::optional<std::variant<bool, ImplementationOptions,
                                ImplementationRegistrationOptions>>
         implementationProvider) -> ServerCapabilities& {
   if (!implementationProvider.has_value()) {
@@ -13692,14 +13276,8 @@ auto ServerCapabilities::implementationProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool implementationProvider) {
       repr_->emplace("implementationProvider",
@@ -13721,21 +13299,15 @@ auto ServerCapabilities::implementationProvider(
 }
 
 auto ServerCapabilities::referencesProvider(
-    std::optional<std::variant<std::monostate, bool, ReferenceOptions>>
-        referencesProvider) -> ServerCapabilities& {
+    std::optional<std::variant<bool, ReferenceOptions>> referencesProvider)
+    -> ServerCapabilities& {
   if (!referencesProvider.has_value()) {
     repr_->erase("referencesProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool referencesProvider) {
       repr_->emplace("referencesProvider", std::move(referencesProvider));
@@ -13752,21 +13324,15 @@ auto ServerCapabilities::referencesProvider(
 }
 
 auto ServerCapabilities::documentHighlightProvider(
-    std::optional<std::variant<std::monostate, bool, DocumentHighlightOptions>>
+    std::optional<std::variant<bool, DocumentHighlightOptions>>
         documentHighlightProvider) -> ServerCapabilities& {
   if (!documentHighlightProvider.has_value()) {
     repr_->erase("documentHighlightProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool documentHighlightProvider) {
       repr_->emplace("documentHighlightProvider",
@@ -13784,21 +13350,15 @@ auto ServerCapabilities::documentHighlightProvider(
 }
 
 auto ServerCapabilities::documentSymbolProvider(
-    std::optional<std::variant<std::monostate, bool, DocumentSymbolOptions>>
+    std::optional<std::variant<bool, DocumentSymbolOptions>>
         documentSymbolProvider) -> ServerCapabilities& {
   if (!documentSymbolProvider.has_value()) {
     repr_->erase("documentSymbolProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool documentSymbolProvider) {
       repr_->emplace("documentSymbolProvider",
@@ -13816,21 +13376,15 @@ auto ServerCapabilities::documentSymbolProvider(
 }
 
 auto ServerCapabilities::codeActionProvider(
-    std::optional<std::variant<std::monostate, bool, CodeActionOptions>>
-        codeActionProvider) -> ServerCapabilities& {
+    std::optional<std::variant<bool, CodeActionOptions>> codeActionProvider)
+    -> ServerCapabilities& {
   if (!codeActionProvider.has_value()) {
     repr_->erase("codeActionProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool codeActionProvider) {
       repr_->emplace("codeActionProvider", std::move(codeActionProvider));
@@ -13868,7 +13422,7 @@ auto ServerCapabilities::documentLinkProvider(
 }
 
 auto ServerCapabilities::colorProvider(
-    std::optional<std::variant<std::monostate, bool, DocumentColorOptions,
+    std::optional<std::variant<bool, DocumentColorOptions,
                                DocumentColorRegistrationOptions>>
         colorProvider) -> ServerCapabilities& {
   if (!colorProvider.has_value()) {
@@ -13876,14 +13430,8 @@ auto ServerCapabilities::colorProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool colorProvider) {
       repr_->emplace("colorProvider", std::move(colorProvider));
@@ -13904,21 +13452,15 @@ auto ServerCapabilities::colorProvider(
 }
 
 auto ServerCapabilities::workspaceSymbolProvider(
-    std::optional<std::variant<std::monostate, bool, WorkspaceSymbolOptions>>
+    std::optional<std::variant<bool, WorkspaceSymbolOptions>>
         workspaceSymbolProvider) -> ServerCapabilities& {
   if (!workspaceSymbolProvider.has_value()) {
     repr_->erase("workspaceSymbolProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool workspaceSymbolProvider) {
       repr_->emplace("workspaceSymbolProvider",
@@ -13936,21 +13478,15 @@ auto ServerCapabilities::workspaceSymbolProvider(
 }
 
 auto ServerCapabilities::documentFormattingProvider(
-    std::optional<std::variant<std::monostate, bool, DocumentFormattingOptions>>
+    std::optional<std::variant<bool, DocumentFormattingOptions>>
         documentFormattingProvider) -> ServerCapabilities& {
   if (!documentFormattingProvider.has_value()) {
     repr_->erase("documentFormattingProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool documentFormattingProvider) {
       repr_->emplace("documentFormattingProvider",
@@ -13968,22 +13504,15 @@ auto ServerCapabilities::documentFormattingProvider(
 }
 
 auto ServerCapabilities::documentRangeFormattingProvider(
-    std::optional<
-        std::variant<std::monostate, bool, DocumentRangeFormattingOptions>>
+    std::optional<std::variant<bool, DocumentRangeFormattingOptions>>
         documentRangeFormattingProvider) -> ServerCapabilities& {
   if (!documentRangeFormattingProvider.has_value()) {
     repr_->erase("documentRangeFormattingProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool documentRangeFormattingProvider) {
       repr_->emplace("documentRangeFormattingProvider",
@@ -14015,21 +13544,15 @@ auto ServerCapabilities::documentOnTypeFormattingProvider(
 }
 
 auto ServerCapabilities::renameProvider(
-    std::optional<std::variant<std::monostate, bool, RenameOptions>>
-        renameProvider) -> ServerCapabilities& {
+    std::optional<std::variant<bool, RenameOptions>> renameProvider)
+    -> ServerCapabilities& {
   if (!renameProvider.has_value()) {
     repr_->erase("renameProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool renameProvider) {
       repr_->emplace("renameProvider", std::move(renameProvider));
@@ -14046,7 +13569,7 @@ auto ServerCapabilities::renameProvider(
 }
 
 auto ServerCapabilities::foldingRangeProvider(
-    std::optional<std::variant<std::monostate, bool, FoldingRangeOptions,
+    std::optional<std::variant<bool, FoldingRangeOptions,
                                FoldingRangeRegistrationOptions>>
         foldingRangeProvider) -> ServerCapabilities& {
   if (!foldingRangeProvider.has_value()) {
@@ -14054,14 +13577,8 @@ auto ServerCapabilities::foldingRangeProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool foldingRangeProvider) {
       repr_->emplace("foldingRangeProvider", std::move(foldingRangeProvider));
@@ -14082,7 +13599,7 @@ auto ServerCapabilities::foldingRangeProvider(
 }
 
 auto ServerCapabilities::selectionRangeProvider(
-    std::optional<std::variant<std::monostate, bool, SelectionRangeOptions,
+    std::optional<std::variant<bool, SelectionRangeOptions,
                                SelectionRangeRegistrationOptions>>
         selectionRangeProvider) -> ServerCapabilities& {
   if (!selectionRangeProvider.has_value()) {
@@ -14090,14 +13607,8 @@ auto ServerCapabilities::selectionRangeProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool selectionRangeProvider) {
       repr_->emplace("selectionRangeProvider",
@@ -14130,7 +13641,7 @@ auto ServerCapabilities::executeCommandProvider(
 }
 
 auto ServerCapabilities::callHierarchyProvider(
-    std::optional<std::variant<std::monostate, bool, CallHierarchyOptions,
+    std::optional<std::variant<bool, CallHierarchyOptions,
                                CallHierarchyRegistrationOptions>>
         callHierarchyProvider) -> ServerCapabilities& {
   if (!callHierarchyProvider.has_value()) {
@@ -14138,14 +13649,8 @@ auto ServerCapabilities::callHierarchyProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool callHierarchyProvider) {
       repr_->emplace("callHierarchyProvider", std::move(callHierarchyProvider));
@@ -14166,7 +13671,7 @@ auto ServerCapabilities::callHierarchyProvider(
 }
 
 auto ServerCapabilities::linkedEditingRangeProvider(
-    std::optional<std::variant<std::monostate, bool, LinkedEditingRangeOptions,
+    std::optional<std::variant<bool, LinkedEditingRangeOptions,
                                LinkedEditingRangeRegistrationOptions>>
         linkedEditingRangeProvider) -> ServerCapabilities& {
   if (!linkedEditingRangeProvider.has_value()) {
@@ -14174,14 +13679,8 @@ auto ServerCapabilities::linkedEditingRangeProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool linkedEditingRangeProvider) {
       repr_->emplace("linkedEditingRangeProvider",
@@ -14204,22 +13703,16 @@ auto ServerCapabilities::linkedEditingRangeProvider(
 }
 
 auto ServerCapabilities::semanticTokensProvider(
-    std::optional<std::variant<std::monostate, SemanticTokensOptions,
-                               SemanticTokensRegistrationOptions>>
+    std::optional<
+        std::variant<SemanticTokensOptions, SemanticTokensRegistrationOptions>>
         semanticTokensProvider) -> ServerCapabilities& {
   if (!semanticTokensProvider.has_value()) {
     repr_->erase("semanticTokensProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(SemanticTokensOptions semanticTokensProvider) {
       repr_->emplace("semanticTokensProvider", semanticTokensProvider);
@@ -14236,22 +13729,16 @@ auto ServerCapabilities::semanticTokensProvider(
 }
 
 auto ServerCapabilities::monikerProvider(
-    std::optional<std::variant<std::monostate, bool, MonikerOptions,
-                               MonikerRegistrationOptions>>
+    std::optional<
+        std::variant<bool, MonikerOptions, MonikerRegistrationOptions>>
         monikerProvider) -> ServerCapabilities& {
   if (!monikerProvider.has_value()) {
     repr_->erase("monikerProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool monikerProvider) {
       repr_->emplace("monikerProvider", std::move(monikerProvider));
@@ -14272,7 +13759,7 @@ auto ServerCapabilities::monikerProvider(
 }
 
 auto ServerCapabilities::typeHierarchyProvider(
-    std::optional<std::variant<std::monostate, bool, TypeHierarchyOptions,
+    std::optional<std::variant<bool, TypeHierarchyOptions,
                                TypeHierarchyRegistrationOptions>>
         typeHierarchyProvider) -> ServerCapabilities& {
   if (!typeHierarchyProvider.has_value()) {
@@ -14280,14 +13767,8 @@ auto ServerCapabilities::typeHierarchyProvider(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool typeHierarchyProvider) {
       repr_->emplace("typeHierarchyProvider", std::move(typeHierarchyProvider));
@@ -14308,22 +13789,16 @@ auto ServerCapabilities::typeHierarchyProvider(
 }
 
 auto ServerCapabilities::inlineValueProvider(
-    std::optional<std::variant<std::monostate, bool, InlineValueOptions,
-                               InlineValueRegistrationOptions>>
+    std::optional<
+        std::variant<bool, InlineValueOptions, InlineValueRegistrationOptions>>
         inlineValueProvider) -> ServerCapabilities& {
   if (!inlineValueProvider.has_value()) {
     repr_->erase("inlineValueProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool inlineValueProvider) {
       repr_->emplace("inlineValueProvider", std::move(inlineValueProvider));
@@ -14344,22 +13819,16 @@ auto ServerCapabilities::inlineValueProvider(
 }
 
 auto ServerCapabilities::inlayHintProvider(
-    std::optional<std::variant<std::monostate, bool, InlayHintOptions,
-                               InlayHintRegistrationOptions>>
+    std::optional<
+        std::variant<bool, InlayHintOptions, InlayHintRegistrationOptions>>
         inlayHintProvider) -> ServerCapabilities& {
   if (!inlayHintProvider.has_value()) {
     repr_->erase("inlayHintProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool inlayHintProvider) {
       repr_->emplace("inlayHintProvider", std::move(inlayHintProvider));
@@ -14380,22 +13849,16 @@ auto ServerCapabilities::inlayHintProvider(
 }
 
 auto ServerCapabilities::diagnosticProvider(
-    std::optional<std::variant<std::monostate, DiagnosticOptions,
-                               DiagnosticRegistrationOptions>>
+    std::optional<
+        std::variant<DiagnosticOptions, DiagnosticRegistrationOptions>>
         diagnosticProvider) -> ServerCapabilities& {
   if (!diagnosticProvider.has_value()) {
     repr_->erase("diagnosticProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(DiagnosticOptions diagnosticProvider) {
       repr_->emplace("diagnosticProvider", diagnosticProvider);
@@ -14412,21 +13875,15 @@ auto ServerCapabilities::diagnosticProvider(
 }
 
 auto ServerCapabilities::inlineCompletionProvider(
-    std::optional<std::variant<std::monostate, bool, InlineCompletionOptions>>
+    std::optional<std::variant<bool, InlineCompletionOptions>>
         inlineCompletionProvider) -> ServerCapabilities& {
   if (!inlineCompletionProvider.has_value()) {
     repr_->erase("inlineCompletionProvider");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool inlineCompletionProvider) {
       repr_->emplace("inlineCompletionProvider",
@@ -14646,13 +14103,12 @@ auto Diagnostic::severity() const -> std::optional<DiagnosticSeverity> {
   return DiagnosticSeverity(value);
 }
 
-auto Diagnostic::code() const
-    -> std::optional<std::variant<std::monostate, int, std::string>> {
+auto Diagnostic::code() const -> std::optional<std::variant<int, std::string>> {
   if (!repr_->contains("code")) return std::nullopt;
 
   auto& value = (*repr_)["code"];
 
-  std::variant<std::monostate, int, std::string> result;
+  std::variant<int, std::string> result;
 
   details::try_emplace(result, value);
 
@@ -14726,22 +14182,15 @@ auto Diagnostic::severity(std::optional<DiagnosticSeverity> severity)
   return *this;
 }
 
-auto Diagnostic::code(
-    std::optional<std::variant<std::monostate, int, std::string>> code)
+auto Diagnostic::code(std::optional<std::variant<int, std::string>> code)
     -> Diagnostic& {
   if (!code.has_value()) {
     repr_->erase("code");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int code) { repr_->emplace("code", std::move(code)); }
 
@@ -14947,13 +14396,13 @@ auto CompletionItemDefaults::commitCharacters() const
   return Vector<std::string>(value);
 }
 
-auto CompletionItemDefaults::editRange() const -> std::optional<
-    std::variant<std::monostate, Range, EditRangeWithInsertReplace>> {
+auto CompletionItemDefaults::editRange() const
+    -> std::optional<std::variant<Range, EditRangeWithInsertReplace>> {
   if (!repr_->contains("editRange")) return std::nullopt;
 
   auto& value = (*repr_)["editRange"];
 
-  std::variant<std::monostate, Range, EditRangeWithInsertReplace> result;
+  std::variant<Range, EditRangeWithInsertReplace> result;
 
   details::try_emplace(result, value);
 
@@ -15000,22 +14449,15 @@ auto CompletionItemDefaults::commitCharacters(
 }
 
 auto CompletionItemDefaults::editRange(
-    std::optional<
-        std::variant<std::monostate, Range, EditRangeWithInsertReplace>>
-        editRange) -> CompletionItemDefaults& {
+    std::optional<std::variant<Range, EditRangeWithInsertReplace>> editRange)
+    -> CompletionItemDefaults& {
   if (!editRange.has_value()) {
     repr_->erase("editRange");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(Range editRange) { repr_->emplace("editRange", editRange); }
 
@@ -15319,12 +14761,12 @@ auto SignatureInformation::label() const -> std::string {
 }
 
 auto SignatureInformation::documentation() const
-    -> std::optional<std::variant<std::monostate, std::string, MarkupContent>> {
+    -> std::optional<std::variant<std::string, MarkupContent>> {
   if (!repr_->contains("documentation")) return std::nullopt;
 
   auto& value = (*repr_)["documentation"];
 
-  std::variant<std::monostate, std::string, MarkupContent> result;
+  std::variant<std::string, MarkupContent> result;
 
   details::try_emplace(result, value);
 
@@ -15342,12 +14784,12 @@ auto SignatureInformation::parameters() const
 }
 
 auto SignatureInformation::activeParameter() const
-    -> std::optional<std::variant<std::monostate, long, std::nullptr_t>> {
+    -> std::optional<std::variant<long, std::nullptr_t>> {
   if (!repr_->contains("activeParameter")) return std::nullopt;
 
   auto& value = (*repr_)["activeParameter"];
 
-  std::variant<std::monostate, long, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -15360,21 +14802,15 @@ auto SignatureInformation::label(std::string label) -> SignatureInformation& {
 }
 
 auto SignatureInformation::documentation(
-    std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-        documentation) -> SignatureInformation& {
+    std::optional<std::variant<std::string, MarkupContent>> documentation)
+    -> SignatureInformation& {
   if (!documentation.has_value()) {
     repr_->erase("documentation");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string documentation) {
       repr_->emplace("documentation", std::move(documentation));
@@ -15402,21 +14838,15 @@ auto SignatureInformation::parameters(
 }
 
 auto SignatureInformation::activeParameter(
-    std::optional<std::variant<std::monostate, long, std::nullptr_t>>
-        activeParameter) -> SignatureInformation& {
+    std::optional<std::variant<long, std::nullptr_t>> activeParameter)
+    -> SignatureInformation& {
   if (!activeParameter.has_value()) {
     repr_->erase("activeParameter");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(long activeParameter) {
       repr_->emplace("activeParameter", std::move(activeParameter));
@@ -16432,10 +15862,10 @@ OptionalVersionedTextDocumentIdentifier::operator bool() const {
 }
 
 auto OptionalVersionedTextDocumentIdentifier::version() const
-    -> std::variant<std::monostate, int, std::nullptr_t> {
+    -> std::variant<int, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<std::monostate, int, std::nullptr_t> result;
+  std::variant<int, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16450,16 +15880,10 @@ auto OptionalVersionedTextDocumentIdentifier::uri() const -> std::string {
 }
 
 auto OptionalVersionedTextDocumentIdentifier::version(
-    std::variant<std::monostate, int, std::nullptr_t> version)
+    std::variant<int, std::nullptr_t> version)
     -> OptionalVersionedTextDocumentIdentifier& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int version) {
       repr_->emplace("version", std::move(version));
@@ -16818,10 +16242,10 @@ auto WorkspaceFullDocumentDiagnosticReport::uri() const -> std::string {
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::version() const
-    -> std::variant<std::monostate, int, std::nullptr_t> {
+    -> std::variant<int, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<std::monostate, int, std::nullptr_t> result;
+  std::variant<int, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16860,16 +16284,10 @@ auto WorkspaceFullDocumentDiagnosticReport::uri(std::string uri)
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::version(
-    std::variant<std::monostate, int, std::nullptr_t> version)
+    std::variant<int, std::nullptr_t> version)
     -> WorkspaceFullDocumentDiagnosticReport& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int version) {
       repr_->emplace("version", std::move(version));
@@ -16928,10 +16346,10 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::uri() const -> std::string {
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::version() const
-    -> std::variant<std::monostate, int, std::nullptr_t> {
+    -> std::variant<int, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<std::monostate, int, std::nullptr_t> result;
+  std::variant<int, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16960,16 +16378,10 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::uri(std::string uri)
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::version(
-    std::variant<std::monostate, int, std::nullptr_t> version)
+    std::variant<int, std::nullptr_t> version)
     -> WorkspaceUnchangedDocumentDiagnosticReport& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(int version) {
       repr_->emplace("version", std::move(version));
@@ -17072,10 +16484,10 @@ NotebookDocumentFilterWithNotebook::operator bool() const {
 }
 
 auto NotebookDocumentFilterWithNotebook::notebook() const
-    -> std::variant<std::monostate, std::string, NotebookDocumentFilter> {
+    -> std::variant<std::string, NotebookDocumentFilter> {
   auto& value = (*repr_)["notebook"];
 
-  std::variant<std::monostate, std::string, NotebookDocumentFilter> result;
+  std::variant<std::string, NotebookDocumentFilter> result;
 
   details::try_emplace(result, value);
 
@@ -17093,16 +16505,10 @@ auto NotebookDocumentFilterWithNotebook::cells() const
 }
 
 auto NotebookDocumentFilterWithNotebook::notebook(
-    std::variant<std::monostate, std::string, NotebookDocumentFilter> notebook)
+    std::variant<std::string, NotebookDocumentFilter> notebook)
     -> NotebookDocumentFilterWithNotebook& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string notebook) {
       repr_->emplace("notebook", std::move(notebook));
@@ -17137,13 +16543,13 @@ NotebookDocumentFilterWithCells::operator bool() const {
   return true;
 }
 
-auto NotebookDocumentFilterWithCells::notebook() const -> std::optional<
-    std::variant<std::monostate, std::string, NotebookDocumentFilter>> {
+auto NotebookDocumentFilterWithCells::notebook() const
+    -> std::optional<std::variant<std::string, NotebookDocumentFilter>> {
   if (!repr_->contains("notebook")) return std::nullopt;
 
   auto& value = (*repr_)["notebook"];
 
-  std::variant<std::monostate, std::string, NotebookDocumentFilter> result;
+  std::variant<std::string, NotebookDocumentFilter> result;
 
   details::try_emplace(result, value);
 
@@ -17159,22 +16565,15 @@ auto NotebookDocumentFilterWithCells::cells() const
 }
 
 auto NotebookDocumentFilterWithCells::notebook(
-    std::optional<
-        std::variant<std::monostate, std::string, NotebookDocumentFilter>>
-        notebook) -> NotebookDocumentFilterWithCells& {
+    std::optional<std::variant<std::string, NotebookDocumentFilter>> notebook)
+    -> NotebookDocumentFilterWithCells& {
   if (!notebook.has_value()) {
     repr_->erase("notebook");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string notebook) {
       repr_->emplace("notebook", std::move(notebook));
@@ -17495,12 +16894,12 @@ auto TextDocumentSyncOptions::willSaveWaitUntil() const -> std::optional<bool> {
 }
 
 auto TextDocumentSyncOptions::save() const
-    -> std::optional<std::variant<std::monostate, bool, SaveOptions>> {
+    -> std::optional<std::variant<bool, SaveOptions>> {
   if (!repr_->contains("save")) return std::nullopt;
 
   auto& value = (*repr_)["save"];
 
-  std::variant<std::monostate, bool, SaveOptions> result;
+  std::variant<bool, SaveOptions> result;
 
   details::try_emplace(result, value);
 
@@ -17548,21 +16947,15 @@ auto TextDocumentSyncOptions::willSaveWaitUntil(
 }
 
 auto TextDocumentSyncOptions::save(
-    std::optional<std::variant<std::monostate, bool, SaveOptions>> save)
+    std::optional<std::variant<bool, SaveOptions>> save)
     -> TextDocumentSyncOptions& {
   if (!save.has_value()) {
     repr_->erase("save");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool save) { repr_->emplace("save", std::move(save)); }
 
@@ -17598,13 +16991,13 @@ auto WorkspaceOptions::fileOperations() const
 }
 
 auto WorkspaceOptions::textDocumentContent() const
-    -> std::optional<std::variant<std::monostate, TextDocumentContentOptions,
+    -> std::optional<std::variant<TextDocumentContentOptions,
                                   TextDocumentContentRegistrationOptions>> {
   if (!repr_->contains("textDocumentContent")) return std::nullopt;
 
   auto& value = (*repr_)["textDocumentContent"];
 
-  std::variant<std::monostate, TextDocumentContentOptions,
+  std::variant<TextDocumentContentOptions,
                TextDocumentContentRegistrationOptions>
       result;
 
@@ -17635,7 +17028,7 @@ auto WorkspaceOptions::fileOperations(
 }
 
 auto WorkspaceOptions::textDocumentContent(
-    std::optional<std::variant<std::monostate, TextDocumentContentOptions,
+    std::optional<std::variant<TextDocumentContentOptions,
                                TextDocumentContentRegistrationOptions>>
         textDocumentContent) -> WorkspaceOptions& {
   if (!textDocumentContent.has_value()) {
@@ -17643,14 +17036,8 @@ auto WorkspaceOptions::textDocumentContent(
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(TextDocumentContentOptions textDocumentContent) {
       repr_->emplace("textDocumentContent", textDocumentContent);
@@ -17884,10 +17271,10 @@ ParameterInformation::operator bool() const {
 }
 
 auto ParameterInformation::label() const
-    -> std::variant<std::monostate, std::string, std::tuple<long, long>> {
+    -> std::variant<std::string, std::tuple<long, long>> {
   auto& value = (*repr_)["label"];
 
-  std::variant<std::monostate, std::string, std::tuple<long, long>> result;
+  std::variant<std::string, std::tuple<long, long>> result;
 
   details::try_emplace(result, value);
 
@@ -17895,12 +17282,12 @@ auto ParameterInformation::label() const
 }
 
 auto ParameterInformation::documentation() const
-    -> std::optional<std::variant<std::monostate, std::string, MarkupContent>> {
+    -> std::optional<std::variant<std::string, MarkupContent>> {
   if (!repr_->contains("documentation")) return std::nullopt;
 
   auto& value = (*repr_)["documentation"];
 
-  std::variant<std::monostate, std::string, MarkupContent> result;
+  std::variant<std::string, MarkupContent> result;
 
   details::try_emplace(result, value);
 
@@ -17908,16 +17295,10 @@ auto ParameterInformation::documentation() const
 }
 
 auto ParameterInformation::label(
-    std::variant<std::monostate, std::string, std::tuple<long, long>> label)
+    std::variant<std::string, std::tuple<long, long>> label)
     -> ParameterInformation& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string label) {
       repr_->emplace("label", std::move(label));
@@ -17934,21 +17315,15 @@ auto ParameterInformation::label(
 }
 
 auto ParameterInformation::documentation(
-    std::optional<std::variant<std::monostate, std::string, MarkupContent>>
-        documentation) -> ParameterInformation& {
+    std::optional<std::variant<std::string, MarkupContent>> documentation)
+    -> ParameterInformation& {
   if (!documentation.has_value()) {
     repr_->erase("documentation");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string documentation) {
       repr_->emplace("documentation", std::move(documentation));
@@ -18002,10 +17377,10 @@ NotebookCellTextDocumentFilter::operator bool() const {
 }
 
 auto NotebookCellTextDocumentFilter::notebook() const
-    -> std::variant<std::monostate, std::string, NotebookDocumentFilter> {
+    -> std::variant<std::string, NotebookDocumentFilter> {
   auto& value = (*repr_)["notebook"];
 
-  std::variant<std::monostate, std::string, NotebookDocumentFilter> result;
+  std::variant<std::string, NotebookDocumentFilter> result;
 
   details::try_emplace(result, value);
 
@@ -18023,16 +17398,10 @@ auto NotebookCellTextDocumentFilter::language() const
 }
 
 auto NotebookCellTextDocumentFilter::notebook(
-    std::variant<std::monostate, std::string, NotebookDocumentFilter> notebook)
+    std::variant<std::string, NotebookDocumentFilter> notebook)
     -> NotebookCellTextDocumentFilter& {
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string notebook) {
       repr_->emplace("notebook", std::move(notebook));
@@ -19395,12 +18764,12 @@ auto WorkspaceFoldersServerCapabilities::supported() const
 }
 
 auto WorkspaceFoldersServerCapabilities::changeNotifications() const
-    -> std::optional<std::variant<std::monostate, std::string, bool>> {
+    -> std::optional<std::variant<std::string, bool>> {
   if (!repr_->contains("changeNotifications")) return std::nullopt;
 
   auto& value = (*repr_)["changeNotifications"];
 
-  std::variant<std::monostate, std::string, bool> result;
+  std::variant<std::string, bool> result;
 
   details::try_emplace(result, value);
 
@@ -19418,21 +18787,15 @@ auto WorkspaceFoldersServerCapabilities::supported(
 }
 
 auto WorkspaceFoldersServerCapabilities::changeNotifications(
-    std::optional<std::variant<std::monostate, std::string, bool>>
-        changeNotifications) -> WorkspaceFoldersServerCapabilities& {
+    std::optional<std::variant<std::string, bool>> changeNotifications)
+    -> WorkspaceFoldersServerCapabilities& {
   if (!changeNotifications.has_value()) {
     repr_->erase("changeNotifications");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(std::string changeNotifications) {
       repr_->emplace("changeNotifications", std::move(changeNotifications));
@@ -19581,10 +18944,10 @@ RelativePattern::operator bool() const {
 }
 
 auto RelativePattern::baseUri() const
-    -> std::variant<std::monostate, WorkspaceFolder, std::string> {
+    -> std::variant<WorkspaceFolder, std::string> {
   auto& value = (*repr_)["baseUri"];
 
-  std::variant<std::monostate, WorkspaceFolder, std::string> result;
+  std::variant<WorkspaceFolder, std::string> result;
 
   details::try_emplace(result, value);
 
@@ -19599,16 +18962,9 @@ auto RelativePattern::pattern() const -> Pattern {
 }
 
 auto RelativePattern::baseUri(
-    std::variant<std::monostate, WorkspaceFolder, std::string> baseUri)
-    -> RelativePattern& {
-  // or type
-
+    std::variant<WorkspaceFolder, std::string> baseUri) -> RelativePattern& {
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(WorkspaceFolder baseUri) {
       repr_->emplace("baseUri", baseUri);
@@ -23551,26 +22907,25 @@ ClientSemanticTokensRequestOptions::operator bool() const {
 }
 
 auto ClientSemanticTokensRequestOptions::range() const
-    -> std::optional<std::variant<std::monostate, bool, json>> {
+    -> std::optional<std::variant<bool, json>> {
   if (!repr_->contains("range")) return std::nullopt;
 
   auto& value = (*repr_)["range"];
 
-  std::variant<std::monostate, bool, json> result;
+  std::variant<bool, json> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto ClientSemanticTokensRequestOptions::full() const -> std::optional<
-    std::variant<std::monostate, bool, ClientSemanticTokensRequestFullDelta>> {
+auto ClientSemanticTokensRequestOptions::full() const
+    -> std::optional<std::variant<bool, ClientSemanticTokensRequestFullDelta>> {
   if (!repr_->contains("full")) return std::nullopt;
 
   auto& value = (*repr_)["full"];
 
-  std::variant<std::monostate, bool, ClientSemanticTokensRequestFullDelta>
-      result;
+  std::variant<bool, ClientSemanticTokensRequestFullDelta> result;
 
   details::try_emplace(result, value);
 
@@ -23578,21 +22933,15 @@ auto ClientSemanticTokensRequestOptions::full() const -> std::optional<
 }
 
 auto ClientSemanticTokensRequestOptions::range(
-    std::optional<std::variant<std::monostate, bool, json>> range)
+    std::optional<std::variant<bool, json>> range)
     -> ClientSemanticTokensRequestOptions& {
   if (!range.has_value()) {
     repr_->erase("range");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool range) { repr_->emplace("range", std::move(range)); }
 
@@ -23608,22 +22957,15 @@ auto ClientSemanticTokensRequestOptions::range(
 }
 
 auto ClientSemanticTokensRequestOptions::full(
-    std::optional<std::variant<std::monostate, bool,
-                               ClientSemanticTokensRequestFullDelta>>
+    std::optional<std::variant<bool, ClientSemanticTokensRequestFullDelta>>
         full) -> ClientSemanticTokensRequestOptions& {
   if (!full.has_value()) {
     repr_->erase("full");
     return *this;
   }
 
-  // or type
-
   struct {
     json* repr_;
-
-    void operator()(std::monostate) {
-      lsp_runtime_error("monostate is not a valid a property value");
-    }
 
     void operator()(bool full) { repr_->emplace("full", std::move(full)); }
 
