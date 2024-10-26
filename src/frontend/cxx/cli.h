@@ -73,6 +73,7 @@ class CLI {
   bool opt_verify = false;
   bool opt_v = false;
   bool opt_emit_ast = false;
+  bool opt_lsp = false;
 
   void parse(int& argc, char**& argv);
 
