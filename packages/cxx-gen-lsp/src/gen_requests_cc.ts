@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { Enumeration, MetaModel, Structure, toCppType, Type, TypeAlias } from "./MetaModel.js";
+import { Enumeration, isRequest, MetaModel, Structure, toCppType, Type, TypeAlias } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
@@ -42,7 +42,9 @@ class RequestGenerator {
   genTypes() {
     this.begin();
 
-    this.model.requests.forEach((request) => {
+    const requestsAndNotifications = [...this.model.requests, ...this.model.notifications];
+
+    requestsAndNotifications.forEach((request) => {
       const { typeName } = request;
       this.emit();
       this.emit(`auto ${typeName}::method() const -> std::string {`);
@@ -85,7 +87,7 @@ class RequestGenerator {
         this.emit(`}`);
       }
 
-      if (request.result) {
+      if (isRequest(request) && request.result) {
         const resultTypeName = typeName.replace(/Request$/, "Response");
         this.emit();
         this.emit(`auto ${resultTypeName}::id() const -> std::variant<long, std::string> {`);

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { getEnumBaseType, MetaModel, toCppType, Type } from "./MetaModel.js";
+import { getEnumBaseType, MetaModel, toCppType, Type, Request, Notification, isRequest } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
@@ -329,9 +329,10 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
     emit(`class ${structure.name};`);
   });
   emit(`// requests`);
-  model.requests.forEach((request) => {
+  const requestsAndNotifications: Array<Request | Notification> = [...model.requests, ...model.notifications];
+  requestsAndNotifications.forEach((request) => {
     emit(`class ${request.typeName};`);
-    if (request.result) {
+    if (isRequest(request) && request.result) {
       emit(`class ${request.typeName.replace(/Request$/, "Response")};`);
     }
   });

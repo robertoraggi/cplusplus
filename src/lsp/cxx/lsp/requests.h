@@ -2043,4 +2043,405 @@ class ApplyWorkspaceEditResponse final : public LSPResponse {
   auto result(ApplyWorkspaceEditResult result) -> ApplyWorkspaceEditResponse&;
 };
 
+class DidChangeWorkspaceFoldersNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidChangeWorkspaceFoldersNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidChangeWorkspaceFoldersNotification&;
+  auto id(std::string id) -> DidChangeWorkspaceFoldersNotification&;
+
+  [[nodiscard]] auto params() const -> DidChangeWorkspaceFoldersParams;
+  auto params(DidChangeWorkspaceFoldersParams result)
+      -> DidChangeWorkspaceFoldersNotification&;
+};
+
+class WorkDoneProgressCancelNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> WorkDoneProgressCancelNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> WorkDoneProgressCancelNotification&;
+  auto id(std::string id) -> WorkDoneProgressCancelNotification&;
+
+  [[nodiscard]] auto params() const -> WorkDoneProgressCancelParams;
+  auto params(WorkDoneProgressCancelParams result)
+      -> WorkDoneProgressCancelNotification&;
+};
+
+class DidCreateFilesNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidCreateFilesNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidCreateFilesNotification&;
+  auto id(std::string id) -> DidCreateFilesNotification&;
+
+  [[nodiscard]] auto params() const -> CreateFilesParams;
+  auto params(CreateFilesParams result) -> DidCreateFilesNotification&;
+};
+
+class DidRenameFilesNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidRenameFilesNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidRenameFilesNotification&;
+  auto id(std::string id) -> DidRenameFilesNotification&;
+
+  [[nodiscard]] auto params() const -> RenameFilesParams;
+  auto params(RenameFilesParams result) -> DidRenameFilesNotification&;
+};
+
+class DidDeleteFilesNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidDeleteFilesNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidDeleteFilesNotification&;
+  auto id(std::string id) -> DidDeleteFilesNotification&;
+
+  [[nodiscard]] auto params() const -> DeleteFilesParams;
+  auto params(DeleteFilesParams result) -> DidDeleteFilesNotification&;
+};
+
+class DidOpenNotebookDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidOpenNotebookDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidOpenNotebookDocumentNotification&;
+  auto id(std::string id) -> DidOpenNotebookDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidOpenNotebookDocumentParams;
+  auto params(DidOpenNotebookDocumentParams result)
+      -> DidOpenNotebookDocumentNotification&;
+};
+
+class DidChangeNotebookDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidChangeNotebookDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidChangeNotebookDocumentNotification&;
+  auto id(std::string id) -> DidChangeNotebookDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidChangeNotebookDocumentParams;
+  auto params(DidChangeNotebookDocumentParams result)
+      -> DidChangeNotebookDocumentNotification&;
+};
+
+class DidSaveNotebookDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidSaveNotebookDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidSaveNotebookDocumentNotification&;
+  auto id(std::string id) -> DidSaveNotebookDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidSaveNotebookDocumentParams;
+  auto params(DidSaveNotebookDocumentParams result)
+      -> DidSaveNotebookDocumentNotification&;
+};
+
+class DidCloseNotebookDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidCloseNotebookDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidCloseNotebookDocumentNotification&;
+  auto id(std::string id) -> DidCloseNotebookDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidCloseNotebookDocumentParams;
+  auto params(DidCloseNotebookDocumentParams result)
+      -> DidCloseNotebookDocumentNotification&;
+};
+
+class InitializedNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> InitializedNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> InitializedNotification&;
+  auto id(std::string id) -> InitializedNotification&;
+
+  [[nodiscard]] auto params() const -> InitializedParams;
+  auto params(InitializedParams result) -> InitializedNotification&;
+};
+
+class ExitNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> ExitNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> ExitNotification&;
+  auto id(std::string id) -> ExitNotification&;
+};
+
+class DidChangeConfigurationNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidChangeConfigurationNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidChangeConfigurationNotification&;
+  auto id(std::string id) -> DidChangeConfigurationNotification&;
+
+  [[nodiscard]] auto params() const -> DidChangeConfigurationParams;
+  auto params(DidChangeConfigurationParams result)
+      -> DidChangeConfigurationNotification&;
+};
+
+class ShowMessageNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> ShowMessageNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> ShowMessageNotification&;
+  auto id(std::string id) -> ShowMessageNotification&;
+
+  [[nodiscard]] auto params() const -> ShowMessageParams;
+  auto params(ShowMessageParams result) -> ShowMessageNotification&;
+};
+
+class LogMessageNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> LogMessageNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> LogMessageNotification&;
+  auto id(std::string id) -> LogMessageNotification&;
+
+  [[nodiscard]] auto params() const -> LogMessageParams;
+  auto params(LogMessageParams result) -> LogMessageNotification&;
+};
+
+class TelemetryEventNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> TelemetryEventNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> TelemetryEventNotification&;
+  auto id(std::string id) -> TelemetryEventNotification&;
+
+  [[nodiscard]] auto params() const -> LSPAny;
+  auto params(LSPAny result) -> TelemetryEventNotification&;
+};
+
+class DidOpenTextDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidOpenTextDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidOpenTextDocumentNotification&;
+  auto id(std::string id) -> DidOpenTextDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidOpenTextDocumentParams;
+  auto params(DidOpenTextDocumentParams result)
+      -> DidOpenTextDocumentNotification&;
+};
+
+class DidChangeTextDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidChangeTextDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidChangeTextDocumentNotification&;
+  auto id(std::string id) -> DidChangeTextDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidChangeTextDocumentParams;
+  auto params(DidChangeTextDocumentParams result)
+      -> DidChangeTextDocumentNotification&;
+};
+
+class DidCloseTextDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidCloseTextDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidCloseTextDocumentNotification&;
+  auto id(std::string id) -> DidCloseTextDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidCloseTextDocumentParams;
+  auto params(DidCloseTextDocumentParams result)
+      -> DidCloseTextDocumentNotification&;
+};
+
+class DidSaveTextDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidSaveTextDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidSaveTextDocumentNotification&;
+  auto id(std::string id) -> DidSaveTextDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> DidSaveTextDocumentParams;
+  auto params(DidSaveTextDocumentParams result)
+      -> DidSaveTextDocumentNotification&;
+};
+
+class WillSaveTextDocumentNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> WillSaveTextDocumentNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> WillSaveTextDocumentNotification&;
+  auto id(std::string id) -> WillSaveTextDocumentNotification&;
+
+  [[nodiscard]] auto params() const -> WillSaveTextDocumentParams;
+  auto params(WillSaveTextDocumentParams result)
+      -> WillSaveTextDocumentNotification&;
+};
+
+class DidChangeWatchedFilesNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> DidChangeWatchedFilesNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> DidChangeWatchedFilesNotification&;
+  auto id(std::string id) -> DidChangeWatchedFilesNotification&;
+
+  [[nodiscard]] auto params() const -> DidChangeWatchedFilesParams;
+  auto params(DidChangeWatchedFilesParams result)
+      -> DidChangeWatchedFilesNotification&;
+};
+
+class PublishDiagnosticsNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> PublishDiagnosticsNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> PublishDiagnosticsNotification&;
+  auto id(std::string id) -> PublishDiagnosticsNotification&;
+
+  [[nodiscard]] auto params() const -> PublishDiagnosticsParams;
+  auto params(PublishDiagnosticsParams result)
+      -> PublishDiagnosticsNotification&;
+};
+
+class SetTraceNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> SetTraceNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> SetTraceNotification&;
+  auto id(std::string id) -> SetTraceNotification&;
+
+  [[nodiscard]] auto params() const -> SetTraceParams;
+  auto params(SetTraceParams result) -> SetTraceNotification&;
+};
+
+class LogTraceNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> LogTraceNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> LogTraceNotification&;
+  auto id(std::string id) -> LogTraceNotification&;
+
+  [[nodiscard]] auto params() const -> LogTraceParams;
+  auto params(LogTraceParams result) -> LogTraceNotification&;
+};
+
+class CancelNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> CancelNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> CancelNotification&;
+  auto id(std::string id) -> CancelNotification&;
+
+  [[nodiscard]] auto params() const -> CancelParams;
+  auto params(CancelParams result) -> CancelNotification&;
+};
+
+class ProgressNotification final : public LSPRequest {
+ public:
+  using LSPRequest::LSPRequest;
+
+  [[nodiscard]] auto method() const -> std::string;
+  auto method(std::string method) -> ProgressNotification&;
+
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  auto id(long id) -> ProgressNotification&;
+  auto id(std::string id) -> ProgressNotification&;
+
+  [[nodiscard]] auto params() const -> ProgressParams;
+  auto params(ProgressParams result) -> ProgressNotification&;
+};
+
 }  // namespace cxx::lsp
