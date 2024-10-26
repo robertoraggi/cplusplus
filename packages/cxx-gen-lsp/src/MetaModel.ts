@@ -97,7 +97,18 @@ export type Enumeration = {
 
 export type Notification = {};
 
-export type Request = {};
+type MessageDirection = "clientToServer" | "serverToClient" | "both";
+
+export type Request = {
+  documentation?: string;
+  messageDirection: MessageDirection;
+  method: string;
+  params: ReferenceType;
+  partialResult?: ReferenceType | ArrayType | OrType;
+  registrationOptions?: ReferenceType | AndType;
+  result?: BaseType | ReferenceType | ArrayType | OrType;
+  typeName: string;
+};
 
 export type Property = {
   documentation?: string;
