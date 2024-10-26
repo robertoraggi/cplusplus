@@ -119,3 +119,27 @@ TEST(LSP, StringArrayProperty) {
   ASSERT_EQ(textDocumentContentRegistrationOptions.schemes().at(0), "file");
   ASSERT_EQ(textDocumentContentRegistrationOptions.schemes().at(1), "http");
 }
+
+TEST(LSP, VariantArrayProperty) {
+  auto storage = json::object();
+
+  NotebookDocumentSyncRegistrationOptions
+      notebookDocumentSyncRegistrationOptions{storage};
+
+  auto notebookSelector =
+      notebookDocumentSyncRegistrationOptions.notebookSelector();
+
+  ASSERT_TRUE(notebookSelector.empty());
+
+  auto item = notebookSelector.emplace_back<NotebookDocumentFilterWithCells>();
+
+  ASSERT_FALSE(item.notebook().has_value());
+
+  item.notebook("a_notebook");
+
+  ASSERT_TRUE(item.notebook().has_value());
+
+  ASSERT_EQ(std::get<std::string>(*item.notebook()), "a_notebook");
+
+  ASSERT_EQ(notebookSelector.size(), 1);
+}
