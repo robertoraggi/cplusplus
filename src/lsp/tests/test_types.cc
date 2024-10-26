@@ -88,5 +88,34 @@ TEST(LSP, StringProperty) {
   ASSERT_EQ(range.start().line(), 0);
   ASSERT_EQ(range.start().character(), 0);
 
+  range.start().line(1);
+  range.start().character(2);
+  range.end().line(3);
+  range.end().character(4);
+
+  ASSERT_EQ(range.start().line(), 1);
+  ASSERT_EQ(range.start().character(), 2);
+  ASSERT_EQ(range.end().line(), 3);
+  ASSERT_EQ(range.end().character(), 4);
+
   ASSERT_TRUE(location);
+}
+
+TEST(LSP, StringArrayProperty) {
+  json storage = json::object();
+
+  auto textDocumentContentRegistrationOptions =
+      TextDocumentContentRegistrationOptions{storage};
+
+  auto schemas = textDocumentContentRegistrationOptions.schemes();
+  ASSERT_TRUE(schemas.empty());
+
+  schemas.emplace_back("file");
+  schemas.emplace_back("http");
+
+  ASSERT_EQ(schemas.at(0), "file");
+  ASSERT_EQ(schemas.at(1), "http");
+
+  ASSERT_EQ(textDocumentContentRegistrationOptions.schemes().at(0), "file");
+  ASSERT_EQ(textDocumentContentRegistrationOptions.schemes().at(1), "http");
 }
