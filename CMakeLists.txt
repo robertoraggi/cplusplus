@@ -135,6 +135,12 @@ if (CXX_ENABLE_FLATBUFFERS)
     set_target_properties(flatbuffers::header-only PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${flatbuffers_SOURCE_DIR}/include")
 endif()
 
+
+if (CXX_BUILD_TESTS)
+    enable_testing()
+endif()
+
+
 if (NOT KWGEN_EXECUTABLE AND CMAKE_SYSTEM_NAME STREQUAL "WASI")
 
     ExternalProject_Add(
