@@ -42,6 +42,16 @@ class LSPObject {
     json* repr_{nullptr};
 };
 
+class LSPRequest : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+};
+
+class LSPResponse : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+};
+
 template <typename T>
 class Vector final : public LSPObject {
 public:
@@ -314,8 +324,16 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
     emit(`enum class ${enumeration.name}${enumBaseType};`);
   });
   emit();
+  emit(`// structures`);
   model.structures.forEach((structure) => {
     emit(`class ${structure.name};`);
+  });
+  emit(`// requests`);
+  model.requests.forEach((request) => {
+    emit(`class ${request.typeName};`);
+    if (request.result) {
+      emit(`class ${request.typeName.replace(/Request$/, "Response")};`);
+    }
   });
   emit();
 

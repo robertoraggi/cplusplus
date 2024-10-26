@@ -28,6 +28,8 @@ import { gen_enums_cc } from "./gen_enums_cc.js";
 import { gen_fwd_h } from "./gen_fwd_h.js";
 import { gen_types_h } from "./gen_types_h.js";
 import { gen_types_cc } from "./gen_types_cc.js";
+import { gen_requests_h } from "./gen_requests_h.js";
+import { gen_requests_cc } from "./gen_requests_cc.js";
 
 async function main() {
   try {
@@ -66,6 +68,8 @@ async function main() {
     gen_enums_cc({ outputDirectory, model });
     gen_types_h({ outputDirectory, model });
     gen_types_cc({ outputDirectory, model });
+    gen_requests_h({ outputDirectory, model });
+    gen_requests_cc({ outputDirectory, model });
 
     console.log(
       child_process
