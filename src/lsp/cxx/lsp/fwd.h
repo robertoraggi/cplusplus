@@ -487,6 +487,11 @@ class Vector final : public LSPObject {
   [[nodiscard]] auto at(int index) const -> const T& {
     return repr_->at(index);
   }
+
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
+    repr_->emplace_back(std::forward<Args>(args)...);
+  }
 };
 
 namespace details {
@@ -596,6 +601,26 @@ struct TryEmplace<TextDocumentSyncKind> {
 };
 
 }  // namespace details
+
+template <>
+class Vector<std::string> final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  [[nodiscard]] explicit operator bool() const {
+    return repr_ && repr_->is_array();
+  }
+  [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
+  [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
+  [[nodiscard]] auto at(int index) const -> std::string {
+    return repr_->at(index);
+  }
+
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
+    repr_->emplace_back(std::forward<Args>(args)...);
+  }
+};
 
 template <typename... Ts>
 class Vector<std::variant<Ts...>> final : public LSPObject {
