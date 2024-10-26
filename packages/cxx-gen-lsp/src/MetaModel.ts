@@ -95,7 +95,7 @@ export type Enumeration = {
   values: EnumerationValue[];
 };
 
-export type Notification = {};
+export type Notification = Omit<Request, "result" | "partialResult" | "registrationOptions">;
 
 type MessageDirection = "clientToServer" | "serverToClient" | "both";
 
@@ -138,6 +138,10 @@ export type MetaModel = {
   structures: Structure[];
   typeAliases: TypeAlias[];
 };
+
+export function isRequest(request: Request | Notification): request is Request {
+  return "result" in request;
+}
 
 export function getEnumBaseType(enumeration: Enumeration) {
   switch (enumeration.type.name) {

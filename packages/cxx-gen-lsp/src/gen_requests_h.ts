@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { MetaModel, toCppType } from "./MetaModel.js";
+import { MetaModel, toCppType, Request, Notification, isRequest } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
@@ -42,7 +42,9 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
   emit(copyrightHeader);
   emit(beginHeaderFragment);
 
-  model.requests.forEach((request) => {
+  const requestsAndNotifications: Array<Request | Notification> = [...model.requests, ...model.notifications];
+
+  requestsAndNotifications.forEach((request) => {
     const typeName = request.typeName;
     emit();
     emit(`class ${typeName} final : public LSPRequest {`);
@@ -66,7 +68,7 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
     emit(`};`);
 
     // generate the respose type if the request has a result
-    if (request.result) {
+    if (isRequest(request) && request.result) {
       const responseTypeName = typeName.replace(/Request$/, "Response");
       const resultType = toCppType(request.result);
 

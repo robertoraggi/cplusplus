@@ -3687,4 +3687,1016 @@ auto ApplyWorkspaceEditResponse::id(std::string id)
   (*repr_)["id"] = std::move(id);
   return *this;
 }
+
+auto DidChangeWorkspaceFoldersNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidChangeWorkspaceFoldersNotification::method(std::string method)
+    -> DidChangeWorkspaceFoldersNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidChangeWorkspaceFoldersNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidChangeWorkspaceFoldersNotification::id(long id)
+    -> DidChangeWorkspaceFoldersNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidChangeWorkspaceFoldersNotification::id(std::string id)
+    -> DidChangeWorkspaceFoldersNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidChangeWorkspaceFoldersNotification::params() const
+    -> DidChangeWorkspaceFoldersParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidChangeWorkspaceFoldersParams(repr_->at("params"));
+}
+
+auto DidChangeWorkspaceFoldersNotification::params(
+    DidChangeWorkspaceFoldersParams params)
+    -> DidChangeWorkspaceFoldersNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto WorkDoneProgressCancelNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto WorkDoneProgressCancelNotification::method(std::string method)
+    -> WorkDoneProgressCancelNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto WorkDoneProgressCancelNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto WorkDoneProgressCancelNotification::id(long id)
+    -> WorkDoneProgressCancelNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto WorkDoneProgressCancelNotification::id(std::string id)
+    -> WorkDoneProgressCancelNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto WorkDoneProgressCancelNotification::params() const
+    -> WorkDoneProgressCancelParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return WorkDoneProgressCancelParams(repr_->at("params"));
+}
+
+auto WorkDoneProgressCancelNotification::params(
+    WorkDoneProgressCancelParams params)
+    -> WorkDoneProgressCancelNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidCreateFilesNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidCreateFilesNotification::method(std::string method)
+    -> DidCreateFilesNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidCreateFilesNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidCreateFilesNotification::id(long id) -> DidCreateFilesNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidCreateFilesNotification::id(std::string id)
+    -> DidCreateFilesNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidCreateFilesNotification::params() const -> CreateFilesParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return CreateFilesParams(repr_->at("params"));
+}
+
+auto DidCreateFilesNotification::params(CreateFilesParams params)
+    -> DidCreateFilesNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidRenameFilesNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidRenameFilesNotification::method(std::string method)
+    -> DidRenameFilesNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidRenameFilesNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidRenameFilesNotification::id(long id) -> DidRenameFilesNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidRenameFilesNotification::id(std::string id)
+    -> DidRenameFilesNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidRenameFilesNotification::params() const -> RenameFilesParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return RenameFilesParams(repr_->at("params"));
+}
+
+auto DidRenameFilesNotification::params(RenameFilesParams params)
+    -> DidRenameFilesNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidDeleteFilesNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidDeleteFilesNotification::method(std::string method)
+    -> DidDeleteFilesNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidDeleteFilesNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidDeleteFilesNotification::id(long id) -> DidDeleteFilesNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidDeleteFilesNotification::id(std::string id)
+    -> DidDeleteFilesNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidDeleteFilesNotification::params() const -> DeleteFilesParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DeleteFilesParams(repr_->at("params"));
+}
+
+auto DidDeleteFilesNotification::params(DeleteFilesParams params)
+    -> DidDeleteFilesNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidOpenNotebookDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidOpenNotebookDocumentNotification::method(std::string method)
+    -> DidOpenNotebookDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidOpenNotebookDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidOpenNotebookDocumentNotification::id(long id)
+    -> DidOpenNotebookDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidOpenNotebookDocumentNotification::id(std::string id)
+    -> DidOpenNotebookDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidOpenNotebookDocumentNotification::params() const
+    -> DidOpenNotebookDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidOpenNotebookDocumentParams(repr_->at("params"));
+}
+
+auto DidOpenNotebookDocumentNotification::params(
+    DidOpenNotebookDocumentParams params)
+    -> DidOpenNotebookDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidChangeNotebookDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidChangeNotebookDocumentNotification::method(std::string method)
+    -> DidChangeNotebookDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidChangeNotebookDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidChangeNotebookDocumentNotification::id(long id)
+    -> DidChangeNotebookDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidChangeNotebookDocumentNotification::id(std::string id)
+    -> DidChangeNotebookDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidChangeNotebookDocumentNotification::params() const
+    -> DidChangeNotebookDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidChangeNotebookDocumentParams(repr_->at("params"));
+}
+
+auto DidChangeNotebookDocumentNotification::params(
+    DidChangeNotebookDocumentParams params)
+    -> DidChangeNotebookDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidSaveNotebookDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidSaveNotebookDocumentNotification::method(std::string method)
+    -> DidSaveNotebookDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidSaveNotebookDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidSaveNotebookDocumentNotification::id(long id)
+    -> DidSaveNotebookDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidSaveNotebookDocumentNotification::id(std::string id)
+    -> DidSaveNotebookDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidSaveNotebookDocumentNotification::params() const
+    -> DidSaveNotebookDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidSaveNotebookDocumentParams(repr_->at("params"));
+}
+
+auto DidSaveNotebookDocumentNotification::params(
+    DidSaveNotebookDocumentParams params)
+    -> DidSaveNotebookDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidCloseNotebookDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidCloseNotebookDocumentNotification::method(std::string method)
+    -> DidCloseNotebookDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidCloseNotebookDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidCloseNotebookDocumentNotification::id(long id)
+    -> DidCloseNotebookDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidCloseNotebookDocumentNotification::id(std::string id)
+    -> DidCloseNotebookDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidCloseNotebookDocumentNotification::params() const
+    -> DidCloseNotebookDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidCloseNotebookDocumentParams(repr_->at("params"));
+}
+
+auto DidCloseNotebookDocumentNotification::params(
+    DidCloseNotebookDocumentParams params)
+    -> DidCloseNotebookDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto InitializedNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto InitializedNotification::method(std::string method)
+    -> InitializedNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto InitializedNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto InitializedNotification::id(long id) -> InitializedNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto InitializedNotification::id(std::string id) -> InitializedNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto InitializedNotification::params() const -> InitializedParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return InitializedParams(repr_->at("params"));
+}
+
+auto InitializedNotification::params(InitializedParams params)
+    -> InitializedNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto ExitNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto ExitNotification::method(std::string method) -> ExitNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto ExitNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto ExitNotification::id(long id) -> ExitNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto ExitNotification::id(std::string id) -> ExitNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidChangeConfigurationNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidChangeConfigurationNotification::method(std::string method)
+    -> DidChangeConfigurationNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidChangeConfigurationNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidChangeConfigurationNotification::id(long id)
+    -> DidChangeConfigurationNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidChangeConfigurationNotification::id(std::string id)
+    -> DidChangeConfigurationNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidChangeConfigurationNotification::params() const
+    -> DidChangeConfigurationParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidChangeConfigurationParams(repr_->at("params"));
+}
+
+auto DidChangeConfigurationNotification::params(
+    DidChangeConfigurationParams params)
+    -> DidChangeConfigurationNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto ShowMessageNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto ShowMessageNotification::method(std::string method)
+    -> ShowMessageNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto ShowMessageNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto ShowMessageNotification::id(long id) -> ShowMessageNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto ShowMessageNotification::id(std::string id) -> ShowMessageNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ShowMessageNotification::params() const -> ShowMessageParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return ShowMessageParams(repr_->at("params"));
+}
+
+auto ShowMessageNotification::params(ShowMessageParams params)
+    -> ShowMessageNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto LogMessageNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto LogMessageNotification::method(std::string method)
+    -> LogMessageNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto LogMessageNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto LogMessageNotification::id(long id) -> LogMessageNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto LogMessageNotification::id(std::string id) -> LogMessageNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto LogMessageNotification::params() const -> LogMessageParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return LogMessageParams(repr_->at("params"));
+}
+
+auto LogMessageNotification::params(LogMessageParams params)
+    -> LogMessageNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto TelemetryEventNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto TelemetryEventNotification::method(std::string method)
+    -> TelemetryEventNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto TelemetryEventNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto TelemetryEventNotification::id(long id) -> TelemetryEventNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto TelemetryEventNotification::id(std::string id)
+    -> TelemetryEventNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto TelemetryEventNotification::params() const -> LSPAny {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return LSPAny(repr_->at("params"));
+}
+
+auto TelemetryEventNotification::params(LSPAny params)
+    -> TelemetryEventNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidOpenTextDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidOpenTextDocumentNotification::method(std::string method)
+    -> DidOpenTextDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidOpenTextDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidOpenTextDocumentNotification::id(long id)
+    -> DidOpenTextDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidOpenTextDocumentNotification::id(std::string id)
+    -> DidOpenTextDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidOpenTextDocumentNotification::params() const
+    -> DidOpenTextDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidOpenTextDocumentParams(repr_->at("params"));
+}
+
+auto DidOpenTextDocumentNotification::params(DidOpenTextDocumentParams params)
+    -> DidOpenTextDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidChangeTextDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidChangeTextDocumentNotification::method(std::string method)
+    -> DidChangeTextDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidChangeTextDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidChangeTextDocumentNotification::id(long id)
+    -> DidChangeTextDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidChangeTextDocumentNotification::id(std::string id)
+    -> DidChangeTextDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidChangeTextDocumentNotification::params() const
+    -> DidChangeTextDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidChangeTextDocumentParams(repr_->at("params"));
+}
+
+auto DidChangeTextDocumentNotification::params(
+    DidChangeTextDocumentParams params) -> DidChangeTextDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidCloseTextDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidCloseTextDocumentNotification::method(std::string method)
+    -> DidCloseTextDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidCloseTextDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidCloseTextDocumentNotification::id(long id)
+    -> DidCloseTextDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidCloseTextDocumentNotification::id(std::string id)
+    -> DidCloseTextDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidCloseTextDocumentNotification::params() const
+    -> DidCloseTextDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidCloseTextDocumentParams(repr_->at("params"));
+}
+
+auto DidCloseTextDocumentNotification::params(DidCloseTextDocumentParams params)
+    -> DidCloseTextDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidSaveTextDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidSaveTextDocumentNotification::method(std::string method)
+    -> DidSaveTextDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidSaveTextDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidSaveTextDocumentNotification::id(long id)
+    -> DidSaveTextDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidSaveTextDocumentNotification::id(std::string id)
+    -> DidSaveTextDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidSaveTextDocumentNotification::params() const
+    -> DidSaveTextDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidSaveTextDocumentParams(repr_->at("params"));
+}
+
+auto DidSaveTextDocumentNotification::params(DidSaveTextDocumentParams params)
+    -> DidSaveTextDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto WillSaveTextDocumentNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto WillSaveTextDocumentNotification::method(std::string method)
+    -> WillSaveTextDocumentNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto WillSaveTextDocumentNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto WillSaveTextDocumentNotification::id(long id)
+    -> WillSaveTextDocumentNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto WillSaveTextDocumentNotification::id(std::string id)
+    -> WillSaveTextDocumentNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto WillSaveTextDocumentNotification::params() const
+    -> WillSaveTextDocumentParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return WillSaveTextDocumentParams(repr_->at("params"));
+}
+
+auto WillSaveTextDocumentNotification::params(WillSaveTextDocumentParams params)
+    -> WillSaveTextDocumentNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto DidChangeWatchedFilesNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto DidChangeWatchedFilesNotification::method(std::string method)
+    -> DidChangeWatchedFilesNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto DidChangeWatchedFilesNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto DidChangeWatchedFilesNotification::id(long id)
+    -> DidChangeWatchedFilesNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto DidChangeWatchedFilesNotification::id(std::string id)
+    -> DidChangeWatchedFilesNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DidChangeWatchedFilesNotification::params() const
+    -> DidChangeWatchedFilesParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return DidChangeWatchedFilesParams(repr_->at("params"));
+}
+
+auto DidChangeWatchedFilesNotification::params(
+    DidChangeWatchedFilesParams params) -> DidChangeWatchedFilesNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto PublishDiagnosticsNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto PublishDiagnosticsNotification::method(std::string method)
+    -> PublishDiagnosticsNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto PublishDiagnosticsNotification::id() const
+    -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto PublishDiagnosticsNotification::id(long id)
+    -> PublishDiagnosticsNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto PublishDiagnosticsNotification::id(std::string id)
+    -> PublishDiagnosticsNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto PublishDiagnosticsNotification::params() const
+    -> PublishDiagnosticsParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return PublishDiagnosticsParams(repr_->at("params"));
+}
+
+auto PublishDiagnosticsNotification::params(PublishDiagnosticsParams params)
+    -> PublishDiagnosticsNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto SetTraceNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto SetTraceNotification::method(std::string method) -> SetTraceNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto SetTraceNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto SetTraceNotification::id(long id) -> SetTraceNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto SetTraceNotification::id(std::string id) -> SetTraceNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto SetTraceNotification::params() const -> SetTraceParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return SetTraceParams(repr_->at("params"));
+}
+
+auto SetTraceNotification::params(SetTraceParams params)
+    -> SetTraceNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto LogTraceNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto LogTraceNotification::method(std::string method) -> LogTraceNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto LogTraceNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto LogTraceNotification::id(long id) -> LogTraceNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto LogTraceNotification::id(std::string id) -> LogTraceNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto LogTraceNotification::params() const -> LogTraceParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return LogTraceParams(repr_->at("params"));
+}
+
+auto LogTraceNotification::params(LogTraceParams params)
+    -> LogTraceNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto CancelNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto CancelNotification::method(std::string method) -> CancelNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto CancelNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto CancelNotification::id(long id) -> CancelNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto CancelNotification::id(std::string id) -> CancelNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto CancelNotification::params() const -> CancelParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return CancelParams(repr_->at("params"));
+}
+
+auto CancelNotification::params(CancelParams params) -> CancelNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto ProgressNotification::method() const -> std::string {
+  return repr_->at("method");
+}
+
+auto ProgressNotification::method(std::string method) -> ProgressNotification& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto ProgressNotification::id() const -> std::variant<long, std::string> {
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto ProgressNotification::id(long id) -> ProgressNotification& {
+  (*repr_)["id"] = id;
+  return *this;
+}
+
+auto ProgressNotification::id(std::string id) -> ProgressNotification& {
+  (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ProgressNotification::params() const -> ProgressParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return ProgressParams(repr_->at("params"));
+}
+
+auto ProgressNotification::params(ProgressParams params)
+    -> ProgressNotification& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
 }  // namespace cxx::lsp
