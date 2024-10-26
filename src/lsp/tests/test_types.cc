@@ -4,9 +4,9 @@
 #include "cxx/lsp/enums.h"
 #include "cxx/lsp/fwd.h"
 
-TEST(LSP, Initialization) {
-  using namespace cxx::lsp;
+using namespace cxx::lsp;
 
+TEST(LSP, Initialization) {
   // storage
   auto store1 = json::object();
   auto store2 = json::object();
@@ -40,4 +40,53 @@ TEST(LSP, Initialization) {
   ASSERT_TRUE(initializeResult.capabilities());
 
   ASSERT_TRUE(initializeResult);
+}
+
+TEST(LSP, ArrayProperty) {
+  json storage = json::object();
+
+  ConfigurationParams configurationParams{storage};
+
+  ASSERT_FALSE(configurationParams);
+
+  auto items = configurationParams.items();
+
+  ASSERT_TRUE(items.empty());
+
+  ASSERT_TRUE(configurationParams);
+}
+
+TEST(LSP, MapProperty) {
+  json storage = json::object();
+
+  DocumentDiagnosticReportPartialResult documentDiagnosticReportPartialResult{
+      storage};
+
+  ASSERT_FALSE(documentDiagnosticReportPartialResult);
+
+  auto relatedDocuments =
+      documentDiagnosticReportPartialResult.relatedDocuments();
+
+  ASSERT_TRUE(relatedDocuments.empty());
+
+  ASSERT_TRUE(documentDiagnosticReportPartialResult);
+}
+
+TEST(LSP, StringProperty) {
+  json storage = json::object();
+
+  Location location{storage};
+
+  ASSERT_FALSE(location);
+
+  ASSERT_EQ(location.uri(), "");
+
+  location.uri("file:///path/to/file");
+  ASSERT_EQ(location.uri(), "file:///path/to/file");
+
+  auto range = location.range();
+  ASSERT_EQ(range.start().line(), 0);
+  ASSERT_EQ(range.start().character(), 0);
+
+  ASSERT_TRUE(location);
 }
