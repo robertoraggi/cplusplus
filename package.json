@@ -39,6 +39,6 @@
     "update-tests": "zx scripts/update-tests.mjs",
     "cxx-gen-ast": "node packages/cxx-gen-ast",
     "cxx-gen-lsp": "node packages/cxx-gen-lsp packages/cxx-gen-lsp/metaModel.json packages/cxx-gen-lsp -o src/lsp/cxx/lsp",
-    "download-lsp-models": "zx scripts/download-lsp-models.mjs"
+    "download-lsp-model": "zx scripts/download-lsp-model.mjs"
   }
 }

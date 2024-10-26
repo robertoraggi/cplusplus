@@ -113,8 +113,6 @@ class TypeGenerator {
   }
 
   generateGetters({ structure, properties }: { structure: Structure; properties: Property[] }) {
-    const typeName = structure.name;
-
     properties.forEach((property) => {
       this.beginPropertyGetter({ structure, property });
       this.generatePropertyGetter({ structure, property });
@@ -125,15 +123,15 @@ class TypeGenerator {
   generateValidator({ structure, properties }: { structure: Structure; properties: Property[] }) {
     this.emit();
     this.emit(`${structure.name}::operator bool() const {`);
-    this.emit(`if (!repr_.is_object() || repr_.is_null()) return false;`);
+    this.emit(`if (!repr_->is_object() || repr_->is_null()) return false;`);
 
     const requiredProperties = properties.filter((p) => !p.optional);
 
     requiredProperties.forEach(({ name, type }) => {
-      this.emit(`if (!repr_.contains("${name}")) return false;`);
+      this.emit(`if (!repr_->contains("${name}")) return false;`);
 
       if (type.kind === "stringLiteral") {
-        this.emit(`if (repr_["${name}"] != "${type.value}")`);
+        this.emit(`if ((*repr_)["${name}"] != "${type.value}")`);
         this.emit(`  return false;`);
       }
     });
@@ -149,11 +147,11 @@ class TypeGenerator {
     this.emit(`auto ${structure.name}::${property.name}() const -> ${returnType} {`);
 
     if (property.optional) {
-      this.emit(`if (!repr_.contains("${property.name}")) return std::nullopt;`);
+      this.emit(`if (!repr_->contains("${property.name}")) return std::nullopt;`);
       this.emit();
     }
 
-    this.emit(`const auto& value = repr_["${property.name}"];`);
+    this.emit(`auto& value = (*repr_)["${property.name}"];`);
     this.emit();
   }
 
@@ -216,7 +214,7 @@ class TypeGenerator {
     this.emit(`lsp_runtime_error("${structure.name}::${property.name}: not implement yet");`);
   }
 
-  generatePropertyGetterBase({ structure, property }: { structure: Structure; property: Property }): boolean {
+  generatePropertyGetterBase({ property }: { structure: Structure; property: Property }): boolean {
     if (property.type.kind !== "base") return false;
 
     switch (property.type.name) {
@@ -323,12 +321,116 @@ class TypeGenerator {
   generateSetters({ structure, properties }: { structure: Structure; properties: Property[] }) {
     const typeName = structure.name;
 
-    properties.forEach(({ name, type, optional }) => {
-      const argumentType = this.getPropertyType({ type, optional });
+    properties.forEach((property) => {
+      const argumentType = this.getPropertyType(property);
       this.emit();
-      this.emit(`auto ${typeName}::${name}(${argumentType} ${name})`);
-      this.emit(`-> ${typeName}& { return *this; }`);
+      this.emit(`auto ${typeName}::${property.name}(${argumentType} ${property.name})`);
+      this.emit(`-> ${typeName}& {`);
+
+      if (property.optional) {
+        this.emit(`if (!${property.name}.has_value()) {`);
+        this.emit(`repr_->erase("${property.name}");`);
+        this.emit(`return *this;`);
+        this.emit(`}`);
+      }
+
+      this.generatePropertySetter({ property, structure });
+
+      this.emit(`return *this;`);
+      this.emit(`}`);
     });
+  }
+
+  private generatePropertySetter({ property, structure }: { property: Property; structure: Structure }): void {
+    const typeName = structure.name;
+    const value = property.optional ? `${property.name}.value()` : property.name;
+
+    switch (property.type.kind) {
+      case "base":
+        this.emit(`repr_->emplace("${property.name}", std::move(${value}));`);
+        return;
+
+      case "reference":
+        if (!this.generatePropertySetterReference({ structure, property, value })) break;
+        return;
+
+      case "or":
+        if (!this.generatePropertySetterOr({ structure, property, value })) break;
+        return;
+
+      default:
+        break;
+    } // switch
+
+    this.emit(`lsp_runtime_error("${typeName}::${property.name}: not implement yet");`);
+  }
+
+  generatePropertySetterReference({
+    property,
+    value,
+  }: {
+    structure: Structure;
+    property: Property;
+    value: string;
+  }): boolean {
+    if (property.type.kind !== "reference") return false;
+
+    if (this.enumByName.has(property.type.name)) {
+      const enumeration = this.enumByName.get(property.type.name)!;
+
+      if (enumeration.type.name !== "string") {
+        const enumBaseType = toCppType(enumeration.type);
+        this.emit(`repr_->emplace("${property.name}", static_cast<${enumBaseType}>(${value}));`);
+        return true;
+      }
+
+      // TODO: string-like enumeration
+      return false;
+    }
+
+    if (this.structByName.has(property.type.name)) {
+      this.emit(`repr_->emplace("${property.name}", ${value});`);
+      return true;
+    }
+
+    return false;
+  }
+
+  generatePropertySetterOr({
+    structure,
+    property,
+    value,
+  }: {
+    structure: Structure;
+    property: Property;
+    value: string;
+  }): boolean {
+    if (property.type.kind !== "or") return false;
+
+    this.emit();
+    this.emit("// or type");
+    this.emit();
+    this.emit(`struct {`);
+    this.emit(`json* repr_;`);
+    this.emit();
+    this.emit(`void operator()(std::monostate) {`);
+    this.emit(`lsp_runtime_error("monostate is not a valid a property value");`);
+    this.emit(`}`);
+
+    property.type.items.forEach((item) => {
+      const itemType = this.getPropertyType({ type: item });
+      this.emit();
+      this.emit(`void operator()(${itemType} ${property.name}) {`);
+      this.generatePropertySetter({ property: { name: property.name, type: item, optional: false }, structure });
+      this.emit(`}`);
+    });
+
+    this.emit(`} v{repr_};`);
+    this.emit();
+    this.emit(`std::visit(v, ${value});`);
+    this.emit();
+
+    return true;
   }
 }
 
