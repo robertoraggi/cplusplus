@@ -196,6 +196,8 @@ std::vector<CLIOptionDescr> options{
 
     {"-verify", "Verify the diagnostic messages", &CLI::opt_verify},
 
+    {"-lsp", "Start Language Server", &CLI::opt_lsp},
+
     {"-v", "Show commands to run and use verbose output", &CLI::opt_v},
 
 };
