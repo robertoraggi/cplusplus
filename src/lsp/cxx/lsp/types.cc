@@ -69,13 +69,13 @@ auto ImplementationParams::partialResultToken() const
 
 auto ImplementationParams::textDocument(TextDocumentIdentifier textDocument)
     -> ImplementationParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto ImplementationParams::position(Position position)
     -> ImplementationParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -110,6 +110,7 @@ Location::operator bool() const {
 auto Location::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -121,12 +122,12 @@ auto Location::range() const -> Range {
 }
 
 auto Location::uri(std::string uri) -> Location& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto Location::range(Range range) -> Location& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -153,6 +154,7 @@ auto ImplementationRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -163,6 +165,7 @@ auto ImplementationRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -180,7 +183,7 @@ auto ImplementationRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -196,7 +199,7 @@ auto ImplementationRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -206,7 +209,7 @@ auto ImplementationRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -257,13 +260,13 @@ auto TypeDefinitionParams::partialResultToken() const
 
 auto TypeDefinitionParams::textDocument(TextDocumentIdentifier textDocument)
     -> TypeDefinitionParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto TypeDefinitionParams::position(Position position)
     -> TypeDefinitionParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -311,6 +314,7 @@ auto TypeDefinitionRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -321,6 +325,7 @@ auto TypeDefinitionRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -338,7 +343,7 @@ auto TypeDefinitionRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -354,7 +359,7 @@ auto TypeDefinitionRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -364,7 +369,7 @@ auto TypeDefinitionRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -378,6 +383,7 @@ WorkspaceFolder::operator bool() const {
 auto WorkspaceFolder::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -385,17 +391,18 @@ auto WorkspaceFolder::uri() const -> std::string {
 auto WorkspaceFolder::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto WorkspaceFolder::uri(std::string uri) -> WorkspaceFolder& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto WorkspaceFolder::name(std::string name) -> WorkspaceFolder& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
@@ -414,7 +421,7 @@ auto DidChangeWorkspaceFoldersParams::event() const
 
 auto DidChangeWorkspaceFoldersParams::event(WorkspaceFoldersChangeEvent event)
     -> DidChangeWorkspaceFoldersParams& {
-  repr_->emplace("event", event);
+  (*repr_)["event"] = event;
   return *this;
 }
 
@@ -427,7 +434,7 @@ ConfigurationParams::operator bool() const {
 auto ConfigurationParams::items() const -> Vector<ConfigurationItem> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<ConfigurationItem>(value);
 }
 
@@ -477,7 +484,7 @@ auto DocumentColorParams::partialResultToken() const
 
 auto DocumentColorParams::textDocument(TextDocumentIdentifier textDocument)
     -> DocumentColorParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -522,12 +529,12 @@ auto ColorInformation::color() const -> Color {
 }
 
 auto ColorInformation::range(Range range) -> ColorInformation& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto ColorInformation::color(Color color) -> ColorInformation& {
-  repr_->emplace("color", color);
+  (*repr_)["color"] = color;
   return *this;
 }
 
@@ -554,6 +561,7 @@ auto DocumentColorRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -564,6 +572,7 @@ auto DocumentColorRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -581,7 +590,7 @@ auto DocumentColorRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -596,7 +605,7 @@ auto DocumentColorRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -606,7 +615,7 @@ auto DocumentColorRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -664,17 +673,17 @@ auto ColorPresentationParams::partialResultToken() const
 
 auto ColorPresentationParams::textDocument(TextDocumentIdentifier textDocument)
     -> ColorPresentationParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto ColorPresentationParams::color(Color color) -> ColorPresentationParams& {
-  repr_->emplace("color", color);
+  (*repr_)["color"] = color;
   return *this;
 }
 
 auto ColorPresentationParams::range(Range range) -> ColorPresentationParams& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -710,6 +719,7 @@ ColorPresentation::operator bool() const {
 auto ColorPresentation::label() const -> std::string {
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -728,12 +738,12 @@ auto ColorPresentation::additionalTextEdits() const
 
   auto& value = (*repr_)["additionalTextEdits"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextEdit>(value);
 }
 
 auto ColorPresentation::label(std::string label) -> ColorPresentation& {
-  repr_->emplace("label", std::move(label));
+  (*repr_)["label"] = std::move(label);
   return *this;
 }
 
@@ -743,7 +753,7 @@ auto ColorPresentation::textEdit(std::optional<TextEdit> textEdit)
     repr_->erase("textEdit");
     return *this;
   }
-  repr_->emplace("textEdit", textEdit.value());
+  (*repr_)["textEdit"] = textEdit.value();
   return *this;
 }
 
@@ -768,6 +778,7 @@ auto WorkDoneProgressOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -778,7 +789,7 @@ auto WorkDoneProgressOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -812,7 +823,7 @@ auto TextDocumentRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -860,7 +871,7 @@ auto FoldingRangeParams::partialResultToken() const
 
 auto FoldingRangeParams::textDocument(TextDocumentIdentifier textDocument)
     -> FoldingRangeParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -895,6 +906,7 @@ FoldingRange::operator bool() const {
 auto FoldingRange::startLine() const -> long {
   auto& value = (*repr_)["startLine"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -904,6 +916,7 @@ auto FoldingRange::startCharacter() const -> std::optional<long> {
 
   auto& value = (*repr_)["startCharacter"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -911,6 +924,7 @@ auto FoldingRange::startCharacter() const -> std::optional<long> {
 auto FoldingRange::endLine() const -> long {
   auto& value = (*repr_)["endLine"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -920,6 +934,7 @@ auto FoldingRange::endCharacter() const -> std::optional<long> {
 
   auto& value = (*repr_)["endCharacter"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -937,12 +952,13 @@ auto FoldingRange::collapsedText() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["collapsedText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto FoldingRange::startLine(long startLine) -> FoldingRange& {
-  repr_->emplace("startLine", std::move(startLine));
+  (*repr_)["startLine"] = std::move(startLine);
   return *this;
 }
 
@@ -952,12 +968,12 @@ auto FoldingRange::startCharacter(std::optional<long> startCharacter)
     repr_->erase("startCharacter");
     return *this;
   }
-  repr_->emplace("startCharacter", std::move(startCharacter.value()));
+  (*repr_)["startCharacter"] = std::move(startCharacter.value());
   return *this;
 }
 
 auto FoldingRange::endLine(long endLine) -> FoldingRange& {
-  repr_->emplace("endLine", std::move(endLine));
+  (*repr_)["endLine"] = std::move(endLine);
   return *this;
 }
 
@@ -967,7 +983,7 @@ auto FoldingRange::endCharacter(std::optional<long> endCharacter)
     repr_->erase("endCharacter");
     return *this;
   }
-  repr_->emplace("endCharacter", std::move(endCharacter.value()));
+  (*repr_)["endCharacter"] = std::move(endCharacter.value());
   return *this;
 }
 
@@ -986,7 +1002,7 @@ auto FoldingRange::collapsedText(std::optional<std::string> collapsedText)
     repr_->erase("collapsedText");
     return *this;
   }
-  repr_->emplace("collapsedText", std::move(collapsedText.value()));
+  (*repr_)["collapsedText"] = std::move(collapsedText.value());
   return *this;
 }
 
@@ -1013,6 +1029,7 @@ auto FoldingRangeRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -1022,6 +1039,7 @@ auto FoldingRangeRegistrationOptions::id() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1039,7 +1057,7 @@ auto FoldingRangeRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -1054,7 +1072,7 @@ auto FoldingRangeRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -1064,7 +1082,7 @@ auto FoldingRangeRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -1114,12 +1132,12 @@ auto DeclarationParams::partialResultToken() const
 
 auto DeclarationParams::textDocument(TextDocumentIdentifier textDocument)
     -> DeclarationParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto DeclarationParams::position(Position position) -> DeclarationParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -1155,6 +1173,7 @@ auto DeclarationRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -1175,6 +1194,7 @@ auto DeclarationRegistrationOptions::id() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1185,7 +1205,7 @@ auto DeclarationRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -1202,7 +1222,7 @@ auto DeclarationRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -1217,7 +1237,7 @@ auto DeclarationRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -1237,7 +1257,7 @@ auto SelectionRangeParams::textDocument() const -> TextDocumentIdentifier {
 auto SelectionRangeParams::positions() const -> Vector<Position> {
   auto& value = (*repr_)["positions"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Position>(value);
 }
 
@@ -1269,7 +1289,7 @@ auto SelectionRangeParams::partialResultToken() const
 
 auto SelectionRangeParams::textDocument(TextDocumentIdentifier textDocument)
     -> SelectionRangeParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -1321,7 +1341,7 @@ auto SelectionRange::parent() const -> std::optional<SelectionRange> {
 }
 
 auto SelectionRange::range(Range range) -> SelectionRange& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -1331,7 +1351,7 @@ auto SelectionRange::parent(std::optional<SelectionRange> parent)
     repr_->erase("parent");
     return *this;
   }
-  repr_->emplace("parent", parent.value());
+  (*repr_)["parent"] = parent.value();
   return *this;
 }
 
@@ -1347,6 +1367,7 @@ auto SelectionRangeRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -1368,6 +1389,7 @@ auto SelectionRangeRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1379,7 +1401,7 @@ auto SelectionRangeRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -1396,7 +1418,7 @@ auto SelectionRangeRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -1411,7 +1433,7 @@ auto SelectionRangeRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -1494,13 +1516,13 @@ auto CallHierarchyPrepareParams::workDoneToken() const
 
 auto CallHierarchyPrepareParams::textDocument(
     TextDocumentIdentifier textDocument) -> CallHierarchyPrepareParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto CallHierarchyPrepareParams::position(Position position)
     -> CallHierarchyPrepareParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -1528,6 +1550,7 @@ CallHierarchyItem::operator bool() const {
 auto CallHierarchyItem::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1543,7 +1566,7 @@ auto CallHierarchyItem::tags() const -> std::optional<Vector<SymbolTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -1552,6 +1575,7 @@ auto CallHierarchyItem::detail() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["detail"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1559,6 +1583,7 @@ auto CallHierarchyItem::detail() const -> std::optional<std::string> {
 auto CallHierarchyItem::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1585,12 +1610,12 @@ auto CallHierarchyItem::data() const -> std::optional<LSPAny> {
 }
 
 auto CallHierarchyItem::name(std::string name) -> CallHierarchyItem& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
 auto CallHierarchyItem::kind(SymbolKind kind) -> CallHierarchyItem& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
@@ -1610,23 +1635,23 @@ auto CallHierarchyItem::detail(std::optional<std::string> detail)
     repr_->erase("detail");
     return *this;
   }
-  repr_->emplace("detail", std::move(detail.value()));
+  (*repr_)["detail"] = std::move(detail.value());
   return *this;
 }
 
 auto CallHierarchyItem::uri(std::string uri) -> CallHierarchyItem& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto CallHierarchyItem::range(Range range) -> CallHierarchyItem& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto CallHierarchyItem::selectionRange(Range selectionRange)
     -> CallHierarchyItem& {
-  repr_->emplace("selectionRange", selectionRange);
+  (*repr_)["selectionRange"] = selectionRange;
   return *this;
 }
 
@@ -1662,6 +1687,7 @@ auto CallHierarchyRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -1672,6 +1698,7 @@ auto CallHierarchyRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -1689,7 +1716,7 @@ auto CallHierarchyRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -1704,7 +1731,7 @@ auto CallHierarchyRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -1714,7 +1741,7 @@ auto CallHierarchyRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -1758,7 +1785,7 @@ auto CallHierarchyIncomingCallsParams::partialResultToken() const
 
 auto CallHierarchyIncomingCallsParams::item(CallHierarchyItem item)
     -> CallHierarchyIncomingCallsParams& {
-  repr_->emplace("item", item);
+  (*repr_)["item"] = item;
   return *this;
 }
 
@@ -1803,13 +1830,13 @@ auto CallHierarchyIncomingCall::from() const -> CallHierarchyItem {
 auto CallHierarchyIncomingCall::fromRanges() const -> Vector<Range> {
   auto& value = (*repr_)["fromRanges"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Range>(value);
 }
 
 auto CallHierarchyIncomingCall::from(CallHierarchyItem from)
     -> CallHierarchyIncomingCall& {
-  repr_->emplace("from", from);
+  (*repr_)["from"] = from;
   return *this;
 }
 
@@ -1859,7 +1886,7 @@ auto CallHierarchyOutgoingCallsParams::partialResultToken() const
 
 auto CallHierarchyOutgoingCallsParams::item(CallHierarchyItem item)
     -> CallHierarchyOutgoingCallsParams& {
-  repr_->emplace("item", item);
+  (*repr_)["item"] = item;
   return *this;
 }
 
@@ -1904,13 +1931,13 @@ auto CallHierarchyOutgoingCall::to() const -> CallHierarchyItem {
 auto CallHierarchyOutgoingCall::fromRanges() const -> Vector<Range> {
   auto& value = (*repr_)["fromRanges"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Range>(value);
 }
 
 auto CallHierarchyOutgoingCall::to(CallHierarchyItem to)
     -> CallHierarchyOutgoingCall& {
-  repr_->emplace("to", to);
+  (*repr_)["to"] = to;
   return *this;
 }
 
@@ -1960,7 +1987,7 @@ auto SemanticTokensParams::partialResultToken() const
 
 auto SemanticTokensParams::textDocument(TextDocumentIdentifier textDocument)
     -> SemanticTokensParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -1996,6 +2023,7 @@ auto SemanticTokens::resultId() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2003,7 +2031,7 @@ auto SemanticTokens::resultId() const -> std::optional<std::string> {
 auto SemanticTokens::data() const -> Vector<long> {
   auto& value = (*repr_)["data"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<long>(value);
 }
 
@@ -2013,7 +2041,7 @@ auto SemanticTokens::resultId(std::optional<std::string> resultId)
     repr_->erase("resultId");
     return *this;
   }
-  repr_->emplace("resultId", std::move(resultId.value()));
+  (*repr_)["resultId"] = std::move(resultId.value());
   return *this;
 }
 
@@ -2031,7 +2059,7 @@ SemanticTokensPartialResult::operator bool() const {
 auto SemanticTokensPartialResult::data() const -> Vector<long> {
   auto& value = (*repr_)["data"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<long>(value);
 }
 
@@ -2097,6 +2125,7 @@ auto SemanticTokensRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -2107,6 +2136,7 @@ auto SemanticTokensRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2124,7 +2154,7 @@ auto SemanticTokensRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -2135,7 +2165,7 @@ auto SemanticTokensRegistrationOptions::documentSelector(
 
 auto SemanticTokensRegistrationOptions::legend(SemanticTokensLegend legend)
     -> SemanticTokensRegistrationOptions& {
-  repr_->emplace("legend", legend);
+  (*repr_)["legend"] = legend;
   return *this;
 }
 
@@ -2150,7 +2180,7 @@ auto SemanticTokensRegistrationOptions::range(
   struct {
     json* repr_;
 
-    void operator()(bool range) { repr_->emplace("range", std::move(range)); }
+    void operator()(bool range) { (*repr_)["range"] = std::move(range); }
 
     void operator()(json range) {
       lsp_runtime_error(
@@ -2174,11 +2204,9 @@ auto SemanticTokensRegistrationOptions::full(
   struct {
     json* repr_;
 
-    void operator()(bool full) { repr_->emplace("full", std::move(full)); }
+    void operator()(bool full) { (*repr_)["full"] = std::move(full); }
 
-    void operator()(SemanticTokensFullDelta full) {
-      repr_->emplace("full", full);
-    }
+    void operator()(SemanticTokensFullDelta full) { (*repr_)["full"] = full; }
   } v{repr_};
 
   std::visit(v, full.value());
@@ -2193,7 +2221,7 @@ auto SemanticTokensRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -2203,7 +2231,7 @@ auto SemanticTokensRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -2223,6 +2251,7 @@ auto SemanticTokensDeltaParams::textDocument() const -> TextDocumentIdentifier {
 auto SemanticTokensDeltaParams::previousResultId() const -> std::string {
   auto& value = (*repr_)["previousResultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2255,13 +2284,13 @@ auto SemanticTokensDeltaParams::partialResultToken() const
 
 auto SemanticTokensDeltaParams::textDocument(
     TextDocumentIdentifier textDocument) -> SemanticTokensDeltaParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto SemanticTokensDeltaParams::previousResultId(std::string previousResultId)
     -> SemanticTokensDeltaParams& {
-  repr_->emplace("previousResultId", std::move(previousResultId));
+  (*repr_)["previousResultId"] = std::move(previousResultId);
   return *this;
 }
 
@@ -2299,6 +2328,7 @@ auto SemanticTokensDelta::resultId() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2306,7 +2336,7 @@ auto SemanticTokensDelta::resultId() const -> std::optional<std::string> {
 auto SemanticTokensDelta::edits() const -> Vector<SemanticTokensEdit> {
   auto& value = (*repr_)["edits"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SemanticTokensEdit>(value);
 }
 
@@ -2316,7 +2346,7 @@ auto SemanticTokensDelta::resultId(std::optional<std::string> resultId)
     repr_->erase("resultId");
     return *this;
   }
-  repr_->emplace("resultId", std::move(resultId.value()));
+  (*repr_)["resultId"] = std::move(resultId.value());
   return *this;
 }
 
@@ -2336,7 +2366,7 @@ auto SemanticTokensDeltaPartialResult::edits() const
     -> Vector<SemanticTokensEdit> {
   auto& value = (*repr_)["edits"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SemanticTokensEdit>(value);
 }
 
@@ -2394,13 +2424,13 @@ auto SemanticTokensRangeParams::partialResultToken() const
 
 auto SemanticTokensRangeParams::textDocument(
     TextDocumentIdentifier textDocument) -> SemanticTokensRangeParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto SemanticTokensRangeParams::range(Range range)
     -> SemanticTokensRangeParams& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -2436,6 +2466,7 @@ ShowDocumentParams::operator bool() const {
 auto ShowDocumentParams::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2445,6 +2476,7 @@ auto ShowDocumentParams::external() const -> std::optional<bool> {
 
   auto& value = (*repr_)["external"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -2454,6 +2486,7 @@ auto ShowDocumentParams::takeFocus() const -> std::optional<bool> {
 
   auto& value = (*repr_)["takeFocus"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -2467,7 +2500,7 @@ auto ShowDocumentParams::selection() const -> std::optional<Range> {
 }
 
 auto ShowDocumentParams::uri(std::string uri) -> ShowDocumentParams& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -2477,7 +2510,7 @@ auto ShowDocumentParams::external(std::optional<bool> external)
     repr_->erase("external");
     return *this;
   }
-  repr_->emplace("external", std::move(external.value()));
+  (*repr_)["external"] = std::move(external.value());
   return *this;
 }
 
@@ -2487,7 +2520,7 @@ auto ShowDocumentParams::takeFocus(std::optional<bool> takeFocus)
     repr_->erase("takeFocus");
     return *this;
   }
-  repr_->emplace("takeFocus", std::move(takeFocus.value()));
+  (*repr_)["takeFocus"] = std::move(takeFocus.value());
   return *this;
 }
 
@@ -2497,7 +2530,7 @@ auto ShowDocumentParams::selection(std::optional<Range> selection)
     repr_->erase("selection");
     return *this;
   }
-  repr_->emplace("selection", selection.value());
+  (*repr_)["selection"] = selection.value();
   return *this;
 }
 
@@ -2510,12 +2543,13 @@ ShowDocumentResult::operator bool() const {
 auto ShowDocumentResult::success() const -> bool {
   auto& value = (*repr_)["success"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto ShowDocumentResult::success(bool success) -> ShowDocumentResult& {
-  repr_->emplace("success", std::move(success));
+  (*repr_)["success"] = std::move(success);
   return *this;
 }
 
@@ -2553,13 +2587,13 @@ auto LinkedEditingRangeParams::workDoneToken() const
 
 auto LinkedEditingRangeParams::textDocument(TextDocumentIdentifier textDocument)
     -> LinkedEditingRangeParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto LinkedEditingRangeParams::position(Position position)
     -> LinkedEditingRangeParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -2583,7 +2617,7 @@ LinkedEditingRanges::operator bool() const {
 auto LinkedEditingRanges::ranges() const -> Vector<Range> {
   auto& value = (*repr_)["ranges"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Range>(value);
 }
 
@@ -2592,6 +2626,7 @@ auto LinkedEditingRanges::wordPattern() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["wordPattern"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2607,7 +2642,7 @@ auto LinkedEditingRanges::wordPattern(std::optional<std::string> wordPattern)
     repr_->erase("wordPattern");
     return *this;
   }
-  repr_->emplace("wordPattern", std::move(wordPattern.value()));
+  (*repr_)["wordPattern"] = std::move(wordPattern.value());
   return *this;
 }
 
@@ -2634,6 +2669,7 @@ auto LinkedEditingRangeRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -2644,6 +2680,7 @@ auto LinkedEditingRangeRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2661,7 +2698,7 @@ auto LinkedEditingRangeRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -2677,7 +2714,7 @@ auto LinkedEditingRangeRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -2687,7 +2724,7 @@ auto LinkedEditingRangeRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -2700,7 +2737,7 @@ CreateFilesParams::operator bool() const {
 auto CreateFilesParams::files() const -> Vector<FileCreate> {
   auto& value = (*repr_)["files"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FileCreate>(value);
 }
 
@@ -2720,7 +2757,7 @@ auto WorkspaceEdit::changes() const
 
   auto& value = (*repr_)["changes"];
 
-  assert(value.is_object());
+  if (value.is_null()) value = json::object();
   return Map<std::string, Vector<TextEdit>>(value);
 }
 
@@ -2730,7 +2767,7 @@ auto WorkspaceEdit::documentChanges() const -> std::optional<Vector<
 
   auto& value = (*repr_)["documentChanges"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<
       std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>(
       value);
@@ -2742,7 +2779,7 @@ auto WorkspaceEdit::changeAnnotations() const
 
   auto& value = (*repr_)["changeAnnotations"];
 
-  assert(value.is_object());
+  if (value.is_null()) value = json::object();
   return Map<ChangeAnnotationIdentifier, ChangeAnnotation>(value);
 }
 
@@ -2790,7 +2827,7 @@ auto FileOperationRegistrationOptions::filters() const
     -> Vector<FileOperationFilter> {
   auto& value = (*repr_)["filters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FileOperationFilter>(value);
 }
 
@@ -2810,7 +2847,7 @@ RenameFilesParams::operator bool() const {
 auto RenameFilesParams::files() const -> Vector<FileRename> {
   auto& value = (*repr_)["files"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FileRename>(value);
 }
 
@@ -2828,7 +2865,7 @@ DeleteFilesParams::operator bool() const {
 auto DeleteFilesParams::files() const -> Vector<FileDelete> {
   auto& value = (*repr_)["files"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FileDelete>(value);
 }
 
@@ -2882,12 +2919,12 @@ auto MonikerParams::partialResultToken() const -> std::optional<ProgressToken> {
 
 auto MonikerParams::textDocument(TextDocumentIdentifier textDocument)
     -> MonikerParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto MonikerParams::position(Position position) -> MonikerParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -2922,6 +2959,7 @@ Moniker::operator bool() const {
 auto Moniker::scheme() const -> std::string {
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2929,6 +2967,7 @@ auto Moniker::scheme() const -> std::string {
 auto Moniker::identifier() const -> std::string {
   auto& value = (*repr_)["identifier"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -2948,12 +2987,12 @@ auto Moniker::kind() const -> std::optional<MonikerKind> {
 }
 
 auto Moniker::scheme(std::string scheme) -> Moniker& {
-  repr_->emplace("scheme", std::move(scheme));
+  (*repr_)["scheme"] = std::move(scheme);
   return *this;
 }
 
 auto Moniker::identifier(std::string identifier) -> Moniker& {
-  repr_->emplace("identifier", std::move(identifier));
+  (*repr_)["identifier"] = std::move(identifier);
   return *this;
 }
 
@@ -2994,6 +3033,7 @@ auto MonikerRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3010,7 +3050,7 @@ auto MonikerRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -3025,7 +3065,7 @@ auto MonikerRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -3064,13 +3104,13 @@ auto TypeHierarchyPrepareParams::workDoneToken() const
 
 auto TypeHierarchyPrepareParams::textDocument(
     TextDocumentIdentifier textDocument) -> TypeHierarchyPrepareParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto TypeHierarchyPrepareParams::position(Position position)
     -> TypeHierarchyPrepareParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -3098,6 +3138,7 @@ TypeHierarchyItem::operator bool() const {
 auto TypeHierarchyItem::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3113,7 +3154,7 @@ auto TypeHierarchyItem::tags() const -> std::optional<Vector<SymbolTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -3122,6 +3163,7 @@ auto TypeHierarchyItem::detail() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["detail"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3129,6 +3171,7 @@ auto TypeHierarchyItem::detail() const -> std::optional<std::string> {
 auto TypeHierarchyItem::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3155,12 +3198,12 @@ auto TypeHierarchyItem::data() const -> std::optional<LSPAny> {
 }
 
 auto TypeHierarchyItem::name(std::string name) -> TypeHierarchyItem& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
 auto TypeHierarchyItem::kind(SymbolKind kind) -> TypeHierarchyItem& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
@@ -3180,23 +3223,23 @@ auto TypeHierarchyItem::detail(std::optional<std::string> detail)
     repr_->erase("detail");
     return *this;
   }
-  repr_->emplace("detail", std::move(detail.value()));
+  (*repr_)["detail"] = std::move(detail.value());
   return *this;
 }
 
 auto TypeHierarchyItem::uri(std::string uri) -> TypeHierarchyItem& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto TypeHierarchyItem::range(Range range) -> TypeHierarchyItem& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto TypeHierarchyItem::selectionRange(Range selectionRange)
     -> TypeHierarchyItem& {
-  repr_->emplace("selectionRange", selectionRange);
+  (*repr_)["selectionRange"] = selectionRange;
   return *this;
 }
 
@@ -3232,6 +3275,7 @@ auto TypeHierarchyRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3242,6 +3286,7 @@ auto TypeHierarchyRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3259,7 +3304,7 @@ auto TypeHierarchyRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -3274,7 +3319,7 @@ auto TypeHierarchyRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -3284,7 +3329,7 @@ auto TypeHierarchyRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -3328,7 +3373,7 @@ auto TypeHierarchySupertypesParams::partialResultToken() const
 
 auto TypeHierarchySupertypesParams::item(TypeHierarchyItem item)
     -> TypeHierarchySupertypesParams& {
-  repr_->emplace("item", item);
+  (*repr_)["item"] = item;
   return *this;
 }
 
@@ -3396,7 +3441,7 @@ auto TypeHierarchySubtypesParams::partialResultToken() const
 
 auto TypeHierarchySubtypesParams::item(TypeHierarchyItem item)
     -> TypeHierarchySubtypesParams& {
-  repr_->emplace("item", item);
+  (*repr_)["item"] = item;
   return *this;
 }
 
@@ -3464,18 +3509,18 @@ auto InlineValueParams::workDoneToken() const -> std::optional<ProgressToken> {
 
 auto InlineValueParams::textDocument(TextDocumentIdentifier textDocument)
     -> InlineValueParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto InlineValueParams::range(Range range) -> InlineValueParams& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto InlineValueParams::context(InlineValueContext context)
     -> InlineValueParams& {
-  repr_->emplace("context", context);
+  (*repr_)["context"] = context;
   return *this;
 }
 
@@ -3501,6 +3546,7 @@ auto InlineValueRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3521,6 +3567,7 @@ auto InlineValueRegistrationOptions::id() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3531,7 +3578,7 @@ auto InlineValueRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -3548,7 +3595,7 @@ auto InlineValueRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -3563,7 +3610,7 @@ auto InlineValueRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -3600,12 +3647,12 @@ auto InlayHintParams::workDoneToken() const -> std::optional<ProgressToken> {
 
 auto InlayHintParams::textDocument(TextDocumentIdentifier textDocument)
     -> InlayHintParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto InlayHintParams::range(Range range) -> InlayHintParams& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -3656,7 +3703,7 @@ auto InlayHint::textEdits() const -> std::optional<Vector<TextEdit>> {
 
   auto& value = (*repr_)["textEdits"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextEdit>(value);
 }
 
@@ -3678,6 +3725,7 @@ auto InlayHint::paddingLeft() const -> std::optional<bool> {
 
   auto& value = (*repr_)["paddingLeft"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3687,6 +3735,7 @@ auto InlayHint::paddingRight() const -> std::optional<bool> {
 
   auto& value = (*repr_)["paddingRight"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3701,7 +3750,7 @@ auto InlayHint::data() const -> std::optional<LSPAny> {
 }
 
 auto InlayHint::position(Position position) -> InlayHint& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -3710,9 +3759,7 @@ auto InlayHint::label(
   struct {
     json* repr_;
 
-    void operator()(std::string label) {
-      repr_->emplace("label", std::move(label));
-    }
+    void operator()(std::string label) { (*repr_)["label"] = std::move(label); }
 
     void operator()(Vector<InlayHintLabelPart> label) {
       lsp_runtime_error("InlayHint::label: not implement yet");
@@ -3729,7 +3776,7 @@ auto InlayHint::kind(std::optional<InlayHintKind> kind) -> InlayHint& {
     repr_->erase("kind");
     return *this;
   }
-  repr_->emplace("kind", static_cast<long>(kind.value()));
+  (*repr_)["kind"] = static_cast<long>(kind.value());
   return *this;
 }
 
@@ -3755,12 +3802,10 @@ auto InlayHint::tooltip(
     json* repr_;
 
     void operator()(std::string tooltip) {
-      repr_->emplace("tooltip", std::move(tooltip));
+      (*repr_)["tooltip"] = std::move(tooltip);
     }
 
-    void operator()(MarkupContent tooltip) {
-      repr_->emplace("tooltip", tooltip);
-    }
+    void operator()(MarkupContent tooltip) { (*repr_)["tooltip"] = tooltip; }
   } v{repr_};
 
   std::visit(v, tooltip.value());
@@ -3773,7 +3818,7 @@ auto InlayHint::paddingLeft(std::optional<bool> paddingLeft) -> InlayHint& {
     repr_->erase("paddingLeft");
     return *this;
   }
-  repr_->emplace("paddingLeft", std::move(paddingLeft.value()));
+  (*repr_)["paddingLeft"] = std::move(paddingLeft.value());
   return *this;
 }
 
@@ -3782,7 +3827,7 @@ auto InlayHint::paddingRight(std::optional<bool> paddingRight) -> InlayHint& {
     repr_->erase("paddingRight");
     return *this;
   }
-  repr_->emplace("paddingRight", std::move(paddingRight.value()));
+  (*repr_)["paddingRight"] = std::move(paddingRight.value());
   return *this;
 }
 
@@ -3807,6 +3852,7 @@ auto InlayHintRegistrationOptions::resolveProvider() const
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3817,6 +3863,7 @@ auto InlayHintRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -3837,6 +3884,7 @@ auto InlayHintRegistrationOptions::id() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3847,7 +3895,7 @@ auto InlayHintRegistrationOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -3857,7 +3905,7 @@ auto InlayHintRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -3873,7 +3921,7 @@ auto InlayHintRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -3888,7 +3936,7 @@ auto InlayHintRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -3910,6 +3958,7 @@ auto DocumentDiagnosticParams::identifier() const
 
   auto& value = (*repr_)["identifier"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3920,6 +3969,7 @@ auto DocumentDiagnosticParams::previousResultId() const
 
   auto& value = (*repr_)["previousResultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -3952,7 +4002,7 @@ auto DocumentDiagnosticParams::partialResultToken() const
 
 auto DocumentDiagnosticParams::textDocument(TextDocumentIdentifier textDocument)
     -> DocumentDiagnosticParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -3962,7 +4012,7 @@ auto DocumentDiagnosticParams::identifier(std::optional<std::string> identifier)
     repr_->erase("identifier");
     return *this;
   }
-  repr_->emplace("identifier", std::move(identifier.value()));
+  (*repr_)["identifier"] = std::move(identifier.value());
   return *this;
 }
 
@@ -3972,7 +4022,7 @@ auto DocumentDiagnosticParams::previousResultId(
     repr_->erase("previousResultId");
     return *this;
   }
-  repr_->emplace("previousResultId", std::move(previousResultId.value()));
+  (*repr_)["previousResultId"] = std::move(previousResultId.value());
   return *this;
 }
 
@@ -4010,7 +4060,7 @@ auto DocumentDiagnosticReportPartialResult::relatedDocuments() const
                                      UnchangedDocumentDiagnosticReport>> {
   auto& value = (*repr_)["relatedDocuments"];
 
-  assert(value.is_object());
+  if (value.is_null()) value = json::object();
   return Map<std::string, std::variant<FullDocumentDiagnosticReport,
                                        UnchangedDocumentDiagnosticReport>>(
       value);
@@ -4035,13 +4085,14 @@ DiagnosticServerCancellationData::operator bool() const {
 auto DiagnosticServerCancellationData::retriggerRequest() const -> bool {
   auto& value = (*repr_)["retriggerRequest"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto DiagnosticServerCancellationData::retriggerRequest(bool retriggerRequest)
     -> DiagnosticServerCancellationData& {
-  repr_->emplace("retriggerRequest", std::move(retriggerRequest));
+  (*repr_)["retriggerRequest"] = std::move(retriggerRequest);
   return *this;
 }
 
@@ -4070,6 +4121,7 @@ auto DiagnosticRegistrationOptions::identifier() const
 
   auto& value = (*repr_)["identifier"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4077,6 +4129,7 @@ auto DiagnosticRegistrationOptions::identifier() const
 auto DiagnosticRegistrationOptions::interFileDependencies() const -> bool {
   auto& value = (*repr_)["interFileDependencies"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -4084,6 +4137,7 @@ auto DiagnosticRegistrationOptions::interFileDependencies() const -> bool {
 auto DiagnosticRegistrationOptions::workspaceDiagnostics() const -> bool {
   auto& value = (*repr_)["workspaceDiagnostics"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -4094,6 +4148,7 @@ auto DiagnosticRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -4103,6 +4158,7 @@ auto DiagnosticRegistrationOptions::id() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4119,7 +4175,7 @@ auto DiagnosticRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -4134,19 +4190,19 @@ auto DiagnosticRegistrationOptions::identifier(
     repr_->erase("identifier");
     return *this;
   }
-  repr_->emplace("identifier", std::move(identifier.value()));
+  (*repr_)["identifier"] = std::move(identifier.value());
   return *this;
 }
 
 auto DiagnosticRegistrationOptions::interFileDependencies(
     bool interFileDependencies) -> DiagnosticRegistrationOptions& {
-  repr_->emplace("interFileDependencies", std::move(interFileDependencies));
+  (*repr_)["interFileDependencies"] = std::move(interFileDependencies);
   return *this;
 }
 
 auto DiagnosticRegistrationOptions::workspaceDiagnostics(
     bool workspaceDiagnostics) -> DiagnosticRegistrationOptions& {
-  repr_->emplace("workspaceDiagnostics", std::move(workspaceDiagnostics));
+  (*repr_)["workspaceDiagnostics"] = std::move(workspaceDiagnostics);
   return *this;
 }
 
@@ -4156,7 +4212,7 @@ auto DiagnosticRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -4166,7 +4222,7 @@ auto DiagnosticRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -4182,6 +4238,7 @@ auto WorkspaceDiagnosticParams::identifier() const
 
   auto& value = (*repr_)["identifier"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4190,7 +4247,7 @@ auto WorkspaceDiagnosticParams::previousResultIds() const
     -> Vector<PreviousResultId> {
   auto& value = (*repr_)["previousResultIds"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<PreviousResultId>(value);
 }
 
@@ -4226,7 +4283,7 @@ auto WorkspaceDiagnosticParams::identifier(
     repr_->erase("identifier");
     return *this;
   }
-  repr_->emplace("identifier", std::move(identifier.value()));
+  (*repr_)["identifier"] = std::move(identifier.value());
   return *this;
 }
 
@@ -4270,7 +4327,7 @@ auto WorkspaceDiagnosticReport::items() const
     -> Vector<WorkspaceDocumentDiagnosticReport> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<WorkspaceDocumentDiagnosticReport>(value);
 }
 
@@ -4291,7 +4348,7 @@ auto WorkspaceDiagnosticReportPartialResult::items() const
     -> Vector<WorkspaceDocumentDiagnosticReport> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<WorkspaceDocumentDiagnosticReport>(value);
 }
 
@@ -4321,13 +4378,13 @@ auto DidOpenNotebookDocumentParams::cellTextDocuments() const
     -> Vector<TextDocumentItem> {
   auto& value = (*repr_)["cellTextDocuments"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextDocumentItem>(value);
 }
 
 auto DidOpenNotebookDocumentParams::notebookDocument(
     NotebookDocument notebookDocument) -> DidOpenNotebookDocumentParams& {
-  repr_->emplace("notebookDocument", notebookDocument);
+  (*repr_)["notebookDocument"] = notebookDocument;
   return *this;
 }
 
@@ -4350,7 +4407,7 @@ auto NotebookDocumentSyncRegistrationOptions::notebookSelector() const
                            NotebookDocumentFilterWithCells>> {
   auto& value = (*repr_)["notebookSelector"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::variant<NotebookDocumentFilterWithNotebook,
                              NotebookDocumentFilterWithCells>>(value);
 }
@@ -4361,6 +4418,7 @@ auto NotebookDocumentSyncRegistrationOptions::save() const
 
   auto& value = (*repr_)["save"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -4371,6 +4429,7 @@ auto NotebookDocumentSyncRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4391,7 +4450,7 @@ auto NotebookDocumentSyncRegistrationOptions::save(std::optional<bool> save)
     repr_->erase("save");
     return *this;
   }
-  repr_->emplace("save", std::move(save.value()));
+  (*repr_)["save"] = std::move(save.value());
   return *this;
 }
 
@@ -4401,7 +4460,7 @@ auto NotebookDocumentSyncRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -4429,13 +4488,13 @@ auto DidChangeNotebookDocumentParams::change() const
 auto DidChangeNotebookDocumentParams::notebookDocument(
     VersionedNotebookDocumentIdentifier notebookDocument)
     -> DidChangeNotebookDocumentParams& {
-  repr_->emplace("notebookDocument", notebookDocument);
+  (*repr_)["notebookDocument"] = notebookDocument;
   return *this;
 }
 
 auto DidChangeNotebookDocumentParams::change(NotebookDocumentChangeEvent change)
     -> DidChangeNotebookDocumentParams& {
-  repr_->emplace("change", change);
+  (*repr_)["change"] = change;
   return *this;
 }
 
@@ -4455,7 +4514,7 @@ auto DidSaveNotebookDocumentParams::notebookDocument() const
 auto DidSaveNotebookDocumentParams::notebookDocument(
     NotebookDocumentIdentifier notebookDocument)
     -> DidSaveNotebookDocumentParams& {
-  repr_->emplace("notebookDocument", notebookDocument);
+  (*repr_)["notebookDocument"] = notebookDocument;
   return *this;
 }
 
@@ -4477,14 +4536,14 @@ auto DidCloseNotebookDocumentParams::cellTextDocuments() const
     -> Vector<TextDocumentIdentifier> {
   auto& value = (*repr_)["cellTextDocuments"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextDocumentIdentifier>(value);
 }
 
 auto DidCloseNotebookDocumentParams::notebookDocument(
     NotebookDocumentIdentifier notebookDocument)
     -> DidCloseNotebookDocumentParams& {
-  repr_->emplace("notebookDocument", notebookDocument);
+  (*repr_)["notebookDocument"] = notebookDocument;
   return *this;
 }
 
@@ -4537,19 +4596,19 @@ auto InlineCompletionParams::workDoneToken() const
 
 auto InlineCompletionParams::context(InlineCompletionContext context)
     -> InlineCompletionParams& {
-  repr_->emplace("context", context);
+  (*repr_)["context"] = context;
   return *this;
 }
 
 auto InlineCompletionParams::textDocument(TextDocumentIdentifier textDocument)
     -> InlineCompletionParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto InlineCompletionParams::position(Position position)
     -> InlineCompletionParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -4572,7 +4631,7 @@ InlineCompletionList::operator bool() const {
 auto InlineCompletionList::items() const -> Vector<InlineCompletionItem> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<InlineCompletionItem>(value);
 }
 
@@ -4604,6 +4663,7 @@ auto InlineCompletionItem::filterText() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["filterText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4631,11 +4691,11 @@ auto InlineCompletionItem::insertText(
     json* repr_;
 
     void operator()(std::string insertText) {
-      repr_->emplace("insertText", std::move(insertText));
+      (*repr_)["insertText"] = std::move(insertText);
     }
 
     void operator()(StringValue insertText) {
-      repr_->emplace("insertText", insertText);
+      (*repr_)["insertText"] = insertText;
     }
   } v{repr_};
 
@@ -4650,7 +4710,7 @@ auto InlineCompletionItem::filterText(std::optional<std::string> filterText)
     repr_->erase("filterText");
     return *this;
   }
-  repr_->emplace("filterText", std::move(filterText.value()));
+  (*repr_)["filterText"] = std::move(filterText.value());
   return *this;
 }
 
@@ -4660,7 +4720,7 @@ auto InlineCompletionItem::range(std::optional<Range> range)
     repr_->erase("range");
     return *this;
   }
-  repr_->emplace("range", range.value());
+  (*repr_)["range"] = range.value();
   return *this;
 }
 
@@ -4670,7 +4730,7 @@ auto InlineCompletionItem::command(std::optional<Command> command)
     repr_->erase("command");
     return *this;
   }
-  repr_->emplace("command", command.value());
+  (*repr_)["command"] = command.value();
   return *this;
 }
 
@@ -4686,6 +4746,7 @@ auto InlineCompletionRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -4707,6 +4768,7 @@ auto InlineCompletionRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4718,7 +4780,7 @@ auto InlineCompletionRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -4735,7 +4797,7 @@ auto InlineCompletionRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -4750,7 +4812,7 @@ auto InlineCompletionRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -4763,13 +4825,14 @@ TextDocumentContentParams::operator bool() const {
 auto TextDocumentContentParams::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentContentParams::uri(std::string uri)
     -> TextDocumentContentParams& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -4782,13 +4845,14 @@ TextDocumentContentResult::operator bool() const {
 auto TextDocumentContentResult::text() const -> std::string {
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentContentResult::text(std::string text)
     -> TextDocumentContentResult& {
-  repr_->emplace("text", std::move(text));
+  (*repr_)["text"] = std::move(text);
   return *this;
 }
 
@@ -4802,7 +4866,7 @@ auto TextDocumentContentRegistrationOptions::schemes() const
     -> Vector<std::string> {
   auto& value = (*repr_)["schemes"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -4812,6 +4876,7 @@ auto TextDocumentContentRegistrationOptions::id() const
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -4829,7 +4894,7 @@ auto TextDocumentContentRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -4842,13 +4907,14 @@ TextDocumentContentRefreshParams::operator bool() const {
 auto TextDocumentContentRefreshParams::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentContentRefreshParams::uri(std::string uri)
     -> TextDocumentContentRefreshParams& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -4861,7 +4927,7 @@ RegistrationParams::operator bool() const {
 auto RegistrationParams::registrations() const -> Vector<Registration> {
   auto& value = (*repr_)["registrations"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Registration>(value);
 }
 
@@ -4880,7 +4946,7 @@ UnregistrationParams::operator bool() const {
 auto UnregistrationParams::unregisterations() const -> Vector<Unregistration> {
   auto& value = (*repr_)["unregisterations"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Unregistration>(value);
 }
 
@@ -4922,6 +4988,7 @@ auto InitializeParams::locale() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["locale"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5004,11 +5071,11 @@ auto InitializeParams::processId(std::variant<int, std::nullptr_t> processId)
     json* repr_;
 
     void operator()(int processId) {
-      repr_->emplace("processId", std::move(processId));
+      (*repr_)["processId"] = std::move(processId);
     }
 
     void operator()(std::nullptr_t processId) {
-      repr_->emplace("processId", std::move(processId));
+      (*repr_)["processId"] = std::move(processId);
     }
   } v{repr_};
 
@@ -5023,7 +5090,7 @@ auto InitializeParams::clientInfo(std::optional<ClientInfo> clientInfo)
     repr_->erase("clientInfo");
     return *this;
   }
-  repr_->emplace("clientInfo", clientInfo.value());
+  (*repr_)["clientInfo"] = clientInfo.value();
   return *this;
 }
 
@@ -5033,7 +5100,7 @@ auto InitializeParams::locale(std::optional<std::string> locale)
     repr_->erase("locale");
     return *this;
   }
-  repr_->emplace("locale", std::move(locale.value()));
+  (*repr_)["locale"] = std::move(locale.value());
   return *this;
 }
 
@@ -5049,11 +5116,11 @@ auto InitializeParams::rootPath(
     json* repr_;
 
     void operator()(std::string rootPath) {
-      repr_->emplace("rootPath", std::move(rootPath));
+      (*repr_)["rootPath"] = std::move(rootPath);
     }
 
     void operator()(std::nullptr_t rootPath) {
-      repr_->emplace("rootPath", std::move(rootPath));
+      (*repr_)["rootPath"] = std::move(rootPath);
     }
   } v{repr_};
 
@@ -5068,11 +5135,11 @@ auto InitializeParams::rootUri(
     json* repr_;
 
     void operator()(std::string rootUri) {
-      repr_->emplace("rootUri", std::move(rootUri));
+      (*repr_)["rootUri"] = std::move(rootUri);
     }
 
     void operator()(std::nullptr_t rootUri) {
-      repr_->emplace("rootUri", std::move(rootUri));
+      (*repr_)["rootUri"] = std::move(rootUri);
     }
   } v{repr_};
 
@@ -5083,7 +5150,7 @@ auto InitializeParams::rootUri(
 
 auto InitializeParams::capabilities(ClientCapabilities capabilities)
     -> InitializeParams& {
-  repr_->emplace("capabilities", capabilities);
+  (*repr_)["capabilities"] = capabilities;
   return *this;
 }
 
@@ -5135,7 +5202,7 @@ auto InitializeParams::workspaceFolders(
     }
 
     void operator()(std::nullptr_t workspaceFolders) {
-      repr_->emplace("workspaceFolders", std::move(workspaceFolders));
+      (*repr_)["workspaceFolders"] = std::move(workspaceFolders);
     }
   } v{repr_};
 
@@ -5166,7 +5233,7 @@ auto InitializeResult::serverInfo() const -> std::optional<ServerInfo> {
 
 auto InitializeResult::capabilities(ServerCapabilities capabilities)
     -> InitializeResult& {
-  repr_->emplace("capabilities", capabilities);
+  (*repr_)["capabilities"] = capabilities;
   return *this;
 }
 
@@ -5176,7 +5243,7 @@ auto InitializeResult::serverInfo(std::optional<ServerInfo> serverInfo)
     repr_->erase("serverInfo");
     return *this;
   }
-  repr_->emplace("serverInfo", serverInfo.value());
+  (*repr_)["serverInfo"] = serverInfo.value();
   return *this;
 }
 
@@ -5189,12 +5256,13 @@ InitializeError::operator bool() const {
 auto InitializeError::retry() const -> bool {
   auto& value = (*repr_)["retry"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto InitializeError::retry(bool retry) -> InitializeError& {
-  repr_->emplace("retry", std::move(retry));
+  (*repr_)["retry"] = std::move(retry);
   return *this;
 }
 
@@ -5253,7 +5321,7 @@ auto DidChangeConfigurationRegistrationOptions::section(
     json* repr_;
 
     void operator()(std::string section) {
-      repr_->emplace("section", std::move(section));
+      (*repr_)["section"] = std::move(section);
     }
 
     void operator()(Vector<std::string> section) {
@@ -5284,17 +5352,18 @@ auto ShowMessageParams::type() const -> MessageType {
 auto ShowMessageParams::message() const -> std::string {
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto ShowMessageParams::type(MessageType type) -> ShowMessageParams& {
-  repr_->emplace("type", static_cast<long>(type));
+  (*repr_)["type"] = static_cast<long>(type);
   return *this;
 }
 
 auto ShowMessageParams::message(std::string message) -> ShowMessageParams& {
-  repr_->emplace("message", std::move(message));
+  (*repr_)["message"] = std::move(message);
   return *this;
 }
 
@@ -5314,6 +5383,7 @@ auto ShowMessageRequestParams::type() const -> MessageType {
 auto ShowMessageRequestParams::message() const -> std::string {
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5324,19 +5394,19 @@ auto ShowMessageRequestParams::actions() const
 
   auto& value = (*repr_)["actions"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<MessageActionItem>(value);
 }
 
 auto ShowMessageRequestParams::type(MessageType type)
     -> ShowMessageRequestParams& {
-  repr_->emplace("type", static_cast<long>(type));
+  (*repr_)["type"] = static_cast<long>(type);
   return *this;
 }
 
 auto ShowMessageRequestParams::message(std::string message)
     -> ShowMessageRequestParams& {
-  repr_->emplace("message", std::move(message));
+  (*repr_)["message"] = std::move(message);
   return *this;
 }
 
@@ -5360,12 +5430,13 @@ MessageActionItem::operator bool() const {
 auto MessageActionItem::title() const -> std::string {
   auto& value = (*repr_)["title"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto MessageActionItem::title(std::string title) -> MessageActionItem& {
-  repr_->emplace("title", std::move(title));
+  (*repr_)["title"] = std::move(title);
   return *this;
 }
 
@@ -5385,17 +5456,18 @@ auto LogMessageParams::type() const -> MessageType {
 auto LogMessageParams::message() const -> std::string {
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto LogMessageParams::type(MessageType type) -> LogMessageParams& {
-  repr_->emplace("type", static_cast<long>(type));
+  (*repr_)["type"] = static_cast<long>(type);
   return *this;
 }
 
 auto LogMessageParams::message(std::string message) -> LogMessageParams& {
-  repr_->emplace("message", std::move(message));
+  (*repr_)["message"] = std::move(message);
   return *this;
 }
 
@@ -5413,7 +5485,7 @@ auto DidOpenTextDocumentParams::textDocument() const -> TextDocumentItem {
 
 auto DidOpenTextDocumentParams::textDocument(TextDocumentItem textDocument)
     -> DidOpenTextDocumentParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -5435,14 +5507,14 @@ auto DidChangeTextDocumentParams::contentChanges() const
     -> Vector<TextDocumentContentChangeEvent> {
   auto& value = (*repr_)["contentChanges"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextDocumentContentChangeEvent>(value);
 }
 
 auto DidChangeTextDocumentParams::textDocument(
     VersionedTextDocumentIdentifier textDocument)
     -> DidChangeTextDocumentParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -5481,7 +5553,7 @@ auto TextDocumentChangeRegistrationOptions::documentSelector() const
 
 auto TextDocumentChangeRegistrationOptions::syncKind(
     TextDocumentSyncKind syncKind) -> TextDocumentChangeRegistrationOptions& {
-  repr_->emplace("syncKind", static_cast<long>(syncKind));
+  (*repr_)["syncKind"] = static_cast<long>(syncKind);
   return *this;
 }
 
@@ -5498,7 +5570,7 @@ auto TextDocumentChangeRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -5522,7 +5594,7 @@ auto DidCloseTextDocumentParams::textDocument() const
 
 auto DidCloseTextDocumentParams::textDocument(
     TextDocumentIdentifier textDocument) -> DidCloseTextDocumentParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -5543,13 +5615,14 @@ auto DidSaveTextDocumentParams::text() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto DidSaveTextDocumentParams::textDocument(
     TextDocumentIdentifier textDocument) -> DidSaveTextDocumentParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -5559,7 +5632,7 @@ auto DidSaveTextDocumentParams::text(std::optional<std::string> text)
     repr_->erase("text");
     return *this;
   }
-  repr_->emplace("text", std::move(text.value()));
+  (*repr_)["text"] = std::move(text.value());
   return *this;
 }
 
@@ -5586,6 +5659,7 @@ auto TextDocumentSaveRegistrationOptions::includeText() const
 
   auto& value = (*repr_)["includeText"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -5603,7 +5677,7 @@ auto TextDocumentSaveRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -5618,7 +5692,7 @@ auto TextDocumentSaveRegistrationOptions::includeText(
     repr_->erase("includeText");
     return *this;
   }
-  repr_->emplace("includeText", std::move(includeText.value()));
+  (*repr_)["includeText"] = std::move(includeText.value());
   return *this;
 }
 
@@ -5644,13 +5718,13 @@ auto WillSaveTextDocumentParams::reason() const -> TextDocumentSaveReason {
 
 auto WillSaveTextDocumentParams::textDocument(
     TextDocumentIdentifier textDocument) -> WillSaveTextDocumentParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto WillSaveTextDocumentParams::reason(TextDocumentSaveReason reason)
     -> WillSaveTextDocumentParams& {
-  repr_->emplace("reason", static_cast<long>(reason));
+  (*repr_)["reason"] = static_cast<long>(reason);
   return *this;
 }
 
@@ -5670,17 +5744,18 @@ auto TextEdit::range() const -> Range {
 auto TextEdit::newText() const -> std::string {
   auto& value = (*repr_)["newText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextEdit::range(Range range) -> TextEdit& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto TextEdit::newText(std::string newText) -> TextEdit& {
-  repr_->emplace("newText", std::move(newText));
+  (*repr_)["newText"] = std::move(newText);
   return *this;
 }
 
@@ -5693,7 +5768,7 @@ DidChangeWatchedFilesParams::operator bool() const {
 auto DidChangeWatchedFilesParams::changes() const -> Vector<FileEvent> {
   auto& value = (*repr_)["changes"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FileEvent>(value);
 }
 
@@ -5713,7 +5788,7 @@ auto DidChangeWatchedFilesRegistrationOptions::watchers() const
     -> Vector<FileSystemWatcher> {
   auto& value = (*repr_)["watchers"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FileSystemWatcher>(value);
 }
 
@@ -5735,6 +5810,7 @@ PublishDiagnosticsParams::operator bool() const {
 auto PublishDiagnosticsParams::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5744,6 +5820,7 @@ auto PublishDiagnosticsParams::version() const -> std::optional<int> {
 
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<int>();
 }
@@ -5751,13 +5828,13 @@ auto PublishDiagnosticsParams::version() const -> std::optional<int> {
 auto PublishDiagnosticsParams::diagnostics() const -> Vector<Diagnostic> {
   auto& value = (*repr_)["diagnostics"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Diagnostic>(value);
 }
 
 auto PublishDiagnosticsParams::uri(std::string uri)
     -> PublishDiagnosticsParams& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -5767,7 +5844,7 @@ auto PublishDiagnosticsParams::version(std::optional<int> version)
     repr_->erase("version");
     return *this;
   }
-  repr_->emplace("version", std::move(version.value()));
+  (*repr_)["version"] = std::move(version.value());
   return *this;
 }
 
@@ -5835,18 +5912,18 @@ auto CompletionParams::context(std::optional<CompletionContext> context)
     repr_->erase("context");
     return *this;
   }
-  repr_->emplace("context", context.value());
+  (*repr_)["context"] = context.value();
   return *this;
 }
 
 auto CompletionParams::textDocument(TextDocumentIdentifier textDocument)
     -> CompletionParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto CompletionParams::position(Position position) -> CompletionParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -5879,6 +5956,7 @@ CompletionItem::operator bool() const {
 auto CompletionItem::label() const -> std::string {
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5905,7 +5983,7 @@ auto CompletionItem::tags() const -> std::optional<Vector<CompletionItemTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CompletionItemTag>(value);
 }
 
@@ -5914,6 +5992,7 @@ auto CompletionItem::detail() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["detail"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5936,6 +6015,7 @@ auto CompletionItem::deprecated() const -> std::optional<bool> {
 
   auto& value = (*repr_)["deprecated"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -5945,6 +6025,7 @@ auto CompletionItem::preselect() const -> std::optional<bool> {
 
   auto& value = (*repr_)["preselect"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -5954,6 +6035,7 @@ auto CompletionItem::sortText() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["sortText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5963,6 +6045,7 @@ auto CompletionItem::filterText() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["filterText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -5972,6 +6055,7 @@ auto CompletionItem::insertText() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["insertText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -6011,6 +6095,7 @@ auto CompletionItem::textEditText() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["textEditText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -6021,7 +6106,7 @@ auto CompletionItem::additionalTextEdits() const
 
   auto& value = (*repr_)["additionalTextEdits"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextEdit>(value);
 }
 
@@ -6031,7 +6116,7 @@ auto CompletionItem::commitCharacters() const
 
   auto& value = (*repr_)["commitCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -6053,7 +6138,7 @@ auto CompletionItem::data() const -> std::optional<LSPAny> {
 }
 
 auto CompletionItem::label(std::string label) -> CompletionItem& {
-  repr_->emplace("label", std::move(label));
+  (*repr_)["label"] = std::move(label);
   return *this;
 }
 
@@ -6063,7 +6148,7 @@ auto CompletionItem::labelDetails(
     repr_->erase("labelDetails");
     return *this;
   }
-  repr_->emplace("labelDetails", labelDetails.value());
+  (*repr_)["labelDetails"] = labelDetails.value();
   return *this;
 }
 
@@ -6073,7 +6158,7 @@ auto CompletionItem::kind(std::optional<CompletionItemKind> kind)
     repr_->erase("kind");
     return *this;
   }
-  repr_->emplace("kind", static_cast<long>(kind.value()));
+  (*repr_)["kind"] = static_cast<long>(kind.value());
   return *this;
 }
 
@@ -6093,7 +6178,7 @@ auto CompletionItem::detail(std::optional<std::string> detail)
     repr_->erase("detail");
     return *this;
   }
-  repr_->emplace("detail", std::move(detail.value()));
+  (*repr_)["detail"] = std::move(detail.value());
   return *this;
 }
 
@@ -6109,11 +6194,11 @@ auto CompletionItem::documentation(
     json* repr_;
 
     void operator()(std::string documentation) {
-      repr_->emplace("documentation", std::move(documentation));
+      (*repr_)["documentation"] = std::move(documentation);
     }
 
     void operator()(MarkupContent documentation) {
-      repr_->emplace("documentation", documentation);
+      (*repr_)["documentation"] = documentation;
     }
   } v{repr_};
 
@@ -6128,7 +6213,7 @@ auto CompletionItem::deprecated(std::optional<bool> deprecated)
     repr_->erase("deprecated");
     return *this;
   }
-  repr_->emplace("deprecated", std::move(deprecated.value()));
+  (*repr_)["deprecated"] = std::move(deprecated.value());
   return *this;
 }
 
@@ -6138,7 +6223,7 @@ auto CompletionItem::preselect(std::optional<bool> preselect)
     repr_->erase("preselect");
     return *this;
   }
-  repr_->emplace("preselect", std::move(preselect.value()));
+  (*repr_)["preselect"] = std::move(preselect.value());
   return *this;
 }
 
@@ -6148,7 +6233,7 @@ auto CompletionItem::sortText(std::optional<std::string> sortText)
     repr_->erase("sortText");
     return *this;
   }
-  repr_->emplace("sortText", std::move(sortText.value()));
+  (*repr_)["sortText"] = std::move(sortText.value());
   return *this;
 }
 
@@ -6158,7 +6243,7 @@ auto CompletionItem::filterText(std::optional<std::string> filterText)
     repr_->erase("filterText");
     return *this;
   }
-  repr_->emplace("filterText", std::move(filterText.value()));
+  (*repr_)["filterText"] = std::move(filterText.value());
   return *this;
 }
 
@@ -6168,7 +6253,7 @@ auto CompletionItem::insertText(std::optional<std::string> insertText)
     repr_->erase("insertText");
     return *this;
   }
-  repr_->emplace("insertText", std::move(insertText.value()));
+  (*repr_)["insertText"] = std::move(insertText.value());
   return *this;
 }
 
@@ -6178,8 +6263,7 @@ auto CompletionItem::insertTextFormat(
     repr_->erase("insertTextFormat");
     return *this;
   }
-  repr_->emplace("insertTextFormat",
-                 static_cast<long>(insertTextFormat.value()));
+  (*repr_)["insertTextFormat"] = static_cast<long>(insertTextFormat.value());
   return *this;
 }
 
@@ -6189,7 +6273,7 @@ auto CompletionItem::insertTextMode(
     repr_->erase("insertTextMode");
     return *this;
   }
-  repr_->emplace("insertTextMode", static_cast<long>(insertTextMode.value()));
+  (*repr_)["insertTextMode"] = static_cast<long>(insertTextMode.value());
   return *this;
 }
 
@@ -6204,10 +6288,10 @@ auto CompletionItem::textEdit(
   struct {
     json* repr_;
 
-    void operator()(TextEdit textEdit) { repr_->emplace("textEdit", textEdit); }
+    void operator()(TextEdit textEdit) { (*repr_)["textEdit"] = textEdit; }
 
     void operator()(InsertReplaceEdit textEdit) {
-      repr_->emplace("textEdit", textEdit);
+      (*repr_)["textEdit"] = textEdit;
     }
   } v{repr_};
 
@@ -6222,7 +6306,7 @@ auto CompletionItem::textEditText(std::optional<std::string> textEditText)
     repr_->erase("textEditText");
     return *this;
   }
-  repr_->emplace("textEditText", std::move(textEditText.value()));
+  (*repr_)["textEditText"] = std::move(textEditText.value());
   return *this;
 }
 
@@ -6252,7 +6336,7 @@ auto CompletionItem::command(std::optional<Command> command)
     repr_->erase("command");
     return *this;
   }
-  repr_->emplace("command", command.value());
+  (*repr_)["command"] = command.value();
   return *this;
 }
 
@@ -6275,6 +6359,7 @@ CompletionList::operator bool() const {
 auto CompletionList::isIncomplete() const -> bool {
   auto& value = (*repr_)["isIncomplete"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -6300,12 +6385,12 @@ auto CompletionList::applyKind() const
 auto CompletionList::items() const -> Vector<CompletionItem> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CompletionItem>(value);
 }
 
 auto CompletionList::isIncomplete(bool isIncomplete) -> CompletionList& {
-  repr_->emplace("isIncomplete", std::move(isIncomplete));
+  (*repr_)["isIncomplete"] = std::move(isIncomplete);
   return *this;
 }
 
@@ -6315,7 +6400,7 @@ auto CompletionList::itemDefaults(
     repr_->erase("itemDefaults");
     return *this;
   }
-  repr_->emplace("itemDefaults", itemDefaults.value());
+  (*repr_)["itemDefaults"] = itemDefaults.value();
   return *this;
 }
 
@@ -6325,7 +6410,7 @@ auto CompletionList::applyKind(
     repr_->erase("applyKind");
     return *this;
   }
-  repr_->emplace("applyKind", applyKind.value());
+  (*repr_)["applyKind"] = applyKind.value();
   return *this;
 }
 
@@ -6357,7 +6442,7 @@ auto CompletionRegistrationOptions::triggerCharacters() const
 
   auto& value = (*repr_)["triggerCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -6367,7 +6452,7 @@ auto CompletionRegistrationOptions::allCommitCharacters() const
 
   auto& value = (*repr_)["allCommitCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -6377,6 +6462,7 @@ auto CompletionRegistrationOptions::resolveProvider() const
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -6396,6 +6482,7 @@ auto CompletionRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -6412,7 +6499,7 @@ auto CompletionRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -6451,7 +6538,7 @@ auto CompletionRegistrationOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -6462,7 +6549,7 @@ auto CompletionRegistrationOptions::completionItem(
     repr_->erase("completionItem");
     return *this;
   }
-  repr_->emplace("completionItem", completionItem.value());
+  (*repr_)["completionItem"] = completionItem.value();
   return *this;
 }
 
@@ -6472,7 +6559,7 @@ auto CompletionRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -6509,12 +6596,12 @@ auto HoverParams::workDoneToken() const -> std::optional<ProgressToken> {
 
 auto HoverParams::textDocument(TextDocumentIdentifier textDocument)
     -> HoverParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto HoverParams::position(Position position) -> HoverParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -6559,9 +6646,7 @@ auto Hover::contents(
   struct {
     json* repr_;
 
-    void operator()(MarkupContent contents) {
-      repr_->emplace("contents", contents);
-    }
+    void operator()(MarkupContent contents) { (*repr_)["contents"] = contents; }
 
     void operator()(MarkedString contents) {
       lsp_runtime_error("Hover::contents: not implement yet");
@@ -6582,7 +6667,7 @@ auto Hover::range(std::optional<Range> range) -> Hover& {
     repr_->erase("range");
     return *this;
   }
-  repr_->emplace("range", range.value());
+  (*repr_)["range"] = range.value();
   return *this;
 }
 
@@ -6608,6 +6693,7 @@ auto HoverRegistrationOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -6624,7 +6710,7 @@ auto HoverRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -6639,7 +6725,7 @@ auto HoverRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -6690,18 +6776,18 @@ auto SignatureHelpParams::context(std::optional<SignatureHelpContext> context)
     repr_->erase("context");
     return *this;
   }
-  repr_->emplace("context", context.value());
+  (*repr_)["context"] = context.value();
   return *this;
 }
 
 auto SignatureHelpParams::textDocument(TextDocumentIdentifier textDocument)
     -> SignatureHelpParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto SignatureHelpParams::position(Position position) -> SignatureHelpParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -6724,7 +6810,7 @@ SignatureHelp::operator bool() const {
 auto SignatureHelp::signatures() const -> Vector<SignatureInformation> {
   auto& value = (*repr_)["signatures"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SignatureInformation>(value);
 }
 
@@ -6733,6 +6819,7 @@ auto SignatureHelp::activeSignature() const -> std::optional<long> {
 
   auto& value = (*repr_)["activeSignature"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -6762,7 +6849,7 @@ auto SignatureHelp::activeSignature(std::optional<long> activeSignature)
     repr_->erase("activeSignature");
     return *this;
   }
-  repr_->emplace("activeSignature", std::move(activeSignature.value()));
+  (*repr_)["activeSignature"] = std::move(activeSignature.value());
   return *this;
 }
 
@@ -6778,11 +6865,11 @@ auto SignatureHelp::activeParameter(
     json* repr_;
 
     void operator()(long activeParameter) {
-      repr_->emplace("activeParameter", std::move(activeParameter));
+      (*repr_)["activeParameter"] = std::move(activeParameter);
     }
 
     void operator()(std::nullptr_t activeParameter) {
-      repr_->emplace("activeParameter", std::move(activeParameter));
+      (*repr_)["activeParameter"] = std::move(activeParameter);
     }
   } v{repr_};
 
@@ -6814,7 +6901,7 @@ auto SignatureHelpRegistrationOptions::triggerCharacters() const
 
   auto& value = (*repr_)["triggerCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -6824,7 +6911,7 @@ auto SignatureHelpRegistrationOptions::retriggerCharacters() const
 
   auto& value = (*repr_)["retriggerCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -6834,6 +6921,7 @@ auto SignatureHelpRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -6851,7 +6939,7 @@ auto SignatureHelpRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -6891,7 +6979,7 @@ auto SignatureHelpRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -6941,12 +7029,12 @@ auto DefinitionParams::partialResultToken() const
 
 auto DefinitionParams::textDocument(TextDocumentIdentifier textDocument)
     -> DefinitionParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto DefinitionParams::position(Position position) -> DefinitionParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -6993,6 +7081,7 @@ auto DefinitionRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7009,7 +7098,7 @@ auto DefinitionRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -7024,7 +7113,7 @@ auto DefinitionRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -7080,18 +7169,18 @@ auto ReferenceParams::partialResultToken() const
 }
 
 auto ReferenceParams::context(ReferenceContext context) -> ReferenceParams& {
-  repr_->emplace("context", context);
+  (*repr_)["context"] = context;
   return *this;
 }
 
 auto ReferenceParams::textDocument(TextDocumentIdentifier textDocument)
     -> ReferenceParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto ReferenceParams::position(Position position) -> ReferenceParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -7138,6 +7227,7 @@ auto ReferenceRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7154,7 +7244,7 @@ auto ReferenceRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -7169,7 +7259,7 @@ auto ReferenceRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -7220,13 +7310,13 @@ auto DocumentHighlightParams::partialResultToken() const
 
 auto DocumentHighlightParams::textDocument(TextDocumentIdentifier textDocument)
     -> DocumentHighlightParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto DocumentHighlightParams::position(Position position)
     -> DocumentHighlightParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -7274,7 +7364,7 @@ auto DocumentHighlight::kind() const -> std::optional<DocumentHighlightKind> {
 }
 
 auto DocumentHighlight::range(Range range) -> DocumentHighlight& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -7284,7 +7374,7 @@ auto DocumentHighlight::kind(std::optional<DocumentHighlightKind> kind)
     repr_->erase("kind");
     return *this;
   }
-  repr_->emplace("kind", static_cast<long>(kind.value()));
+  (*repr_)["kind"] = static_cast<long>(kind.value());
   return *this;
 }
 
@@ -7311,6 +7401,7 @@ auto DocumentHighlightRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7328,7 +7419,7 @@ auto DocumentHighlightRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -7344,7 +7435,7 @@ auto DocumentHighlightRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -7388,7 +7479,7 @@ auto DocumentSymbolParams::partialResultToken() const
 
 auto DocumentSymbolParams::textDocument(TextDocumentIdentifier textDocument)
     -> DocumentSymbolParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -7426,6 +7517,7 @@ auto SymbolInformation::deprecated() const -> std::optional<bool> {
 
   auto& value = (*repr_)["deprecated"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7439,6 +7531,7 @@ auto SymbolInformation::location() const -> Location {
 auto SymbolInformation::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7454,7 +7547,7 @@ auto SymbolInformation::tags() const -> std::optional<Vector<SymbolTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -7463,6 +7556,7 @@ auto SymbolInformation::containerName() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["containerName"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7473,22 +7567,22 @@ auto SymbolInformation::deprecated(std::optional<bool> deprecated)
     repr_->erase("deprecated");
     return *this;
   }
-  repr_->emplace("deprecated", std::move(deprecated.value()));
+  (*repr_)["deprecated"] = std::move(deprecated.value());
   return *this;
 }
 
 auto SymbolInformation::location(Location location) -> SymbolInformation& {
-  repr_->emplace("location", location);
+  (*repr_)["location"] = location;
   return *this;
 }
 
 auto SymbolInformation::name(std::string name) -> SymbolInformation& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
 auto SymbolInformation::kind(SymbolKind kind) -> SymbolInformation& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
@@ -7508,7 +7602,7 @@ auto SymbolInformation::containerName(std::optional<std::string> containerName)
     repr_->erase("containerName");
     return *this;
   }
-  repr_->emplace("containerName", std::move(containerName.value()));
+  (*repr_)["containerName"] = std::move(containerName.value());
   return *this;
 }
 
@@ -7524,6 +7618,7 @@ DocumentSymbol::operator bool() const {
 auto DocumentSymbol::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7533,6 +7628,7 @@ auto DocumentSymbol::detail() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["detail"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7548,7 +7644,7 @@ auto DocumentSymbol::tags() const -> std::optional<Vector<SymbolTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -7557,6 +7653,7 @@ auto DocumentSymbol::deprecated() const -> std::optional<bool> {
 
   auto& value = (*repr_)["deprecated"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7578,12 +7675,12 @@ auto DocumentSymbol::children() const -> std::optional<Vector<DocumentSymbol>> {
 
   auto& value = (*repr_)["children"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<DocumentSymbol>(value);
 }
 
 auto DocumentSymbol::name(std::string name) -> DocumentSymbol& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
@@ -7593,12 +7690,12 @@ auto DocumentSymbol::detail(std::optional<std::string> detail)
     repr_->erase("detail");
     return *this;
   }
-  repr_->emplace("detail", std::move(detail.value()));
+  (*repr_)["detail"] = std::move(detail.value());
   return *this;
 }
 
 auto DocumentSymbol::kind(SymbolKind kind) -> DocumentSymbol& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
@@ -7618,17 +7715,17 @@ auto DocumentSymbol::deprecated(std::optional<bool> deprecated)
     repr_->erase("deprecated");
     return *this;
   }
-  repr_->emplace("deprecated", std::move(deprecated.value()));
+  (*repr_)["deprecated"] = std::move(deprecated.value());
   return *this;
 }
 
 auto DocumentSymbol::range(Range range) -> DocumentSymbol& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto DocumentSymbol::selectionRange(Range selectionRange) -> DocumentSymbol& {
-  repr_->emplace("selectionRange", selectionRange);
+  (*repr_)["selectionRange"] = selectionRange;
   return *this;
 }
 
@@ -7665,6 +7762,7 @@ auto DocumentSymbolRegistrationOptions::label() const
 
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7675,6 +7773,7 @@ auto DocumentSymbolRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7692,7 +7791,7 @@ auto DocumentSymbolRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -7707,7 +7806,7 @@ auto DocumentSymbolRegistrationOptions::label(std::optional<std::string> label)
     repr_->erase("label");
     return *this;
   }
-  repr_->emplace("label", std::move(label.value()));
+  (*repr_)["label"] = std::move(label.value());
   return *this;
 }
 
@@ -7718,7 +7817,7 @@ auto DocumentSymbolRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -7775,17 +7874,17 @@ auto CodeActionParams::partialResultToken() const
 
 auto CodeActionParams::textDocument(TextDocumentIdentifier textDocument)
     -> CodeActionParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto CodeActionParams::range(Range range) -> CodeActionParams& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto CodeActionParams::context(CodeActionContext context) -> CodeActionParams& {
-  repr_->emplace("context", context);
+  (*repr_)["context"] = context;
   return *this;
 }
 
@@ -7819,6 +7918,7 @@ Command::operator bool() const {
 auto Command::title() const -> std::string {
   auto& value = (*repr_)["title"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7828,6 +7928,7 @@ auto Command::tooltip() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["tooltip"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7835,6 +7936,7 @@ auto Command::tooltip() const -> std::optional<std::string> {
 auto Command::command() const -> std::string {
   auto& value = (*repr_)["command"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7844,12 +7946,12 @@ auto Command::arguments() const -> std::optional<Vector<LSPAny>> {
 
   auto& value = (*repr_)["arguments"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<LSPAny>(value);
 }
 
 auto Command::title(std::string title) -> Command& {
-  repr_->emplace("title", std::move(title));
+  (*repr_)["title"] = std::move(title);
   return *this;
 }
 
@@ -7858,12 +7960,12 @@ auto Command::tooltip(std::optional<std::string> tooltip) -> Command& {
     repr_->erase("tooltip");
     return *this;
   }
-  repr_->emplace("tooltip", std::move(tooltip.value()));
+  (*repr_)["tooltip"] = std::move(tooltip.value());
   return *this;
 }
 
 auto Command::command(std::string command) -> Command& {
-  repr_->emplace("command", std::move(command));
+  (*repr_)["command"] = std::move(command);
   return *this;
 }
 
@@ -7885,6 +7987,7 @@ CodeAction::operator bool() const {
 auto CodeAction::title() const -> std::string {
   auto& value = (*repr_)["title"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -7902,7 +8005,7 @@ auto CodeAction::diagnostics() const -> std::optional<Vector<Diagnostic>> {
 
   auto& value = (*repr_)["diagnostics"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Diagnostic>(value);
 }
 
@@ -7911,6 +8014,7 @@ auto CodeAction::isPreferred() const -> std::optional<bool> {
 
   auto& value = (*repr_)["isPreferred"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -7953,12 +8057,12 @@ auto CodeAction::tags() const -> std::optional<Vector<CodeActionTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionTag>(value);
 }
 
 auto CodeAction::title(std::string title) -> CodeAction& {
-  repr_->emplace("title", std::move(title));
+  (*repr_)["title"] = std::move(title);
   return *this;
 }
 
@@ -7986,7 +8090,7 @@ auto CodeAction::isPreferred(std::optional<bool> isPreferred) -> CodeAction& {
     repr_->erase("isPreferred");
     return *this;
   }
-  repr_->emplace("isPreferred", std::move(isPreferred.value()));
+  (*repr_)["isPreferred"] = std::move(isPreferred.value());
   return *this;
 }
 
@@ -7996,7 +8100,7 @@ auto CodeAction::disabled(std::optional<CodeActionDisabled> disabled)
     repr_->erase("disabled");
     return *this;
   }
-  repr_->emplace("disabled", disabled.value());
+  (*repr_)["disabled"] = disabled.value();
   return *this;
 }
 
@@ -8005,7 +8109,7 @@ auto CodeAction::edit(std::optional<WorkspaceEdit> edit) -> CodeAction& {
     repr_->erase("edit");
     return *this;
   }
-  repr_->emplace("edit", edit.value());
+  (*repr_)["edit"] = edit.value();
   return *this;
 }
 
@@ -8014,7 +8118,7 @@ auto CodeAction::command(std::optional<Command> command) -> CodeAction& {
     repr_->erase("command");
     return *this;
   }
-  repr_->emplace("command", command.value());
+  (*repr_)["command"] = command.value();
   return *this;
 }
 
@@ -8060,7 +8164,7 @@ auto CodeActionRegistrationOptions::codeActionKinds() const
 
   auto& value = (*repr_)["codeActionKinds"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionKind>(value);
 }
 
@@ -8070,7 +8174,7 @@ auto CodeActionRegistrationOptions::documentation() const
 
   auto& value = (*repr_)["documentation"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionKindDocumentation>(value);
 }
 
@@ -8080,6 +8184,7 @@ auto CodeActionRegistrationOptions::resolveProvider() const
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8090,6 +8195,7 @@ auto CodeActionRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8106,7 +8212,7 @@ auto CodeActionRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -8145,7 +8251,7 @@ auto CodeActionRegistrationOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -8155,7 +8261,7 @@ auto CodeActionRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -8168,6 +8274,7 @@ WorkspaceSymbolParams::operator bool() const {
 auto WorkspaceSymbolParams::query() const -> std::string {
   auto& value = (*repr_)["query"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -8199,7 +8306,7 @@ auto WorkspaceSymbolParams::partialResultToken() const
 }
 
 auto WorkspaceSymbolParams::query(std::string query) -> WorkspaceSymbolParams& {
-  repr_->emplace("query", std::move(query));
+  (*repr_)["query"] = std::move(query);
   return *this;
 }
 
@@ -8255,6 +8362,7 @@ auto WorkspaceSymbol::data() const -> std::optional<LSPAny> {
 auto WorkspaceSymbol::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -8270,7 +8378,7 @@ auto WorkspaceSymbol::tags() const -> std::optional<Vector<SymbolTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -8279,6 +8387,7 @@ auto WorkspaceSymbol::containerName() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["containerName"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -8288,10 +8397,10 @@ auto WorkspaceSymbol::location(std::variant<Location, LocationUriOnly> location)
   struct {
     json* repr_;
 
-    void operator()(Location location) { repr_->emplace("location", location); }
+    void operator()(Location location) { (*repr_)["location"] = location; }
 
     void operator()(LocationUriOnly location) {
-      repr_->emplace("location", location);
+      (*repr_)["location"] = location;
     }
   } v{repr_};
 
@@ -8310,12 +8419,12 @@ auto WorkspaceSymbol::data(std::optional<LSPAny> data) -> WorkspaceSymbol& {
 }
 
 auto WorkspaceSymbol::name(std::string name) -> WorkspaceSymbol& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
 auto WorkspaceSymbol::kind(SymbolKind kind) -> WorkspaceSymbol& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
@@ -8335,7 +8444,7 @@ auto WorkspaceSymbol::containerName(std::optional<std::string> containerName)
     repr_->erase("containerName");
     return *this;
   }
-  repr_->emplace("containerName", std::move(containerName.value()));
+  (*repr_)["containerName"] = std::move(containerName.value());
   return *this;
 }
 
@@ -8350,6 +8459,7 @@ auto WorkspaceSymbolRegistrationOptions::resolveProvider() const
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8360,6 +8470,7 @@ auto WorkspaceSymbolRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8371,7 +8482,7 @@ auto WorkspaceSymbolRegistrationOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -8382,7 +8493,7 @@ auto WorkspaceSymbolRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -8425,7 +8536,7 @@ auto CodeLensParams::partialResultToken() const
 
 auto CodeLensParams::textDocument(TextDocumentIdentifier textDocument)
     -> CodeLensParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -8479,7 +8590,7 @@ auto CodeLens::data() const -> std::optional<LSPAny> {
 }
 
 auto CodeLens::range(Range range) -> CodeLens& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -8488,7 +8599,7 @@ auto CodeLens::command(std::optional<Command> command) -> CodeLens& {
     repr_->erase("command");
     return *this;
   }
-  repr_->emplace("command", command.value());
+  (*repr_)["command"] = command.value();
   return *this;
 }
 
@@ -8524,6 +8635,7 @@ auto CodeLensRegistrationOptions::resolveProvider() const
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8534,6 +8646,7 @@ auto CodeLensRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8550,7 +8663,7 @@ auto CodeLensRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -8565,7 +8678,7 @@ auto CodeLensRegistrationOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -8575,7 +8688,7 @@ auto CodeLensRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -8618,7 +8731,7 @@ auto DocumentLinkParams::partialResultToken() const
 
 auto DocumentLinkParams::textDocument(TextDocumentIdentifier textDocument)
     -> DocumentLinkParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -8660,6 +8773,7 @@ auto DocumentLink::target() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["target"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -8669,6 +8783,7 @@ auto DocumentLink::tooltip() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["tooltip"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -8683,7 +8798,7 @@ auto DocumentLink::data() const -> std::optional<LSPAny> {
 }
 
 auto DocumentLink::range(Range range) -> DocumentLink& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -8692,7 +8807,7 @@ auto DocumentLink::target(std::optional<std::string> target) -> DocumentLink& {
     repr_->erase("target");
     return *this;
   }
-  repr_->emplace("target", std::move(target.value()));
+  (*repr_)["target"] = std::move(target.value());
   return *this;
 }
 
@@ -8702,7 +8817,7 @@ auto DocumentLink::tooltip(std::optional<std::string> tooltip)
     repr_->erase("tooltip");
     return *this;
   }
-  repr_->emplace("tooltip", std::move(tooltip.value()));
+  (*repr_)["tooltip"] = std::move(tooltip.value());
   return *this;
 }
 
@@ -8738,6 +8853,7 @@ auto DocumentLinkRegistrationOptions::resolveProvider() const
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8748,6 +8864,7 @@ auto DocumentLinkRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8765,7 +8882,7 @@ auto DocumentLinkRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -8780,7 +8897,7 @@ auto DocumentLinkRegistrationOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -8790,7 +8907,7 @@ auto DocumentLinkRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -8828,13 +8945,13 @@ auto DocumentFormattingParams::workDoneToken() const
 
 auto DocumentFormattingParams::textDocument(TextDocumentIdentifier textDocument)
     -> DocumentFormattingParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto DocumentFormattingParams::options(FormattingOptions options)
     -> DocumentFormattingParams& {
-  repr_->emplace("options", options);
+  (*repr_)["options"] = options;
   return *this;
 }
 
@@ -8872,6 +8989,7 @@ auto DocumentFormattingRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -8889,7 +9007,7 @@ auto DocumentFormattingRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -8905,7 +9023,7 @@ auto DocumentFormattingRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -8951,19 +9069,19 @@ auto DocumentRangeFormattingParams::workDoneToken() const
 
 auto DocumentRangeFormattingParams::textDocument(
     TextDocumentIdentifier textDocument) -> DocumentRangeFormattingParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto DocumentRangeFormattingParams::range(Range range)
     -> DocumentRangeFormattingParams& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto DocumentRangeFormattingParams::options(FormattingOptions options)
     -> DocumentRangeFormattingParams& {
-  repr_->emplace("options", options);
+  (*repr_)["options"] = options;
   return *this;
 }
 
@@ -9002,6 +9120,7 @@ auto DocumentRangeFormattingRegistrationOptions::rangesSupport() const
 
   auto& value = (*repr_)["rangesSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9012,6 +9131,7 @@ auto DocumentRangeFormattingRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9029,7 +9149,7 @@ auto DocumentRangeFormattingRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -9045,7 +9165,7 @@ auto DocumentRangeFormattingRegistrationOptions::rangesSupport(
     repr_->erase("rangesSupport");
     return *this;
   }
-  repr_->emplace("rangesSupport", std::move(rangesSupport.value()));
+  (*repr_)["rangesSupport"] = std::move(rangesSupport.value());
   return *this;
 }
 
@@ -9056,7 +9176,7 @@ auto DocumentRangeFormattingRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -9078,7 +9198,7 @@ auto DocumentRangesFormattingParams::textDocument() const
 auto DocumentRangesFormattingParams::ranges() const -> Vector<Range> {
   auto& value = (*repr_)["ranges"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Range>(value);
 }
 
@@ -9103,7 +9223,7 @@ auto DocumentRangesFormattingParams::workDoneToken() const
 
 auto DocumentRangesFormattingParams::textDocument(
     TextDocumentIdentifier textDocument) -> DocumentRangesFormattingParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -9116,7 +9236,7 @@ auto DocumentRangesFormattingParams::ranges(Vector<Range> ranges)
 
 auto DocumentRangesFormattingParams::options(FormattingOptions options)
     -> DocumentRangesFormattingParams& {
-  repr_->emplace("options", options);
+  (*repr_)["options"] = options;
   return *this;
 }
 
@@ -9157,6 +9277,7 @@ auto DocumentOnTypeFormattingParams::position() const -> Position {
 auto DocumentOnTypeFormattingParams::ch() const -> std::string {
   auto& value = (*repr_)["ch"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9169,25 +9290,25 @@ auto DocumentOnTypeFormattingParams::options() const -> FormattingOptions {
 
 auto DocumentOnTypeFormattingParams::textDocument(
     TextDocumentIdentifier textDocument) -> DocumentOnTypeFormattingParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto DocumentOnTypeFormattingParams::position(Position position)
     -> DocumentOnTypeFormattingParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
 auto DocumentOnTypeFormattingParams::ch(std::string ch)
     -> DocumentOnTypeFormattingParams& {
-  repr_->emplace("ch", std::move(ch));
+  (*repr_)["ch"] = std::move(ch);
   return *this;
 }
 
 auto DocumentOnTypeFormattingParams::options(FormattingOptions options)
     -> DocumentOnTypeFormattingParams& {
-  repr_->emplace("options", options);
+  (*repr_)["options"] = options;
   return *this;
 }
 
@@ -9213,6 +9334,7 @@ auto DocumentOnTypeFormattingRegistrationOptions::firstTriggerCharacter() const
     -> std::string {
   auto& value = (*repr_)["firstTriggerCharacter"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9223,7 +9345,7 @@ auto DocumentOnTypeFormattingRegistrationOptions::moreTriggerCharacter() const
 
   auto& value = (*repr_)["moreTriggerCharacter"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -9240,7 +9362,7 @@ auto DocumentOnTypeFormattingRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -9252,7 +9374,7 @@ auto DocumentOnTypeFormattingRegistrationOptions::documentSelector(
 auto DocumentOnTypeFormattingRegistrationOptions::firstTriggerCharacter(
     std::string firstTriggerCharacter)
     -> DocumentOnTypeFormattingRegistrationOptions& {
-  repr_->emplace("firstTriggerCharacter", std::move(firstTriggerCharacter));
+  (*repr_)["firstTriggerCharacter"] = std::move(firstTriggerCharacter);
   return *this;
 }
 
@@ -9292,6 +9414,7 @@ auto RenameParams::position() const -> Position {
 auto RenameParams::newName() const -> std::string {
   auto& value = (*repr_)["newName"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9310,17 +9433,17 @@ auto RenameParams::workDoneToken() const -> std::optional<ProgressToken> {
 
 auto RenameParams::textDocument(TextDocumentIdentifier textDocument)
     -> RenameParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto RenameParams::position(Position position) -> RenameParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
 auto RenameParams::newName(std::string newName) -> RenameParams& {
-  repr_->emplace("newName", std::move(newName));
+  (*repr_)["newName"] = std::move(newName);
   return *this;
 }
 
@@ -9356,6 +9479,7 @@ auto RenameRegistrationOptions::prepareProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["prepareProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9366,6 +9490,7 @@ auto RenameRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9382,7 +9507,7 @@ auto RenameRegistrationOptions::documentSelector(
     }
 
     void operator()(std::nullptr_t documentSelector) {
-      repr_->emplace("documentSelector", std::move(documentSelector));
+      (*repr_)["documentSelector"] = std::move(documentSelector);
     }
   } v{repr_};
 
@@ -9397,7 +9522,7 @@ auto RenameRegistrationOptions::prepareProvider(
     repr_->erase("prepareProvider");
     return *this;
   }
-  repr_->emplace("prepareProvider", std::move(prepareProvider.value()));
+  (*repr_)["prepareProvider"] = std::move(prepareProvider.value());
   return *this;
 }
 
@@ -9407,7 +9532,7 @@ auto RenameRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -9445,12 +9570,12 @@ auto PrepareRenameParams::workDoneToken() const
 
 auto PrepareRenameParams::textDocument(TextDocumentIdentifier textDocument)
     -> PrepareRenameParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto PrepareRenameParams::position(Position position) -> PrepareRenameParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -9473,6 +9598,7 @@ ExecuteCommandParams::operator bool() const {
 auto ExecuteCommandParams::command() const -> std::string {
   auto& value = (*repr_)["command"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9482,7 +9608,7 @@ auto ExecuteCommandParams::arguments() const -> std::optional<Vector<LSPAny>> {
 
   auto& value = (*repr_)["arguments"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<LSPAny>(value);
 }
 
@@ -9501,7 +9627,7 @@ auto ExecuteCommandParams::workDoneToken() const
 
 auto ExecuteCommandParams::command(std::string command)
     -> ExecuteCommandParams& {
-  repr_->emplace("command", std::move(command));
+  (*repr_)["command"] = std::move(command);
   return *this;
 }
 
@@ -9535,7 +9661,7 @@ auto ExecuteCommandRegistrationOptions::commands() const
     -> Vector<std::string> {
   auto& value = (*repr_)["commands"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -9545,6 +9671,7 @@ auto ExecuteCommandRegistrationOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9563,7 +9690,7 @@ auto ExecuteCommandRegistrationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -9578,6 +9705,7 @@ auto ApplyWorkspaceEditParams::label() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9603,13 +9731,13 @@ auto ApplyWorkspaceEditParams::label(std::optional<std::string> label)
     repr_->erase("label");
     return *this;
   }
-  repr_->emplace("label", std::move(label.value()));
+  (*repr_)["label"] = std::move(label.value());
   return *this;
 }
 
 auto ApplyWorkspaceEditParams::edit(WorkspaceEdit edit)
     -> ApplyWorkspaceEditParams& {
-  repr_->emplace("edit", edit);
+  (*repr_)["edit"] = edit;
   return *this;
 }
 
@@ -9620,7 +9748,7 @@ auto ApplyWorkspaceEditParams::metadata(
     repr_->erase("metadata");
     return *this;
   }
-  repr_->emplace("metadata", metadata.value());
+  (*repr_)["metadata"] = metadata.value();
   return *this;
 }
 
@@ -9633,6 +9761,7 @@ ApplyWorkspaceEditResult::operator bool() const {
 auto ApplyWorkspaceEditResult::applied() const -> bool {
   auto& value = (*repr_)["applied"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9643,6 +9772,7 @@ auto ApplyWorkspaceEditResult::failureReason() const
 
   auto& value = (*repr_)["failureReason"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9652,13 +9782,14 @@ auto ApplyWorkspaceEditResult::failedChange() const -> std::optional<long> {
 
   auto& value = (*repr_)["failedChange"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
 
 auto ApplyWorkspaceEditResult::applied(bool applied)
     -> ApplyWorkspaceEditResult& {
-  repr_->emplace("applied", std::move(applied));
+  (*repr_)["applied"] = std::move(applied);
   return *this;
 }
 
@@ -9668,7 +9799,7 @@ auto ApplyWorkspaceEditResult::failureReason(
     repr_->erase("failureReason");
     return *this;
   }
-  repr_->emplace("failureReason", std::move(failureReason.value()));
+  (*repr_)["failureReason"] = std::move(failureReason.value());
   return *this;
 }
 
@@ -9678,7 +9809,7 @@ auto ApplyWorkspaceEditResult::failedChange(std::optional<long> failedChange)
     repr_->erase("failedChange");
     return *this;
   }
-  repr_->emplace("failedChange", std::move(failedChange.value()));
+  (*repr_)["failedChange"] = std::move(failedChange.value());
   return *this;
 }
 
@@ -9693,6 +9824,7 @@ WorkDoneProgressBegin::operator bool() const {
 auto WorkDoneProgressBegin::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "begin";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9700,6 +9832,7 @@ auto WorkDoneProgressBegin::kind() const -> std::string {
 auto WorkDoneProgressBegin::title() const -> std::string {
   auto& value = (*repr_)["title"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9709,6 +9842,7 @@ auto WorkDoneProgressBegin::cancellable() const -> std::optional<bool> {
 
   auto& value = (*repr_)["cancellable"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9718,6 +9852,7 @@ auto WorkDoneProgressBegin::message() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9727,6 +9862,7 @@ auto WorkDoneProgressBegin::percentage() const -> std::optional<long> {
 
   auto& value = (*repr_)["percentage"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -9737,7 +9873,7 @@ auto WorkDoneProgressBegin::kind(std::string kind) -> WorkDoneProgressBegin& {
 }
 
 auto WorkDoneProgressBegin::title(std::string title) -> WorkDoneProgressBegin& {
-  repr_->emplace("title", std::move(title));
+  (*repr_)["title"] = std::move(title);
   return *this;
 }
 
@@ -9747,7 +9883,7 @@ auto WorkDoneProgressBegin::cancellable(std::optional<bool> cancellable)
     repr_->erase("cancellable");
     return *this;
   }
-  repr_->emplace("cancellable", std::move(cancellable.value()));
+  (*repr_)["cancellable"] = std::move(cancellable.value());
   return *this;
 }
 
@@ -9757,7 +9893,7 @@ auto WorkDoneProgressBegin::message(std::optional<std::string> message)
     repr_->erase("message");
     return *this;
   }
-  repr_->emplace("message", std::move(message.value()));
+  (*repr_)["message"] = std::move(message.value());
   return *this;
 }
 
@@ -9767,7 +9903,7 @@ auto WorkDoneProgressBegin::percentage(std::optional<long> percentage)
     repr_->erase("percentage");
     return *this;
   }
-  repr_->emplace("percentage", std::move(percentage.value()));
+  (*repr_)["percentage"] = std::move(percentage.value());
   return *this;
 }
 
@@ -9781,6 +9917,7 @@ WorkDoneProgressReport::operator bool() const {
 auto WorkDoneProgressReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "report";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9790,6 +9927,7 @@ auto WorkDoneProgressReport::cancellable() const -> std::optional<bool> {
 
   auto& value = (*repr_)["cancellable"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -9799,6 +9937,7 @@ auto WorkDoneProgressReport::message() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9808,6 +9947,7 @@ auto WorkDoneProgressReport::percentage() const -> std::optional<long> {
 
   auto& value = (*repr_)["percentage"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -9823,7 +9963,7 @@ auto WorkDoneProgressReport::cancellable(std::optional<bool> cancellable)
     repr_->erase("cancellable");
     return *this;
   }
-  repr_->emplace("cancellable", std::move(cancellable.value()));
+  (*repr_)["cancellable"] = std::move(cancellable.value());
   return *this;
 }
 
@@ -9833,7 +9973,7 @@ auto WorkDoneProgressReport::message(std::optional<std::string> message)
     repr_->erase("message");
     return *this;
   }
-  repr_->emplace("message", std::move(message.value()));
+  (*repr_)["message"] = std::move(message.value());
   return *this;
 }
 
@@ -9843,7 +9983,7 @@ auto WorkDoneProgressReport::percentage(std::optional<long> percentage)
     repr_->erase("percentage");
     return *this;
   }
-  repr_->emplace("percentage", std::move(percentage.value()));
+  (*repr_)["percentage"] = std::move(percentage.value());
   return *this;
 }
 
@@ -9857,6 +9997,7 @@ WorkDoneProgressEnd::operator bool() const {
 auto WorkDoneProgressEnd::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "end";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9866,6 +10007,7 @@ auto WorkDoneProgressEnd::message() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9881,7 +10023,7 @@ auto WorkDoneProgressEnd::message(std::optional<std::string> message)
     repr_->erase("message");
     return *this;
   }
-  repr_->emplace("message", std::move(message.value()));
+  (*repr_)["message"] = std::move(message.value());
   return *this;
 }
 
@@ -9911,6 +10053,7 @@ LogTraceParams::operator bool() const {
 auto LogTraceParams::message() const -> std::string {
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -9920,12 +10063,13 @@ auto LogTraceParams::verbose() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["verbose"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto LogTraceParams::message(std::string message) -> LogTraceParams& {
-  repr_->emplace("message", std::move(message));
+  (*repr_)["message"] = std::move(message);
   return *this;
 }
 
@@ -9935,7 +10079,7 @@ auto LogTraceParams::verbose(std::optional<std::string> verbose)
     repr_->erase("verbose");
     return *this;
   }
-  repr_->emplace("verbose", std::move(verbose.value()));
+  (*repr_)["verbose"] = std::move(verbose.value());
   return *this;
 }
 
@@ -9959,9 +10103,9 @@ auto CancelParams::id(std::variant<int, std::string> id) -> CancelParams& {
   struct {
     json* repr_;
 
-    void operator()(int id) { repr_->emplace("id", std::move(id)); }
+    void operator()(int id) { (*repr_)["id"] = std::move(id); }
 
-    void operator()(std::string id) { repr_->emplace("id", std::move(id)); }
+    void operator()(std::string id) { (*repr_)["id"] = std::move(id); }
   } v{repr_};
 
   std::visit(v, id);
@@ -10025,13 +10169,13 @@ auto TextDocumentPositionParams::position() const -> Position {
 
 auto TextDocumentPositionParams::textDocument(
     TextDocumentIdentifier textDocument) -> TextDocumentPositionParams& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
 auto TextDocumentPositionParams::position(Position position)
     -> TextDocumentPositionParams& {
-  repr_->emplace("position", position);
+  (*repr_)["position"] = position;
   return *this;
 }
 
@@ -10111,6 +10255,7 @@ auto LocationLink::originSelectionRange() const -> std::optional<Range> {
 auto LocationLink::targetUri() const -> std::string {
   auto& value = (*repr_)["targetUri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10133,23 +10278,23 @@ auto LocationLink::originSelectionRange(
     repr_->erase("originSelectionRange");
     return *this;
   }
-  repr_->emplace("originSelectionRange", originSelectionRange.value());
+  (*repr_)["originSelectionRange"] = originSelectionRange.value();
   return *this;
 }
 
 auto LocationLink::targetUri(std::string targetUri) -> LocationLink& {
-  repr_->emplace("targetUri", std::move(targetUri));
+  (*repr_)["targetUri"] = std::move(targetUri);
   return *this;
 }
 
 auto LocationLink::targetRange(Range targetRange) -> LocationLink& {
-  repr_->emplace("targetRange", targetRange);
+  (*repr_)["targetRange"] = targetRange;
   return *this;
 }
 
 auto LocationLink::targetSelectionRange(Range targetSelectionRange)
     -> LocationLink& {
-  repr_->emplace("targetSelectionRange", targetSelectionRange);
+  (*repr_)["targetSelectionRange"] = targetSelectionRange;
   return *this;
 }
 
@@ -10173,12 +10318,12 @@ auto Range::end() const -> Position {
 }
 
 auto Range::start(Position start) -> Range& {
-  repr_->emplace("start", start);
+  (*repr_)["start"] = start;
   return *this;
 }
 
 auto Range::end(Position end) -> Range& {
-  repr_->emplace("end", end);
+  (*repr_)["end"] = end;
   return *this;
 }
 
@@ -10192,6 +10337,7 @@ auto ImplementationOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10202,7 +10348,7 @@ auto ImplementationOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10216,6 +10362,7 @@ auto StaticRegistrationOptions::id() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10226,7 +10373,7 @@ auto StaticRegistrationOptions::id(std::optional<std::string> id)
     repr_->erase("id");
     return *this;
   }
-  repr_->emplace("id", std::move(id.value()));
+  (*repr_)["id"] = std::move(id.value());
   return *this;
 }
 
@@ -10240,6 +10387,7 @@ auto TypeDefinitionOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10250,7 +10398,7 @@ auto TypeDefinitionOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10264,14 +10412,14 @@ WorkspaceFoldersChangeEvent::operator bool() const {
 auto WorkspaceFoldersChangeEvent::added() const -> Vector<WorkspaceFolder> {
   auto& value = (*repr_)["added"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<WorkspaceFolder>(value);
 }
 
 auto WorkspaceFoldersChangeEvent::removed() const -> Vector<WorkspaceFolder> {
   auto& value = (*repr_)["removed"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<WorkspaceFolder>(value);
 }
 
@@ -10297,6 +10445,7 @@ auto ConfigurationItem::scopeUri() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["scopeUri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10306,6 +10455,7 @@ auto ConfigurationItem::section() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["section"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10316,7 +10466,7 @@ auto ConfigurationItem::scopeUri(std::optional<std::string> scopeUri)
     repr_->erase("scopeUri");
     return *this;
   }
-  repr_->emplace("scopeUri", std::move(scopeUri.value()));
+  (*repr_)["scopeUri"] = std::move(scopeUri.value());
   return *this;
 }
 
@@ -10326,7 +10476,7 @@ auto ConfigurationItem::section(std::optional<std::string> section)
     repr_->erase("section");
     return *this;
   }
-  repr_->emplace("section", std::move(section.value()));
+  (*repr_)["section"] = std::move(section.value());
   return *this;
 }
 
@@ -10339,12 +10489,13 @@ TextDocumentIdentifier::operator bool() const {
 auto TextDocumentIdentifier::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentIdentifier::uri(std::string uri) -> TextDocumentIdentifier& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -10360,6 +10511,7 @@ Color::operator bool() const {
 auto Color::red() const -> double {
   auto& value = (*repr_)["red"];
 
+  if (value.is_null()) value = 0.0;
   assert(value.is_number());
   return value.get<double>();
 }
@@ -10367,6 +10519,7 @@ auto Color::red() const -> double {
 auto Color::green() const -> double {
   auto& value = (*repr_)["green"];
 
+  if (value.is_null()) value = 0.0;
   assert(value.is_number());
   return value.get<double>();
 }
@@ -10374,6 +10527,7 @@ auto Color::green() const -> double {
 auto Color::blue() const -> double {
   auto& value = (*repr_)["blue"];
 
+  if (value.is_null()) value = 0.0;
   assert(value.is_number());
   return value.get<double>();
 }
@@ -10381,27 +10535,28 @@ auto Color::blue() const -> double {
 auto Color::alpha() const -> double {
   auto& value = (*repr_)["alpha"];
 
+  if (value.is_null()) value = 0.0;
   assert(value.is_number());
   return value.get<double>();
 }
 
 auto Color::red(double red) -> Color& {
-  repr_->emplace("red", std::move(red));
+  (*repr_)["red"] = std::move(red);
   return *this;
 }
 
 auto Color::green(double green) -> Color& {
-  repr_->emplace("green", std::move(green));
+  (*repr_)["green"] = std::move(green);
   return *this;
 }
 
 auto Color::blue(double blue) -> Color& {
-  repr_->emplace("blue", std::move(blue));
+  (*repr_)["blue"] = std::move(blue);
   return *this;
 }
 
 auto Color::alpha(double alpha) -> Color& {
-  repr_->emplace("alpha", std::move(alpha));
+  (*repr_)["alpha"] = std::move(alpha);
   return *this;
 }
 
@@ -10415,6 +10570,7 @@ auto DocumentColorOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10425,7 +10581,7 @@ auto DocumentColorOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10439,6 +10595,7 @@ auto FoldingRangeOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10449,7 +10606,7 @@ auto FoldingRangeOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10463,6 +10620,7 @@ auto DeclarationOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10473,7 +10631,7 @@ auto DeclarationOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10487,6 +10645,7 @@ Position::operator bool() const {
 auto Position::line() const -> long {
   auto& value = (*repr_)["line"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -10494,17 +10653,18 @@ auto Position::line() const -> long {
 auto Position::character() const -> long {
   auto& value = (*repr_)["character"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
 
 auto Position::line(long line) -> Position& {
-  repr_->emplace("line", std::move(line));
+  (*repr_)["line"] = std::move(line);
   return *this;
 }
 
 auto Position::character(long character) -> Position& {
-  repr_->emplace("character", std::move(character));
+  (*repr_)["character"] = std::move(character);
   return *this;
 }
 
@@ -10518,6 +10678,7 @@ auto SelectionRangeOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10528,7 +10689,7 @@ auto SelectionRangeOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10542,6 +10703,7 @@ auto CallHierarchyOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10552,7 +10714,7 @@ auto CallHierarchyOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10599,13 +10761,14 @@ auto SemanticTokensOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto SemanticTokensOptions::legend(SemanticTokensLegend legend)
     -> SemanticTokensOptions& {
-  repr_->emplace("legend", legend);
+  (*repr_)["legend"] = legend;
   return *this;
 }
 
@@ -10619,7 +10782,7 @@ auto SemanticTokensOptions::range(std::optional<std::variant<bool, json>> range)
   struct {
     json* repr_;
 
-    void operator()(bool range) { repr_->emplace("range", std::move(range)); }
+    void operator()(bool range) { (*repr_)["range"] = std::move(range); }
 
     void operator()(json range) {
       lsp_runtime_error("SemanticTokensOptions::range: not implement yet");
@@ -10642,11 +10805,9 @@ auto SemanticTokensOptions::full(
   struct {
     json* repr_;
 
-    void operator()(bool full) { repr_->emplace("full", std::move(full)); }
+    void operator()(bool full) { (*repr_)["full"] = std::move(full); }
 
-    void operator()(SemanticTokensFullDelta full) {
-      repr_->emplace("full", full);
-    }
+    void operator()(SemanticTokensFullDelta full) { (*repr_)["full"] = full; }
   } v{repr_};
 
   std::visit(v, full.value());
@@ -10660,7 +10821,7 @@ auto SemanticTokensOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10674,6 +10835,7 @@ SemanticTokensEdit::operator bool() const {
 auto SemanticTokensEdit::start() const -> long {
   auto& value = (*repr_)["start"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -10681,6 +10843,7 @@ auto SemanticTokensEdit::start() const -> long {
 auto SemanticTokensEdit::deleteCount() const -> long {
   auto& value = (*repr_)["deleteCount"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -10690,17 +10853,17 @@ auto SemanticTokensEdit::data() const -> std::optional<Vector<long>> {
 
   auto& value = (*repr_)["data"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<long>(value);
 }
 
 auto SemanticTokensEdit::start(long start) -> SemanticTokensEdit& {
-  repr_->emplace("start", std::move(start));
+  (*repr_)["start"] = std::move(start);
   return *this;
 }
 
 auto SemanticTokensEdit::deleteCount(long deleteCount) -> SemanticTokensEdit& {
-  repr_->emplace("deleteCount", std::move(deleteCount));
+  (*repr_)["deleteCount"] = std::move(deleteCount);
   return *this;
 }
 
@@ -10725,6 +10888,7 @@ auto LinkedEditingRangeOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -10735,7 +10899,7 @@ auto LinkedEditingRangeOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -10748,12 +10912,13 @@ FileCreate::operator bool() const {
 auto FileCreate::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto FileCreate::uri(std::string uri) -> FileCreate& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -10775,14 +10940,14 @@ auto TextDocumentEdit::edits() const
     -> Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>> {
   auto& value = (*repr_)["edits"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>>(
       value);
 }
 
 auto TextDocumentEdit::textDocument(
     OptionalVersionedTextDocumentIdentifier textDocument) -> TextDocumentEdit& {
-  repr_->emplace("textDocument", textDocument);
+  (*repr_)["textDocument"] = textDocument;
   return *this;
 }
 
@@ -10804,6 +10969,7 @@ CreateFile::operator bool() const {
 auto CreateFile::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "create";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10811,6 +10977,7 @@ auto CreateFile::kind() const -> std::string {
 auto CreateFile::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10829,6 +10996,7 @@ auto CreateFile::annotationId() const
 
   auto& value = (*repr_)["annotationId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10839,7 +11007,7 @@ auto CreateFile::kind(std::string kind) -> CreateFile& {
 }
 
 auto CreateFile::uri(std::string uri) -> CreateFile& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -10849,7 +11017,7 @@ auto CreateFile::options(std::optional<CreateFileOptions> options)
     repr_->erase("options");
     return *this;
   }
-  repr_->emplace("options", options.value());
+  (*repr_)["options"] = options.value();
   return *this;
 }
 
@@ -10875,6 +11043,7 @@ RenameFile::operator bool() const {
 auto RenameFile::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "rename";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10882,6 +11051,7 @@ auto RenameFile::kind() const -> std::string {
 auto RenameFile::oldUri() const -> std::string {
   auto& value = (*repr_)["oldUri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10889,6 +11059,7 @@ auto RenameFile::oldUri() const -> std::string {
 auto RenameFile::newUri() const -> std::string {
   auto& value = (*repr_)["newUri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10907,6 +11078,7 @@ auto RenameFile::annotationId() const
 
   auto& value = (*repr_)["annotationId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10917,12 +11089,12 @@ auto RenameFile::kind(std::string kind) -> RenameFile& {
 }
 
 auto RenameFile::oldUri(std::string oldUri) -> RenameFile& {
-  repr_->emplace("oldUri", std::move(oldUri));
+  (*repr_)["oldUri"] = std::move(oldUri);
   return *this;
 }
 
 auto RenameFile::newUri(std::string newUri) -> RenameFile& {
-  repr_->emplace("newUri", std::move(newUri));
+  (*repr_)["newUri"] = std::move(newUri);
   return *this;
 }
 
@@ -10932,7 +11104,7 @@ auto RenameFile::options(std::optional<RenameFileOptions> options)
     repr_->erase("options");
     return *this;
   }
-  repr_->emplace("options", options.value());
+  (*repr_)["options"] = options.value();
   return *this;
 }
 
@@ -10957,6 +11129,7 @@ DeleteFile::operator bool() const {
 auto DeleteFile::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "delete";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10964,6 +11137,7 @@ auto DeleteFile::kind() const -> std::string {
 auto DeleteFile::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10982,6 +11156,7 @@ auto DeleteFile::annotationId() const
 
   auto& value = (*repr_)["annotationId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -10992,7 +11167,7 @@ auto DeleteFile::kind(std::string kind) -> DeleteFile& {
 }
 
 auto DeleteFile::uri(std::string uri) -> DeleteFile& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -11002,7 +11177,7 @@ auto DeleteFile::options(std::optional<DeleteFileOptions> options)
     repr_->erase("options");
     return *this;
   }
-  repr_->emplace("options", options.value());
+  (*repr_)["options"] = options.value();
   return *this;
 }
 
@@ -11025,6 +11200,7 @@ ChangeAnnotation::operator bool() const {
 auto ChangeAnnotation::label() const -> std::string {
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11034,6 +11210,7 @@ auto ChangeAnnotation::needsConfirmation() const -> std::optional<bool> {
 
   auto& value = (*repr_)["needsConfirmation"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11043,12 +11220,13 @@ auto ChangeAnnotation::description() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["description"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto ChangeAnnotation::label(std::string label) -> ChangeAnnotation& {
-  repr_->emplace("label", std::move(label));
+  (*repr_)["label"] = std::move(label);
   return *this;
 }
 
@@ -11058,7 +11236,7 @@ auto ChangeAnnotation::needsConfirmation(std::optional<bool> needsConfirmation)
     repr_->erase("needsConfirmation");
     return *this;
   }
-  repr_->emplace("needsConfirmation", std::move(needsConfirmation.value()));
+  (*repr_)["needsConfirmation"] = std::move(needsConfirmation.value());
   return *this;
 }
 
@@ -11068,7 +11246,7 @@ auto ChangeAnnotation::description(std::optional<std::string> description)
     repr_->erase("description");
     return *this;
   }
-  repr_->emplace("description", std::move(description.value()));
+  (*repr_)["description"] = std::move(description.value());
   return *this;
 }
 
@@ -11083,6 +11261,7 @@ auto FileOperationFilter::scheme() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11099,13 +11278,13 @@ auto FileOperationFilter::scheme(std::optional<std::string> scheme)
     repr_->erase("scheme");
     return *this;
   }
-  repr_->emplace("scheme", std::move(scheme.value()));
+  (*repr_)["scheme"] = std::move(scheme.value());
   return *this;
 }
 
 auto FileOperationFilter::pattern(FileOperationPattern pattern)
     -> FileOperationFilter& {
-  repr_->emplace("pattern", pattern);
+  (*repr_)["pattern"] = pattern;
   return *this;
 }
 
@@ -11119,6 +11298,7 @@ FileRename::operator bool() const {
 auto FileRename::oldUri() const -> std::string {
   auto& value = (*repr_)["oldUri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11126,17 +11306,18 @@ auto FileRename::oldUri() const -> std::string {
 auto FileRename::newUri() const -> std::string {
   auto& value = (*repr_)["newUri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto FileRename::oldUri(std::string oldUri) -> FileRename& {
-  repr_->emplace("oldUri", std::move(oldUri));
+  (*repr_)["oldUri"] = std::move(oldUri);
   return *this;
 }
 
 auto FileRename::newUri(std::string newUri) -> FileRename& {
-  repr_->emplace("newUri", std::move(newUri));
+  (*repr_)["newUri"] = std::move(newUri);
   return *this;
 }
 
@@ -11149,12 +11330,13 @@ FileDelete::operator bool() const {
 auto FileDelete::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto FileDelete::uri(std::string uri) -> FileDelete& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -11168,6 +11350,7 @@ auto MonikerOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11178,7 +11361,7 @@ auto MonikerOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -11192,6 +11375,7 @@ auto TypeHierarchyOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11202,7 +11386,7 @@ auto TypeHierarchyOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -11216,6 +11400,7 @@ InlineValueContext::operator bool() const {
 auto InlineValueContext::frameId() const -> int {
   auto& value = (*repr_)["frameId"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<int>();
 }
@@ -11227,13 +11412,13 @@ auto InlineValueContext::stoppedLocation() const -> Range {
 }
 
 auto InlineValueContext::frameId(int frameId) -> InlineValueContext& {
-  repr_->emplace("frameId", std::move(frameId));
+  (*repr_)["frameId"] = std::move(frameId);
   return *this;
 }
 
 auto InlineValueContext::stoppedLocation(Range stoppedLocation)
     -> InlineValueContext& {
-  repr_->emplace("stoppedLocation", stoppedLocation);
+  (*repr_)["stoppedLocation"] = stoppedLocation;
   return *this;
 }
 
@@ -11253,17 +11438,18 @@ auto InlineValueText::range() const -> Range {
 auto InlineValueText::text() const -> std::string {
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto InlineValueText::range(Range range) -> InlineValueText& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto InlineValueText::text(std::string text) -> InlineValueText& {
-  repr_->emplace("text", std::move(text));
+  (*repr_)["text"] = std::move(text);
   return *this;
 }
 
@@ -11286,6 +11472,7 @@ auto InlineValueVariableLookup::variableName() const
 
   auto& value = (*repr_)["variableName"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11293,13 +11480,14 @@ auto InlineValueVariableLookup::variableName() const
 auto InlineValueVariableLookup::caseSensitiveLookup() const -> bool {
   auto& value = (*repr_)["caseSensitiveLookup"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto InlineValueVariableLookup::range(Range range)
     -> InlineValueVariableLookup& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -11309,13 +11497,13 @@ auto InlineValueVariableLookup::variableName(
     repr_->erase("variableName");
     return *this;
   }
-  repr_->emplace("variableName", std::move(variableName.value()));
+  (*repr_)["variableName"] = std::move(variableName.value());
   return *this;
 }
 
 auto InlineValueVariableLookup::caseSensitiveLookup(bool caseSensitiveLookup)
     -> InlineValueVariableLookup& {
-  repr_->emplace("caseSensitiveLookup", std::move(caseSensitiveLookup));
+  (*repr_)["caseSensitiveLookup"] = std::move(caseSensitiveLookup);
   return *this;
 }
 
@@ -11337,13 +11525,14 @@ auto InlineValueEvaluatableExpression::expression() const
 
   auto& value = (*repr_)["expression"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto InlineValueEvaluatableExpression::range(Range range)
     -> InlineValueEvaluatableExpression& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -11354,7 +11543,7 @@ auto InlineValueEvaluatableExpression::expression(
     repr_->erase("expression");
     return *this;
   }
-  repr_->emplace("expression", std::move(expression.value()));
+  (*repr_)["expression"] = std::move(expression.value());
   return *this;
 }
 
@@ -11368,6 +11557,7 @@ auto InlineValueOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11378,7 +11568,7 @@ auto InlineValueOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -11391,6 +11581,7 @@ InlayHintLabelPart::operator bool() const {
 auto InlayHintLabelPart::value() const -> std::string {
   auto& value = (*repr_)["value"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11425,7 +11616,7 @@ auto InlayHintLabelPart::command() const -> std::optional<Command> {
 }
 
 auto InlayHintLabelPart::value(std::string value) -> InlayHintLabelPart& {
-  repr_->emplace("value", std::move(value));
+  (*repr_)["value"] = std::move(value);
   return *this;
 }
 
@@ -11441,12 +11632,10 @@ auto InlayHintLabelPart::tooltip(
     json* repr_;
 
     void operator()(std::string tooltip) {
-      repr_->emplace("tooltip", std::move(tooltip));
+      (*repr_)["tooltip"] = std::move(tooltip);
     }
 
-    void operator()(MarkupContent tooltip) {
-      repr_->emplace("tooltip", tooltip);
-    }
+    void operator()(MarkupContent tooltip) { (*repr_)["tooltip"] = tooltip; }
   } v{repr_};
 
   std::visit(v, tooltip.value());
@@ -11460,7 +11649,7 @@ auto InlayHintLabelPart::location(std::optional<Location> location)
     repr_->erase("location");
     return *this;
   }
-  repr_->emplace("location", location.value());
+  (*repr_)["location"] = location.value();
   return *this;
 }
 
@@ -11470,7 +11659,7 @@ auto InlayHintLabelPart::command(std::optional<Command> command)
     repr_->erase("command");
     return *this;
   }
-  repr_->emplace("command", command.value());
+  (*repr_)["command"] = command.value();
   return *this;
 }
 
@@ -11490,6 +11679,7 @@ auto MarkupContent::kind() const -> MarkupKind {
 auto MarkupContent::value() const -> std::string {
   auto& value = (*repr_)["value"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11500,7 +11690,7 @@ auto MarkupContent::kind(MarkupKind kind) -> MarkupContent& {
 }
 
 auto MarkupContent::value(std::string value) -> MarkupContent& {
-  repr_->emplace("value", std::move(value));
+  (*repr_)["value"] = std::move(value);
   return *this;
 }
 
@@ -11514,6 +11704,7 @@ auto InlayHintOptions::resolveProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11523,6 +11714,7 @@ auto InlayHintOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11533,7 +11725,7 @@ auto InlayHintOptions::resolveProvider(std::optional<bool> resolveProvider)
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -11543,7 +11735,7 @@ auto InlayHintOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -11563,7 +11755,7 @@ auto RelatedFullDocumentDiagnosticReport::relatedDocuments() const
 
   auto& value = (*repr_)["relatedDocuments"];
 
-  assert(value.is_object());
+  if (value.is_null()) value = json::object();
   return Map<std::string, std::variant<FullDocumentDiagnosticReport,
                                        UnchangedDocumentDiagnosticReport>>(
       value);
@@ -11572,6 +11764,7 @@ auto RelatedFullDocumentDiagnosticReport::relatedDocuments() const
 auto RelatedFullDocumentDiagnosticReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "full";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11582,6 +11775,7 @@ auto RelatedFullDocumentDiagnosticReport::resultId() const
 
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11589,7 +11783,7 @@ auto RelatedFullDocumentDiagnosticReport::resultId() const
 auto RelatedFullDocumentDiagnosticReport::items() const -> Vector<Diagnostic> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Diagnostic>(value);
 }
 
@@ -11622,7 +11816,7 @@ auto RelatedFullDocumentDiagnosticReport::resultId(
     repr_->erase("resultId");
     return *this;
   }
-  repr_->emplace("resultId", std::move(resultId.value()));
+  (*repr_)["resultId"] = std::move(resultId.value());
   return *this;
 }
 
@@ -11649,7 +11843,7 @@ auto RelatedUnchangedDocumentDiagnosticReport::relatedDocuments() const
 
   auto& value = (*repr_)["relatedDocuments"];
 
-  assert(value.is_object());
+  if (value.is_null()) value = json::object();
   return Map<std::string, std::variant<FullDocumentDiagnosticReport,
                                        UnchangedDocumentDiagnosticReport>>(
       value);
@@ -11658,6 +11852,7 @@ auto RelatedUnchangedDocumentDiagnosticReport::relatedDocuments() const
 auto RelatedUnchangedDocumentDiagnosticReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "unchanged";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11665,6 +11860,7 @@ auto RelatedUnchangedDocumentDiagnosticReport::kind() const -> std::string {
 auto RelatedUnchangedDocumentDiagnosticReport::resultId() const -> std::string {
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11693,7 +11889,7 @@ auto RelatedUnchangedDocumentDiagnosticReport::kind(std::string kind)
 
 auto RelatedUnchangedDocumentDiagnosticReport::resultId(std::string resultId)
     -> RelatedUnchangedDocumentDiagnosticReport& {
-  repr_->emplace("resultId", std::move(resultId));
+  (*repr_)["resultId"] = std::move(resultId);
   return *this;
 }
 
@@ -11708,6 +11904,7 @@ FullDocumentDiagnosticReport::operator bool() const {
 auto FullDocumentDiagnosticReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "full";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11718,6 +11915,7 @@ auto FullDocumentDiagnosticReport::resultId() const
 
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11725,7 +11923,7 @@ auto FullDocumentDiagnosticReport::resultId() const
 auto FullDocumentDiagnosticReport::items() const -> Vector<Diagnostic> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Diagnostic>(value);
 }
 
@@ -11741,7 +11939,7 @@ auto FullDocumentDiagnosticReport::resultId(std::optional<std::string> resultId)
     repr_->erase("resultId");
     return *this;
   }
-  repr_->emplace("resultId", std::move(resultId.value()));
+  (*repr_)["resultId"] = std::move(resultId.value());
   return *this;
 }
 
@@ -11762,6 +11960,7 @@ UnchangedDocumentDiagnosticReport::operator bool() const {
 auto UnchangedDocumentDiagnosticReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "unchanged";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11769,6 +11968,7 @@ auto UnchangedDocumentDiagnosticReport::kind() const -> std::string {
 auto UnchangedDocumentDiagnosticReport::resultId() const -> std::string {
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11782,7 +11982,7 @@ auto UnchangedDocumentDiagnosticReport::kind(std::string kind)
 
 auto UnchangedDocumentDiagnosticReport::resultId(std::string resultId)
     -> UnchangedDocumentDiagnosticReport& {
-  repr_->emplace("resultId", std::move(resultId));
+  (*repr_)["resultId"] = std::move(resultId);
   return *this;
 }
 
@@ -11798,6 +11998,7 @@ auto DiagnosticOptions::identifier() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["identifier"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11805,6 +12006,7 @@ auto DiagnosticOptions::identifier() const -> std::optional<std::string> {
 auto DiagnosticOptions::interFileDependencies() const -> bool {
   auto& value = (*repr_)["interFileDependencies"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11812,6 +12014,7 @@ auto DiagnosticOptions::interFileDependencies() const -> bool {
 auto DiagnosticOptions::workspaceDiagnostics() const -> bool {
   auto& value = (*repr_)["workspaceDiagnostics"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11821,6 +12024,7 @@ auto DiagnosticOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -11831,19 +12035,19 @@ auto DiagnosticOptions::identifier(std::optional<std::string> identifier)
     repr_->erase("identifier");
     return *this;
   }
-  repr_->emplace("identifier", std::move(identifier.value()));
+  (*repr_)["identifier"] = std::move(identifier.value());
   return *this;
 }
 
 auto DiagnosticOptions::interFileDependencies(bool interFileDependencies)
     -> DiagnosticOptions& {
-  repr_->emplace("interFileDependencies", std::move(interFileDependencies));
+  (*repr_)["interFileDependencies"] = std::move(interFileDependencies);
   return *this;
 }
 
 auto DiagnosticOptions::workspaceDiagnostics(bool workspaceDiagnostics)
     -> DiagnosticOptions& {
-  repr_->emplace("workspaceDiagnostics", std::move(workspaceDiagnostics));
+  (*repr_)["workspaceDiagnostics"] = std::move(workspaceDiagnostics);
   return *this;
 }
 
@@ -11853,7 +12057,7 @@ auto DiagnosticOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -11867,6 +12071,7 @@ PreviousResultId::operator bool() const {
 auto PreviousResultId::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11874,17 +12079,18 @@ auto PreviousResultId::uri() const -> std::string {
 auto PreviousResultId::value() const -> std::string {
   auto& value = (*repr_)["value"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto PreviousResultId::uri(std::string uri) -> PreviousResultId& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto PreviousResultId::value(std::string value) -> PreviousResultId& {
-  repr_->emplace("value", std::move(value));
+  (*repr_)["value"] = std::move(value);
   return *this;
 }
 
@@ -11900,6 +12106,7 @@ NotebookDocument::operator bool() const {
 auto NotebookDocument::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11907,6 +12114,7 @@ auto NotebookDocument::uri() const -> std::string {
 auto NotebookDocument::notebookType() const -> std::string {
   auto& value = (*repr_)["notebookType"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11914,6 +12122,7 @@ auto NotebookDocument::notebookType() const -> std::string {
 auto NotebookDocument::version() const -> int {
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<int>();
 }
@@ -11930,23 +12139,23 @@ auto NotebookDocument::metadata() const -> std::optional<LSPObject> {
 auto NotebookDocument::cells() const -> Vector<NotebookCell> {
   auto& value = (*repr_)["cells"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<NotebookCell>(value);
 }
 
 auto NotebookDocument::uri(std::string uri) -> NotebookDocument& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto NotebookDocument::notebookType(std::string notebookType)
     -> NotebookDocument& {
-  repr_->emplace("notebookType", std::move(notebookType));
+  (*repr_)["notebookType"] = std::move(notebookType);
   return *this;
 }
 
 auto NotebookDocument::version(int version) -> NotebookDocument& {
-  repr_->emplace("version", std::move(version));
+  (*repr_)["version"] = std::move(version);
   return *this;
 }
 
@@ -11977,6 +12186,7 @@ TextDocumentItem::operator bool() const {
 auto TextDocumentItem::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -11990,6 +12200,7 @@ auto TextDocumentItem::languageId() const -> LanguageKind {
 auto TextDocumentItem::version() const -> int {
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<int>();
 }
@@ -11997,12 +12208,13 @@ auto TextDocumentItem::version() const -> int {
 auto TextDocumentItem::text() const -> std::string {
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentItem::uri(std::string uri) -> TextDocumentItem& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -12013,12 +12225,12 @@ auto TextDocumentItem::languageId(LanguageKind languageId)
 }
 
 auto TextDocumentItem::version(int version) -> TextDocumentItem& {
-  repr_->emplace("version", std::move(version));
+  (*repr_)["version"] = std::move(version);
   return *this;
 }
 
 auto TextDocumentItem::text(std::string text) -> TextDocumentItem& {
-  repr_->emplace("text", std::move(text));
+  (*repr_)["text"] = std::move(text);
   return *this;
 }
 
@@ -12033,7 +12245,7 @@ auto NotebookDocumentSyncOptions::notebookSelector() const
                            NotebookDocumentFilterWithCells>> {
   auto& value = (*repr_)["notebookSelector"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::variant<NotebookDocumentFilterWithNotebook,
                              NotebookDocumentFilterWithCells>>(value);
 }
@@ -12043,6 +12255,7 @@ auto NotebookDocumentSyncOptions::save() const -> std::optional<bool> {
 
   auto& value = (*repr_)["save"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -12062,7 +12275,7 @@ auto NotebookDocumentSyncOptions::save(std::optional<bool> save)
     repr_->erase("save");
     return *this;
   }
-  repr_->emplace("save", std::move(save.value()));
+  (*repr_)["save"] = std::move(save.value());
   return *this;
 }
 
@@ -12076,6 +12289,7 @@ VersionedNotebookDocumentIdentifier::operator bool() const {
 auto VersionedNotebookDocumentIdentifier::version() const -> int {
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<int>();
 }
@@ -12083,19 +12297,20 @@ auto VersionedNotebookDocumentIdentifier::version() const -> int {
 auto VersionedNotebookDocumentIdentifier::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto VersionedNotebookDocumentIdentifier::version(int version)
     -> VersionedNotebookDocumentIdentifier& {
-  repr_->emplace("version", std::move(version));
+  (*repr_)["version"] = std::move(version);
   return *this;
 }
 
 auto VersionedNotebookDocumentIdentifier::uri(std::string uri)
     -> VersionedNotebookDocumentIdentifier& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -12139,7 +12354,7 @@ auto NotebookDocumentChangeEvent::cells(
     repr_->erase("cells");
     return *this;
   }
-  repr_->emplace("cells", cells.value());
+  (*repr_)["cells"] = cells.value();
   return *this;
 }
 
@@ -12152,13 +12367,14 @@ NotebookDocumentIdentifier::operator bool() const {
 auto NotebookDocumentIdentifier::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto NotebookDocumentIdentifier::uri(std::string uri)
     -> NotebookDocumentIdentifier& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -12186,7 +12402,7 @@ auto InlineCompletionContext::selectedCompletionInfo() const
 
 auto InlineCompletionContext::triggerKind(
     InlineCompletionTriggerKind triggerKind) -> InlineCompletionContext& {
-  repr_->emplace("triggerKind", static_cast<long>(triggerKind));
+  (*repr_)["triggerKind"] = static_cast<long>(triggerKind);
   return *this;
 }
 
@@ -12197,7 +12413,7 @@ auto InlineCompletionContext::selectedCompletionInfo(
     repr_->erase("selectedCompletionInfo");
     return *this;
   }
-  repr_->emplace("selectedCompletionInfo", selectedCompletionInfo.value());
+  (*repr_)["selectedCompletionInfo"] = selectedCompletionInfo.value();
   return *this;
 }
 
@@ -12212,6 +12428,7 @@ StringValue::operator bool() const {
 auto StringValue::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "snippet";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -12219,6 +12436,7 @@ auto StringValue::kind() const -> std::string {
 auto StringValue::value() const -> std::string {
   auto& value = (*repr_)["value"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -12229,7 +12447,7 @@ auto StringValue::kind(std::string kind) -> StringValue& {
 }
 
 auto StringValue::value(std::string value) -> StringValue& {
-  repr_->emplace("value", std::move(value));
+  (*repr_)["value"] = std::move(value);
   return *this;
 }
 
@@ -12243,6 +12461,7 @@ auto InlineCompletionOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -12253,7 +12472,7 @@ auto InlineCompletionOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -12266,7 +12485,7 @@ TextDocumentContentOptions::operator bool() const {
 auto TextDocumentContentOptions::schemes() const -> Vector<std::string> {
   auto& value = (*repr_)["schemes"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -12286,6 +12505,7 @@ Registration::operator bool() const {
 auto Registration::id() const -> std::string {
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -12293,6 +12513,7 @@ auto Registration::id() const -> std::string {
 auto Registration::method() const -> std::string {
   auto& value = (*repr_)["method"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -12307,12 +12528,12 @@ auto Registration::registerOptions() const -> std::optional<LSPAny> {
 }
 
 auto Registration::id(std::string id) -> Registration& {
-  repr_->emplace("id", std::move(id));
+  (*repr_)["id"] = std::move(id);
   return *this;
 }
 
 auto Registration::method(std::string method) -> Registration& {
-  repr_->emplace("method", std::move(method));
+  (*repr_)["method"] = std::move(method);
   return *this;
 }
 
@@ -12336,6 +12557,7 @@ Unregistration::operator bool() const {
 auto Unregistration::id() const -> std::string {
   auto& value = (*repr_)["id"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -12343,17 +12565,18 @@ auto Unregistration::id() const -> std::string {
 auto Unregistration::method() const -> std::string {
   auto& value = (*repr_)["method"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto Unregistration::id(std::string id) -> Unregistration& {
-  repr_->emplace("id", std::move(id));
+  (*repr_)["id"] = std::move(id);
   return *this;
 }
 
 auto Unregistration::method(std::string method) -> Unregistration& {
-  repr_->emplace("method", std::move(method));
+  (*repr_)["method"] = std::move(method);
   return *this;
 }
 
@@ -12388,6 +12611,7 @@ auto _InitializeParams::locale() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["locale"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -12457,11 +12681,11 @@ auto _InitializeParams::processId(std::variant<int, std::nullptr_t> processId)
     json* repr_;
 
     void operator()(int processId) {
-      repr_->emplace("processId", std::move(processId));
+      (*repr_)["processId"] = std::move(processId);
     }
 
     void operator()(std::nullptr_t processId) {
-      repr_->emplace("processId", std::move(processId));
+      (*repr_)["processId"] = std::move(processId);
     }
   } v{repr_};
 
@@ -12476,7 +12700,7 @@ auto _InitializeParams::clientInfo(std::optional<ClientInfo> clientInfo)
     repr_->erase("clientInfo");
     return *this;
   }
-  repr_->emplace("clientInfo", clientInfo.value());
+  (*repr_)["clientInfo"] = clientInfo.value();
   return *this;
 }
 
@@ -12486,7 +12710,7 @@ auto _InitializeParams::locale(std::optional<std::string> locale)
     repr_->erase("locale");
     return *this;
   }
-  repr_->emplace("locale", std::move(locale.value()));
+  (*repr_)["locale"] = std::move(locale.value());
   return *this;
 }
 
@@ -12502,11 +12726,11 @@ auto _InitializeParams::rootPath(
     json* repr_;
 
     void operator()(std::string rootPath) {
-      repr_->emplace("rootPath", std::move(rootPath));
+      (*repr_)["rootPath"] = std::move(rootPath);
     }
 
     void operator()(std::nullptr_t rootPath) {
-      repr_->emplace("rootPath", std::move(rootPath));
+      (*repr_)["rootPath"] = std::move(rootPath);
     }
   } v{repr_};
 
@@ -12521,11 +12745,11 @@ auto _InitializeParams::rootUri(
     json* repr_;
 
     void operator()(std::string rootUri) {
-      repr_->emplace("rootUri", std::move(rootUri));
+      (*repr_)["rootUri"] = std::move(rootUri);
     }
 
     void operator()(std::nullptr_t rootUri) {
-      repr_->emplace("rootUri", std::move(rootUri));
+      (*repr_)["rootUri"] = std::move(rootUri);
     }
   } v{repr_};
 
@@ -12536,7 +12760,7 @@ auto _InitializeParams::rootUri(
 
 auto _InitializeParams::capabilities(ClientCapabilities capabilities)
     -> _InitializeParams& {
-  repr_->emplace("capabilities", capabilities);
+  (*repr_)["capabilities"] = capabilities;
   return *this;
 }
 
@@ -12607,7 +12831,7 @@ auto WorkspaceFoldersInitializeParams::workspaceFolders(
     }
 
     void operator()(std::nullptr_t workspaceFolders) {
-      repr_->emplace("workspaceFolders", std::move(workspaceFolders));
+      (*repr_)["workspaceFolders"] = std::move(workspaceFolders);
     }
   } v{repr_};
 
@@ -13094,11 +13318,11 @@ auto ServerCapabilities::textDocumentSync(
     json* repr_;
 
     void operator()(TextDocumentSyncOptions textDocumentSync) {
-      repr_->emplace("textDocumentSync", textDocumentSync);
+      (*repr_)["textDocumentSync"] = textDocumentSync;
     }
 
     void operator()(TextDocumentSyncKind textDocumentSync) {
-      repr_->emplace("textDocumentSync", static_cast<long>(textDocumentSync));
+      (*repr_)["textDocumentSync"] = static_cast<long>(textDocumentSync);
     }
   } v{repr_};
 
@@ -13120,12 +13344,12 @@ auto ServerCapabilities::notebookDocumentSync(
     json* repr_;
 
     void operator()(NotebookDocumentSyncOptions notebookDocumentSync) {
-      repr_->emplace("notebookDocumentSync", notebookDocumentSync);
+      (*repr_)["notebookDocumentSync"] = notebookDocumentSync;
     }
 
     void operator()(
         NotebookDocumentSyncRegistrationOptions notebookDocumentSync) {
-      repr_->emplace("notebookDocumentSync", notebookDocumentSync);
+      (*repr_)["notebookDocumentSync"] = notebookDocumentSync;
     }
   } v{repr_};
 
@@ -13141,7 +13365,7 @@ auto ServerCapabilities::completionProvider(
     repr_->erase("completionProvider");
     return *this;
   }
-  repr_->emplace("completionProvider", completionProvider.value());
+  (*repr_)["completionProvider"] = completionProvider.value();
   return *this;
 }
 
@@ -13157,11 +13381,11 @@ auto ServerCapabilities::hoverProvider(
     json* repr_;
 
     void operator()(bool hoverProvider) {
-      repr_->emplace("hoverProvider", std::move(hoverProvider));
+      (*repr_)["hoverProvider"] = std::move(hoverProvider);
     }
 
     void operator()(HoverOptions hoverProvider) {
-      repr_->emplace("hoverProvider", hoverProvider);
+      (*repr_)["hoverProvider"] = hoverProvider;
     }
   } v{repr_};
 
@@ -13177,7 +13401,7 @@ auto ServerCapabilities::signatureHelpProvider(
     repr_->erase("signatureHelpProvider");
     return *this;
   }
-  repr_->emplace("signatureHelpProvider", signatureHelpProvider.value());
+  (*repr_)["signatureHelpProvider"] = signatureHelpProvider.value();
   return *this;
 }
 
@@ -13194,15 +13418,15 @@ auto ServerCapabilities::declarationProvider(
     json* repr_;
 
     void operator()(bool declarationProvider) {
-      repr_->emplace("declarationProvider", std::move(declarationProvider));
+      (*repr_)["declarationProvider"] = std::move(declarationProvider);
     }
 
     void operator()(DeclarationOptions declarationProvider) {
-      repr_->emplace("declarationProvider", declarationProvider);
+      (*repr_)["declarationProvider"] = declarationProvider;
     }
 
     void operator()(DeclarationRegistrationOptions declarationProvider) {
-      repr_->emplace("declarationProvider", declarationProvider);
+      (*repr_)["declarationProvider"] = declarationProvider;
     }
   } v{repr_};
 
@@ -13223,11 +13447,11 @@ auto ServerCapabilities::definitionProvider(
     json* repr_;
 
     void operator()(bool definitionProvider) {
-      repr_->emplace("definitionProvider", std::move(definitionProvider));
+      (*repr_)["definitionProvider"] = std::move(definitionProvider);
     }
 
     void operator()(DefinitionOptions definitionProvider) {
-      repr_->emplace("definitionProvider", definitionProvider);
+      (*repr_)["definitionProvider"] = definitionProvider;
     }
   } v{repr_};
 
@@ -13249,16 +13473,15 @@ auto ServerCapabilities::typeDefinitionProvider(
     json* repr_;
 
     void operator()(bool typeDefinitionProvider) {
-      repr_->emplace("typeDefinitionProvider",
-                     std::move(typeDefinitionProvider));
+      (*repr_)["typeDefinitionProvider"] = std::move(typeDefinitionProvider);
     }
 
     void operator()(TypeDefinitionOptions typeDefinitionProvider) {
-      repr_->emplace("typeDefinitionProvider", typeDefinitionProvider);
+      (*repr_)["typeDefinitionProvider"] = typeDefinitionProvider;
     }
 
     void operator()(TypeDefinitionRegistrationOptions typeDefinitionProvider) {
-      repr_->emplace("typeDefinitionProvider", typeDefinitionProvider);
+      (*repr_)["typeDefinitionProvider"] = typeDefinitionProvider;
     }
   } v{repr_};
 
@@ -13280,16 +13503,15 @@ auto ServerCapabilities::implementationProvider(
     json* repr_;
 
     void operator()(bool implementationProvider) {
-      repr_->emplace("implementationProvider",
-                     std::move(implementationProvider));
+      (*repr_)["implementationProvider"] = std::move(implementationProvider);
     }
 
     void operator()(ImplementationOptions implementationProvider) {
-      repr_->emplace("implementationProvider", implementationProvider);
+      (*repr_)["implementationProvider"] = implementationProvider;
     }
 
     void operator()(ImplementationRegistrationOptions implementationProvider) {
-      repr_->emplace("implementationProvider", implementationProvider);
+      (*repr_)["implementationProvider"] = implementationProvider;
     }
   } v{repr_};
 
@@ -13310,11 +13532,11 @@ auto ServerCapabilities::referencesProvider(
     json* repr_;
 
     void operator()(bool referencesProvider) {
-      repr_->emplace("referencesProvider", std::move(referencesProvider));
+      (*repr_)["referencesProvider"] = std::move(referencesProvider);
     }
 
     void operator()(ReferenceOptions referencesProvider) {
-      repr_->emplace("referencesProvider", referencesProvider);
+      (*repr_)["referencesProvider"] = referencesProvider;
     }
   } v{repr_};
 
@@ -13335,12 +13557,12 @@ auto ServerCapabilities::documentHighlightProvider(
     json* repr_;
 
     void operator()(bool documentHighlightProvider) {
-      repr_->emplace("documentHighlightProvider",
-                     std::move(documentHighlightProvider));
+      (*repr_)["documentHighlightProvider"] =
+          std::move(documentHighlightProvider);
     }
 
     void operator()(DocumentHighlightOptions documentHighlightProvider) {
-      repr_->emplace("documentHighlightProvider", documentHighlightProvider);
+      (*repr_)["documentHighlightProvider"] = documentHighlightProvider;
     }
   } v{repr_};
 
@@ -13361,12 +13583,11 @@ auto ServerCapabilities::documentSymbolProvider(
     json* repr_;
 
     void operator()(bool documentSymbolProvider) {
-      repr_->emplace("documentSymbolProvider",
-                     std::move(documentSymbolProvider));
+      (*repr_)["documentSymbolProvider"] = std::move(documentSymbolProvider);
     }
 
     void operator()(DocumentSymbolOptions documentSymbolProvider) {
-      repr_->emplace("documentSymbolProvider", documentSymbolProvider);
+      (*repr_)["documentSymbolProvider"] = documentSymbolProvider;
     }
   } v{repr_};
 
@@ -13387,11 +13608,11 @@ auto ServerCapabilities::codeActionProvider(
     json* repr_;
 
     void operator()(bool codeActionProvider) {
-      repr_->emplace("codeActionProvider", std::move(codeActionProvider));
+      (*repr_)["codeActionProvider"] = std::move(codeActionProvider);
     }
 
     void operator()(CodeActionOptions codeActionProvider) {
-      repr_->emplace("codeActionProvider", codeActionProvider);
+      (*repr_)["codeActionProvider"] = codeActionProvider;
     }
   } v{repr_};
 
@@ -13406,7 +13627,7 @@ auto ServerCapabilities::codeLensProvider(
     repr_->erase("codeLensProvider");
     return *this;
   }
-  repr_->emplace("codeLensProvider", codeLensProvider.value());
+  (*repr_)["codeLensProvider"] = codeLensProvider.value();
   return *this;
 }
 
@@ -13417,7 +13638,7 @@ auto ServerCapabilities::documentLinkProvider(
     repr_->erase("documentLinkProvider");
     return *this;
   }
-  repr_->emplace("documentLinkProvider", documentLinkProvider.value());
+  (*repr_)["documentLinkProvider"] = documentLinkProvider.value();
   return *this;
 }
 
@@ -13434,15 +13655,15 @@ auto ServerCapabilities::colorProvider(
     json* repr_;
 
     void operator()(bool colorProvider) {
-      repr_->emplace("colorProvider", std::move(colorProvider));
+      (*repr_)["colorProvider"] = std::move(colorProvider);
     }
 
     void operator()(DocumentColorOptions colorProvider) {
-      repr_->emplace("colorProvider", colorProvider);
+      (*repr_)["colorProvider"] = colorProvider;
     }
 
     void operator()(DocumentColorRegistrationOptions colorProvider) {
-      repr_->emplace("colorProvider", colorProvider);
+      (*repr_)["colorProvider"] = colorProvider;
     }
   } v{repr_};
 
@@ -13463,12 +13684,11 @@ auto ServerCapabilities::workspaceSymbolProvider(
     json* repr_;
 
     void operator()(bool workspaceSymbolProvider) {
-      repr_->emplace("workspaceSymbolProvider",
-                     std::move(workspaceSymbolProvider));
+      (*repr_)["workspaceSymbolProvider"] = std::move(workspaceSymbolProvider);
     }
 
     void operator()(WorkspaceSymbolOptions workspaceSymbolProvider) {
-      repr_->emplace("workspaceSymbolProvider", workspaceSymbolProvider);
+      (*repr_)["workspaceSymbolProvider"] = workspaceSymbolProvider;
     }
   } v{repr_};
 
@@ -13489,12 +13709,12 @@ auto ServerCapabilities::documentFormattingProvider(
     json* repr_;
 
     void operator()(bool documentFormattingProvider) {
-      repr_->emplace("documentFormattingProvider",
-                     std::move(documentFormattingProvider));
+      (*repr_)["documentFormattingProvider"] =
+          std::move(documentFormattingProvider);
     }
 
     void operator()(DocumentFormattingOptions documentFormattingProvider) {
-      repr_->emplace("documentFormattingProvider", documentFormattingProvider);
+      (*repr_)["documentFormattingProvider"] = documentFormattingProvider;
     }
   } v{repr_};
 
@@ -13515,14 +13735,14 @@ auto ServerCapabilities::documentRangeFormattingProvider(
     json* repr_;
 
     void operator()(bool documentRangeFormattingProvider) {
-      repr_->emplace("documentRangeFormattingProvider",
-                     std::move(documentRangeFormattingProvider));
+      (*repr_)["documentRangeFormattingProvider"] =
+          std::move(documentRangeFormattingProvider);
     }
 
     void operator()(
         DocumentRangeFormattingOptions documentRangeFormattingProvider) {
-      repr_->emplace("documentRangeFormattingProvider",
-                     documentRangeFormattingProvider);
+      (*repr_)["documentRangeFormattingProvider"] =
+          documentRangeFormattingProvider;
     }
   } v{repr_};
 
@@ -13538,8 +13758,8 @@ auto ServerCapabilities::documentOnTypeFormattingProvider(
     repr_->erase("documentOnTypeFormattingProvider");
     return *this;
   }
-  repr_->emplace("documentOnTypeFormattingProvider",
-                 documentOnTypeFormattingProvider.value());
+  (*repr_)["documentOnTypeFormattingProvider"] =
+      documentOnTypeFormattingProvider.value();
   return *this;
 }
 
@@ -13555,11 +13775,11 @@ auto ServerCapabilities::renameProvider(
     json* repr_;
 
     void operator()(bool renameProvider) {
-      repr_->emplace("renameProvider", std::move(renameProvider));
+      (*repr_)["renameProvider"] = std::move(renameProvider);
     }
 
     void operator()(RenameOptions renameProvider) {
-      repr_->emplace("renameProvider", renameProvider);
+      (*repr_)["renameProvider"] = renameProvider;
     }
   } v{repr_};
 
@@ -13581,15 +13801,15 @@ auto ServerCapabilities::foldingRangeProvider(
     json* repr_;
 
     void operator()(bool foldingRangeProvider) {
-      repr_->emplace("foldingRangeProvider", std::move(foldingRangeProvider));
+      (*repr_)["foldingRangeProvider"] = std::move(foldingRangeProvider);
     }
 
     void operator()(FoldingRangeOptions foldingRangeProvider) {
-      repr_->emplace("foldingRangeProvider", foldingRangeProvider);
+      (*repr_)["foldingRangeProvider"] = foldingRangeProvider;
     }
 
     void operator()(FoldingRangeRegistrationOptions foldingRangeProvider) {
-      repr_->emplace("foldingRangeProvider", foldingRangeProvider);
+      (*repr_)["foldingRangeProvider"] = foldingRangeProvider;
     }
   } v{repr_};
 
@@ -13611,16 +13831,15 @@ auto ServerCapabilities::selectionRangeProvider(
     json* repr_;
 
     void operator()(bool selectionRangeProvider) {
-      repr_->emplace("selectionRangeProvider",
-                     std::move(selectionRangeProvider));
+      (*repr_)["selectionRangeProvider"] = std::move(selectionRangeProvider);
     }
 
     void operator()(SelectionRangeOptions selectionRangeProvider) {
-      repr_->emplace("selectionRangeProvider", selectionRangeProvider);
+      (*repr_)["selectionRangeProvider"] = selectionRangeProvider;
     }
 
     void operator()(SelectionRangeRegistrationOptions selectionRangeProvider) {
-      repr_->emplace("selectionRangeProvider", selectionRangeProvider);
+      (*repr_)["selectionRangeProvider"] = selectionRangeProvider;
     }
   } v{repr_};
 
@@ -13636,7 +13855,7 @@ auto ServerCapabilities::executeCommandProvider(
     repr_->erase("executeCommandProvider");
     return *this;
   }
-  repr_->emplace("executeCommandProvider", executeCommandProvider.value());
+  (*repr_)["executeCommandProvider"] = executeCommandProvider.value();
   return *this;
 }
 
@@ -13653,15 +13872,15 @@ auto ServerCapabilities::callHierarchyProvider(
     json* repr_;
 
     void operator()(bool callHierarchyProvider) {
-      repr_->emplace("callHierarchyProvider", std::move(callHierarchyProvider));
+      (*repr_)["callHierarchyProvider"] = std::move(callHierarchyProvider);
     }
 
     void operator()(CallHierarchyOptions callHierarchyProvider) {
-      repr_->emplace("callHierarchyProvider", callHierarchyProvider);
+      (*repr_)["callHierarchyProvider"] = callHierarchyProvider;
     }
 
     void operator()(CallHierarchyRegistrationOptions callHierarchyProvider) {
-      repr_->emplace("callHierarchyProvider", callHierarchyProvider);
+      (*repr_)["callHierarchyProvider"] = callHierarchyProvider;
     }
   } v{repr_};
 
@@ -13683,17 +13902,17 @@ auto ServerCapabilities::linkedEditingRangeProvider(
     json* repr_;
 
     void operator()(bool linkedEditingRangeProvider) {
-      repr_->emplace("linkedEditingRangeProvider",
-                     std::move(linkedEditingRangeProvider));
+      (*repr_)["linkedEditingRangeProvider"] =
+          std::move(linkedEditingRangeProvider);
     }
 
     void operator()(LinkedEditingRangeOptions linkedEditingRangeProvider) {
-      repr_->emplace("linkedEditingRangeProvider", linkedEditingRangeProvider);
+      (*repr_)["linkedEditingRangeProvider"] = linkedEditingRangeProvider;
     }
 
     void operator()(
         LinkedEditingRangeRegistrationOptions linkedEditingRangeProvider) {
-      repr_->emplace("linkedEditingRangeProvider", linkedEditingRangeProvider);
+      (*repr_)["linkedEditingRangeProvider"] = linkedEditingRangeProvider;
     }
   } v{repr_};
 
@@ -13715,11 +13934,11 @@ auto ServerCapabilities::semanticTokensProvider(
     json* repr_;
 
     void operator()(SemanticTokensOptions semanticTokensProvider) {
-      repr_->emplace("semanticTokensProvider", semanticTokensProvider);
+      (*repr_)["semanticTokensProvider"] = semanticTokensProvider;
     }
 
     void operator()(SemanticTokensRegistrationOptions semanticTokensProvider) {
-      repr_->emplace("semanticTokensProvider", semanticTokensProvider);
+      (*repr_)["semanticTokensProvider"] = semanticTokensProvider;
     }
   } v{repr_};
 
@@ -13741,15 +13960,15 @@ auto ServerCapabilities::monikerProvider(
     json* repr_;
 
     void operator()(bool monikerProvider) {
-      repr_->emplace("monikerProvider", std::move(monikerProvider));
+      (*repr_)["monikerProvider"] = std::move(monikerProvider);
     }
 
     void operator()(MonikerOptions monikerProvider) {
-      repr_->emplace("monikerProvider", monikerProvider);
+      (*repr_)["monikerProvider"] = monikerProvider;
     }
 
     void operator()(MonikerRegistrationOptions monikerProvider) {
-      repr_->emplace("monikerProvider", monikerProvider);
+      (*repr_)["monikerProvider"] = monikerProvider;
     }
   } v{repr_};
 
@@ -13771,15 +13990,15 @@ auto ServerCapabilities::typeHierarchyProvider(
     json* repr_;
 
     void operator()(bool typeHierarchyProvider) {
-      repr_->emplace("typeHierarchyProvider", std::move(typeHierarchyProvider));
+      (*repr_)["typeHierarchyProvider"] = std::move(typeHierarchyProvider);
     }
 
     void operator()(TypeHierarchyOptions typeHierarchyProvider) {
-      repr_->emplace("typeHierarchyProvider", typeHierarchyProvider);
+      (*repr_)["typeHierarchyProvider"] = typeHierarchyProvider;
     }
 
     void operator()(TypeHierarchyRegistrationOptions typeHierarchyProvider) {
-      repr_->emplace("typeHierarchyProvider", typeHierarchyProvider);
+      (*repr_)["typeHierarchyProvider"] = typeHierarchyProvider;
     }
   } v{repr_};
 
@@ -13801,15 +14020,15 @@ auto ServerCapabilities::inlineValueProvider(
     json* repr_;
 
     void operator()(bool inlineValueProvider) {
-      repr_->emplace("inlineValueProvider", std::move(inlineValueProvider));
+      (*repr_)["inlineValueProvider"] = std::move(inlineValueProvider);
     }
 
     void operator()(InlineValueOptions inlineValueProvider) {
-      repr_->emplace("inlineValueProvider", inlineValueProvider);
+      (*repr_)["inlineValueProvider"] = inlineValueProvider;
     }
 
     void operator()(InlineValueRegistrationOptions inlineValueProvider) {
-      repr_->emplace("inlineValueProvider", inlineValueProvider);
+      (*repr_)["inlineValueProvider"] = inlineValueProvider;
     }
   } v{repr_};
 
@@ -13831,15 +14050,15 @@ auto ServerCapabilities::inlayHintProvider(
     json* repr_;
 
     void operator()(bool inlayHintProvider) {
-      repr_->emplace("inlayHintProvider", std::move(inlayHintProvider));
+      (*repr_)["inlayHintProvider"] = std::move(inlayHintProvider);
     }
 
     void operator()(InlayHintOptions inlayHintProvider) {
-      repr_->emplace("inlayHintProvider", inlayHintProvider);
+      (*repr_)["inlayHintProvider"] = inlayHintProvider;
     }
 
     void operator()(InlayHintRegistrationOptions inlayHintProvider) {
-      repr_->emplace("inlayHintProvider", inlayHintProvider);
+      (*repr_)["inlayHintProvider"] = inlayHintProvider;
     }
   } v{repr_};
 
@@ -13861,11 +14080,11 @@ auto ServerCapabilities::diagnosticProvider(
     json* repr_;
 
     void operator()(DiagnosticOptions diagnosticProvider) {
-      repr_->emplace("diagnosticProvider", diagnosticProvider);
+      (*repr_)["diagnosticProvider"] = diagnosticProvider;
     }
 
     void operator()(DiagnosticRegistrationOptions diagnosticProvider) {
-      repr_->emplace("diagnosticProvider", diagnosticProvider);
+      (*repr_)["diagnosticProvider"] = diagnosticProvider;
     }
   } v{repr_};
 
@@ -13886,12 +14105,12 @@ auto ServerCapabilities::inlineCompletionProvider(
     json* repr_;
 
     void operator()(bool inlineCompletionProvider) {
-      repr_->emplace("inlineCompletionProvider",
-                     std::move(inlineCompletionProvider));
+      (*repr_)["inlineCompletionProvider"] =
+          std::move(inlineCompletionProvider);
     }
 
     void operator()(InlineCompletionOptions inlineCompletionProvider) {
-      repr_->emplace("inlineCompletionProvider", inlineCompletionProvider);
+      (*repr_)["inlineCompletionProvider"] = inlineCompletionProvider;
     }
   } v{repr_};
 
@@ -13906,7 +14125,7 @@ auto ServerCapabilities::workspace(std::optional<WorkspaceOptions> workspace)
     repr_->erase("workspace");
     return *this;
   }
-  repr_->emplace("workspace", workspace.value());
+  (*repr_)["workspace"] = workspace.value();
   return *this;
 }
 
@@ -13929,6 +14148,7 @@ ServerInfo::operator bool() const {
 auto ServerInfo::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -13938,12 +14158,13 @@ auto ServerInfo::version() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto ServerInfo::name(std::string name) -> ServerInfo& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
@@ -13952,7 +14173,7 @@ auto ServerInfo::version(std::optional<std::string> version) -> ServerInfo& {
     repr_->erase("version");
     return *this;
   }
-  repr_->emplace("version", std::move(version.value()));
+  (*repr_)["version"] = std::move(version.value());
   return *this;
 }
 
@@ -13966,6 +14187,7 @@ VersionedTextDocumentIdentifier::operator bool() const {
 auto VersionedTextDocumentIdentifier::version() const -> int {
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<int>();
 }
@@ -13973,19 +14195,20 @@ auto VersionedTextDocumentIdentifier::version() const -> int {
 auto VersionedTextDocumentIdentifier::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto VersionedTextDocumentIdentifier::version(int version)
     -> VersionedTextDocumentIdentifier& {
-  repr_->emplace("version", std::move(version));
+  (*repr_)["version"] = std::move(version);
   return *this;
 }
 
 auto VersionedTextDocumentIdentifier::uri(std::string uri)
     -> VersionedTextDocumentIdentifier& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -13999,6 +14222,7 @@ auto SaveOptions::includeText() const -> std::optional<bool> {
 
   auto& value = (*repr_)["includeText"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14008,7 +14232,7 @@ auto SaveOptions::includeText(std::optional<bool> includeText) -> SaveOptions& {
     repr_->erase("includeText");
     return *this;
   }
-  repr_->emplace("includeText", std::move(includeText.value()));
+  (*repr_)["includeText"] = std::move(includeText.value());
   return *this;
 }
 
@@ -14022,6 +14246,7 @@ FileEvent::operator bool() const {
 auto FileEvent::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14033,12 +14258,12 @@ auto FileEvent::type() const -> FileChangeType {
 }
 
 auto FileEvent::uri(std::string uri) -> FileEvent& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
 auto FileEvent::type(FileChangeType type) -> FileEvent& {
-  repr_->emplace("type", static_cast<long>(type));
+  (*repr_)["type"] = static_cast<long>(type);
   return *this;
 }
 
@@ -14078,7 +14303,7 @@ auto FileSystemWatcher::kind(std::optional<WatchKind> kind)
     repr_->erase("kind");
     return *this;
   }
-  repr_->emplace("kind", static_cast<long>(kind.value()));
+  (*repr_)["kind"] = static_cast<long>(kind.value());
   return *this;
 }
 
@@ -14128,6 +14353,7 @@ auto Diagnostic::source() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["source"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14135,6 +14361,7 @@ auto Diagnostic::source() const -> std::optional<std::string> {
 auto Diagnostic::message() const -> std::string {
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14144,7 +14371,7 @@ auto Diagnostic::tags() const -> std::optional<Vector<DiagnosticTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<DiagnosticTag>(value);
 }
 
@@ -14154,7 +14381,7 @@ auto Diagnostic::relatedInformation() const
 
   auto& value = (*repr_)["relatedInformation"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<DiagnosticRelatedInformation>(value);
 }
 
@@ -14168,7 +14395,7 @@ auto Diagnostic::data() const -> std::optional<LSPAny> {
 }
 
 auto Diagnostic::range(Range range) -> Diagnostic& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -14178,7 +14405,7 @@ auto Diagnostic::severity(std::optional<DiagnosticSeverity> severity)
     repr_->erase("severity");
     return *this;
   }
-  repr_->emplace("severity", static_cast<long>(severity.value()));
+  (*repr_)["severity"] = static_cast<long>(severity.value());
   return *this;
 }
 
@@ -14192,11 +14419,9 @@ auto Diagnostic::code(std::optional<std::variant<int, std::string>> code)
   struct {
     json* repr_;
 
-    void operator()(int code) { repr_->emplace("code", std::move(code)); }
+    void operator()(int code) { (*repr_)["code"] = std::move(code); }
 
-    void operator()(std::string code) {
-      repr_->emplace("code", std::move(code));
-    }
+    void operator()(std::string code) { (*repr_)["code"] = std::move(code); }
   } v{repr_};
 
   std::visit(v, code.value());
@@ -14210,7 +14435,7 @@ auto Diagnostic::codeDescription(std::optional<CodeDescription> codeDescription)
     repr_->erase("codeDescription");
     return *this;
   }
-  repr_->emplace("codeDescription", codeDescription.value());
+  (*repr_)["codeDescription"] = codeDescription.value();
   return *this;
 }
 
@@ -14219,12 +14444,12 @@ auto Diagnostic::source(std::optional<std::string> source) -> Diagnostic& {
     repr_->erase("source");
     return *this;
   }
-  repr_->emplace("source", std::move(source.value()));
+  (*repr_)["source"] = std::move(source.value());
   return *this;
 }
 
 auto Diagnostic::message(std::string message) -> Diagnostic& {
-  repr_->emplace("message", std::move(message));
+  (*repr_)["message"] = std::move(message);
   return *this;
 }
 
@@ -14275,13 +14500,14 @@ auto CompletionContext::triggerCharacter() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["triggerCharacter"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto CompletionContext::triggerKind(CompletionTriggerKind triggerKind)
     -> CompletionContext& {
-  repr_->emplace("triggerKind", static_cast<long>(triggerKind));
+  (*repr_)["triggerKind"] = static_cast<long>(triggerKind);
   return *this;
 }
 
@@ -14291,7 +14517,7 @@ auto CompletionContext::triggerCharacter(
     repr_->erase("triggerCharacter");
     return *this;
   }
-  repr_->emplace("triggerCharacter", std::move(triggerCharacter.value()));
+  (*repr_)["triggerCharacter"] = std::move(triggerCharacter.value());
   return *this;
 }
 
@@ -14305,6 +14531,7 @@ auto CompletionItemLabelDetails::detail() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["detail"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14315,6 +14542,7 @@ auto CompletionItemLabelDetails::description() const
 
   auto& value = (*repr_)["description"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14325,7 +14553,7 @@ auto CompletionItemLabelDetails::detail(std::optional<std::string> detail)
     repr_->erase("detail");
     return *this;
   }
-  repr_->emplace("detail", std::move(detail.value()));
+  (*repr_)["detail"] = std::move(detail.value());
   return *this;
 }
 
@@ -14335,7 +14563,7 @@ auto CompletionItemLabelDetails::description(
     repr_->erase("description");
     return *this;
   }
-  repr_->emplace("description", std::move(description.value()));
+  (*repr_)["description"] = std::move(description.value());
   return *this;
 }
 
@@ -14350,6 +14578,7 @@ InsertReplaceEdit::operator bool() const {
 auto InsertReplaceEdit::newText() const -> std::string {
   auto& value = (*repr_)["newText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14367,17 +14596,17 @@ auto InsertReplaceEdit::replace() const -> Range {
 }
 
 auto InsertReplaceEdit::newText(std::string newText) -> InsertReplaceEdit& {
-  repr_->emplace("newText", std::move(newText));
+  (*repr_)["newText"] = std::move(newText);
   return *this;
 }
 
 auto InsertReplaceEdit::insert(Range insert) -> InsertReplaceEdit& {
-  repr_->emplace("insert", insert);
+  (*repr_)["insert"] = insert;
   return *this;
 }
 
 auto InsertReplaceEdit::replace(Range replace) -> InsertReplaceEdit& {
-  repr_->emplace("replace", replace);
+  (*repr_)["replace"] = replace;
   return *this;
 }
 
@@ -14392,7 +14621,7 @@ auto CompletionItemDefaults::commitCharacters() const
 
   auto& value = (*repr_)["commitCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -14459,10 +14688,10 @@ auto CompletionItemDefaults::editRange(
   struct {
     json* repr_;
 
-    void operator()(Range editRange) { repr_->emplace("editRange", editRange); }
+    void operator()(Range editRange) { (*repr_)["editRange"] = editRange; }
 
     void operator()(EditRangeWithInsertReplace editRange) {
-      repr_->emplace("editRange", editRange);
+      (*repr_)["editRange"] = editRange;
     }
   } v{repr_};
 
@@ -14478,8 +14707,7 @@ auto CompletionItemDefaults::insertTextFormat(
     repr_->erase("insertTextFormat");
     return *this;
   }
-  repr_->emplace("insertTextFormat",
-                 static_cast<long>(insertTextFormat.value()));
+  (*repr_)["insertTextFormat"] = static_cast<long>(insertTextFormat.value());
   return *this;
 }
 
@@ -14489,7 +14717,7 @@ auto CompletionItemDefaults::insertTextMode(
     repr_->erase("insertTextMode");
     return *this;
   }
-  repr_->emplace("insertTextMode", static_cast<long>(insertTextMode.value()));
+  (*repr_)["insertTextMode"] = static_cast<long>(insertTextMode.value());
   return *this;
 }
 
@@ -14531,8 +14759,7 @@ auto CompletionItemApplyKinds::commitCharacters(
     repr_->erase("commitCharacters");
     return *this;
   }
-  repr_->emplace("commitCharacters",
-                 static_cast<long>(commitCharacters.value()));
+  (*repr_)["commitCharacters"] = static_cast<long>(commitCharacters.value());
   return *this;
 }
 
@@ -14542,7 +14769,7 @@ auto CompletionItemApplyKinds::data(std::optional<ApplyKind> data)
     repr_->erase("data");
     return *this;
   }
-  repr_->emplace("data", static_cast<long>(data.value()));
+  (*repr_)["data"] = static_cast<long>(data.value());
   return *this;
 }
 
@@ -14557,7 +14784,7 @@ auto CompletionOptions::triggerCharacters() const
 
   auto& value = (*repr_)["triggerCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -14567,7 +14794,7 @@ auto CompletionOptions::allCommitCharacters() const
 
   auto& value = (*repr_)["allCommitCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -14576,6 +14803,7 @@ auto CompletionOptions::resolveProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14594,6 +14822,7 @@ auto CompletionOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14627,7 +14856,7 @@ auto CompletionOptions::resolveProvider(std::optional<bool> resolveProvider)
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -14638,7 +14867,7 @@ auto CompletionOptions::completionItem(
     repr_->erase("completionItem");
     return *this;
   }
-  repr_->emplace("completionItem", completionItem.value());
+  (*repr_)["completionItem"] = completionItem.value();
   return *this;
 }
 
@@ -14648,7 +14877,7 @@ auto CompletionOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -14662,6 +14891,7 @@ auto HoverOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14672,7 +14902,7 @@ auto HoverOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -14695,6 +14925,7 @@ auto SignatureHelpContext::triggerCharacter() const
 
   auto& value = (*repr_)["triggerCharacter"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14702,6 +14933,7 @@ auto SignatureHelpContext::triggerCharacter() const
 auto SignatureHelpContext::isRetrigger() const -> bool {
   auto& value = (*repr_)["isRetrigger"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14717,7 +14949,7 @@ auto SignatureHelpContext::activeSignatureHelp() const
 
 auto SignatureHelpContext::triggerKind(SignatureHelpTriggerKind triggerKind)
     -> SignatureHelpContext& {
-  repr_->emplace("triggerKind", static_cast<long>(triggerKind));
+  (*repr_)["triggerKind"] = static_cast<long>(triggerKind);
   return *this;
 }
 
@@ -14727,13 +14959,13 @@ auto SignatureHelpContext::triggerCharacter(
     repr_->erase("triggerCharacter");
     return *this;
   }
-  repr_->emplace("triggerCharacter", std::move(triggerCharacter.value()));
+  (*repr_)["triggerCharacter"] = std::move(triggerCharacter.value());
   return *this;
 }
 
 auto SignatureHelpContext::isRetrigger(bool isRetrigger)
     -> SignatureHelpContext& {
-  repr_->emplace("isRetrigger", std::move(isRetrigger));
+  (*repr_)["isRetrigger"] = std::move(isRetrigger);
   return *this;
 }
 
@@ -14743,7 +14975,7 @@ auto SignatureHelpContext::activeSignatureHelp(
     repr_->erase("activeSignatureHelp");
     return *this;
   }
-  repr_->emplace("activeSignatureHelp", activeSignatureHelp.value());
+  (*repr_)["activeSignatureHelp"] = activeSignatureHelp.value();
   return *this;
 }
 
@@ -14756,6 +14988,7 @@ SignatureInformation::operator bool() const {
 auto SignatureInformation::label() const -> std::string {
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -14779,7 +15012,7 @@ auto SignatureInformation::parameters() const
 
   auto& value = (*repr_)["parameters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<ParameterInformation>(value);
 }
 
@@ -14797,7 +15030,7 @@ auto SignatureInformation::activeParameter() const
 }
 
 auto SignatureInformation::label(std::string label) -> SignatureInformation& {
-  repr_->emplace("label", std::move(label));
+  (*repr_)["label"] = std::move(label);
   return *this;
 }
 
@@ -14813,11 +15046,11 @@ auto SignatureInformation::documentation(
     json* repr_;
 
     void operator()(std::string documentation) {
-      repr_->emplace("documentation", std::move(documentation));
+      (*repr_)["documentation"] = std::move(documentation);
     }
 
     void operator()(MarkupContent documentation) {
-      repr_->emplace("documentation", documentation);
+      (*repr_)["documentation"] = documentation;
     }
   } v{repr_};
 
@@ -14849,11 +15082,11 @@ auto SignatureInformation::activeParameter(
     json* repr_;
 
     void operator()(long activeParameter) {
-      repr_->emplace("activeParameter", std::move(activeParameter));
+      (*repr_)["activeParameter"] = std::move(activeParameter);
     }
 
     void operator()(std::nullptr_t activeParameter) {
-      repr_->emplace("activeParameter", std::move(activeParameter));
+      (*repr_)["activeParameter"] = std::move(activeParameter);
     }
   } v{repr_};
 
@@ -14873,7 +15106,7 @@ auto SignatureHelpOptions::triggerCharacters() const
 
   auto& value = (*repr_)["triggerCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -14883,7 +15116,7 @@ auto SignatureHelpOptions::retriggerCharacters() const
 
   auto& value = (*repr_)["retriggerCharacters"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -14892,6 +15125,7 @@ auto SignatureHelpOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14926,7 +15160,7 @@ auto SignatureHelpOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -14940,6 +15174,7 @@ auto DefinitionOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14950,7 +15185,7 @@ auto DefinitionOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -14963,13 +15198,14 @@ ReferenceContext::operator bool() const {
 auto ReferenceContext::includeDeclaration() const -> bool {
   auto& value = (*repr_)["includeDeclaration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto ReferenceContext::includeDeclaration(bool includeDeclaration)
     -> ReferenceContext& {
-  repr_->emplace("includeDeclaration", std::move(includeDeclaration));
+  (*repr_)["includeDeclaration"] = std::move(includeDeclaration);
   return *this;
 }
 
@@ -14983,6 +15219,7 @@ auto ReferenceOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -14993,7 +15230,7 @@ auto ReferenceOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15007,6 +15244,7 @@ auto DocumentHighlightOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15017,7 +15255,7 @@ auto DocumentHighlightOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15031,6 +15269,7 @@ BaseSymbolInformation::operator bool() const {
 auto BaseSymbolInformation::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -15046,7 +15285,7 @@ auto BaseSymbolInformation::tags() const -> std::optional<Vector<SymbolTag>> {
 
   auto& value = (*repr_)["tags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -15056,17 +15295,18 @@ auto BaseSymbolInformation::containerName() const
 
   auto& value = (*repr_)["containerName"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto BaseSymbolInformation::name(std::string name) -> BaseSymbolInformation& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
 auto BaseSymbolInformation::kind(SymbolKind kind) -> BaseSymbolInformation& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
@@ -15086,7 +15326,7 @@ auto BaseSymbolInformation::containerName(
     repr_->erase("containerName");
     return *this;
   }
-  repr_->emplace("containerName", std::move(containerName.value()));
+  (*repr_)["containerName"] = std::move(containerName.value());
   return *this;
 }
 
@@ -15100,6 +15340,7 @@ auto DocumentSymbolOptions::label() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["label"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -15109,6 +15350,7 @@ auto DocumentSymbolOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15119,7 +15361,7 @@ auto DocumentSymbolOptions::label(std::optional<std::string> label)
     repr_->erase("label");
     return *this;
   }
-  repr_->emplace("label", std::move(label.value()));
+  (*repr_)["label"] = std::move(label.value());
   return *this;
 }
 
@@ -15129,7 +15371,7 @@ auto DocumentSymbolOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15142,7 +15384,7 @@ CodeActionContext::operator bool() const {
 auto CodeActionContext::diagnostics() const -> Vector<Diagnostic> {
   auto& value = (*repr_)["diagnostics"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Diagnostic>(value);
 }
 
@@ -15151,7 +15393,7 @@ auto CodeActionContext::only() const -> std::optional<Vector<CodeActionKind>> {
 
   auto& value = (*repr_)["only"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionKind>(value);
 }
 
@@ -15186,7 +15428,7 @@ auto CodeActionContext::triggerKind(
     repr_->erase("triggerKind");
     return *this;
   }
-  repr_->emplace("triggerKind", static_cast<long>(triggerKind.value()));
+  (*repr_)["triggerKind"] = static_cast<long>(triggerKind.value());
   return *this;
 }
 
@@ -15199,12 +15441,13 @@ CodeActionDisabled::operator bool() const {
 auto CodeActionDisabled::reason() const -> std::string {
   auto& value = (*repr_)["reason"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto CodeActionDisabled::reason(std::string reason) -> CodeActionDisabled& {
-  repr_->emplace("reason", std::move(reason));
+  (*repr_)["reason"] = std::move(reason);
   return *this;
 }
 
@@ -15219,7 +15462,7 @@ auto CodeActionOptions::codeActionKinds() const
 
   auto& value = (*repr_)["codeActionKinds"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionKind>(value);
 }
 
@@ -15229,7 +15472,7 @@ auto CodeActionOptions::documentation() const
 
   auto& value = (*repr_)["documentation"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionKindDocumentation>(value);
 }
 
@@ -15238,6 +15481,7 @@ auto CodeActionOptions::resolveProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15247,6 +15491,7 @@ auto CodeActionOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15279,7 +15524,7 @@ auto CodeActionOptions::resolveProvider(std::optional<bool> resolveProvider)
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -15289,7 +15534,7 @@ auto CodeActionOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15302,12 +15547,13 @@ LocationUriOnly::operator bool() const {
 auto LocationUriOnly::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto LocationUriOnly::uri(std::string uri) -> LocationUriOnly& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -15321,6 +15567,7 @@ auto WorkspaceSymbolOptions::resolveProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15330,6 +15577,7 @@ auto WorkspaceSymbolOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15340,7 +15588,7 @@ auto WorkspaceSymbolOptions::resolveProvider(
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -15350,7 +15598,7 @@ auto WorkspaceSymbolOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15364,6 +15612,7 @@ auto CodeLensOptions::resolveProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15373,6 +15622,7 @@ auto CodeLensOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15383,7 +15633,7 @@ auto CodeLensOptions::resolveProvider(std::optional<bool> resolveProvider)
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -15393,7 +15643,7 @@ auto CodeLensOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15407,6 +15657,7 @@ auto DocumentLinkOptions::resolveProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["resolveProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15416,6 +15667,7 @@ auto DocumentLinkOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15426,7 +15678,7 @@ auto DocumentLinkOptions::resolveProvider(std::optional<bool> resolveProvider)
     repr_->erase("resolveProvider");
     return *this;
   }
-  repr_->emplace("resolveProvider", std::move(resolveProvider.value()));
+  (*repr_)["resolveProvider"] = std::move(resolveProvider.value());
   return *this;
 }
 
@@ -15436,7 +15688,7 @@ auto DocumentLinkOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15450,6 +15702,7 @@ FormattingOptions::operator bool() const {
 auto FormattingOptions::tabSize() const -> long {
   auto& value = (*repr_)["tabSize"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -15457,6 +15710,7 @@ auto FormattingOptions::tabSize() const -> long {
 auto FormattingOptions::insertSpaces() const -> bool {
   auto& value = (*repr_)["insertSpaces"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15466,6 +15720,7 @@ auto FormattingOptions::trimTrailingWhitespace() const -> std::optional<bool> {
 
   auto& value = (*repr_)["trimTrailingWhitespace"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15475,6 +15730,7 @@ auto FormattingOptions::insertFinalNewline() const -> std::optional<bool> {
 
   auto& value = (*repr_)["insertFinalNewline"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15484,17 +15740,18 @@ auto FormattingOptions::trimFinalNewlines() const -> std::optional<bool> {
 
   auto& value = (*repr_)["trimFinalNewlines"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto FormattingOptions::tabSize(long tabSize) -> FormattingOptions& {
-  repr_->emplace("tabSize", std::move(tabSize));
+  (*repr_)["tabSize"] = std::move(tabSize);
   return *this;
 }
 
 auto FormattingOptions::insertSpaces(bool insertSpaces) -> FormattingOptions& {
-  repr_->emplace("insertSpaces", std::move(insertSpaces));
+  (*repr_)["insertSpaces"] = std::move(insertSpaces);
   return *this;
 }
 
@@ -15504,8 +15761,8 @@ auto FormattingOptions::trimTrailingWhitespace(
     repr_->erase("trimTrailingWhitespace");
     return *this;
   }
-  repr_->emplace("trimTrailingWhitespace",
-                 std::move(trimTrailingWhitespace.value()));
+  (*repr_)["trimTrailingWhitespace"] =
+      std::move(trimTrailingWhitespace.value());
   return *this;
 }
 
@@ -15515,7 +15772,7 @@ auto FormattingOptions::insertFinalNewline(
     repr_->erase("insertFinalNewline");
     return *this;
   }
-  repr_->emplace("insertFinalNewline", std::move(insertFinalNewline.value()));
+  (*repr_)["insertFinalNewline"] = std::move(insertFinalNewline.value());
   return *this;
 }
 
@@ -15525,7 +15782,7 @@ auto FormattingOptions::trimFinalNewlines(std::optional<bool> trimFinalNewlines)
     repr_->erase("trimFinalNewlines");
     return *this;
   }
-  repr_->emplace("trimFinalNewlines", std::move(trimFinalNewlines.value()));
+  (*repr_)["trimFinalNewlines"] = std::move(trimFinalNewlines.value());
   return *this;
 }
 
@@ -15540,6 +15797,7 @@ auto DocumentFormattingOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15550,7 +15808,7 @@ auto DocumentFormattingOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15565,6 +15823,7 @@ auto DocumentRangeFormattingOptions::rangesSupport() const
 
   auto& value = (*repr_)["rangesSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15575,6 +15834,7 @@ auto DocumentRangeFormattingOptions::workDoneProgress() const
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15585,7 +15845,7 @@ auto DocumentRangeFormattingOptions::rangesSupport(
     repr_->erase("rangesSupport");
     return *this;
   }
-  repr_->emplace("rangesSupport", std::move(rangesSupport.value()));
+  (*repr_)["rangesSupport"] = std::move(rangesSupport.value());
   return *this;
 }
 
@@ -15595,7 +15855,7 @@ auto DocumentRangeFormattingOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15609,6 +15869,7 @@ auto DocumentOnTypeFormattingOptions::firstTriggerCharacter() const
     -> std::string {
   auto& value = (*repr_)["firstTriggerCharacter"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -15619,13 +15880,13 @@ auto DocumentOnTypeFormattingOptions::moreTriggerCharacter() const
 
   auto& value = (*repr_)["moreTriggerCharacter"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
 auto DocumentOnTypeFormattingOptions::firstTriggerCharacter(
     std::string firstTriggerCharacter) -> DocumentOnTypeFormattingOptions& {
-  repr_->emplace("firstTriggerCharacter", std::move(firstTriggerCharacter));
+  (*repr_)["firstTriggerCharacter"] = std::move(firstTriggerCharacter);
   return *this;
 }
 
@@ -15652,6 +15913,7 @@ auto RenameOptions::prepareProvider() const -> std::optional<bool> {
 
   auto& value = (*repr_)["prepareProvider"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15661,6 +15923,7 @@ auto RenameOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15671,7 +15934,7 @@ auto RenameOptions::prepareProvider(std::optional<bool> prepareProvider)
     repr_->erase("prepareProvider");
     return *this;
   }
-  repr_->emplace("prepareProvider", std::move(prepareProvider.value()));
+  (*repr_)["prepareProvider"] = std::move(prepareProvider.value());
   return *this;
 }
 
@@ -15681,7 +15944,7 @@ auto RenameOptions::workDoneProgress(std::optional<bool> workDoneProgress)
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15701,18 +15964,19 @@ auto PrepareRenamePlaceholder::range() const -> Range {
 auto PrepareRenamePlaceholder::placeholder() const -> std::string {
   auto& value = (*repr_)["placeholder"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto PrepareRenamePlaceholder::range(Range range) -> PrepareRenamePlaceholder& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto PrepareRenamePlaceholder::placeholder(std::string placeholder)
     -> PrepareRenamePlaceholder& {
-  repr_->emplace("placeholder", std::move(placeholder));
+  (*repr_)["placeholder"] = std::move(placeholder);
   return *this;
 }
 
@@ -15725,13 +15989,14 @@ PrepareRenameDefaultBehavior::operator bool() const {
 auto PrepareRenameDefaultBehavior::defaultBehavior() const -> bool {
   auto& value = (*repr_)["defaultBehavior"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto PrepareRenameDefaultBehavior::defaultBehavior(bool defaultBehavior)
     -> PrepareRenameDefaultBehavior& {
-  repr_->emplace("defaultBehavior", std::move(defaultBehavior));
+  (*repr_)["defaultBehavior"] = std::move(defaultBehavior);
   return *this;
 }
 
@@ -15744,7 +16009,7 @@ ExecuteCommandOptions::operator bool() const {
 auto ExecuteCommandOptions::commands() const -> Vector<std::string> {
   auto& value = (*repr_)["commands"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -15753,6 +16018,7 @@ auto ExecuteCommandOptions::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15769,7 +16035,7 @@ auto ExecuteCommandOptions::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -15783,6 +16049,7 @@ auto WorkspaceEditMetadata::isRefactoring() const -> std::optional<bool> {
 
   auto& value = (*repr_)["isRefactoring"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15793,7 +16060,7 @@ auto WorkspaceEditMetadata::isRefactoring(std::optional<bool> isRefactoring)
     repr_->erase("isRefactoring");
     return *this;
   }
-  repr_->emplace("isRefactoring", std::move(isRefactoring.value()));
+  (*repr_)["isRefactoring"] = std::move(isRefactoring.value());
   return *this;
 }
 
@@ -15807,14 +16074,14 @@ SemanticTokensLegend::operator bool() const {
 auto SemanticTokensLegend::tokenTypes() const -> Vector<std::string> {
   auto& value = (*repr_)["tokenTypes"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
 auto SemanticTokensLegend::tokenModifiers() const -> Vector<std::string> {
   auto& value = (*repr_)["tokenModifiers"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -15840,6 +16107,7 @@ auto SemanticTokensFullDelta::delta() const -> std::optional<bool> {
 
   auto& value = (*repr_)["delta"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -15850,7 +16118,7 @@ auto SemanticTokensFullDelta::delta(std::optional<bool> delta)
     repr_->erase("delta");
     return *this;
   }
-  repr_->emplace("delta", std::move(delta.value()));
+  (*repr_)["delta"] = std::move(delta.value());
   return *this;
 }
 
@@ -15875,6 +16143,7 @@ auto OptionalVersionedTextDocumentIdentifier::version() const
 auto OptionalVersionedTextDocumentIdentifier::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -15885,12 +16154,10 @@ auto OptionalVersionedTextDocumentIdentifier::version(
   struct {
     json* repr_;
 
-    void operator()(int version) {
-      repr_->emplace("version", std::move(version));
-    }
+    void operator()(int version) { (*repr_)["version"] = std::move(version); }
 
     void operator()(std::nullptr_t version) {
-      repr_->emplace("version", std::move(version));
+      (*repr_)["version"] = std::move(version);
     }
   } v{repr_};
 
@@ -15901,7 +16168,7 @@ auto OptionalVersionedTextDocumentIdentifier::version(
 
 auto OptionalVersionedTextDocumentIdentifier::uri(std::string uri)
     -> OptionalVersionedTextDocumentIdentifier& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -15916,6 +16183,7 @@ AnnotatedTextEdit::operator bool() const {
 auto AnnotatedTextEdit::annotationId() const -> ChangeAnnotationIdentifier {
   auto& value = (*repr_)["annotationId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -15929,6 +16197,7 @@ auto AnnotatedTextEdit::range() const -> Range {
 auto AnnotatedTextEdit::newText() const -> std::string {
   auto& value = (*repr_)["newText"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -15940,12 +16209,12 @@ auto AnnotatedTextEdit::annotationId(ChangeAnnotationIdentifier annotationId)
 }
 
 auto AnnotatedTextEdit::range(Range range) -> AnnotatedTextEdit& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto AnnotatedTextEdit::newText(std::string newText) -> AnnotatedTextEdit& {
-  repr_->emplace("newText", std::move(newText));
+  (*repr_)["newText"] = std::move(newText);
   return *this;
 }
 
@@ -15974,17 +16243,18 @@ auto SnippetTextEdit::annotationId() const
 
   auto& value = (*repr_)["annotationId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto SnippetTextEdit::range(Range range) -> SnippetTextEdit& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto SnippetTextEdit::snippet(StringValue snippet) -> SnippetTextEdit& {
-  repr_->emplace("snippet", snippet);
+  (*repr_)["snippet"] = snippet;
   return *this;
 }
 
@@ -16008,6 +16278,7 @@ ResourceOperation::operator bool() const {
 auto ResourceOperation::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16018,12 +16289,13 @@ auto ResourceOperation::annotationId() const
 
   auto& value = (*repr_)["annotationId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto ResourceOperation::kind(std::string kind) -> ResourceOperation& {
-  repr_->emplace("kind", std::move(kind));
+  (*repr_)["kind"] = std::move(kind);
   return *this;
 }
 
@@ -16048,6 +16320,7 @@ auto CreateFileOptions::overwrite() const -> std::optional<bool> {
 
   auto& value = (*repr_)["overwrite"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16057,6 +16330,7 @@ auto CreateFileOptions::ignoreIfExists() const -> std::optional<bool> {
 
   auto& value = (*repr_)["ignoreIfExists"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16067,7 +16341,7 @@ auto CreateFileOptions::overwrite(std::optional<bool> overwrite)
     repr_->erase("overwrite");
     return *this;
   }
-  repr_->emplace("overwrite", std::move(overwrite.value()));
+  (*repr_)["overwrite"] = std::move(overwrite.value());
   return *this;
 }
 
@@ -16077,7 +16351,7 @@ auto CreateFileOptions::ignoreIfExists(std::optional<bool> ignoreIfExists)
     repr_->erase("ignoreIfExists");
     return *this;
   }
-  repr_->emplace("ignoreIfExists", std::move(ignoreIfExists.value()));
+  (*repr_)["ignoreIfExists"] = std::move(ignoreIfExists.value());
   return *this;
 }
 
@@ -16091,6 +16365,7 @@ auto RenameFileOptions::overwrite() const -> std::optional<bool> {
 
   auto& value = (*repr_)["overwrite"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16100,6 +16375,7 @@ auto RenameFileOptions::ignoreIfExists() const -> std::optional<bool> {
 
   auto& value = (*repr_)["ignoreIfExists"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16110,7 +16386,7 @@ auto RenameFileOptions::overwrite(std::optional<bool> overwrite)
     repr_->erase("overwrite");
     return *this;
   }
-  repr_->emplace("overwrite", std::move(overwrite.value()));
+  (*repr_)["overwrite"] = std::move(overwrite.value());
   return *this;
 }
 
@@ -16120,7 +16396,7 @@ auto RenameFileOptions::ignoreIfExists(std::optional<bool> ignoreIfExists)
     repr_->erase("ignoreIfExists");
     return *this;
   }
-  repr_->emplace("ignoreIfExists", std::move(ignoreIfExists.value()));
+  (*repr_)["ignoreIfExists"] = std::move(ignoreIfExists.value());
   return *this;
 }
 
@@ -16134,6 +16410,7 @@ auto DeleteFileOptions::recursive() const -> std::optional<bool> {
 
   auto& value = (*repr_)["recursive"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16143,6 +16420,7 @@ auto DeleteFileOptions::ignoreIfNotExists() const -> std::optional<bool> {
 
   auto& value = (*repr_)["ignoreIfNotExists"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16153,7 +16431,7 @@ auto DeleteFileOptions::recursive(std::optional<bool> recursive)
     repr_->erase("recursive");
     return *this;
   }
-  repr_->emplace("recursive", std::move(recursive.value()));
+  (*repr_)["recursive"] = std::move(recursive.value());
   return *this;
 }
 
@@ -16163,7 +16441,7 @@ auto DeleteFileOptions::ignoreIfNotExists(std::optional<bool> ignoreIfNotExists)
     repr_->erase("ignoreIfNotExists");
     return *this;
   }
-  repr_->emplace("ignoreIfNotExists", std::move(ignoreIfNotExists.value()));
+  (*repr_)["ignoreIfNotExists"] = std::move(ignoreIfNotExists.value());
   return *this;
 }
 
@@ -16176,6 +16454,7 @@ FileOperationPattern::operator bool() const {
 auto FileOperationPattern::glob() const -> std::string {
   auto& value = (*repr_)["glob"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16199,7 +16478,7 @@ auto FileOperationPattern::options() const
 }
 
 auto FileOperationPattern::glob(std::string glob) -> FileOperationPattern& {
-  repr_->emplace("glob", std::move(glob));
+  (*repr_)["glob"] = std::move(glob);
   return *this;
 }
 
@@ -16220,7 +16499,7 @@ auto FileOperationPattern::options(
     repr_->erase("options");
     return *this;
   }
-  repr_->emplace("options", options.value());
+  (*repr_)["options"] = options.value();
   return *this;
 }
 
@@ -16237,6 +16516,7 @@ WorkspaceFullDocumentDiagnosticReport::operator bool() const {
 auto WorkspaceFullDocumentDiagnosticReport::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16255,6 +16535,7 @@ auto WorkspaceFullDocumentDiagnosticReport::version() const
 auto WorkspaceFullDocumentDiagnosticReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "full";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16265,6 +16546,7 @@ auto WorkspaceFullDocumentDiagnosticReport::resultId() const
 
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16273,13 +16555,13 @@ auto WorkspaceFullDocumentDiagnosticReport::items() const
     -> Vector<Diagnostic> {
   auto& value = (*repr_)["items"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<Diagnostic>(value);
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::uri(std::string uri)
     -> WorkspaceFullDocumentDiagnosticReport& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -16289,12 +16571,10 @@ auto WorkspaceFullDocumentDiagnosticReport::version(
   struct {
     json* repr_;
 
-    void operator()(int version) {
-      repr_->emplace("version", std::move(version));
-    }
+    void operator()(int version) { (*repr_)["version"] = std::move(version); }
 
     void operator()(std::nullptr_t version) {
-      repr_->emplace("version", std::move(version));
+      (*repr_)["version"] = std::move(version);
     }
   } v{repr_};
 
@@ -16317,7 +16597,7 @@ auto WorkspaceFullDocumentDiagnosticReport::resultId(
     repr_->erase("resultId");
     return *this;
   }
-  repr_->emplace("resultId", std::move(resultId.value()));
+  (*repr_)["resultId"] = std::move(resultId.value());
   return *this;
 }
 
@@ -16341,6 +16621,7 @@ WorkspaceUnchangedDocumentDiagnosticReport::operator bool() const {
 auto WorkspaceUnchangedDocumentDiagnosticReport::uri() const -> std::string {
   auto& value = (*repr_)["uri"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16359,6 +16640,7 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::version() const
 auto WorkspaceUnchangedDocumentDiagnosticReport::kind() const -> std::string {
   auto& value = (*repr_)["kind"];
 
+  if (value.is_null()) value = "unchanged";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16367,13 +16649,14 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::resultId() const
     -> std::string {
   auto& value = (*repr_)["resultId"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::uri(std::string uri)
     -> WorkspaceUnchangedDocumentDiagnosticReport& {
-  repr_->emplace("uri", std::move(uri));
+  (*repr_)["uri"] = std::move(uri);
   return *this;
 }
 
@@ -16383,12 +16666,10 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::version(
   struct {
     json* repr_;
 
-    void operator()(int version) {
-      repr_->emplace("version", std::move(version));
-    }
+    void operator()(int version) { (*repr_)["version"] = std::move(version); }
 
     void operator()(std::nullptr_t version) {
-      repr_->emplace("version", std::move(version));
+      (*repr_)["version"] = std::move(version);
     }
   } v{repr_};
 
@@ -16406,7 +16687,7 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::kind(std::string kind)
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::resultId(std::string resultId)
     -> WorkspaceUnchangedDocumentDiagnosticReport& {
-  repr_->emplace("resultId", std::move(resultId));
+  (*repr_)["resultId"] = std::move(resultId);
   return *this;
 }
 
@@ -16426,6 +16707,7 @@ auto NotebookCell::kind() const -> NotebookCellKind {
 auto NotebookCell::document() const -> std::string {
   auto& value = (*repr_)["document"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16448,12 +16730,12 @@ auto NotebookCell::executionSummary() const -> std::optional<ExecutionSummary> {
 }
 
 auto NotebookCell::kind(NotebookCellKind kind) -> NotebookCell& {
-  repr_->emplace("kind", static_cast<long>(kind));
+  (*repr_)["kind"] = static_cast<long>(kind);
   return *this;
 }
 
 auto NotebookCell::document(std::string document) -> NotebookCell& {
-  repr_->emplace("document", std::move(document));
+  (*repr_)["document"] = std::move(document);
   return *this;
 }
 
@@ -16473,7 +16755,7 @@ auto NotebookCell::executionSummary(
     repr_->erase("executionSummary");
     return *this;
   }
-  repr_->emplace("executionSummary", executionSummary.value());
+  (*repr_)["executionSummary"] = executionSummary.value();
   return *this;
 }
 
@@ -16500,7 +16782,7 @@ auto NotebookDocumentFilterWithNotebook::cells() const
 
   auto& value = (*repr_)["cells"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<NotebookCellLanguage>(value);
 }
 
@@ -16511,7 +16793,7 @@ auto NotebookDocumentFilterWithNotebook::notebook(
     json* repr_;
 
     void operator()(std::string notebook) {
-      repr_->emplace("notebook", std::move(notebook));
+      (*repr_)["notebook"] = std::move(notebook);
     }
 
     void operator()(NotebookDocumentFilter notebook) {
@@ -16560,7 +16842,7 @@ auto NotebookDocumentFilterWithCells::cells() const
     -> Vector<NotebookCellLanguage> {
   auto& value = (*repr_)["cells"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<NotebookCellLanguage>(value);
 }
 
@@ -16576,7 +16858,7 @@ auto NotebookDocumentFilterWithCells::notebook(
     json* repr_;
 
     void operator()(std::string notebook) {
-      repr_->emplace("notebook", std::move(notebook));
+      (*repr_)["notebook"] = std::move(notebook);
     }
 
     void operator()(NotebookDocumentFilter notebook) {
@@ -16617,7 +16899,7 @@ auto NotebookDocumentCellChanges::data() const
 
   auto& value = (*repr_)["data"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<NotebookCell>(value);
 }
 
@@ -16627,7 +16909,7 @@ auto NotebookDocumentCellChanges::textContent() const
 
   auto& value = (*repr_)["textContent"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<NotebookDocumentCellContentChanges>(value);
 }
 
@@ -16638,7 +16920,7 @@ auto NotebookDocumentCellChanges::structure(
     repr_->erase("structure");
     return *this;
   }
-  repr_->emplace("structure", structure.value());
+  (*repr_)["structure"] = structure.value();
   return *this;
 }
 
@@ -16680,17 +16962,18 @@ auto SelectedCompletionInfo::range() const -> Range {
 auto SelectedCompletionInfo::text() const -> std::string {
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto SelectedCompletionInfo::range(Range range) -> SelectedCompletionInfo& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
 auto SelectedCompletionInfo::text(std::string text) -> SelectedCompletionInfo& {
-  repr_->emplace("text", std::move(text));
+  (*repr_)["text"] = std::move(text);
   return *this;
 }
 
@@ -16703,6 +16986,7 @@ ClientInfo::operator bool() const {
 auto ClientInfo::name() const -> std::string {
   auto& value = (*repr_)["name"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -16712,12 +16996,13 @@ auto ClientInfo::version() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto ClientInfo::name(std::string name) -> ClientInfo& {
-  repr_->emplace("name", std::move(name));
+  (*repr_)["name"] = std::move(name);
   return *this;
 }
 
@@ -16726,7 +17011,7 @@ auto ClientInfo::version(std::optional<std::string> version) -> ClientInfo& {
     repr_->erase("version");
     return *this;
   }
-  repr_->emplace("version", std::move(version.value()));
+  (*repr_)["version"] = std::move(version.value());
   return *this;
 }
 
@@ -16796,7 +17081,7 @@ auto ClientCapabilities::workspace(
     repr_->erase("workspace");
     return *this;
   }
-  repr_->emplace("workspace", workspace.value());
+  (*repr_)["workspace"] = workspace.value();
   return *this;
 }
 
@@ -16807,7 +17092,7 @@ auto ClientCapabilities::textDocument(
     repr_->erase("textDocument");
     return *this;
   }
-  repr_->emplace("textDocument", textDocument.value());
+  (*repr_)["textDocument"] = textDocument.value();
   return *this;
 }
 
@@ -16818,7 +17103,7 @@ auto ClientCapabilities::notebookDocument(
     repr_->erase("notebookDocument");
     return *this;
   }
-  repr_->emplace("notebookDocument", notebookDocument.value());
+  (*repr_)["notebookDocument"] = notebookDocument.value();
   return *this;
 }
 
@@ -16828,7 +17113,7 @@ auto ClientCapabilities::window(std::optional<WindowClientCapabilities> window)
     repr_->erase("window");
     return *this;
   }
-  repr_->emplace("window", window.value());
+  (*repr_)["window"] = window.value();
   return *this;
 }
 
@@ -16838,7 +17123,7 @@ auto ClientCapabilities::general(
     repr_->erase("general");
     return *this;
   }
-  repr_->emplace("general", general.value());
+  (*repr_)["general"] = general.value();
   return *this;
 }
 
@@ -16862,6 +17147,7 @@ auto TextDocumentSyncOptions::openClose() const -> std::optional<bool> {
 
   auto& value = (*repr_)["openClose"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16880,6 +17166,7 @@ auto TextDocumentSyncOptions::willSave() const -> std::optional<bool> {
 
   auto& value = (*repr_)["willSave"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16889,6 +17176,7 @@ auto TextDocumentSyncOptions::willSaveWaitUntil() const -> std::optional<bool> {
 
   auto& value = (*repr_)["willSaveWaitUntil"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -16912,7 +17200,7 @@ auto TextDocumentSyncOptions::openClose(std::optional<bool> openClose)
     repr_->erase("openClose");
     return *this;
   }
-  repr_->emplace("openClose", std::move(openClose.value()));
+  (*repr_)["openClose"] = std::move(openClose.value());
   return *this;
 }
 
@@ -16922,7 +17210,7 @@ auto TextDocumentSyncOptions::change(std::optional<TextDocumentSyncKind> change)
     repr_->erase("change");
     return *this;
   }
-  repr_->emplace("change", static_cast<long>(change.value()));
+  (*repr_)["change"] = static_cast<long>(change.value());
   return *this;
 }
 
@@ -16932,7 +17220,7 @@ auto TextDocumentSyncOptions::willSave(std::optional<bool> willSave)
     repr_->erase("willSave");
     return *this;
   }
-  repr_->emplace("willSave", std::move(willSave.value()));
+  (*repr_)["willSave"] = std::move(willSave.value());
   return *this;
 }
 
@@ -16942,7 +17230,7 @@ auto TextDocumentSyncOptions::willSaveWaitUntil(
     repr_->erase("willSaveWaitUntil");
     return *this;
   }
-  repr_->emplace("willSaveWaitUntil", std::move(willSaveWaitUntil.value()));
+  (*repr_)["willSaveWaitUntil"] = std::move(willSaveWaitUntil.value());
   return *this;
 }
 
@@ -16957,9 +17245,9 @@ auto TextDocumentSyncOptions::save(
   struct {
     json* repr_;
 
-    void operator()(bool save) { repr_->emplace("save", std::move(save)); }
+    void operator()(bool save) { (*repr_)["save"] = std::move(save); }
 
-    void operator()(SaveOptions save) { repr_->emplace("save", save); }
+    void operator()(SaveOptions save) { (*repr_)["save"] = save; }
   } v{repr_};
 
   std::visit(v, save.value());
@@ -17013,7 +17301,7 @@ auto WorkspaceOptions::workspaceFolders(
     repr_->erase("workspaceFolders");
     return *this;
   }
-  repr_->emplace("workspaceFolders", workspaceFolders.value());
+  (*repr_)["workspaceFolders"] = workspaceFolders.value();
   return *this;
 }
 
@@ -17023,7 +17311,7 @@ auto WorkspaceOptions::fileOperations(
     repr_->erase("fileOperations");
     return *this;
   }
-  repr_->emplace("fileOperations", fileOperations.value());
+  (*repr_)["fileOperations"] = fileOperations.value();
   return *this;
 }
 
@@ -17040,12 +17328,12 @@ auto WorkspaceOptions::textDocumentContent(
     json* repr_;
 
     void operator()(TextDocumentContentOptions textDocumentContent) {
-      repr_->emplace("textDocumentContent", textDocumentContent);
+      (*repr_)["textDocumentContent"] = textDocumentContent;
     }
 
     void operator()(
         TextDocumentContentRegistrationOptions textDocumentContent) {
-      repr_->emplace("textDocumentContent", textDocumentContent);
+      (*repr_)["textDocumentContent"] = textDocumentContent;
     }
   } v{repr_};
 
@@ -17073,6 +17361,7 @@ auto TextDocumentContentChangePartial::rangeLength() const
 
   auto& value = (*repr_)["rangeLength"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -17080,13 +17369,14 @@ auto TextDocumentContentChangePartial::rangeLength() const
 auto TextDocumentContentChangePartial::text() const -> std::string {
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentContentChangePartial::range(Range range)
     -> TextDocumentContentChangePartial& {
-  repr_->emplace("range", range);
+  (*repr_)["range"] = range;
   return *this;
 }
 
@@ -17096,13 +17386,13 @@ auto TextDocumentContentChangePartial::rangeLength(
     repr_->erase("rangeLength");
     return *this;
   }
-  repr_->emplace("rangeLength", std::move(rangeLength.value()));
+  (*repr_)["rangeLength"] = std::move(rangeLength.value());
   return *this;
 }
 
 auto TextDocumentContentChangePartial::text(std::string text)
     -> TextDocumentContentChangePartial& {
-  repr_->emplace("text", std::move(text));
+  (*repr_)["text"] = std::move(text);
   return *this;
 }
 
@@ -17115,13 +17405,14 @@ TextDocumentContentChangeWholeDocument::operator bool() const {
 auto TextDocumentContentChangeWholeDocument::text() const -> std::string {
   auto& value = (*repr_)["text"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto TextDocumentContentChangeWholeDocument::text(std::string text)
     -> TextDocumentContentChangeWholeDocument& {
-  repr_->emplace("text", std::move(text));
+  (*repr_)["text"] = std::move(text);
   return *this;
 }
 
@@ -17134,12 +17425,13 @@ CodeDescription::operator bool() const {
 auto CodeDescription::href() const -> std::string {
   auto& value = (*repr_)["href"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto CodeDescription::href(std::string href) -> CodeDescription& {
-  repr_->emplace("href", std::move(href));
+  (*repr_)["href"] = std::move(href);
   return *this;
 }
 
@@ -17159,19 +17451,20 @@ auto DiagnosticRelatedInformation::location() const -> Location {
 auto DiagnosticRelatedInformation::message() const -> std::string {
   auto& value = (*repr_)["message"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto DiagnosticRelatedInformation::location(Location location)
     -> DiagnosticRelatedInformation& {
-  repr_->emplace("location", location);
+  (*repr_)["location"] = location;
   return *this;
 }
 
 auto DiagnosticRelatedInformation::message(std::string message)
     -> DiagnosticRelatedInformation& {
-  repr_->emplace("message", std::move(message));
+  (*repr_)["message"] = std::move(message);
   return *this;
 }
 
@@ -17196,13 +17489,13 @@ auto EditRangeWithInsertReplace::replace() const -> Range {
 
 auto EditRangeWithInsertReplace::insert(Range insert)
     -> EditRangeWithInsertReplace& {
-  repr_->emplace("insert", insert);
+  (*repr_)["insert"] = insert;
   return *this;
 }
 
 auto EditRangeWithInsertReplace::replace(Range replace)
     -> EditRangeWithInsertReplace& {
-  repr_->emplace("replace", replace);
+  (*repr_)["replace"] = replace;
   return *this;
 }
 
@@ -17217,6 +17510,7 @@ auto ServerCompletionItemOptions::labelDetailsSupport() const
 
   auto& value = (*repr_)["labelDetailsSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -17227,7 +17521,7 @@ auto ServerCompletionItemOptions::labelDetailsSupport(
     repr_->erase("labelDetailsSupport");
     return *this;
   }
-  repr_->emplace("labelDetailsSupport", std::move(labelDetailsSupport.value()));
+  (*repr_)["labelDetailsSupport"] = std::move(labelDetailsSupport.value());
   return *this;
 }
 
@@ -17241,6 +17535,7 @@ MarkedStringWithLanguage::operator bool() const {
 auto MarkedStringWithLanguage::language() const -> std::string {
   auto& value = (*repr_)["language"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -17248,19 +17543,20 @@ auto MarkedStringWithLanguage::language() const -> std::string {
 auto MarkedStringWithLanguage::value() const -> std::string {
   auto& value = (*repr_)["value"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto MarkedStringWithLanguage::language(std::string language)
     -> MarkedStringWithLanguage& {
-  repr_->emplace("language", std::move(language));
+  (*repr_)["language"] = std::move(language);
   return *this;
 }
 
 auto MarkedStringWithLanguage::value(std::string value)
     -> MarkedStringWithLanguage& {
-  repr_->emplace("value", std::move(value));
+  (*repr_)["value"] = std::move(value);
   return *this;
 }
 
@@ -17300,9 +17596,7 @@ auto ParameterInformation::label(
   struct {
     json* repr_;
 
-    void operator()(std::string label) {
-      repr_->emplace("label", std::move(label));
-    }
+    void operator()(std::string label) { (*repr_)["label"] = std::move(label); }
 
     void operator()(std::tuple<long, long> label) {
       lsp_runtime_error("ParameterInformation::label: not implement yet");
@@ -17326,11 +17620,11 @@ auto ParameterInformation::documentation(
     json* repr_;
 
     void operator()(std::string documentation) {
-      repr_->emplace("documentation", std::move(documentation));
+      (*repr_)["documentation"] = std::move(documentation);
     }
 
     void operator()(MarkupContent documentation) {
-      repr_->emplace("documentation", documentation);
+      (*repr_)["documentation"] = documentation;
     }
   } v{repr_};
 
@@ -17366,7 +17660,7 @@ auto CodeActionKindDocumentation::kind(CodeActionKind kind)
 
 auto CodeActionKindDocumentation::command(Command command)
     -> CodeActionKindDocumentation& {
-  repr_->emplace("command", command);
+  (*repr_)["command"] = command;
   return *this;
 }
 
@@ -17393,6 +17687,7 @@ auto NotebookCellTextDocumentFilter::language() const
 
   auto& value = (*repr_)["language"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -17404,7 +17699,7 @@ auto NotebookCellTextDocumentFilter::notebook(
     json* repr_;
 
     void operator()(std::string notebook) {
-      repr_->emplace("notebook", std::move(notebook));
+      (*repr_)["notebook"] = std::move(notebook);
     }
 
     void operator()(NotebookDocumentFilter notebook) {
@@ -17424,7 +17719,7 @@ auto NotebookCellTextDocumentFilter::language(
     repr_->erase("language");
     return *this;
   }
-  repr_->emplace("language", std::move(language.value()));
+  (*repr_)["language"] = std::move(language.value());
   return *this;
 }
 
@@ -17438,6 +17733,7 @@ auto FileOperationPatternOptions::ignoreCase() const -> std::optional<bool> {
 
   auto& value = (*repr_)["ignoreCase"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -17448,7 +17744,7 @@ auto FileOperationPatternOptions::ignoreCase(std::optional<bool> ignoreCase)
     repr_->erase("ignoreCase");
     return *this;
   }
-  repr_->emplace("ignoreCase", std::move(ignoreCase.value()));
+  (*repr_)["ignoreCase"] = std::move(ignoreCase.value());
   return *this;
 }
 
@@ -17461,6 +17757,7 @@ ExecutionSummary::operator bool() const {
 auto ExecutionSummary::executionOrder() const -> long {
   auto& value = (*repr_)["executionOrder"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -17470,13 +17767,14 @@ auto ExecutionSummary::success() const -> std::optional<bool> {
 
   auto& value = (*repr_)["success"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto ExecutionSummary::executionOrder(long executionOrder)
     -> ExecutionSummary& {
-  repr_->emplace("executionOrder", std::move(executionOrder));
+  (*repr_)["executionOrder"] = std::move(executionOrder);
   return *this;
 }
 
@@ -17486,7 +17784,7 @@ auto ExecutionSummary::success(std::optional<bool> success)
     repr_->erase("success");
     return *this;
   }
-  repr_->emplace("success", std::move(success.value()));
+  (*repr_)["success"] = std::move(success.value());
   return *this;
 }
 
@@ -17499,13 +17797,14 @@ NotebookCellLanguage::operator bool() const {
 auto NotebookCellLanguage::language() const -> std::string {
   auto& value = (*repr_)["language"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
 
 auto NotebookCellLanguage::language(std::string language)
     -> NotebookCellLanguage& {
-  repr_->emplace("language", std::move(language));
+  (*repr_)["language"] = std::move(language);
   return *this;
 }
 
@@ -17528,7 +17827,7 @@ auto NotebookDocumentCellChangeStructure::didOpen() const
 
   auto& value = (*repr_)["didOpen"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextDocumentItem>(value);
 }
 
@@ -17538,13 +17837,13 @@ auto NotebookDocumentCellChangeStructure::didClose() const
 
   auto& value = (*repr_)["didClose"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextDocumentIdentifier>(value);
 }
 
 auto NotebookDocumentCellChangeStructure::array(NotebookCellArrayChange array)
     -> NotebookDocumentCellChangeStructure& {
-  repr_->emplace("array", array);
+  (*repr_)["array"] = array;
   return *this;
 }
 
@@ -17590,14 +17889,14 @@ auto NotebookDocumentCellContentChanges::changes() const
     -> Vector<TextDocumentContentChangeEvent> {
   auto& value = (*repr_)["changes"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TextDocumentContentChangeEvent>(value);
 }
 
 auto NotebookDocumentCellContentChanges::document(
     VersionedTextDocumentIdentifier document)
     -> NotebookDocumentCellContentChanges& {
-  repr_->emplace("document", document);
+  (*repr_)["document"] = document;
   return *this;
 }
 
@@ -17619,6 +17918,7 @@ auto WorkspaceClientCapabilities::applyEdit() const -> std::optional<bool> {
 
   auto& value = (*repr_)["applyEdit"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -17674,6 +17974,7 @@ auto WorkspaceClientCapabilities::workspaceFolders() const
 
   auto& value = (*repr_)["workspaceFolders"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -17683,6 +17984,7 @@ auto WorkspaceClientCapabilities::configuration() const -> std::optional<bool> {
 
   auto& value = (*repr_)["configuration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -17765,7 +18067,7 @@ auto WorkspaceClientCapabilities::applyEdit(std::optional<bool> applyEdit)
     repr_->erase("applyEdit");
     return *this;
   }
-  repr_->emplace("applyEdit", std::move(applyEdit.value()));
+  (*repr_)["applyEdit"] = std::move(applyEdit.value());
   return *this;
 }
 
@@ -17776,7 +18078,7 @@ auto WorkspaceClientCapabilities::workspaceEdit(
     repr_->erase("workspaceEdit");
     return *this;
   }
-  repr_->emplace("workspaceEdit", workspaceEdit.value());
+  (*repr_)["workspaceEdit"] = workspaceEdit.value();
   return *this;
 }
 
@@ -17787,7 +18089,7 @@ auto WorkspaceClientCapabilities::didChangeConfiguration(
     repr_->erase("didChangeConfiguration");
     return *this;
   }
-  repr_->emplace("didChangeConfiguration", didChangeConfiguration.value());
+  (*repr_)["didChangeConfiguration"] = didChangeConfiguration.value();
   return *this;
 }
 
@@ -17798,7 +18100,7 @@ auto WorkspaceClientCapabilities::didChangeWatchedFiles(
     repr_->erase("didChangeWatchedFiles");
     return *this;
   }
-  repr_->emplace("didChangeWatchedFiles", didChangeWatchedFiles.value());
+  (*repr_)["didChangeWatchedFiles"] = didChangeWatchedFiles.value();
   return *this;
 }
 
@@ -17809,7 +18111,7 @@ auto WorkspaceClientCapabilities::symbol(
     repr_->erase("symbol");
     return *this;
   }
-  repr_->emplace("symbol", symbol.value());
+  (*repr_)["symbol"] = symbol.value();
   return *this;
 }
 
@@ -17820,7 +18122,7 @@ auto WorkspaceClientCapabilities::executeCommand(
     repr_->erase("executeCommand");
     return *this;
   }
-  repr_->emplace("executeCommand", executeCommand.value());
+  (*repr_)["executeCommand"] = executeCommand.value();
   return *this;
 }
 
@@ -17830,7 +18132,7 @@ auto WorkspaceClientCapabilities::workspaceFolders(
     repr_->erase("workspaceFolders");
     return *this;
   }
-  repr_->emplace("workspaceFolders", std::move(workspaceFolders.value()));
+  (*repr_)["workspaceFolders"] = std::move(workspaceFolders.value());
   return *this;
 }
 
@@ -17840,7 +18142,7 @@ auto WorkspaceClientCapabilities::configuration(
     repr_->erase("configuration");
     return *this;
   }
-  repr_->emplace("configuration", std::move(configuration.value()));
+  (*repr_)["configuration"] = std::move(configuration.value());
   return *this;
 }
 
@@ -17851,7 +18153,7 @@ auto WorkspaceClientCapabilities::semanticTokens(
     repr_->erase("semanticTokens");
     return *this;
   }
-  repr_->emplace("semanticTokens", semanticTokens.value());
+  (*repr_)["semanticTokens"] = semanticTokens.value();
   return *this;
 }
 
@@ -17862,7 +18164,7 @@ auto WorkspaceClientCapabilities::codeLens(
     repr_->erase("codeLens");
     return *this;
   }
-  repr_->emplace("codeLens", codeLens.value());
+  (*repr_)["codeLens"] = codeLens.value();
   return *this;
 }
 
@@ -17873,7 +18175,7 @@ auto WorkspaceClientCapabilities::fileOperations(
     repr_->erase("fileOperations");
     return *this;
   }
-  repr_->emplace("fileOperations", fileOperations.value());
+  (*repr_)["fileOperations"] = fileOperations.value();
   return *this;
 }
 
@@ -17884,7 +18186,7 @@ auto WorkspaceClientCapabilities::inlineValue(
     repr_->erase("inlineValue");
     return *this;
   }
-  repr_->emplace("inlineValue", inlineValue.value());
+  (*repr_)["inlineValue"] = inlineValue.value();
   return *this;
 }
 
@@ -17895,7 +18197,7 @@ auto WorkspaceClientCapabilities::inlayHint(
     repr_->erase("inlayHint");
     return *this;
   }
-  repr_->emplace("inlayHint", inlayHint.value());
+  (*repr_)["inlayHint"] = inlayHint.value();
   return *this;
 }
 
@@ -17906,7 +18208,7 @@ auto WorkspaceClientCapabilities::diagnostics(
     repr_->erase("diagnostics");
     return *this;
   }
-  repr_->emplace("diagnostics", diagnostics.value());
+  (*repr_)["diagnostics"] = diagnostics.value();
   return *this;
 }
 
@@ -17917,7 +18219,7 @@ auto WorkspaceClientCapabilities::foldingRange(
     repr_->erase("foldingRange");
     return *this;
   }
-  repr_->emplace("foldingRange", foldingRange.value());
+  (*repr_)["foldingRange"] = foldingRange.value();
   return *this;
 }
 
@@ -17928,7 +18230,7 @@ auto WorkspaceClientCapabilities::textDocumentContent(
     repr_->erase("textDocumentContent");
     return *this;
   }
-  repr_->emplace("textDocumentContent", textDocumentContent.value());
+  (*repr_)["textDocumentContent"] = textDocumentContent.value();
   return *this;
 }
 
@@ -18232,7 +18534,7 @@ auto TextDocumentClientCapabilities::synchronization(
     repr_->erase("synchronization");
     return *this;
   }
-  repr_->emplace("synchronization", synchronization.value());
+  (*repr_)["synchronization"] = synchronization.value();
   return *this;
 }
 
@@ -18243,7 +18545,7 @@ auto TextDocumentClientCapabilities::filters(
     repr_->erase("filters");
     return *this;
   }
-  repr_->emplace("filters", filters.value());
+  (*repr_)["filters"] = filters.value();
   return *this;
 }
 
@@ -18254,7 +18556,7 @@ auto TextDocumentClientCapabilities::completion(
     repr_->erase("completion");
     return *this;
   }
-  repr_->emplace("completion", completion.value());
+  (*repr_)["completion"] = completion.value();
   return *this;
 }
 
@@ -18265,7 +18567,7 @@ auto TextDocumentClientCapabilities::hover(
     repr_->erase("hover");
     return *this;
   }
-  repr_->emplace("hover", hover.value());
+  (*repr_)["hover"] = hover.value();
   return *this;
 }
 
@@ -18276,7 +18578,7 @@ auto TextDocumentClientCapabilities::signatureHelp(
     repr_->erase("signatureHelp");
     return *this;
   }
-  repr_->emplace("signatureHelp", signatureHelp.value());
+  (*repr_)["signatureHelp"] = signatureHelp.value();
   return *this;
 }
 
@@ -18287,7 +18589,7 @@ auto TextDocumentClientCapabilities::declaration(
     repr_->erase("declaration");
     return *this;
   }
-  repr_->emplace("declaration", declaration.value());
+  (*repr_)["declaration"] = declaration.value();
   return *this;
 }
 
@@ -18298,7 +18600,7 @@ auto TextDocumentClientCapabilities::definition(
     repr_->erase("definition");
     return *this;
   }
-  repr_->emplace("definition", definition.value());
+  (*repr_)["definition"] = definition.value();
   return *this;
 }
 
@@ -18309,7 +18611,7 @@ auto TextDocumentClientCapabilities::typeDefinition(
     repr_->erase("typeDefinition");
     return *this;
   }
-  repr_->emplace("typeDefinition", typeDefinition.value());
+  (*repr_)["typeDefinition"] = typeDefinition.value();
   return *this;
 }
 
@@ -18320,7 +18622,7 @@ auto TextDocumentClientCapabilities::implementation(
     repr_->erase("implementation");
     return *this;
   }
-  repr_->emplace("implementation", implementation.value());
+  (*repr_)["implementation"] = implementation.value();
   return *this;
 }
 
@@ -18331,7 +18633,7 @@ auto TextDocumentClientCapabilities::references(
     repr_->erase("references");
     return *this;
   }
-  repr_->emplace("references", references.value());
+  (*repr_)["references"] = references.value();
   return *this;
 }
 
@@ -18342,7 +18644,7 @@ auto TextDocumentClientCapabilities::documentHighlight(
     repr_->erase("documentHighlight");
     return *this;
   }
-  repr_->emplace("documentHighlight", documentHighlight.value());
+  (*repr_)["documentHighlight"] = documentHighlight.value();
   return *this;
 }
 
@@ -18353,7 +18655,7 @@ auto TextDocumentClientCapabilities::documentSymbol(
     repr_->erase("documentSymbol");
     return *this;
   }
-  repr_->emplace("documentSymbol", documentSymbol.value());
+  (*repr_)["documentSymbol"] = documentSymbol.value();
   return *this;
 }
 
@@ -18364,7 +18666,7 @@ auto TextDocumentClientCapabilities::codeAction(
     repr_->erase("codeAction");
     return *this;
   }
-  repr_->emplace("codeAction", codeAction.value());
+  (*repr_)["codeAction"] = codeAction.value();
   return *this;
 }
 
@@ -18375,7 +18677,7 @@ auto TextDocumentClientCapabilities::codeLens(
     repr_->erase("codeLens");
     return *this;
   }
-  repr_->emplace("codeLens", codeLens.value());
+  (*repr_)["codeLens"] = codeLens.value();
   return *this;
 }
 
@@ -18386,7 +18688,7 @@ auto TextDocumentClientCapabilities::documentLink(
     repr_->erase("documentLink");
     return *this;
   }
-  repr_->emplace("documentLink", documentLink.value());
+  (*repr_)["documentLink"] = documentLink.value();
   return *this;
 }
 
@@ -18397,7 +18699,7 @@ auto TextDocumentClientCapabilities::colorProvider(
     repr_->erase("colorProvider");
     return *this;
   }
-  repr_->emplace("colorProvider", colorProvider.value());
+  (*repr_)["colorProvider"] = colorProvider.value();
   return *this;
 }
 
@@ -18408,7 +18710,7 @@ auto TextDocumentClientCapabilities::formatting(
     repr_->erase("formatting");
     return *this;
   }
-  repr_->emplace("formatting", formatting.value());
+  (*repr_)["formatting"] = formatting.value();
   return *this;
 }
 
@@ -18419,7 +18721,7 @@ auto TextDocumentClientCapabilities::rangeFormatting(
     repr_->erase("rangeFormatting");
     return *this;
   }
-  repr_->emplace("rangeFormatting", rangeFormatting.value());
+  (*repr_)["rangeFormatting"] = rangeFormatting.value();
   return *this;
 }
 
@@ -18430,7 +18732,7 @@ auto TextDocumentClientCapabilities::onTypeFormatting(
     repr_->erase("onTypeFormatting");
     return *this;
   }
-  repr_->emplace("onTypeFormatting", onTypeFormatting.value());
+  (*repr_)["onTypeFormatting"] = onTypeFormatting.value();
   return *this;
 }
 
@@ -18441,7 +18743,7 @@ auto TextDocumentClientCapabilities::rename(
     repr_->erase("rename");
     return *this;
   }
-  repr_->emplace("rename", rename.value());
+  (*repr_)["rename"] = rename.value();
   return *this;
 }
 
@@ -18452,7 +18754,7 @@ auto TextDocumentClientCapabilities::foldingRange(
     repr_->erase("foldingRange");
     return *this;
   }
-  repr_->emplace("foldingRange", foldingRange.value());
+  (*repr_)["foldingRange"] = foldingRange.value();
   return *this;
 }
 
@@ -18463,7 +18765,7 @@ auto TextDocumentClientCapabilities::selectionRange(
     repr_->erase("selectionRange");
     return *this;
   }
-  repr_->emplace("selectionRange", selectionRange.value());
+  (*repr_)["selectionRange"] = selectionRange.value();
   return *this;
 }
 
@@ -18474,7 +18776,7 @@ auto TextDocumentClientCapabilities::publishDiagnostics(
     repr_->erase("publishDiagnostics");
     return *this;
   }
-  repr_->emplace("publishDiagnostics", publishDiagnostics.value());
+  (*repr_)["publishDiagnostics"] = publishDiagnostics.value();
   return *this;
 }
 
@@ -18485,7 +18787,7 @@ auto TextDocumentClientCapabilities::callHierarchy(
     repr_->erase("callHierarchy");
     return *this;
   }
-  repr_->emplace("callHierarchy", callHierarchy.value());
+  (*repr_)["callHierarchy"] = callHierarchy.value();
   return *this;
 }
 
@@ -18496,7 +18798,7 @@ auto TextDocumentClientCapabilities::semanticTokens(
     repr_->erase("semanticTokens");
     return *this;
   }
-  repr_->emplace("semanticTokens", semanticTokens.value());
+  (*repr_)["semanticTokens"] = semanticTokens.value();
   return *this;
 }
 
@@ -18507,7 +18809,7 @@ auto TextDocumentClientCapabilities::linkedEditingRange(
     repr_->erase("linkedEditingRange");
     return *this;
   }
-  repr_->emplace("linkedEditingRange", linkedEditingRange.value());
+  (*repr_)["linkedEditingRange"] = linkedEditingRange.value();
   return *this;
 }
 
@@ -18518,7 +18820,7 @@ auto TextDocumentClientCapabilities::moniker(
     repr_->erase("moniker");
     return *this;
   }
-  repr_->emplace("moniker", moniker.value());
+  (*repr_)["moniker"] = moniker.value();
   return *this;
 }
 
@@ -18529,7 +18831,7 @@ auto TextDocumentClientCapabilities::typeHierarchy(
     repr_->erase("typeHierarchy");
     return *this;
   }
-  repr_->emplace("typeHierarchy", typeHierarchy.value());
+  (*repr_)["typeHierarchy"] = typeHierarchy.value();
   return *this;
 }
 
@@ -18540,7 +18842,7 @@ auto TextDocumentClientCapabilities::inlineValue(
     repr_->erase("inlineValue");
     return *this;
   }
-  repr_->emplace("inlineValue", inlineValue.value());
+  (*repr_)["inlineValue"] = inlineValue.value();
   return *this;
 }
 
@@ -18551,7 +18853,7 @@ auto TextDocumentClientCapabilities::inlayHint(
     repr_->erase("inlayHint");
     return *this;
   }
-  repr_->emplace("inlayHint", inlayHint.value());
+  (*repr_)["inlayHint"] = inlayHint.value();
   return *this;
 }
 
@@ -18562,7 +18864,7 @@ auto TextDocumentClientCapabilities::diagnostic(
     repr_->erase("diagnostic");
     return *this;
   }
-  repr_->emplace("diagnostic", diagnostic.value());
+  (*repr_)["diagnostic"] = diagnostic.value();
   return *this;
 }
 
@@ -18573,7 +18875,7 @@ auto TextDocumentClientCapabilities::inlineCompletion(
     repr_->erase("inlineCompletion");
     return *this;
   }
-  repr_->emplace("inlineCompletion", inlineCompletion.value());
+  (*repr_)["inlineCompletion"] = inlineCompletion.value();
   return *this;
 }
 
@@ -18593,7 +18895,7 @@ auto NotebookDocumentClientCapabilities::synchronization() const
 auto NotebookDocumentClientCapabilities::synchronization(
     NotebookDocumentSyncClientCapabilities synchronization)
     -> NotebookDocumentClientCapabilities& {
-  repr_->emplace("synchronization", synchronization);
+  (*repr_)["synchronization"] = synchronization;
   return *this;
 }
 
@@ -18607,6 +18909,7 @@ auto WindowClientCapabilities::workDoneProgress() const -> std::optional<bool> {
 
   auto& value = (*repr_)["workDoneProgress"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -18635,7 +18938,7 @@ auto WindowClientCapabilities::workDoneProgress(
     repr_->erase("workDoneProgress");
     return *this;
   }
-  repr_->emplace("workDoneProgress", std::move(workDoneProgress.value()));
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
   return *this;
 }
 
@@ -18646,7 +18949,7 @@ auto WindowClientCapabilities::showMessage(
     repr_->erase("showMessage");
     return *this;
   }
-  repr_->emplace("showMessage", showMessage.value());
+  (*repr_)["showMessage"] = showMessage.value();
   return *this;
 }
 
@@ -18657,7 +18960,7 @@ auto WindowClientCapabilities::showDocument(
     repr_->erase("showDocument");
     return *this;
   }
-  repr_->emplace("showDocument", showDocument.value());
+  (*repr_)["showDocument"] = showDocument.value();
   return *this;
 }
 
@@ -18699,7 +19002,7 @@ auto GeneralClientCapabilities::positionEncodings() const
 
   auto& value = (*repr_)["positionEncodings"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<PositionEncodingKind>(value);
 }
 
@@ -18710,7 +19013,7 @@ auto GeneralClientCapabilities::staleRequestSupport(
     repr_->erase("staleRequestSupport");
     return *this;
   }
-  repr_->emplace("staleRequestSupport", staleRequestSupport.value());
+  (*repr_)["staleRequestSupport"] = staleRequestSupport.value();
   return *this;
 }
 
@@ -18721,7 +19024,7 @@ auto GeneralClientCapabilities::regularExpressions(
     repr_->erase("regularExpressions");
     return *this;
   }
-  repr_->emplace("regularExpressions", regularExpressions.value());
+  (*repr_)["regularExpressions"] = regularExpressions.value();
   return *this;
 }
 
@@ -18732,7 +19035,7 @@ auto GeneralClientCapabilities::markdown(
     repr_->erase("markdown");
     return *this;
   }
-  repr_->emplace("markdown", markdown.value());
+  (*repr_)["markdown"] = markdown.value();
   return *this;
 }
 
@@ -18759,6 +19062,7 @@ auto WorkspaceFoldersServerCapabilities::supported() const
 
   auto& value = (*repr_)["supported"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -18782,7 +19086,7 @@ auto WorkspaceFoldersServerCapabilities::supported(
     repr_->erase("supported");
     return *this;
   }
-  repr_->emplace("supported", std::move(supported.value()));
+  (*repr_)["supported"] = std::move(supported.value());
   return *this;
 }
 
@@ -18798,11 +19102,11 @@ auto WorkspaceFoldersServerCapabilities::changeNotifications(
     json* repr_;
 
     void operator()(std::string changeNotifications) {
-      repr_->emplace("changeNotifications", std::move(changeNotifications));
+      (*repr_)["changeNotifications"] = std::move(changeNotifications);
     }
 
     void operator()(bool changeNotifications) {
-      repr_->emplace("changeNotifications", std::move(changeNotifications));
+      (*repr_)["changeNotifications"] = std::move(changeNotifications);
     }
   } v{repr_};
 
@@ -18877,7 +19181,7 @@ auto FileOperationOptions::didCreate(
     repr_->erase("didCreate");
     return *this;
   }
-  repr_->emplace("didCreate", didCreate.value());
+  (*repr_)["didCreate"] = didCreate.value();
   return *this;
 }
 
@@ -18888,7 +19192,7 @@ auto FileOperationOptions::willCreate(
     repr_->erase("willCreate");
     return *this;
   }
-  repr_->emplace("willCreate", willCreate.value());
+  (*repr_)["willCreate"] = willCreate.value();
   return *this;
 }
 
@@ -18899,7 +19203,7 @@ auto FileOperationOptions::didRename(
     repr_->erase("didRename");
     return *this;
   }
-  repr_->emplace("didRename", didRename.value());
+  (*repr_)["didRename"] = didRename.value();
   return *this;
 }
 
@@ -18910,7 +19214,7 @@ auto FileOperationOptions::willRename(
     repr_->erase("willRename");
     return *this;
   }
-  repr_->emplace("willRename", willRename.value());
+  (*repr_)["willRename"] = willRename.value();
   return *this;
 }
 
@@ -18921,7 +19225,7 @@ auto FileOperationOptions::didDelete(
     repr_->erase("didDelete");
     return *this;
   }
-  repr_->emplace("didDelete", didDelete.value());
+  (*repr_)["didDelete"] = didDelete.value();
   return *this;
 }
 
@@ -18932,7 +19236,7 @@ auto FileOperationOptions::willDelete(
     repr_->erase("willDelete");
     return *this;
   }
-  repr_->emplace("willDelete", willDelete.value());
+  (*repr_)["willDelete"] = willDelete.value();
   return *this;
 }
 
@@ -18957,6 +19261,7 @@ auto RelativePattern::baseUri() const
 auto RelativePattern::pattern() const -> Pattern {
   auto& value = (*repr_)["pattern"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -18966,12 +19271,10 @@ auto RelativePattern::baseUri(
   struct {
     json* repr_;
 
-    void operator()(WorkspaceFolder baseUri) {
-      repr_->emplace("baseUri", baseUri);
-    }
+    void operator()(WorkspaceFolder baseUri) { (*repr_)["baseUri"] = baseUri; }
 
     void operator()(std::string baseUri) {
-      repr_->emplace("baseUri", std::move(baseUri));
+      (*repr_)["baseUri"] = std::move(baseUri);
     }
   } v{repr_};
 
@@ -18994,6 +19297,7 @@ TextDocumentFilterLanguage::operator bool() const {
 auto TextDocumentFilterLanguage::language() const -> std::string {
   auto& value = (*repr_)["language"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19003,6 +19307,7 @@ auto TextDocumentFilterLanguage::scheme() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19021,7 +19326,7 @@ auto TextDocumentFilterLanguage::pattern() const -> std::optional<GlobPattern> {
 
 auto TextDocumentFilterLanguage::language(std::string language)
     -> TextDocumentFilterLanguage& {
-  repr_->emplace("language", std::move(language));
+  (*repr_)["language"] = std::move(language);
   return *this;
 }
 
@@ -19031,7 +19336,7 @@ auto TextDocumentFilterLanguage::scheme(std::optional<std::string> scheme)
     repr_->erase("scheme");
     return *this;
   }
-  repr_->emplace("scheme", std::move(scheme.value()));
+  (*repr_)["scheme"] = std::move(scheme.value());
   return *this;
 }
 
@@ -19056,6 +19361,7 @@ auto TextDocumentFilterScheme::language() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["language"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19063,6 +19369,7 @@ auto TextDocumentFilterScheme::language() const -> std::optional<std::string> {
 auto TextDocumentFilterScheme::scheme() const -> std::string {
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19085,13 +19392,13 @@ auto TextDocumentFilterScheme::language(std::optional<std::string> language)
     repr_->erase("language");
     return *this;
   }
-  repr_->emplace("language", std::move(language.value()));
+  (*repr_)["language"] = std::move(language.value());
   return *this;
 }
 
 auto TextDocumentFilterScheme::scheme(std::string scheme)
     -> TextDocumentFilterScheme& {
-  repr_->emplace("scheme", std::move(scheme));
+  (*repr_)["scheme"] = std::move(scheme);
   return *this;
 }
 
@@ -19116,6 +19423,7 @@ auto TextDocumentFilterPattern::language() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["language"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19125,6 +19433,7 @@ auto TextDocumentFilterPattern::scheme() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19145,7 +19454,7 @@ auto TextDocumentFilterPattern::language(std::optional<std::string> language)
     repr_->erase("language");
     return *this;
   }
-  repr_->emplace("language", std::move(language.value()));
+  (*repr_)["language"] = std::move(language.value());
   return *this;
 }
 
@@ -19155,7 +19464,7 @@ auto TextDocumentFilterPattern::scheme(std::optional<std::string> scheme)
     repr_->erase("scheme");
     return *this;
   }
-  repr_->emplace("scheme", std::move(scheme.value()));
+  (*repr_)["scheme"] = std::move(scheme.value());
   return *this;
 }
 
@@ -19174,6 +19483,7 @@ NotebookDocumentFilterNotebookType::operator bool() const {
 auto NotebookDocumentFilterNotebookType::notebookType() const -> std::string {
   auto& value = (*repr_)["notebookType"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19184,6 +19494,7 @@ auto NotebookDocumentFilterNotebookType::scheme() const
 
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19203,7 +19514,7 @@ auto NotebookDocumentFilterNotebookType::pattern() const
 
 auto NotebookDocumentFilterNotebookType::notebookType(std::string notebookType)
     -> NotebookDocumentFilterNotebookType& {
-  repr_->emplace("notebookType", std::move(notebookType));
+  (*repr_)["notebookType"] = std::move(notebookType);
   return *this;
 }
 
@@ -19213,7 +19524,7 @@ auto NotebookDocumentFilterNotebookType::scheme(
     repr_->erase("scheme");
     return *this;
   }
-  repr_->emplace("scheme", std::move(scheme.value()));
+  (*repr_)["scheme"] = std::move(scheme.value());
   return *this;
 }
 
@@ -19240,6 +19551,7 @@ auto NotebookDocumentFilterScheme::notebookType() const
 
   auto& value = (*repr_)["notebookType"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19247,6 +19559,7 @@ auto NotebookDocumentFilterScheme::notebookType() const
 auto NotebookDocumentFilterScheme::scheme() const -> std::string {
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19270,13 +19583,13 @@ auto NotebookDocumentFilterScheme::notebookType(
     repr_->erase("notebookType");
     return *this;
   }
-  repr_->emplace("notebookType", std::move(notebookType.value()));
+  (*repr_)["notebookType"] = std::move(notebookType.value());
   return *this;
 }
 
 auto NotebookDocumentFilterScheme::scheme(std::string scheme)
     -> NotebookDocumentFilterScheme& {
-  repr_->emplace("scheme", std::move(scheme));
+  (*repr_)["scheme"] = std::move(scheme);
   return *this;
 }
 
@@ -19302,6 +19615,7 @@ auto NotebookDocumentFilterPattern::notebookType() const
 
   auto& value = (*repr_)["notebookType"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19312,6 +19626,7 @@ auto NotebookDocumentFilterPattern::scheme() const
 
   auto& value = (*repr_)["scheme"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -19332,7 +19647,7 @@ auto NotebookDocumentFilterPattern::notebookType(
     repr_->erase("notebookType");
     return *this;
   }
-  repr_->emplace("notebookType", std::move(notebookType.value()));
+  (*repr_)["notebookType"] = std::move(notebookType.value());
   return *this;
 }
 
@@ -19342,7 +19657,7 @@ auto NotebookDocumentFilterPattern::scheme(std::optional<std::string> scheme)
     repr_->erase("scheme");
     return *this;
   }
-  repr_->emplace("scheme", std::move(scheme.value()));
+  (*repr_)["scheme"] = std::move(scheme.value());
   return *this;
 }
 
@@ -19363,6 +19678,7 @@ NotebookCellArrayChange::operator bool() const {
 auto NotebookCellArrayChange::start() const -> long {
   auto& value = (*repr_)["start"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -19370,6 +19686,7 @@ auto NotebookCellArrayChange::start() const -> long {
 auto NotebookCellArrayChange::deleteCount() const -> long {
   auto& value = (*repr_)["deleteCount"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -19380,18 +19697,18 @@ auto NotebookCellArrayChange::cells() const
 
   auto& value = (*repr_)["cells"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<NotebookCell>(value);
 }
 
 auto NotebookCellArrayChange::start(long start) -> NotebookCellArrayChange& {
-  repr_->emplace("start", std::move(start));
+  (*repr_)["start"] = std::move(start);
   return *this;
 }
 
 auto NotebookCellArrayChange::deleteCount(long deleteCount)
     -> NotebookCellArrayChange& {
-  repr_->emplace("deleteCount", std::move(deleteCount));
+  (*repr_)["deleteCount"] = std::move(deleteCount);
   return *this;
 }
 
@@ -19416,6 +19733,7 @@ auto WorkspaceEditClientCapabilities::documentChanges() const
 
   auto& value = (*repr_)["documentChanges"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19426,7 +19744,7 @@ auto WorkspaceEditClientCapabilities::resourceOperations() const
 
   auto& value = (*repr_)["resourceOperations"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<ResourceOperationKind>(value);
 }
 
@@ -19446,6 +19764,7 @@ auto WorkspaceEditClientCapabilities::normalizesLineEndings() const
 
   auto& value = (*repr_)["normalizesLineEndings"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19465,6 +19784,7 @@ auto WorkspaceEditClientCapabilities::metadataSupport() const
 
   auto& value = (*repr_)["metadataSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19475,6 +19795,7 @@ auto WorkspaceEditClientCapabilities::snippetEditSupport() const
 
   auto& value = (*repr_)["snippetEditSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19485,7 +19806,7 @@ auto WorkspaceEditClientCapabilities::documentChanges(
     repr_->erase("documentChanges");
     return *this;
   }
-  repr_->emplace("documentChanges", std::move(documentChanges.value()));
+  (*repr_)["documentChanges"] = std::move(documentChanges.value());
   return *this;
 }
 
@@ -19520,8 +19841,7 @@ auto WorkspaceEditClientCapabilities::normalizesLineEndings(
     repr_->erase("normalizesLineEndings");
     return *this;
   }
-  repr_->emplace("normalizesLineEndings",
-                 std::move(normalizesLineEndings.value()));
+  (*repr_)["normalizesLineEndings"] = std::move(normalizesLineEndings.value());
   return *this;
 }
 
@@ -19532,7 +19852,7 @@ auto WorkspaceEditClientCapabilities::changeAnnotationSupport(
     repr_->erase("changeAnnotationSupport");
     return *this;
   }
-  repr_->emplace("changeAnnotationSupport", changeAnnotationSupport.value());
+  (*repr_)["changeAnnotationSupport"] = changeAnnotationSupport.value();
   return *this;
 }
 
@@ -19542,7 +19862,7 @@ auto WorkspaceEditClientCapabilities::metadataSupport(
     repr_->erase("metadataSupport");
     return *this;
   }
-  repr_->emplace("metadataSupport", std::move(metadataSupport.value()));
+  (*repr_)["metadataSupport"] = std::move(metadataSupport.value());
   return *this;
 }
 
@@ -19553,7 +19873,7 @@ auto WorkspaceEditClientCapabilities::snippetEditSupport(
     repr_->erase("snippetEditSupport");
     return *this;
   }
-  repr_->emplace("snippetEditSupport", std::move(snippetEditSupport.value()));
+  (*repr_)["snippetEditSupport"] = std::move(snippetEditSupport.value());
   return *this;
 }
 
@@ -19568,6 +19888,7 @@ auto DidChangeConfigurationClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19579,7 +19900,7 @@ auto DidChangeConfigurationClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -19594,6 +19915,7 @@ auto DidChangeWatchedFilesClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19604,6 +19926,7 @@ auto DidChangeWatchedFilesClientCapabilities::relativePatternSupport() const
 
   auto& value = (*repr_)["relativePatternSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19615,7 +19938,7 @@ auto DidChangeWatchedFilesClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -19626,8 +19949,8 @@ auto DidChangeWatchedFilesClientCapabilities::relativePatternSupport(
     repr_->erase("relativePatternSupport");
     return *this;
   }
-  repr_->emplace("relativePatternSupport",
-                 std::move(relativePatternSupport.value()));
+  (*repr_)["relativePatternSupport"] =
+      std::move(relativePatternSupport.value());
   return *this;
 }
 
@@ -19642,6 +19965,7 @@ auto WorkspaceSymbolClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19680,7 +20004,7 @@ auto WorkspaceSymbolClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -19691,7 +20015,7 @@ auto WorkspaceSymbolClientCapabilities::symbolKind(
     repr_->erase("symbolKind");
     return *this;
   }
-  repr_->emplace("symbolKind", symbolKind.value());
+  (*repr_)["symbolKind"] = symbolKind.value();
   return *this;
 }
 
@@ -19702,7 +20026,7 @@ auto WorkspaceSymbolClientCapabilities::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -19713,7 +20037,7 @@ auto WorkspaceSymbolClientCapabilities::resolveSupport(
     repr_->erase("resolveSupport");
     return *this;
   }
-  repr_->emplace("resolveSupport", resolveSupport.value());
+  (*repr_)["resolveSupport"] = resolveSupport.value();
   return *this;
 }
 
@@ -19728,6 +20052,7 @@ auto ExecuteCommandClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19739,7 +20064,7 @@ auto ExecuteCommandClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -19754,6 +20079,7 @@ auto SemanticTokensWorkspaceClientCapabilities::refreshSupport() const
 
   auto& value = (*repr_)["refreshSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19765,7 +20091,7 @@ auto SemanticTokensWorkspaceClientCapabilities::refreshSupport(
     repr_->erase("refreshSupport");
     return *this;
   }
-  repr_->emplace("refreshSupport", std::move(refreshSupport.value()));
+  (*repr_)["refreshSupport"] = std::move(refreshSupport.value());
   return *this;
 }
 
@@ -19780,6 +20106,7 @@ auto CodeLensWorkspaceClientCapabilities::refreshSupport() const
 
   auto& value = (*repr_)["refreshSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19791,7 +20118,7 @@ auto CodeLensWorkspaceClientCapabilities::refreshSupport(
     repr_->erase("refreshSupport");
     return *this;
   }
-  repr_->emplace("refreshSupport", std::move(refreshSupport.value()));
+  (*repr_)["refreshSupport"] = std::move(refreshSupport.value());
   return *this;
 }
 
@@ -19806,6 +20133,7 @@ auto FileOperationClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19815,6 +20143,7 @@ auto FileOperationClientCapabilities::didCreate() const -> std::optional<bool> {
 
   auto& value = (*repr_)["didCreate"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19825,6 +20154,7 @@ auto FileOperationClientCapabilities::willCreate() const
 
   auto& value = (*repr_)["willCreate"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19834,6 +20164,7 @@ auto FileOperationClientCapabilities::didRename() const -> std::optional<bool> {
 
   auto& value = (*repr_)["didRename"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19844,6 +20175,7 @@ auto FileOperationClientCapabilities::willRename() const
 
   auto& value = (*repr_)["willRename"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19853,6 +20185,7 @@ auto FileOperationClientCapabilities::didDelete() const -> std::optional<bool> {
 
   auto& value = (*repr_)["didDelete"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19863,6 +20196,7 @@ auto FileOperationClientCapabilities::willDelete() const
 
   auto& value = (*repr_)["willDelete"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19874,7 +20208,7 @@ auto FileOperationClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -19884,7 +20218,7 @@ auto FileOperationClientCapabilities::didCreate(std::optional<bool> didCreate)
     repr_->erase("didCreate");
     return *this;
   }
-  repr_->emplace("didCreate", std::move(didCreate.value()));
+  (*repr_)["didCreate"] = std::move(didCreate.value());
   return *this;
 }
 
@@ -19894,7 +20228,7 @@ auto FileOperationClientCapabilities::willCreate(std::optional<bool> willCreate)
     repr_->erase("willCreate");
     return *this;
   }
-  repr_->emplace("willCreate", std::move(willCreate.value()));
+  (*repr_)["willCreate"] = std::move(willCreate.value());
   return *this;
 }
 
@@ -19904,7 +20238,7 @@ auto FileOperationClientCapabilities::didRename(std::optional<bool> didRename)
     repr_->erase("didRename");
     return *this;
   }
-  repr_->emplace("didRename", std::move(didRename.value()));
+  (*repr_)["didRename"] = std::move(didRename.value());
   return *this;
 }
 
@@ -19914,7 +20248,7 @@ auto FileOperationClientCapabilities::willRename(std::optional<bool> willRename)
     repr_->erase("willRename");
     return *this;
   }
-  repr_->emplace("willRename", std::move(willRename.value()));
+  (*repr_)["willRename"] = std::move(willRename.value());
   return *this;
 }
 
@@ -19924,7 +20258,7 @@ auto FileOperationClientCapabilities::didDelete(std::optional<bool> didDelete)
     repr_->erase("didDelete");
     return *this;
   }
-  repr_->emplace("didDelete", std::move(didDelete.value()));
+  (*repr_)["didDelete"] = std::move(didDelete.value());
   return *this;
 }
 
@@ -19934,7 +20268,7 @@ auto FileOperationClientCapabilities::willDelete(std::optional<bool> willDelete)
     repr_->erase("willDelete");
     return *this;
   }
-  repr_->emplace("willDelete", std::move(willDelete.value()));
+  (*repr_)["willDelete"] = std::move(willDelete.value());
   return *this;
 }
 
@@ -19949,6 +20283,7 @@ auto InlineValueWorkspaceClientCapabilities::refreshSupport() const
 
   auto& value = (*repr_)["refreshSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19960,7 +20295,7 @@ auto InlineValueWorkspaceClientCapabilities::refreshSupport(
     repr_->erase("refreshSupport");
     return *this;
   }
-  repr_->emplace("refreshSupport", std::move(refreshSupport.value()));
+  (*repr_)["refreshSupport"] = std::move(refreshSupport.value());
   return *this;
 }
 
@@ -19975,6 +20310,7 @@ auto InlayHintWorkspaceClientCapabilities::refreshSupport() const
 
   auto& value = (*repr_)["refreshSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -19986,7 +20322,7 @@ auto InlayHintWorkspaceClientCapabilities::refreshSupport(
     repr_->erase("refreshSupport");
     return *this;
   }
-  repr_->emplace("refreshSupport", std::move(refreshSupport.value()));
+  (*repr_)["refreshSupport"] = std::move(refreshSupport.value());
   return *this;
 }
 
@@ -20001,6 +20337,7 @@ auto DiagnosticWorkspaceClientCapabilities::refreshSupport() const
 
   auto& value = (*repr_)["refreshSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20012,7 +20349,7 @@ auto DiagnosticWorkspaceClientCapabilities::refreshSupport(
     repr_->erase("refreshSupport");
     return *this;
   }
-  repr_->emplace("refreshSupport", std::move(refreshSupport.value()));
+  (*repr_)["refreshSupport"] = std::move(refreshSupport.value());
   return *this;
 }
 
@@ -20027,6 +20364,7 @@ auto FoldingRangeWorkspaceClientCapabilities::refreshSupport() const
 
   auto& value = (*repr_)["refreshSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20038,7 +20376,7 @@ auto FoldingRangeWorkspaceClientCapabilities::refreshSupport(
     repr_->erase("refreshSupport");
     return *this;
   }
-  repr_->emplace("refreshSupport", std::move(refreshSupport.value()));
+  (*repr_)["refreshSupport"] = std::move(refreshSupport.value());
   return *this;
 }
 
@@ -20053,6 +20391,7 @@ auto TextDocumentContentClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20064,7 +20403,7 @@ auto TextDocumentContentClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20079,6 +20418,7 @@ auto TextDocumentSyncClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20089,6 +20429,7 @@ auto TextDocumentSyncClientCapabilities::willSave() const
 
   auto& value = (*repr_)["willSave"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20099,6 +20440,7 @@ auto TextDocumentSyncClientCapabilities::willSaveWaitUntil() const
 
   auto& value = (*repr_)["willSaveWaitUntil"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20109,6 +20451,7 @@ auto TextDocumentSyncClientCapabilities::didSave() const
 
   auto& value = (*repr_)["didSave"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20120,7 +20463,7 @@ auto TextDocumentSyncClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20130,7 +20473,7 @@ auto TextDocumentSyncClientCapabilities::willSave(std::optional<bool> willSave)
     repr_->erase("willSave");
     return *this;
   }
-  repr_->emplace("willSave", std::move(willSave.value()));
+  (*repr_)["willSave"] = std::move(willSave.value());
   return *this;
 }
 
@@ -20141,7 +20484,7 @@ auto TextDocumentSyncClientCapabilities::willSaveWaitUntil(
     repr_->erase("willSaveWaitUntil");
     return *this;
   }
-  repr_->emplace("willSaveWaitUntil", std::move(willSaveWaitUntil.value()));
+  (*repr_)["willSaveWaitUntil"] = std::move(willSaveWaitUntil.value());
   return *this;
 }
 
@@ -20151,7 +20494,7 @@ auto TextDocumentSyncClientCapabilities::didSave(std::optional<bool> didSave)
     repr_->erase("didSave");
     return *this;
   }
-  repr_->emplace("didSave", std::move(didSave.value()));
+  (*repr_)["didSave"] = std::move(didSave.value());
   return *this;
 }
 
@@ -20166,6 +20509,7 @@ auto TextDocumentFilterClientCapabilities::relativePatternSupport() const
 
   auto& value = (*repr_)["relativePatternSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20177,8 +20521,8 @@ auto TextDocumentFilterClientCapabilities::relativePatternSupport(
     repr_->erase("relativePatternSupport");
     return *this;
   }
-  repr_->emplace("relativePatternSupport",
-                 std::move(relativePatternSupport.value()));
+  (*repr_)["relativePatternSupport"] =
+      std::move(relativePatternSupport.value());
   return *this;
 }
 
@@ -20193,6 +20537,7 @@ auto CompletionClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20230,6 +20575,7 @@ auto CompletionClientCapabilities::contextSupport() const
 
   auto& value = (*repr_)["contextSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20249,7 +20595,7 @@ auto CompletionClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20260,7 +20606,7 @@ auto CompletionClientCapabilities::completionItem(
     repr_->erase("completionItem");
     return *this;
   }
-  repr_->emplace("completionItem", completionItem.value());
+  (*repr_)["completionItem"] = completionItem.value();
   return *this;
 }
 
@@ -20271,7 +20617,7 @@ auto CompletionClientCapabilities::completionItemKind(
     repr_->erase("completionItemKind");
     return *this;
   }
-  repr_->emplace("completionItemKind", completionItemKind.value());
+  (*repr_)["completionItemKind"] = completionItemKind.value();
   return *this;
 }
 
@@ -20282,7 +20628,7 @@ auto CompletionClientCapabilities::insertTextMode(
     repr_->erase("insertTextMode");
     return *this;
   }
-  repr_->emplace("insertTextMode", static_cast<long>(insertTextMode.value()));
+  (*repr_)["insertTextMode"] = static_cast<long>(insertTextMode.value());
   return *this;
 }
 
@@ -20292,7 +20638,7 @@ auto CompletionClientCapabilities::contextSupport(
     repr_->erase("contextSupport");
     return *this;
   }
-  repr_->emplace("contextSupport", std::move(contextSupport.value()));
+  (*repr_)["contextSupport"] = std::move(contextSupport.value());
   return *this;
 }
 
@@ -20303,7 +20649,7 @@ auto CompletionClientCapabilities::completionList(
     repr_->erase("completionList");
     return *this;
   }
-  repr_->emplace("completionList", completionList.value());
+  (*repr_)["completionList"] = completionList.value();
   return *this;
 }
 
@@ -20318,6 +20664,7 @@ auto HoverClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20328,7 +20675,7 @@ auto HoverClientCapabilities::contentFormat() const
 
   auto& value = (*repr_)["contentFormat"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<MarkupKind>(value);
 }
 
@@ -20338,7 +20685,7 @@ auto HoverClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20365,6 +20712,7 @@ auto SignatureHelpClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20384,6 +20732,7 @@ auto SignatureHelpClientCapabilities::contextSupport() const
 
   auto& value = (*repr_)["contextSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20395,7 +20744,7 @@ auto SignatureHelpClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20406,7 +20755,7 @@ auto SignatureHelpClientCapabilities::signatureInformation(
     repr_->erase("signatureInformation");
     return *this;
   }
-  repr_->emplace("signatureInformation", signatureInformation.value());
+  (*repr_)["signatureInformation"] = signatureInformation.value();
   return *this;
 }
 
@@ -20416,7 +20765,7 @@ auto SignatureHelpClientCapabilities::contextSupport(
     repr_->erase("contextSupport");
     return *this;
   }
-  repr_->emplace("contextSupport", std::move(contextSupport.value()));
+  (*repr_)["contextSupport"] = std::move(contextSupport.value());
   return *this;
 }
 
@@ -20431,6 +20780,7 @@ auto DeclarationClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20440,6 +20790,7 @@ auto DeclarationClientCapabilities::linkSupport() const -> std::optional<bool> {
 
   auto& value = (*repr_)["linkSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20450,7 +20801,7 @@ auto DeclarationClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20460,7 +20811,7 @@ auto DeclarationClientCapabilities::linkSupport(std::optional<bool> linkSupport)
     repr_->erase("linkSupport");
     return *this;
   }
-  repr_->emplace("linkSupport", std::move(linkSupport.value()));
+  (*repr_)["linkSupport"] = std::move(linkSupport.value());
   return *this;
 }
 
@@ -20475,6 +20826,7 @@ auto DefinitionClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20484,6 +20836,7 @@ auto DefinitionClientCapabilities::linkSupport() const -> std::optional<bool> {
 
   auto& value = (*repr_)["linkSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20494,7 +20847,7 @@ auto DefinitionClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20504,7 +20857,7 @@ auto DefinitionClientCapabilities::linkSupport(std::optional<bool> linkSupport)
     repr_->erase("linkSupport");
     return *this;
   }
-  repr_->emplace("linkSupport", std::move(linkSupport.value()));
+  (*repr_)["linkSupport"] = std::move(linkSupport.value());
   return *this;
 }
 
@@ -20519,6 +20872,7 @@ auto TypeDefinitionClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20529,6 +20883,7 @@ auto TypeDefinitionClientCapabilities::linkSupport() const
 
   auto& value = (*repr_)["linkSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20540,7 +20895,7 @@ auto TypeDefinitionClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20550,7 +20905,7 @@ auto TypeDefinitionClientCapabilities::linkSupport(
     repr_->erase("linkSupport");
     return *this;
   }
-  repr_->emplace("linkSupport", std::move(linkSupport.value()));
+  (*repr_)["linkSupport"] = std::move(linkSupport.value());
   return *this;
 }
 
@@ -20565,6 +20920,7 @@ auto ImplementationClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20575,6 +20931,7 @@ auto ImplementationClientCapabilities::linkSupport() const
 
   auto& value = (*repr_)["linkSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20586,7 +20943,7 @@ auto ImplementationClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20596,7 +20953,7 @@ auto ImplementationClientCapabilities::linkSupport(
     repr_->erase("linkSupport");
     return *this;
   }
-  repr_->emplace("linkSupport", std::move(linkSupport.value()));
+  (*repr_)["linkSupport"] = std::move(linkSupport.value());
   return *this;
 }
 
@@ -20611,6 +20968,7 @@ auto ReferenceClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20621,7 +20979,7 @@ auto ReferenceClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20636,6 +20994,7 @@ auto DocumentHighlightClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20647,7 +21006,7 @@ auto DocumentHighlightClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20662,6 +21021,7 @@ auto DocumentSymbolClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20682,6 +21042,7 @@ auto DocumentSymbolClientCapabilities::hierarchicalDocumentSymbolSupport() const
 
   auto& value = (*repr_)["hierarchicalDocumentSymbolSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20701,6 +21062,7 @@ auto DocumentSymbolClientCapabilities::labelSupport() const
 
   auto& value = (*repr_)["labelSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20712,7 +21074,7 @@ auto DocumentSymbolClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20723,7 +21085,7 @@ auto DocumentSymbolClientCapabilities::symbolKind(
     repr_->erase("symbolKind");
     return *this;
   }
-  repr_->emplace("symbolKind", symbolKind.value());
+  (*repr_)["symbolKind"] = symbolKind.value();
   return *this;
 }
 
@@ -20734,8 +21096,8 @@ auto DocumentSymbolClientCapabilities::hierarchicalDocumentSymbolSupport(
     repr_->erase("hierarchicalDocumentSymbolSupport");
     return *this;
   }
-  repr_->emplace("hierarchicalDocumentSymbolSupport",
-                 std::move(hierarchicalDocumentSymbolSupport.value()));
+  (*repr_)["hierarchicalDocumentSymbolSupport"] =
+      std::move(hierarchicalDocumentSymbolSupport.value());
   return *this;
 }
 
@@ -20746,7 +21108,7 @@ auto DocumentSymbolClientCapabilities::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -20756,7 +21118,7 @@ auto DocumentSymbolClientCapabilities::labelSupport(
     repr_->erase("labelSupport");
     return *this;
   }
-  repr_->emplace("labelSupport", std::move(labelSupport.value()));
+  (*repr_)["labelSupport"] = std::move(labelSupport.value());
   return *this;
 }
 
@@ -20771,6 +21133,7 @@ auto CodeActionClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20790,6 +21153,7 @@ auto CodeActionClientCapabilities::isPreferredSupport() const
 
   auto& value = (*repr_)["isPreferredSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20800,6 +21164,7 @@ auto CodeActionClientCapabilities::disabledSupport() const
 
   auto& value = (*repr_)["disabledSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20809,6 +21174,7 @@ auto CodeActionClientCapabilities::dataSupport() const -> std::optional<bool> {
 
   auto& value = (*repr_)["dataSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20828,6 +21194,7 @@ auto CodeActionClientCapabilities::honorsChangeAnnotations() const
 
   auto& value = (*repr_)["honorsChangeAnnotations"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20838,6 +21205,7 @@ auto CodeActionClientCapabilities::documentationSupport() const
 
   auto& value = (*repr_)["documentationSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20857,7 +21225,7 @@ auto CodeActionClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20868,7 +21236,7 @@ auto CodeActionClientCapabilities::codeActionLiteralSupport(
     repr_->erase("codeActionLiteralSupport");
     return *this;
   }
-  repr_->emplace("codeActionLiteralSupport", codeActionLiteralSupport.value());
+  (*repr_)["codeActionLiteralSupport"] = codeActionLiteralSupport.value();
   return *this;
 }
 
@@ -20878,7 +21246,7 @@ auto CodeActionClientCapabilities::isPreferredSupport(
     repr_->erase("isPreferredSupport");
     return *this;
   }
-  repr_->emplace("isPreferredSupport", std::move(isPreferredSupport.value()));
+  (*repr_)["isPreferredSupport"] = std::move(isPreferredSupport.value());
   return *this;
 }
 
@@ -20888,7 +21256,7 @@ auto CodeActionClientCapabilities::disabledSupport(
     repr_->erase("disabledSupport");
     return *this;
   }
-  repr_->emplace("disabledSupport", std::move(disabledSupport.value()));
+  (*repr_)["disabledSupport"] = std::move(disabledSupport.value());
   return *this;
 }
 
@@ -20898,7 +21266,7 @@ auto CodeActionClientCapabilities::dataSupport(std::optional<bool> dataSupport)
     repr_->erase("dataSupport");
     return *this;
   }
-  repr_->emplace("dataSupport", std::move(dataSupport.value()));
+  (*repr_)["dataSupport"] = std::move(dataSupport.value());
   return *this;
 }
 
@@ -20909,7 +21277,7 @@ auto CodeActionClientCapabilities::resolveSupport(
     repr_->erase("resolveSupport");
     return *this;
   }
-  repr_->emplace("resolveSupport", resolveSupport.value());
+  (*repr_)["resolveSupport"] = resolveSupport.value();
   return *this;
 }
 
@@ -20920,8 +21288,8 @@ auto CodeActionClientCapabilities::honorsChangeAnnotations(
     repr_->erase("honorsChangeAnnotations");
     return *this;
   }
-  repr_->emplace("honorsChangeAnnotations",
-                 std::move(honorsChangeAnnotations.value()));
+  (*repr_)["honorsChangeAnnotations"] =
+      std::move(honorsChangeAnnotations.value());
   return *this;
 }
 
@@ -20931,8 +21299,7 @@ auto CodeActionClientCapabilities::documentationSupport(
     repr_->erase("documentationSupport");
     return *this;
   }
-  repr_->emplace("documentationSupport",
-                 std::move(documentationSupport.value()));
+  (*repr_)["documentationSupport"] = std::move(documentationSupport.value());
   return *this;
 }
 
@@ -20943,7 +21310,7 @@ auto CodeActionClientCapabilities::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -20958,6 +21325,7 @@ auto CodeLensClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -20977,7 +21345,7 @@ auto CodeLensClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -20988,7 +21356,7 @@ auto CodeLensClientCapabilities::resolveSupport(
     repr_->erase("resolveSupport");
     return *this;
   }
-  repr_->emplace("resolveSupport", resolveSupport.value());
+  (*repr_)["resolveSupport"] = resolveSupport.value();
   return *this;
 }
 
@@ -21003,6 +21371,7 @@ auto DocumentLinkClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21013,6 +21382,7 @@ auto DocumentLinkClientCapabilities::tooltipSupport() const
 
   auto& value = (*repr_)["tooltipSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21024,7 +21394,7 @@ auto DocumentLinkClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21034,7 +21404,7 @@ auto DocumentLinkClientCapabilities::tooltipSupport(
     repr_->erase("tooltipSupport");
     return *this;
   }
-  repr_->emplace("tooltipSupport", std::move(tooltipSupport.value()));
+  (*repr_)["tooltipSupport"] = std::move(tooltipSupport.value());
   return *this;
 }
 
@@ -21049,6 +21419,7 @@ auto DocumentColorClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21060,7 +21431,7 @@ auto DocumentColorClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21075,6 +21446,7 @@ auto DocumentFormattingClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21086,7 +21458,7 @@ auto DocumentFormattingClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21101,6 +21473,7 @@ auto DocumentRangeFormattingClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21111,6 +21484,7 @@ auto DocumentRangeFormattingClientCapabilities::rangesSupport() const
 
   auto& value = (*repr_)["rangesSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21122,7 +21496,7 @@ auto DocumentRangeFormattingClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21133,7 +21507,7 @@ auto DocumentRangeFormattingClientCapabilities::rangesSupport(
     repr_->erase("rangesSupport");
     return *this;
   }
-  repr_->emplace("rangesSupport", std::move(rangesSupport.value()));
+  (*repr_)["rangesSupport"] = std::move(rangesSupport.value());
   return *this;
 }
 
@@ -21148,6 +21522,7 @@ auto DocumentOnTypeFormattingClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21159,7 +21534,7 @@ auto DocumentOnTypeFormattingClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21174,6 +21549,7 @@ auto RenameClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21183,6 +21559,7 @@ auto RenameClientCapabilities::prepareSupport() const -> std::optional<bool> {
 
   auto& value = (*repr_)["prepareSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21202,6 +21579,7 @@ auto RenameClientCapabilities::honorsChangeAnnotations() const
 
   auto& value = (*repr_)["honorsChangeAnnotations"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21212,7 +21590,7 @@ auto RenameClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21222,7 +21600,7 @@ auto RenameClientCapabilities::prepareSupport(
     repr_->erase("prepareSupport");
     return *this;
   }
-  repr_->emplace("prepareSupport", std::move(prepareSupport.value()));
+  (*repr_)["prepareSupport"] = std::move(prepareSupport.value());
   return *this;
 }
 
@@ -21233,8 +21611,8 @@ auto RenameClientCapabilities::prepareSupportDefaultBehavior(
     repr_->erase("prepareSupportDefaultBehavior");
     return *this;
   }
-  repr_->emplace("prepareSupportDefaultBehavior",
-                 static_cast<long>(prepareSupportDefaultBehavior.value()));
+  (*repr_)["prepareSupportDefaultBehavior"] =
+      static_cast<long>(prepareSupportDefaultBehavior.value());
   return *this;
 }
 
@@ -21244,8 +21622,8 @@ auto RenameClientCapabilities::honorsChangeAnnotations(
     repr_->erase("honorsChangeAnnotations");
     return *this;
   }
-  repr_->emplace("honorsChangeAnnotations",
-                 std::move(honorsChangeAnnotations.value()));
+  (*repr_)["honorsChangeAnnotations"] =
+      std::move(honorsChangeAnnotations.value());
   return *this;
 }
 
@@ -21260,6 +21638,7 @@ auto FoldingRangeClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21269,6 +21648,7 @@ auto FoldingRangeClientCapabilities::rangeLimit() const -> std::optional<long> {
 
   auto& value = (*repr_)["rangeLimit"];
 
+  if (value.is_null()) value = 0;
   assert(value.is_number_integer());
   return value.get<long>();
 }
@@ -21279,6 +21659,7 @@ auto FoldingRangeClientCapabilities::lineFoldingOnly() const
 
   auto& value = (*repr_)["lineFoldingOnly"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21308,7 +21689,7 @@ auto FoldingRangeClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21318,7 +21699,7 @@ auto FoldingRangeClientCapabilities::rangeLimit(std::optional<long> rangeLimit)
     repr_->erase("rangeLimit");
     return *this;
   }
-  repr_->emplace("rangeLimit", std::move(rangeLimit.value()));
+  (*repr_)["rangeLimit"] = std::move(rangeLimit.value());
   return *this;
 }
 
@@ -21328,7 +21709,7 @@ auto FoldingRangeClientCapabilities::lineFoldingOnly(
     repr_->erase("lineFoldingOnly");
     return *this;
   }
-  repr_->emplace("lineFoldingOnly", std::move(lineFoldingOnly.value()));
+  (*repr_)["lineFoldingOnly"] = std::move(lineFoldingOnly.value());
   return *this;
 }
 
@@ -21339,7 +21720,7 @@ auto FoldingRangeClientCapabilities::foldingRangeKind(
     repr_->erase("foldingRangeKind");
     return *this;
   }
-  repr_->emplace("foldingRangeKind", foldingRangeKind.value());
+  (*repr_)["foldingRangeKind"] = foldingRangeKind.value();
   return *this;
 }
 
@@ -21350,7 +21731,7 @@ auto FoldingRangeClientCapabilities::foldingRange(
     repr_->erase("foldingRange");
     return *this;
   }
-  repr_->emplace("foldingRange", foldingRange.value());
+  (*repr_)["foldingRange"] = foldingRange.value();
   return *this;
 }
 
@@ -21365,6 +21746,7 @@ auto SelectionRangeClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21376,7 +21758,7 @@ auto SelectionRangeClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21391,6 +21773,7 @@ auto PublishDiagnosticsClientCapabilities::versionSupport() const
 
   auto& value = (*repr_)["versionSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21401,6 +21784,7 @@ auto PublishDiagnosticsClientCapabilities::relatedInformation() const
 
   auto& value = (*repr_)["relatedInformation"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21420,6 +21804,7 @@ auto PublishDiagnosticsClientCapabilities::codeDescriptionSupport() const
 
   auto& value = (*repr_)["codeDescriptionSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21430,6 +21815,7 @@ auto PublishDiagnosticsClientCapabilities::dataSupport() const
 
   auto& value = (*repr_)["dataSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21441,7 +21827,7 @@ auto PublishDiagnosticsClientCapabilities::versionSupport(
     repr_->erase("versionSupport");
     return *this;
   }
-  repr_->emplace("versionSupport", std::move(versionSupport.value()));
+  (*repr_)["versionSupport"] = std::move(versionSupport.value());
   return *this;
 }
 
@@ -21452,7 +21838,7 @@ auto PublishDiagnosticsClientCapabilities::relatedInformation(
     repr_->erase("relatedInformation");
     return *this;
   }
-  repr_->emplace("relatedInformation", std::move(relatedInformation.value()));
+  (*repr_)["relatedInformation"] = std::move(relatedInformation.value());
   return *this;
 }
 
@@ -21463,7 +21849,7 @@ auto PublishDiagnosticsClientCapabilities::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -21474,8 +21860,8 @@ auto PublishDiagnosticsClientCapabilities::codeDescriptionSupport(
     repr_->erase("codeDescriptionSupport");
     return *this;
   }
-  repr_->emplace("codeDescriptionSupport",
-                 std::move(codeDescriptionSupport.value()));
+  (*repr_)["codeDescriptionSupport"] =
+      std::move(codeDescriptionSupport.value());
   return *this;
 }
 
@@ -21485,7 +21871,7 @@ auto PublishDiagnosticsClientCapabilities::dataSupport(
     repr_->erase("dataSupport");
     return *this;
   }
-  repr_->emplace("dataSupport", std::move(dataSupport.value()));
+  (*repr_)["dataSupport"] = std::move(dataSupport.value());
   return *this;
 }
 
@@ -21500,6 +21886,7 @@ auto CallHierarchyClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21511,7 +21898,7 @@ auto CallHierarchyClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21530,6 +21917,7 @@ auto SemanticTokensClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21545,7 +21933,7 @@ auto SemanticTokensClientCapabilities::tokenTypes() const
     -> Vector<std::string> {
   auto& value = (*repr_)["tokenTypes"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -21553,14 +21941,14 @@ auto SemanticTokensClientCapabilities::tokenModifiers() const
     -> Vector<std::string> {
   auto& value = (*repr_)["tokenModifiers"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
 auto SemanticTokensClientCapabilities::formats() const -> Vector<TokenFormat> {
   auto& value = (*repr_)["formats"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<TokenFormat>(value);
 }
 
@@ -21570,6 +21958,7 @@ auto SemanticTokensClientCapabilities::overlappingTokenSupport() const
 
   auto& value = (*repr_)["overlappingTokenSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21580,6 +21969,7 @@ auto SemanticTokensClientCapabilities::multilineTokenSupport() const
 
   auto& value = (*repr_)["multilineTokenSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21590,6 +21980,7 @@ auto SemanticTokensClientCapabilities::serverCancelSupport() const
 
   auto& value = (*repr_)["serverCancelSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21600,6 +21991,7 @@ auto SemanticTokensClientCapabilities::augmentsSyntaxTokens() const
 
   auto& value = (*repr_)["augmentsSyntaxTokens"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21611,14 +22003,14 @@ auto SemanticTokensClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
 auto SemanticTokensClientCapabilities::requests(
     ClientSemanticTokensRequestOptions requests)
     -> SemanticTokensClientCapabilities& {
-  repr_->emplace("requests", requests);
+  (*repr_)["requests"] = requests;
   return *this;
 }
 
@@ -21650,8 +22042,8 @@ auto SemanticTokensClientCapabilities::overlappingTokenSupport(
     repr_->erase("overlappingTokenSupport");
     return *this;
   }
-  repr_->emplace("overlappingTokenSupport",
-                 std::move(overlappingTokenSupport.value()));
+  (*repr_)["overlappingTokenSupport"] =
+      std::move(overlappingTokenSupport.value());
   return *this;
 }
 
@@ -21662,8 +22054,7 @@ auto SemanticTokensClientCapabilities::multilineTokenSupport(
     repr_->erase("multilineTokenSupport");
     return *this;
   }
-  repr_->emplace("multilineTokenSupport",
-                 std::move(multilineTokenSupport.value()));
+  (*repr_)["multilineTokenSupport"] = std::move(multilineTokenSupport.value());
   return *this;
 }
 
@@ -21674,7 +22065,7 @@ auto SemanticTokensClientCapabilities::serverCancelSupport(
     repr_->erase("serverCancelSupport");
     return *this;
   }
-  repr_->emplace("serverCancelSupport", std::move(serverCancelSupport.value()));
+  (*repr_)["serverCancelSupport"] = std::move(serverCancelSupport.value());
   return *this;
 }
 
@@ -21685,8 +22076,7 @@ auto SemanticTokensClientCapabilities::augmentsSyntaxTokens(
     repr_->erase("augmentsSyntaxTokens");
     return *this;
   }
-  repr_->emplace("augmentsSyntaxTokens",
-                 std::move(augmentsSyntaxTokens.value()));
+  (*repr_)["augmentsSyntaxTokens"] = std::move(augmentsSyntaxTokens.value());
   return *this;
 }
 
@@ -21701,6 +22091,7 @@ auto LinkedEditingRangeClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21712,7 +22103,7 @@ auto LinkedEditingRangeClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21727,6 +22118,7 @@ auto MonikerClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21737,7 +22129,7 @@ auto MonikerClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21752,6 +22144,7 @@ auto TypeHierarchyClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21763,7 +22156,7 @@ auto TypeHierarchyClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21778,6 +22171,7 @@ auto InlineValueClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21788,7 +22182,7 @@ auto InlineValueClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21803,6 +22197,7 @@ auto InlayHintClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21822,7 +22217,7 @@ auto InlayHintClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21833,7 +22228,7 @@ auto InlayHintClientCapabilities::resolveSupport(
     repr_->erase("resolveSupport");
     return *this;
   }
-  repr_->emplace("resolveSupport", resolveSupport.value());
+  (*repr_)["resolveSupport"] = resolveSupport.value();
   return *this;
 }
 
@@ -21848,6 +22243,7 @@ auto DiagnosticClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21858,6 +22254,7 @@ auto DiagnosticClientCapabilities::relatedDocumentSupport() const
 
   auto& value = (*repr_)["relatedDocumentSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21868,6 +22265,7 @@ auto DiagnosticClientCapabilities::relatedInformation() const
 
   auto& value = (*repr_)["relatedInformation"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21887,6 +22285,7 @@ auto DiagnosticClientCapabilities::codeDescriptionSupport() const
 
   auto& value = (*repr_)["codeDescriptionSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21896,6 +22295,7 @@ auto DiagnosticClientCapabilities::dataSupport() const -> std::optional<bool> {
 
   auto& value = (*repr_)["dataSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21906,7 +22306,7 @@ auto DiagnosticClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -21917,8 +22317,8 @@ auto DiagnosticClientCapabilities::relatedDocumentSupport(
     repr_->erase("relatedDocumentSupport");
     return *this;
   }
-  repr_->emplace("relatedDocumentSupport",
-                 std::move(relatedDocumentSupport.value()));
+  (*repr_)["relatedDocumentSupport"] =
+      std::move(relatedDocumentSupport.value());
   return *this;
 }
 
@@ -21928,7 +22328,7 @@ auto DiagnosticClientCapabilities::relatedInformation(
     repr_->erase("relatedInformation");
     return *this;
   }
-  repr_->emplace("relatedInformation", std::move(relatedInformation.value()));
+  (*repr_)["relatedInformation"] = std::move(relatedInformation.value());
   return *this;
 }
 
@@ -21939,7 +22339,7 @@ auto DiagnosticClientCapabilities::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -21950,8 +22350,8 @@ auto DiagnosticClientCapabilities::codeDescriptionSupport(
     repr_->erase("codeDescriptionSupport");
     return *this;
   }
-  repr_->emplace("codeDescriptionSupport",
-                 std::move(codeDescriptionSupport.value()));
+  (*repr_)["codeDescriptionSupport"] =
+      std::move(codeDescriptionSupport.value());
   return *this;
 }
 
@@ -21961,7 +22361,7 @@ auto DiagnosticClientCapabilities::dataSupport(std::optional<bool> dataSupport)
     repr_->erase("dataSupport");
     return *this;
   }
-  repr_->emplace("dataSupport", std::move(dataSupport.value()));
+  (*repr_)["dataSupport"] = std::move(dataSupport.value());
   return *this;
 }
 
@@ -21976,6 +22376,7 @@ auto InlineCompletionClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -21987,7 +22388,7 @@ auto InlineCompletionClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -22002,6 +22403,7 @@ auto NotebookDocumentSyncClientCapabilities::dynamicRegistration() const
 
   auto& value = (*repr_)["dynamicRegistration"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22012,6 +22414,7 @@ auto NotebookDocumentSyncClientCapabilities::executionSummarySupport() const
 
   auto& value = (*repr_)["executionSummarySupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22023,7 +22426,7 @@ auto NotebookDocumentSyncClientCapabilities::dynamicRegistration(
     repr_->erase("dynamicRegistration");
     return *this;
   }
-  repr_->emplace("dynamicRegistration", std::move(dynamicRegistration.value()));
+  (*repr_)["dynamicRegistration"] = std::move(dynamicRegistration.value());
   return *this;
 }
 
@@ -22034,8 +22437,8 @@ auto NotebookDocumentSyncClientCapabilities::executionSummarySupport(
     repr_->erase("executionSummarySupport");
     return *this;
   }
-  repr_->emplace("executionSummarySupport",
-                 std::move(executionSummarySupport.value()));
+  (*repr_)["executionSummarySupport"] =
+      std::move(executionSummarySupport.value());
   return *this;
 }
 
@@ -22060,7 +22463,7 @@ auto ShowMessageRequestClientCapabilities::messageActionItem(
     repr_->erase("messageActionItem");
     return *this;
   }
-  repr_->emplace("messageActionItem", messageActionItem.value());
+  (*repr_)["messageActionItem"] = messageActionItem.value();
   return *this;
 }
 
@@ -22073,13 +22476,14 @@ ShowDocumentClientCapabilities::operator bool() const {
 auto ShowDocumentClientCapabilities::support() const -> bool {
   auto& value = (*repr_)["support"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
 
 auto ShowDocumentClientCapabilities::support(bool support)
     -> ShowDocumentClientCapabilities& {
-  repr_->emplace("support", std::move(support));
+  (*repr_)["support"] = std::move(support);
   return *this;
 }
 
@@ -22093,6 +22497,7 @@ StaleRequestSupportOptions::operator bool() const {
 auto StaleRequestSupportOptions::cancel() const -> bool {
   auto& value = (*repr_)["cancel"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22101,13 +22506,13 @@ auto StaleRequestSupportOptions::retryOnContentModified() const
     -> Vector<std::string> {
   auto& value = (*repr_)["retryOnContentModified"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
 auto StaleRequestSupportOptions::cancel(bool cancel)
     -> StaleRequestSupportOptions& {
-  repr_->emplace("cancel", std::move(cancel));
+  (*repr_)["cancel"] = std::move(cancel);
   return *this;
 }
 
@@ -22128,6 +22533,7 @@ auto RegularExpressionsClientCapabilities::engine() const
     -> RegularExpressionEngineKind {
   auto& value = (*repr_)["engine"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -22138,6 +22544,7 @@ auto RegularExpressionsClientCapabilities::version() const
 
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -22157,7 +22564,7 @@ auto RegularExpressionsClientCapabilities::version(
     repr_->erase("version");
     return *this;
   }
-  repr_->emplace("version", std::move(version.value()));
+  (*repr_)["version"] = std::move(version.value());
   return *this;
 }
 
@@ -22170,6 +22577,7 @@ MarkdownClientCapabilities::operator bool() const {
 auto MarkdownClientCapabilities::parser() const -> std::string {
   auto& value = (*repr_)["parser"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -22179,6 +22587,7 @@ auto MarkdownClientCapabilities::version() const -> std::optional<std::string> {
 
   auto& value = (*repr_)["version"];
 
+  if (value.is_null()) value = "";
   assert(value.is_string());
   return value.get<std::string>();
 }
@@ -22189,13 +22598,13 @@ auto MarkdownClientCapabilities::allowedTags() const
 
   auto& value = (*repr_)["allowedTags"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
 auto MarkdownClientCapabilities::parser(std::string parser)
     -> MarkdownClientCapabilities& {
-  repr_->emplace("parser", std::move(parser));
+  (*repr_)["parser"] = std::move(parser);
   return *this;
 }
 
@@ -22205,7 +22614,7 @@ auto MarkdownClientCapabilities::version(std::optional<std::string> version)
     repr_->erase("version");
     return *this;
   }
-  repr_->emplace("version", std::move(version.value()));
+  (*repr_)["version"] = std::move(version.value());
   return *this;
 }
 
@@ -22232,6 +22641,7 @@ auto ChangeAnnotationsSupportOptions::groupsOnLabel() const
 
   auto& value = (*repr_)["groupsOnLabel"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22242,7 +22652,7 @@ auto ChangeAnnotationsSupportOptions::groupsOnLabel(
     repr_->erase("groupsOnLabel");
     return *this;
   }
-  repr_->emplace("groupsOnLabel", std::move(groupsOnLabel.value()));
+  (*repr_)["groupsOnLabel"] = std::move(groupsOnLabel.value());
   return *this;
 }
 
@@ -22257,7 +22667,7 @@ auto ClientSymbolKindOptions::valueSet() const
 
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolKind>(value);
 }
 
@@ -22280,7 +22690,7 @@ ClientSymbolTagOptions::operator bool() const {
 auto ClientSymbolTagOptions::valueSet() const -> Vector<SymbolTag> {
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<SymbolTag>(value);
 }
 
@@ -22299,7 +22709,7 @@ ClientSymbolResolveOptions::operator bool() const {
 auto ClientSymbolResolveOptions::properties() const -> Vector<std::string> {
   auto& value = (*repr_)["properties"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -22321,6 +22731,7 @@ auto ClientCompletionItemOptions::snippetSupport() const
 
   auto& value = (*repr_)["snippetSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22331,6 +22742,7 @@ auto ClientCompletionItemOptions::commitCharactersSupport() const
 
   auto& value = (*repr_)["commitCharactersSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22341,7 +22753,7 @@ auto ClientCompletionItemOptions::documentationFormat() const
 
   auto& value = (*repr_)["documentationFormat"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<MarkupKind>(value);
 }
 
@@ -22351,6 +22763,7 @@ auto ClientCompletionItemOptions::deprecatedSupport() const
 
   auto& value = (*repr_)["deprecatedSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22361,6 +22774,7 @@ auto ClientCompletionItemOptions::preselectSupport() const
 
   auto& value = (*repr_)["preselectSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22380,6 +22794,7 @@ auto ClientCompletionItemOptions::insertReplaceSupport() const
 
   auto& value = (*repr_)["insertReplaceSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22408,6 +22823,7 @@ auto ClientCompletionItemOptions::labelDetailsSupport() const
 
   auto& value = (*repr_)["labelDetailsSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22418,7 +22834,7 @@ auto ClientCompletionItemOptions::snippetSupport(
     repr_->erase("snippetSupport");
     return *this;
   }
-  repr_->emplace("snippetSupport", std::move(snippetSupport.value()));
+  (*repr_)["snippetSupport"] = std::move(snippetSupport.value());
   return *this;
 }
 
@@ -22429,8 +22845,8 @@ auto ClientCompletionItemOptions::commitCharactersSupport(
     repr_->erase("commitCharactersSupport");
     return *this;
   }
-  repr_->emplace("commitCharactersSupport",
-                 std::move(commitCharactersSupport.value()));
+  (*repr_)["commitCharactersSupport"] =
+      std::move(commitCharactersSupport.value());
   return *this;
 }
 
@@ -22452,7 +22868,7 @@ auto ClientCompletionItemOptions::deprecatedSupport(
     repr_->erase("deprecatedSupport");
     return *this;
   }
-  repr_->emplace("deprecatedSupport", std::move(deprecatedSupport.value()));
+  (*repr_)["deprecatedSupport"] = std::move(deprecatedSupport.value());
   return *this;
 }
 
@@ -22462,7 +22878,7 @@ auto ClientCompletionItemOptions::preselectSupport(
     repr_->erase("preselectSupport");
     return *this;
   }
-  repr_->emplace("preselectSupport", std::move(preselectSupport.value()));
+  (*repr_)["preselectSupport"] = std::move(preselectSupport.value());
   return *this;
 }
 
@@ -22473,7 +22889,7 @@ auto ClientCompletionItemOptions::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -22483,8 +22899,7 @@ auto ClientCompletionItemOptions::insertReplaceSupport(
     repr_->erase("insertReplaceSupport");
     return *this;
   }
-  repr_->emplace("insertReplaceSupport",
-                 std::move(insertReplaceSupport.value()));
+  (*repr_)["insertReplaceSupport"] = std::move(insertReplaceSupport.value());
   return *this;
 }
 
@@ -22495,7 +22910,7 @@ auto ClientCompletionItemOptions::resolveSupport(
     repr_->erase("resolveSupport");
     return *this;
   }
-  repr_->emplace("resolveSupport", resolveSupport.value());
+  (*repr_)["resolveSupport"] = resolveSupport.value();
   return *this;
 }
 
@@ -22506,7 +22921,7 @@ auto ClientCompletionItemOptions::insertTextModeSupport(
     repr_->erase("insertTextModeSupport");
     return *this;
   }
-  repr_->emplace("insertTextModeSupport", insertTextModeSupport.value());
+  (*repr_)["insertTextModeSupport"] = insertTextModeSupport.value();
   return *this;
 }
 
@@ -22516,7 +22931,7 @@ auto ClientCompletionItemOptions::labelDetailsSupport(
     repr_->erase("labelDetailsSupport");
     return *this;
   }
-  repr_->emplace("labelDetailsSupport", std::move(labelDetailsSupport.value()));
+  (*repr_)["labelDetailsSupport"] = std::move(labelDetailsSupport.value());
   return *this;
 }
 
@@ -22531,7 +22946,7 @@ auto ClientCompletionItemOptionsKind::valueSet() const
 
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CompletionItemKind>(value);
 }
 
@@ -22558,7 +22973,7 @@ auto CompletionListCapabilities::itemDefaults() const
 
   auto& value = (*repr_)["itemDefaults"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -22568,6 +22983,7 @@ auto CompletionListCapabilities::applyKindSupport() const
 
   auto& value = (*repr_)["applyKindSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22590,7 +23006,7 @@ auto CompletionListCapabilities::applyKindSupport(
     repr_->erase("applyKindSupport");
     return *this;
   }
-  repr_->emplace("applyKindSupport", std::move(applyKindSupport.value()));
+  (*repr_)["applyKindSupport"] = std::move(applyKindSupport.value());
   return *this;
 }
 
@@ -22605,7 +23021,7 @@ auto ClientSignatureInformationOptions::documentationFormat() const
 
   auto& value = (*repr_)["documentationFormat"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<MarkupKind>(value);
 }
 
@@ -22624,6 +23040,7 @@ auto ClientSignatureInformationOptions::activeParameterSupport() const
 
   auto& value = (*repr_)["activeParameterSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22634,6 +23051,7 @@ auto ClientSignatureInformationOptions::noActiveParameterSupport() const
 
   auto& value = (*repr_)["noActiveParameterSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22658,7 +23076,7 @@ auto ClientSignatureInformationOptions::parameterInformation(
     repr_->erase("parameterInformation");
     return *this;
   }
-  repr_->emplace("parameterInformation", parameterInformation.value());
+  (*repr_)["parameterInformation"] = parameterInformation.value();
   return *this;
 }
 
@@ -22669,8 +23087,8 @@ auto ClientSignatureInformationOptions::activeParameterSupport(
     repr_->erase("activeParameterSupport");
     return *this;
   }
-  repr_->emplace("activeParameterSupport",
-                 std::move(activeParameterSupport.value()));
+  (*repr_)["activeParameterSupport"] =
+      std::move(activeParameterSupport.value());
   return *this;
 }
 
@@ -22681,8 +23099,8 @@ auto ClientSignatureInformationOptions::noActiveParameterSupport(
     repr_->erase("noActiveParameterSupport");
     return *this;
   }
-  repr_->emplace("noActiveParameterSupport",
-                 std::move(noActiveParameterSupport.value()));
+  (*repr_)["noActiveParameterSupport"] =
+      std::move(noActiveParameterSupport.value());
   return *this;
 }
 
@@ -22702,7 +23120,7 @@ auto ClientCodeActionLiteralOptions::codeActionKind() const
 auto ClientCodeActionLiteralOptions::codeActionKind(
     ClientCodeActionKindOptions codeActionKind)
     -> ClientCodeActionLiteralOptions& {
-  repr_->emplace("codeActionKind", codeActionKind);
+  (*repr_)["codeActionKind"] = codeActionKind;
   return *this;
 }
 
@@ -22715,7 +23133,7 @@ ClientCodeActionResolveOptions::operator bool() const {
 auto ClientCodeActionResolveOptions::properties() const -> Vector<std::string> {
   auto& value = (*repr_)["properties"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -22735,7 +23153,7 @@ CodeActionTagOptions::operator bool() const {
 auto CodeActionTagOptions::valueSet() const -> Vector<CodeActionTag> {
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionTag>(value);
 }
 
@@ -22754,7 +23172,7 @@ ClientCodeLensResolveOptions::operator bool() const {
 auto ClientCodeLensResolveOptions::properties() const -> Vector<std::string> {
   auto& value = (*repr_)["properties"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -22776,7 +23194,7 @@ auto ClientFoldingRangeKindOptions::valueSet() const
 
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<FoldingRangeKind>(value);
 }
 
@@ -22802,6 +23220,7 @@ auto ClientFoldingRangeOptions::collapsedText() const -> std::optional<bool> {
 
   auto& value = (*repr_)["collapsedText"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22812,7 +23231,7 @@ auto ClientFoldingRangeOptions::collapsedText(std::optional<bool> collapsedText)
     repr_->erase("collapsedText");
     return *this;
   }
-  repr_->emplace("collapsedText", std::move(collapsedText.value()));
+  (*repr_)["collapsedText"] = std::move(collapsedText.value());
   return *this;
 }
 
@@ -22827,6 +23246,7 @@ auto DiagnosticsCapabilities::relatedInformation() const
 
   auto& value = (*repr_)["relatedInformation"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22846,6 +23266,7 @@ auto DiagnosticsCapabilities::codeDescriptionSupport() const
 
   auto& value = (*repr_)["codeDescriptionSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22855,6 +23276,7 @@ auto DiagnosticsCapabilities::dataSupport() const -> std::optional<bool> {
 
   auto& value = (*repr_)["dataSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -22865,7 +23287,7 @@ auto DiagnosticsCapabilities::relatedInformation(
     repr_->erase("relatedInformation");
     return *this;
   }
-  repr_->emplace("relatedInformation", std::move(relatedInformation.value()));
+  (*repr_)["relatedInformation"] = std::move(relatedInformation.value());
   return *this;
 }
 
@@ -22876,7 +23298,7 @@ auto DiagnosticsCapabilities::tagSupport(
     repr_->erase("tagSupport");
     return *this;
   }
-  repr_->emplace("tagSupport", tagSupport.value());
+  (*repr_)["tagSupport"] = tagSupport.value();
   return *this;
 }
 
@@ -22886,8 +23308,8 @@ auto DiagnosticsCapabilities::codeDescriptionSupport(
     repr_->erase("codeDescriptionSupport");
     return *this;
   }
-  repr_->emplace("codeDescriptionSupport",
-                 std::move(codeDescriptionSupport.value()));
+  (*repr_)["codeDescriptionSupport"] =
+      std::move(codeDescriptionSupport.value());
   return *this;
 }
 
@@ -22897,7 +23319,7 @@ auto DiagnosticsCapabilities::dataSupport(std::optional<bool> dataSupport)
     repr_->erase("dataSupport");
     return *this;
   }
-  repr_->emplace("dataSupport", std::move(dataSupport.value()));
+  (*repr_)["dataSupport"] = std::move(dataSupport.value());
   return *this;
 }
 
@@ -22943,7 +23365,7 @@ auto ClientSemanticTokensRequestOptions::range(
   struct {
     json* repr_;
 
-    void operator()(bool range) { repr_->emplace("range", std::move(range)); }
+    void operator()(bool range) { (*repr_)["range"] = std::move(range); }
 
     void operator()(json range) {
       lsp_runtime_error(
@@ -22967,10 +23389,10 @@ auto ClientSemanticTokensRequestOptions::full(
   struct {
     json* repr_;
 
-    void operator()(bool full) { repr_->emplace("full", std::move(full)); }
+    void operator()(bool full) { (*repr_)["full"] = std::move(full); }
 
     void operator()(ClientSemanticTokensRequestFullDelta full) {
-      repr_->emplace("full", full);
+      (*repr_)["full"] = full;
     }
   } v{repr_};
 
@@ -22988,7 +23410,7 @@ ClientInlayHintResolveOptions::operator bool() const {
 auto ClientInlayHintResolveOptions::properties() const -> Vector<std::string> {
   auto& value = (*repr_)["properties"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -23010,6 +23432,7 @@ auto ClientShowMessageActionItemOptions::additionalPropertiesSupport() const
 
   auto& value = (*repr_)["additionalPropertiesSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -23021,8 +23444,8 @@ auto ClientShowMessageActionItemOptions::additionalPropertiesSupport(
     repr_->erase("additionalPropertiesSupport");
     return *this;
   }
-  repr_->emplace("additionalPropertiesSupport",
-                 std::move(additionalPropertiesSupport.value()));
+  (*repr_)["additionalPropertiesSupport"] =
+      std::move(additionalPropertiesSupport.value());
   return *this;
 }
 
@@ -23035,7 +23458,7 @@ CompletionItemTagOptions::operator bool() const {
 auto CompletionItemTagOptions::valueSet() const -> Vector<CompletionItemTag> {
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CompletionItemTag>(value);
 }
 
@@ -23055,7 +23478,7 @@ auto ClientCompletionItemResolveOptions::properties() const
     -> Vector<std::string> {
   auto& value = (*repr_)["properties"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<std::string>(value);
 }
 
@@ -23076,7 +23499,7 @@ auto ClientCompletionItemInsertTextModeOptions::valueSet() const
     -> Vector<InsertTextMode> {
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<InsertTextMode>(value);
 }
 
@@ -23099,6 +23522,7 @@ auto ClientSignatureParameterInformationOptions::labelOffsetSupport() const
 
   auto& value = (*repr_)["labelOffsetSupport"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -23110,7 +23534,7 @@ auto ClientSignatureParameterInformationOptions::labelOffsetSupport(
     repr_->erase("labelOffsetSupport");
     return *this;
   }
-  repr_->emplace("labelOffsetSupport", std::move(labelOffsetSupport.value()));
+  (*repr_)["labelOffsetSupport"] = std::move(labelOffsetSupport.value());
   return *this;
 }
 
@@ -23123,7 +23547,7 @@ ClientCodeActionKindOptions::operator bool() const {
 auto ClientCodeActionKindOptions::valueSet() const -> Vector<CodeActionKind> {
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<CodeActionKind>(value);
 }
 
@@ -23142,7 +23566,7 @@ ClientDiagnosticsTagOptions::operator bool() const {
 auto ClientDiagnosticsTagOptions::valueSet() const -> Vector<DiagnosticTag> {
   auto& value = (*repr_)["valueSet"];
 
-  assert(value.is_array());
+  if (value.is_null()) value = json::array();
   return Vector<DiagnosticTag>(value);
 }
 
@@ -23163,6 +23587,7 @@ auto ClientSemanticTokensRequestFullDelta::delta() const
 
   auto& value = (*repr_)["delta"];
 
+  if (value.is_null()) value = false;
   assert(value.is_boolean());
   return value.get<bool>();
 }
@@ -23173,7 +23598,7 @@ auto ClientSemanticTokensRequestFullDelta::delta(std::optional<bool> delta)
     repr_->erase("delta");
     return *this;
   }
-  repr_->emplace("delta", std::move(delta.value()));
+  (*repr_)["delta"] = std::move(delta.value());
   return *this;
 }
 }  // namespace cxx::lsp

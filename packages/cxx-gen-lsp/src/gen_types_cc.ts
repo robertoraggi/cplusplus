@@ -188,16 +188,17 @@ class TypeGenerator {
       }
 
       case "array":
-        this.emit(`assert(value.is_array());`);
+        this.emit(`if (value.is_null()) value = json::array();`);
         this.emit(`return ${propertyType}(value);`);
         return;
 
       case "map":
-        this.emit(`assert(value.is_object());`);
+        this.emit(`if (value.is_null()) value = json::object();`);
         this.emit(`return ${propertyType}(value);`);
         return;
 
       case "stringLiteral":
+        this.emit(`if (value.is_null()) value = "${property.type.value}";`);
         this.emit(`assert(value.is_string());`);
         this.emit(`return value.get<std::string>();`);
         return;
@@ -222,36 +223,43 @@ class TypeGenerator {
         throw new Error(`Unexpected null type`);
 
       case "string":
+        this.emit(`if (value.is_null()) value = "";`);
         this.emit(`assert(value.is_string());`);
         this.emit(`return value.get<std::string>();`);
         return true;
 
       case "integer":
+        this.emit(`if (value.is_null()) value = 0;`);
         this.emit(`assert(value.is_number_integer());`);
         this.emit(`return value.get<int>();`);
         return true;
 
       case "uinteger":
+        this.emit(`if (value.is_null()) value = 0;`);
         this.emit(`assert(value.is_number_integer());`);
         this.emit(`return value.get<long>();`);
         return true;
 
       case "decimal":
+        this.emit(`if (value.is_null()) value = 0.0;`);
         this.emit(`assert(value.is_number());`);
         this.emit(`return value.get<double>();`);
         return true;
 
       case "boolean":
+        this.emit(`if (value.is_null()) value = false;`);
         this.emit(`assert(value.is_boolean());`);
         this.emit(`return value.get<bool>();`);
         return true;
 
       case "DocumentUri":
+        this.emit(`if (value.is_null()) value = "";`);
         this.emit(`assert(value.is_string());`);
         this.emit(`return value.get<std::string>();`);
         return true;
 
       case "URI":
+        this.emit(`if (value.is_null()) value = "";`);
         this.emit(`assert(value.is_string());`);
         this.emit(`return value.get<std::string>();`);
         return true;
@@ -347,7 +355,7 @@ class TypeGenerator {
 
     switch (property.type.kind) {
       case "base":
-        this.emit(`repr_->emplace("${property.name}", std::move(${value}));`);
+        this.emit(`(*repr_)["${property.name}"] = std::move(${value});`);
         return;
 
       case "reference":
@@ -380,7 +388,7 @@ class TypeGenerator {
 
       if (enumeration.type.name !== "string") {
         const enumBaseType = toCppType(enumeration.type);
-        this.emit(`repr_->emplace("${property.name}", static_cast<${enumBaseType}>(${value}));`);
+        this.emit(`(*repr_)["${property.name}"] = static_cast<${enumBaseType}>(${value});`);
         return true;
       }
 
@@ -389,7 +397,7 @@ class TypeGenerator {
     }
 
     if (this.structByName.has(property.type.name)) {
-      this.emit(`repr_->emplace("${property.name}", ${value});`);
+      this.emit(`(*repr_)["${property.name}"] = ${value};`);
       return true;
     }
 
