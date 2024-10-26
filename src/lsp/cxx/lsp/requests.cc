@@ -77,6 +77,18 @@ auto ImplementationResponse::id(std::string id) -> ImplementationResponse& {
   return *this;
 }
 
+auto ImplementationResponse::result() const
+    -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> {
+  lsp_runtime_error("ImplementationResponse::result() - not implemented yet");
+}
+
+auto ImplementationResponse::result(
+    std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
+    -> ImplementationResponse& {
+  lsp_runtime_error("ImplementationResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto TypeDefinitionRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -130,6 +142,18 @@ auto TypeDefinitionResponse::id(std::string id) -> TypeDefinitionResponse& {
   return *this;
 }
 
+auto TypeDefinitionResponse::result() const
+    -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> {
+  lsp_runtime_error("TypeDefinitionResponse::result() - not implemented yet");
+}
+
+auto TypeDefinitionResponse::result(
+    std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
+    -> TypeDefinitionResponse& {
+  lsp_runtime_error("TypeDefinitionResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto WorkspaceFoldersRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -169,6 +193,18 @@ auto WorkspaceFoldersResponse::id(long id) -> WorkspaceFoldersResponse& {
 
 auto WorkspaceFoldersResponse::id(std::string id) -> WorkspaceFoldersResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto WorkspaceFoldersResponse::result() const
+    -> std::variant<Vector<WorkspaceFolder>, std::nullptr_t> {
+  lsp_runtime_error("WorkspaceFoldersResponse::result() - not implemented yet");
+}
+
+auto WorkspaceFoldersResponse::result(
+    std::variant<Vector<WorkspaceFolder>, std::nullptr_t> result)
+    -> WorkspaceFoldersResponse& {
+  lsp_runtime_error("WorkspaceFoldersResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -224,6 +260,16 @@ auto ConfigurationResponse::id(std::string id) -> ConfigurationResponse& {
   return *this;
 }
 
+auto ConfigurationResponse::result() const -> Vector<LSPAny> {
+  lsp_runtime_error("ConfigurationResponse::result() - not implemented yet");
+}
+
+auto ConfigurationResponse::result(Vector<LSPAny> result)
+    -> ConfigurationResponse& {
+  lsp_runtime_error("ConfigurationResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto DocumentColorRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -273,6 +319,16 @@ auto DocumentColorResponse::id(long id) -> DocumentColorResponse& {
 
 auto DocumentColorResponse::id(std::string id) -> DocumentColorResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DocumentColorResponse::result() const -> Vector<ColorInformation> {
+  lsp_runtime_error("DocumentColorResponse::result() - not implemented yet");
+}
+
+auto DocumentColorResponse::result(Vector<ColorInformation> result)
+    -> DocumentColorResponse& {
+  lsp_runtime_error("DocumentColorResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -330,6 +386,18 @@ auto ColorPresentationResponse::id(std::string id)
   return *this;
 }
 
+auto ColorPresentationResponse::result() const -> Vector<ColorPresentation> {
+  lsp_runtime_error(
+      "ColorPresentationResponse::result() - not implemented yet");
+}
+
+auto ColorPresentationResponse::result(Vector<ColorPresentation> result)
+    -> ColorPresentationResponse& {
+  lsp_runtime_error(
+      "ColorPresentationResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto FoldingRangeRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -382,6 +450,18 @@ auto FoldingRangeResponse::id(std::string id) -> FoldingRangeResponse& {
   return *this;
 }
 
+auto FoldingRangeResponse::result() const
+    -> std::variant<Vector<FoldingRange>, std::nullptr_t> {
+  lsp_runtime_error("FoldingRangeResponse::result() - not implemented yet");
+}
+
+auto FoldingRangeResponse::result(
+    std::variant<Vector<FoldingRange>, std::nullptr_t> result)
+    -> FoldingRangeResponse& {
+  lsp_runtime_error("FoldingRangeResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto FoldingRangeRefreshRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -424,6 +504,16 @@ auto FoldingRangeRefreshResponse::id(long id) -> FoldingRangeRefreshResponse& {
 auto FoldingRangeRefreshResponse::id(std::string id)
     -> FoldingRangeRefreshResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto FoldingRangeRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto FoldingRangeRefreshResponse::result(std::nullptr_t result)
+    -> FoldingRangeRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -479,6 +569,18 @@ auto DeclarationResponse::id(std::string id) -> DeclarationResponse& {
   return *this;
 }
 
+auto DeclarationResponse::result() const
+    -> std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t> {
+  lsp_runtime_error("DeclarationResponse::result() - not implemented yet");
+}
+
+auto DeclarationResponse::result(
+    std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t> result)
+    -> DeclarationResponse& {
+  lsp_runtime_error("DeclarationResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto SelectionRangeRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -529,6 +631,18 @@ auto SelectionRangeResponse::id(long id) -> SelectionRangeResponse& {
 
 auto SelectionRangeResponse::id(std::string id) -> SelectionRangeResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto SelectionRangeResponse::result() const
+    -> std::variant<Vector<SelectionRange>, std::nullptr_t> {
+  lsp_runtime_error("SelectionRangeResponse::result() - not implemented yet");
+}
+
+auto SelectionRangeResponse::result(
+    std::variant<Vector<SelectionRange>, std::nullptr_t> result)
+    -> SelectionRangeResponse& {
+  lsp_runtime_error("SelectionRangeResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -592,6 +706,16 @@ auto WorkDoneProgressCreateResponse::id(std::string id)
   return *this;
 }
 
+auto WorkDoneProgressCreateResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto WorkDoneProgressCreateResponse::result(std::nullptr_t result)
+    -> WorkDoneProgressCreateResponse& {
+  (*repr_)["result"] = std::move(result);  // base
+  return *this;
+}
+
 auto CallHierarchyPrepareRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -647,6 +771,20 @@ auto CallHierarchyPrepareResponse::id(long id)
 auto CallHierarchyPrepareResponse::id(std::string id)
     -> CallHierarchyPrepareResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto CallHierarchyPrepareResponse::result() const
+    -> std::variant<Vector<CallHierarchyItem>, std::nullptr_t> {
+  lsp_runtime_error(
+      "CallHierarchyPrepareResponse::result() - not implemented yet");
+}
+
+auto CallHierarchyPrepareResponse::result(
+    std::variant<Vector<CallHierarchyItem>, std::nullptr_t> result)
+    -> CallHierarchyPrepareResponse& {
+  lsp_runtime_error(
+      "CallHierarchyPrepareResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -711,6 +849,20 @@ auto CallHierarchyIncomingCallsResponse::id(std::string id)
   return *this;
 }
 
+auto CallHierarchyIncomingCallsResponse::result() const
+    -> std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t> {
+  lsp_runtime_error(
+      "CallHierarchyIncomingCallsResponse::result() - not implemented yet");
+}
+
+auto CallHierarchyIncomingCallsResponse::result(
+    std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t> result)
+    -> CallHierarchyIncomingCallsResponse& {
+  lsp_runtime_error(
+      "CallHierarchyIncomingCallsResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto CallHierarchyOutgoingCallsRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -772,6 +924,20 @@ auto CallHierarchyOutgoingCallsResponse::id(std::string id)
   return *this;
 }
 
+auto CallHierarchyOutgoingCallsResponse::result() const
+    -> std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t> {
+  lsp_runtime_error(
+      "CallHierarchyOutgoingCallsResponse::result() - not implemented yet");
+}
+
+auto CallHierarchyOutgoingCallsResponse::result(
+    std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t> result)
+    -> CallHierarchyOutgoingCallsResponse& {
+  lsp_runtime_error(
+      "CallHierarchyOutgoingCallsResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto SemanticTokensRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -822,6 +988,18 @@ auto SemanticTokensResponse::id(long id) -> SemanticTokensResponse& {
 
 auto SemanticTokensResponse::id(std::string id) -> SemanticTokensResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto SemanticTokensResponse::result() const
+    -> std::variant<SemanticTokens, std::nullptr_t> {
+  lsp_runtime_error("SemanticTokensResponse::result() - not implemented yet");
+}
+
+auto SemanticTokensResponse::result(
+    std::variant<SemanticTokens, std::nullptr_t> result)
+    -> SemanticTokensResponse& {
+  lsp_runtime_error("SemanticTokensResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -881,6 +1059,20 @@ auto SemanticTokensDeltaResponse::id(std::string id)
   return *this;
 }
 
+auto SemanticTokensDeltaResponse::result() const
+    -> std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t> {
+  lsp_runtime_error(
+      "SemanticTokensDeltaResponse::result() - not implemented yet");
+}
+
+auto SemanticTokensDeltaResponse::result(
+    std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t> result)
+    -> SemanticTokensDeltaResponse& {
+  lsp_runtime_error(
+      "SemanticTokensDeltaResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto SemanticTokensRangeRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -937,6 +1129,20 @@ auto SemanticTokensRangeResponse::id(std::string id)
   return *this;
 }
 
+auto SemanticTokensRangeResponse::result() const
+    -> std::variant<SemanticTokens, std::nullptr_t> {
+  lsp_runtime_error(
+      "SemanticTokensRangeResponse::result() - not implemented yet");
+}
+
+auto SemanticTokensRangeResponse::result(
+    std::variant<SemanticTokens, std::nullptr_t> result)
+    -> SemanticTokensRangeResponse& {
+  lsp_runtime_error(
+      "SemanticTokensRangeResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto SemanticTokensRefreshRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -982,6 +1188,16 @@ auto SemanticTokensRefreshResponse::id(long id)
 auto SemanticTokensRefreshResponse::id(std::string id)
     -> SemanticTokensRefreshResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto SemanticTokensRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto SemanticTokensRefreshResponse::result(std::nullptr_t result)
+    -> SemanticTokensRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -1034,6 +1250,17 @@ auto ShowDocumentResponse::id(long id) -> ShowDocumentResponse& {
 
 auto ShowDocumentResponse::id(std::string id) -> ShowDocumentResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ShowDocumentResponse::result() const -> ShowDocumentResult {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return ShowDocumentResult(repr_->at("result"));  // reference
+}
+
+auto ShowDocumentResponse::result(ShowDocumentResult result)
+    -> ShowDocumentResponse& {
+  lsp_runtime_error("ShowDocumentResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -1092,6 +1319,20 @@ auto LinkedEditingRangeResponse::id(std::string id)
   return *this;
 }
 
+auto LinkedEditingRangeResponse::result() const
+    -> std::variant<LinkedEditingRanges, std::nullptr_t> {
+  lsp_runtime_error(
+      "LinkedEditingRangeResponse::result() - not implemented yet");
+}
+
+auto LinkedEditingRangeResponse::result(
+    std::variant<LinkedEditingRanges, std::nullptr_t> result)
+    -> LinkedEditingRangeResponse& {
+  lsp_runtime_error(
+      "LinkedEditingRangeResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto WillCreateFilesRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1142,6 +1383,18 @@ auto WillCreateFilesResponse::id(long id) -> WillCreateFilesResponse& {
 
 auto WillCreateFilesResponse::id(std::string id) -> WillCreateFilesResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto WillCreateFilesResponse::result() const
+    -> std::variant<WorkspaceEdit, std::nullptr_t> {
+  lsp_runtime_error("WillCreateFilesResponse::result() - not implemented yet");
+}
+
+auto WillCreateFilesResponse::result(
+    std::variant<WorkspaceEdit, std::nullptr_t> result)
+    -> WillCreateFilesResponse& {
+  lsp_runtime_error("WillCreateFilesResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -1198,6 +1451,18 @@ auto WillRenameFilesResponse::id(std::string id) -> WillRenameFilesResponse& {
   return *this;
 }
 
+auto WillRenameFilesResponse::result() const
+    -> std::variant<WorkspaceEdit, std::nullptr_t> {
+  lsp_runtime_error("WillRenameFilesResponse::result() - not implemented yet");
+}
+
+auto WillRenameFilesResponse::result(
+    std::variant<WorkspaceEdit, std::nullptr_t> result)
+    -> WillRenameFilesResponse& {
+  lsp_runtime_error("WillRenameFilesResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto WillDeleteFilesRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1251,6 +1516,18 @@ auto WillDeleteFilesResponse::id(std::string id) -> WillDeleteFilesResponse& {
   return *this;
 }
 
+auto WillDeleteFilesResponse::result() const
+    -> std::variant<WorkspaceEdit, std::nullptr_t> {
+  lsp_runtime_error("WillDeleteFilesResponse::result() - not implemented yet");
+}
+
+auto WillDeleteFilesResponse::result(
+    std::variant<WorkspaceEdit, std::nullptr_t> result)
+    -> WillDeleteFilesResponse& {
+  lsp_runtime_error("WillDeleteFilesResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto MonikerRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1299,6 +1576,17 @@ auto MonikerResponse::id(long id) -> MonikerResponse& {
 
 auto MonikerResponse::id(std::string id) -> MonikerResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto MonikerResponse::result() const
+    -> std::variant<Vector<Moniker>, std::nullptr_t> {
+  lsp_runtime_error("MonikerResponse::result() - not implemented yet");
+}
+
+auto MonikerResponse::result(
+    std::variant<Vector<Moniker>, std::nullptr_t> result) -> MonikerResponse& {
+  lsp_runtime_error("MonikerResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -1357,6 +1645,20 @@ auto TypeHierarchyPrepareResponse::id(long id)
 auto TypeHierarchyPrepareResponse::id(std::string id)
     -> TypeHierarchyPrepareResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto TypeHierarchyPrepareResponse::result() const
+    -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> {
+  lsp_runtime_error(
+      "TypeHierarchyPrepareResponse::result() - not implemented yet");
+}
+
+auto TypeHierarchyPrepareResponse::result(
+    std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
+    -> TypeHierarchyPrepareResponse& {
+  lsp_runtime_error(
+      "TypeHierarchyPrepareResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -1420,6 +1722,20 @@ auto TypeHierarchySupertypesResponse::id(std::string id)
   return *this;
 }
 
+auto TypeHierarchySupertypesResponse::result() const
+    -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> {
+  lsp_runtime_error(
+      "TypeHierarchySupertypesResponse::result() - not implemented yet");
+}
+
+auto TypeHierarchySupertypesResponse::result(
+    std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
+    -> TypeHierarchySupertypesResponse& {
+  lsp_runtime_error(
+      "TypeHierarchySupertypesResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto TypeHierarchySubtypesRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1480,6 +1796,20 @@ auto TypeHierarchySubtypesResponse::id(std::string id)
   return *this;
 }
 
+auto TypeHierarchySubtypesResponse::result() const
+    -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> {
+  lsp_runtime_error(
+      "TypeHierarchySubtypesResponse::result() - not implemented yet");
+}
+
+auto TypeHierarchySubtypesResponse::result(
+    std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
+    -> TypeHierarchySubtypesResponse& {
+  lsp_runtime_error(
+      "TypeHierarchySubtypesResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto InlineValueRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1532,6 +1862,18 @@ auto InlineValueResponse::id(std::string id) -> InlineValueResponse& {
   return *this;
 }
 
+auto InlineValueResponse::result() const
+    -> std::variant<Vector<InlineValue>, std::nullptr_t> {
+  lsp_runtime_error("InlineValueResponse::result() - not implemented yet");
+}
+
+auto InlineValueResponse::result(
+    std::variant<Vector<InlineValue>, std::nullptr_t> result)
+    -> InlineValueResponse& {
+  lsp_runtime_error("InlineValueResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto InlineValueRefreshRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1573,6 +1915,16 @@ auto InlineValueRefreshResponse::id(long id) -> InlineValueRefreshResponse& {
 auto InlineValueRefreshResponse::id(std::string id)
     -> InlineValueRefreshResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto InlineValueRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto InlineValueRefreshResponse::result(std::nullptr_t result)
+    -> InlineValueRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -1624,6 +1976,18 @@ auto InlayHintResponse::id(long id) -> InlayHintResponse& {
 
 auto InlayHintResponse::id(std::string id) -> InlayHintResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto InlayHintResponse::result() const
+    -> std::variant<Vector<InlayHint>, std::nullptr_t> {
+  lsp_runtime_error("InlayHintResponse::result() - not implemented yet");
+}
+
+auto InlayHintResponse::result(
+    std::variant<Vector<InlayHint>, std::nullptr_t> result)
+    -> InlayHintResponse& {
+  lsp_runtime_error("InlayHintResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -1680,6 +2044,17 @@ auto InlayHintResolveResponse::id(std::string id) -> InlayHintResolveResponse& {
   return *this;
 }
 
+auto InlayHintResolveResponse::result() const -> InlayHint {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return InlayHint(repr_->at("result"));  // reference
+}
+
+auto InlayHintResolveResponse::result(InlayHint result)
+    -> InlayHintResolveResponse& {
+  lsp_runtime_error("InlayHintResolveResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto InlayHintRefreshRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1719,6 +2094,16 @@ auto InlayHintRefreshResponse::id(long id) -> InlayHintRefreshResponse& {
 
 auto InlayHintRefreshResponse::id(std::string id) -> InlayHintRefreshResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto InlayHintRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto InlayHintRefreshResponse::result(std::nullptr_t result)
+    -> InlayHintRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -1774,6 +2159,18 @@ auto DocumentDiagnosticResponse::id(long id) -> DocumentDiagnosticResponse& {
 auto DocumentDiagnosticResponse::id(std::string id)
     -> DocumentDiagnosticResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DocumentDiagnosticResponse::result() const -> DocumentDiagnosticReport {
+  lsp_runtime_error(
+      "DocumentDiagnosticResponse::result() - not implemented yet");
+}
+
+auto DocumentDiagnosticResponse::result(DocumentDiagnosticReport result)
+    -> DocumentDiagnosticResponse& {
+  lsp_runtime_error(
+      "DocumentDiagnosticResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -1833,6 +2230,18 @@ auto WorkspaceDiagnosticResponse::id(std::string id)
   return *this;
 }
 
+auto WorkspaceDiagnosticResponse::result() const -> WorkspaceDiagnosticReport {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return WorkspaceDiagnosticReport(repr_->at("result"));  // reference
+}
+
+auto WorkspaceDiagnosticResponse::result(WorkspaceDiagnosticReport result)
+    -> WorkspaceDiagnosticResponse& {
+  lsp_runtime_error(
+      "WorkspaceDiagnosticResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto DiagnosticRefreshRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1873,6 +2282,16 @@ auto DiagnosticRefreshResponse::id(long id) -> DiagnosticRefreshResponse& {
 auto DiagnosticRefreshResponse::id(std::string id)
     -> DiagnosticRefreshResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DiagnosticRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto DiagnosticRefreshResponse::result(std::nullptr_t result)
+    -> DiagnosticRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -1929,6 +2348,20 @@ auto InlineCompletionResponse::id(std::string id) -> InlineCompletionResponse& {
   return *this;
 }
 
+auto InlineCompletionResponse::result() const
+    -> std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
+                    std::nullptr_t> {
+  lsp_runtime_error("InlineCompletionResponse::result() - not implemented yet");
+}
+
+auto InlineCompletionResponse::result(
+    std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
+                 std::nullptr_t>
+        result) -> InlineCompletionResponse& {
+  lsp_runtime_error("InlineCompletionResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto TextDocumentContentRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -1982,6 +2415,18 @@ auto TextDocumentContentResponse::id(long id) -> TextDocumentContentResponse& {
 auto TextDocumentContentResponse::id(std::string id)
     -> TextDocumentContentResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto TextDocumentContentResponse::result() const -> TextDocumentContentResult {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return TextDocumentContentResult(repr_->at("result"));  // reference
+}
+
+auto TextDocumentContentResponse::result(TextDocumentContentResult result)
+    -> TextDocumentContentResponse& {
+  lsp_runtime_error(
+      "TextDocumentContentResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2046,6 +2491,16 @@ auto TextDocumentContentRefreshResponse::id(std::string id)
   return *this;
 }
 
+auto TextDocumentContentRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto TextDocumentContentRefreshResponse::result(std::nullptr_t result)
+    -> TextDocumentContentRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
+  return *this;
+}
+
 auto RegistrationRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2095,6 +2550,14 @@ auto RegistrationResponse::id(long id) -> RegistrationResponse& {
 
 auto RegistrationResponse::id(std::string id) -> RegistrationResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto RegistrationResponse::result() const -> std::nullptr_t { return nullptr; }
+
+auto RegistrationResponse::result(std::nullptr_t result)
+    -> RegistrationResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -2151,6 +2614,16 @@ auto UnregistrationResponse::id(std::string id) -> UnregistrationResponse& {
   return *this;
 }
 
+auto UnregistrationResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto UnregistrationResponse::result(std::nullptr_t result)
+    -> UnregistrationResponse& {
+  (*repr_)["result"] = std::move(result);  // base
+  return *this;
+}
+
 auto InitializeRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2202,6 +2675,17 @@ auto InitializeResponse::id(std::string id) -> InitializeResponse& {
   return *this;
 }
 
+auto InitializeResponse::result() const -> InitializeResult {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return InitializeResult(repr_->at("result"));  // reference
+}
+
+auto InitializeResponse::result(InitializeResult result)
+    -> InitializeResponse& {
+  lsp_runtime_error("InitializeResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto ShutdownRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2240,6 +2724,13 @@ auto ShutdownResponse::id(long id) -> ShutdownResponse& {
 
 auto ShutdownResponse::id(std::string id) -> ShutdownResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ShutdownResponse::result() const -> std::nullptr_t { return nullptr; }
+
+auto ShutdownResponse::result(std::nullptr_t result) -> ShutdownResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -2292,6 +2783,18 @@ auto ShowMessageResponse::id(long id) -> ShowMessageResponse& {
 
 auto ShowMessageResponse::id(std::string id) -> ShowMessageResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ShowMessageResponse::result() const
+    -> std::variant<MessageActionItem, std::nullptr_t> {
+  lsp_runtime_error("ShowMessageResponse::result() - not implemented yet");
+}
+
+auto ShowMessageResponse::result(
+    std::variant<MessageActionItem, std::nullptr_t> result)
+    -> ShowMessageResponse& {
+  lsp_runtime_error("ShowMessageResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2356,6 +2859,20 @@ auto WillSaveTextDocumentWaitUntilResponse::id(std::string id)
   return *this;
 }
 
+auto WillSaveTextDocumentWaitUntilResponse::result() const
+    -> std::variant<Vector<TextEdit>, std::nullptr_t> {
+  lsp_runtime_error(
+      "WillSaveTextDocumentWaitUntilResponse::result() - not implemented yet");
+}
+
+auto WillSaveTextDocumentWaitUntilResponse::result(
+    std::variant<Vector<TextEdit>, std::nullptr_t> result)
+    -> WillSaveTextDocumentWaitUntilResponse& {
+  lsp_runtime_error(
+      "WillSaveTextDocumentWaitUntilResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto CompletionRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2404,6 +2921,18 @@ auto CompletionResponse::id(long id) -> CompletionResponse& {
 
 auto CompletionResponse::id(std::string id) -> CompletionResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto CompletionResponse::result() const
+    -> std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t> {
+  lsp_runtime_error("CompletionResponse::result() - not implemented yet");
+}
+
+auto CompletionResponse::result(
+    std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t> result)
+    -> CompletionResponse& {
+  lsp_runtime_error("CompletionResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2461,6 +2990,18 @@ auto CompletionResolveResponse::id(std::string id)
   return *this;
 }
 
+auto CompletionResolveResponse::result() const -> CompletionItem {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return CompletionItem(repr_->at("result"));  // reference
+}
+
+auto CompletionResolveResponse::result(CompletionItem result)
+    -> CompletionResolveResponse& {
+  lsp_runtime_error(
+      "CompletionResolveResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto HoverRequest::method() const -> std::string { return repr_->at("method"); }
 
 auto HoverRequest::method(std::string method) -> HoverRequest& {
@@ -2507,6 +3048,16 @@ auto HoverResponse::id(long id) -> HoverResponse& {
 
 auto HoverResponse::id(std::string id) -> HoverResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto HoverResponse::result() const -> std::variant<Hover, std::nullptr_t> {
+  lsp_runtime_error("HoverResponse::result() - not implemented yet");
+}
+
+auto HoverResponse::result(std::variant<Hover, std::nullptr_t> result)
+    -> HoverResponse& {
+  lsp_runtime_error("HoverResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2562,6 +3113,18 @@ auto SignatureHelpResponse::id(std::string id) -> SignatureHelpResponse& {
   return *this;
 }
 
+auto SignatureHelpResponse::result() const
+    -> std::variant<SignatureHelp, std::nullptr_t> {
+  lsp_runtime_error("SignatureHelpResponse::result() - not implemented yet");
+}
+
+auto SignatureHelpResponse::result(
+    std::variant<SignatureHelp, std::nullptr_t> result)
+    -> SignatureHelpResponse& {
+  lsp_runtime_error("SignatureHelpResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto DefinitionRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2613,6 +3176,18 @@ auto DefinitionResponse::id(std::string id) -> DefinitionResponse& {
   return *this;
 }
 
+auto DefinitionResponse::result() const
+    -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> {
+  lsp_runtime_error("DefinitionResponse::result() - not implemented yet");
+}
+
+auto DefinitionResponse::result(
+    std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
+    -> DefinitionResponse& {
+  lsp_runtime_error("DefinitionResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto ReferencesRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2661,6 +3236,18 @@ auto ReferencesResponse::id(long id) -> ReferencesResponse& {
 
 auto ReferencesResponse::id(std::string id) -> ReferencesResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ReferencesResponse::result() const
+    -> std::variant<Vector<Location>, std::nullptr_t> {
+  lsp_runtime_error("ReferencesResponse::result() - not implemented yet");
+}
+
+auto ReferencesResponse::result(
+    std::variant<Vector<Location>, std::nullptr_t> result)
+    -> ReferencesResponse& {
+  lsp_runtime_error("ReferencesResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2718,6 +3305,20 @@ auto DocumentHighlightResponse::id(std::string id)
   return *this;
 }
 
+auto DocumentHighlightResponse::result() const
+    -> std::variant<Vector<DocumentHighlight>, std::nullptr_t> {
+  lsp_runtime_error(
+      "DocumentHighlightResponse::result() - not implemented yet");
+}
+
+auto DocumentHighlightResponse::result(
+    std::variant<Vector<DocumentHighlight>, std::nullptr_t> result)
+    -> DocumentHighlightResponse& {
+  lsp_runtime_error(
+      "DocumentHighlightResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto DocumentSymbolRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2771,6 +3372,20 @@ auto DocumentSymbolResponse::id(std::string id) -> DocumentSymbolResponse& {
   return *this;
 }
 
+auto DocumentSymbolResponse::result() const
+    -> std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
+                    std::nullptr_t> {
+  lsp_runtime_error("DocumentSymbolResponse::result() - not implemented yet");
+}
+
+auto DocumentSymbolResponse::result(
+    std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
+                 std::nullptr_t>
+        result) -> DocumentSymbolResponse& {
+  lsp_runtime_error("DocumentSymbolResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto CodeActionRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2819,6 +3434,18 @@ auto CodeActionResponse::id(long id) -> CodeActionResponse& {
 
 auto CodeActionResponse::id(std::string id) -> CodeActionResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto CodeActionResponse::result() const
+    -> std::variant<Vector<std::variant<Command, CodeAction>>, std::nullptr_t> {
+  lsp_runtime_error("CodeActionResponse::result() - not implemented yet");
+}
+
+auto CodeActionResponse::result(
+    std::variant<Vector<std::variant<Command, CodeAction>>, std::nullptr_t>
+        result) -> CodeActionResponse& {
+  lsp_runtime_error("CodeActionResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2876,6 +3503,18 @@ auto CodeActionResolveResponse::id(std::string id)
   return *this;
 }
 
+auto CodeActionResolveResponse::result() const -> CodeAction {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return CodeAction(repr_->at("result"));  // reference
+}
+
+auto CodeActionResolveResponse::result(CodeAction result)
+    -> CodeActionResolveResponse& {
+  lsp_runtime_error(
+      "CodeActionResolveResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto WorkspaceSymbolRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -2926,6 +3565,20 @@ auto WorkspaceSymbolResponse::id(long id) -> WorkspaceSymbolResponse& {
 
 auto WorkspaceSymbolResponse::id(std::string id) -> WorkspaceSymbolResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto WorkspaceSymbolResponse::result() const
+    -> std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
+                    std::nullptr_t> {
+  lsp_runtime_error("WorkspaceSymbolResponse::result() - not implemented yet");
+}
+
+auto WorkspaceSymbolResponse::result(
+    std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
+                 std::nullptr_t>
+        result) -> WorkspaceSymbolResponse& {
+  lsp_runtime_error("WorkspaceSymbolResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -2988,6 +3641,18 @@ auto WorkspaceSymbolResolveResponse::id(std::string id)
   return *this;
 }
 
+auto WorkspaceSymbolResolveResponse::result() const -> WorkspaceSymbol {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return WorkspaceSymbol(repr_->at("result"));  // reference
+}
+
+auto WorkspaceSymbolResolveResponse::result(WorkspaceSymbol result)
+    -> WorkspaceSymbolResolveResponse& {
+  lsp_runtime_error(
+      "WorkspaceSymbolResolveResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto CodeLensRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -3036,6 +3701,18 @@ auto CodeLensResponse::id(long id) -> CodeLensResponse& {
 
 auto CodeLensResponse::id(std::string id) -> CodeLensResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto CodeLensResponse::result() const
+    -> std::variant<Vector<CodeLens>, std::nullptr_t> {
+  lsp_runtime_error("CodeLensResponse::result() - not implemented yet");
+}
+
+auto CodeLensResponse::result(
+    std::variant<Vector<CodeLens>, std::nullptr_t> result)
+    -> CodeLensResponse& {
+  lsp_runtime_error("CodeLensResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -3092,6 +3769,17 @@ auto CodeLensResolveResponse::id(std::string id) -> CodeLensResolveResponse& {
   return *this;
 }
 
+auto CodeLensResolveResponse::result() const -> CodeLens {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return CodeLens(repr_->at("result"));  // reference
+}
+
+auto CodeLensResolveResponse::result(CodeLens result)
+    -> CodeLensResolveResponse& {
+  lsp_runtime_error("CodeLensResolveResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto CodeLensRefreshRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -3131,6 +3819,16 @@ auto CodeLensRefreshResponse::id(long id) -> CodeLensRefreshResponse& {
 
 auto CodeLensRefreshResponse::id(std::string id) -> CodeLensRefreshResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto CodeLensRefreshResponse::result() const -> std::nullptr_t {
+  return nullptr;
+}
+
+auto CodeLensRefreshResponse::result(std::nullptr_t result)
+    -> CodeLensRefreshResponse& {
+  (*repr_)["result"] = std::move(result);  // base
   return *this;
 }
 
@@ -3183,6 +3881,18 @@ auto DocumentLinkResponse::id(long id) -> DocumentLinkResponse& {
 
 auto DocumentLinkResponse::id(std::string id) -> DocumentLinkResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DocumentLinkResponse::result() const
+    -> std::variant<Vector<DocumentLink>, std::nullptr_t> {
+  lsp_runtime_error("DocumentLinkResponse::result() - not implemented yet");
+}
+
+auto DocumentLinkResponse::result(
+    std::variant<Vector<DocumentLink>, std::nullptr_t> result)
+    -> DocumentLinkResponse& {
+  lsp_runtime_error("DocumentLinkResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -3242,6 +3952,18 @@ auto DocumentLinkResolveResponse::id(std::string id)
   return *this;
 }
 
+auto DocumentLinkResolveResponse::result() const -> DocumentLink {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return DocumentLink(repr_->at("result"));  // reference
+}
+
+auto DocumentLinkResolveResponse::result(DocumentLink result)
+    -> DocumentLinkResolveResponse& {
+  lsp_runtime_error(
+      "DocumentLinkResolveResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto DocumentFormattingRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -3294,6 +4016,20 @@ auto DocumentFormattingResponse::id(long id) -> DocumentFormattingResponse& {
 auto DocumentFormattingResponse::id(std::string id)
     -> DocumentFormattingResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DocumentFormattingResponse::result() const
+    -> std::variant<Vector<TextEdit>, std::nullptr_t> {
+  lsp_runtime_error(
+      "DocumentFormattingResponse::result() - not implemented yet");
+}
+
+auto DocumentFormattingResponse::result(
+    std::variant<Vector<TextEdit>, std::nullptr_t> result)
+    -> DocumentFormattingResponse& {
+  lsp_runtime_error(
+      "DocumentFormattingResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -3357,6 +4093,20 @@ auto DocumentRangeFormattingResponse::id(std::string id)
   return *this;
 }
 
+auto DocumentRangeFormattingResponse::result() const
+    -> std::variant<Vector<TextEdit>, std::nullptr_t> {
+  lsp_runtime_error(
+      "DocumentRangeFormattingResponse::result() - not implemented yet");
+}
+
+auto DocumentRangeFormattingResponse::result(
+    std::variant<Vector<TextEdit>, std::nullptr_t> result)
+    -> DocumentRangeFormattingResponse& {
+  lsp_runtime_error(
+      "DocumentRangeFormattingResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto DocumentRangesFormattingRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -3414,6 +4164,20 @@ auto DocumentRangesFormattingResponse::id(long id)
 auto DocumentRangesFormattingResponse::id(std::string id)
     -> DocumentRangesFormattingResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto DocumentRangesFormattingResponse::result() const
+    -> std::variant<Vector<TextEdit>, std::nullptr_t> {
+  lsp_runtime_error(
+      "DocumentRangesFormattingResponse::result() - not implemented yet");
+}
+
+auto DocumentRangesFormattingResponse::result(
+    std::variant<Vector<TextEdit>, std::nullptr_t> result)
+    -> DocumentRangesFormattingResponse& {
+  lsp_runtime_error(
+      "DocumentRangesFormattingResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -3477,6 +4241,20 @@ auto DocumentOnTypeFormattingResponse::id(std::string id)
   return *this;
 }
 
+auto DocumentOnTypeFormattingResponse::result() const
+    -> std::variant<Vector<TextEdit>, std::nullptr_t> {
+  lsp_runtime_error(
+      "DocumentOnTypeFormattingResponse::result() - not implemented yet");
+}
+
+auto DocumentOnTypeFormattingResponse::result(
+    std::variant<Vector<TextEdit>, std::nullptr_t> result)
+    -> DocumentOnTypeFormattingResponse& {
+  lsp_runtime_error(
+      "DocumentOnTypeFormattingResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto RenameRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -3525,6 +4303,17 @@ auto RenameResponse::id(long id) -> RenameResponse& {
 
 auto RenameResponse::id(std::string id) -> RenameResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto RenameResponse::result() const
+    -> std::variant<WorkspaceEdit, std::nullptr_t> {
+  lsp_runtime_error("RenameResponse::result() - not implemented yet");
+}
+
+auto RenameResponse::result(std::variant<WorkspaceEdit, std::nullptr_t> result)
+    -> RenameResponse& {
+  lsp_runtime_error("RenameResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -3577,6 +4366,18 @@ auto PrepareRenameResponse::id(long id) -> PrepareRenameResponse& {
 
 auto PrepareRenameResponse::id(std::string id) -> PrepareRenameResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto PrepareRenameResponse::result() const
+    -> std::variant<PrepareRenameResult, std::nullptr_t> {
+  lsp_runtime_error("PrepareRenameResponse::result() - not implemented yet");
+}
+
+auto PrepareRenameResponse::result(
+    std::variant<PrepareRenameResult, std::nullptr_t> result)
+    -> PrepareRenameResponse& {
+  lsp_runtime_error("PrepareRenameResponse::result() - not implemented yet");
   return *this;
 }
 
@@ -3633,6 +4434,17 @@ auto ExecuteCommandResponse::id(std::string id) -> ExecuteCommandResponse& {
   return *this;
 }
 
+auto ExecuteCommandResponse::result() const
+    -> std::variant<LSPAny, std::nullptr_t> {
+  lsp_runtime_error("ExecuteCommandResponse::result() - not implemented yet");
+}
+
+auto ExecuteCommandResponse::result(std::variant<LSPAny, std::nullptr_t> result)
+    -> ExecuteCommandResponse& {
+  lsp_runtime_error("ExecuteCommandResponse::result() - not implemented yet");
+  return *this;
+}
+
 auto ApplyWorkspaceEditRequest::method() const -> std::string {
   return repr_->at("method");
 }
@@ -3685,6 +4497,18 @@ auto ApplyWorkspaceEditResponse::id(long id) -> ApplyWorkspaceEditResponse& {
 auto ApplyWorkspaceEditResponse::id(std::string id)
     -> ApplyWorkspaceEditResponse& {
   (*repr_)["id"] = std::move(id);
+  return *this;
+}
+
+auto ApplyWorkspaceEditResponse::result() const -> ApplyWorkspaceEditResult {
+  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
+  return ApplyWorkspaceEditResult(repr_->at("result"));  // reference
+}
+
+auto ApplyWorkspaceEditResponse::result(ApplyWorkspaceEditResult result)
+    -> ApplyWorkspaceEditResponse& {
+  lsp_runtime_error(
+      "ApplyWorkspaceEditResponse::result() - not implemented yet");
   return *this;
 }
 
