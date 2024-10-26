@@ -1,6 +1,8 @@
 #include <cxx/lsp/types.h>
 #include <gtest/gtest.h>
 
+#include <iostream>
+
 #include "cxx/lsp/enums.h"
 #include "cxx/lsp/fwd.h"
 
@@ -142,4 +144,108 @@ TEST(LSP, VariantArrayProperty) {
   ASSERT_EQ(std::get<std::string>(*item.notebook()), "a_notebook");
 
   ASSERT_EQ(notebookSelector.size(), 1);
+}
+
+TEST(LSP, CompletionList) {
+  const char *kResponse = R"(
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "isIncomplete": false,
+    "items": [
+      {
+        "filterText": "include",
+        "insertText": "include \"$0\"",
+        "insertTextFormat": 2,
+        "kind": 15,
+        "label": " include",
+        "sortText": "000000001",
+        "labelDetails": {
+          "detail": " \"header\""
+        },
+        "textEdit": {
+          "newText": "include \"$0\"",
+          "range": {
+            "end": {
+              "character": 4,
+              "line": 0
+            },
+            "start": {
+              "character": 1,
+              "line": 0
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+)";
+
+  auto response = json::parse(kResponse)["result"];
+
+  CompletionList completionList{response};
+
+  ASSERT_TRUE(completionList);
+  ASSERT_FALSE(completionList.isIncomplete());
+
+  ASSERT_EQ(completionList.items().size(), 1);
+
+  auto items = completionList.items();
+  auto item = items.at(0);
+  ASSERT_EQ(*item.filterText(), "include");
+  ASSERT_EQ(*item.insertText(), "include \"$0\"");
+  ASSERT_EQ(item.insertTextFormat(), InsertTextFormat::kSnippet);
+  ASSERT_EQ(*item.kind(), CompletionItemKind::kSnippet);
+  ASSERT_EQ(item.label(), " include");
+  ASSERT_EQ(*item.labelDetails()->detail(), " \"header\"");
+  ASSERT_EQ(item.sortText(), "000000001");
+
+  ASSERT_TRUE(std::holds_alternative<TextEdit>(*item.textEdit()));
+  auto textEdit = std::get<TextEdit>(*item.textEdit());
+
+  ASSERT_EQ(textEdit.newText(), "include \"$0\"");
+  auto range = textEdit.range();
+  ASSERT_EQ(range.start().line(), 0);
+  ASSERT_EQ(range.start().character(), 1);
+  ASSERT_EQ(range.end().line(), 0);
+  ASSERT_EQ(range.end().character(), 4);
+}
+
+TEST(LSP, CreateCompletionList) {
+  auto storage = json::object();
+
+  CompletionList completionList{storage};
+
+  completionList.isIncomplete(false);
+
+  auto item = completionList.items().emplace_back();
+  item.filterText("include");
+  item.insertText("include \"$0\"");
+  item.insertTextFormat(InsertTextFormat::kSnippet);
+  item.kind(CompletionItemKind::kSnippet);
+  item.label(" include");
+
+  auto labelDetailsStorage = json::object();
+
+  item.labelDetails(CompletionItemLabelDetails(labelDetailsStorage))
+      .detail(" \"header\"");
+  item.sortText("000000001");
+
+  auto textEditStorage = json::object();
+  auto textEdit = TextEdit{textEditStorage};
+
+  textEdit.newText("include \"$0\"");
+  auto range = textEdit.range();
+  range.start().line(0);
+  range.start().character(1);
+  range.end().line(0);
+  range.end().character(4);
+
+  item.textEdit(std::move(textEdit));
+
+  ASSERT_TRUE(completionList);
+
+  // std::cout << completionList.get().dump(2) << std::endl;
 }
