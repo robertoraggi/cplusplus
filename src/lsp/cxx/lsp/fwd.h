@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <concepts>
 #include <nlohmann/json.hpp>
 #include <variant>
 
@@ -636,6 +637,18 @@ class Vector<std::variant<Ts...>> final : public LSPObject {
     std::variant<Ts...> result;
     details::try_emplace(result, repr_->at(index));
     return result;
+  }
+
+  template <typename T>
+  [[nodiscard]] auto emplace_back() -> std::variant<Ts...> {
+    std::variant<Ts...> result;
+    details::TryEmplace<T>{}(result, repr_->emplace_back());
+    return result;
+  }
+
+  template <std::derived_from<LSPObject> T>
+  [[nodiscard]] auto emplace_back() -> T {
+    return T(repr_->emplace_back());
   }
 };
 

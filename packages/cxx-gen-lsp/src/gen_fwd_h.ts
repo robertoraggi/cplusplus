@@ -193,6 +193,18 @@ class Vector<std::variant<Ts...>> final : public LSPObject {
     details::try_emplace(result, repr_->at(index));
     return result;
   }
+
+  template <typename T>
+  [[nodiscard]] auto emplace_back() -> std::variant<Ts...> {
+    std::variant<Ts...> result;
+    details::TryEmplace<T>{}(result, repr_->emplace_back());
+    return result;
+  }
+
+  template <std::derived_from<LSPObject> T>
+  [[nodiscard]] auto emplace_back() -> T {
+    return T(repr_->emplace_back());
+  }
 };
 
 template <typename Key, typename Value>
@@ -272,6 +284,7 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
   emit(`#pragma once`);
   emit();
   emit(`#include <nlohmann/json.hpp>`);
+  emit(`#include <concepts>`);
   emit(`#include <variant>`);
   emit();
   emit(`namespace cxx::lsp {`);
