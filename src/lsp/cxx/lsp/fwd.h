@@ -463,12 +463,13 @@ using Pattern = std::string;
 
 class LSPObject {
  public:
-  explicit LSPObject(json repr) : repr_(std::move(repr)) {}
+  explicit LSPObject(json& repr) : repr_(&repr) {}
 
-  [[nodiscard]] operator const json&() const { return repr_; }
+  [[nodiscard]] operator const json&() const { return *repr_; }
+  [[nodiscard]] auto get() const -> json& { return *repr_; }
 
  protected:
-  json repr_;
+  json* repr_{nullptr};
 };
 
 template <typename T>
@@ -476,10 +477,12 @@ class Vector final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_.is_array(); }
-  [[nodiscard]] auto size() const -> std::size_t { return repr_.size(); }
-  [[nodiscard]] auto empty() const -> bool { return repr_.empty(); }
-  [[nodiscard]] auto at(int index) const -> const T& { return repr_[index]; }
+  [[nodiscard]] explicit operator bool() const { return repr_->is_array(); }
+  [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
+  [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
+  [[nodiscard]] auto at(int index) const -> const T& {
+    return repr_->at(index);
+  }
 };
 
 namespace details {
@@ -489,7 +492,7 @@ struct TryEmplace;
 
 template <std::derived_from<LSPObject> T>
 struct TryEmplace<T> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     auto obj = T{value};
     if (!obj) return false;
     result.template emplace<T>(std::move(obj));
@@ -498,7 +501,7 @@ struct TryEmplace<T> {
 };
 
 template <typename... Ts>
-auto try_emplace(std::variant<Ts...>& result, const json& value) -> bool {
+auto try_emplace(std::variant<Ts...>& result, json& value) -> bool {
   return (details::TryEmplace<Ts>{}(result, value) || ...);
 }
 
@@ -509,7 +512,7 @@ struct TryEmplace<std::monostate> {
 
 template <>
 struct TryEmplace<std::nullptr_t> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_null()) return false;
     result.template emplace<std::nullptr_t>(nullptr);
     return true;
@@ -518,7 +521,7 @@ struct TryEmplace<std::nullptr_t> {
 
 template <>
 struct TryEmplace<bool> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_boolean()) return false;
     result.template emplace<bool>(value);
     return true;
@@ -527,7 +530,7 @@ struct TryEmplace<bool> {
 
 template <>
 struct TryEmplace<int> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
     result.template emplace<int>(value);
     return true;
@@ -536,7 +539,7 @@ struct TryEmplace<int> {
 
 template <>
 struct TryEmplace<long> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
     result.template emplace<long>(value);
     return true;
@@ -545,7 +548,7 @@ struct TryEmplace<long> {
 
 template <>
 struct TryEmplace<double> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_float()) return false;
     result.template emplace<double>(value);
     return true;
@@ -554,7 +557,7 @@ struct TryEmplace<double> {
 
 template <>
 struct TryEmplace<std::string> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_string()) return false;
     result.template emplace<std::string>(value);
     return true;
@@ -563,14 +566,14 @@ struct TryEmplace<std::string> {
 
 template <typename... Ts>
 struct TryEmplace<std::variant<Ts...>> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     return try_emplace(result, value);
   }
 };
 
 template <typename... Ts>
 struct TryEmplace<std::tuple<Ts...>> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     lsp_runtime_error("todo: TryEmplace<std::tuple<Ts...>>");
     return false;
   }
@@ -578,7 +581,7 @@ struct TryEmplace<std::tuple<Ts...>> {
 
 template <>
 struct TryEmplace<json> {
-  auto operator()(auto& result, const json& value) const -> bool {
+  auto operator()(auto& result, json& value) const -> bool {
     result = value;
     return true;
   }
@@ -586,8 +589,9 @@ struct TryEmplace<json> {
 
 template <>
 struct TryEmplace<TextDocumentSyncKind> {
-  auto operator()(auto& result, const json& value) const -> bool {
-    lsp_runtime_error("todo: TextDocumentSyncKind<json>");
+  auto operator()(auto& result, json& value) const -> bool {
+    if (!value.is_number_integer()) return false;
+    result = TextDocumentSyncKind(value.get<int>());
     return true;
   }
 };
@@ -599,12 +603,12 @@ class Vector<std::variant<Ts...>> final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_.is_array(); }
-  [[nodiscard]] auto size() const -> std::size_t { return repr_.size(); }
-  [[nodiscard]] auto empty() const -> bool { return repr_.empty(); }
+  [[nodiscard]] explicit operator bool() const { return repr_->is_array(); }
+  [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
+  [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> std::variant<Ts...> {
     std::variant<Ts...> result;
-    details::try_emplace(result, repr_[index]);
+    details::try_emplace(result, repr_->at(index));
     return result;
   }
 };
@@ -614,11 +618,11 @@ class Map final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_.is_object(); }
-  [[nodiscard]] auto size() const -> std::size_t { return repr_.size(); }
-  [[nodiscard]] auto empty() const -> bool { return repr_.empty(); }
+  [[nodiscard]] explicit operator bool() const { return repr_->is_object(); }
+  [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
+  [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(const Key& key) const -> const Value& {
-    return repr_[key];
+    return repr_->at(key);
   }
 };
 
@@ -627,13 +631,13 @@ class Map<Key, std::variant<Ts...>> final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] explicit operator bool() const { return repr_.is_object(); }
-  [[nodiscard]] auto size() const -> std::size_t { return repr_.size(); }
-  [[nodiscard]] auto empty() const -> bool { return repr_.empty(); }
+  [[nodiscard]] explicit operator bool() const { return repr_->is_object(); }
+  [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
+  [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
 
   [[nodiscard]] auto at(const Key& key) const -> std::variant<Ts...> {
     std::variant<Ts...> result;
-    details::try_emplace(result, repr_[key]);
+    details::try_emplace(result, repr_->at(key));
     return result;
   }
 };

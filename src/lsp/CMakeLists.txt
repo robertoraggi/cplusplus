@@ -40,6 +40,8 @@ if (EMSCRIPTEN)
     target_compile_options(cxx-lsp PUBLIC -fno-exceptions)
 endif()
 
+add_subdirectory(tests)
+
 if(CXX_INSTALL_LSP)
 
     install(
