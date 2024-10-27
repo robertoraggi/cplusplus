@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { getStructureProperties, MetaModel, Property, toCppType } from "./MetaModel.js";
+import { getStructureProperties, isStringLike, MetaModel, Property, toCppType, Type } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
@@ -47,6 +47,17 @@ export function gen_types_h({ model, outputDirectory }: { model: MetaModel; outp
   emit(`namespace cxx::lsp {`);
   emit();
 
+  const typeAliasByName = new Map(model.typeAliases.map((t) => [t.name, t]));
+
+  const isOrType = (type: Type) => {
+    if (type.kind === "or") {
+      return true;
+    } else if (type.kind === "reference" && typeAliasByName.has(type.name)) {
+      return isOrType(typeAliasByName.get(type.name)!.type);
+    }
+    return false;
+  };
+
   model.structures.forEach((structure) => {
     const typeName = structure.name;
     emit();
@@ -63,6 +74,14 @@ export function gen_types_h({ model, outputDirectory }: { model: MetaModel; outp
       const returnType = getReturnType(property);
       emit();
       emit(`    [[nodiscard ]]auto ${propertyName}() const -> ${returnType};`);
+      if (property.optional || property.type.kind === "or") {
+        emit();
+        emit(`template <typename T>`);
+        emit(`[[nodiscard]] auto ${propertyName}() -> T {`);
+        emit(`  auto& value = (*repr_)["${propertyName}"];`);
+        emit(`  return T(value);`);
+        emit(`}`);
+      }
     });
 
     emit();
@@ -71,6 +90,15 @@ export function gen_types_h({ model, outputDirectory }: { model: MetaModel; outp
       const argumentType = getReturnType(property);
       emit();
       emit(`    auto ${propertyName}(${argumentType} ${propertyName}) -> ${typeName}&;`);
+
+      if (property.type.kind === "array" && isStringLike(property.type.element, typeAliasByName)) {
+        emit();
+        emit(`    auto ${propertyName}(std::vector<std::string> ${propertyName}) -> ${typeName}& {`);
+        emit(`      auto& value = (*repr_)["${propertyName}"];`);
+        emit(`      value = std::move(${propertyName});`);
+        emit(`      return *this;`);
+        emit(`    }`);
+      }
     });
 
     emit(`};`);

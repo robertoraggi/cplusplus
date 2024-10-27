@@ -76,26 +76,6 @@ class TypeGenerator {
     return propertyType;
   }
 
-  isStringLike(type: Type): boolean {
-    switch (type.kind) {
-      case "base":
-        return type.name === "string";
-
-      case "reference": {
-        if (this.typeAliasByName.has(type.name)) {
-          return this.isStringLike(this.typeAliasByName.get(type.name)!.type);
-        }
-        return false;
-      }
-
-      case "stringLiteral":
-        return true;
-
-      default:
-        return false;
-    } // switch
-  }
-
   begin() {
     this.emit(copyrightHeader);
     this.emit();
@@ -212,7 +192,8 @@ class TypeGenerator {
     } // switch
 
     this.emit();
-    this.emit(`lsp_runtime_error("${structure.name}::${property.name}: not implement yet");`);
+
+    this.emit(`lsp_runtime_error("${structure.name}::${property.name}: not implemented yet");`);
   }
 
   generatePropertyGetterBase({ property }: { structure: Structure; property: Property }): boolean {
@@ -362,6 +343,10 @@ class TypeGenerator {
         if (!this.generatePropertySetterReference({ structure, property, value })) break;
         return;
 
+      case "array":
+        this.emit(`(*repr_)["${property.name}"] = std::move(${value});`);
+        return;
+
       case "or":
         if (!this.generatePropertySetterOr({ structure, property, value })) break;
         return;
@@ -370,7 +355,7 @@ class TypeGenerator {
         break;
     } // switch
 
-    this.emit(`lsp_runtime_error("${typeName}::${property.name}: not implement yet");`);
+    this.emit(`lsp_runtime_error("${typeName}::${property.name}: not implemented yet");`);
   }
 
   generatePropertySetterReference({

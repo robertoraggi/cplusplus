@@ -36,7 +36,19 @@ class ImplementationParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> ImplementationParams&;
@@ -74,9 +86,27 @@ class ImplementationRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -100,7 +130,19 @@ class TypeDefinitionParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> TypeDefinitionParams&;
@@ -123,9 +165,27 @@ class TypeDefinitionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -185,7 +245,19 @@ class DocumentColorParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentColorParams&;
@@ -221,9 +293,27 @@ class DocumentColorRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -249,7 +339,19 @@ class ColorPresentationParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> ColorPresentationParams&;
@@ -275,8 +377,20 @@ class ColorPresentation final : public LSPObject {
 
   [[nodiscard]] auto textEdit() const -> std::optional<TextEdit>;
 
+  template <typename T>
+  [[nodiscard]] auto textEdit() -> T {
+    auto& value = (*repr_)["textEdit"];
+    return T(value);
+  }
+
   [[nodiscard]] auto additionalTextEdits() const
       -> std::optional<Vector<TextEdit>>;
+
+  template <typename T>
+  [[nodiscard]] auto additionalTextEdits() -> T {
+    auto& value = (*repr_)["additionalTextEdits"];
+    return T(value);
+  }
 
   auto label(std::string label) -> ColorPresentation&;
 
@@ -294,6 +408,12 @@ class WorkDoneProgressOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> WorkDoneProgressOptions&;
 };
@@ -306,6 +426,12 @@ class TextDocumentRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -322,7 +448,19 @@ class FoldingRangeParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> FoldingRangeParams&;
 
@@ -343,13 +481,37 @@ class FoldingRange final : public LSPObject {
 
   [[nodiscard]] auto startCharacter() const -> std::optional<long>;
 
+  template <typename T>
+  [[nodiscard]] auto startCharacter() -> T {
+    auto& value = (*repr_)["startCharacter"];
+    return T(value);
+  }
+
   [[nodiscard]] auto endLine() const -> long;
 
   [[nodiscard]] auto endCharacter() const -> std::optional<long>;
 
+  template <typename T>
+  [[nodiscard]] auto endCharacter() -> T {
+    auto& value = (*repr_)["endCharacter"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> std::optional<FoldingRangeKind>;
 
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
+
   [[nodiscard]] auto collapsedText() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto collapsedText() -> T {
+    auto& value = (*repr_)["collapsedText"];
+    return T(value);
+  }
 
   auto startLine(long startLine) -> FoldingRange&;
 
@@ -373,9 +535,27 @@ class FoldingRangeRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -399,7 +579,19 @@ class DeclarationParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> DeclarationParams&;
 
@@ -420,10 +612,28 @@ class DeclarationRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DeclarationRegistrationOptions&;
@@ -447,7 +657,19 @@ class SelectionRangeParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> SelectionRangeParams&;
@@ -471,6 +693,12 @@ class SelectionRange final : public LSPObject {
 
   [[nodiscard]] auto parent() const -> std::optional<SelectionRange>;
 
+  template <typename T>
+  [[nodiscard]] auto parent() -> T {
+    auto& value = (*repr_)["parent"];
+    return T(value);
+  }
+
   auto range(Range range) -> SelectionRange&;
 
   auto parent(std::optional<SelectionRange> parent) -> SelectionRange&;
@@ -484,10 +712,28 @@ class SelectionRangeRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> SelectionRangeRegistrationOptions&;
@@ -533,6 +779,12 @@ class CallHierarchyPrepareParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument)
       -> CallHierarchyPrepareParams&;
 
@@ -554,7 +806,19 @@ class CallHierarchyItem final : public LSPObject {
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<SymbolTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto detail() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto detail() -> T {
+    auto& value = (*repr_)["detail"];
+    return T(value);
+  }
 
   [[nodiscard]] auto uri() const -> std::string;
 
@@ -563,6 +827,12 @@ class CallHierarchyItem final : public LSPObject {
   [[nodiscard]] auto selectionRange() const -> Range;
 
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto name(std::string name) -> CallHierarchyItem&;
 
@@ -590,9 +860,27 @@ class CallHierarchyRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -614,7 +902,19 @@ class CallHierarchyIncomingCallsParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto item(CallHierarchyItem item) -> CallHierarchyIncomingCallsParams&;
 
@@ -650,7 +950,19 @@ class CallHierarchyOutgoingCallsParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto item(CallHierarchyItem item) -> CallHierarchyOutgoingCallsParams&;
 
@@ -686,7 +998,19 @@ class SemanticTokensParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> SemanticTokensParams&;
@@ -705,6 +1029,12 @@ class SemanticTokens final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto resultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto resultId() -> T {
+    auto& value = (*repr_)["resultId"];
+    return T(value);
+  }
 
   [[nodiscard]] auto data() const -> Vector<long>;
 
@@ -733,16 +1063,46 @@ class SemanticTokensRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto legend() const -> SemanticTokensLegend;
 
   [[nodiscard]] auto range() const -> std::optional<std::variant<bool, json>>;
 
+  template <typename T>
+  [[nodiscard]] auto range() -> T {
+    auto& value = (*repr_)["range"];
+    return T(value);
+  }
+
   [[nodiscard]] auto full() const
       -> std::optional<std::variant<bool, SemanticTokensFullDelta>>;
 
+  template <typename T>
+  [[nodiscard]] auto full() -> T {
+    auto& value = (*repr_)["full"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -775,7 +1135,19 @@ class SemanticTokensDeltaParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> SemanticTokensDeltaParams&;
@@ -797,6 +1169,12 @@ class SemanticTokensDelta final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto resultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto resultId() -> T {
+    auto& value = (*repr_)["resultId"];
+    return T(value);
+  }
 
   [[nodiscard]] auto edits() const -> Vector<SemanticTokensEdit>;
 
@@ -829,7 +1207,19 @@ class SemanticTokensRangeParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> SemanticTokensRangeParams&;
@@ -853,9 +1243,27 @@ class ShowDocumentParams final : public LSPObject {
 
   [[nodiscard]] auto external() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto external() -> T {
+    auto& value = (*repr_)["external"];
+    return T(value);
+  }
+
   [[nodiscard]] auto takeFocus() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto takeFocus() -> T {
+    auto& value = (*repr_)["takeFocus"];
+    return T(value);
+  }
+
   [[nodiscard]] auto selection() const -> std::optional<Range>;
+
+  template <typename T>
+  [[nodiscard]] auto selection() -> T {
+    auto& value = (*repr_)["selection"];
+    return T(value);
+  }
 
   auto uri(std::string uri) -> ShowDocumentParams&;
 
@@ -889,6 +1297,12 @@ class LinkedEditingRangeParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument)
       -> LinkedEditingRangeParams&;
 
@@ -908,6 +1322,12 @@ class LinkedEditingRanges final : public LSPObject {
 
   [[nodiscard]] auto wordPattern() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto wordPattern() -> T {
+    auto& value = (*repr_)["wordPattern"];
+    return T(value);
+  }
+
   auto ranges(Vector<Range> ranges) -> LinkedEditingRanges&;
 
   auto wordPattern(std::optional<std::string> wordPattern)
@@ -923,9 +1343,27 @@ class LinkedEditingRangeRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -958,11 +1396,29 @@ class WorkspaceEdit final : public LSPObject {
   [[nodiscard]] auto changes() const
       -> std::optional<Map<std::string, Vector<TextEdit>>>;
 
+  template <typename T>
+  [[nodiscard]] auto changes() -> T {
+    auto& value = (*repr_)["changes"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentChanges() const -> std::optional<Vector<
       std::variant<TextDocumentEdit, CreateFile, RenameFile, DeleteFile>>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentChanges() -> T {
+    auto& value = (*repr_)["documentChanges"];
+    return T(value);
+  }
+
   [[nodiscard]] auto changeAnnotations() const
       -> std::optional<Map<ChangeAnnotationIdentifier, ChangeAnnotation>>;
+
+  template <typename T>
+  [[nodiscard]] auto changeAnnotations() -> T {
+    auto& value = (*repr_)["changeAnnotations"];
+    return T(value);
+  }
 
   auto changes(std::optional<Map<std::string, Vector<TextEdit>>> changes)
       -> WorkspaceEdit&;
@@ -1023,7 +1479,19 @@ class MonikerParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> MonikerParams&;
 
@@ -1050,6 +1518,12 @@ class Moniker final : public LSPObject {
 
   [[nodiscard]] auto kind() const -> std::optional<MonikerKind>;
 
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
+
   auto scheme(std::string scheme) -> Moniker&;
 
   auto identifier(std::string identifier) -> Moniker&;
@@ -1068,7 +1542,19 @@ class MonikerRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -1089,6 +1575,12 @@ class TypeHierarchyPrepareParams final : public LSPObject {
   [[nodiscard]] auto position() const -> Position;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> TypeHierarchyPrepareParams&;
@@ -1111,7 +1603,19 @@ class TypeHierarchyItem final : public LSPObject {
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<SymbolTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto detail() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto detail() -> T {
+    auto& value = (*repr_)["detail"];
+    return T(value);
+  }
 
   [[nodiscard]] auto uri() const -> std::string;
 
@@ -1120,6 +1624,12 @@ class TypeHierarchyItem final : public LSPObject {
   [[nodiscard]] auto selectionRange() const -> Range;
 
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto name(std::string name) -> TypeHierarchyItem&;
 
@@ -1147,9 +1657,27 @@ class TypeHierarchyRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -1171,7 +1699,19 @@ class TypeHierarchySupertypesParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto item(TypeHierarchyItem item) -> TypeHierarchySupertypesParams&;
 
@@ -1192,7 +1732,19 @@ class TypeHierarchySubtypesParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto item(TypeHierarchyItem item) -> TypeHierarchySubtypesParams&;
 
@@ -1217,6 +1769,12 @@ class InlineValueParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> InlineValueParams&;
 
   auto range(Range range) -> InlineValueParams&;
@@ -1235,10 +1793,28 @@ class InlineValueRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> InlineValueRegistrationOptions&;
@@ -1262,6 +1838,12 @@ class InlayHintParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> InlayHintParams&;
 
   auto range(Range range) -> InlayHintParams&;
@@ -1281,18 +1863,60 @@ class InlayHint final : public LSPObject {
   [[nodiscard]] auto label() const
       -> std::variant<std::string, Vector<InlayHintLabelPart>>;
 
+  template <typename T>
+  [[nodiscard]] auto label() -> T {
+    auto& value = (*repr_)["label"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> std::optional<InlayHintKind>;
 
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textEdits() const -> std::optional<Vector<TextEdit>>;
+
+  template <typename T>
+  [[nodiscard]] auto textEdits() -> T {
+    auto& value = (*repr_)["textEdits"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tooltip() const
       -> std::optional<std::variant<std::string, MarkupContent>>;
 
+  template <typename T>
+  [[nodiscard]] auto tooltip() -> T {
+    auto& value = (*repr_)["tooltip"];
+    return T(value);
+  }
+
   [[nodiscard]] auto paddingLeft() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto paddingLeft() -> T {
+    auto& value = (*repr_)["paddingLeft"];
+    return T(value);
+  }
 
   [[nodiscard]] auto paddingRight() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto paddingRight() -> T {
+    auto& value = (*repr_)["paddingRight"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto position(Position position) -> InlayHint&;
 
@@ -1321,12 +1945,36 @@ class InlayHintRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> InlayHintRegistrationOptions&;
@@ -1351,11 +1999,35 @@ class DocumentDiagnosticParams final : public LSPObject {
 
   [[nodiscard]] auto identifier() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto identifier() -> T {
+    auto& value = (*repr_)["identifier"];
+    return T(value);
+  }
+
   [[nodiscard]] auto previousResultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto previousResultId() -> T {
+    auto& value = (*repr_)["previousResultId"];
+    return T(value);
+  }
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentDiagnosticParams&;
@@ -1410,7 +2082,19 @@ class DiagnosticRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto identifier() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto identifier() -> T {
+    auto& value = (*repr_)["identifier"];
+    return T(value);
+  }
 
   [[nodiscard]] auto interFileDependencies() const -> bool;
 
@@ -1418,7 +2102,19 @@ class DiagnosticRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -1447,11 +2143,29 @@ class WorkspaceDiagnosticParams final : public LSPObject {
 
   [[nodiscard]] auto identifier() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto identifier() -> T {
+    auto& value = (*repr_)["identifier"];
+    return T(value);
+  }
+
   [[nodiscard]] auto previousResultIds() const -> Vector<PreviousResultId>;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto identifier(std::optional<std::string> identifier)
       -> WorkspaceDiagnosticParams&;
@@ -1519,7 +2233,19 @@ class NotebookDocumentSyncRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto save() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto save() -> T {
+    auto& value = (*repr_)["save"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto notebookSelector(Vector<std::variant<NotebookDocumentFilterWithNotebook,
                                             NotebookDocumentFilterWithCells>>
@@ -1595,6 +2321,12 @@ class InlineCompletionParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto context(InlineCompletionContext context) -> InlineCompletionParams&;
 
   auto textDocument(TextDocumentIdentifier textDocument)
@@ -1626,11 +2358,35 @@ class InlineCompletionItem final : public LSPObject {
   [[nodiscard]] auto insertText() const
       -> std::variant<std::string, StringValue>;
 
+  template <typename T>
+  [[nodiscard]] auto insertText() -> T {
+    auto& value = (*repr_)["insertText"];
+    return T(value);
+  }
+
   [[nodiscard]] auto filterText() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto filterText() -> T {
+    auto& value = (*repr_)["filterText"];
+    return T(value);
+  }
 
   [[nodiscard]] auto range() const -> std::optional<Range>;
 
+  template <typename T>
+  [[nodiscard]] auto range() -> T {
+    auto& value = (*repr_)["range"];
+    return T(value);
+  }
+
   [[nodiscard]] auto command() const -> std::optional<Command>;
+
+  template <typename T>
+  [[nodiscard]] auto command() -> T {
+    auto& value = (*repr_)["command"];
+    return T(value);
+  }
 
   auto insertText(std::variant<std::string, StringValue> insertText)
       -> InlineCompletionItem&;
@@ -1651,10 +2407,28 @@ class InlineCompletionRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto id() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> InlineCompletionRegistrationOptions&;
@@ -1699,8 +2473,21 @@ class TextDocumentContentRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
+
   auto schemes(Vector<std::string> schemes)
       -> TextDocumentContentRegistrationOptions&;
+
+  auto schemes(std::vector<std::string> schemes)
+      -> TextDocumentContentRegistrationOptions& {
+    auto& value = (*repr_)["schemes"];
+    value = std::move(schemes);
+    return *this;
+  }
 
   auto id(std::optional<std::string> id)
       -> TextDocumentContentRegistrationOptions&;
@@ -1748,26 +2535,80 @@ class InitializeParams final : public LSPObject {
 
   [[nodiscard]] auto processId() const -> std::variant<int, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto processId() -> T {
+    auto& value = (*repr_)["processId"];
+    return T(value);
+  }
+
   [[nodiscard]] auto clientInfo() const -> std::optional<ClientInfo>;
 
+  template <typename T>
+  [[nodiscard]] auto clientInfo() -> T {
+    auto& value = (*repr_)["clientInfo"];
+    return T(value);
+  }
+
   [[nodiscard]] auto locale() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto locale() -> T {
+    auto& value = (*repr_)["locale"];
+    return T(value);
+  }
 
   [[nodiscard]] auto rootPath() const
       -> std::optional<std::variant<std::string, std::nullptr_t>>;
 
+  template <typename T>
+  [[nodiscard]] auto rootPath() -> T {
+    auto& value = (*repr_)["rootPath"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rootUri() const
       -> std::variant<std::string, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto rootUri() -> T {
+    auto& value = (*repr_)["rootUri"];
+    return T(value);
+  }
 
   [[nodiscard]] auto capabilities() const -> ClientCapabilities;
 
   [[nodiscard]] auto initializationOptions() const -> std::optional<LSPAny>;
 
+  template <typename T>
+  [[nodiscard]] auto initializationOptions() -> T {
+    auto& value = (*repr_)["initializationOptions"];
+    return T(value);
+  }
+
   [[nodiscard]] auto trace() const -> std::optional<TraceValue>;
+
+  template <typename T>
+  [[nodiscard]] auto trace() -> T {
+    auto& value = (*repr_)["trace"];
+    return T(value);
+  }
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workspaceFolders() const
       -> std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>;
+
+  template <typename T>
+  [[nodiscard]] auto workspaceFolders() -> T {
+    auto& value = (*repr_)["workspaceFolders"];
+    return T(value);
+  }
 
   auto processId(std::variant<int, std::nullptr_t> processId)
       -> InitializeParams&;
@@ -1807,6 +2648,12 @@ class InitializeResult final : public LSPObject {
   [[nodiscard]] auto capabilities() const -> ServerCapabilities;
 
   [[nodiscard]] auto serverInfo() const -> std::optional<ServerInfo>;
+
+  template <typename T>
+  [[nodiscard]] auto serverInfo() -> T {
+    auto& value = (*repr_)["serverInfo"];
+    return T(value);
+  }
 
   auto capabilities(ServerCapabilities capabilities) -> InitializeResult&;
 
@@ -1851,6 +2698,12 @@ class DidChangeConfigurationRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto section() const
       -> std::optional<std::variant<std::string, Vector<std::string>>>;
 
+  template <typename T>
+  [[nodiscard]] auto section() -> T {
+    auto& value = (*repr_)["section"];
+    return T(value);
+  }
+
   auto section(
       std::optional<std::variant<std::string, Vector<std::string>>> section)
       -> DidChangeConfigurationRegistrationOptions&;
@@ -1883,6 +2736,12 @@ class ShowMessageRequestParams final : public LSPObject {
 
   [[nodiscard]] auto actions() const
       -> std::optional<Vector<MessageActionItem>>;
+
+  template <typename T>
+  [[nodiscard]] auto actions() -> T {
+    auto& value = (*repr_)["actions"];
+    return T(value);
+  }
 
   auto type(MessageType type) -> ShowMessageRequestParams&;
 
@@ -1959,6 +2818,12 @@ class TextDocumentChangeRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   auto syncKind(TextDocumentSyncKind syncKind)
       -> TextDocumentChangeRegistrationOptions&;
 
@@ -1989,6 +2854,12 @@ class DidSaveTextDocumentParams final : public LSPObject {
 
   [[nodiscard]] auto text() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto text() -> T {
+    auto& value = (*repr_)["text"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DidSaveTextDocumentParams&;
 
@@ -2004,7 +2875,19 @@ class TextDocumentSaveRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto includeText() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto includeText() -> T {
+    auto& value = (*repr_)["includeText"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2078,6 +2961,12 @@ class PublishDiagnosticsParams final : public LSPObject {
 
   [[nodiscard]] auto version() const -> std::optional<int>;
 
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
+
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
 
   auto uri(std::string uri) -> PublishDiagnosticsParams&;
@@ -2095,13 +2984,31 @@ class CompletionParams final : public LSPObject {
 
   [[nodiscard]] auto context() const -> std::optional<CompletionContext>;
 
+  template <typename T>
+  [[nodiscard]] auto context() -> T {
+    auto& value = (*repr_)["context"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textDocument() const -> TextDocumentIdentifier;
 
   [[nodiscard]] auto position() const -> Position;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto context(std::optional<CompletionContext> context) -> CompletionParams&;
 
@@ -2127,44 +3034,152 @@ class CompletionItem final : public LSPObject {
   [[nodiscard]] auto labelDetails() const
       -> std::optional<CompletionItemLabelDetails>;
 
+  template <typename T>
+  [[nodiscard]] auto labelDetails() -> T {
+    auto& value = (*repr_)["labelDetails"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> std::optional<CompletionItemKind>;
+
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<CompletionItemTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto detail() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto detail() -> T {
+    auto& value = (*repr_)["detail"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentation() const
       -> std::optional<std::variant<std::string, MarkupContent>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentation() -> T {
+    auto& value = (*repr_)["documentation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto deprecated() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto deprecated() -> T {
+    auto& value = (*repr_)["deprecated"];
+    return T(value);
+  }
 
   [[nodiscard]] auto preselect() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto preselect() -> T {
+    auto& value = (*repr_)["preselect"];
+    return T(value);
+  }
+
   [[nodiscard]] auto sortText() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto sortText() -> T {
+    auto& value = (*repr_)["sortText"];
+    return T(value);
+  }
 
   [[nodiscard]] auto filterText() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto filterText() -> T {
+    auto& value = (*repr_)["filterText"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertText() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto insertText() -> T {
+    auto& value = (*repr_)["insertText"];
+    return T(value);
+  }
 
   [[nodiscard]] auto insertTextFormat() const
       -> std::optional<InsertTextFormat>;
 
+  template <typename T>
+  [[nodiscard]] auto insertTextFormat() -> T {
+    auto& value = (*repr_)["insertTextFormat"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertTextMode() const -> std::optional<InsertTextMode>;
+
+  template <typename T>
+  [[nodiscard]] auto insertTextMode() -> T {
+    auto& value = (*repr_)["insertTextMode"];
+    return T(value);
+  }
 
   [[nodiscard]] auto textEdit() const
       -> std::optional<std::variant<TextEdit, InsertReplaceEdit>>;
 
+  template <typename T>
+  [[nodiscard]] auto textEdit() -> T {
+    auto& value = (*repr_)["textEdit"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textEditText() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto textEditText() -> T {
+    auto& value = (*repr_)["textEditText"];
+    return T(value);
+  }
 
   [[nodiscard]] auto additionalTextEdits() const
       -> std::optional<Vector<TextEdit>>;
 
+  template <typename T>
+  [[nodiscard]] auto additionalTextEdits() -> T {
+    auto& value = (*repr_)["additionalTextEdits"];
+    return T(value);
+  }
+
   [[nodiscard]] auto commitCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto commitCharacters() -> T {
+    auto& value = (*repr_)["commitCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto command() const -> std::optional<Command>;
 
+  template <typename T>
+  [[nodiscard]] auto command() -> T {
+    auto& value = (*repr_)["command"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto label(std::string label) -> CompletionItem&;
 
@@ -2209,6 +3224,13 @@ class CompletionItem final : public LSPObject {
   auto commitCharacters(std::optional<Vector<std::string>> commitCharacters)
       -> CompletionItem&;
 
+  auto commitCharacters(std::vector<std::string> commitCharacters)
+      -> CompletionItem& {
+    auto& value = (*repr_)["commitCharacters"];
+    value = std::move(commitCharacters);
+    return *this;
+  }
+
   auto command(std::optional<Command> command) -> CompletionItem&;
 
   auto data(std::optional<LSPAny> data) -> CompletionItem&;
@@ -2225,8 +3247,20 @@ class CompletionList final : public LSPObject {
   [[nodiscard]] auto itemDefaults() const
       -> std::optional<CompletionItemDefaults>;
 
+  template <typename T>
+  [[nodiscard]] auto itemDefaults() -> T {
+    auto& value = (*repr_)["itemDefaults"];
+    return T(value);
+  }
+
   [[nodiscard]] auto applyKind() const
       -> std::optional<CompletionItemApplyKinds>;
+
+  template <typename T>
+  [[nodiscard]] auto applyKind() -> T {
+    auto& value = (*repr_)["applyKind"];
+    return T(value);
+  }
 
   [[nodiscard]] auto items() const -> Vector<CompletionItem>;
 
@@ -2250,18 +3284,54 @@ class CompletionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto triggerCharacters() const
       -> std::optional<Vector<std::string>>;
+
+  template <typename T>
+  [[nodiscard]] auto triggerCharacters() -> T {
+    auto& value = (*repr_)["triggerCharacters"];
+    return T(value);
+  }
 
   [[nodiscard]] auto allCommitCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto allCommitCharacters() -> T {
+    auto& value = (*repr_)["allCommitCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto completionItem() const
       -> std::optional<ServerCompletionItemOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto completionItem() -> T {
+    auto& value = (*repr_)["completionItem"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2270,9 +3340,23 @@ class CompletionRegistrationOptions final : public LSPObject {
   auto triggerCharacters(std::optional<Vector<std::string>> triggerCharacters)
       -> CompletionRegistrationOptions&;
 
+  auto triggerCharacters(std::vector<std::string> triggerCharacters)
+      -> CompletionRegistrationOptions& {
+    auto& value = (*repr_)["triggerCharacters"];
+    value = std::move(triggerCharacters);
+    return *this;
+  }
+
   auto allCommitCharacters(
       std::optional<Vector<std::string>> allCommitCharacters)
       -> CompletionRegistrationOptions&;
+
+  auto allCommitCharacters(std::vector<std::string> allCommitCharacters)
+      -> CompletionRegistrationOptions& {
+    auto& value = (*repr_)["allCommitCharacters"];
+    value = std::move(allCommitCharacters);
+    return *this;
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> CompletionRegistrationOptions&;
@@ -2296,6 +3380,12 @@ class HoverParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> HoverParams&;
 
   auto position(Position position) -> HoverParams&;
@@ -2313,7 +3403,19 @@ class Hover final : public LSPObject {
   [[nodiscard]] auto contents() const
       -> std::variant<MarkupContent, MarkedString, Vector<MarkedString>>;
 
+  template <typename T>
+  [[nodiscard]] auto contents() -> T {
+    auto& value = (*repr_)["contents"];
+    return T(value);
+  }
+
   [[nodiscard]] auto range() const -> std::optional<Range>;
+
+  template <typename T>
+  [[nodiscard]] auto range() -> T {
+    auto& value = (*repr_)["range"];
+    return T(value);
+  }
 
   auto contents(
       std::variant<MarkupContent, MarkedString, Vector<MarkedString>> contents)
@@ -2331,7 +3433,19 @@ class HoverRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2349,11 +3463,23 @@ class SignatureHelpParams final : public LSPObject {
 
   [[nodiscard]] auto context() const -> std::optional<SignatureHelpContext>;
 
+  template <typename T>
+  [[nodiscard]] auto context() -> T {
+    auto& value = (*repr_)["context"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textDocument() const -> TextDocumentIdentifier;
 
   [[nodiscard]] auto position() const -> Position;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
 
   auto context(std::optional<SignatureHelpContext> context)
       -> SignatureHelpParams&;
@@ -2377,8 +3503,20 @@ class SignatureHelp final : public LSPObject {
 
   [[nodiscard]] auto activeSignature() const -> std::optional<long>;
 
+  template <typename T>
+  [[nodiscard]] auto activeSignature() -> T {
+    auto& value = (*repr_)["activeSignature"];
+    return T(value);
+  }
+
   [[nodiscard]] auto activeParameter() const
       -> std::optional<std::variant<long, std::nullptr_t>>;
+
+  template <typename T>
+  [[nodiscard]] auto activeParameter() -> T {
+    auto& value = (*repr_)["activeParameter"];
+    return T(value);
+  }
 
   auto signatures(Vector<SignatureInformation> signatures) -> SignatureHelp&;
 
@@ -2398,13 +3536,37 @@ class SignatureHelpRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto triggerCharacters() const
       -> std::optional<Vector<std::string>>;
+
+  template <typename T>
+  [[nodiscard]] auto triggerCharacters() -> T {
+    auto& value = (*repr_)["triggerCharacters"];
+    return T(value);
+  }
 
   [[nodiscard]] auto retriggerCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto retriggerCharacters() -> T {
+    auto& value = (*repr_)["retriggerCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2413,9 +3575,23 @@ class SignatureHelpRegistrationOptions final : public LSPObject {
   auto triggerCharacters(std::optional<Vector<std::string>> triggerCharacters)
       -> SignatureHelpRegistrationOptions&;
 
+  auto triggerCharacters(std::vector<std::string> triggerCharacters)
+      -> SignatureHelpRegistrationOptions& {
+    auto& value = (*repr_)["triggerCharacters"];
+    value = std::move(triggerCharacters);
+    return *this;
+  }
+
   auto retriggerCharacters(
       std::optional<Vector<std::string>> retriggerCharacters)
       -> SignatureHelpRegistrationOptions&;
+
+  auto retriggerCharacters(std::vector<std::string> retriggerCharacters)
+      -> SignatureHelpRegistrationOptions& {
+    auto& value = (*repr_)["retriggerCharacters"];
+    value = std::move(retriggerCharacters);
+    return *this;
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> SignatureHelpRegistrationOptions&;
@@ -2433,7 +3609,19 @@ class DefinitionParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> DefinitionParams&;
 
@@ -2455,7 +3643,19 @@ class DefinitionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2479,7 +3679,19 @@ class ReferenceParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto context(ReferenceContext context) -> ReferenceParams&;
 
@@ -2503,7 +3715,19 @@ class ReferenceRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2525,7 +3749,19 @@ class DocumentHighlightParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentHighlightParams&;
@@ -2549,6 +3785,12 @@ class DocumentHighlight final : public LSPObject {
 
   [[nodiscard]] auto kind() const -> std::optional<DocumentHighlightKind>;
 
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
+
   auto range(Range range) -> DocumentHighlight&;
 
   auto kind(std::optional<DocumentHighlightKind> kind) -> DocumentHighlight&;
@@ -2563,7 +3805,19 @@ class DocumentHighlightRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2583,7 +3837,19 @@ class DocumentSymbolParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentSymbolParams&;
@@ -2603,6 +3869,12 @@ class SymbolInformation final : public LSPObject {
 
   [[nodiscard]] auto deprecated() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto deprecated() -> T {
+    auto& value = (*repr_)["deprecated"];
+    return T(value);
+  }
+
   [[nodiscard]] auto location() const -> Location;
 
   [[nodiscard]] auto name() const -> std::string;
@@ -2611,7 +3883,19 @@ class SymbolInformation final : public LSPObject {
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<SymbolTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto containerName() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto containerName() -> T {
+    auto& value = (*repr_)["containerName"];
+    return T(value);
+  }
 
   auto deprecated(std::optional<bool> deprecated) -> SymbolInformation&;
 
@@ -2637,17 +3921,41 @@ class DocumentSymbol final : public LSPObject {
 
   [[nodiscard]] auto detail() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto detail() -> T {
+    auto& value = (*repr_)["detail"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> SymbolKind;
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<SymbolTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto deprecated() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto deprecated() -> T {
+    auto& value = (*repr_)["deprecated"];
+    return T(value);
+  }
 
   [[nodiscard]] auto range() const -> Range;
 
   [[nodiscard]] auto selectionRange() const -> Range;
 
   [[nodiscard]] auto children() const -> std::optional<Vector<DocumentSymbol>>;
+
+  template <typename T>
+  [[nodiscard]] auto children() -> T {
+    auto& value = (*repr_)["children"];
+    return T(value);
+  }
 
   auto name(std::string name) -> DocumentSymbol&;
 
@@ -2676,9 +3984,27 @@ class DocumentSymbolRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto label() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto label() -> T {
+    auto& value = (*repr_)["label"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2705,7 +4031,19 @@ class CodeActionParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> CodeActionParams&;
 
@@ -2730,9 +4068,21 @@ class Command final : public LSPObject {
 
   [[nodiscard]] auto tooltip() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto tooltip() -> T {
+    auto& value = (*repr_)["tooltip"];
+    return T(value);
+  }
+
   [[nodiscard]] auto command() const -> std::string;
 
   [[nodiscard]] auto arguments() const -> std::optional<Vector<LSPAny>>;
+
+  template <typename T>
+  [[nodiscard]] auto arguments() -> T {
+    auto& value = (*repr_)["arguments"];
+    return T(value);
+  }
 
   auto title(std::string title) -> Command&;
 
@@ -2753,19 +4103,67 @@ class CodeAction final : public LSPObject {
 
   [[nodiscard]] auto kind() const -> std::optional<CodeActionKind>;
 
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
+
   [[nodiscard]] auto diagnostics() const -> std::optional<Vector<Diagnostic>>;
+
+  template <typename T>
+  [[nodiscard]] auto diagnostics() -> T {
+    auto& value = (*repr_)["diagnostics"];
+    return T(value);
+  }
 
   [[nodiscard]] auto isPreferred() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto isPreferred() -> T {
+    auto& value = (*repr_)["isPreferred"];
+    return T(value);
+  }
+
   [[nodiscard]] auto disabled() const -> std::optional<CodeActionDisabled>;
+
+  template <typename T>
+  [[nodiscard]] auto disabled() -> T {
+    auto& value = (*repr_)["disabled"];
+    return T(value);
+  }
 
   [[nodiscard]] auto edit() const -> std::optional<WorkspaceEdit>;
 
+  template <typename T>
+  [[nodiscard]] auto edit() -> T {
+    auto& value = (*repr_)["edit"];
+    return T(value);
+  }
+
   [[nodiscard]] auto command() const -> std::optional<Command>;
+
+  template <typename T>
+  [[nodiscard]] auto command() -> T {
+    auto& value = (*repr_)["command"];
+    return T(value);
+  }
 
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
 
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
+
   [[nodiscard]] auto tags() const -> std::optional<Vector<CodeActionTag>>;
+
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
 
   auto title(std::string title) -> CodeAction&;
 
@@ -2796,15 +4194,45 @@ class CodeActionRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeActionKinds() const
       -> std::optional<Vector<CodeActionKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto codeActionKinds() -> T {
+    auto& value = (*repr_)["codeActionKinds"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentation() const
       -> std::optional<Vector<CodeActionKindDocumentation>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentation() -> T {
+    auto& value = (*repr_)["documentation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2834,7 +4262,19 @@ class WorkspaceSymbolParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto query(std::string query) -> WorkspaceSymbolParams&;
 
@@ -2854,7 +4294,19 @@ class WorkspaceSymbol final : public LSPObject {
   [[nodiscard]] auto location() const
       -> std::variant<Location, LocationUriOnly>;
 
+  template <typename T>
+  [[nodiscard]] auto location() -> T {
+    auto& value = (*repr_)["location"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   [[nodiscard]] auto name() const -> std::string;
 
@@ -2862,7 +4314,19 @@ class WorkspaceSymbol final : public LSPObject {
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<SymbolTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto containerName() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto containerName() -> T {
+    auto& value = (*repr_)["containerName"];
+    return T(value);
+  }
 
   auto location(std::variant<Location, LocationUriOnly> location)
       -> WorkspaceSymbol&;
@@ -2887,7 +4351,19 @@ class WorkspaceSymbolRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> WorkspaceSymbolRegistrationOptions&;
@@ -2906,7 +4382,19 @@ class CodeLensParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> CodeLensParams&;
 
@@ -2927,7 +4415,19 @@ class CodeLens final : public LSPObject {
 
   [[nodiscard]] auto command() const -> std::optional<Command>;
 
+  template <typename T>
+  [[nodiscard]] auto command() -> T {
+    auto& value = (*repr_)["command"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto range(Range range) -> CodeLens&;
 
@@ -2945,9 +4445,27 @@ class CodeLensRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -2970,7 +4488,19 @@ class DocumentLinkParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> DocumentLinkParams&;
 
@@ -2991,9 +4521,27 @@ class DocumentLink final : public LSPObject {
 
   [[nodiscard]] auto target() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto target() -> T {
+    auto& value = (*repr_)["target"];
+    return T(value);
+  }
+
   [[nodiscard]] auto tooltip() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto tooltip() -> T {
+    auto& value = (*repr_)["tooltip"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto range(Range range) -> DocumentLink&;
 
@@ -3013,9 +4561,27 @@ class DocumentLinkRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -3040,6 +4606,12 @@ class DocumentFormattingParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentFormattingParams&;
 
@@ -3058,7 +4630,19 @@ class DocumentFormattingRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -3082,6 +4666,12 @@ class DocumentRangeFormattingParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentRangeFormattingParams&;
 
@@ -3102,9 +4692,27 @@ class DocumentRangeFormattingRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rangesSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto rangesSupport() -> T {
+    auto& value = (*repr_)["rangesSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -3130,6 +4738,12 @@ class DocumentRangesFormattingParams final : public LSPObject {
   [[nodiscard]] auto options() const -> FormattingOptions;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument)
       -> DocumentRangesFormattingParams&;
@@ -3175,10 +4789,22 @@ class DocumentOnTypeFormattingRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto firstTriggerCharacter() const -> std::string;
 
   [[nodiscard]] auto moreTriggerCharacter() const
       -> std::optional<Vector<std::string>>;
+
+  template <typename T>
+  [[nodiscard]] auto moreTriggerCharacter() -> T {
+    auto& value = (*repr_)["moreTriggerCharacter"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -3190,6 +4816,13 @@ class DocumentOnTypeFormattingRegistrationOptions final : public LSPObject {
   auto moreTriggerCharacter(
       std::optional<Vector<std::string>> moreTriggerCharacter)
       -> DocumentOnTypeFormattingRegistrationOptions&;
+
+  auto moreTriggerCharacter(std::vector<std::string> moreTriggerCharacter)
+      -> DocumentOnTypeFormattingRegistrationOptions& {
+    auto& value = (*repr_)["moreTriggerCharacter"];
+    value = std::move(moreTriggerCharacter);
+    return *this;
+  }
 };
 
 class RenameParams final : public LSPObject {
@@ -3205,6 +4838,12 @@ class RenameParams final : public LSPObject {
   [[nodiscard]] auto newName() const -> std::string;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
 
   auto textDocument(TextDocumentIdentifier textDocument) -> RenameParams&;
 
@@ -3225,9 +4864,27 @@ class RenameRegistrationOptions final : public LSPObject {
   [[nodiscard]] auto documentSelector() const
       -> std::variant<DocumentSelector, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
   [[nodiscard]] auto prepareProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto prepareProvider() -> T {
+    auto& value = (*repr_)["prepareProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto documentSelector(
       std::variant<DocumentSelector, std::nullptr_t> documentSelector)
@@ -3252,6 +4909,12 @@ class PrepareRenameParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument)
       -> PrepareRenameParams&;
 
@@ -3271,7 +4934,19 @@ class ExecuteCommandParams final : public LSPObject {
 
   [[nodiscard]] auto arguments() const -> std::optional<Vector<LSPAny>>;
 
+  template <typename T>
+  [[nodiscard]] auto arguments() -> T {
+    auto& value = (*repr_)["arguments"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
 
   auto command(std::string command) -> ExecuteCommandParams&;
 
@@ -3292,8 +4967,21 @@ class ExecuteCommandRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto commands(Vector<std::string> commands)
       -> ExecuteCommandRegistrationOptions&;
+
+  auto commands(std::vector<std::string> commands)
+      -> ExecuteCommandRegistrationOptions& {
+    auto& value = (*repr_)["commands"];
+    value = std::move(commands);
+    return *this;
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> ExecuteCommandRegistrationOptions&;
@@ -3307,9 +4995,21 @@ class ApplyWorkspaceEditParams final : public LSPObject {
 
   [[nodiscard]] auto label() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto label() -> T {
+    auto& value = (*repr_)["label"];
+    return T(value);
+  }
+
   [[nodiscard]] auto edit() const -> WorkspaceEdit;
 
   [[nodiscard]] auto metadata() const -> std::optional<WorkspaceEditMetadata>;
+
+  template <typename T>
+  [[nodiscard]] auto metadata() -> T {
+    auto& value = (*repr_)["metadata"];
+    return T(value);
+  }
 
   auto label(std::optional<std::string> label) -> ApplyWorkspaceEditParams&;
 
@@ -3329,7 +5029,19 @@ class ApplyWorkspaceEditResult final : public LSPObject {
 
   [[nodiscard]] auto failureReason() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto failureReason() -> T {
+    auto& value = (*repr_)["failureReason"];
+    return T(value);
+  }
+
   [[nodiscard]] auto failedChange() const -> std::optional<long>;
+
+  template <typename T>
+  [[nodiscard]] auto failedChange() -> T {
+    auto& value = (*repr_)["failedChange"];
+    return T(value);
+  }
 
   auto applied(bool applied) -> ApplyWorkspaceEditResult&;
 
@@ -3352,9 +5064,27 @@ class WorkDoneProgressBegin final : public LSPObject {
 
   [[nodiscard]] auto cancellable() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto cancellable() -> T {
+    auto& value = (*repr_)["cancellable"];
+    return T(value);
+  }
+
   [[nodiscard]] auto message() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto message() -> T {
+    auto& value = (*repr_)["message"];
+    return T(value);
+  }
+
   [[nodiscard]] auto percentage() const -> std::optional<long>;
+
+  template <typename T>
+  [[nodiscard]] auto percentage() -> T {
+    auto& value = (*repr_)["percentage"];
+    return T(value);
+  }
 
   auto kind(std::string kind) -> WorkDoneProgressBegin&;
 
@@ -3377,9 +5107,27 @@ class WorkDoneProgressReport final : public LSPObject {
 
   [[nodiscard]] auto cancellable() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto cancellable() -> T {
+    auto& value = (*repr_)["cancellable"];
+    return T(value);
+  }
+
   [[nodiscard]] auto message() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto message() -> T {
+    auto& value = (*repr_)["message"];
+    return T(value);
+  }
+
   [[nodiscard]] auto percentage() const -> std::optional<long>;
+
+  template <typename T>
+  [[nodiscard]] auto percentage() -> T {
+    auto& value = (*repr_)["percentage"];
+    return T(value);
+  }
 
   auto kind(std::string kind) -> WorkDoneProgressReport&;
 
@@ -3399,6 +5147,12 @@ class WorkDoneProgressEnd final : public LSPObject {
   [[nodiscard]] auto kind() const -> std::string;
 
   [[nodiscard]] auto message() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto message() -> T {
+    auto& value = (*repr_)["message"];
+    return T(value);
+  }
 
   auto kind(std::string kind) -> WorkDoneProgressEnd&;
 
@@ -3426,6 +5180,12 @@ class LogTraceParams final : public LSPObject {
 
   [[nodiscard]] auto verbose() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto verbose() -> T {
+    auto& value = (*repr_)["verbose"];
+    return T(value);
+  }
+
   auto message(std::string message) -> LogTraceParams&;
 
   auto verbose(std::optional<std::string> verbose) -> LogTraceParams&;
@@ -3438,6 +5198,12 @@ class CancelParams final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto id() const -> std::variant<int, std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
 
   auto id(std::variant<int, std::string> id) -> CancelParams&;
 };
@@ -3481,6 +5247,12 @@ class WorkDoneProgressParams final : public LSPObject {
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
+
   auto workDoneToken(std::optional<ProgressToken> workDoneToken)
       -> WorkDoneProgressParams&;
 };
@@ -3493,6 +5265,12 @@ class PartialResultParams final : public LSPObject {
 
   [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
 
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
+
   auto partialResultToken(std::optional<ProgressToken> partialResultToken)
       -> PartialResultParams&;
 };
@@ -3504,6 +5282,12 @@ class LocationLink final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto originSelectionRange() const -> std::optional<Range>;
+
+  template <typename T>
+  [[nodiscard]] auto originSelectionRange() -> T {
+    auto& value = (*repr_)["originSelectionRange"];
+    return T(value);
+  }
 
   [[nodiscard]] auto targetUri() const -> std::string;
 
@@ -3544,6 +5328,12 @@ class ImplementationOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> ImplementationOptions&;
 };
@@ -3556,6 +5346,12 @@ class StaticRegistrationOptions final : public LSPObject {
 
   [[nodiscard]] auto id() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto id() -> T {
+    auto& value = (*repr_)["id"];
+    return T(value);
+  }
+
   auto id(std::optional<std::string> id) -> StaticRegistrationOptions&;
 };
 
@@ -3566,6 +5362,12 @@ class TypeDefinitionOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> TypeDefinitionOptions&;
@@ -3594,7 +5396,19 @@ class ConfigurationItem final : public LSPObject {
 
   [[nodiscard]] auto scopeUri() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto scopeUri() -> T {
+    auto& value = (*repr_)["scopeUri"];
+    return T(value);
+  }
+
   [[nodiscard]] auto section() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto section() -> T {
+    auto& value = (*repr_)["section"];
+    return T(value);
+  }
 
   auto scopeUri(std::optional<std::string> scopeUri) -> ConfigurationItem&;
 
@@ -3643,6 +5457,12 @@ class DocumentColorOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DocumentColorOptions&;
 };
@@ -3655,6 +5475,12 @@ class FoldingRangeOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> FoldingRangeOptions&;
 };
@@ -3666,6 +5492,12 @@ class DeclarationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DeclarationOptions&;
@@ -3694,6 +5526,12 @@ class SelectionRangeOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> SelectionRangeOptions&;
 };
@@ -3705,6 +5543,12 @@ class CallHierarchyOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> CallHierarchyOptions&;
@@ -3720,10 +5564,28 @@ class SemanticTokensOptions final : public LSPObject {
 
   [[nodiscard]] auto range() const -> std::optional<std::variant<bool, json>>;
 
+  template <typename T>
+  [[nodiscard]] auto range() -> T {
+    auto& value = (*repr_)["range"];
+    return T(value);
+  }
+
   [[nodiscard]] auto full() const
       -> std::optional<std::variant<bool, SemanticTokensFullDelta>>;
 
+  template <typename T>
+  [[nodiscard]] auto full() -> T {
+    auto& value = (*repr_)["full"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto legend(SemanticTokensLegend legend) -> SemanticTokensOptions&;
 
@@ -3749,6 +5611,12 @@ class SemanticTokensEdit final : public LSPObject {
 
   [[nodiscard]] auto data() const -> std::optional<Vector<long>>;
 
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
+
   auto start(long start) -> SemanticTokensEdit&;
 
   auto deleteCount(long deleteCount) -> SemanticTokensEdit&;
@@ -3763,6 +5631,12 @@ class LinkedEditingRangeOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> LinkedEditingRangeOptions&;
@@ -3811,8 +5685,20 @@ class CreateFile final : public LSPObject {
 
   [[nodiscard]] auto options() const -> std::optional<CreateFileOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto options() -> T {
+    auto& value = (*repr_)["options"];
+    return T(value);
+  }
+
   [[nodiscard]] auto annotationId() const
       -> std::optional<ChangeAnnotationIdentifier>;
+
+  template <typename T>
+  [[nodiscard]] auto annotationId() -> T {
+    auto& value = (*repr_)["annotationId"];
+    return T(value);
+  }
 
   auto kind(std::string kind) -> CreateFile&;
 
@@ -3838,8 +5724,20 @@ class RenameFile final : public LSPObject {
 
   [[nodiscard]] auto options() const -> std::optional<RenameFileOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto options() -> T {
+    auto& value = (*repr_)["options"];
+    return T(value);
+  }
+
   [[nodiscard]] auto annotationId() const
       -> std::optional<ChangeAnnotationIdentifier>;
+
+  template <typename T>
+  [[nodiscard]] auto annotationId() -> T {
+    auto& value = (*repr_)["annotationId"];
+    return T(value);
+  }
 
   auto kind(std::string kind) -> RenameFile&;
 
@@ -3865,8 +5763,20 @@ class DeleteFile final : public LSPObject {
 
   [[nodiscard]] auto options() const -> std::optional<DeleteFileOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto options() -> T {
+    auto& value = (*repr_)["options"];
+    return T(value);
+  }
+
   [[nodiscard]] auto annotationId() const
       -> std::optional<ChangeAnnotationIdentifier>;
+
+  template <typename T>
+  [[nodiscard]] auto annotationId() -> T {
+    auto& value = (*repr_)["annotationId"];
+    return T(value);
+  }
 
   auto kind(std::string kind) -> DeleteFile&;
 
@@ -3888,7 +5798,19 @@ class ChangeAnnotation final : public LSPObject {
 
   [[nodiscard]] auto needsConfirmation() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto needsConfirmation() -> T {
+    auto& value = (*repr_)["needsConfirmation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto description() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto description() -> T {
+    auto& value = (*repr_)["description"];
+    return T(value);
+  }
 
   auto label(std::string label) -> ChangeAnnotation&;
 
@@ -3905,6 +5827,12 @@ class FileOperationFilter final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto scheme() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
 
   [[nodiscard]] auto pattern() const -> FileOperationPattern;
 
@@ -3947,6 +5875,12 @@ class MonikerOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> MonikerOptions&;
 };
@@ -3958,6 +5892,12 @@ class TypeHierarchyOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> TypeHierarchyOptions&;
@@ -4003,6 +5943,12 @@ class InlineValueVariableLookup final : public LSPObject {
 
   [[nodiscard]] auto variableName() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto variableName() -> T {
+    auto& value = (*repr_)["variableName"];
+    return T(value);
+  }
+
   [[nodiscard]] auto caseSensitiveLookup() const -> bool;
 
   auto range(Range range) -> InlineValueVariableLookup&;
@@ -4024,6 +5970,12 @@ class InlineValueEvaluatableExpression final : public LSPObject {
 
   [[nodiscard]] auto expression() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto expression() -> T {
+    auto& value = (*repr_)["expression"];
+    return T(value);
+  }
+
   auto range(Range range) -> InlineValueEvaluatableExpression&;
 
   auto expression(std::optional<std::string> expression)
@@ -4037,6 +5989,12 @@ class InlineValueOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> InlineValueOptions&;
@@ -4053,9 +6011,27 @@ class InlayHintLabelPart final : public LSPObject {
   [[nodiscard]] auto tooltip() const
       -> std::optional<std::variant<std::string, MarkupContent>>;
 
+  template <typename T>
+  [[nodiscard]] auto tooltip() -> T {
+    auto& value = (*repr_)["tooltip"];
+    return T(value);
+  }
+
   [[nodiscard]] auto location() const -> std::optional<Location>;
 
+  template <typename T>
+  [[nodiscard]] auto location() -> T {
+    auto& value = (*repr_)["location"];
+    return T(value);
+  }
+
   [[nodiscard]] auto command() const -> std::optional<Command>;
+
+  template <typename T>
+  [[nodiscard]] auto command() -> T {
+    auto& value = (*repr_)["command"];
+    return T(value);
+  }
 
   auto value(std::string value) -> InlayHintLabelPart&;
 
@@ -4090,7 +6066,19 @@ class InlayHintOptions final : public LSPObject {
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> InlayHintOptions&;
@@ -4109,9 +6097,21 @@ class RelatedFullDocumentDiagnosticReport final : public LSPObject {
       Map<std::string, std::variant<FullDocumentDiagnosticReport,
                                     UnchangedDocumentDiagnosticReport>>>;
 
+  template <typename T>
+  [[nodiscard]] auto relatedDocuments() -> T {
+    auto& value = (*repr_)["relatedDocuments"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> std::string;
 
   [[nodiscard]] auto resultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto resultId() -> T {
+    auto& value = (*repr_)["resultId"];
+    return T(value);
+  }
 
   [[nodiscard]] auto items() const -> Vector<Diagnostic>;
 
@@ -4139,6 +6139,12 @@ class RelatedUnchangedDocumentDiagnosticReport final : public LSPObject {
       Map<std::string, std::variant<FullDocumentDiagnosticReport,
                                     UnchangedDocumentDiagnosticReport>>>;
 
+  template <typename T>
+  [[nodiscard]] auto relatedDocuments() -> T {
+    auto& value = (*repr_)["relatedDocuments"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> std::string;
 
   [[nodiscard]] auto resultId() const -> std::string;
@@ -4164,6 +6170,12 @@ class FullDocumentDiagnosticReport final : public LSPObject {
   [[nodiscard]] auto kind() const -> std::string;
 
   [[nodiscard]] auto resultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto resultId() -> T {
+    auto& value = (*repr_)["resultId"];
+    return T(value);
+  }
 
   [[nodiscard]] auto items() const -> Vector<Diagnostic>;
 
@@ -4198,11 +6210,23 @@ class DiagnosticOptions final : public LSPObject {
 
   [[nodiscard]] auto identifier() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto identifier() -> T {
+    auto& value = (*repr_)["identifier"];
+    return T(value);
+  }
+
   [[nodiscard]] auto interFileDependencies() const -> bool;
 
   [[nodiscard]] auto workspaceDiagnostics() const -> bool;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto identifier(std::optional<std::string> identifier) -> DiagnosticOptions&;
 
@@ -4242,6 +6266,12 @@ class NotebookDocument final : public LSPObject {
   [[nodiscard]] auto version() const -> int;
 
   [[nodiscard]] auto metadata() const -> std::optional<LSPObject>;
+
+  template <typename T>
+  [[nodiscard]] auto metadata() -> T {
+    auto& value = (*repr_)["metadata"];
+    return T(value);
+  }
 
   [[nodiscard]] auto cells() const -> Vector<NotebookCell>;
 
@@ -4291,6 +6321,12 @@ class NotebookDocumentSyncOptions final : public LSPObject {
 
   [[nodiscard]] auto save() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto save() -> T {
+    auto& value = (*repr_)["save"];
+    return T(value);
+  }
+
   auto notebookSelector(Vector<std::variant<NotebookDocumentFilterWithNotebook,
                                             NotebookDocumentFilterWithCells>>
                             notebookSelector) -> NotebookDocumentSyncOptions&;
@@ -4321,8 +6357,20 @@ class NotebookDocumentChangeEvent final : public LSPObject {
 
   [[nodiscard]] auto metadata() const -> std::optional<LSPObject>;
 
+  template <typename T>
+  [[nodiscard]] auto metadata() -> T {
+    auto& value = (*repr_)["metadata"];
+    return T(value);
+  }
+
   [[nodiscard]] auto cells() const
       -> std::optional<NotebookDocumentCellChanges>;
+
+  template <typename T>
+  [[nodiscard]] auto cells() -> T {
+    auto& value = (*repr_)["cells"];
+    return T(value);
+  }
 
   auto metadata(std::optional<LSPObject> metadata)
       -> NotebookDocumentChangeEvent&;
@@ -4352,6 +6400,12 @@ class InlineCompletionContext final : public LSPObject {
 
   [[nodiscard]] auto selectedCompletionInfo() const
       -> std::optional<SelectedCompletionInfo>;
+
+  template <typename T>
+  [[nodiscard]] auto selectedCompletionInfo() -> T {
+    auto& value = (*repr_)["selectedCompletionInfo"];
+    return T(value);
+  }
 
   auto triggerKind(InlineCompletionTriggerKind triggerKind)
       -> InlineCompletionContext&;
@@ -4384,6 +6438,12 @@ class InlineCompletionOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> InlineCompletionOptions&;
 };
@@ -4397,6 +6457,13 @@ class TextDocumentContentOptions final : public LSPObject {
   [[nodiscard]] auto schemes() const -> Vector<std::string>;
 
   auto schemes(Vector<std::string> schemes) -> TextDocumentContentOptions&;
+
+  auto schemes(std::vector<std::string> schemes)
+      -> TextDocumentContentOptions& {
+    auto& value = (*repr_)["schemes"];
+    value = std::move(schemes);
+    return *this;
+  }
 };
 
 class Registration final : public LSPObject {
@@ -4410,6 +6477,12 @@ class Registration final : public LSPObject {
   [[nodiscard]] auto method() const -> std::string;
 
   [[nodiscard]] auto registerOptions() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto registerOptions() -> T {
+    auto& value = (*repr_)["registerOptions"];
+    return T(value);
+  }
 
   auto id(std::string id) -> Registration&;
 
@@ -4441,23 +6514,71 @@ class _InitializeParams final : public LSPObject {
 
   [[nodiscard]] auto processId() const -> std::variant<int, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto processId() -> T {
+    auto& value = (*repr_)["processId"];
+    return T(value);
+  }
+
   [[nodiscard]] auto clientInfo() const -> std::optional<ClientInfo>;
 
+  template <typename T>
+  [[nodiscard]] auto clientInfo() -> T {
+    auto& value = (*repr_)["clientInfo"];
+    return T(value);
+  }
+
   [[nodiscard]] auto locale() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto locale() -> T {
+    auto& value = (*repr_)["locale"];
+    return T(value);
+  }
 
   [[nodiscard]] auto rootPath() const
       -> std::optional<std::variant<std::string, std::nullptr_t>>;
 
+  template <typename T>
+  [[nodiscard]] auto rootPath() -> T {
+    auto& value = (*repr_)["rootPath"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rootUri() const
       -> std::variant<std::string, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto rootUri() -> T {
+    auto& value = (*repr_)["rootUri"];
+    return T(value);
+  }
 
   [[nodiscard]] auto capabilities() const -> ClientCapabilities;
 
   [[nodiscard]] auto initializationOptions() const -> std::optional<LSPAny>;
 
+  template <typename T>
+  [[nodiscard]] auto initializationOptions() -> T {
+    auto& value = (*repr_)["initializationOptions"];
+    return T(value);
+  }
+
   [[nodiscard]] auto trace() const -> std::optional<TraceValue>;
 
+  template <typename T>
+  [[nodiscard]] auto trace() -> T {
+    auto& value = (*repr_)["trace"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneToken() -> T {
+    auto& value = (*repr_)["workDoneToken"];
+    return T(value);
+  }
 
   auto processId(std::variant<int, std::nullptr_t> processId)
       -> _InitializeParams&;
@@ -4493,6 +6614,12 @@ class WorkspaceFoldersInitializeParams final : public LSPObject {
   [[nodiscard]] auto workspaceFolders() const
       -> std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>;
 
+  template <typename T>
+  [[nodiscard]] auto workspaceFolders() -> T {
+    auto& value = (*repr_)["workspaceFolders"];
+    return T(value);
+  }
+
   auto workspaceFolders(
       std::optional<std::variant<Vector<WorkspaceFolder>, std::nullptr_t>>
           workspaceFolders) -> WorkspaceFoldersInitializeParams&;
@@ -4507,115 +6634,331 @@ class ServerCapabilities final : public LSPObject {
   [[nodiscard]] auto positionEncoding() const
       -> std::optional<PositionEncodingKind>;
 
+  template <typename T>
+  [[nodiscard]] auto positionEncoding() -> T {
+    auto& value = (*repr_)["positionEncoding"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textDocumentSync() const -> std::optional<
       std::variant<TextDocumentSyncOptions, TextDocumentSyncKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto textDocumentSync() -> T {
+    auto& value = (*repr_)["textDocumentSync"];
+    return T(value);
+  }
 
   [[nodiscard]] auto notebookDocumentSync() const
       -> std::optional<std::variant<NotebookDocumentSyncOptions,
                                     NotebookDocumentSyncRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto notebookDocumentSync() -> T {
+    auto& value = (*repr_)["notebookDocumentSync"];
+    return T(value);
+  }
+
   [[nodiscard]] auto completionProvider() const
       -> std::optional<CompletionOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto completionProvider() -> T {
+    auto& value = (*repr_)["completionProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto hoverProvider() const
       -> std::optional<std::variant<bool, HoverOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto hoverProvider() -> T {
+    auto& value = (*repr_)["hoverProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto signatureHelpProvider() const
       -> std::optional<SignatureHelpOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto signatureHelpProvider() -> T {
+    auto& value = (*repr_)["signatureHelpProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto declarationProvider() const -> std::optional<
       std::variant<bool, DeclarationOptions, DeclarationRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto declarationProvider() -> T {
+    auto& value = (*repr_)["declarationProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto definitionProvider() const
       -> std::optional<std::variant<bool, DefinitionOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto definitionProvider() -> T {
+    auto& value = (*repr_)["definitionProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto typeDefinitionProvider() const
       -> std::optional<std::variant<bool, TypeDefinitionOptions,
                                     TypeDefinitionRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto typeDefinitionProvider() -> T {
+    auto& value = (*repr_)["typeDefinitionProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto implementationProvider() const
       -> std::optional<std::variant<bool, ImplementationOptions,
                                     ImplementationRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto implementationProvider() -> T {
+    auto& value = (*repr_)["implementationProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto referencesProvider() const
       -> std::optional<std::variant<bool, ReferenceOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto referencesProvider() -> T {
+    auto& value = (*repr_)["referencesProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentHighlightProvider() const
       -> std::optional<std::variant<bool, DocumentHighlightOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentHighlightProvider() -> T {
+    auto& value = (*repr_)["documentHighlightProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentSymbolProvider() const
       -> std::optional<std::variant<bool, DocumentSymbolOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto documentSymbolProvider() -> T {
+    auto& value = (*repr_)["documentSymbolProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto codeActionProvider() const
       -> std::optional<std::variant<bool, CodeActionOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto codeActionProvider() -> T {
+    auto& value = (*repr_)["codeActionProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeLensProvider() const -> std::optional<CodeLensOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto codeLensProvider() -> T {
+    auto& value = (*repr_)["codeLensProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentLinkProvider() const
       -> std::optional<DocumentLinkOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto documentLinkProvider() -> T {
+    auto& value = (*repr_)["documentLinkProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto colorProvider() const
       -> std::optional<std::variant<bool, DocumentColorOptions,
                                     DocumentColorRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto colorProvider() -> T {
+    auto& value = (*repr_)["colorProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workspaceSymbolProvider() const
       -> std::optional<std::variant<bool, WorkspaceSymbolOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto workspaceSymbolProvider() -> T {
+    auto& value = (*repr_)["workspaceSymbolProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentFormattingProvider() const
       -> std::optional<std::variant<bool, DocumentFormattingOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentFormattingProvider() -> T {
+    auto& value = (*repr_)["documentFormattingProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentRangeFormattingProvider() const
       -> std::optional<std::variant<bool, DocumentRangeFormattingOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto documentRangeFormattingProvider() -> T {
+    auto& value = (*repr_)["documentRangeFormattingProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentOnTypeFormattingProvider() const
       -> std::optional<DocumentOnTypeFormattingOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto documentOnTypeFormattingProvider() -> T {
+    auto& value = (*repr_)["documentOnTypeFormattingProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto renameProvider() const
       -> std::optional<std::variant<bool, RenameOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto renameProvider() -> T {
+    auto& value = (*repr_)["renameProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto foldingRangeProvider() const -> std::optional<
       std::variant<bool, FoldingRangeOptions, FoldingRangeRegistrationOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto foldingRangeProvider() -> T {
+    auto& value = (*repr_)["foldingRangeProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto selectionRangeProvider() const
       -> std::optional<std::variant<bool, SelectionRangeOptions,
                                     SelectionRangeRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto selectionRangeProvider() -> T {
+    auto& value = (*repr_)["selectionRangeProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto executeCommandProvider() const
       -> std::optional<ExecuteCommandOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto executeCommandProvider() -> T {
+    auto& value = (*repr_)["executeCommandProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto callHierarchyProvider() const
       -> std::optional<std::variant<bool, CallHierarchyOptions,
                                     CallHierarchyRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto callHierarchyProvider() -> T {
+    auto& value = (*repr_)["callHierarchyProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto linkedEditingRangeProvider() const
       -> std::optional<std::variant<bool, LinkedEditingRangeOptions,
                                     LinkedEditingRangeRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto linkedEditingRangeProvider() -> T {
+    auto& value = (*repr_)["linkedEditingRangeProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto semanticTokensProvider() const -> std::optional<
       std::variant<SemanticTokensOptions, SemanticTokensRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto semanticTokensProvider() -> T {
+    auto& value = (*repr_)["semanticTokensProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto monikerProvider() const -> std::optional<
       std::variant<bool, MonikerOptions, MonikerRegistrationOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto monikerProvider() -> T {
+    auto& value = (*repr_)["monikerProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto typeHierarchyProvider() const
       -> std::optional<std::variant<bool, TypeHierarchyOptions,
                                     TypeHierarchyRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto typeHierarchyProvider() -> T {
+    auto& value = (*repr_)["typeHierarchyProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto inlineValueProvider() const -> std::optional<
       std::variant<bool, InlineValueOptions, InlineValueRegistrationOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto inlineValueProvider() -> T {
+    auto& value = (*repr_)["inlineValueProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto inlayHintProvider() const -> std::optional<
       std::variant<bool, InlayHintOptions, InlayHintRegistrationOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto inlayHintProvider() -> T {
+    auto& value = (*repr_)["inlayHintProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto diagnosticProvider() const -> std::optional<
       std::variant<DiagnosticOptions, DiagnosticRegistrationOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto diagnosticProvider() -> T {
+    auto& value = (*repr_)["diagnosticProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto inlineCompletionProvider() const
       -> std::optional<std::variant<bool, InlineCompletionOptions>>;
 
+  template <typename T>
+  [[nodiscard]] auto inlineCompletionProvider() -> T {
+    auto& value = (*repr_)["inlineCompletionProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workspace() const -> std::optional<WorkspaceOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto workspace() -> T {
+    auto& value = (*repr_)["workspace"];
+    return T(value);
+  }
+
   [[nodiscard]] auto experimental() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto experimental() -> T {
+    auto& value = (*repr_)["experimental"];
+    return T(value);
+  }
 
   auto positionEncoding(std::optional<PositionEncodingKind> positionEncoding)
       -> ServerCapabilities&;
@@ -4781,6 +7124,12 @@ class ServerInfo final : public LSPObject {
 
   [[nodiscard]] auto version() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
+
   auto name(std::string name) -> ServerInfo&;
 
   auto version(std::optional<std::string> version) -> ServerInfo&;
@@ -4808,6 +7157,12 @@ class SaveOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto includeText() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto includeText() -> T {
+    auto& value = (*repr_)["includeText"];
+    return T(value);
+  }
 
   auto includeText(std::optional<bool> includeText) -> SaveOptions&;
 };
@@ -4837,6 +7192,12 @@ class FileSystemWatcher final : public LSPObject {
 
   [[nodiscard]] auto kind() const -> std::optional<WatchKind>;
 
+  template <typename T>
+  [[nodiscard]] auto kind() -> T {
+    auto& value = (*repr_)["kind"];
+    return T(value);
+  }
+
   auto globPattern(GlobPattern globPattern) -> FileSystemWatcher&;
 
   auto kind(std::optional<WatchKind> kind) -> FileSystemWatcher&;
@@ -4852,21 +7213,63 @@ class Diagnostic final : public LSPObject {
 
   [[nodiscard]] auto severity() const -> std::optional<DiagnosticSeverity>;
 
+  template <typename T>
+  [[nodiscard]] auto severity() -> T {
+    auto& value = (*repr_)["severity"];
+    return T(value);
+  }
+
   [[nodiscard]] auto code() const
       -> std::optional<std::variant<int, std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto code() -> T {
+    auto& value = (*repr_)["code"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeDescription() const -> std::optional<CodeDescription>;
 
+  template <typename T>
+  [[nodiscard]] auto codeDescription() -> T {
+    auto& value = (*repr_)["codeDescription"];
+    return T(value);
+  }
+
   [[nodiscard]] auto source() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto source() -> T {
+    auto& value = (*repr_)["source"];
+    return T(value);
+  }
 
   [[nodiscard]] auto message() const -> std::string;
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<DiagnosticTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto relatedInformation() const
       -> std::optional<Vector<DiagnosticRelatedInformation>>;
 
+  template <typename T>
+  [[nodiscard]] auto relatedInformation() -> T {
+    auto& value = (*repr_)["relatedInformation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto range(Range range) -> Diagnostic&;
 
@@ -4900,6 +7303,12 @@ class CompletionContext final : public LSPObject {
 
   [[nodiscard]] auto triggerCharacter() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto triggerCharacter() -> T {
+    auto& value = (*repr_)["triggerCharacter"];
+    return T(value);
+  }
+
   auto triggerKind(CompletionTriggerKind triggerKind) -> CompletionContext&;
 
   auto triggerCharacter(std::optional<std::string> triggerCharacter)
@@ -4914,7 +7323,19 @@ class CompletionItemLabelDetails final : public LSPObject {
 
   [[nodiscard]] auto detail() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto detail() -> T {
+    auto& value = (*repr_)["detail"];
+    return T(value);
+  }
+
   [[nodiscard]] auto description() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto description() -> T {
+    auto& value = (*repr_)["description"];
+    return T(value);
+  }
 
   auto detail(std::optional<std::string> detail) -> CompletionItemLabelDetails&;
 
@@ -4950,18 +7371,55 @@ class CompletionItemDefaults final : public LSPObject {
   [[nodiscard]] auto commitCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto commitCharacters() -> T {
+    auto& value = (*repr_)["commitCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto editRange() const
       -> std::optional<std::variant<Range, EditRangeWithInsertReplace>>;
+
+  template <typename T>
+  [[nodiscard]] auto editRange() -> T {
+    auto& value = (*repr_)["editRange"];
+    return T(value);
+  }
 
   [[nodiscard]] auto insertTextFormat() const
       -> std::optional<InsertTextFormat>;
 
+  template <typename T>
+  [[nodiscard]] auto insertTextFormat() -> T {
+    auto& value = (*repr_)["insertTextFormat"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertTextMode() const -> std::optional<InsertTextMode>;
+
+  template <typename T>
+  [[nodiscard]] auto insertTextMode() -> T {
+    auto& value = (*repr_)["insertTextMode"];
+    return T(value);
+  }
 
   [[nodiscard]] auto data() const -> std::optional<LSPAny>;
 
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
+
   auto commitCharacters(std::optional<Vector<std::string>> commitCharacters)
       -> CompletionItemDefaults&;
+
+  auto commitCharacters(std::vector<std::string> commitCharacters)
+      -> CompletionItemDefaults& {
+    auto& value = (*repr_)["commitCharacters"];
+    value = std::move(commitCharacters);
+    return *this;
+  }
 
   auto editRange(
       std::optional<std::variant<Range, EditRangeWithInsertReplace>> editRange)
@@ -4984,7 +7442,19 @@ class CompletionItemApplyKinds final : public LSPObject {
 
   [[nodiscard]] auto commitCharacters() const -> std::optional<ApplyKind>;
 
+  template <typename T>
+  [[nodiscard]] auto commitCharacters() -> T {
+    auto& value = (*repr_)["commitCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<ApplyKind>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   auto commitCharacters(std::optional<ApplyKind> commitCharacters)
       -> CompletionItemApplyKinds&;
@@ -5001,22 +7471,66 @@ class CompletionOptions final : public LSPObject {
   [[nodiscard]] auto triggerCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto triggerCharacters() -> T {
+    auto& value = (*repr_)["triggerCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto allCommitCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto allCommitCharacters() -> T {
+    auto& value = (*repr_)["allCommitCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto completionItem() const
       -> std::optional<ServerCompletionItemOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto completionItem() -> T {
+    auto& value = (*repr_)["completionItem"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto triggerCharacters(std::optional<Vector<std::string>> triggerCharacters)
       -> CompletionOptions&;
 
+  auto triggerCharacters(std::vector<std::string> triggerCharacters)
+      -> CompletionOptions& {
+    auto& value = (*repr_)["triggerCharacters"];
+    value = std::move(triggerCharacters);
+    return *this;
+  }
+
   auto allCommitCharacters(
       std::optional<Vector<std::string>> allCommitCharacters)
       -> CompletionOptions&;
+
+  auto allCommitCharacters(std::vector<std::string> allCommitCharacters)
+      -> CompletionOptions& {
+    auto& value = (*repr_)["allCommitCharacters"];
+    value = std::move(allCommitCharacters);
+    return *this;
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> CompletionOptions&;
@@ -5036,6 +7550,12 @@ class HoverOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress) -> HoverOptions&;
 };
 
@@ -5049,10 +7569,22 @@ class SignatureHelpContext final : public LSPObject {
 
   [[nodiscard]] auto triggerCharacter() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto triggerCharacter() -> T {
+    auto& value = (*repr_)["triggerCharacter"];
+    return T(value);
+  }
+
   [[nodiscard]] auto isRetrigger() const -> bool;
 
   [[nodiscard]] auto activeSignatureHelp() const
       -> std::optional<SignatureHelp>;
+
+  template <typename T>
+  [[nodiscard]] auto activeSignatureHelp() -> T {
+    auto& value = (*repr_)["activeSignatureHelp"];
+    return T(value);
+  }
 
   auto triggerKind(SignatureHelpTriggerKind triggerKind)
       -> SignatureHelpContext&;
@@ -5077,11 +7609,29 @@ class SignatureInformation final : public LSPObject {
   [[nodiscard]] auto documentation() const
       -> std::optional<std::variant<std::string, MarkupContent>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentation() -> T {
+    auto& value = (*repr_)["documentation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto parameters() const
       -> std::optional<Vector<ParameterInformation>>;
 
+  template <typename T>
+  [[nodiscard]] auto parameters() -> T {
+    auto& value = (*repr_)["parameters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto activeParameter() const
       -> std::optional<std::variant<long, std::nullptr_t>>;
+
+  template <typename T>
+  [[nodiscard]] auto activeParameter() -> T {
+    auto& value = (*repr_)["activeParameter"];
+    return T(value);
+  }
 
   auto label(std::string label) -> SignatureInformation&;
 
@@ -5106,17 +7656,49 @@ class SignatureHelpOptions final : public LSPObject {
   [[nodiscard]] auto triggerCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto triggerCharacters() -> T {
+    auto& value = (*repr_)["triggerCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto retriggerCharacters() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto retriggerCharacters() -> T {
+    auto& value = (*repr_)["retriggerCharacters"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto triggerCharacters(std::optional<Vector<std::string>> triggerCharacters)
       -> SignatureHelpOptions&;
 
+  auto triggerCharacters(std::vector<std::string> triggerCharacters)
+      -> SignatureHelpOptions& {
+    auto& value = (*repr_)["triggerCharacters"];
+    value = std::move(triggerCharacters);
+    return *this;
+  }
+
   auto retriggerCharacters(
       std::optional<Vector<std::string>> retriggerCharacters)
       -> SignatureHelpOptions&;
+
+  auto retriggerCharacters(std::vector<std::string> retriggerCharacters)
+      -> SignatureHelpOptions& {
+    auto& value = (*repr_)["retriggerCharacters"];
+    value = std::move(retriggerCharacters);
+    return *this;
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> SignatureHelpOptions&;
@@ -5129,6 +7711,12 @@ class DefinitionOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DefinitionOptions&;
@@ -5153,6 +7741,12 @@ class ReferenceOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> ReferenceOptions&;
 };
@@ -5164,6 +7758,12 @@ class DocumentHighlightOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DocumentHighlightOptions&;
@@ -5181,7 +7781,19 @@ class BaseSymbolInformation final : public LSPObject {
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<SymbolTag>>;
 
+  template <typename T>
+  [[nodiscard]] auto tags() -> T {
+    auto& value = (*repr_)["tags"];
+    return T(value);
+  }
+
   [[nodiscard]] auto containerName() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto containerName() -> T {
+    auto& value = (*repr_)["containerName"];
+    return T(value);
+  }
 
   auto name(std::string name) -> BaseSymbolInformation&;
 
@@ -5201,7 +7813,19 @@ class DocumentSymbolOptions final : public LSPObject {
 
   [[nodiscard]] auto label() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto label() -> T {
+    auto& value = (*repr_)["label"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto label(std::optional<std::string> label) -> DocumentSymbolOptions&;
 
@@ -5219,8 +7843,20 @@ class CodeActionContext final : public LSPObject {
 
   [[nodiscard]] auto only() const -> std::optional<Vector<CodeActionKind>>;
 
+  template <typename T>
+  [[nodiscard]] auto only() -> T {
+    auto& value = (*repr_)["only"];
+    return T(value);
+  }
+
   [[nodiscard]] auto triggerKind() const
       -> std::optional<CodeActionTriggerKind>;
+
+  template <typename T>
+  [[nodiscard]] auto triggerKind() -> T {
+    auto& value = (*repr_)["triggerKind"];
+    return T(value);
+  }
 
   auto diagnostics(Vector<Diagnostic> diagnostics) -> CodeActionContext&;
 
@@ -5250,12 +7886,36 @@ class CodeActionOptions final : public LSPObject {
   [[nodiscard]] auto codeActionKinds() const
       -> std::optional<Vector<CodeActionKind>>;
 
+  template <typename T>
+  [[nodiscard]] auto codeActionKinds() -> T {
+    auto& value = (*repr_)["codeActionKinds"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentation() const
       -> std::optional<Vector<CodeActionKindDocumentation>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentation() -> T {
+    auto& value = (*repr_)["documentation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto codeActionKinds(std::optional<Vector<CodeActionKind>> codeActionKinds)
       -> CodeActionOptions&;
@@ -5290,7 +7950,19 @@ class WorkspaceSymbolOptions final : public LSPObject {
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> WorkspaceSymbolOptions&;
@@ -5307,7 +7979,19 @@ class CodeLensOptions final : public LSPObject {
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider) -> CodeLensOptions&;
 
@@ -5323,7 +8007,19 @@ class DocumentLinkOptions final : public LSPObject {
 
   [[nodiscard]] auto resolveProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveProvider() -> T {
+    auto& value = (*repr_)["resolveProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto resolveProvider(std::optional<bool> resolveProvider)
       -> DocumentLinkOptions&;
@@ -5344,9 +8040,27 @@ class FormattingOptions final : public LSPObject {
 
   [[nodiscard]] auto trimTrailingWhitespace() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto trimTrailingWhitespace() -> T {
+    auto& value = (*repr_)["trimTrailingWhitespace"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertFinalNewline() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto insertFinalNewline() -> T {
+    auto& value = (*repr_)["insertFinalNewline"];
+    return T(value);
+  }
+
   [[nodiscard]] auto trimFinalNewlines() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto trimFinalNewlines() -> T {
+    auto& value = (*repr_)["trimFinalNewlines"];
+    return T(value);
+  }
 
   auto tabSize(long tabSize) -> FormattingOptions&;
 
@@ -5370,6 +8084,12 @@ class DocumentFormattingOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> DocumentFormattingOptions&;
 };
@@ -5382,7 +8102,19 @@ class DocumentRangeFormattingOptions final : public LSPObject {
 
   [[nodiscard]] auto rangesSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto rangesSupport() -> T {
+    auto& value = (*repr_)["rangesSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto rangesSupport(std::optional<bool> rangesSupport)
       -> DocumentRangeFormattingOptions&;
@@ -5402,12 +8134,25 @@ class DocumentOnTypeFormattingOptions final : public LSPObject {
   [[nodiscard]] auto moreTriggerCharacter() const
       -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto moreTriggerCharacter() -> T {
+    auto& value = (*repr_)["moreTriggerCharacter"];
+    return T(value);
+  }
+
   auto firstTriggerCharacter(std::string firstTriggerCharacter)
       -> DocumentOnTypeFormattingOptions&;
 
   auto moreTriggerCharacter(
       std::optional<Vector<std::string>> moreTriggerCharacter)
       -> DocumentOnTypeFormattingOptions&;
+
+  auto moreTriggerCharacter(std::vector<std::string> moreTriggerCharacter)
+      -> DocumentOnTypeFormattingOptions& {
+    auto& value = (*repr_)["moreTriggerCharacter"];
+    value = std::move(moreTriggerCharacter);
+    return *this;
+  }
 };
 
 class RenameOptions final : public LSPObject {
@@ -5418,7 +8163,19 @@ class RenameOptions final : public LSPObject {
 
   [[nodiscard]] auto prepareProvider() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto prepareProvider() -> T {
+    auto& value = (*repr_)["prepareProvider"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
 
   auto prepareProvider(std::optional<bool> prepareProvider) -> RenameOptions&;
 
@@ -5461,7 +8218,19 @@ class ExecuteCommandOptions final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   auto commands(Vector<std::string> commands) -> ExecuteCommandOptions&;
+
+  auto commands(std::vector<std::string> commands) -> ExecuteCommandOptions& {
+    auto& value = (*repr_)["commands"];
+    value = std::move(commands);
+    return *this;
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> ExecuteCommandOptions&;
@@ -5474,6 +8243,12 @@ class WorkspaceEditMetadata final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto isRefactoring() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto isRefactoring() -> T {
+    auto& value = (*repr_)["isRefactoring"];
+    return T(value);
+  }
 
   auto isRefactoring(std::optional<bool> isRefactoring)
       -> WorkspaceEditMetadata&;
@@ -5491,8 +8266,22 @@ class SemanticTokensLegend final : public LSPObject {
 
   auto tokenTypes(Vector<std::string> tokenTypes) -> SemanticTokensLegend&;
 
+  auto tokenTypes(std::vector<std::string> tokenTypes)
+      -> SemanticTokensLegend& {
+    auto& value = (*repr_)["tokenTypes"];
+    value = std::move(tokenTypes);
+    return *this;
+  }
+
   auto tokenModifiers(Vector<std::string> tokenModifiers)
       -> SemanticTokensLegend&;
+
+  auto tokenModifiers(std::vector<std::string> tokenModifiers)
+      -> SemanticTokensLegend& {
+    auto& value = (*repr_)["tokenModifiers"];
+    value = std::move(tokenModifiers);
+    return *this;
+  }
 };
 
 class SemanticTokensFullDelta final : public LSPObject {
@@ -5502,6 +8291,12 @@ class SemanticTokensFullDelta final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto delta() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto delta() -> T {
+    auto& value = (*repr_)["delta"];
+    return T(value);
+  }
 
   auto delta(std::optional<bool> delta) -> SemanticTokensFullDelta&;
 };
@@ -5513,6 +8308,12 @@ class OptionalVersionedTextDocumentIdentifier final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
 
   [[nodiscard]] auto uri() const -> std::string;
 
@@ -5555,6 +8356,12 @@ class SnippetTextEdit final : public LSPObject {
   [[nodiscard]] auto annotationId() const
       -> std::optional<ChangeAnnotationIdentifier>;
 
+  template <typename T>
+  [[nodiscard]] auto annotationId() -> T {
+    auto& value = (*repr_)["annotationId"];
+    return T(value);
+  }
+
   auto range(Range range) -> SnippetTextEdit&;
 
   auto snippet(StringValue snippet) -> SnippetTextEdit&;
@@ -5574,6 +8381,12 @@ class ResourceOperation final : public LSPObject {
   [[nodiscard]] auto annotationId() const
       -> std::optional<ChangeAnnotationIdentifier>;
 
+  template <typename T>
+  [[nodiscard]] auto annotationId() -> T {
+    auto& value = (*repr_)["annotationId"];
+    return T(value);
+  }
+
   auto kind(std::string kind) -> ResourceOperation&;
 
   auto annotationId(std::optional<ChangeAnnotationIdentifier> annotationId)
@@ -5588,7 +8401,19 @@ class CreateFileOptions final : public LSPObject {
 
   [[nodiscard]] auto overwrite() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto overwrite() -> T {
+    auto& value = (*repr_)["overwrite"];
+    return T(value);
+  }
+
   [[nodiscard]] auto ignoreIfExists() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto ignoreIfExists() -> T {
+    auto& value = (*repr_)["ignoreIfExists"];
+    return T(value);
+  }
 
   auto overwrite(std::optional<bool> overwrite) -> CreateFileOptions&;
 
@@ -5603,7 +8428,19 @@ class RenameFileOptions final : public LSPObject {
 
   [[nodiscard]] auto overwrite() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto overwrite() -> T {
+    auto& value = (*repr_)["overwrite"];
+    return T(value);
+  }
+
   [[nodiscard]] auto ignoreIfExists() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto ignoreIfExists() -> T {
+    auto& value = (*repr_)["ignoreIfExists"];
+    return T(value);
+  }
 
   auto overwrite(std::optional<bool> overwrite) -> RenameFileOptions&;
 
@@ -5618,7 +8455,19 @@ class DeleteFileOptions final : public LSPObject {
 
   [[nodiscard]] auto recursive() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto recursive() -> T {
+    auto& value = (*repr_)["recursive"];
+    return T(value);
+  }
+
   [[nodiscard]] auto ignoreIfNotExists() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto ignoreIfNotExists() -> T {
+    auto& value = (*repr_)["ignoreIfNotExists"];
+    return T(value);
+  }
 
   auto recursive(std::optional<bool> recursive) -> DeleteFileOptions&;
 
@@ -5636,8 +8485,20 @@ class FileOperationPattern final : public LSPObject {
 
   [[nodiscard]] auto matches() const -> std::optional<FileOperationPatternKind>;
 
+  template <typename T>
+  [[nodiscard]] auto matches() -> T {
+    auto& value = (*repr_)["matches"];
+    return T(value);
+  }
+
   [[nodiscard]] auto options() const
       -> std::optional<FileOperationPatternOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto options() -> T {
+    auto& value = (*repr_)["options"];
+    return T(value);
+  }
 
   auto glob(std::string glob) -> FileOperationPattern&;
 
@@ -5658,9 +8519,21 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
 
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
+
   [[nodiscard]] auto kind() const -> std::string;
 
   [[nodiscard]] auto resultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto resultId() -> T {
+    auto& value = (*repr_)["resultId"];
+    return T(value);
+  }
 
   [[nodiscard]] auto items() const -> Vector<Diagnostic>;
 
@@ -5687,6 +8560,12 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
   [[nodiscard]] auto uri() const -> std::string;
 
   [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
 
   [[nodiscard]] auto kind() const -> std::string;
 
@@ -5715,8 +8594,20 @@ class NotebookCell final : public LSPObject {
 
   [[nodiscard]] auto metadata() const -> std::optional<LSPObject>;
 
+  template <typename T>
+  [[nodiscard]] auto metadata() -> T {
+    auto& value = (*repr_)["metadata"];
+    return T(value);
+  }
+
   [[nodiscard]] auto executionSummary() const
       -> std::optional<ExecutionSummary>;
+
+  template <typename T>
+  [[nodiscard]] auto executionSummary() -> T {
+    auto& value = (*repr_)["executionSummary"];
+    return T(value);
+  }
 
   auto kind(NotebookCellKind kind) -> NotebookCell&;
 
@@ -5737,8 +8628,20 @@ class NotebookDocumentFilterWithNotebook final : public LSPObject {
   [[nodiscard]] auto notebook() const
       -> std::variant<std::string, NotebookDocumentFilter>;
 
+  template <typename T>
+  [[nodiscard]] auto notebook() -> T {
+    auto& value = (*repr_)["notebook"];
+    return T(value);
+  }
+
   [[nodiscard]] auto cells() const
       -> std::optional<Vector<NotebookCellLanguage>>;
+
+  template <typename T>
+  [[nodiscard]] auto cells() -> T {
+    auto& value = (*repr_)["cells"];
+    return T(value);
+  }
 
   auto notebook(std::variant<std::string, NotebookDocumentFilter> notebook)
       -> NotebookDocumentFilterWithNotebook&;
@@ -5755,6 +8658,12 @@ class NotebookDocumentFilterWithCells final : public LSPObject {
 
   [[nodiscard]] auto notebook() const
       -> std::optional<std::variant<std::string, NotebookDocumentFilter>>;
+
+  template <typename T>
+  [[nodiscard]] auto notebook() -> T {
+    auto& value = (*repr_)["notebook"];
+    return T(value);
+  }
 
   [[nodiscard]] auto cells() const -> Vector<NotebookCellLanguage>;
 
@@ -5775,10 +8684,28 @@ class NotebookDocumentCellChanges final : public LSPObject {
   [[nodiscard]] auto structure() const
       -> std::optional<NotebookDocumentCellChangeStructure>;
 
+  template <typename T>
+  [[nodiscard]] auto structure() -> T {
+    auto& value = (*repr_)["structure"];
+    return T(value);
+  }
+
   [[nodiscard]] auto data() const -> std::optional<Vector<NotebookCell>>;
+
+  template <typename T>
+  [[nodiscard]] auto data() -> T {
+    auto& value = (*repr_)["data"];
+    return T(value);
+  }
 
   [[nodiscard]] auto textContent() const
       -> std::optional<Vector<NotebookDocumentCellContentChanges>>;
+
+  template <typename T>
+  [[nodiscard]] auto textContent() -> T {
+    auto& value = (*repr_)["textContent"];
+    return T(value);
+  }
 
   auto structure(std::optional<NotebookDocumentCellChangeStructure> structure)
       -> NotebookDocumentCellChanges&;
@@ -5816,6 +8743,12 @@ class ClientInfo final : public LSPObject {
 
   [[nodiscard]] auto version() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
+
   auto name(std::string name) -> ClientInfo&;
 
   auto version(std::optional<std::string> version) -> ClientInfo&;
@@ -5830,18 +8763,54 @@ class ClientCapabilities final : public LSPObject {
   [[nodiscard]] auto workspace() const
       -> std::optional<WorkspaceClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto workspace() -> T {
+    auto& value = (*repr_)["workspace"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textDocument() const
       -> std::optional<TextDocumentClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto textDocument() -> T {
+    auto& value = (*repr_)["textDocument"];
+    return T(value);
+  }
 
   [[nodiscard]] auto notebookDocument() const
       -> std::optional<NotebookDocumentClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto notebookDocument() -> T {
+    auto& value = (*repr_)["notebookDocument"];
+    return T(value);
+  }
+
   [[nodiscard]] auto window() const -> std::optional<WindowClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto window() -> T {
+    auto& value = (*repr_)["window"];
+    return T(value);
+  }
 
   [[nodiscard]] auto general() const
       -> std::optional<GeneralClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto general() -> T {
+    auto& value = (*repr_)["general"];
+    return T(value);
+  }
+
   [[nodiscard]] auto experimental() const -> std::optional<LSPAny>;
+
+  template <typename T>
+  [[nodiscard]] auto experimental() -> T {
+    auto& value = (*repr_)["experimental"];
+    return T(value);
+  }
 
   auto workspace(std::optional<WorkspaceClientCapabilities> workspace)
       -> ClientCapabilities&;
@@ -5870,14 +8839,44 @@ class TextDocumentSyncOptions final : public LSPObject {
 
   [[nodiscard]] auto openClose() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto openClose() -> T {
+    auto& value = (*repr_)["openClose"];
+    return T(value);
+  }
+
   [[nodiscard]] auto change() const -> std::optional<TextDocumentSyncKind>;
+
+  template <typename T>
+  [[nodiscard]] auto change() -> T {
+    auto& value = (*repr_)["change"];
+    return T(value);
+  }
 
   [[nodiscard]] auto willSave() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto willSave() -> T {
+    auto& value = (*repr_)["willSave"];
+    return T(value);
+  }
+
   [[nodiscard]] auto willSaveWaitUntil() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto willSaveWaitUntil() -> T {
+    auto& value = (*repr_)["willSaveWaitUntil"];
+    return T(value);
+  }
 
   [[nodiscard]] auto save() const
       -> std::optional<std::variant<bool, SaveOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto save() -> T {
+    auto& value = (*repr_)["save"];
+    return T(value);
+  }
 
   auto openClose(std::optional<bool> openClose) -> TextDocumentSyncOptions&;
 
@@ -5902,12 +8901,30 @@ class WorkspaceOptions final : public LSPObject {
   [[nodiscard]] auto workspaceFolders() const
       -> std::optional<WorkspaceFoldersServerCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto workspaceFolders() -> T {
+    auto& value = (*repr_)["workspaceFolders"];
+    return T(value);
+  }
+
   [[nodiscard]] auto fileOperations() const
       -> std::optional<FileOperationOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto fileOperations() -> T {
+    auto& value = (*repr_)["fileOperations"];
+    return T(value);
+  }
 
   [[nodiscard]] auto textDocumentContent() const
       -> std::optional<std::variant<TextDocumentContentOptions,
                                     TextDocumentContentRegistrationOptions>>;
+
+  template <typename T>
+  [[nodiscard]] auto textDocumentContent() -> T {
+    auto& value = (*repr_)["textDocumentContent"];
+    return T(value);
+  }
 
   auto workspaceFolders(
       std::optional<WorkspaceFoldersServerCapabilities> workspaceFolders)
@@ -5931,6 +8948,12 @@ class TextDocumentContentChangePartial final : public LSPObject {
   [[nodiscard]] auto range() const -> Range;
 
   [[nodiscard]] auto rangeLength() const -> std::optional<long>;
+
+  template <typename T>
+  [[nodiscard]] auto rangeLength() -> T {
+    auto& value = (*repr_)["rangeLength"];
+    return T(value);
+  }
 
   [[nodiscard]] auto text() const -> std::string;
 
@@ -6002,6 +9025,12 @@ class ServerCompletionItemOptions final : public LSPObject {
 
   [[nodiscard]] auto labelDetailsSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto labelDetailsSupport() -> T {
+    auto& value = (*repr_)["labelDetailsSupport"];
+    return T(value);
+  }
+
   auto labelDetailsSupport(std::optional<bool> labelDetailsSupport)
       -> ServerCompletionItemOptions&;
 };
@@ -6030,8 +9059,20 @@ class ParameterInformation final : public LSPObject {
   [[nodiscard]] auto label() const
       -> std::variant<std::string, std::tuple<long, long>>;
 
+  template <typename T>
+  [[nodiscard]] auto label() -> T {
+    auto& value = (*repr_)["label"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentation() const
       -> std::optional<std::variant<std::string, MarkupContent>>;
+
+  template <typename T>
+  [[nodiscard]] auto documentation() -> T {
+    auto& value = (*repr_)["documentation"];
+    return T(value);
+  }
 
   auto label(std::variant<std::string, std::tuple<long, long>> label)
       -> ParameterInformation&;
@@ -6065,7 +9106,19 @@ class NotebookCellTextDocumentFilter final : public LSPObject {
   [[nodiscard]] auto notebook() const
       -> std::variant<std::string, NotebookDocumentFilter>;
 
+  template <typename T>
+  [[nodiscard]] auto notebook() -> T {
+    auto& value = (*repr_)["notebook"];
+    return T(value);
+  }
+
   [[nodiscard]] auto language() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto language() -> T {
+    auto& value = (*repr_)["language"];
+    return T(value);
+  }
 
   auto notebook(std::variant<std::string, NotebookDocumentFilter> notebook)
       -> NotebookCellTextDocumentFilter&;
@@ -6082,6 +9135,12 @@ class FileOperationPatternOptions final : public LSPObject {
 
   [[nodiscard]] auto ignoreCase() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto ignoreCase() -> T {
+    auto& value = (*repr_)["ignoreCase"];
+    return T(value);
+  }
+
   auto ignoreCase(std::optional<bool> ignoreCase)
       -> FileOperationPatternOptions&;
 };
@@ -6095,6 +9154,12 @@ class ExecutionSummary final : public LSPObject {
   [[nodiscard]] auto executionOrder() const -> long;
 
   [[nodiscard]] auto success() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto success() -> T {
+    auto& value = (*repr_)["success"];
+    return T(value);
+  }
 
   auto executionOrder(long executionOrder) -> ExecutionSummary&;
 
@@ -6122,8 +9187,20 @@ class NotebookDocumentCellChangeStructure final : public LSPObject {
 
   [[nodiscard]] auto didOpen() const -> std::optional<Vector<TextDocumentItem>>;
 
+  template <typename T>
+  [[nodiscard]] auto didOpen() -> T {
+    auto& value = (*repr_)["didOpen"];
+    return T(value);
+  }
+
   [[nodiscard]] auto didClose() const
       -> std::optional<Vector<TextDocumentIdentifier>>;
+
+  template <typename T>
+  [[nodiscard]] auto didClose() -> T {
+    auto& value = (*repr_)["didClose"];
+    return T(value);
+  }
 
   auto array(NotebookCellArrayChange array)
       -> NotebookDocumentCellChangeStructure&;
@@ -6160,48 +9237,144 @@ class WorkspaceClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto applyEdit() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto applyEdit() -> T {
+    auto& value = (*repr_)["applyEdit"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workspaceEdit() const
       -> std::optional<WorkspaceEditClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto workspaceEdit() -> T {
+    auto& value = (*repr_)["workspaceEdit"];
+    return T(value);
+  }
 
   [[nodiscard]] auto didChangeConfiguration() const
       -> std::optional<DidChangeConfigurationClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto didChangeConfiguration() -> T {
+    auto& value = (*repr_)["didChangeConfiguration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto didChangeWatchedFiles() const
       -> std::optional<DidChangeWatchedFilesClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto didChangeWatchedFiles() -> T {
+    auto& value = (*repr_)["didChangeWatchedFiles"];
+    return T(value);
+  }
 
   [[nodiscard]] auto symbol() const
       -> std::optional<WorkspaceSymbolClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto symbol() -> T {
+    auto& value = (*repr_)["symbol"];
+    return T(value);
+  }
+
   [[nodiscard]] auto executeCommand() const
       -> std::optional<ExecuteCommandClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto executeCommand() -> T {
+    auto& value = (*repr_)["executeCommand"];
+    return T(value);
+  }
+
   [[nodiscard]] auto workspaceFolders() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workspaceFolders() -> T {
+    auto& value = (*repr_)["workspaceFolders"];
+    return T(value);
+  }
+
   [[nodiscard]] auto configuration() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto configuration() -> T {
+    auto& value = (*repr_)["configuration"];
+    return T(value);
+  }
 
   [[nodiscard]] auto semanticTokens() const
       -> std::optional<SemanticTokensWorkspaceClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto semanticTokens() -> T {
+    auto& value = (*repr_)["semanticTokens"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeLens() const
       -> std::optional<CodeLensWorkspaceClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto codeLens() -> T {
+    auto& value = (*repr_)["codeLens"];
+    return T(value);
+  }
 
   [[nodiscard]] auto fileOperations() const
       -> std::optional<FileOperationClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto fileOperations() -> T {
+    auto& value = (*repr_)["fileOperations"];
+    return T(value);
+  }
+
   [[nodiscard]] auto inlineValue() const
       -> std::optional<InlineValueWorkspaceClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto inlineValue() -> T {
+    auto& value = (*repr_)["inlineValue"];
+    return T(value);
+  }
 
   [[nodiscard]] auto inlayHint() const
       -> std::optional<InlayHintWorkspaceClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto inlayHint() -> T {
+    auto& value = (*repr_)["inlayHint"];
+    return T(value);
+  }
+
   [[nodiscard]] auto diagnostics() const
       -> std::optional<DiagnosticWorkspaceClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto diagnostics() -> T {
+    auto& value = (*repr_)["diagnostics"];
+    return T(value);
+  }
 
   [[nodiscard]] auto foldingRange() const
       -> std::optional<FoldingRangeWorkspaceClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto foldingRange() -> T {
+    auto& value = (*repr_)["foldingRange"];
+    return T(value);
+  }
+
   [[nodiscard]] auto textDocumentContent() const
       -> std::optional<TextDocumentContentClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto textDocumentContent() -> T {
+    auto& value = (*repr_)["textDocumentContent"];
+    return T(value);
+  }
 
   auto applyEdit(std::optional<bool> applyEdit) -> WorkspaceClientCapabilities&;
 
@@ -6270,96 +9443,288 @@ class TextDocumentClientCapabilities final : public LSPObject {
   [[nodiscard]] auto synchronization() const
       -> std::optional<TextDocumentSyncClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto synchronization() -> T {
+    auto& value = (*repr_)["synchronization"];
+    return T(value);
+  }
+
   [[nodiscard]] auto filters() const
       -> std::optional<TextDocumentFilterClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto filters() -> T {
+    auto& value = (*repr_)["filters"];
+    return T(value);
+  }
 
   [[nodiscard]] auto completion() const
       -> std::optional<CompletionClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto completion() -> T {
+    auto& value = (*repr_)["completion"];
+    return T(value);
+  }
+
   [[nodiscard]] auto hover() const -> std::optional<HoverClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto hover() -> T {
+    auto& value = (*repr_)["hover"];
+    return T(value);
+  }
 
   [[nodiscard]] auto signatureHelp() const
       -> std::optional<SignatureHelpClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto signatureHelp() -> T {
+    auto& value = (*repr_)["signatureHelp"];
+    return T(value);
+  }
+
   [[nodiscard]] auto declaration() const
       -> std::optional<DeclarationClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto declaration() -> T {
+    auto& value = (*repr_)["declaration"];
+    return T(value);
+  }
 
   [[nodiscard]] auto definition() const
       -> std::optional<DefinitionClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto definition() -> T {
+    auto& value = (*repr_)["definition"];
+    return T(value);
+  }
+
   [[nodiscard]] auto typeDefinition() const
       -> std::optional<TypeDefinitionClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto typeDefinition() -> T {
+    auto& value = (*repr_)["typeDefinition"];
+    return T(value);
+  }
 
   [[nodiscard]] auto implementation() const
       -> std::optional<ImplementationClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto implementation() -> T {
+    auto& value = (*repr_)["implementation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto references() const
       -> std::optional<ReferenceClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto references() -> T {
+    auto& value = (*repr_)["references"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentHighlight() const
       -> std::optional<DocumentHighlightClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto documentHighlight() -> T {
+    auto& value = (*repr_)["documentHighlight"];
+    return T(value);
+  }
+
   [[nodiscard]] auto documentSymbol() const
       -> std::optional<DocumentSymbolClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto documentSymbol() -> T {
+    auto& value = (*repr_)["documentSymbol"];
+    return T(value);
+  }
 
   [[nodiscard]] auto codeAction() const
       -> std::optional<CodeActionClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto codeAction() -> T {
+    auto& value = (*repr_)["codeAction"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeLens() const
       -> std::optional<CodeLensClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto codeLens() -> T {
+    auto& value = (*repr_)["codeLens"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentLink() const
       -> std::optional<DocumentLinkClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto documentLink() -> T {
+    auto& value = (*repr_)["documentLink"];
+    return T(value);
+  }
+
   [[nodiscard]] auto colorProvider() const
       -> std::optional<DocumentColorClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto colorProvider() -> T {
+    auto& value = (*repr_)["colorProvider"];
+    return T(value);
+  }
 
   [[nodiscard]] auto formatting() const
       -> std::optional<DocumentFormattingClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto formatting() -> T {
+    auto& value = (*repr_)["formatting"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rangeFormatting() const
       -> std::optional<DocumentRangeFormattingClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto rangeFormatting() -> T {
+    auto& value = (*repr_)["rangeFormatting"];
+    return T(value);
+  }
 
   [[nodiscard]] auto onTypeFormatting() const
       -> std::optional<DocumentOnTypeFormattingClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto onTypeFormatting() -> T {
+    auto& value = (*repr_)["onTypeFormatting"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rename() const -> std::optional<RenameClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto rename() -> T {
+    auto& value = (*repr_)["rename"];
+    return T(value);
+  }
 
   [[nodiscard]] auto foldingRange() const
       -> std::optional<FoldingRangeClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto foldingRange() -> T {
+    auto& value = (*repr_)["foldingRange"];
+    return T(value);
+  }
+
   [[nodiscard]] auto selectionRange() const
       -> std::optional<SelectionRangeClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto selectionRange() -> T {
+    auto& value = (*repr_)["selectionRange"];
+    return T(value);
+  }
 
   [[nodiscard]] auto publishDiagnostics() const
       -> std::optional<PublishDiagnosticsClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto publishDiagnostics() -> T {
+    auto& value = (*repr_)["publishDiagnostics"];
+    return T(value);
+  }
+
   [[nodiscard]] auto callHierarchy() const
       -> std::optional<CallHierarchyClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto callHierarchy() -> T {
+    auto& value = (*repr_)["callHierarchy"];
+    return T(value);
+  }
 
   [[nodiscard]] auto semanticTokens() const
       -> std::optional<SemanticTokensClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto semanticTokens() -> T {
+    auto& value = (*repr_)["semanticTokens"];
+    return T(value);
+  }
+
   [[nodiscard]] auto linkedEditingRange() const
       -> std::optional<LinkedEditingRangeClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto linkedEditingRange() -> T {
+    auto& value = (*repr_)["linkedEditingRange"];
+    return T(value);
+  }
 
   [[nodiscard]] auto moniker() const
       -> std::optional<MonikerClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto moniker() -> T {
+    auto& value = (*repr_)["moniker"];
+    return T(value);
+  }
+
   [[nodiscard]] auto typeHierarchy() const
       -> std::optional<TypeHierarchyClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto typeHierarchy() -> T {
+    auto& value = (*repr_)["typeHierarchy"];
+    return T(value);
+  }
 
   [[nodiscard]] auto inlineValue() const
       -> std::optional<InlineValueClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto inlineValue() -> T {
+    auto& value = (*repr_)["inlineValue"];
+    return T(value);
+  }
+
   [[nodiscard]] auto inlayHint() const
       -> std::optional<InlayHintClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto inlayHint() -> T {
+    auto& value = (*repr_)["inlayHint"];
+    return T(value);
+  }
 
   [[nodiscard]] auto diagnostic() const
       -> std::optional<DiagnosticClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto diagnostic() -> T {
+    auto& value = (*repr_)["diagnostic"];
+    return T(value);
+  }
+
   [[nodiscard]] auto inlineCompletion() const
       -> std::optional<InlineCompletionClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto inlineCompletion() -> T {
+    auto& value = (*repr_)["inlineCompletion"];
+    return T(value);
+  }
 
   auto synchronization(
       std::optional<TextDocumentSyncClientCapabilities> synchronization)
@@ -6496,11 +9861,29 @@ class WindowClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
   [[nodiscard]] auto showMessage() const
       -> std::optional<ShowMessageRequestClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto showMessage() -> T {
+    auto& value = (*repr_)["showMessage"];
+    return T(value);
+  }
+
   [[nodiscard]] auto showDocument() const
       -> std::optional<ShowDocumentClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto showDocument() -> T {
+    auto& value = (*repr_)["showDocument"];
+    return T(value);
+  }
 
   auto workDoneProgress(std::optional<bool> workDoneProgress)
       -> WindowClientCapabilities&;
@@ -6522,14 +9905,38 @@ class GeneralClientCapabilities final : public LSPObject {
   [[nodiscard]] auto staleRequestSupport() const
       -> std::optional<StaleRequestSupportOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto staleRequestSupport() -> T {
+    auto& value = (*repr_)["staleRequestSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto regularExpressions() const
       -> std::optional<RegularExpressionsClientCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto regularExpressions() -> T {
+    auto& value = (*repr_)["regularExpressions"];
+    return T(value);
+  }
 
   [[nodiscard]] auto markdown() const
       -> std::optional<MarkdownClientCapabilities>;
 
+  template <typename T>
+  [[nodiscard]] auto markdown() -> T {
+    auto& value = (*repr_)["markdown"];
+    return T(value);
+  }
+
   [[nodiscard]] auto positionEncodings() const
       -> std::optional<Vector<PositionEncodingKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto positionEncodings() -> T {
+    auto& value = (*repr_)["positionEncodings"];
+    return T(value);
+  }
 
   auto staleRequestSupport(
       std::optional<StaleRequestSupportOptions> staleRequestSupport)
@@ -6555,8 +9962,20 @@ class WorkspaceFoldersServerCapabilities final : public LSPObject {
 
   [[nodiscard]] auto supported() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto supported() -> T {
+    auto& value = (*repr_)["supported"];
+    return T(value);
+  }
+
   [[nodiscard]] auto changeNotifications() const
       -> std::optional<std::variant<std::string, bool>>;
+
+  template <typename T>
+  [[nodiscard]] auto changeNotifications() -> T {
+    auto& value = (*repr_)["changeNotifications"];
+    return T(value);
+  }
 
   auto supported(std::optional<bool> supported)
       -> WorkspaceFoldersServerCapabilities&;
@@ -6575,20 +9994,56 @@ class FileOperationOptions final : public LSPObject {
   [[nodiscard]] auto didCreate() const
       -> std::optional<FileOperationRegistrationOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto didCreate() -> T {
+    auto& value = (*repr_)["didCreate"];
+    return T(value);
+  }
+
   [[nodiscard]] auto willCreate() const
       -> std::optional<FileOperationRegistrationOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto willCreate() -> T {
+    auto& value = (*repr_)["willCreate"];
+    return T(value);
+  }
 
   [[nodiscard]] auto didRename() const
       -> std::optional<FileOperationRegistrationOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto didRename() -> T {
+    auto& value = (*repr_)["didRename"];
+    return T(value);
+  }
+
   [[nodiscard]] auto willRename() const
       -> std::optional<FileOperationRegistrationOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto willRename() -> T {
+    auto& value = (*repr_)["willRename"];
+    return T(value);
+  }
 
   [[nodiscard]] auto didDelete() const
       -> std::optional<FileOperationRegistrationOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto didDelete() -> T {
+    auto& value = (*repr_)["didDelete"];
+    return T(value);
+  }
+
   [[nodiscard]] auto willDelete() const
       -> std::optional<FileOperationRegistrationOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto willDelete() -> T {
+    auto& value = (*repr_)["willDelete"];
+    return T(value);
+  }
 
   auto didCreate(std::optional<FileOperationRegistrationOptions> didCreate)
       -> FileOperationOptions&;
@@ -6618,6 +10073,12 @@ class RelativePattern final : public LSPObject {
   [[nodiscard]] auto baseUri() const
       -> std::variant<WorkspaceFolder, std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto baseUri() -> T {
+    auto& value = (*repr_)["baseUri"];
+    return T(value);
+  }
+
   [[nodiscard]] auto pattern() const -> Pattern;
 
   auto baseUri(std::variant<WorkspaceFolder, std::string> baseUri)
@@ -6636,7 +10097,19 @@ class TextDocumentFilterLanguage final : public LSPObject {
 
   [[nodiscard]] auto scheme() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
+
   [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
+
+  template <typename T>
+  [[nodiscard]] auto pattern() -> T {
+    auto& value = (*repr_)["pattern"];
+    return T(value);
+  }
 
   auto language(std::string language) -> TextDocumentFilterLanguage&;
 
@@ -6654,9 +10127,21 @@ class TextDocumentFilterScheme final : public LSPObject {
 
   [[nodiscard]] auto language() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto language() -> T {
+    auto& value = (*repr_)["language"];
+    return T(value);
+  }
+
   [[nodiscard]] auto scheme() const -> std::string;
 
   [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
+
+  template <typename T>
+  [[nodiscard]] auto pattern() -> T {
+    auto& value = (*repr_)["pattern"];
+    return T(value);
+  }
 
   auto language(std::optional<std::string> language)
       -> TextDocumentFilterScheme&;
@@ -6674,7 +10159,19 @@ class TextDocumentFilterPattern final : public LSPObject {
 
   [[nodiscard]] auto language() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto language() -> T {
+    auto& value = (*repr_)["language"];
+    return T(value);
+  }
+
   [[nodiscard]] auto scheme() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
 
   [[nodiscard]] auto pattern() const -> GlobPattern;
 
@@ -6696,7 +10193,19 @@ class NotebookDocumentFilterNotebookType final : public LSPObject {
 
   [[nodiscard]] auto scheme() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
+
   [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
+
+  template <typename T>
+  [[nodiscard]] auto pattern() -> T {
+    auto& value = (*repr_)["pattern"];
+    return T(value);
+  }
 
   auto notebookType(std::string notebookType)
       -> NotebookDocumentFilterNotebookType&;
@@ -6716,9 +10225,21 @@ class NotebookDocumentFilterScheme final : public LSPObject {
 
   [[nodiscard]] auto notebookType() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto notebookType() -> T {
+    auto& value = (*repr_)["notebookType"];
+    return T(value);
+  }
+
   [[nodiscard]] auto scheme() const -> std::string;
 
   [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
+
+  template <typename T>
+  [[nodiscard]] auto pattern() -> T {
+    auto& value = (*repr_)["pattern"];
+    return T(value);
+  }
 
   auto notebookType(std::optional<std::string> notebookType)
       -> NotebookDocumentFilterScheme&;
@@ -6737,7 +10258,19 @@ class NotebookDocumentFilterPattern final : public LSPObject {
 
   [[nodiscard]] auto notebookType() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto notebookType() -> T {
+    auto& value = (*repr_)["notebookType"];
+    return T(value);
+  }
+
   [[nodiscard]] auto scheme() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
 
   [[nodiscard]] auto pattern() const -> GlobPattern;
 
@@ -6762,6 +10295,12 @@ class NotebookCellArrayChange final : public LSPObject {
 
   [[nodiscard]] auto cells() const -> std::optional<Vector<NotebookCell>>;
 
+  template <typename T>
+  [[nodiscard]] auto cells() -> T {
+    auto& value = (*repr_)["cells"];
+    return T(value);
+  }
+
   auto start(long start) -> NotebookCellArrayChange&;
 
   auto deleteCount(long deleteCount) -> NotebookCellArrayChange&;
@@ -6778,20 +10317,62 @@ class WorkspaceEditClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto documentChanges() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto documentChanges() -> T {
+    auto& value = (*repr_)["documentChanges"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resourceOperations() const
       -> std::optional<Vector<ResourceOperationKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto resourceOperations() -> T {
+    auto& value = (*repr_)["resourceOperations"];
+    return T(value);
+  }
 
   [[nodiscard]] auto failureHandling() const
       -> std::optional<FailureHandlingKind>;
 
+  template <typename T>
+  [[nodiscard]] auto failureHandling() -> T {
+    auto& value = (*repr_)["failureHandling"];
+    return T(value);
+  }
+
   [[nodiscard]] auto normalizesLineEndings() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto normalizesLineEndings() -> T {
+    auto& value = (*repr_)["normalizesLineEndings"];
+    return T(value);
+  }
 
   [[nodiscard]] auto changeAnnotationSupport() const
       -> std::optional<ChangeAnnotationsSupportOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto changeAnnotationSupport() -> T {
+    auto& value = (*repr_)["changeAnnotationSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto metadataSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto metadataSupport() -> T {
+    auto& value = (*repr_)["metadataSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto snippetEditSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto snippetEditSupport() -> T {
+    auto& value = (*repr_)["snippetEditSupport"];
+    return T(value);
+  }
 
   auto documentChanges(std::optional<bool> documentChanges)
       -> WorkspaceEditClientCapabilities&;
@@ -6825,6 +10406,12 @@ class DidChangeConfigurationClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DidChangeConfigurationClientCapabilities&;
 };
@@ -6837,7 +10424,19 @@ class DidChangeWatchedFilesClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto relativePatternSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto relativePatternSupport() -> T {
+    auto& value = (*repr_)["relativePatternSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DidChangeWatchedFilesClientCapabilities&;
@@ -6854,14 +10453,38 @@ class WorkspaceSymbolClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto symbolKind() const
       -> std::optional<ClientSymbolKindOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto symbolKind() -> T {
+    auto& value = (*repr_)["symbolKind"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tagSupport() const
       -> std::optional<ClientSymbolTagOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveSupport() const
       -> std::optional<ClientSymbolResolveOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto resolveSupport() -> T {
+    auto& value = (*repr_)["resolveSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> WorkspaceSymbolClientCapabilities&;
@@ -6884,6 +10507,12 @@ class ExecuteCommandClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> ExecuteCommandClientCapabilities&;
 };
@@ -6895,6 +10524,12 @@ class SemanticTokensWorkspaceClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto refreshSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto refreshSupport() -> T {
+    auto& value = (*repr_)["refreshSupport"];
+    return T(value);
+  }
 
   auto refreshSupport(std::optional<bool> refreshSupport)
       -> SemanticTokensWorkspaceClientCapabilities&;
@@ -6908,6 +10543,12 @@ class CodeLensWorkspaceClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto refreshSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto refreshSupport() -> T {
+    auto& value = (*repr_)["refreshSupport"];
+    return T(value);
+  }
+
   auto refreshSupport(std::optional<bool> refreshSupport)
       -> CodeLensWorkspaceClientCapabilities&;
 };
@@ -6920,17 +10561,59 @@ class FileOperationClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto didCreate() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto didCreate() -> T {
+    auto& value = (*repr_)["didCreate"];
+    return T(value);
+  }
 
   [[nodiscard]] auto willCreate() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto willCreate() -> T {
+    auto& value = (*repr_)["willCreate"];
+    return T(value);
+  }
+
   [[nodiscard]] auto didRename() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto didRename() -> T {
+    auto& value = (*repr_)["didRename"];
+    return T(value);
+  }
 
   [[nodiscard]] auto willRename() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto willRename() -> T {
+    auto& value = (*repr_)["willRename"];
+    return T(value);
+  }
+
   [[nodiscard]] auto didDelete() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto didDelete() -> T {
+    auto& value = (*repr_)["didDelete"];
+    return T(value);
+  }
+
   [[nodiscard]] auto willDelete() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto willDelete() -> T {
+    auto& value = (*repr_)["willDelete"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> FileOperationClientCapabilities&;
@@ -6962,6 +10645,12 @@ class InlineValueWorkspaceClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto refreshSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto refreshSupport() -> T {
+    auto& value = (*repr_)["refreshSupport"];
+    return T(value);
+  }
+
   auto refreshSupport(std::optional<bool> refreshSupport)
       -> InlineValueWorkspaceClientCapabilities&;
 };
@@ -6973,6 +10662,12 @@ class InlayHintWorkspaceClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto refreshSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto refreshSupport() -> T {
+    auto& value = (*repr_)["refreshSupport"];
+    return T(value);
+  }
 
   auto refreshSupport(std::optional<bool> refreshSupport)
       -> InlayHintWorkspaceClientCapabilities&;
@@ -6986,6 +10681,12 @@ class DiagnosticWorkspaceClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto refreshSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto refreshSupport() -> T {
+    auto& value = (*repr_)["refreshSupport"];
+    return T(value);
+  }
+
   auto refreshSupport(std::optional<bool> refreshSupport)
       -> DiagnosticWorkspaceClientCapabilities&;
 };
@@ -6997,6 +10698,12 @@ class FoldingRangeWorkspaceClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto refreshSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto refreshSupport() -> T {
+    auto& value = (*repr_)["refreshSupport"];
+    return T(value);
+  }
 
   auto refreshSupport(std::optional<bool> refreshSupport)
       -> FoldingRangeWorkspaceClientCapabilities&;
@@ -7010,6 +10717,12 @@ class TextDocumentContentClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> TextDocumentContentClientCapabilities&;
 };
@@ -7022,11 +10735,35 @@ class TextDocumentSyncClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto willSave() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto willSave() -> T {
+    auto& value = (*repr_)["willSave"];
+    return T(value);
+  }
 
   [[nodiscard]] auto willSaveWaitUntil() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto willSaveWaitUntil() -> T {
+    auto& value = (*repr_)["willSaveWaitUntil"];
+    return T(value);
+  }
+
   [[nodiscard]] auto didSave() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto didSave() -> T {
+    auto& value = (*repr_)["didSave"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> TextDocumentSyncClientCapabilities&;
@@ -7049,6 +10786,12 @@ class TextDocumentFilterClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto relativePatternSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto relativePatternSupport() -> T {
+    auto& value = (*repr_)["relativePatternSupport"];
+    return T(value);
+  }
+
   auto relativePatternSupport(std::optional<bool> relativePatternSupport)
       -> TextDocumentFilterClientCapabilities&;
 };
@@ -7061,18 +10804,54 @@ class CompletionClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto completionItem() const
       -> std::optional<ClientCompletionItemOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto completionItem() -> T {
+    auto& value = (*repr_)["completionItem"];
+    return T(value);
+  }
 
   [[nodiscard]] auto completionItemKind() const
       -> std::optional<ClientCompletionItemOptionsKind>;
 
+  template <typename T>
+  [[nodiscard]] auto completionItemKind() -> T {
+    auto& value = (*repr_)["completionItemKind"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertTextMode() const -> std::optional<InsertTextMode>;
+
+  template <typename T>
+  [[nodiscard]] auto insertTextMode() -> T {
+    auto& value = (*repr_)["insertTextMode"];
+    return T(value);
+  }
 
   [[nodiscard]] auto contextSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto contextSupport() -> T {
+    auto& value = (*repr_)["contextSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto completionList() const
       -> std::optional<CompletionListCapabilities>;
+
+  template <typename T>
+  [[nodiscard]] auto completionList() -> T {
+    auto& value = (*repr_)["completionList"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> CompletionClientCapabilities&;
@@ -7102,7 +10881,19 @@ class HoverClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto contentFormat() const -> std::optional<Vector<MarkupKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto contentFormat() -> T {
+    auto& value = (*repr_)["contentFormat"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> HoverClientCapabilities&;
@@ -7119,10 +10910,28 @@ class SignatureHelpClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto signatureInformation() const
       -> std::optional<ClientSignatureInformationOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto signatureInformation() -> T {
+    auto& value = (*repr_)["signatureInformation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto contextSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto contextSupport() -> T {
+    auto& value = (*repr_)["contextSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> SignatureHelpClientCapabilities&;
@@ -7143,7 +10952,19 @@ class DeclarationClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto linkSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto linkSupport() -> T {
+    auto& value = (*repr_)["linkSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DeclarationClientCapabilities&;
@@ -7160,7 +10981,19 @@ class DefinitionClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto linkSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto linkSupport() -> T {
+    auto& value = (*repr_)["linkSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DefinitionClientCapabilities&;
@@ -7177,7 +11010,19 @@ class TypeDefinitionClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto linkSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto linkSupport() -> T {
+    auto& value = (*repr_)["linkSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> TypeDefinitionClientCapabilities&;
@@ -7194,7 +11039,19 @@ class ImplementationClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto linkSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto linkSupport() -> T {
+    auto& value = (*repr_)["linkSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> ImplementationClientCapabilities&;
@@ -7211,6 +11068,12 @@ class ReferenceClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> ReferenceClientCapabilities&;
 };
@@ -7222,6 +11085,12 @@ class DocumentHighlightClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentHighlightClientCapabilities&;
@@ -7235,16 +11104,46 @@ class DocumentSymbolClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto symbolKind() const
       -> std::optional<ClientSymbolKindOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto symbolKind() -> T {
+    auto& value = (*repr_)["symbolKind"];
+    return T(value);
+  }
 
   [[nodiscard]] auto hierarchicalDocumentSymbolSupport() const
       -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto hierarchicalDocumentSymbolSupport() -> T {
+    auto& value = (*repr_)["hierarchicalDocumentSymbolSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto tagSupport() const
       -> std::optional<ClientSymbolTagOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto labelSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto labelSupport() -> T {
+    auto& value = (*repr_)["labelSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentSymbolClientCapabilities&;
@@ -7271,23 +11170,77 @@ class CodeActionClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeActionLiteralSupport() const
       -> std::optional<ClientCodeActionLiteralOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto codeActionLiteralSupport() -> T {
+    auto& value = (*repr_)["codeActionLiteralSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto isPreferredSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto isPreferredSupport() -> T {
+    auto& value = (*repr_)["isPreferredSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto disabledSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto disabledSupport() -> T {
+    auto& value = (*repr_)["disabledSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto dataSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dataSupport() -> T {
+    auto& value = (*repr_)["dataSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto resolveSupport() const
       -> std::optional<ClientCodeActionResolveOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveSupport() -> T {
+    auto& value = (*repr_)["resolveSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto honorsChangeAnnotations() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto honorsChangeAnnotations() -> T {
+    auto& value = (*repr_)["honorsChangeAnnotations"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentationSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto documentationSupport() -> T {
+    auto& value = (*repr_)["documentationSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto tagSupport() const -> std::optional<CodeActionTagOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> CodeActionClientCapabilities&;
@@ -7327,8 +11280,20 @@ class CodeLensClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveSupport() const
       -> std::optional<ClientCodeLensResolveOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto resolveSupport() -> T {
+    auto& value = (*repr_)["resolveSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> CodeLensClientCapabilities&;
@@ -7346,7 +11311,19 @@ class DocumentLinkClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto tooltipSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto tooltipSupport() -> T {
+    auto& value = (*repr_)["tooltipSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentLinkClientCapabilities&;
@@ -7363,6 +11340,12 @@ class DocumentColorClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentColorClientCapabilities&;
 };
@@ -7374,6 +11357,12 @@ class DocumentFormattingClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentFormattingClientCapabilities&;
@@ -7387,7 +11376,19 @@ class DocumentRangeFormattingClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rangesSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto rangesSupport() -> T {
+    auto& value = (*repr_)["rangesSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentRangeFormattingClientCapabilities&;
@@ -7404,6 +11405,12 @@ class DocumentOnTypeFormattingClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DocumentOnTypeFormattingClientCapabilities&;
 };
@@ -7416,12 +11423,36 @@ class RenameClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto prepareSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto prepareSupport() -> T {
+    auto& value = (*repr_)["prepareSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto prepareSupportDefaultBehavior() const
       -> std::optional<PrepareSupportDefaultBehavior>;
 
+  template <typename T>
+  [[nodiscard]] auto prepareSupportDefaultBehavior() -> T {
+    auto& value = (*repr_)["prepareSupportDefaultBehavior"];
+    return T(value);
+  }
+
   [[nodiscard]] auto honorsChangeAnnotations() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto honorsChangeAnnotations() -> T {
+    auto& value = (*repr_)["honorsChangeAnnotations"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> RenameClientCapabilities&;
@@ -7445,15 +11476,45 @@ class FoldingRangeClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto rangeLimit() const -> std::optional<long>;
 
+  template <typename T>
+  [[nodiscard]] auto rangeLimit() -> T {
+    auto& value = (*repr_)["rangeLimit"];
+    return T(value);
+  }
+
   [[nodiscard]] auto lineFoldingOnly() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto lineFoldingOnly() -> T {
+    auto& value = (*repr_)["lineFoldingOnly"];
+    return T(value);
+  }
 
   [[nodiscard]] auto foldingRangeKind() const
       -> std::optional<ClientFoldingRangeKindOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto foldingRangeKind() -> T {
+    auto& value = (*repr_)["foldingRangeKind"];
+    return T(value);
+  }
+
   [[nodiscard]] auto foldingRange() const
       -> std::optional<ClientFoldingRangeOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto foldingRange() -> T {
+    auto& value = (*repr_)["foldingRange"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> FoldingRangeClientCapabilities&;
@@ -7480,6 +11541,12 @@ class SelectionRangeClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> SelectionRangeClientCapabilities&;
 };
@@ -7492,14 +11559,44 @@ class PublishDiagnosticsClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto versionSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto versionSupport() -> T {
+    auto& value = (*repr_)["versionSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto relatedInformation() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto relatedInformation() -> T {
+    auto& value = (*repr_)["relatedInformation"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tagSupport() const
       -> std::optional<ClientDiagnosticsTagOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeDescriptionSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto codeDescriptionSupport() -> T {
+    auto& value = (*repr_)["codeDescriptionSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto dataSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dataSupport() -> T {
+    auto& value = (*repr_)["dataSupport"];
+    return T(value);
+  }
 
   auto versionSupport(std::optional<bool> versionSupport)
       -> PublishDiagnosticsClientCapabilities&;
@@ -7525,6 +11622,12 @@ class CallHierarchyClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> CallHierarchyClientCapabilities&;
 };
@@ -7537,6 +11640,12 @@ class SemanticTokensClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto requests() const -> ClientSemanticTokensRequestOptions;
 
   [[nodiscard]] auto tokenTypes() const -> Vector<std::string>;
@@ -7547,11 +11656,35 @@ class SemanticTokensClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto overlappingTokenSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto overlappingTokenSupport() -> T {
+    auto& value = (*repr_)["overlappingTokenSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto multilineTokenSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto multilineTokenSupport() -> T {
+    auto& value = (*repr_)["multilineTokenSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto serverCancelSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto serverCancelSupport() -> T {
+    auto& value = (*repr_)["serverCancelSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto augmentsSyntaxTokens() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto augmentsSyntaxTokens() -> T {
+    auto& value = (*repr_)["augmentsSyntaxTokens"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> SemanticTokensClientCapabilities&;
@@ -7562,8 +11695,22 @@ class SemanticTokensClientCapabilities final : public LSPObject {
   auto tokenTypes(Vector<std::string> tokenTypes)
       -> SemanticTokensClientCapabilities&;
 
+  auto tokenTypes(std::vector<std::string> tokenTypes)
+      -> SemanticTokensClientCapabilities& {
+    auto& value = (*repr_)["tokenTypes"];
+    value = std::move(tokenTypes);
+    return *this;
+  }
+
   auto tokenModifiers(Vector<std::string> tokenModifiers)
       -> SemanticTokensClientCapabilities&;
+
+  auto tokenModifiers(std::vector<std::string> tokenModifiers)
+      -> SemanticTokensClientCapabilities& {
+    auto& value = (*repr_)["tokenModifiers"];
+    value = std::move(tokenModifiers);
+    return *this;
+  }
 
   auto formats(Vector<TokenFormat> formats)
       -> SemanticTokensClientCapabilities&;
@@ -7589,6 +11736,12 @@ class LinkedEditingRangeClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> LinkedEditingRangeClientCapabilities&;
 };
@@ -7600,6 +11753,12 @@ class MonikerClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> MonikerClientCapabilities&;
@@ -7613,6 +11772,12 @@ class TypeHierarchyClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> TypeHierarchyClientCapabilities&;
 };
@@ -7624,6 +11789,12 @@ class InlineValueClientCapabilities final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> InlineValueClientCapabilities&;
@@ -7637,8 +11808,20 @@ class InlayHintClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto resolveSupport() const
       -> std::optional<ClientInlayHintResolveOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto resolveSupport() -> T {
+    auto& value = (*repr_)["resolveSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> InlayHintClientCapabilities&;
@@ -7656,16 +11839,52 @@ class DiagnosticClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto relatedDocumentSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto relatedDocumentSupport() -> T {
+    auto& value = (*repr_)["relatedDocumentSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto relatedInformation() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto relatedInformation() -> T {
+    auto& value = (*repr_)["relatedInformation"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tagSupport() const
       -> std::optional<ClientDiagnosticsTagOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeDescriptionSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto codeDescriptionSupport() -> T {
+    auto& value = (*repr_)["codeDescriptionSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto dataSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dataSupport() -> T {
+    auto& value = (*repr_)["dataSupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> DiagnosticClientCapabilities&;
@@ -7694,6 +11913,12 @@ class InlineCompletionClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> InlineCompletionClientCapabilities&;
 };
@@ -7706,7 +11931,19 @@ class NotebookDocumentSyncClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto dynamicRegistration() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto dynamicRegistration() -> T {
+    auto& value = (*repr_)["dynamicRegistration"];
+    return T(value);
+  }
+
   [[nodiscard]] auto executionSummarySupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto executionSummarySupport() -> T {
+    auto& value = (*repr_)["executionSummarySupport"];
+    return T(value);
+  }
 
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> NotebookDocumentSyncClientCapabilities&;
@@ -7723,6 +11960,12 @@ class ShowMessageRequestClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto messageActionItem() const
       -> std::optional<ClientShowMessageActionItemOptions>;
+
+  template <typename T>
+  [[nodiscard]] auto messageActionItem() -> T {
+    auto& value = (*repr_)["messageActionItem"];
+    return T(value);
+  }
 
   auto messageActionItem(
       std::optional<ClientShowMessageActionItemOptions> messageActionItem)
@@ -7754,6 +11997,13 @@ class StaleRequestSupportOptions final : public LSPObject {
 
   auto retryOnContentModified(Vector<std::string> retryOnContentModified)
       -> StaleRequestSupportOptions&;
+
+  auto retryOnContentModified(std::vector<std::string> retryOnContentModified)
+      -> StaleRequestSupportOptions& {
+    auto& value = (*repr_)["retryOnContentModified"];
+    value = std::move(retryOnContentModified);
+    return *this;
+  }
 };
 
 class RegularExpressionsClientCapabilities final : public LSPObject {
@@ -7765,6 +12015,12 @@ class RegularExpressionsClientCapabilities final : public LSPObject {
   [[nodiscard]] auto engine() const -> RegularExpressionEngineKind;
 
   [[nodiscard]] auto version() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
 
   auto engine(RegularExpressionEngineKind engine)
       -> RegularExpressionsClientCapabilities&;
@@ -7783,7 +12039,19 @@ class MarkdownClientCapabilities final : public LSPObject {
 
   [[nodiscard]] auto version() const -> std::optional<std::string>;
 
+  template <typename T>
+  [[nodiscard]] auto version() -> T {
+    auto& value = (*repr_)["version"];
+    return T(value);
+  }
+
   [[nodiscard]] auto allowedTags() const -> std::optional<Vector<std::string>>;
+
+  template <typename T>
+  [[nodiscard]] auto allowedTags() -> T {
+    auto& value = (*repr_)["allowedTags"];
+    return T(value);
+  }
 
   auto parser(std::string parser) -> MarkdownClientCapabilities&;
 
@@ -7792,6 +12060,13 @@ class MarkdownClientCapabilities final : public LSPObject {
 
   auto allowedTags(std::optional<Vector<std::string>> allowedTags)
       -> MarkdownClientCapabilities&;
+
+  auto allowedTags(std::vector<std::string> allowedTags)
+      -> MarkdownClientCapabilities& {
+    auto& value = (*repr_)["allowedTags"];
+    value = std::move(allowedTags);
+    return *this;
+  }
 };
 
 class ChangeAnnotationsSupportOptions final : public LSPObject {
@@ -7801,6 +12076,12 @@ class ChangeAnnotationsSupportOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto groupsOnLabel() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto groupsOnLabel() -> T {
+    auto& value = (*repr_)["groupsOnLabel"];
+    return T(value);
+  }
 
   auto groupsOnLabel(std::optional<bool> groupsOnLabel)
       -> ChangeAnnotationsSupportOptions&;
@@ -7813,6 +12094,12 @@ class ClientSymbolKindOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto valueSet() const -> std::optional<Vector<SymbolKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto valueSet() -> T {
+    auto& value = (*repr_)["valueSet"];
+    return T(value);
+  }
 
   auto valueSet(std::optional<Vector<SymbolKind>> valueSet)
       -> ClientSymbolKindOptions&;
@@ -7839,6 +12126,13 @@ class ClientSymbolResolveOptions final : public LSPObject {
 
   auto properties(Vector<std::string> properties)
       -> ClientSymbolResolveOptions&;
+
+  auto properties(std::vector<std::string> properties)
+      -> ClientSymbolResolveOptions& {
+    auto& value = (*repr_)["properties"];
+    value = std::move(properties);
+    return *this;
+  }
 };
 
 class ClientCompletionItemOptions final : public LSPObject {
@@ -7849,27 +12143,87 @@ class ClientCompletionItemOptions final : public LSPObject {
 
   [[nodiscard]] auto snippetSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto snippetSupport() -> T {
+    auto& value = (*repr_)["snippetSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto commitCharactersSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto commitCharactersSupport() -> T {
+    auto& value = (*repr_)["commitCharactersSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto documentationFormat() const
       -> std::optional<Vector<MarkupKind>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentationFormat() -> T {
+    auto& value = (*repr_)["documentationFormat"];
+    return T(value);
+  }
+
   [[nodiscard]] auto deprecatedSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto deprecatedSupport() -> T {
+    auto& value = (*repr_)["deprecatedSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto preselectSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto preselectSupport() -> T {
+    auto& value = (*repr_)["preselectSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tagSupport() const
       -> std::optional<CompletionItemTagOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertReplaceSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto insertReplaceSupport() -> T {
+    auto& value = (*repr_)["insertReplaceSupport"];
+    return T(value);
+  }
 
   [[nodiscard]] auto resolveSupport() const
       -> std::optional<ClientCompletionItemResolveOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto resolveSupport() -> T {
+    auto& value = (*repr_)["resolveSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto insertTextModeSupport() const
       -> std::optional<ClientCompletionItemInsertTextModeOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto insertTextModeSupport() -> T {
+    auto& value = (*repr_)["insertTextModeSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto labelDetailsSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto labelDetailsSupport() -> T {
+    auto& value = (*repr_)["labelDetailsSupport"];
+    return T(value);
+  }
 
   auto snippetSupport(std::optional<bool> snippetSupport)
       -> ClientCompletionItemOptions&;
@@ -7914,6 +12268,12 @@ class ClientCompletionItemOptionsKind final : public LSPObject {
   [[nodiscard]] auto valueSet() const
       -> std::optional<Vector<CompletionItemKind>>;
 
+  template <typename T>
+  [[nodiscard]] auto valueSet() -> T {
+    auto& value = (*repr_)["valueSet"];
+    return T(value);
+  }
+
   auto valueSet(std::optional<Vector<CompletionItemKind>> valueSet)
       -> ClientCompletionItemOptionsKind&;
 };
@@ -7926,10 +12286,29 @@ class CompletionListCapabilities final : public LSPObject {
 
   [[nodiscard]] auto itemDefaults() const -> std::optional<Vector<std::string>>;
 
+  template <typename T>
+  [[nodiscard]] auto itemDefaults() -> T {
+    auto& value = (*repr_)["itemDefaults"];
+    return T(value);
+  }
+
   [[nodiscard]] auto applyKindSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto applyKindSupport() -> T {
+    auto& value = (*repr_)["applyKindSupport"];
+    return T(value);
+  }
 
   auto itemDefaults(std::optional<Vector<std::string>> itemDefaults)
       -> CompletionListCapabilities&;
+
+  auto itemDefaults(std::vector<std::string> itemDefaults)
+      -> CompletionListCapabilities& {
+    auto& value = (*repr_)["itemDefaults"];
+    value = std::move(itemDefaults);
+    return *this;
+  }
 
   auto applyKindSupport(std::optional<bool> applyKindSupport)
       -> CompletionListCapabilities&;
@@ -7944,12 +12323,36 @@ class ClientSignatureInformationOptions final : public LSPObject {
   [[nodiscard]] auto documentationFormat() const
       -> std::optional<Vector<MarkupKind>>;
 
+  template <typename T>
+  [[nodiscard]] auto documentationFormat() -> T {
+    auto& value = (*repr_)["documentationFormat"];
+    return T(value);
+  }
+
   [[nodiscard]] auto parameterInformation() const
       -> std::optional<ClientSignatureParameterInformationOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto parameterInformation() -> T {
+    auto& value = (*repr_)["parameterInformation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto activeParameterSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto activeParameterSupport() -> T {
+    auto& value = (*repr_)["activeParameterSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto noActiveParameterSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto noActiveParameterSupport() -> T {
+    auto& value = (*repr_)["noActiveParameterSupport"];
+    return T(value);
+  }
 
   auto documentationFormat(
       std::optional<Vector<MarkupKind>> documentationFormat)
@@ -7988,6 +12391,13 @@ class ClientCodeActionResolveOptions final : public LSPObject {
 
   auto properties(Vector<std::string> properties)
       -> ClientCodeActionResolveOptions&;
+
+  auto properties(std::vector<std::string> properties)
+      -> ClientCodeActionResolveOptions& {
+    auto& value = (*repr_)["properties"];
+    value = std::move(properties);
+    return *this;
+  }
 };
 
 class CodeActionTagOptions final : public LSPObject {
@@ -8011,6 +12421,13 @@ class ClientCodeLensResolveOptions final : public LSPObject {
 
   auto properties(Vector<std::string> properties)
       -> ClientCodeLensResolveOptions&;
+
+  auto properties(std::vector<std::string> properties)
+      -> ClientCodeLensResolveOptions& {
+    auto& value = (*repr_)["properties"];
+    value = std::move(properties);
+    return *this;
+  }
 };
 
 class ClientFoldingRangeKindOptions final : public LSPObject {
@@ -8021,6 +12438,12 @@ class ClientFoldingRangeKindOptions final : public LSPObject {
 
   [[nodiscard]] auto valueSet() const
       -> std::optional<Vector<FoldingRangeKind>>;
+
+  template <typename T>
+  [[nodiscard]] auto valueSet() -> T {
+    auto& value = (*repr_)["valueSet"];
+    return T(value);
+  }
 
   auto valueSet(std::optional<Vector<FoldingRangeKind>> valueSet)
       -> ClientFoldingRangeKindOptions&;
@@ -8034,6 +12457,12 @@ class ClientFoldingRangeOptions final : public LSPObject {
 
   [[nodiscard]] auto collapsedText() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto collapsedText() -> T {
+    auto& value = (*repr_)["collapsedText"];
+    return T(value);
+  }
+
   auto collapsedText(std::optional<bool> collapsedText)
       -> ClientFoldingRangeOptions&;
 };
@@ -8046,12 +12475,36 @@ class DiagnosticsCapabilities final : public LSPObject {
 
   [[nodiscard]] auto relatedInformation() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto relatedInformation() -> T {
+    auto& value = (*repr_)["relatedInformation"];
+    return T(value);
+  }
+
   [[nodiscard]] auto tagSupport() const
       -> std::optional<ClientDiagnosticsTagOptions>;
 
+  template <typename T>
+  [[nodiscard]] auto tagSupport() -> T {
+    auto& value = (*repr_)["tagSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto codeDescriptionSupport() const -> std::optional<bool>;
 
+  template <typename T>
+  [[nodiscard]] auto codeDescriptionSupport() -> T {
+    auto& value = (*repr_)["codeDescriptionSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto dataSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto dataSupport() -> T {
+    auto& value = (*repr_)["dataSupport"];
+    return T(value);
+  }
 
   auto relatedInformation(std::optional<bool> relatedInformation)
       -> DiagnosticsCapabilities&;
@@ -8073,8 +12526,20 @@ class ClientSemanticTokensRequestOptions final : public LSPObject {
 
   [[nodiscard]] auto range() const -> std::optional<std::variant<bool, json>>;
 
+  template <typename T>
+  [[nodiscard]] auto range() -> T {
+    auto& value = (*repr_)["range"];
+    return T(value);
+  }
+
   [[nodiscard]] auto full() const -> std::optional<
       std::variant<bool, ClientSemanticTokensRequestFullDelta>>;
+
+  template <typename T>
+  [[nodiscard]] auto full() -> T {
+    auto& value = (*repr_)["full"];
+    return T(value);
+  }
 
   auto range(std::optional<std::variant<bool, json>> range)
       -> ClientSemanticTokensRequestOptions&;
@@ -8094,6 +12559,13 @@ class ClientInlayHintResolveOptions final : public LSPObject {
 
   auto properties(Vector<std::string> properties)
       -> ClientInlayHintResolveOptions&;
+
+  auto properties(std::vector<std::string> properties)
+      -> ClientInlayHintResolveOptions& {
+    auto& value = (*repr_)["properties"];
+    value = std::move(properties);
+    return *this;
+  }
 };
 
 class ClientShowMessageActionItemOptions final : public LSPObject {
@@ -8103,6 +12575,12 @@ class ClientShowMessageActionItemOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto additionalPropertiesSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto additionalPropertiesSupport() -> T {
+    auto& value = (*repr_)["additionalPropertiesSupport"];
+    return T(value);
+  }
 
   auto additionalPropertiesSupport(
       std::optional<bool> additionalPropertiesSupport)
@@ -8131,6 +12609,13 @@ class ClientCompletionItemResolveOptions final : public LSPObject {
 
   auto properties(Vector<std::string> properties)
       -> ClientCompletionItemResolveOptions&;
+
+  auto properties(std::vector<std::string> properties)
+      -> ClientCompletionItemResolveOptions& {
+    auto& value = (*repr_)["properties"];
+    value = std::move(properties);
+    return *this;
+  }
 };
 
 class ClientCompletionItemInsertTextModeOptions final : public LSPObject {
@@ -8152,6 +12637,12 @@ class ClientSignatureParameterInformationOptions final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto labelOffsetSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto labelOffsetSupport() -> T {
+    auto& value = (*repr_)["labelOffsetSupport"];
+    return T(value);
+  }
 
   auto labelOffsetSupport(std::optional<bool> labelOffsetSupport)
       -> ClientSignatureParameterInformationOptions&;
@@ -8187,6 +12678,12 @@ class ClientSemanticTokensRequestFullDelta final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto delta() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto delta() -> T {
+    auto& value = (*repr_)["delta"];
+    return T(value);
+  }
 
   auto delta(std::optional<bool> delta)
       -> ClientSemanticTokensRequestFullDelta&;
