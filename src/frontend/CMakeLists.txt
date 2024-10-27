@@ -23,6 +23,10 @@ add_executable(cxx ${SOURCES})
 
 target_link_libraries(cxx cxx-parser cxx-lsp)
 
+target_compile_definitions(cxx PRIVATE
+    CXX_VERSION="${CMAKE_PROJECT_VERSION}"
+)
+
 if(EMSCRIPTEN)
     target_link_options(cxx PUBLIC
         "SHELL:-s EXIT_RUNTIME=1"

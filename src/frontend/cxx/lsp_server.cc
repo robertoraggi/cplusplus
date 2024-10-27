@@ -372,7 +372,7 @@ class Server {
 
     withUnsafeJson([&](json storage) {
       InitializeResult result(storage);
-      result.serverInfo<ServerInfo>().name("cxx-lsp").version("0.0.1");
+      result.serverInfo<ServerInfo>().name("cxx-lsp").version(CXX_VERSION);
       result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
 
       sendToClient(result, request.id());
