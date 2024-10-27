@@ -106,13 +106,6 @@ auto readHeaders(std::istream& input) -> Headers {
   return headers;
 }
 
-void sendToClient(const json& message, std::ostream& output = std::cout) {
-  const auto text = message.dump();
-  output << "Content-Length: " << text.size() << "\r\n\r\n";
-  output << text;
-  output.flush();
-};
-
 struct Input {
   struct Diagnostics final : cxx::DiagnosticsClient {
     json messages = json::array();
@@ -279,31 +272,131 @@ struct Input {
   }
 };
 
-auto nextRequest() -> std::optional<json> {
-  auto& input = std::cin;
+class Server {
+  std::istream& input;
 
-  const auto headers = readHeaders(input);
+ public:
+  Server() : input(std::cin) {}
 
-  // Get Content-Length
-  const auto it = headers.find("Content-Length");
+  auto start() -> int {
+    while (input.good()) {
+      auto req = nextRequest();
 
-  if (it == headers.end()) {
-    return std::nullopt;
-  };
+      if (!req.has_value()) {
+        continue;
+      }
 
-  const auto contentLength = std::stoi(it->value);
+      visit(*this, LSPRequest(req.value()));
+    }
 
-  // Read content
-  std::string content(contentLength, '\0');
-  input.read(content.data(), content.size());
+    return 0;
+  }
 
-  // Parse JSON
-  auto request = json::parse(content);
-  return request;
-}
+  auto nextRequest() -> std::optional<json> {
+    const auto headers = readHeaders(input);
+
+    // Get Content-Length
+    const auto it = headers.find("Content-Length");
+
+    if (it == headers.end()) {
+      return std::nullopt;
+    };
+
+    const auto contentLength = std::stoi(it->value);
+
+    // Read content
+    std::string content(contentLength, '\0');
+    input.read(content.data(), content.size());
+
+    // Parse JSON
+    auto request = json::parse(content);
+    return request;
+  }
+
+  void sendToClient(const json& message, std::ostream& output = std::cout) {
+    const auto text = message.dump();
+    output << "Content-Length: " << text.size() << "\r\n\r\n";
+    output << text;
+    output.flush();
+  }
+
+  void sendToClient(
+      const LSPObject& result,
+      std::optional<std::variant<long, std::string>> id = std::nullopt,
+      std::ostream& output = std::cout) {
+    auto response = json::object();
+    response["jsonrpc"] = "2.0";
+
+    if (id.has_value()) {
+      if (std::holds_alternative<long>(id.value())) {
+        response["id"] = std::get<long>(id.value());
+      } else {
+        response["id"] = std::get<std::string>(id.value());
+      }
+    }
+
+    response["result"] = result;
+
+    sendToClient(response);
+  }
+
+  //
+  // notifications
+  //
+  void operator()(const InitializedNotification& notification) {
+    std::cerr << std::format("Did receive InitializedNotification\n");
+  }
+
+  void operator()(const ExitNotification& notification) {
+    std::cerr << std::format("Did receive ExitNotification\n");
+  }
+
+  void operator()(const DidOpenTextDocumentNotification& notification) {
+    std::cerr << std::format("Did receive DidOpenTextDocumentNotification\n");
+  }
+
+  void operator()(const DidCloseTextDocumentNotification& notification) {
+    std::cerr << std::format("Did receive DidCloseTextDocumentNotification\n");
+  }
+
+  void operator()(const DidChangeTextDocumentNotification& notification) {
+    std::cerr << std::format("Did receive DidChangeTextDocumentNotification\n");
+  }
+
+  //
+  // life cycle requests
+  //
+
+  void operator()(const InitializeRequest& request) {
+    std::cerr << std::format("Did receive InitializeRequest\n");
+    auto storage = json::object();
+    InitializeResult result(storage);
+    result.serverInfo<ServerInfo>().name("cxx-lsp").version("0.0.1");
+    result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
+
+    sendToClient(result, request.id());
+  }
+
+  void operator()(const ShutdownRequest& request) {
+    std::cerr << std::format("Did receive ShutdownRequest\n");
+
+    json storage;
+    LSPObject result(storage);
+
+    sendToClient(result, request.id());
+  }
+
+  //
+  // Other requests
+  //
+  void operator()(const LSPRequest& request) {
+    std::cerr << "Request: " << request.method() << "\n";
+  }
+};
 
 int startServer(const CLI& cli) {
-  cxx_runtime_error("not implemented");
+  Server server;
+  server.start();
   return 0;
 }
 
