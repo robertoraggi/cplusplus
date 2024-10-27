@@ -66,13 +66,11 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
     emit(`class ${typeName} final : public LSPRequest {`);
     emit(`public:`);
     emit(`  using LSPRequest::LSPRequest;`);
+    emit(`  using LSPRequest::id;`);
+    emit(`  using LSPRequest::method;`);
     emit();
-    emit(`  [[nodiscard]] auto method() const -> std::string;`);
     emit(`  auto method(std::string method) -> ${typeName}&;`);
-    emit();
-    emit(`  [[nodiscard]] auto id() const -> std::variant<long, std::string>;`);
-    emit(`  auto id(long id) -> ${typeName}&;`);
-    emit(`  auto id(std::string id) -> ${typeName}&;`);
+    emit(`  auto id(std::variant<long, std::string> id) -> ${typeName}&;`);
 
     if (request.params) {
       const paramsType = toCppType(request.params);

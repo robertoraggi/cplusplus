@@ -391,13 +391,20 @@ class Server {
   //
   void operator()(const LSPRequest& request) {
     std::cerr << "Request: " << request.method() << "\n";
+
+    if (request.id().has_value()) {
+      // send an empty response.
+      json storage;
+      LSPObject result(storage);
+      sendToClient(result, request.id());
+    }
   }
 };
 
 int startServer(const CLI& cli) {
   Server server;
-  server.start();
-  return 0;
+  auto exitCode = server.start();
+  return exitCode;
 }
 
 }  // namespace cxx::lsp

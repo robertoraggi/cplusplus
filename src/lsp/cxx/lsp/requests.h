@@ -125,14 +125,12 @@ namespace cxx::lsp {
 
 class ImplementationRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ImplementationRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ImplementationRequest&;
-  auto id(std::string id) -> ImplementationRequest&;
+  auto id(std::variant<long, std::string> id) -> ImplementationRequest&;
 
   [[nodiscard]] auto params() const -> ImplementationParams;
   auto params(ImplementationParams result) -> ImplementationRequest&;
@@ -156,14 +154,12 @@ class ImplementationResponse final : public LSPResponse {
 
 class TypeDefinitionRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TypeDefinitionRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TypeDefinitionRequest&;
-  auto id(std::string id) -> TypeDefinitionRequest&;
+  auto id(std::variant<long, std::string> id) -> TypeDefinitionRequest&;
 
   [[nodiscard]] auto params() const -> TypeDefinitionParams;
   auto params(TypeDefinitionParams result) -> TypeDefinitionRequest&;
@@ -187,14 +183,12 @@ class TypeDefinitionResponse final : public LSPResponse {
 
 class WorkspaceFoldersRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WorkspaceFoldersRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WorkspaceFoldersRequest&;
-  auto id(std::string id) -> WorkspaceFoldersRequest&;
+  auto id(std::variant<long, std::string> id) -> WorkspaceFoldersRequest&;
 };
 
 class WorkspaceFoldersResponse final : public LSPResponse {
@@ -214,14 +208,12 @@ class WorkspaceFoldersResponse final : public LSPResponse {
 
 class ConfigurationRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ConfigurationRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ConfigurationRequest&;
-  auto id(std::string id) -> ConfigurationRequest&;
+  auto id(std::variant<long, std::string> id) -> ConfigurationRequest&;
 
   [[nodiscard]] auto params() const -> ConfigurationParams;
   auto params(ConfigurationParams result) -> ConfigurationRequest&;
@@ -242,14 +234,12 @@ class ConfigurationResponse final : public LSPResponse {
 
 class DocumentColorRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentColorRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentColorRequest&;
-  auto id(std::string id) -> DocumentColorRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentColorRequest&;
 
   [[nodiscard]] auto params() const -> DocumentColorParams;
   auto params(DocumentColorParams result) -> DocumentColorRequest&;
@@ -270,14 +260,12 @@ class DocumentColorResponse final : public LSPResponse {
 
 class ColorPresentationRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ColorPresentationRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ColorPresentationRequest&;
-  auto id(std::string id) -> ColorPresentationRequest&;
+  auto id(std::variant<long, std::string> id) -> ColorPresentationRequest&;
 
   [[nodiscard]] auto params() const -> ColorPresentationParams;
   auto params(ColorPresentationParams result) -> ColorPresentationRequest&;
@@ -298,14 +286,12 @@ class ColorPresentationResponse final : public LSPResponse {
 
 class FoldingRangeRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> FoldingRangeRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> FoldingRangeRequest&;
-  auto id(std::string id) -> FoldingRangeRequest&;
+  auto id(std::variant<long, std::string> id) -> FoldingRangeRequest&;
 
   [[nodiscard]] auto params() const -> FoldingRangeParams;
   auto params(FoldingRangeParams result) -> FoldingRangeRequest&;
@@ -328,14 +314,12 @@ class FoldingRangeResponse final : public LSPResponse {
 
 class FoldingRangeRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> FoldingRangeRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> FoldingRangeRefreshRequest&;
-  auto id(std::string id) -> FoldingRangeRefreshRequest&;
+  auto id(std::variant<long, std::string> id) -> FoldingRangeRefreshRequest&;
 };
 
 class FoldingRangeRefreshResponse final : public LSPResponse {
@@ -353,14 +337,12 @@ class FoldingRangeRefreshResponse final : public LSPResponse {
 
 class DeclarationRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DeclarationRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DeclarationRequest&;
-  auto id(std::string id) -> DeclarationRequest&;
+  auto id(std::variant<long, std::string> id) -> DeclarationRequest&;
 
   [[nodiscard]] auto params() const -> DeclarationParams;
   auto params(DeclarationParams result) -> DeclarationRequest&;
@@ -384,14 +366,12 @@ class DeclarationResponse final : public LSPResponse {
 
 class SelectionRangeRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SelectionRangeRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SelectionRangeRequest&;
-  auto id(std::string id) -> SelectionRangeRequest&;
+  auto id(std::variant<long, std::string> id) -> SelectionRangeRequest&;
 
   [[nodiscard]] auto params() const -> SelectionRangeParams;
   auto params(SelectionRangeParams result) -> SelectionRangeRequest&;
@@ -414,14 +394,12 @@ class SelectionRangeResponse final : public LSPResponse {
 
 class WorkDoneProgressCreateRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WorkDoneProgressCreateRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WorkDoneProgressCreateRequest&;
-  auto id(std::string id) -> WorkDoneProgressCreateRequest&;
+  auto id(std::variant<long, std::string> id) -> WorkDoneProgressCreateRequest&;
 
   [[nodiscard]] auto params() const -> WorkDoneProgressCreateParams;
   auto params(WorkDoneProgressCreateParams result)
@@ -443,14 +421,12 @@ class WorkDoneProgressCreateResponse final : public LSPResponse {
 
 class CallHierarchyPrepareRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CallHierarchyPrepareRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CallHierarchyPrepareRequest&;
-  auto id(std::string id) -> CallHierarchyPrepareRequest&;
+  auto id(std::variant<long, std::string> id) -> CallHierarchyPrepareRequest&;
 
   [[nodiscard]] auto params() const -> CallHierarchyPrepareParams;
   auto params(CallHierarchyPrepareParams result)
@@ -474,14 +450,13 @@ class CallHierarchyPrepareResponse final : public LSPResponse {
 
 class CallHierarchyIncomingCallsRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CallHierarchyIncomingCallsRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CallHierarchyIncomingCallsRequest&;
-  auto id(std::string id) -> CallHierarchyIncomingCallsRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> CallHierarchyIncomingCallsRequest&;
 
   [[nodiscard]] auto params() const -> CallHierarchyIncomingCallsParams;
   auto params(CallHierarchyIncomingCallsParams result)
@@ -506,14 +481,13 @@ class CallHierarchyIncomingCallsResponse final : public LSPResponse {
 
 class CallHierarchyOutgoingCallsRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CallHierarchyOutgoingCallsRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CallHierarchyOutgoingCallsRequest&;
-  auto id(std::string id) -> CallHierarchyOutgoingCallsRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> CallHierarchyOutgoingCallsRequest&;
 
   [[nodiscard]] auto params() const -> CallHierarchyOutgoingCallsParams;
   auto params(CallHierarchyOutgoingCallsParams result)
@@ -538,14 +512,12 @@ class CallHierarchyOutgoingCallsResponse final : public LSPResponse {
 
 class SemanticTokensRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SemanticTokensRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SemanticTokensRequest&;
-  auto id(std::string id) -> SemanticTokensRequest&;
+  auto id(std::variant<long, std::string> id) -> SemanticTokensRequest&;
 
   [[nodiscard]] auto params() const -> SemanticTokensParams;
   auto params(SemanticTokensParams result) -> SemanticTokensRequest&;
@@ -568,14 +540,12 @@ class SemanticTokensResponse final : public LSPResponse {
 
 class SemanticTokensDeltaRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SemanticTokensDeltaRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SemanticTokensDeltaRequest&;
-  auto id(std::string id) -> SemanticTokensDeltaRequest&;
+  auto id(std::variant<long, std::string> id) -> SemanticTokensDeltaRequest&;
 
   [[nodiscard]] auto params() const -> SemanticTokensDeltaParams;
   auto params(SemanticTokensDeltaParams result) -> SemanticTokensDeltaRequest&;
@@ -599,14 +569,12 @@ class SemanticTokensDeltaResponse final : public LSPResponse {
 
 class SemanticTokensRangeRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SemanticTokensRangeRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SemanticTokensRangeRequest&;
-  auto id(std::string id) -> SemanticTokensRangeRequest&;
+  auto id(std::variant<long, std::string> id) -> SemanticTokensRangeRequest&;
 
   [[nodiscard]] auto params() const -> SemanticTokensRangeParams;
   auto params(SemanticTokensRangeParams result) -> SemanticTokensRangeRequest&;
@@ -629,14 +597,12 @@ class SemanticTokensRangeResponse final : public LSPResponse {
 
 class SemanticTokensRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SemanticTokensRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SemanticTokensRefreshRequest&;
-  auto id(std::string id) -> SemanticTokensRefreshRequest&;
+  auto id(std::variant<long, std::string> id) -> SemanticTokensRefreshRequest&;
 };
 
 class SemanticTokensRefreshResponse final : public LSPResponse {
@@ -654,14 +620,12 @@ class SemanticTokensRefreshResponse final : public LSPResponse {
 
 class ShowDocumentRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ShowDocumentRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ShowDocumentRequest&;
-  auto id(std::string id) -> ShowDocumentRequest&;
+  auto id(std::variant<long, std::string> id) -> ShowDocumentRequest&;
 
   [[nodiscard]] auto params() const -> ShowDocumentParams;
   auto params(ShowDocumentParams result) -> ShowDocumentRequest&;
@@ -682,14 +646,12 @@ class ShowDocumentResponse final : public LSPResponse {
 
 class LinkedEditingRangeRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> LinkedEditingRangeRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> LinkedEditingRangeRequest&;
-  auto id(std::string id) -> LinkedEditingRangeRequest&;
+  auto id(std::variant<long, std::string> id) -> LinkedEditingRangeRequest&;
 
   [[nodiscard]] auto params() const -> LinkedEditingRangeParams;
   auto params(LinkedEditingRangeParams result) -> LinkedEditingRangeRequest&;
@@ -712,14 +674,12 @@ class LinkedEditingRangeResponse final : public LSPResponse {
 
 class WillCreateFilesRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WillCreateFilesRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WillCreateFilesRequest&;
-  auto id(std::string id) -> WillCreateFilesRequest&;
+  auto id(std::variant<long, std::string> id) -> WillCreateFilesRequest&;
 
   [[nodiscard]] auto params() const -> CreateFilesParams;
   auto params(CreateFilesParams result) -> WillCreateFilesRequest&;
@@ -742,14 +702,12 @@ class WillCreateFilesResponse final : public LSPResponse {
 
 class WillRenameFilesRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WillRenameFilesRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WillRenameFilesRequest&;
-  auto id(std::string id) -> WillRenameFilesRequest&;
+  auto id(std::variant<long, std::string> id) -> WillRenameFilesRequest&;
 
   [[nodiscard]] auto params() const -> RenameFilesParams;
   auto params(RenameFilesParams result) -> WillRenameFilesRequest&;
@@ -772,14 +730,12 @@ class WillRenameFilesResponse final : public LSPResponse {
 
 class WillDeleteFilesRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WillDeleteFilesRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WillDeleteFilesRequest&;
-  auto id(std::string id) -> WillDeleteFilesRequest&;
+  auto id(std::variant<long, std::string> id) -> WillDeleteFilesRequest&;
 
   [[nodiscard]] auto params() const -> DeleteFilesParams;
   auto params(DeleteFilesParams result) -> WillDeleteFilesRequest&;
@@ -802,14 +758,12 @@ class WillDeleteFilesResponse final : public LSPResponse {
 
 class MonikerRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> MonikerRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> MonikerRequest&;
-  auto id(std::string id) -> MonikerRequest&;
+  auto id(std::variant<long, std::string> id) -> MonikerRequest&;
 
   [[nodiscard]] auto params() const -> MonikerParams;
   auto params(MonikerParams result) -> MonikerRequest&;
@@ -832,14 +786,12 @@ class MonikerResponse final : public LSPResponse {
 
 class TypeHierarchyPrepareRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TypeHierarchyPrepareRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TypeHierarchyPrepareRequest&;
-  auto id(std::string id) -> TypeHierarchyPrepareRequest&;
+  auto id(std::variant<long, std::string> id) -> TypeHierarchyPrepareRequest&;
 
   [[nodiscard]] auto params() const -> TypeHierarchyPrepareParams;
   auto params(TypeHierarchyPrepareParams result)
@@ -863,14 +815,13 @@ class TypeHierarchyPrepareResponse final : public LSPResponse {
 
 class TypeHierarchySupertypesRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TypeHierarchySupertypesRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TypeHierarchySupertypesRequest&;
-  auto id(std::string id) -> TypeHierarchySupertypesRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> TypeHierarchySupertypesRequest&;
 
   [[nodiscard]] auto params() const -> TypeHierarchySupertypesParams;
   auto params(TypeHierarchySupertypesParams result)
@@ -894,14 +845,12 @@ class TypeHierarchySupertypesResponse final : public LSPResponse {
 
 class TypeHierarchySubtypesRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TypeHierarchySubtypesRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TypeHierarchySubtypesRequest&;
-  auto id(std::string id) -> TypeHierarchySubtypesRequest&;
+  auto id(std::variant<long, std::string> id) -> TypeHierarchySubtypesRequest&;
 
   [[nodiscard]] auto params() const -> TypeHierarchySubtypesParams;
   auto params(TypeHierarchySubtypesParams result)
@@ -925,14 +874,12 @@ class TypeHierarchySubtypesResponse final : public LSPResponse {
 
 class InlineValueRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InlineValueRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InlineValueRequest&;
-  auto id(std::string id) -> InlineValueRequest&;
+  auto id(std::variant<long, std::string> id) -> InlineValueRequest&;
 
   [[nodiscard]] auto params() const -> InlineValueParams;
   auto params(InlineValueParams result) -> InlineValueRequest&;
@@ -955,14 +902,12 @@ class InlineValueResponse final : public LSPResponse {
 
 class InlineValueRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InlineValueRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InlineValueRefreshRequest&;
-  auto id(std::string id) -> InlineValueRefreshRequest&;
+  auto id(std::variant<long, std::string> id) -> InlineValueRefreshRequest&;
 };
 
 class InlineValueRefreshResponse final : public LSPResponse {
@@ -980,14 +925,12 @@ class InlineValueRefreshResponse final : public LSPResponse {
 
 class InlayHintRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InlayHintRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InlayHintRequest&;
-  auto id(std::string id) -> InlayHintRequest&;
+  auto id(std::variant<long, std::string> id) -> InlayHintRequest&;
 
   [[nodiscard]] auto params() const -> InlayHintParams;
   auto params(InlayHintParams result) -> InlayHintRequest&;
@@ -1010,14 +953,12 @@ class InlayHintResponse final : public LSPResponse {
 
 class InlayHintResolveRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InlayHintResolveRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InlayHintResolveRequest&;
-  auto id(std::string id) -> InlayHintResolveRequest&;
+  auto id(std::variant<long, std::string> id) -> InlayHintResolveRequest&;
 
   [[nodiscard]] auto params() const -> InlayHint;
   auto params(InlayHint result) -> InlayHintResolveRequest&;
@@ -1038,14 +979,12 @@ class InlayHintResolveResponse final : public LSPResponse {
 
 class InlayHintRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InlayHintRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InlayHintRefreshRequest&;
-  auto id(std::string id) -> InlayHintRefreshRequest&;
+  auto id(std::variant<long, std::string> id) -> InlayHintRefreshRequest&;
 };
 
 class InlayHintRefreshResponse final : public LSPResponse {
@@ -1063,14 +1002,12 @@ class InlayHintRefreshResponse final : public LSPResponse {
 
 class DocumentDiagnosticRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentDiagnosticRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentDiagnosticRequest&;
-  auto id(std::string id) -> DocumentDiagnosticRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentDiagnosticRequest&;
 
   [[nodiscard]] auto params() const -> DocumentDiagnosticParams;
   auto params(DocumentDiagnosticParams result) -> DocumentDiagnosticRequest&;
@@ -1091,14 +1028,12 @@ class DocumentDiagnosticResponse final : public LSPResponse {
 
 class WorkspaceDiagnosticRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WorkspaceDiagnosticRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WorkspaceDiagnosticRequest&;
-  auto id(std::string id) -> WorkspaceDiagnosticRequest&;
+  auto id(std::variant<long, std::string> id) -> WorkspaceDiagnosticRequest&;
 
   [[nodiscard]] auto params() const -> WorkspaceDiagnosticParams;
   auto params(WorkspaceDiagnosticParams result) -> WorkspaceDiagnosticRequest&;
@@ -1119,14 +1054,12 @@ class WorkspaceDiagnosticResponse final : public LSPResponse {
 
 class DiagnosticRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DiagnosticRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DiagnosticRefreshRequest&;
-  auto id(std::string id) -> DiagnosticRefreshRequest&;
+  auto id(std::variant<long, std::string> id) -> DiagnosticRefreshRequest&;
 };
 
 class DiagnosticRefreshResponse final : public LSPResponse {
@@ -1144,14 +1077,12 @@ class DiagnosticRefreshResponse final : public LSPResponse {
 
 class InlineCompletionRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InlineCompletionRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InlineCompletionRequest&;
-  auto id(std::string id) -> InlineCompletionRequest&;
+  auto id(std::variant<long, std::string> id) -> InlineCompletionRequest&;
 
   [[nodiscard]] auto params() const -> InlineCompletionParams;
   auto params(InlineCompletionParams result) -> InlineCompletionRequest&;
@@ -1176,14 +1107,12 @@ class InlineCompletionResponse final : public LSPResponse {
 
 class TextDocumentContentRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TextDocumentContentRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TextDocumentContentRequest&;
-  auto id(std::string id) -> TextDocumentContentRequest&;
+  auto id(std::variant<long, std::string> id) -> TextDocumentContentRequest&;
 
   [[nodiscard]] auto params() const -> TextDocumentContentParams;
   auto params(TextDocumentContentParams result) -> TextDocumentContentRequest&;
@@ -1204,14 +1133,13 @@ class TextDocumentContentResponse final : public LSPResponse {
 
 class TextDocumentContentRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TextDocumentContentRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TextDocumentContentRefreshRequest&;
-  auto id(std::string id) -> TextDocumentContentRefreshRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> TextDocumentContentRefreshRequest&;
 
   [[nodiscard]] auto params() const -> TextDocumentContentRefreshParams;
   auto params(TextDocumentContentRefreshParams result)
@@ -1233,14 +1161,12 @@ class TextDocumentContentRefreshResponse final : public LSPResponse {
 
 class RegistrationRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> RegistrationRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> RegistrationRequest&;
-  auto id(std::string id) -> RegistrationRequest&;
+  auto id(std::variant<long, std::string> id) -> RegistrationRequest&;
 
   [[nodiscard]] auto params() const -> RegistrationParams;
   auto params(RegistrationParams result) -> RegistrationRequest&;
@@ -1261,14 +1187,12 @@ class RegistrationResponse final : public LSPResponse {
 
 class UnregistrationRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> UnregistrationRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> UnregistrationRequest&;
-  auto id(std::string id) -> UnregistrationRequest&;
+  auto id(std::variant<long, std::string> id) -> UnregistrationRequest&;
 
   [[nodiscard]] auto params() const -> UnregistrationParams;
   auto params(UnregistrationParams result) -> UnregistrationRequest&;
@@ -1289,14 +1213,12 @@ class UnregistrationResponse final : public LSPResponse {
 
 class InitializeRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InitializeRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InitializeRequest&;
-  auto id(std::string id) -> InitializeRequest&;
+  auto id(std::variant<long, std::string> id) -> InitializeRequest&;
 
   [[nodiscard]] auto params() const -> InitializeParams;
   auto params(InitializeParams result) -> InitializeRequest&;
@@ -1317,14 +1239,12 @@ class InitializeResponse final : public LSPResponse {
 
 class ShutdownRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ShutdownRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ShutdownRequest&;
-  auto id(std::string id) -> ShutdownRequest&;
+  auto id(std::variant<long, std::string> id) -> ShutdownRequest&;
 };
 
 class ShutdownResponse final : public LSPResponse {
@@ -1342,14 +1262,12 @@ class ShutdownResponse final : public LSPResponse {
 
 class ShowMessageRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ShowMessageRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ShowMessageRequest&;
-  auto id(std::string id) -> ShowMessageRequest&;
+  auto id(std::variant<long, std::string> id) -> ShowMessageRequest&;
 
   [[nodiscard]] auto params() const -> ShowMessageRequestParams;
   auto params(ShowMessageRequestParams result) -> ShowMessageRequest&;
@@ -1372,14 +1290,13 @@ class ShowMessageResponse final : public LSPResponse {
 
 class WillSaveTextDocumentWaitUntilRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WillSaveTextDocumentWaitUntilRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WillSaveTextDocumentWaitUntilRequest&;
-  auto id(std::string id) -> WillSaveTextDocumentWaitUntilRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> WillSaveTextDocumentWaitUntilRequest&;
 
   [[nodiscard]] auto params() const -> WillSaveTextDocumentParams;
   auto params(WillSaveTextDocumentParams result)
@@ -1403,14 +1320,12 @@ class WillSaveTextDocumentWaitUntilResponse final : public LSPResponse {
 
 class CompletionRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CompletionRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CompletionRequest&;
-  auto id(std::string id) -> CompletionRequest&;
+  auto id(std::variant<long, std::string> id) -> CompletionRequest&;
 
   [[nodiscard]] auto params() const -> CompletionParams;
   auto params(CompletionParams result) -> CompletionRequest&;
@@ -1434,14 +1349,12 @@ class CompletionResponse final : public LSPResponse {
 
 class CompletionResolveRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CompletionResolveRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CompletionResolveRequest&;
-  auto id(std::string id) -> CompletionResolveRequest&;
+  auto id(std::variant<long, std::string> id) -> CompletionResolveRequest&;
 
   [[nodiscard]] auto params() const -> CompletionItem;
   auto params(CompletionItem result) -> CompletionResolveRequest&;
@@ -1462,14 +1375,12 @@ class CompletionResolveResponse final : public LSPResponse {
 
 class HoverRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> HoverRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> HoverRequest&;
-  auto id(std::string id) -> HoverRequest&;
+  auto id(std::variant<long, std::string> id) -> HoverRequest&;
 
   [[nodiscard]] auto params() const -> HoverParams;
   auto params(HoverParams result) -> HoverRequest&;
@@ -1490,14 +1401,12 @@ class HoverResponse final : public LSPResponse {
 
 class SignatureHelpRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SignatureHelpRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SignatureHelpRequest&;
-  auto id(std::string id) -> SignatureHelpRequest&;
+  auto id(std::variant<long, std::string> id) -> SignatureHelpRequest&;
 
   [[nodiscard]] auto params() const -> SignatureHelpParams;
   auto params(SignatureHelpParams result) -> SignatureHelpRequest&;
@@ -1520,14 +1429,12 @@ class SignatureHelpResponse final : public LSPResponse {
 
 class DefinitionRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DefinitionRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DefinitionRequest&;
-  auto id(std::string id) -> DefinitionRequest&;
+  auto id(std::variant<long, std::string> id) -> DefinitionRequest&;
 
   [[nodiscard]] auto params() const -> DefinitionParams;
   auto params(DefinitionParams result) -> DefinitionRequest&;
@@ -1551,14 +1458,12 @@ class DefinitionResponse final : public LSPResponse {
 
 class ReferencesRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ReferencesRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ReferencesRequest&;
-  auto id(std::string id) -> ReferencesRequest&;
+  auto id(std::variant<long, std::string> id) -> ReferencesRequest&;
 
   [[nodiscard]] auto params() const -> ReferenceParams;
   auto params(ReferenceParams result) -> ReferencesRequest&;
@@ -1581,14 +1486,12 @@ class ReferencesResponse final : public LSPResponse {
 
 class DocumentHighlightRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentHighlightRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentHighlightRequest&;
-  auto id(std::string id) -> DocumentHighlightRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentHighlightRequest&;
 
   [[nodiscard]] auto params() const -> DocumentHighlightParams;
   auto params(DocumentHighlightParams result) -> DocumentHighlightRequest&;
@@ -1611,14 +1514,12 @@ class DocumentHighlightResponse final : public LSPResponse {
 
 class DocumentSymbolRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentSymbolRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentSymbolRequest&;
-  auto id(std::string id) -> DocumentSymbolRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentSymbolRequest&;
 
   [[nodiscard]] auto params() const -> DocumentSymbolParams;
   auto params(DocumentSymbolParams result) -> DocumentSymbolRequest&;
@@ -1643,14 +1544,12 @@ class DocumentSymbolResponse final : public LSPResponse {
 
 class CodeActionRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CodeActionRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CodeActionRequest&;
-  auto id(std::string id) -> CodeActionRequest&;
+  auto id(std::variant<long, std::string> id) -> CodeActionRequest&;
 
   [[nodiscard]] auto params() const -> CodeActionParams;
   auto params(CodeActionParams result) -> CodeActionRequest&;
@@ -1675,14 +1574,12 @@ class CodeActionResponse final : public LSPResponse {
 
 class CodeActionResolveRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CodeActionResolveRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CodeActionResolveRequest&;
-  auto id(std::string id) -> CodeActionResolveRequest&;
+  auto id(std::variant<long, std::string> id) -> CodeActionResolveRequest&;
 
   [[nodiscard]] auto params() const -> CodeAction;
   auto params(CodeAction result) -> CodeActionResolveRequest&;
@@ -1703,14 +1600,12 @@ class CodeActionResolveResponse final : public LSPResponse {
 
 class WorkspaceSymbolRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WorkspaceSymbolRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WorkspaceSymbolRequest&;
-  auto id(std::string id) -> WorkspaceSymbolRequest&;
+  auto id(std::variant<long, std::string> id) -> WorkspaceSymbolRequest&;
 
   [[nodiscard]] auto params() const -> WorkspaceSymbolParams;
   auto params(WorkspaceSymbolParams result) -> WorkspaceSymbolRequest&;
@@ -1735,14 +1630,12 @@ class WorkspaceSymbolResponse final : public LSPResponse {
 
 class WorkspaceSymbolResolveRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WorkspaceSymbolResolveRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WorkspaceSymbolResolveRequest&;
-  auto id(std::string id) -> WorkspaceSymbolResolveRequest&;
+  auto id(std::variant<long, std::string> id) -> WorkspaceSymbolResolveRequest&;
 
   [[nodiscard]] auto params() const -> WorkspaceSymbol;
   auto params(WorkspaceSymbol result) -> WorkspaceSymbolResolveRequest&;
@@ -1763,14 +1656,12 @@ class WorkspaceSymbolResolveResponse final : public LSPResponse {
 
 class CodeLensRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CodeLensRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CodeLensRequest&;
-  auto id(std::string id) -> CodeLensRequest&;
+  auto id(std::variant<long, std::string> id) -> CodeLensRequest&;
 
   [[nodiscard]] auto params() const -> CodeLensParams;
   auto params(CodeLensParams result) -> CodeLensRequest&;
@@ -1793,14 +1684,12 @@ class CodeLensResponse final : public LSPResponse {
 
 class CodeLensResolveRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CodeLensResolveRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CodeLensResolveRequest&;
-  auto id(std::string id) -> CodeLensResolveRequest&;
+  auto id(std::variant<long, std::string> id) -> CodeLensResolveRequest&;
 
   [[nodiscard]] auto params() const -> CodeLens;
   auto params(CodeLens result) -> CodeLensResolveRequest&;
@@ -1821,14 +1710,12 @@ class CodeLensResolveResponse final : public LSPResponse {
 
 class CodeLensRefreshRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CodeLensRefreshRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CodeLensRefreshRequest&;
-  auto id(std::string id) -> CodeLensRefreshRequest&;
+  auto id(std::variant<long, std::string> id) -> CodeLensRefreshRequest&;
 };
 
 class CodeLensRefreshResponse final : public LSPResponse {
@@ -1846,14 +1733,12 @@ class CodeLensRefreshResponse final : public LSPResponse {
 
 class DocumentLinkRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentLinkRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentLinkRequest&;
-  auto id(std::string id) -> DocumentLinkRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentLinkRequest&;
 
   [[nodiscard]] auto params() const -> DocumentLinkParams;
   auto params(DocumentLinkParams result) -> DocumentLinkRequest&;
@@ -1876,14 +1761,12 @@ class DocumentLinkResponse final : public LSPResponse {
 
 class DocumentLinkResolveRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentLinkResolveRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentLinkResolveRequest&;
-  auto id(std::string id) -> DocumentLinkResolveRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentLinkResolveRequest&;
 
   [[nodiscard]] auto params() const -> DocumentLink;
   auto params(DocumentLink result) -> DocumentLinkResolveRequest&;
@@ -1904,14 +1787,12 @@ class DocumentLinkResolveResponse final : public LSPResponse {
 
 class DocumentFormattingRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentFormattingRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentFormattingRequest&;
-  auto id(std::string id) -> DocumentFormattingRequest&;
+  auto id(std::variant<long, std::string> id) -> DocumentFormattingRequest&;
 
   [[nodiscard]] auto params() const -> DocumentFormattingParams;
   auto params(DocumentFormattingParams result) -> DocumentFormattingRequest&;
@@ -1934,14 +1815,13 @@ class DocumentFormattingResponse final : public LSPResponse {
 
 class DocumentRangeFormattingRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentRangeFormattingRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentRangeFormattingRequest&;
-  auto id(std::string id) -> DocumentRangeFormattingRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> DocumentRangeFormattingRequest&;
 
   [[nodiscard]] auto params() const -> DocumentRangeFormattingParams;
   auto params(DocumentRangeFormattingParams result)
@@ -1965,14 +1845,13 @@ class DocumentRangeFormattingResponse final : public LSPResponse {
 
 class DocumentRangesFormattingRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentRangesFormattingRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentRangesFormattingRequest&;
-  auto id(std::string id) -> DocumentRangesFormattingRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> DocumentRangesFormattingRequest&;
 
   [[nodiscard]] auto params() const -> DocumentRangesFormattingParams;
   auto params(DocumentRangesFormattingParams result)
@@ -1996,14 +1875,13 @@ class DocumentRangesFormattingResponse final : public LSPResponse {
 
 class DocumentOnTypeFormattingRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DocumentOnTypeFormattingRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DocumentOnTypeFormattingRequest&;
-  auto id(std::string id) -> DocumentOnTypeFormattingRequest&;
+  auto id(std::variant<long, std::string> id)
+      -> DocumentOnTypeFormattingRequest&;
 
   [[nodiscard]] auto params() const -> DocumentOnTypeFormattingParams;
   auto params(DocumentOnTypeFormattingParams result)
@@ -2027,14 +1905,12 @@ class DocumentOnTypeFormattingResponse final : public LSPResponse {
 
 class RenameRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> RenameRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> RenameRequest&;
-  auto id(std::string id) -> RenameRequest&;
+  auto id(std::variant<long, std::string> id) -> RenameRequest&;
 
   [[nodiscard]] auto params() const -> RenameParams;
   auto params(RenameParams result) -> RenameRequest&;
@@ -2057,14 +1933,12 @@ class RenameResponse final : public LSPResponse {
 
 class PrepareRenameRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> PrepareRenameRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> PrepareRenameRequest&;
-  auto id(std::string id) -> PrepareRenameRequest&;
+  auto id(std::variant<long, std::string> id) -> PrepareRenameRequest&;
 
   [[nodiscard]] auto params() const -> PrepareRenameParams;
   auto params(PrepareRenameParams result) -> PrepareRenameRequest&;
@@ -2087,14 +1961,12 @@ class PrepareRenameResponse final : public LSPResponse {
 
 class ExecuteCommandRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ExecuteCommandRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ExecuteCommandRequest&;
-  auto id(std::string id) -> ExecuteCommandRequest&;
+  auto id(std::variant<long, std::string> id) -> ExecuteCommandRequest&;
 
   [[nodiscard]] auto params() const -> ExecuteCommandParams;
   auto params(ExecuteCommandParams result) -> ExecuteCommandRequest&;
@@ -2116,14 +1988,12 @@ class ExecuteCommandResponse final : public LSPResponse {
 
 class ApplyWorkspaceEditRequest final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ApplyWorkspaceEditRequest&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ApplyWorkspaceEditRequest&;
-  auto id(std::string id) -> ApplyWorkspaceEditRequest&;
+  auto id(std::variant<long, std::string> id) -> ApplyWorkspaceEditRequest&;
 
   [[nodiscard]] auto params() const -> ApplyWorkspaceEditParams;
   auto params(ApplyWorkspaceEditParams result) -> ApplyWorkspaceEditRequest&;
@@ -2144,14 +2014,13 @@ class ApplyWorkspaceEditResponse final : public LSPResponse {
 
 class DidChangeWorkspaceFoldersNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidChangeWorkspaceFoldersNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidChangeWorkspaceFoldersNotification&;
-  auto id(std::string id) -> DidChangeWorkspaceFoldersNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidChangeWorkspaceFoldersNotification&;
 
   [[nodiscard]] auto params() const -> DidChangeWorkspaceFoldersParams;
   auto params(DidChangeWorkspaceFoldersParams result)
@@ -2160,14 +2029,13 @@ class DidChangeWorkspaceFoldersNotification final : public LSPRequest {
 
 class WorkDoneProgressCancelNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WorkDoneProgressCancelNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WorkDoneProgressCancelNotification&;
-  auto id(std::string id) -> WorkDoneProgressCancelNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> WorkDoneProgressCancelNotification&;
 
   [[nodiscard]] auto params() const -> WorkDoneProgressCancelParams;
   auto params(WorkDoneProgressCancelParams result)
@@ -2176,14 +2044,12 @@ class WorkDoneProgressCancelNotification final : public LSPRequest {
 
 class DidCreateFilesNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidCreateFilesNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidCreateFilesNotification&;
-  auto id(std::string id) -> DidCreateFilesNotification&;
+  auto id(std::variant<long, std::string> id) -> DidCreateFilesNotification&;
 
   [[nodiscard]] auto params() const -> CreateFilesParams;
   auto params(CreateFilesParams result) -> DidCreateFilesNotification&;
@@ -2191,14 +2057,12 @@ class DidCreateFilesNotification final : public LSPRequest {
 
 class DidRenameFilesNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidRenameFilesNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidRenameFilesNotification&;
-  auto id(std::string id) -> DidRenameFilesNotification&;
+  auto id(std::variant<long, std::string> id) -> DidRenameFilesNotification&;
 
   [[nodiscard]] auto params() const -> RenameFilesParams;
   auto params(RenameFilesParams result) -> DidRenameFilesNotification&;
@@ -2206,14 +2070,12 @@ class DidRenameFilesNotification final : public LSPRequest {
 
 class DidDeleteFilesNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidDeleteFilesNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidDeleteFilesNotification&;
-  auto id(std::string id) -> DidDeleteFilesNotification&;
+  auto id(std::variant<long, std::string> id) -> DidDeleteFilesNotification&;
 
   [[nodiscard]] auto params() const -> DeleteFilesParams;
   auto params(DeleteFilesParams result) -> DidDeleteFilesNotification&;
@@ -2221,14 +2083,13 @@ class DidDeleteFilesNotification final : public LSPRequest {
 
 class DidOpenNotebookDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidOpenNotebookDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidOpenNotebookDocumentNotification&;
-  auto id(std::string id) -> DidOpenNotebookDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidOpenNotebookDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidOpenNotebookDocumentParams;
   auto params(DidOpenNotebookDocumentParams result)
@@ -2237,14 +2098,13 @@ class DidOpenNotebookDocumentNotification final : public LSPRequest {
 
 class DidChangeNotebookDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidChangeNotebookDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidChangeNotebookDocumentNotification&;
-  auto id(std::string id) -> DidChangeNotebookDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidChangeNotebookDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidChangeNotebookDocumentParams;
   auto params(DidChangeNotebookDocumentParams result)
@@ -2253,14 +2113,13 @@ class DidChangeNotebookDocumentNotification final : public LSPRequest {
 
 class DidSaveNotebookDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidSaveNotebookDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidSaveNotebookDocumentNotification&;
-  auto id(std::string id) -> DidSaveNotebookDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidSaveNotebookDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidSaveNotebookDocumentParams;
   auto params(DidSaveNotebookDocumentParams result)
@@ -2269,14 +2128,13 @@ class DidSaveNotebookDocumentNotification final : public LSPRequest {
 
 class DidCloseNotebookDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidCloseNotebookDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidCloseNotebookDocumentNotification&;
-  auto id(std::string id) -> DidCloseNotebookDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidCloseNotebookDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidCloseNotebookDocumentParams;
   auto params(DidCloseNotebookDocumentParams result)
@@ -2285,14 +2143,12 @@ class DidCloseNotebookDocumentNotification final : public LSPRequest {
 
 class InitializedNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> InitializedNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> InitializedNotification&;
-  auto id(std::string id) -> InitializedNotification&;
+  auto id(std::variant<long, std::string> id) -> InitializedNotification&;
 
   [[nodiscard]] auto params() const -> InitializedParams;
   auto params(InitializedParams result) -> InitializedNotification&;
@@ -2300,26 +2156,23 @@ class InitializedNotification final : public LSPRequest {
 
 class ExitNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ExitNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ExitNotification&;
-  auto id(std::string id) -> ExitNotification&;
+  auto id(std::variant<long, std::string> id) -> ExitNotification&;
 };
 
 class DidChangeConfigurationNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidChangeConfigurationNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidChangeConfigurationNotification&;
-  auto id(std::string id) -> DidChangeConfigurationNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidChangeConfigurationNotification&;
 
   [[nodiscard]] auto params() const -> DidChangeConfigurationParams;
   auto params(DidChangeConfigurationParams result)
@@ -2328,14 +2181,12 @@ class DidChangeConfigurationNotification final : public LSPRequest {
 
 class ShowMessageNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ShowMessageNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ShowMessageNotification&;
-  auto id(std::string id) -> ShowMessageNotification&;
+  auto id(std::variant<long, std::string> id) -> ShowMessageNotification&;
 
   [[nodiscard]] auto params() const -> ShowMessageParams;
   auto params(ShowMessageParams result) -> ShowMessageNotification&;
@@ -2343,14 +2194,12 @@ class ShowMessageNotification final : public LSPRequest {
 
 class LogMessageNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> LogMessageNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> LogMessageNotification&;
-  auto id(std::string id) -> LogMessageNotification&;
+  auto id(std::variant<long, std::string> id) -> LogMessageNotification&;
 
   [[nodiscard]] auto params() const -> LogMessageParams;
   auto params(LogMessageParams result) -> LogMessageNotification&;
@@ -2358,14 +2207,12 @@ class LogMessageNotification final : public LSPRequest {
 
 class TelemetryEventNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> TelemetryEventNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> TelemetryEventNotification&;
-  auto id(std::string id) -> TelemetryEventNotification&;
+  auto id(std::variant<long, std::string> id) -> TelemetryEventNotification&;
 
   [[nodiscard]] auto params() const -> LSPAny;
   auto params(LSPAny result) -> TelemetryEventNotification&;
@@ -2373,14 +2220,13 @@ class TelemetryEventNotification final : public LSPRequest {
 
 class DidOpenTextDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidOpenTextDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidOpenTextDocumentNotification&;
-  auto id(std::string id) -> DidOpenTextDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidOpenTextDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidOpenTextDocumentParams;
   auto params(DidOpenTextDocumentParams result)
@@ -2389,14 +2235,13 @@ class DidOpenTextDocumentNotification final : public LSPRequest {
 
 class DidChangeTextDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidChangeTextDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidChangeTextDocumentNotification&;
-  auto id(std::string id) -> DidChangeTextDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidChangeTextDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidChangeTextDocumentParams;
   auto params(DidChangeTextDocumentParams result)
@@ -2405,14 +2250,13 @@ class DidChangeTextDocumentNotification final : public LSPRequest {
 
 class DidCloseTextDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidCloseTextDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidCloseTextDocumentNotification&;
-  auto id(std::string id) -> DidCloseTextDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidCloseTextDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidCloseTextDocumentParams;
   auto params(DidCloseTextDocumentParams result)
@@ -2421,14 +2265,13 @@ class DidCloseTextDocumentNotification final : public LSPRequest {
 
 class DidSaveTextDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidSaveTextDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidSaveTextDocumentNotification&;
-  auto id(std::string id) -> DidSaveTextDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidSaveTextDocumentNotification&;
 
   [[nodiscard]] auto params() const -> DidSaveTextDocumentParams;
   auto params(DidSaveTextDocumentParams result)
@@ -2437,14 +2280,13 @@ class DidSaveTextDocumentNotification final : public LSPRequest {
 
 class WillSaveTextDocumentNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> WillSaveTextDocumentNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> WillSaveTextDocumentNotification&;
-  auto id(std::string id) -> WillSaveTextDocumentNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> WillSaveTextDocumentNotification&;
 
   [[nodiscard]] auto params() const -> WillSaveTextDocumentParams;
   auto params(WillSaveTextDocumentParams result)
@@ -2453,14 +2295,13 @@ class WillSaveTextDocumentNotification final : public LSPRequest {
 
 class DidChangeWatchedFilesNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> DidChangeWatchedFilesNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> DidChangeWatchedFilesNotification&;
-  auto id(std::string id) -> DidChangeWatchedFilesNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> DidChangeWatchedFilesNotification&;
 
   [[nodiscard]] auto params() const -> DidChangeWatchedFilesParams;
   auto params(DidChangeWatchedFilesParams result)
@@ -2469,14 +2310,13 @@ class DidChangeWatchedFilesNotification final : public LSPRequest {
 
 class PublishDiagnosticsNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> PublishDiagnosticsNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> PublishDiagnosticsNotification&;
-  auto id(std::string id) -> PublishDiagnosticsNotification&;
+  auto id(std::variant<long, std::string> id)
+      -> PublishDiagnosticsNotification&;
 
   [[nodiscard]] auto params() const -> PublishDiagnosticsParams;
   auto params(PublishDiagnosticsParams result)
@@ -2485,14 +2325,12 @@ class PublishDiagnosticsNotification final : public LSPRequest {
 
 class SetTraceNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> SetTraceNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> SetTraceNotification&;
-  auto id(std::string id) -> SetTraceNotification&;
+  auto id(std::variant<long, std::string> id) -> SetTraceNotification&;
 
   [[nodiscard]] auto params() const -> SetTraceParams;
   auto params(SetTraceParams result) -> SetTraceNotification&;
@@ -2500,14 +2338,12 @@ class SetTraceNotification final : public LSPRequest {
 
 class LogTraceNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> LogTraceNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> LogTraceNotification&;
-  auto id(std::string id) -> LogTraceNotification&;
+  auto id(std::variant<long, std::string> id) -> LogTraceNotification&;
 
   [[nodiscard]] auto params() const -> LogTraceParams;
   auto params(LogTraceParams result) -> LogTraceNotification&;
@@ -2515,14 +2351,12 @@ class LogTraceNotification final : public LSPRequest {
 
 class CancelNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> CancelNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> CancelNotification&;
-  auto id(std::string id) -> CancelNotification&;
+  auto id(std::variant<long, std::string> id) -> CancelNotification&;
 
   [[nodiscard]] auto params() const -> CancelParams;
   auto params(CancelParams result) -> CancelNotification&;
@@ -2530,14 +2364,12 @@ class CancelNotification final : public LSPRequest {
 
 class ProgressNotification final : public LSPRequest {
  public:
+  using LSPRequest::id;
   using LSPRequest::LSPRequest;
+  using LSPRequest::method;
 
-  [[nodiscard]] auto method() const -> std::string;
   auto method(std::string method) -> ProgressNotification&;
-
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
-  auto id(long id) -> ProgressNotification&;
-  auto id(std::string id) -> ProgressNotification&;
+  auto id(std::variant<long, std::string> id) -> ProgressNotification&;
 
   [[nodiscard]] auto params() const -> ProgressParams;
   auto params(ProgressParams result) -> ProgressNotification&;

@@ -645,9 +645,9 @@ class LSPRequest : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] auto method() const -> std::string {
-    return repr_->at("method").get<std::string>();
-  }
+  [[nodiscard]] auto id() const
+      -> std::optional<std::variant<long, std::string>>;
+  [[nodiscard]] auto method() const -> std::string;
 };
 
 class LSPResponse : public LSPObject {

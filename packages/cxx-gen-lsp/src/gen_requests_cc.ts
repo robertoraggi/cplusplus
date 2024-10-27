@@ -42,33 +42,34 @@ class RequestGenerator {
   genTypes() {
     this.begin();
 
+    this.emit();
+    this.emit(`auto LSPRequest::id() const -> std::optional<std::variant<long, std::string>> {`);
+    this.emit(`  if (!repr_->contains("id")) return std::nullopt;`);
+    this.emit(`  const auto& id = repr_->at("id");`);
+    this.emit(`  if (id.is_string()) return id.get<std::string>();`);
+    this.emit(`  return id.get<long>();`);
+    this.emit(`}`);
+    this.emit();
+    this.emit(`auto LSPRequest::method() const -> std::string {`);
+    this.emit(`  return repr_->at("method");`);
+    this.emit(`}`);
+
     const requestsAndNotifications = [...this.model.requests, ...this.model.notifications];
 
     requestsAndNotifications.forEach((request) => {
       const { typeName } = request;
-      this.emit();
-      this.emit(`auto ${typeName}::method() const -> std::string {`);
-      this.emit(`  return repr_->at("method");`);
-      this.emit(`}`);
       this.emit();
       this.emit(`auto ${typeName}::method(std::string method) -> ${typeName}& {`);
       this.emit(`  (*repr_)["method"] = std::move(method);`);
       this.emit(`  return *this;`);
       this.emit(`}`);
       this.emit();
-      this.emit(`auto ${typeName}::id() const -> std::variant<long, std::string> {`);
-      this.emit(`  const auto& id = repr_->at("id");`);
-      this.emit(`  if (id.is_string()) return id.get<std::string>();`);
-      this.emit(`  return id.get<long>();`);
-      this.emit(`}`);
-      this.emit();
-      this.emit(`auto ${typeName}::id(long id) -> ${typeName}& {`);
-      this.emit(`  (*repr_)["id"] = id;`);
-      this.emit(`  return *this;`);
-      this.emit(`}`);
-      this.emit();
-      this.emit(`auto ${typeName}::id(std::string id) -> ${typeName}& {`);
-      this.emit(`  (*repr_)["id"] = std::move(id);`);
+      this.emit(`auto ${typeName}::id(std::variant<long, std::string> id) -> ${typeName}& {`);
+      this.emit(`  if (std::holds_alternative<long>(id)) {`);
+      this.emit(`    (*repr_)["id"] = std::get<long>(id);`);
+      this.emit(`  } else {`);
+      this.emit(`    (*repr_)["id"] = std::get<std::string>(id);`);
+      this.emit(`  }`);
       this.emit(`  return *this;`);
       this.emit(`}`);
 
@@ -91,12 +92,6 @@ class RequestGenerator {
         const responseTypeName = typeName.replace(/Request$/, "Response");
         const resultTypeName = toCppType(request.result);
 
-        this.emit();
-        this.emit(`auto ${responseTypeName}::id() const -> std::variant<long, std::string> {`);
-        this.emit(`  const auto& id = repr_->at("id");`);
-        this.emit(`  if (id.is_string()) return id.get<std::string>();`);
-        this.emit(`  return id.get<long>();`);
-        this.emit(`}`);
         this.emit();
         this.emit(`auto ${responseTypeName}::id(long id) -> ${responseTypeName}& {`);
         this.emit(`  (*repr_)["id"] = id;`);
