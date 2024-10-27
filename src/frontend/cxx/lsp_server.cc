@@ -369,21 +369,23 @@ class Server {
 
   void operator()(const InitializeRequest& request) {
     std::cerr << std::format("Did receive InitializeRequest\n");
-    auto storage = json::object();
-    InitializeResult result(storage);
-    result.serverInfo<ServerInfo>().name("cxx-lsp").version("0.0.1");
-    result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
 
-    sendToClient(result, request.id());
+    withUnsafeJson([&](json storage) {
+      InitializeResult result(storage);
+      result.serverInfo<ServerInfo>().name("cxx-lsp").version("0.0.1");
+      result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
+
+      sendToClient(result, request.id());
+    });
   }
 
   void operator()(const ShutdownRequest& request) {
     std::cerr << std::format("Did receive ShutdownRequest\n");
 
-    json storage;
-    LSPObject result(storage);
-
-    sendToClient(result, request.id());
+    withUnsafeJson([&](json storage) {
+      LSPObject result(storage);
+      sendToClient(result, request.id());
+    });
   }
 
   //
@@ -392,12 +394,16 @@ class Server {
   void operator()(const LSPRequest& request) {
     std::cerr << "Request: " << request.method() << "\n";
 
-    if (request.id().has_value()) {
-      // send an empty response.
-      json storage;
+    if (!request.id().has_value()) {
+      // nothing to do for notifications
+      return;
+    }
+
+    // send an empty response.
+    withUnsafeJson([&](json storage) {
       LSPObject result(storage);
       sendToClient(result, request.id());
-    }
+    });
   }
 };
 
