@@ -143,6 +143,26 @@ export function isRequest(request: Request | Notification): request is Request {
   return "result" in request;
 }
 
+export function isStringLike(type: Type, typeAliasByName: Map<string, TypeAlias>): boolean {
+  switch (type.kind) {
+    case "base":
+      return type.name === "string";
+
+    case "reference": {
+      if (typeAliasByName.has(type.name)) {
+        return isStringLike(typeAliasByName.get(type.name)!.type, typeAliasByName);
+      }
+      return false;
+    }
+
+    case "stringLiteral":
+      return true;
+
+    default:
+      return false;
+  } // switch
+}
+
 export function getEnumBaseType(enumeration: Enumeration) {
   switch (enumeration.type.name) {
     case "integer":

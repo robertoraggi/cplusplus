@@ -165,26 +165,6 @@ class RequestGenerator {
     return propertyType;
   }
 
-  isStringLike(type: Type): boolean {
-    switch (type.kind) {
-      case "base":
-        return type.name === "string";
-
-      case "reference": {
-        if (this.typeAliasByName.has(type.name)) {
-          return this.isStringLike(this.typeAliasByName.get(type.name)!.type);
-        }
-        return false;
-      }
-
-      case "stringLiteral":
-        return true;
-
-      default:
-        return false;
-    } // switch
-  }
-
   begin() {
     this.emit(copyrightHeader);
     this.emit();

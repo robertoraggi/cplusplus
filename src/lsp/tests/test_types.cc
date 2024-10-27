@@ -10,19 +10,19 @@ using namespace cxx::lsp;
 
 TEST(LSP, Initialization) {
   // storage
-  auto store1 = json::object();
-  auto store2 = json::object();
-  auto store3 = json::object();
+  auto storage = json::object();
 
-  InitializeResult initializeResult{store1};
+  InitializeResult initializeResult{storage};
   ASSERT_TRUE(!initializeResult);
 
-  auto serverInfo = ServerInfo{store2}.name("cxx").version("0.1.0");
+  auto serverInfo =
+      initializeResult.serverInfo<ServerInfo>().name("cxx").version("0.1.0");
+
+  ASSERT_TRUE(initializeResult.serverInfo().has_value());
   ASSERT_EQ(serverInfo.name(), "cxx");
   ASSERT_EQ(serverInfo.version(), "0.1.0");
-  ASSERT_TRUE(serverInfo);
 
-  auto capabilities = ServerCapabilities{store3}.textDocumentSync(
+  auto capabilities = initializeResult.capabilities().textDocumentSync(
       TextDocumentSyncKind::kIncremental);
 
   ASSERT_TRUE(capabilities);
@@ -35,10 +35,24 @@ TEST(LSP, Initialization) {
   ASSERT_EQ(std::get<TextDocumentSyncKind>(*capabilities.textDocumentSync()),
             TextDocumentSyncKind::kIncremental);
 
-  initializeResult.serverInfo(std::move(serverInfo));
-  ASSERT_TRUE(initializeResult.serverInfo());
+  capabilities.completionProvider<CompletionOptions>().triggerCharacters(
+      std::vector<std::string>{".", ">", ":"});
 
-  initializeResult.capabilities(std::move(capabilities));
+  ASSERT_TRUE(capabilities.completionProvider().has_value());
+
+  auto completionProvider =
+      capabilities.completionProvider<CompletionOptions>();
+
+  ASSERT_TRUE(completionProvider.triggerCharacters().has_value());
+
+  auto triggerCharacters = *completionProvider.triggerCharacters();
+
+  ASSERT_EQ(triggerCharacters.size(), 3);
+  ASSERT_EQ(triggerCharacters.at(0), ".");
+  ASSERT_EQ(triggerCharacters.at(1), ">");
+  ASSERT_EQ(triggerCharacters.at(2), ":");
+
+  ASSERT_TRUE(initializeResult.serverInfo());
   ASSERT_TRUE(initializeResult.capabilities());
 
   ASSERT_TRUE(initializeResult);
@@ -227,14 +241,10 @@ TEST(LSP, CreateCompletionList) {
   item.kind(CompletionItemKind::kSnippet);
   item.label(" include");
 
-  auto labelDetailsStorage = json::object();
-
-  item.labelDetails(CompletionItemLabelDetails(labelDetailsStorage))
-      .detail(" \"header\"");
+  item.labelDetails<CompletionItemLabelDetails>().detail(" \"header\"");
   item.sortText("000000001");
 
-  auto textEditStorage = json::object();
-  auto textEdit = TextEdit{textEditStorage};
+  auto textEdit = item.textEdit<TextEdit>();
 
   textEdit.newText("include \"$0\"");
   auto range = textEdit.range();
@@ -242,8 +252,6 @@ TEST(LSP, CreateCompletionList) {
   range.start().character(1);
   range.end().line(0);
   range.end().character(4);
-
-  item.textEdit(std::move(textEdit));
 
   ASSERT_TRUE(completionList);
 

@@ -85,7 +85,7 @@ auto ImplementationParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("ImplementationParams::workDoneToken: not implement yet");
+  lsp_runtime_error("ImplementationParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -96,7 +96,7 @@ auto ImplementationParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "ImplementationParams::partialResultToken: not implement yet");
+      "ImplementationParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -178,8 +178,8 @@ auto ImplementationRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "ImplementationRegistrationOptions::documentSelector: not implement "
-          "yet");
+          "ImplementationRegistrationOptions::documentSelector: not "
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -276,7 +276,7 @@ auto TypeDefinitionParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("TypeDefinitionParams::workDoneToken: not implement yet");
+  lsp_runtime_error("TypeDefinitionParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -287,7 +287,7 @@ auto TypeDefinitionParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "TypeDefinitionParams::partialResultToken: not implement yet");
+      "TypeDefinitionParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -338,8 +338,8 @@ auto TypeDefinitionRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "TypeDefinitionRegistrationOptions::documentSelector: not implement "
-          "yet");
+          "TypeDefinitionRegistrationOptions::documentSelector: not "
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -440,7 +440,7 @@ auto ConfigurationParams::items() const -> Vector<ConfigurationItem> {
 
 auto ConfigurationParams::items(Vector<ConfigurationItem> items)
     -> ConfigurationParams& {
-  lsp_runtime_error("ConfigurationParams::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -494,7 +494,7 @@ auto DocumentColorParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("DocumentColorParams::workDoneToken: not implement yet");
+  lsp_runtime_error("DocumentColorParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -505,7 +505,7 @@ auto DocumentColorParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentColorParams::partialResultToken: not implement yet");
+      "DocumentColorParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -585,7 +585,7 @@ auto DocumentColorRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "DocumentColorRegistrationOptions::documentSelector: not implement "
+          "DocumentColorRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -694,7 +694,7 @@ auto ColorPresentationParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "ColorPresentationParams::workDoneToken: not implement yet");
+      "ColorPresentationParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -706,7 +706,7 @@ auto ColorPresentationParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "ColorPresentationParams::partialResultToken: not implement yet");
+      "ColorPresentationParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -763,8 +763,7 @@ auto ColorPresentation::additionalTextEdits(
     repr_->erase("additionalTextEdits");
     return *this;
   }
-  lsp_runtime_error(
-      "ColorPresentation::additionalTextEdits: not implement yet");
+  (*repr_)["additionalTextEdits"] = std::move(additionalTextEdits.value());
   return *this;
 }
 
@@ -818,7 +817,7 @@ auto TextDocumentRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "TextDocumentRegistrationOptions::documentSelector: not implement "
+          "TextDocumentRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -881,7 +880,7 @@ auto FoldingRangeParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("FoldingRangeParams::workDoneToken: not implement yet");
+  lsp_runtime_error("FoldingRangeParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -892,7 +891,7 @@ auto FoldingRangeParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "FoldingRangeParams::partialResultToken: not implement yet");
+      "FoldingRangeParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -944,7 +943,7 @@ auto FoldingRange::kind() const -> std::optional<FoldingRangeKind> {
 
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("FoldingRange::kind: not implement yet");
+  lsp_runtime_error("FoldingRange::kind: not implemented yet");
 }
 
 auto FoldingRange::collapsedText() const -> std::optional<std::string> {
@@ -992,7 +991,7 @@ auto FoldingRange::kind(std::optional<FoldingRangeKind> kind) -> FoldingRange& {
     repr_->erase("kind");
     return *this;
   }
-  lsp_runtime_error("FoldingRange::kind: not implement yet");
+  lsp_runtime_error("FoldingRange::kind: not implemented yet");
   return *this;
 }
 
@@ -1052,7 +1051,7 @@ auto FoldingRangeRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "FoldingRangeRegistrationOptions::documentSelector: not implement "
+          "FoldingRangeRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -1147,7 +1146,7 @@ auto DeclarationParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("DeclarationParams::workDoneToken: not implement yet");
+  lsp_runtime_error("DeclarationParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -1157,7 +1156,8 @@ auto DeclarationParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("DeclarationParams::partialResultToken: not implement yet");
+  lsp_runtime_error(
+      "DeclarationParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -1217,7 +1217,7 @@ auto DeclarationRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "DeclarationRegistrationOptions::documentSelector: not implement "
+          "DeclarationRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -1295,7 +1295,7 @@ auto SelectionRangeParams::textDocument(TextDocumentIdentifier textDocument)
 
 auto SelectionRangeParams::positions(Vector<Position> positions)
     -> SelectionRangeParams& {
-  lsp_runtime_error("SelectionRangeParams::positions: not implement yet");
+  (*repr_)["positions"] = std::move(positions);
   return *this;
 }
 
@@ -1305,7 +1305,7 @@ auto SelectionRangeParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("SelectionRangeParams::workDoneToken: not implement yet");
+  lsp_runtime_error("SelectionRangeParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -1316,7 +1316,7 @@ auto SelectionRangeParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "SelectionRangeParams::partialResultToken: not implement yet");
+      "SelectionRangeParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -1413,8 +1413,8 @@ auto SelectionRangeRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "SelectionRangeRegistrationOptions::documentSelector: not implement "
-          "yet");
+          "SelectionRangeRegistrationOptions::documentSelector: not "
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -1455,7 +1455,7 @@ auto WorkDoneProgressCreateParams::token() const -> ProgressToken {
 
 auto WorkDoneProgressCreateParams::token(ProgressToken token)
     -> WorkDoneProgressCreateParams& {
-  lsp_runtime_error("WorkDoneProgressCreateParams::token: not implement yet");
+  lsp_runtime_error("WorkDoneProgressCreateParams::token: not implemented yet");
   return *this;
 }
 
@@ -1477,7 +1477,7 @@ auto WorkDoneProgressCancelParams::token() const -> ProgressToken {
 
 auto WorkDoneProgressCancelParams::token(ProgressToken token)
     -> WorkDoneProgressCancelParams& {
-  lsp_runtime_error("WorkDoneProgressCancelParams::token: not implement yet");
+  lsp_runtime_error("WorkDoneProgressCancelParams::token: not implemented yet");
   return *this;
 }
 
@@ -1533,7 +1533,7 @@ auto CallHierarchyPrepareParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "CallHierarchyPrepareParams::workDoneToken: not implement yet");
+      "CallHierarchyPrepareParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -1625,7 +1625,7 @@ auto CallHierarchyItem::tags(std::optional<Vector<SymbolTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("CallHierarchyItem::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -1660,7 +1660,7 @@ auto CallHierarchyItem::data(std::optional<LSPAny> data) -> CallHierarchyItem& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("CallHierarchyItem::data: not implement yet");
+  lsp_runtime_error("CallHierarchyItem::data: not implemented yet");
   return *this;
 }
 
@@ -1711,7 +1711,7 @@ auto CallHierarchyRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "CallHierarchyRegistrationOptions::documentSelector: not implement "
+          "CallHierarchyRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -1797,7 +1797,7 @@ auto CallHierarchyIncomingCallsParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "CallHierarchyIncomingCallsParams::workDoneToken: not implement yet");
+      "CallHierarchyIncomingCallsParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -1809,7 +1809,7 @@ auto CallHierarchyIncomingCallsParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "CallHierarchyIncomingCallsParams::partialResultToken: not implement "
+      "CallHierarchyIncomingCallsParams::partialResultToken: not implemented "
       "yet");
   return *this;
 }
@@ -1842,7 +1842,7 @@ auto CallHierarchyIncomingCall::from(CallHierarchyItem from)
 
 auto CallHierarchyIncomingCall::fromRanges(Vector<Range> fromRanges)
     -> CallHierarchyIncomingCall& {
-  lsp_runtime_error("CallHierarchyIncomingCall::fromRanges: not implement yet");
+  (*repr_)["fromRanges"] = std::move(fromRanges);
   return *this;
 }
 
@@ -1898,7 +1898,7 @@ auto CallHierarchyOutgoingCallsParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "CallHierarchyOutgoingCallsParams::workDoneToken: not implement yet");
+      "CallHierarchyOutgoingCallsParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -1910,7 +1910,7 @@ auto CallHierarchyOutgoingCallsParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "CallHierarchyOutgoingCallsParams::partialResultToken: not implement "
+      "CallHierarchyOutgoingCallsParams::partialResultToken: not implemented "
       "yet");
   return *this;
 }
@@ -1943,7 +1943,7 @@ auto CallHierarchyOutgoingCall::to(CallHierarchyItem to)
 
 auto CallHierarchyOutgoingCall::fromRanges(Vector<Range> fromRanges)
     -> CallHierarchyOutgoingCall& {
-  lsp_runtime_error("CallHierarchyOutgoingCall::fromRanges: not implement yet");
+  (*repr_)["fromRanges"] = std::move(fromRanges);
   return *this;
 }
 
@@ -1997,7 +1997,7 @@ auto SemanticTokensParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("SemanticTokensParams::workDoneToken: not implement yet");
+  lsp_runtime_error("SemanticTokensParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -2008,7 +2008,7 @@ auto SemanticTokensParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "SemanticTokensParams::partialResultToken: not implement yet");
+      "SemanticTokensParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -2046,7 +2046,7 @@ auto SemanticTokens::resultId(std::optional<std::string> resultId)
 }
 
 auto SemanticTokens::data(Vector<long> data) -> SemanticTokens& {
-  lsp_runtime_error("SemanticTokens::data: not implement yet");
+  (*repr_)["data"] = std::move(data);
   return *this;
 }
 
@@ -2065,7 +2065,7 @@ auto SemanticTokensPartialResult::data() const -> Vector<long> {
 
 auto SemanticTokensPartialResult::data(Vector<long> data)
     -> SemanticTokensPartialResult& {
-  lsp_runtime_error("SemanticTokensPartialResult::data: not implement yet");
+  (*repr_)["data"] = std::move(data);
   return *this;
 }
 
@@ -2149,8 +2149,8 @@ auto SemanticTokensRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "SemanticTokensRegistrationOptions::documentSelector: not implement "
-          "yet");
+          "SemanticTokensRegistrationOptions::documentSelector: not "
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -2184,7 +2184,7 @@ auto SemanticTokensRegistrationOptions::range(
 
     void operator()(json range) {
       lsp_runtime_error(
-          "SemanticTokensRegistrationOptions::range: not implement yet");
+          "SemanticTokensRegistrationOptions::range: not implemented yet");
     }
   } v{repr_};
 
@@ -2301,7 +2301,7 @@ auto SemanticTokensDeltaParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "SemanticTokensDeltaParams::workDoneToken: not implement yet");
+      "SemanticTokensDeltaParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -2313,7 +2313,7 @@ auto SemanticTokensDeltaParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "SemanticTokensDeltaParams::partialResultToken: not implement yet");
+      "SemanticTokensDeltaParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -2352,7 +2352,7 @@ auto SemanticTokensDelta::resultId(std::optional<std::string> resultId)
 
 auto SemanticTokensDelta::edits(Vector<SemanticTokensEdit> edits)
     -> SemanticTokensDelta& {
-  lsp_runtime_error("SemanticTokensDelta::edits: not implement yet");
+  (*repr_)["edits"] = std::move(edits);
   return *this;
 }
 
@@ -2372,8 +2372,7 @@ auto SemanticTokensDeltaPartialResult::edits() const
 
 auto SemanticTokensDeltaPartialResult::edits(Vector<SemanticTokensEdit> edits)
     -> SemanticTokensDeltaPartialResult& {
-  lsp_runtime_error(
-      "SemanticTokensDeltaPartialResult::edits: not implement yet");
+  (*repr_)["edits"] = std::move(edits);
   return *this;
 }
 
@@ -2441,7 +2440,7 @@ auto SemanticTokensRangeParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "SemanticTokensRangeParams::workDoneToken: not implement yet");
+      "SemanticTokensRangeParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -2453,7 +2452,7 @@ auto SemanticTokensRangeParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "SemanticTokensRangeParams::partialResultToken: not implement yet");
+      "SemanticTokensRangeParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -2604,7 +2603,7 @@ auto LinkedEditingRangeParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "LinkedEditingRangeParams::workDoneToken: not implement yet");
+      "LinkedEditingRangeParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -2632,7 +2631,7 @@ auto LinkedEditingRanges::wordPattern() const -> std::optional<std::string> {
 }
 
 auto LinkedEditingRanges::ranges(Vector<Range> ranges) -> LinkedEditingRanges& {
-  lsp_runtime_error("LinkedEditingRanges::ranges: not implement yet");
+  (*repr_)["ranges"] = std::move(ranges);
   return *this;
 }
 
@@ -2694,7 +2693,7 @@ auto LinkedEditingRangeRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "LinkedEditingRangeRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -2742,7 +2741,7 @@ auto CreateFilesParams::files() const -> Vector<FileCreate> {
 }
 
 auto CreateFilesParams::files(Vector<FileCreate> files) -> CreateFilesParams& {
-  lsp_runtime_error("CreateFilesParams::files: not implement yet");
+  (*repr_)["files"] = std::move(files);
   return *this;
 }
 
@@ -2790,7 +2789,7 @@ auto WorkspaceEdit::changes(
     repr_->erase("changes");
     return *this;
   }
-  lsp_runtime_error("WorkspaceEdit::changes: not implement yet");
+  lsp_runtime_error("WorkspaceEdit::changes: not implemented yet");
   return *this;
 }
 
@@ -2802,7 +2801,7 @@ auto WorkspaceEdit::documentChanges(
     repr_->erase("documentChanges");
     return *this;
   }
-  lsp_runtime_error("WorkspaceEdit::documentChanges: not implement yet");
+  (*repr_)["documentChanges"] = std::move(documentChanges.value());
   return *this;
 }
 
@@ -2813,7 +2812,7 @@ auto WorkspaceEdit::changeAnnotations(
     repr_->erase("changeAnnotations");
     return *this;
   }
-  lsp_runtime_error("WorkspaceEdit::changeAnnotations: not implement yet");
+  lsp_runtime_error("WorkspaceEdit::changeAnnotations: not implemented yet");
   return *this;
 }
 
@@ -2833,8 +2832,7 @@ auto FileOperationRegistrationOptions::filters() const
 
 auto FileOperationRegistrationOptions::filters(
     Vector<FileOperationFilter> filters) -> FileOperationRegistrationOptions& {
-  lsp_runtime_error(
-      "FileOperationRegistrationOptions::filters: not implement yet");
+  (*repr_)["filters"] = std::move(filters);
   return *this;
 }
 
@@ -2852,7 +2850,7 @@ auto RenameFilesParams::files() const -> Vector<FileRename> {
 }
 
 auto RenameFilesParams::files(Vector<FileRename> files) -> RenameFilesParams& {
-  lsp_runtime_error("RenameFilesParams::files: not implement yet");
+  (*repr_)["files"] = std::move(files);
   return *this;
 }
 
@@ -2870,7 +2868,7 @@ auto DeleteFilesParams::files() const -> Vector<FileDelete> {
 }
 
 auto DeleteFilesParams::files(Vector<FileDelete> files) -> DeleteFilesParams& {
-  lsp_runtime_error("DeleteFilesParams::files: not implement yet");
+  (*repr_)["files"] = std::move(files);
   return *this;
 }
 
@@ -2934,7 +2932,7 @@ auto MonikerParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("MonikerParams::workDoneToken: not implement yet");
+  lsp_runtime_error("MonikerParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -2944,7 +2942,7 @@ auto MonikerParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("MonikerParams::partialResultToken: not implement yet");
+  lsp_runtime_error("MonikerParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -2975,7 +2973,7 @@ auto Moniker::identifier() const -> std::string {
 auto Moniker::unique() const -> UniquenessLevel {
   auto& value = (*repr_)["unique"];
 
-  lsp_runtime_error("Moniker::unique: not implement yet");
+  lsp_runtime_error("Moniker::unique: not implemented yet");
 }
 
 auto Moniker::kind() const -> std::optional<MonikerKind> {
@@ -2983,7 +2981,7 @@ auto Moniker::kind() const -> std::optional<MonikerKind> {
 
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("Moniker::kind: not implement yet");
+  lsp_runtime_error("Moniker::kind: not implemented yet");
 }
 
 auto Moniker::scheme(std::string scheme) -> Moniker& {
@@ -2997,7 +2995,7 @@ auto Moniker::identifier(std::string identifier) -> Moniker& {
 }
 
 auto Moniker::unique(UniquenessLevel unique) -> Moniker& {
-  lsp_runtime_error("Moniker::unique: not implement yet");
+  lsp_runtime_error("Moniker::unique: not implemented yet");
   return *this;
 }
 
@@ -3006,7 +3004,7 @@ auto Moniker::kind(std::optional<MonikerKind> kind) -> Moniker& {
     repr_->erase("kind");
     return *this;
   }
-  lsp_runtime_error("Moniker::kind: not implement yet");
+  lsp_runtime_error("Moniker::kind: not implemented yet");
   return *this;
 }
 
@@ -3046,7 +3044,7 @@ auto MonikerRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "MonikerRegistrationOptions::documentSelector: not implement yet");
+          "MonikerRegistrationOptions::documentSelector: not implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -3121,7 +3119,7 @@ auto TypeHierarchyPrepareParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "TypeHierarchyPrepareParams::workDoneToken: not implement yet");
+      "TypeHierarchyPrepareParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -3213,7 +3211,7 @@ auto TypeHierarchyItem::tags(std::optional<Vector<SymbolTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("TypeHierarchyItem::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -3248,7 +3246,7 @@ auto TypeHierarchyItem::data(std::optional<LSPAny> data) -> TypeHierarchyItem& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("TypeHierarchyItem::data: not implement yet");
+  lsp_runtime_error("TypeHierarchyItem::data: not implemented yet");
   return *this;
 }
 
@@ -3299,7 +3297,7 @@ auto TypeHierarchyRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "TypeHierarchyRegistrationOptions::documentSelector: not implement "
+          "TypeHierarchyRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -3385,7 +3383,7 @@ auto TypeHierarchySupertypesParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "TypeHierarchySupertypesParams::workDoneToken: not implement yet");
+      "TypeHierarchySupertypesParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -3397,7 +3395,7 @@ auto TypeHierarchySupertypesParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "TypeHierarchySupertypesParams::partialResultToken: not implement yet");
+      "TypeHierarchySupertypesParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -3453,7 +3451,7 @@ auto TypeHierarchySubtypesParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "TypeHierarchySubtypesParams::workDoneToken: not implement yet");
+      "TypeHierarchySubtypesParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -3465,7 +3463,7 @@ auto TypeHierarchySubtypesParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "TypeHierarchySubtypesParams::partialResultToken: not implement yet");
+      "TypeHierarchySubtypesParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -3530,7 +3528,7 @@ auto InlineValueParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("InlineValueParams::workDoneToken: not implement yet");
+  lsp_runtime_error("InlineValueParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -3590,7 +3588,7 @@ auto InlineValueRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "InlineValueRegistrationOptions::documentSelector: not implement "
+          "InlineValueRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -3662,7 +3660,7 @@ auto InlayHintParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("InlayHintParams::workDoneToken: not implement yet");
+  lsp_runtime_error("InlayHintParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -3762,7 +3760,7 @@ auto InlayHint::label(
     void operator()(std::string label) { (*repr_)["label"] = std::move(label); }
 
     void operator()(Vector<InlayHintLabelPart> label) {
-      lsp_runtime_error("InlayHint::label: not implement yet");
+      (*repr_)["label"] = std::move(label);
     }
   } v{repr_};
 
@@ -3786,7 +3784,7 @@ auto InlayHint::textEdits(std::optional<Vector<TextEdit>> textEdits)
     repr_->erase("textEdits");
     return *this;
   }
-  lsp_runtime_error("InlayHint::textEdits: not implement yet");
+  (*repr_)["textEdits"] = std::move(textEdits.value());
   return *this;
 }
 
@@ -3836,7 +3834,7 @@ auto InlayHint::data(std::optional<LSPAny> data) -> InlayHint& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("InlayHint::data: not implement yet");
+  lsp_runtime_error("InlayHint::data: not implemented yet");
   return *this;
 }
 
@@ -3917,7 +3915,8 @@ auto InlayHintRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "InlayHintRegistrationOptions::documentSelector: not implement yet");
+          "InlayHintRegistrationOptions::documentSelector: not implemented "
+          "yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -4033,7 +4032,7 @@ auto DocumentDiagnosticParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentDiagnosticParams::workDoneToken: not implement yet");
+      "DocumentDiagnosticParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -4045,7 +4044,7 @@ auto DocumentDiagnosticParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentDiagnosticParams::partialResultToken: not implement yet");
+      "DocumentDiagnosticParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -4071,8 +4070,8 @@ auto DocumentDiagnosticReportPartialResult::relatedDocuments(
                                   UnchangedDocumentDiagnosticReport>>
         relatedDocuments) -> DocumentDiagnosticReportPartialResult& {
   lsp_runtime_error(
-      "DocumentDiagnosticReportPartialResult::relatedDocuments: not implement "
-      "yet");
+      "DocumentDiagnosticReportPartialResult::relatedDocuments: not "
+      "implemented yet");
   return *this;
 }
 
@@ -4171,7 +4170,8 @@ auto DiagnosticRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "DiagnosticRegistrationOptions::documentSelector: not implement yet");
+          "DiagnosticRegistrationOptions::documentSelector: not implemented "
+          "yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -4289,8 +4289,7 @@ auto WorkspaceDiagnosticParams::identifier(
 
 auto WorkspaceDiagnosticParams::previousResultIds(
     Vector<PreviousResultId> previousResultIds) -> WorkspaceDiagnosticParams& {
-  lsp_runtime_error(
-      "WorkspaceDiagnosticParams::previousResultIds: not implement yet");
+  (*repr_)["previousResultIds"] = std::move(previousResultIds);
   return *this;
 }
 
@@ -4301,7 +4300,7 @@ auto WorkspaceDiagnosticParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "WorkspaceDiagnosticParams::workDoneToken: not implement yet");
+      "WorkspaceDiagnosticParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -4313,7 +4312,7 @@ auto WorkspaceDiagnosticParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "WorkspaceDiagnosticParams::partialResultToken: not implement yet");
+      "WorkspaceDiagnosticParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -4334,7 +4333,7 @@ auto WorkspaceDiagnosticReport::items() const
 auto WorkspaceDiagnosticReport::items(
     Vector<WorkspaceDocumentDiagnosticReport> items)
     -> WorkspaceDiagnosticReport& {
-  lsp_runtime_error("WorkspaceDiagnosticReport::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -4355,8 +4354,7 @@ auto WorkspaceDiagnosticReportPartialResult::items() const
 auto WorkspaceDiagnosticReportPartialResult::items(
     Vector<WorkspaceDocumentDiagnosticReport> items)
     -> WorkspaceDiagnosticReportPartialResult& {
-  lsp_runtime_error(
-      "WorkspaceDiagnosticReportPartialResult::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -4391,8 +4389,7 @@ auto DidOpenNotebookDocumentParams::notebookDocument(
 auto DidOpenNotebookDocumentParams::cellTextDocuments(
     Vector<TextDocumentItem> cellTextDocuments)
     -> DidOpenNotebookDocumentParams& {
-  lsp_runtime_error(
-      "DidOpenNotebookDocumentParams::cellTextDocuments: not implement yet");
+  (*repr_)["cellTextDocuments"] = std::move(cellTextDocuments);
   return *this;
 }
 
@@ -4438,9 +4435,7 @@ auto NotebookDocumentSyncRegistrationOptions::notebookSelector(
     Vector<std::variant<NotebookDocumentFilterWithNotebook,
                         NotebookDocumentFilterWithCells>>
         notebookSelector) -> NotebookDocumentSyncRegistrationOptions& {
-  lsp_runtime_error(
-      "NotebookDocumentSyncRegistrationOptions::notebookSelector: not "
-      "implement yet");
+  (*repr_)["notebookSelector"] = std::move(notebookSelector);
   return *this;
 }
 
@@ -4550,8 +4545,7 @@ auto DidCloseNotebookDocumentParams::notebookDocument(
 auto DidCloseNotebookDocumentParams::cellTextDocuments(
     Vector<TextDocumentIdentifier> cellTextDocuments)
     -> DidCloseNotebookDocumentParams& {
-  lsp_runtime_error(
-      "DidCloseNotebookDocumentParams::cellTextDocuments: not implement yet");
+  (*repr_)["cellTextDocuments"] = std::move(cellTextDocuments);
   return *this;
 }
 
@@ -4618,7 +4612,8 @@ auto InlineCompletionParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("InlineCompletionParams::workDoneToken: not implement yet");
+  lsp_runtime_error(
+      "InlineCompletionParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -4637,7 +4632,7 @@ auto InlineCompletionList::items() const -> Vector<InlineCompletionItem> {
 
 auto InlineCompletionList::items(Vector<InlineCompletionItem> items)
     -> InlineCompletionList& {
-  lsp_runtime_error("InlineCompletionList::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -4793,7 +4788,7 @@ auto InlineCompletionRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "InlineCompletionRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -4883,8 +4878,7 @@ auto TextDocumentContentRegistrationOptions::id() const
 
 auto TextDocumentContentRegistrationOptions::schemes(
     Vector<std::string> schemes) -> TextDocumentContentRegistrationOptions& {
-  lsp_runtime_error(
-      "TextDocumentContentRegistrationOptions::schemes: not implement yet");
+  (*repr_)["schemes"] = std::move(schemes);
   return *this;
 }
 
@@ -4933,7 +4927,7 @@ auto RegistrationParams::registrations() const -> Vector<Registration> {
 
 auto RegistrationParams::registrations(Vector<Registration> registrations)
     -> RegistrationParams& {
-  lsp_runtime_error("RegistrationParams::registrations: not implement yet");
+  (*repr_)["registrations"] = std::move(registrations);
   return *this;
 }
 
@@ -4952,8 +4946,7 @@ auto UnregistrationParams::unregisterations() const -> Vector<Unregistration> {
 
 auto UnregistrationParams::unregisterations(
     Vector<Unregistration> unregisterations) -> UnregistrationParams& {
-  lsp_runtime_error(
-      "UnregistrationParams::unregisterations: not implement yet");
+  (*repr_)["unregisterations"] = std::move(unregisterations);
   return *this;
 }
 
@@ -5037,7 +5030,7 @@ auto InitializeParams::trace() const -> std::optional<TraceValue> {
 
   auto& value = (*repr_)["trace"];
 
-  lsp_runtime_error("InitializeParams::trace: not implement yet");
+  lsp_runtime_error("InitializeParams::trace: not implemented yet");
 }
 
 auto InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
@@ -5161,7 +5154,7 @@ auto InitializeParams::initializationOptions(
     return *this;
   }
   lsp_runtime_error(
-      "InitializeParams::initializationOptions: not implement yet");
+      "InitializeParams::initializationOptions: not implemented yet");
   return *this;
 }
 
@@ -5171,7 +5164,7 @@ auto InitializeParams::trace(std::optional<TraceValue> trace)
     repr_->erase("trace");
     return *this;
   }
-  lsp_runtime_error("InitializeParams::trace: not implement yet");
+  lsp_runtime_error("InitializeParams::trace: not implemented yet");
   return *this;
 }
 
@@ -5181,7 +5174,7 @@ auto InitializeParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("InitializeParams::workDoneToken: not implement yet");
+  lsp_runtime_error("InitializeParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -5197,8 +5190,7 @@ auto InitializeParams::workspaceFolders(
     json* repr_;
 
     void operator()(Vector<WorkspaceFolder> workspaceFolders) {
-      lsp_runtime_error(
-          "InitializeParams::workspaceFolders: not implement yet");
+      (*repr_)["workspaceFolders"] = std::move(workspaceFolders);
     }
 
     void operator()(std::nullptr_t workspaceFolders) {
@@ -5287,7 +5279,7 @@ auto DidChangeConfigurationParams::settings() const -> LSPAny {
 auto DidChangeConfigurationParams::settings(LSPAny settings)
     -> DidChangeConfigurationParams& {
   lsp_runtime_error(
-      "DidChangeConfigurationParams::settings: not implement yet");
+      "DidChangeConfigurationParams::settings: not implemented yet");
   return *this;
 }
 
@@ -5325,9 +5317,7 @@ auto DidChangeConfigurationRegistrationOptions::section(
     }
 
     void operator()(Vector<std::string> section) {
-      lsp_runtime_error(
-          "DidChangeConfigurationRegistrationOptions::section: not implement "
-          "yet");
+      (*repr_)["section"] = std::move(section);
     }
   } v{repr_};
 
@@ -5417,7 +5407,7 @@ auto ShowMessageRequestParams::actions(
     repr_->erase("actions");
     return *this;
   }
-  lsp_runtime_error("ShowMessageRequestParams::actions: not implement yet");
+  (*repr_)["actions"] = std::move(actions.value());
   return *this;
 }
 
@@ -5521,8 +5511,7 @@ auto DidChangeTextDocumentParams::textDocument(
 auto DidChangeTextDocumentParams::contentChanges(
     Vector<TextDocumentContentChangeEvent> contentChanges)
     -> DidChangeTextDocumentParams& {
-  lsp_runtime_error(
-      "DidChangeTextDocumentParams::contentChanges: not implement yet");
+  (*repr_)["contentChanges"] = std::move(contentChanges);
   return *this;
 }
 
@@ -5566,7 +5555,7 @@ auto TextDocumentChangeRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "TextDocumentChangeRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -5673,7 +5662,7 @@ auto TextDocumentSaveRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "TextDocumentSaveRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -5774,7 +5763,7 @@ auto DidChangeWatchedFilesParams::changes() const -> Vector<FileEvent> {
 
 auto DidChangeWatchedFilesParams::changes(Vector<FileEvent> changes)
     -> DidChangeWatchedFilesParams& {
-  lsp_runtime_error("DidChangeWatchedFilesParams::changes: not implement yet");
+  (*repr_)["changes"] = std::move(changes);
   return *this;
 }
 
@@ -5795,8 +5784,7 @@ auto DidChangeWatchedFilesRegistrationOptions::watchers() const
 auto DidChangeWatchedFilesRegistrationOptions::watchers(
     Vector<FileSystemWatcher> watchers)
     -> DidChangeWatchedFilesRegistrationOptions& {
-  lsp_runtime_error(
-      "DidChangeWatchedFilesRegistrationOptions::watchers: not implement yet");
+  (*repr_)["watchers"] = std::move(watchers);
   return *this;
 }
 
@@ -5850,7 +5838,7 @@ auto PublishDiagnosticsParams::version(std::optional<int> version)
 
 auto PublishDiagnosticsParams::diagnostics(Vector<Diagnostic> diagnostics)
     -> PublishDiagnosticsParams& {
-  lsp_runtime_error("PublishDiagnosticsParams::diagnostics: not implement yet");
+  (*repr_)["diagnostics"] = std::move(diagnostics);
   return *this;
 }
 
@@ -5933,7 +5921,7 @@ auto CompletionParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("CompletionParams::workDoneToken: not implement yet");
+  lsp_runtime_error("CompletionParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -5943,7 +5931,8 @@ auto CompletionParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("CompletionParams::partialResultToken: not implement yet");
+  lsp_runtime_error(
+      "CompletionParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -6168,7 +6157,7 @@ auto CompletionItem::tags(std::optional<Vector<CompletionItemTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("CompletionItem::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -6316,7 +6305,7 @@ auto CompletionItem::additionalTextEdits(
     repr_->erase("additionalTextEdits");
     return *this;
   }
-  lsp_runtime_error("CompletionItem::additionalTextEdits: not implement yet");
+  (*repr_)["additionalTextEdits"] = std::move(additionalTextEdits.value());
   return *this;
 }
 
@@ -6326,7 +6315,7 @@ auto CompletionItem::commitCharacters(
     repr_->erase("commitCharacters");
     return *this;
   }
-  lsp_runtime_error("CompletionItem::commitCharacters: not implement yet");
+  (*repr_)["commitCharacters"] = std::move(commitCharacters.value());
   return *this;
 }
 
@@ -6345,7 +6334,7 @@ auto CompletionItem::data(std::optional<LSPAny> data) -> CompletionItem& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("CompletionItem::data: not implement yet");
+  lsp_runtime_error("CompletionItem::data: not implemented yet");
   return *this;
 }
 
@@ -6415,7 +6404,7 @@ auto CompletionList::applyKind(
 }
 
 auto CompletionList::items(Vector<CompletionItem> items) -> CompletionList& {
-  lsp_runtime_error("CompletionList::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -6495,7 +6484,8 @@ auto CompletionRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "CompletionRegistrationOptions::documentSelector: not implement yet");
+          "CompletionRegistrationOptions::documentSelector: not implemented "
+          "yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -6515,8 +6505,7 @@ auto CompletionRegistrationOptions::triggerCharacters(
     repr_->erase("triggerCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "CompletionRegistrationOptions::triggerCharacters: not implement yet");
+  (*repr_)["triggerCharacters"] = std::move(triggerCharacters.value());
   return *this;
 }
 
@@ -6527,8 +6516,7 @@ auto CompletionRegistrationOptions::allCommitCharacters(
     repr_->erase("allCommitCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "CompletionRegistrationOptions::allCommitCharacters: not implement yet");
+  (*repr_)["allCommitCharacters"] = std::move(allCommitCharacters.value());
   return *this;
 }
 
@@ -6611,7 +6599,7 @@ auto HoverParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("HoverParams::workDoneToken: not implement yet");
+  lsp_runtime_error("HoverParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -6649,11 +6637,11 @@ auto Hover::contents(
     void operator()(MarkupContent contents) { (*repr_)["contents"] = contents; }
 
     void operator()(MarkedString contents) {
-      lsp_runtime_error("Hover::contents: not implement yet");
+      lsp_runtime_error("Hover::contents: not implemented yet");
     }
 
     void operator()(Vector<MarkedString> contents) {
-      lsp_runtime_error("Hover::contents: not implement yet");
+      (*repr_)["contents"] = std::move(contents);
     }
   } v{repr_};
 
@@ -6706,7 +6694,7 @@ auto HoverRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "HoverRegistrationOptions::documentSelector: not implement yet");
+          "HoverRegistrationOptions::documentSelector: not implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -6797,7 +6785,7 @@ auto SignatureHelpParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("SignatureHelpParams::workDoneToken: not implement yet");
+  lsp_runtime_error("SignatureHelpParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -6839,7 +6827,7 @@ auto SignatureHelp::activeParameter() const
 
 auto SignatureHelp::signatures(Vector<SignatureInformation> signatures)
     -> SignatureHelp& {
-  lsp_runtime_error("SignatureHelp::signatures: not implement yet");
+  (*repr_)["signatures"] = std::move(signatures);
   return *this;
 }
 
@@ -6934,7 +6922,7 @@ auto SignatureHelpRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "SignatureHelpRegistrationOptions::documentSelector: not implement "
+          "SignatureHelpRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -6955,8 +6943,7 @@ auto SignatureHelpRegistrationOptions::triggerCharacters(
     repr_->erase("triggerCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "SignatureHelpRegistrationOptions::triggerCharacters: not implement yet");
+  (*repr_)["triggerCharacters"] = std::move(triggerCharacters.value());
   return *this;
 }
 
@@ -6967,9 +6954,7 @@ auto SignatureHelpRegistrationOptions::retriggerCharacters(
     repr_->erase("retriggerCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "SignatureHelpRegistrationOptions::retriggerCharacters: not implement "
-      "yet");
+  (*repr_)["retriggerCharacters"] = std::move(retriggerCharacters.value());
   return *this;
 }
 
@@ -7044,7 +7029,7 @@ auto DefinitionParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("DefinitionParams::workDoneToken: not implement yet");
+  lsp_runtime_error("DefinitionParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -7054,7 +7039,8 @@ auto DefinitionParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("DefinitionParams::partialResultToken: not implement yet");
+  lsp_runtime_error(
+      "DefinitionParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -7094,7 +7080,8 @@ auto DefinitionRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "DefinitionRegistrationOptions::documentSelector: not implement yet");
+          "DefinitionRegistrationOptions::documentSelector: not implemented "
+          "yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -7190,7 +7177,7 @@ auto ReferenceParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("ReferenceParams::workDoneToken: not implement yet");
+  lsp_runtime_error("ReferenceParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -7200,7 +7187,7 @@ auto ReferenceParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("ReferenceParams::partialResultToken: not implement yet");
+  lsp_runtime_error("ReferenceParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -7240,7 +7227,8 @@ auto ReferenceRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "ReferenceRegistrationOptions::documentSelector: not implement yet");
+          "ReferenceRegistrationOptions::documentSelector: not implemented "
+          "yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -7327,7 +7315,7 @@ auto DocumentHighlightParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentHighlightParams::workDoneToken: not implement yet");
+      "DocumentHighlightParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -7339,7 +7327,7 @@ auto DocumentHighlightParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentHighlightParams::partialResultToken: not implement yet");
+      "DocumentHighlightParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -7415,7 +7403,7 @@ auto DocumentHighlightRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "DocumentHighlightRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -7489,7 +7477,7 @@ auto DocumentSymbolParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("DocumentSymbolParams::workDoneToken: not implement yet");
+  lsp_runtime_error("DocumentSymbolParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -7500,7 +7488,7 @@ auto DocumentSymbolParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentSymbolParams::partialResultToken: not implement yet");
+      "DocumentSymbolParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -7592,7 +7580,7 @@ auto SymbolInformation::tags(std::optional<Vector<SymbolTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("SymbolInformation::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -7705,7 +7693,7 @@ auto DocumentSymbol::tags(std::optional<Vector<SymbolTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("DocumentSymbol::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -7735,7 +7723,7 @@ auto DocumentSymbol::children(std::optional<Vector<DocumentSymbol>> children)
     repr_->erase("children");
     return *this;
   }
-  lsp_runtime_error("DocumentSymbol::children: not implement yet");
+  (*repr_)["children"] = std::move(children.value());
   return *this;
 }
 
@@ -7786,8 +7774,8 @@ auto DocumentSymbolRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "DocumentSymbolRegistrationOptions::documentSelector: not implement "
-          "yet");
+          "DocumentSymbolRegistrationOptions::documentSelector: not "
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -7894,7 +7882,7 @@ auto CodeActionParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("CodeActionParams::workDoneToken: not implement yet");
+  lsp_runtime_error("CodeActionParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -7904,7 +7892,8 @@ auto CodeActionParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("CodeActionParams::partialResultToken: not implement yet");
+  lsp_runtime_error(
+      "CodeActionParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -7974,7 +7963,7 @@ auto Command::arguments(std::optional<Vector<LSPAny>> arguments) -> Command& {
     repr_->erase("arguments");
     return *this;
   }
-  lsp_runtime_error("Command::arguments: not implement yet");
+  (*repr_)["arguments"] = std::move(arguments.value());
   return *this;
 }
 
@@ -7997,7 +7986,7 @@ auto CodeAction::kind() const -> std::optional<CodeActionKind> {
 
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("CodeAction::kind: not implement yet");
+  lsp_runtime_error("CodeAction::kind: not implemented yet");
 }
 
 auto CodeAction::diagnostics() const -> std::optional<Vector<Diagnostic>> {
@@ -8071,7 +8060,7 @@ auto CodeAction::kind(std::optional<CodeActionKind> kind) -> CodeAction& {
     repr_->erase("kind");
     return *this;
   }
-  lsp_runtime_error("CodeAction::kind: not implement yet");
+  lsp_runtime_error("CodeAction::kind: not implemented yet");
   return *this;
 }
 
@@ -8081,7 +8070,7 @@ auto CodeAction::diagnostics(std::optional<Vector<Diagnostic>> diagnostics)
     repr_->erase("diagnostics");
     return *this;
   }
-  lsp_runtime_error("CodeAction::diagnostics: not implement yet");
+  (*repr_)["diagnostics"] = std::move(diagnostics.value());
   return *this;
 }
 
@@ -8127,7 +8116,7 @@ auto CodeAction::data(std::optional<LSPAny> data) -> CodeAction& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("CodeAction::data: not implement yet");
+  lsp_runtime_error("CodeAction::data: not implemented yet");
   return *this;
 }
 
@@ -8137,7 +8126,7 @@ auto CodeAction::tags(std::optional<Vector<CodeActionTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("CodeAction::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -8208,7 +8197,8 @@ auto CodeActionRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "CodeActionRegistrationOptions::documentSelector: not implement yet");
+          "CodeActionRegistrationOptions::documentSelector: not implemented "
+          "yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -8228,8 +8218,7 @@ auto CodeActionRegistrationOptions::codeActionKinds(
     repr_->erase("codeActionKinds");
     return *this;
   }
-  lsp_runtime_error(
-      "CodeActionRegistrationOptions::codeActionKinds: not implement yet");
+  (*repr_)["codeActionKinds"] = std::move(codeActionKinds.value());
   return *this;
 }
 
@@ -8240,8 +8229,7 @@ auto CodeActionRegistrationOptions::documentation(
     repr_->erase("documentation");
     return *this;
   }
-  lsp_runtime_error(
-      "CodeActionRegistrationOptions::documentation: not implement yet");
+  (*repr_)["documentation"] = std::move(documentation.value());
   return *this;
 }
 
@@ -8316,7 +8304,8 @@ auto WorkspaceSymbolParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("WorkspaceSymbolParams::workDoneToken: not implement yet");
+  lsp_runtime_error(
+      "WorkspaceSymbolParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -8327,7 +8316,7 @@ auto WorkspaceSymbolParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "WorkspaceSymbolParams::partialResultToken: not implement yet");
+      "WorkspaceSymbolParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -8414,7 +8403,7 @@ auto WorkspaceSymbol::data(std::optional<LSPAny> data) -> WorkspaceSymbol& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("WorkspaceSymbol::data: not implement yet");
+  lsp_runtime_error("WorkspaceSymbol::data: not implemented yet");
   return *this;
 }
 
@@ -8434,7 +8423,7 @@ auto WorkspaceSymbol::tags(std::optional<Vector<SymbolTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("WorkspaceSymbol::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -8546,7 +8535,7 @@ auto CodeLensParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("CodeLensParams::workDoneToken: not implement yet");
+  lsp_runtime_error("CodeLensParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -8556,7 +8545,7 @@ auto CodeLensParams::partialResultToken(
     repr_->erase("partialResultToken");
     return *this;
   }
-  lsp_runtime_error("CodeLensParams::partialResultToken: not implement yet");
+  lsp_runtime_error("CodeLensParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -8608,7 +8597,7 @@ auto CodeLens::data(std::optional<LSPAny> data) -> CodeLens& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("CodeLens::data: not implement yet");
+  lsp_runtime_error("CodeLens::data: not implemented yet");
   return *this;
 }
 
@@ -8659,7 +8648,7 @@ auto CodeLensRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "CodeLensRegistrationOptions::documentSelector: not implement yet");
+          "CodeLensRegistrationOptions::documentSelector: not implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -8741,7 +8730,7 @@ auto DocumentLinkParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("DocumentLinkParams::workDoneToken: not implement yet");
+  lsp_runtime_error("DocumentLinkParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -8752,7 +8741,7 @@ auto DocumentLinkParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentLinkParams::partialResultToken: not implement yet");
+      "DocumentLinkParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -8826,7 +8815,7 @@ auto DocumentLink::data(std::optional<LSPAny> data) -> DocumentLink& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("DocumentLink::data: not implement yet");
+  lsp_runtime_error("DocumentLink::data: not implemented yet");
   return *this;
 }
 
@@ -8877,7 +8866,7 @@ auto DocumentLinkRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "DocumentLinkRegistrationOptions::documentSelector: not implement "
+          "DocumentLinkRegistrationOptions::documentSelector: not implemented "
           "yet");
     }
 
@@ -8962,7 +8951,7 @@ auto DocumentFormattingParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentFormattingParams::workDoneToken: not implement yet");
+      "DocumentFormattingParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -9003,7 +8992,7 @@ auto DocumentFormattingRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "DocumentFormattingRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -9093,7 +9082,7 @@ auto DocumentRangeFormattingParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentRangeFormattingParams::workDoneToken: not implement yet");
+      "DocumentRangeFormattingParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -9145,7 +9134,7 @@ auto DocumentRangeFormattingRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "DocumentRangeFormattingRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -9229,8 +9218,7 @@ auto DocumentRangesFormattingParams::textDocument(
 
 auto DocumentRangesFormattingParams::ranges(Vector<Range> ranges)
     -> DocumentRangesFormattingParams& {
-  lsp_runtime_error(
-      "DocumentRangesFormattingParams::ranges: not implement yet");
+  (*repr_)["ranges"] = std::move(ranges);
   return *this;
 }
 
@@ -9248,7 +9236,7 @@ auto DocumentRangesFormattingParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error(
-      "DocumentRangesFormattingParams::workDoneToken: not implement yet");
+      "DocumentRangesFormattingParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -9358,7 +9346,7 @@ auto DocumentOnTypeFormattingRegistrationOptions::documentSelector(
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
           "DocumentOnTypeFormattingRegistrationOptions::documentSelector: not "
-          "implement yet");
+          "implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -9385,9 +9373,7 @@ auto DocumentOnTypeFormattingRegistrationOptions::moreTriggerCharacter(
     repr_->erase("moreTriggerCharacter");
     return *this;
   }
-  lsp_runtime_error(
-      "DocumentOnTypeFormattingRegistrationOptions::moreTriggerCharacter: not "
-      "implement yet");
+  (*repr_)["moreTriggerCharacter"] = std::move(moreTriggerCharacter.value());
   return *this;
 }
 
@@ -9453,7 +9439,7 @@ auto RenameParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("RenameParams::workDoneToken: not implement yet");
+  lsp_runtime_error("RenameParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -9503,7 +9489,7 @@ auto RenameRegistrationOptions::documentSelector(
 
     void operator()(DocumentSelector documentSelector) {
       lsp_runtime_error(
-          "RenameRegistrationOptions::documentSelector: not implement yet");
+          "RenameRegistrationOptions::documentSelector: not implemented yet");
     }
 
     void operator()(std::nullptr_t documentSelector) {
@@ -9585,7 +9571,7 @@ auto PrepareRenameParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("PrepareRenameParams::workDoneToken: not implement yet");
+  lsp_runtime_error("PrepareRenameParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -9637,7 +9623,7 @@ auto ExecuteCommandParams::arguments(std::optional<Vector<LSPAny>> arguments)
     repr_->erase("arguments");
     return *this;
   }
-  lsp_runtime_error("ExecuteCommandParams::arguments: not implement yet");
+  (*repr_)["arguments"] = std::move(arguments.value());
   return *this;
 }
 
@@ -9647,7 +9633,7 @@ auto ExecuteCommandParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("ExecuteCommandParams::workDoneToken: not implement yet");
+  lsp_runtime_error("ExecuteCommandParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -9678,8 +9664,7 @@ auto ExecuteCommandRegistrationOptions::workDoneProgress() const
 
 auto ExecuteCommandRegistrationOptions::commands(Vector<std::string> commands)
     -> ExecuteCommandRegistrationOptions& {
-  lsp_runtime_error(
-      "ExecuteCommandRegistrationOptions::commands: not implement yet");
+  (*repr_)["commands"] = std::move(commands);
   return *this;
 }
 
@@ -9868,7 +9853,7 @@ auto WorkDoneProgressBegin::percentage() const -> std::optional<long> {
 }
 
 auto WorkDoneProgressBegin::kind(std::string kind) -> WorkDoneProgressBegin& {
-  lsp_runtime_error("WorkDoneProgressBegin::kind: not implement yet");
+  lsp_runtime_error("WorkDoneProgressBegin::kind: not implemented yet");
   return *this;
 }
 
@@ -9953,7 +9938,7 @@ auto WorkDoneProgressReport::percentage() const -> std::optional<long> {
 }
 
 auto WorkDoneProgressReport::kind(std::string kind) -> WorkDoneProgressReport& {
-  lsp_runtime_error("WorkDoneProgressReport::kind: not implement yet");
+  lsp_runtime_error("WorkDoneProgressReport::kind: not implemented yet");
   return *this;
 }
 
@@ -10013,7 +9998,7 @@ auto WorkDoneProgressEnd::message() const -> std::optional<std::string> {
 }
 
 auto WorkDoneProgressEnd::kind(std::string kind) -> WorkDoneProgressEnd& {
-  lsp_runtime_error("WorkDoneProgressEnd::kind: not implement yet");
+  lsp_runtime_error("WorkDoneProgressEnd::kind: not implemented yet");
   return *this;
 }
 
@@ -10036,11 +10021,11 @@ SetTraceParams::operator bool() const {
 auto SetTraceParams::value() const -> TraceValue {
   auto& value = (*repr_)["value"];
 
-  lsp_runtime_error("SetTraceParams::value: not implement yet");
+  lsp_runtime_error("SetTraceParams::value: not implemented yet");
 }
 
 auto SetTraceParams::value(TraceValue value) -> SetTraceParams& {
-  lsp_runtime_error("SetTraceParams::value: not implement yet");
+  lsp_runtime_error("SetTraceParams::value: not implemented yet");
   return *this;
 }
 
@@ -10138,12 +10123,12 @@ auto ProgressParams::value() const -> LSPAny {
 }
 
 auto ProgressParams::token(ProgressToken token) -> ProgressParams& {
-  lsp_runtime_error("ProgressParams::token: not implement yet");
+  lsp_runtime_error("ProgressParams::token: not implemented yet");
   return *this;
 }
 
 auto ProgressParams::value(LSPAny value) -> ProgressParams& {
-  lsp_runtime_error("ProgressParams::value: not implement yet");
+  lsp_runtime_error("ProgressParams::value: not implemented yet");
   return *this;
 }
 
@@ -10203,7 +10188,8 @@ auto WorkDoneProgressParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("WorkDoneProgressParams::workDoneToken: not implement yet");
+  lsp_runtime_error(
+      "WorkDoneProgressParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -10232,7 +10218,7 @@ auto PartialResultParams::partialResultToken(
     return *this;
   }
   lsp_runtime_error(
-      "PartialResultParams::partialResultToken: not implement yet");
+      "PartialResultParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -10425,13 +10411,13 @@ auto WorkspaceFoldersChangeEvent::removed() const -> Vector<WorkspaceFolder> {
 
 auto WorkspaceFoldersChangeEvent::added(Vector<WorkspaceFolder> added)
     -> WorkspaceFoldersChangeEvent& {
-  lsp_runtime_error("WorkspaceFoldersChangeEvent::added: not implement yet");
+  (*repr_)["added"] = std::move(added);
   return *this;
 }
 
 auto WorkspaceFoldersChangeEvent::removed(Vector<WorkspaceFolder> removed)
     -> WorkspaceFoldersChangeEvent& {
-  lsp_runtime_error("WorkspaceFoldersChangeEvent::removed: not implement yet");
+  (*repr_)["removed"] = std::move(removed);
   return *this;
 }
 
@@ -10785,7 +10771,7 @@ auto SemanticTokensOptions::range(std::optional<std::variant<bool, json>> range)
     void operator()(bool range) { (*repr_)["range"] = std::move(range); }
 
     void operator()(json range) {
-      lsp_runtime_error("SemanticTokensOptions::range: not implement yet");
+      lsp_runtime_error("SemanticTokensOptions::range: not implemented yet");
     }
   } v{repr_};
 
@@ -10873,7 +10859,7 @@ auto SemanticTokensEdit::data(std::optional<Vector<long>> data)
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("SemanticTokensEdit::data: not implement yet");
+  (*repr_)["data"] = std::move(data.value());
   return *this;
 }
 
@@ -10954,7 +10940,7 @@ auto TextDocumentEdit::textDocument(
 auto TextDocumentEdit::edits(
     Vector<std::variant<TextEdit, AnnotatedTextEdit, SnippetTextEdit>> edits)
     -> TextDocumentEdit& {
-  lsp_runtime_error("TextDocumentEdit::edits: not implement yet");
+  (*repr_)["edits"] = std::move(edits);
   return *this;
 }
 
@@ -11002,7 +10988,7 @@ auto CreateFile::annotationId() const
 }
 
 auto CreateFile::kind(std::string kind) -> CreateFile& {
-  lsp_runtime_error("CreateFile::kind: not implement yet");
+  lsp_runtime_error("CreateFile::kind: not implemented yet");
   return *this;
 }
 
@@ -11027,7 +11013,7 @@ auto CreateFile::annotationId(
     repr_->erase("annotationId");
     return *this;
   }
-  lsp_runtime_error("CreateFile::annotationId: not implement yet");
+  lsp_runtime_error("CreateFile::annotationId: not implemented yet");
   return *this;
 }
 
@@ -11084,7 +11070,7 @@ auto RenameFile::annotationId() const
 }
 
 auto RenameFile::kind(std::string kind) -> RenameFile& {
-  lsp_runtime_error("RenameFile::kind: not implement yet");
+  lsp_runtime_error("RenameFile::kind: not implemented yet");
   return *this;
 }
 
@@ -11114,7 +11100,7 @@ auto RenameFile::annotationId(
     repr_->erase("annotationId");
     return *this;
   }
-  lsp_runtime_error("RenameFile::annotationId: not implement yet");
+  lsp_runtime_error("RenameFile::annotationId: not implemented yet");
   return *this;
 }
 
@@ -11162,7 +11148,7 @@ auto DeleteFile::annotationId() const
 }
 
 auto DeleteFile::kind(std::string kind) -> DeleteFile& {
-  lsp_runtime_error("DeleteFile::kind: not implement yet");
+  lsp_runtime_error("DeleteFile::kind: not implemented yet");
   return *this;
 }
 
@@ -11187,7 +11173,7 @@ auto DeleteFile::annotationId(
     repr_->erase("annotationId");
     return *this;
   }
-  lsp_runtime_error("DeleteFile::annotationId: not implement yet");
+  lsp_runtime_error("DeleteFile::annotationId: not implemented yet");
   return *this;
 }
 
@@ -11673,7 +11659,7 @@ MarkupContent::operator bool() const {
 auto MarkupContent::kind() const -> MarkupKind {
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("MarkupContent::kind: not implement yet");
+  lsp_runtime_error("MarkupContent::kind: not implemented yet");
 }
 
 auto MarkupContent::value() const -> std::string {
@@ -11685,7 +11671,7 @@ auto MarkupContent::value() const -> std::string {
 }
 
 auto MarkupContent::kind(MarkupKind kind) -> MarkupContent& {
-  lsp_runtime_error("MarkupContent::kind: not implement yet");
+  lsp_runtime_error("MarkupContent::kind: not implemented yet");
   return *this;
 }
 
@@ -11797,7 +11783,7 @@ auto RelatedFullDocumentDiagnosticReport::relatedDocuments(
     return *this;
   }
   lsp_runtime_error(
-      "RelatedFullDocumentDiagnosticReport::relatedDocuments: not implement "
+      "RelatedFullDocumentDiagnosticReport::relatedDocuments: not implemented "
       "yet");
   return *this;
 }
@@ -11805,7 +11791,7 @@ auto RelatedFullDocumentDiagnosticReport::relatedDocuments(
 auto RelatedFullDocumentDiagnosticReport::kind(std::string kind)
     -> RelatedFullDocumentDiagnosticReport& {
   lsp_runtime_error(
-      "RelatedFullDocumentDiagnosticReport::kind: not implement yet");
+      "RelatedFullDocumentDiagnosticReport::kind: not implemented yet");
   return *this;
 }
 
@@ -11822,8 +11808,7 @@ auto RelatedFullDocumentDiagnosticReport::resultId(
 
 auto RelatedFullDocumentDiagnosticReport::items(Vector<Diagnostic> items)
     -> RelatedFullDocumentDiagnosticReport& {
-  lsp_runtime_error(
-      "RelatedFullDocumentDiagnosticReport::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -11876,14 +11861,14 @@ auto RelatedUnchangedDocumentDiagnosticReport::relatedDocuments(
   }
   lsp_runtime_error(
       "RelatedUnchangedDocumentDiagnosticReport::relatedDocuments: not "
-      "implement yet");
+      "implemented yet");
   return *this;
 }
 
 auto RelatedUnchangedDocumentDiagnosticReport::kind(std::string kind)
     -> RelatedUnchangedDocumentDiagnosticReport& {
   lsp_runtime_error(
-      "RelatedUnchangedDocumentDiagnosticReport::kind: not implement yet");
+      "RelatedUnchangedDocumentDiagnosticReport::kind: not implemented yet");
   return *this;
 }
 
@@ -11929,7 +11914,7 @@ auto FullDocumentDiagnosticReport::items() const -> Vector<Diagnostic> {
 
 auto FullDocumentDiagnosticReport::kind(std::string kind)
     -> FullDocumentDiagnosticReport& {
-  lsp_runtime_error("FullDocumentDiagnosticReport::kind: not implement yet");
+  lsp_runtime_error("FullDocumentDiagnosticReport::kind: not implemented yet");
   return *this;
 }
 
@@ -11945,7 +11930,7 @@ auto FullDocumentDiagnosticReport::resultId(std::optional<std::string> resultId)
 
 auto FullDocumentDiagnosticReport::items(Vector<Diagnostic> items)
     -> FullDocumentDiagnosticReport& {
-  lsp_runtime_error("FullDocumentDiagnosticReport::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -11976,7 +11961,7 @@ auto UnchangedDocumentDiagnosticReport::resultId() const -> std::string {
 auto UnchangedDocumentDiagnosticReport::kind(std::string kind)
     -> UnchangedDocumentDiagnosticReport& {
   lsp_runtime_error(
-      "UnchangedDocumentDiagnosticReport::kind: not implement yet");
+      "UnchangedDocumentDiagnosticReport::kind: not implemented yet");
   return *this;
 }
 
@@ -12165,12 +12150,12 @@ auto NotebookDocument::metadata(std::optional<LSPObject> metadata)
     repr_->erase("metadata");
     return *this;
   }
-  lsp_runtime_error("NotebookDocument::metadata: not implement yet");
+  lsp_runtime_error("NotebookDocument::metadata: not implemented yet");
   return *this;
 }
 
 auto NotebookDocument::cells(Vector<NotebookCell> cells) -> NotebookDocument& {
-  lsp_runtime_error("NotebookDocument::cells: not implement yet");
+  (*repr_)["cells"] = std::move(cells);
   return *this;
 }
 
@@ -12194,7 +12179,7 @@ auto TextDocumentItem::uri() const -> std::string {
 auto TextDocumentItem::languageId() const -> LanguageKind {
   auto& value = (*repr_)["languageId"];
 
-  lsp_runtime_error("TextDocumentItem::languageId: not implement yet");
+  lsp_runtime_error("TextDocumentItem::languageId: not implemented yet");
 }
 
 auto TextDocumentItem::version() const -> int {
@@ -12220,7 +12205,7 @@ auto TextDocumentItem::uri(std::string uri) -> TextDocumentItem& {
 
 auto TextDocumentItem::languageId(LanguageKind languageId)
     -> TextDocumentItem& {
-  lsp_runtime_error("TextDocumentItem::languageId: not implement yet");
+  lsp_runtime_error("TextDocumentItem::languageId: not implemented yet");
   return *this;
 }
 
@@ -12264,8 +12249,7 @@ auto NotebookDocumentSyncOptions::notebookSelector(
     Vector<std::variant<NotebookDocumentFilterWithNotebook,
                         NotebookDocumentFilterWithCells>>
         notebookSelector) -> NotebookDocumentSyncOptions& {
-  lsp_runtime_error(
-      "NotebookDocumentSyncOptions::notebookSelector: not implement yet");
+  (*repr_)["notebookSelector"] = std::move(notebookSelector);
   return *this;
 }
 
@@ -12343,7 +12327,8 @@ auto NotebookDocumentChangeEvent::metadata(std::optional<LSPObject> metadata)
     repr_->erase("metadata");
     return *this;
   }
-  lsp_runtime_error("NotebookDocumentChangeEvent::metadata: not implement yet");
+  lsp_runtime_error(
+      "NotebookDocumentChangeEvent::metadata: not implemented yet");
   return *this;
 }
 
@@ -12442,7 +12427,7 @@ auto StringValue::value() const -> std::string {
 }
 
 auto StringValue::kind(std::string kind) -> StringValue& {
-  lsp_runtime_error("StringValue::kind: not implement yet");
+  lsp_runtime_error("StringValue::kind: not implemented yet");
   return *this;
 }
 
@@ -12491,7 +12476,7 @@ auto TextDocumentContentOptions::schemes() const -> Vector<std::string> {
 
 auto TextDocumentContentOptions::schemes(Vector<std::string> schemes)
     -> TextDocumentContentOptions& {
-  lsp_runtime_error("TextDocumentContentOptions::schemes: not implement yet");
+  (*repr_)["schemes"] = std::move(schemes);
   return *this;
 }
 
@@ -12543,7 +12528,7 @@ auto Registration::registerOptions(std::optional<LSPAny> registerOptions)
     repr_->erase("registerOptions");
     return *this;
   }
-  lsp_runtime_error("Registration::registerOptions: not implement yet");
+  lsp_runtime_error("Registration::registerOptions: not implemented yet");
   return *this;
 }
 
@@ -12660,7 +12645,7 @@ auto _InitializeParams::trace() const -> std::optional<TraceValue> {
 
   auto& value = (*repr_)["trace"];
 
-  lsp_runtime_error("_InitializeParams::trace: not implement yet");
+  lsp_runtime_error("_InitializeParams::trace: not implemented yet");
 }
 
 auto _InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
@@ -12771,7 +12756,7 @@ auto _InitializeParams::initializationOptions(
     return *this;
   }
   lsp_runtime_error(
-      "_InitializeParams::initializationOptions: not implement yet");
+      "_InitializeParams::initializationOptions: not implemented yet");
   return *this;
 }
 
@@ -12781,7 +12766,7 @@ auto _InitializeParams::trace(std::optional<TraceValue> trace)
     repr_->erase("trace");
     return *this;
   }
-  lsp_runtime_error("_InitializeParams::trace: not implement yet");
+  lsp_runtime_error("_InitializeParams::trace: not implemented yet");
   return *this;
 }
 
@@ -12791,7 +12776,7 @@ auto _InitializeParams::workDoneToken(
     repr_->erase("workDoneToken");
     return *this;
   }
-  lsp_runtime_error("_InitializeParams::workDoneToken: not implement yet");
+  lsp_runtime_error("_InitializeParams::workDoneToken: not implemented yet");
   return *this;
 }
 
@@ -12825,9 +12810,7 @@ auto WorkspaceFoldersInitializeParams::workspaceFolders(
     json* repr_;
 
     void operator()(Vector<WorkspaceFolder> workspaceFolders) {
-      lsp_runtime_error(
-          "WorkspaceFoldersInitializeParams::workspaceFolders: not implement "
-          "yet");
+      (*repr_)["workspaceFolders"] = std::move(workspaceFolders);
     }
 
     void operator()(std::nullptr_t workspaceFolders) {
@@ -12851,7 +12834,8 @@ auto ServerCapabilities::positionEncoding() const
 
   auto& value = (*repr_)["positionEncoding"];
 
-  lsp_runtime_error("ServerCapabilities::positionEncoding: not implement yet");
+  lsp_runtime_error(
+      "ServerCapabilities::positionEncoding: not implemented yet");
 }
 
 auto ServerCapabilities::textDocumentSync() const -> std::optional<
@@ -13302,7 +13286,8 @@ auto ServerCapabilities::positionEncoding(
     repr_->erase("positionEncoding");
     return *this;
   }
-  lsp_runtime_error("ServerCapabilities::positionEncoding: not implement yet");
+  lsp_runtime_error(
+      "ServerCapabilities::positionEncoding: not implemented yet");
   return *this;
 }
 
@@ -14135,7 +14120,7 @@ auto ServerCapabilities::experimental(std::optional<LSPAny> experimental)
     repr_->erase("experimental");
     return *this;
   }
-  lsp_runtime_error("ServerCapabilities::experimental: not implement yet");
+  lsp_runtime_error("ServerCapabilities::experimental: not implemented yet");
   return *this;
 }
 
@@ -14293,7 +14278,7 @@ auto FileSystemWatcher::kind() const -> std::optional<WatchKind> {
 
 auto FileSystemWatcher::globPattern(GlobPattern globPattern)
     -> FileSystemWatcher& {
-  lsp_runtime_error("FileSystemWatcher::globPattern: not implement yet");
+  lsp_runtime_error("FileSystemWatcher::globPattern: not implemented yet");
   return *this;
 }
 
@@ -14459,7 +14444,7 @@ auto Diagnostic::tags(std::optional<Vector<DiagnosticTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("Diagnostic::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -14470,7 +14455,7 @@ auto Diagnostic::relatedInformation(
     repr_->erase("relatedInformation");
     return *this;
   }
-  lsp_runtime_error("Diagnostic::relatedInformation: not implement yet");
+  (*repr_)["relatedInformation"] = std::move(relatedInformation.value());
   return *this;
 }
 
@@ -14479,7 +14464,7 @@ auto Diagnostic::data(std::optional<LSPAny> data) -> Diagnostic& {
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("Diagnostic::data: not implement yet");
+  lsp_runtime_error("Diagnostic::data: not implemented yet");
   return *this;
 }
 
@@ -14672,8 +14657,7 @@ auto CompletionItemDefaults::commitCharacters(
     repr_->erase("commitCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "CompletionItemDefaults::commitCharacters: not implement yet");
+  (*repr_)["commitCharacters"] = std::move(commitCharacters.value());
   return *this;
 }
 
@@ -14727,7 +14711,7 @@ auto CompletionItemDefaults::data(std::optional<LSPAny> data)
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("CompletionItemDefaults::data: not implement yet");
+  lsp_runtime_error("CompletionItemDefaults::data: not implemented yet");
   return *this;
 }
 
@@ -14834,7 +14818,7 @@ auto CompletionOptions::triggerCharacters(
     repr_->erase("triggerCharacters");
     return *this;
   }
-  lsp_runtime_error("CompletionOptions::triggerCharacters: not implement yet");
+  (*repr_)["triggerCharacters"] = std::move(triggerCharacters.value());
   return *this;
 }
 
@@ -14845,8 +14829,7 @@ auto CompletionOptions::allCommitCharacters(
     repr_->erase("allCommitCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "CompletionOptions::allCommitCharacters: not implement yet");
+  (*repr_)["allCommitCharacters"] = std::move(allCommitCharacters.value());
   return *this;
 }
 
@@ -15066,7 +15049,7 @@ auto SignatureInformation::parameters(
     repr_->erase("parameters");
     return *this;
   }
-  lsp_runtime_error("SignatureInformation::parameters: not implement yet");
+  (*repr_)["parameters"] = std::move(parameters.value());
   return *this;
 }
 
@@ -15137,8 +15120,7 @@ auto SignatureHelpOptions::triggerCharacters(
     repr_->erase("triggerCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "SignatureHelpOptions::triggerCharacters: not implement yet");
+  (*repr_)["triggerCharacters"] = std::move(triggerCharacters.value());
   return *this;
 }
 
@@ -15149,8 +15131,7 @@ auto SignatureHelpOptions::retriggerCharacters(
     repr_->erase("retriggerCharacters");
     return *this;
   }
-  lsp_runtime_error(
-      "SignatureHelpOptions::retriggerCharacters: not implement yet");
+  (*repr_)["retriggerCharacters"] = std::move(retriggerCharacters.value());
   return *this;
 }
 
@@ -15316,7 +15297,7 @@ auto BaseSymbolInformation::tags(std::optional<Vector<SymbolTag>> tags)
     repr_->erase("tags");
     return *this;
   }
-  lsp_runtime_error("BaseSymbolInformation::tags: not implement yet");
+  (*repr_)["tags"] = std::move(tags.value());
   return *this;
 }
 
@@ -15408,7 +15389,7 @@ auto CodeActionContext::triggerKind() const
 
 auto CodeActionContext::diagnostics(Vector<Diagnostic> diagnostics)
     -> CodeActionContext& {
-  lsp_runtime_error("CodeActionContext::diagnostics: not implement yet");
+  (*repr_)["diagnostics"] = std::move(diagnostics);
   return *this;
 }
 
@@ -15418,7 +15399,7 @@ auto CodeActionContext::only(std::optional<Vector<CodeActionKind>> only)
     repr_->erase("only");
     return *this;
   }
-  lsp_runtime_error("CodeActionContext::only: not implement yet");
+  (*repr_)["only"] = std::move(only.value());
   return *this;
 }
 
@@ -15503,7 +15484,7 @@ auto CodeActionOptions::codeActionKinds(
     repr_->erase("codeActionKinds");
     return *this;
   }
-  lsp_runtime_error("CodeActionOptions::codeActionKinds: not implement yet");
+  (*repr_)["codeActionKinds"] = std::move(codeActionKinds.value());
   return *this;
 }
 
@@ -15514,7 +15495,7 @@ auto CodeActionOptions::documentation(
     repr_->erase("documentation");
     return *this;
   }
-  lsp_runtime_error("CodeActionOptions::documentation: not implement yet");
+  (*repr_)["documentation"] = std::move(documentation.value());
   return *this;
 }
 
@@ -15897,9 +15878,7 @@ auto DocumentOnTypeFormattingOptions::moreTriggerCharacter(
     repr_->erase("moreTriggerCharacter");
     return *this;
   }
-  lsp_runtime_error(
-      "DocumentOnTypeFormattingOptions::moreTriggerCharacter: not implement "
-      "yet");
+  (*repr_)["moreTriggerCharacter"] = std::move(moreTriggerCharacter.value());
   return *this;
 }
 
@@ -16025,7 +16004,7 @@ auto ExecuteCommandOptions::workDoneProgress() const -> std::optional<bool> {
 
 auto ExecuteCommandOptions::commands(Vector<std::string> commands)
     -> ExecuteCommandOptions& {
-  lsp_runtime_error("ExecuteCommandOptions::commands: not implement yet");
+  (*repr_)["commands"] = std::move(commands);
   return *this;
 }
 
@@ -16087,13 +16066,13 @@ auto SemanticTokensLegend::tokenModifiers() const -> Vector<std::string> {
 
 auto SemanticTokensLegend::tokenTypes(Vector<std::string> tokenTypes)
     -> SemanticTokensLegend& {
-  lsp_runtime_error("SemanticTokensLegend::tokenTypes: not implement yet");
+  (*repr_)["tokenTypes"] = std::move(tokenTypes);
   return *this;
 }
 
 auto SemanticTokensLegend::tokenModifiers(Vector<std::string> tokenModifiers)
     -> SemanticTokensLegend& {
-  lsp_runtime_error("SemanticTokensLegend::tokenModifiers: not implement yet");
+  (*repr_)["tokenModifiers"] = std::move(tokenModifiers);
   return *this;
 }
 
@@ -16204,7 +16183,7 @@ auto AnnotatedTextEdit::newText() const -> std::string {
 
 auto AnnotatedTextEdit::annotationId(ChangeAnnotationIdentifier annotationId)
     -> AnnotatedTextEdit& {
-  lsp_runtime_error("AnnotatedTextEdit::annotationId: not implement yet");
+  lsp_runtime_error("AnnotatedTextEdit::annotationId: not implemented yet");
   return *this;
 }
 
@@ -16265,7 +16244,7 @@ auto SnippetTextEdit::annotationId(
     repr_->erase("annotationId");
     return *this;
   }
-  lsp_runtime_error("SnippetTextEdit::annotationId: not implement yet");
+  lsp_runtime_error("SnippetTextEdit::annotationId: not implemented yet");
   return *this;
 }
 
@@ -16306,7 +16285,7 @@ auto ResourceOperation::annotationId(
     repr_->erase("annotationId");
     return *this;
   }
-  lsp_runtime_error("ResourceOperation::annotationId: not implement yet");
+  lsp_runtime_error("ResourceOperation::annotationId: not implemented yet");
   return *this;
 }
 
@@ -16465,7 +16444,7 @@ auto FileOperationPattern::matches() const
 
   auto& value = (*repr_)["matches"];
 
-  lsp_runtime_error("FileOperationPattern::matches: not implement yet");
+  lsp_runtime_error("FileOperationPattern::matches: not implemented yet");
 }
 
 auto FileOperationPattern::options() const
@@ -16488,7 +16467,7 @@ auto FileOperationPattern::matches(
     repr_->erase("matches");
     return *this;
   }
-  lsp_runtime_error("FileOperationPattern::matches: not implement yet");
+  lsp_runtime_error("FileOperationPattern::matches: not implemented yet");
   return *this;
 }
 
@@ -16586,7 +16565,7 @@ auto WorkspaceFullDocumentDiagnosticReport::version(
 auto WorkspaceFullDocumentDiagnosticReport::kind(std::string kind)
     -> WorkspaceFullDocumentDiagnosticReport& {
   lsp_runtime_error(
-      "WorkspaceFullDocumentDiagnosticReport::kind: not implement yet");
+      "WorkspaceFullDocumentDiagnosticReport::kind: not implemented yet");
   return *this;
 }
 
@@ -16603,8 +16582,7 @@ auto WorkspaceFullDocumentDiagnosticReport::resultId(
 
 auto WorkspaceFullDocumentDiagnosticReport::items(Vector<Diagnostic> items)
     -> WorkspaceFullDocumentDiagnosticReport& {
-  lsp_runtime_error(
-      "WorkspaceFullDocumentDiagnosticReport::items: not implement yet");
+  (*repr_)["items"] = std::move(items);
   return *this;
 }
 
@@ -16681,7 +16659,7 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::version(
 auto WorkspaceUnchangedDocumentDiagnosticReport::kind(std::string kind)
     -> WorkspaceUnchangedDocumentDiagnosticReport& {
   lsp_runtime_error(
-      "WorkspaceUnchangedDocumentDiagnosticReport::kind: not implement yet");
+      "WorkspaceUnchangedDocumentDiagnosticReport::kind: not implemented yet");
   return *this;
 }
 
@@ -16745,7 +16723,7 @@ auto NotebookCell::metadata(std::optional<LSPObject> metadata)
     repr_->erase("metadata");
     return *this;
   }
-  lsp_runtime_error("NotebookCell::metadata: not implement yet");
+  lsp_runtime_error("NotebookCell::metadata: not implemented yet");
   return *this;
 }
 
@@ -16798,7 +16776,7 @@ auto NotebookDocumentFilterWithNotebook::notebook(
 
     void operator()(NotebookDocumentFilter notebook) {
       lsp_runtime_error(
-          "NotebookDocumentFilterWithNotebook::notebook: not implement yet");
+          "NotebookDocumentFilterWithNotebook::notebook: not implemented yet");
     }
   } v{repr_};
 
@@ -16814,8 +16792,7 @@ auto NotebookDocumentFilterWithNotebook::cells(
     repr_->erase("cells");
     return *this;
   }
-  lsp_runtime_error(
-      "NotebookDocumentFilterWithNotebook::cells: not implement yet");
+  (*repr_)["cells"] = std::move(cells.value());
   return *this;
 }
 
@@ -16863,7 +16840,7 @@ auto NotebookDocumentFilterWithCells::notebook(
 
     void operator()(NotebookDocumentFilter notebook) {
       lsp_runtime_error(
-          "NotebookDocumentFilterWithCells::notebook: not implement yet");
+          "NotebookDocumentFilterWithCells::notebook: not implemented yet");
     }
   } v{repr_};
 
@@ -16874,8 +16851,7 @@ auto NotebookDocumentFilterWithCells::notebook(
 
 auto NotebookDocumentFilterWithCells::cells(Vector<NotebookCellLanguage> cells)
     -> NotebookDocumentFilterWithCells& {
-  lsp_runtime_error(
-      "NotebookDocumentFilterWithCells::cells: not implement yet");
+  (*repr_)["cells"] = std::move(cells);
   return *this;
 }
 
@@ -16930,7 +16906,7 @@ auto NotebookDocumentCellChanges::data(std::optional<Vector<NotebookCell>> data)
     repr_->erase("data");
     return *this;
   }
-  lsp_runtime_error("NotebookDocumentCellChanges::data: not implement yet");
+  (*repr_)["data"] = std::move(data.value());
   return *this;
 }
 
@@ -16941,8 +16917,7 @@ auto NotebookDocumentCellChanges::textContent(
     repr_->erase("textContent");
     return *this;
   }
-  lsp_runtime_error(
-      "NotebookDocumentCellChanges::textContent: not implement yet");
+  (*repr_)["textContent"] = std::move(textContent.value());
   return *this;
 }
 
@@ -17133,7 +17108,7 @@ auto ClientCapabilities::experimental(std::optional<LSPAny> experimental)
     repr_->erase("experimental");
     return *this;
   }
-  lsp_runtime_error("ClientCapabilities::experimental: not implement yet");
+  lsp_runtime_error("ClientCapabilities::experimental: not implemented yet");
   return *this;
 }
 
@@ -17599,7 +17574,7 @@ auto ParameterInformation::label(
     void operator()(std::string label) { (*repr_)["label"] = std::move(label); }
 
     void operator()(std::tuple<long, long> label) {
-      lsp_runtime_error("ParameterInformation::label: not implement yet");
+      lsp_runtime_error("ParameterInformation::label: not implemented yet");
     }
   } v{repr_};
 
@@ -17643,7 +17618,7 @@ CodeActionKindDocumentation::operator bool() const {
 auto CodeActionKindDocumentation::kind() const -> CodeActionKind {
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("CodeActionKindDocumentation::kind: not implement yet");
+  lsp_runtime_error("CodeActionKindDocumentation::kind: not implemented yet");
 }
 
 auto CodeActionKindDocumentation::command() const -> Command {
@@ -17654,7 +17629,7 @@ auto CodeActionKindDocumentation::command() const -> Command {
 
 auto CodeActionKindDocumentation::kind(CodeActionKind kind)
     -> CodeActionKindDocumentation& {
-  lsp_runtime_error("CodeActionKindDocumentation::kind: not implement yet");
+  lsp_runtime_error("CodeActionKindDocumentation::kind: not implemented yet");
   return *this;
 }
 
@@ -17704,7 +17679,7 @@ auto NotebookCellTextDocumentFilter::notebook(
 
     void operator()(NotebookDocumentFilter notebook) {
       lsp_runtime_error(
-          "NotebookCellTextDocumentFilter::notebook: not implement yet");
+          "NotebookCellTextDocumentFilter::notebook: not implemented yet");
     }
   } v{repr_};
 
@@ -17854,8 +17829,7 @@ auto NotebookDocumentCellChangeStructure::didOpen(
     repr_->erase("didOpen");
     return *this;
   }
-  lsp_runtime_error(
-      "NotebookDocumentCellChangeStructure::didOpen: not implement yet");
+  (*repr_)["didOpen"] = std::move(didOpen.value());
   return *this;
 }
 
@@ -17866,8 +17840,7 @@ auto NotebookDocumentCellChangeStructure::didClose(
     repr_->erase("didClose");
     return *this;
   }
-  lsp_runtime_error(
-      "NotebookDocumentCellChangeStructure::didClose: not implement yet");
+  (*repr_)["didClose"] = std::move(didClose.value());
   return *this;
 }
 
@@ -17903,8 +17876,7 @@ auto NotebookDocumentCellContentChanges::document(
 auto NotebookDocumentCellContentChanges::changes(
     Vector<TextDocumentContentChangeEvent> changes)
     -> NotebookDocumentCellContentChanges& {
-  lsp_runtime_error(
-      "NotebookDocumentCellContentChanges::changes: not implement yet");
+  (*repr_)["changes"] = std::move(changes);
   return *this;
 }
 
@@ -19046,8 +19018,7 @@ auto GeneralClientCapabilities::positionEncodings(
     repr_->erase("positionEncodings");
     return *this;
   }
-  lsp_runtime_error(
-      "GeneralClientCapabilities::positionEncodings: not implement yet");
+  (*repr_)["positionEncodings"] = std::move(positionEncodings.value());
   return *this;
 }
 
@@ -19284,7 +19255,7 @@ auto RelativePattern::baseUri(
 }
 
 auto RelativePattern::pattern(Pattern pattern) -> RelativePattern& {
-  lsp_runtime_error("RelativePattern::pattern: not implement yet");
+  lsp_runtime_error("RelativePattern::pattern: not implemented yet");
   return *this;
 }
 
@@ -19346,7 +19317,7 @@ auto TextDocumentFilterLanguage::pattern(std::optional<GlobPattern> pattern)
     repr_->erase("pattern");
     return *this;
   }
-  lsp_runtime_error("TextDocumentFilterLanguage::pattern: not implement yet");
+  lsp_runtime_error("TextDocumentFilterLanguage::pattern: not implemented yet");
   return *this;
 }
 
@@ -19408,7 +19379,7 @@ auto TextDocumentFilterScheme::pattern(std::optional<GlobPattern> pattern)
     repr_->erase("pattern");
     return *this;
   }
-  lsp_runtime_error("TextDocumentFilterScheme::pattern: not implement yet");
+  lsp_runtime_error("TextDocumentFilterScheme::pattern: not implemented yet");
   return *this;
 }
 
@@ -19470,7 +19441,7 @@ auto TextDocumentFilterPattern::scheme(std::optional<std::string> scheme)
 
 auto TextDocumentFilterPattern::pattern(GlobPattern pattern)
     -> TextDocumentFilterPattern& {
-  lsp_runtime_error("TextDocumentFilterPattern::pattern: not implement yet");
+  lsp_runtime_error("TextDocumentFilterPattern::pattern: not implemented yet");
   return *this;
 }
 
@@ -19535,7 +19506,7 @@ auto NotebookDocumentFilterNotebookType::pattern(
     return *this;
   }
   lsp_runtime_error(
-      "NotebookDocumentFilterNotebookType::pattern: not implement yet");
+      "NotebookDocumentFilterNotebookType::pattern: not implemented yet");
   return *this;
 }
 
@@ -19599,7 +19570,8 @@ auto NotebookDocumentFilterScheme::pattern(std::optional<GlobPattern> pattern)
     repr_->erase("pattern");
     return *this;
   }
-  lsp_runtime_error("NotebookDocumentFilterScheme::pattern: not implement yet");
+  lsp_runtime_error(
+      "NotebookDocumentFilterScheme::pattern: not implemented yet");
   return *this;
 }
 
@@ -19664,7 +19636,7 @@ auto NotebookDocumentFilterPattern::scheme(std::optional<std::string> scheme)
 auto NotebookDocumentFilterPattern::pattern(GlobPattern pattern)
     -> NotebookDocumentFilterPattern& {
   lsp_runtime_error(
-      "NotebookDocumentFilterPattern::pattern: not implement yet");
+      "NotebookDocumentFilterPattern::pattern: not implemented yet");
   return *this;
 }
 
@@ -19718,7 +19690,7 @@ auto NotebookCellArrayChange::cells(std::optional<Vector<NotebookCell>> cells)
     repr_->erase("cells");
     return *this;
   }
-  lsp_runtime_error("NotebookCellArrayChange::cells: not implement yet");
+  (*repr_)["cells"] = std::move(cells.value());
   return *this;
 }
 
@@ -19755,7 +19727,7 @@ auto WorkspaceEditClientCapabilities::failureHandling() const
   auto& value = (*repr_)["failureHandling"];
 
   lsp_runtime_error(
-      "WorkspaceEditClientCapabilities::failureHandling: not implement yet");
+      "WorkspaceEditClientCapabilities::failureHandling: not implemented yet");
 }
 
 auto WorkspaceEditClientCapabilities::normalizesLineEndings() const
@@ -19817,8 +19789,7 @@ auto WorkspaceEditClientCapabilities::resourceOperations(
     repr_->erase("resourceOperations");
     return *this;
   }
-  lsp_runtime_error(
-      "WorkspaceEditClientCapabilities::resourceOperations: not implement yet");
+  (*repr_)["resourceOperations"] = std::move(resourceOperations.value());
   return *this;
 }
 
@@ -19830,7 +19801,7 @@ auto WorkspaceEditClientCapabilities::failureHandling(
     return *this;
   }
   lsp_runtime_error(
-      "WorkspaceEditClientCapabilities::failureHandling: not implement yet");
+      "WorkspaceEditClientCapabilities::failureHandling: not implemented yet");
   return *this;
 }
 
@@ -20696,8 +20667,7 @@ auto HoverClientCapabilities::contentFormat(
     repr_->erase("contentFormat");
     return *this;
   }
-  lsp_runtime_error(
-      "HoverClientCapabilities::contentFormat: not implement yet");
+  (*repr_)["contentFormat"] = std::move(contentFormat.value());
   return *this;
 }
 
@@ -22016,22 +21986,19 @@ auto SemanticTokensClientCapabilities::requests(
 
 auto SemanticTokensClientCapabilities::tokenTypes(
     Vector<std::string> tokenTypes) -> SemanticTokensClientCapabilities& {
-  lsp_runtime_error(
-      "SemanticTokensClientCapabilities::tokenTypes: not implement yet");
+  (*repr_)["tokenTypes"] = std::move(tokenTypes);
   return *this;
 }
 
 auto SemanticTokensClientCapabilities::tokenModifiers(
     Vector<std::string> tokenModifiers) -> SemanticTokensClientCapabilities& {
-  lsp_runtime_error(
-      "SemanticTokensClientCapabilities::tokenModifiers: not implement yet");
+  (*repr_)["tokenModifiers"] = std::move(tokenModifiers);
   return *this;
 }
 
 auto SemanticTokensClientCapabilities::formats(Vector<TokenFormat> formats)
     -> SemanticTokensClientCapabilities& {
-  lsp_runtime_error(
-      "SemanticTokensClientCapabilities::formats: not implement yet");
+  (*repr_)["formats"] = std::move(formats);
   return *this;
 }
 
@@ -22518,8 +22485,7 @@ auto StaleRequestSupportOptions::cancel(bool cancel)
 
 auto StaleRequestSupportOptions::retryOnContentModified(
     Vector<std::string> retryOnContentModified) -> StaleRequestSupportOptions& {
-  lsp_runtime_error(
-      "StaleRequestSupportOptions::retryOnContentModified: not implement yet");
+  (*repr_)["retryOnContentModified"] = std::move(retryOnContentModified);
   return *this;
 }
 
@@ -22553,7 +22519,7 @@ auto RegularExpressionsClientCapabilities::engine(
     RegularExpressionEngineKind engine)
     -> RegularExpressionsClientCapabilities& {
   lsp_runtime_error(
-      "RegularExpressionsClientCapabilities::engine: not implement yet");
+      "RegularExpressionsClientCapabilities::engine: not implemented yet");
   return *this;
 }
 
@@ -22625,8 +22591,7 @@ auto MarkdownClientCapabilities::allowedTags(
     repr_->erase("allowedTags");
     return *this;
   }
-  lsp_runtime_error(
-      "MarkdownClientCapabilities::allowedTags: not implement yet");
+  (*repr_)["allowedTags"] = std::move(allowedTags.value());
   return *this;
 }
 
@@ -22677,7 +22642,7 @@ auto ClientSymbolKindOptions::valueSet(
     repr_->erase("valueSet");
     return *this;
   }
-  lsp_runtime_error("ClientSymbolKindOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet.value());
   return *this;
 }
 
@@ -22696,7 +22661,7 @@ auto ClientSymbolTagOptions::valueSet() const -> Vector<SymbolTag> {
 
 auto ClientSymbolTagOptions::valueSet(Vector<SymbolTag> valueSet)
     -> ClientSymbolTagOptions& {
-  lsp_runtime_error("ClientSymbolTagOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet);
   return *this;
 }
 
@@ -22715,8 +22680,7 @@ auto ClientSymbolResolveOptions::properties() const -> Vector<std::string> {
 
 auto ClientSymbolResolveOptions::properties(Vector<std::string> properties)
     -> ClientSymbolResolveOptions& {
-  lsp_runtime_error(
-      "ClientSymbolResolveOptions::properties: not implement yet");
+  (*repr_)["properties"] = std::move(properties);
   return *this;
 }
 
@@ -22857,8 +22821,7 @@ auto ClientCompletionItemOptions::documentationFormat(
     repr_->erase("documentationFormat");
     return *this;
   }
-  lsp_runtime_error(
-      "ClientCompletionItemOptions::documentationFormat: not implement yet");
+  (*repr_)["documentationFormat"] = std::move(documentationFormat.value());
   return *this;
 }
 
@@ -22957,8 +22920,7 @@ auto ClientCompletionItemOptionsKind::valueSet(
     repr_->erase("valueSet");
     return *this;
   }
-  lsp_runtime_error(
-      "ClientCompletionItemOptionsKind::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet.value());
   return *this;
 }
 
@@ -22995,8 +22957,7 @@ auto CompletionListCapabilities::itemDefaults(
     repr_->erase("itemDefaults");
     return *this;
   }
-  lsp_runtime_error(
-      "CompletionListCapabilities::itemDefaults: not implement yet");
+  (*repr_)["itemDefaults"] = std::move(itemDefaults.value());
   return *this;
 }
 
@@ -23063,9 +23024,7 @@ auto ClientSignatureInformationOptions::documentationFormat(
     repr_->erase("documentationFormat");
     return *this;
   }
-  lsp_runtime_error(
-      "ClientSignatureInformationOptions::documentationFormat: not implement "
-      "yet");
+  (*repr_)["documentationFormat"] = std::move(documentationFormat.value());
   return *this;
 }
 
@@ -23139,8 +23098,7 @@ auto ClientCodeActionResolveOptions::properties() const -> Vector<std::string> {
 
 auto ClientCodeActionResolveOptions::properties(Vector<std::string> properties)
     -> ClientCodeActionResolveOptions& {
-  lsp_runtime_error(
-      "ClientCodeActionResolveOptions::properties: not implement yet");
+  (*repr_)["properties"] = std::move(properties);
   return *this;
 }
 
@@ -23159,7 +23117,7 @@ auto CodeActionTagOptions::valueSet() const -> Vector<CodeActionTag> {
 
 auto CodeActionTagOptions::valueSet(Vector<CodeActionTag> valueSet)
     -> CodeActionTagOptions& {
-  lsp_runtime_error("CodeActionTagOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet);
   return *this;
 }
 
@@ -23178,8 +23136,7 @@ auto ClientCodeLensResolveOptions::properties() const -> Vector<std::string> {
 
 auto ClientCodeLensResolveOptions::properties(Vector<std::string> properties)
     -> ClientCodeLensResolveOptions& {
-  lsp_runtime_error(
-      "ClientCodeLensResolveOptions::properties: not implement yet");
+  (*repr_)["properties"] = std::move(properties);
   return *this;
 }
 
@@ -23205,8 +23162,7 @@ auto ClientFoldingRangeKindOptions::valueSet(
     repr_->erase("valueSet");
     return *this;
   }
-  lsp_runtime_error(
-      "ClientFoldingRangeKindOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet.value());
   return *this;
 }
 
@@ -23369,7 +23325,7 @@ auto ClientSemanticTokensRequestOptions::range(
 
     void operator()(json range) {
       lsp_runtime_error(
-          "ClientSemanticTokensRequestOptions::range: not implement yet");
+          "ClientSemanticTokensRequestOptions::range: not implemented yet");
     }
   } v{repr_};
 
@@ -23416,8 +23372,7 @@ auto ClientInlayHintResolveOptions::properties() const -> Vector<std::string> {
 
 auto ClientInlayHintResolveOptions::properties(Vector<std::string> properties)
     -> ClientInlayHintResolveOptions& {
-  lsp_runtime_error(
-      "ClientInlayHintResolveOptions::properties: not implement yet");
+  (*repr_)["properties"] = std::move(properties);
   return *this;
 }
 
@@ -23464,7 +23419,7 @@ auto CompletionItemTagOptions::valueSet() const -> Vector<CompletionItemTag> {
 
 auto CompletionItemTagOptions::valueSet(Vector<CompletionItemTag> valueSet)
     -> CompletionItemTagOptions& {
-  lsp_runtime_error("CompletionItemTagOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet);
   return *this;
 }
 
@@ -23484,8 +23439,7 @@ auto ClientCompletionItemResolveOptions::properties() const
 
 auto ClientCompletionItemResolveOptions::properties(
     Vector<std::string> properties) -> ClientCompletionItemResolveOptions& {
-  lsp_runtime_error(
-      "ClientCompletionItemResolveOptions::properties: not implement yet");
+  (*repr_)["properties"] = std::move(properties);
   return *this;
 }
 
@@ -23506,8 +23460,7 @@ auto ClientCompletionItemInsertTextModeOptions::valueSet() const
 auto ClientCompletionItemInsertTextModeOptions::valueSet(
     Vector<InsertTextMode> valueSet)
     -> ClientCompletionItemInsertTextModeOptions& {
-  lsp_runtime_error(
-      "ClientCompletionItemInsertTextModeOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet);
   return *this;
 }
 
@@ -23553,7 +23506,7 @@ auto ClientCodeActionKindOptions::valueSet() const -> Vector<CodeActionKind> {
 
 auto ClientCodeActionKindOptions::valueSet(Vector<CodeActionKind> valueSet)
     -> ClientCodeActionKindOptions& {
-  lsp_runtime_error("ClientCodeActionKindOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet);
   return *this;
 }
 
@@ -23572,7 +23525,7 @@ auto ClientDiagnosticsTagOptions::valueSet() const -> Vector<DiagnosticTag> {
 
 auto ClientDiagnosticsTagOptions::valueSet(Vector<DiagnosticTag> valueSet)
     -> ClientDiagnosticsTagOptions& {
-  lsp_runtime_error("ClientDiagnosticsTagOptions::valueSet: not implement yet");
+  (*repr_)["valueSet"] = std::move(valueSet);
   return *this;
 }
 
