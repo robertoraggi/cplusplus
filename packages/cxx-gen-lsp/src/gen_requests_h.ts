@@ -107,31 +107,20 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
 
   emit();
   emit(`template <typename Visitor>`);
-  emit(`auto visitRequest(Visitor&& visitor, const LSPRequest& request, const std::string_view& method) -> void {`);
+  emit(`auto visit(Visitor&& visitor, const LSPRequest& request) -> void {`);
   emit(`#define PROCESS_REQUEST_TYPE(NAME, METHOD) \\`);
-  emit(`  if (method == METHOD) \\`);
+  emit(`  if (request.method() == METHOD) \\`);
   emit(`    return visitor(static_cast<const NAME##Request&>(request));`);
   emit();
-  emit(`FOR_EACH_LSP_REQUEST_TYPE(PROCESS_REQUEST_TYPE)`);
-  emit();
-  emit(`#undef PROCESS_REQUEST_TYPE`);
-  emit();
-  emit(`  lsp_runtime_error("unknown request type");`);
-  emit(`}`);
-  emit();
-  emit(`template <typename Visitor>`);
-  emit(
-    `auto visitNotification(Visitor&& visitor, const LSPRequest& notification, const std::string_view& method) -> void {`,
-  );
   emit(`#define PROCESS_NOTIFICATION_TYPE(NAME, METHOD) \\`);
-  emit(`  if (method == METHOD) \\`);
-  emit(`    return visitor(static_cast<const NAME##Notification&>(notification));`);
+  emit(`  if (request.method() == METHOD) \\`);
+  emit(`    return visitor(static_cast<const NAME##Notification&>(request));`);
   emit();
+  emit(`FOR_EACH_LSP_REQUEST_TYPE(PROCESS_REQUEST_TYPE)`);
   emit(`FOR_EACH_LSP_NOTIFICATION_TYPE(PROCESS_NOTIFICATION_TYPE)`);
   emit();
+  emit(`#undef PROCESS_REQUEST_TYPE`);
   emit(`#undef PROCESS_NOTIFICATION_TYPE`);
-  emit();
-  emit(`  lsp_runtime_error("unknown notification type");`);
   emit(`}`);
 
   emit();

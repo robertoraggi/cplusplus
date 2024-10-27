@@ -2544,31 +2544,20 @@ class ProgressNotification final : public LSPRequest {
 };
 
 template <typename Visitor>
-auto visitRequest(Visitor&& visitor, const LSPRequest& request,
-                  const std::string_view& method) -> void {
+auto visit(Visitor&& visitor, const LSPRequest& request) -> void {
 #define PROCESS_REQUEST_TYPE(NAME, METHOD) \
-  if (method == METHOD)                    \
+  if (request.method() == METHOD)          \
     return visitor(static_cast<const NAME##Request&>(request));
 
-  FOR_EACH_LSP_REQUEST_TYPE(PROCESS_REQUEST_TYPE)
-
-#undef PROCESS_REQUEST_TYPE
-
-  lsp_runtime_error("unknown request type");
-}
-
-template <typename Visitor>
-auto visitNotification(Visitor&& visitor, const LSPRequest& notification,
-                       const std::string_view& method) -> void {
 #define PROCESS_NOTIFICATION_TYPE(NAME, METHOD) \
-  if (method == METHOD)                         \
-    return visitor(static_cast<const NAME##Notification&>(notification));
+  if (request.method() == METHOD)               \
+    return visitor(static_cast<const NAME##Notification&>(request));
 
+  FOR_EACH_LSP_REQUEST_TYPE(PROCESS_REQUEST_TYPE)
   FOR_EACH_LSP_NOTIFICATION_TYPE(PROCESS_NOTIFICATION_TYPE)
 
+#undef PROCESS_REQUEST_TYPE
 #undef PROCESS_NOTIFICATION_TYPE
-
-  lsp_runtime_error("unknown notification type");
 }
 
 }  // namespace cxx::lsp
