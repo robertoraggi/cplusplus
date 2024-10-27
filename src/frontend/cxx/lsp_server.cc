@@ -41,6 +41,7 @@
 #include <format>
 #include <iostream>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 namespace cxx::lsp {
@@ -106,7 +107,7 @@ auto readHeaders(std::istream& input) -> Headers {
   return headers;
 }
 
-struct Input {
+struct CxxDocument {
   struct Diagnostics final : cxx::DiagnosticsClient {
     json messages = json::array();
     Vector<lsp::Diagnostic> diagnostics{messages};
@@ -146,7 +147,7 @@ struct Input {
   TranslationUnit unit;
   std::unique_ptr<Toolchain> toolchain;
 
-  Input(const CLI& cli) : cli(cli), unit(&control, &diagnosticsClient) {}
+  CxxDocument(const CLI& cli) : cli(cli), unit(&control, &diagnosticsClient) {}
 
   void parse(std::string source, std::string fileName) {
     configure();
@@ -273,10 +274,12 @@ struct Input {
 };
 
 class Server {
+  const CLI& cli;
   std::istream& input;
+  std::unordered_map<std::string, std::shared_ptr<CxxDocument>> documents;
 
  public:
-  Server() : input(std::cin) {}
+  Server(const CLI& cli) : cli(cli), input(std::cin) {}
 
   auto start() -> int {
     while (input.good()) {
@@ -353,14 +356,66 @@ class Server {
 
   void operator()(const DidOpenTextDocumentNotification& notification) {
     std::cerr << std::format("Did receive DidOpenTextDocumentNotification\n");
+
+    auto textDocument = notification.params().textDocument();
+    const auto uri = textDocument.uri();
+    const auto text = textDocument.text();
+    const auto version = textDocument.version();
+
+    auto doc = std::make_shared<CxxDocument>(cli);
+    doc->parse(std::move(text), pathFromUri(uri));
+    documents[uri] = doc;
+
+    std::cerr << std::format("Parsed document: {}, reported {} messages\n", uri,
+                             doc->diagnosticsClient.messages.size());
   }
 
   void operator()(const DidCloseTextDocumentNotification& notification) {
     std::cerr << std::format("Did receive DidCloseTextDocumentNotification\n");
+
+    const auto uri = notification.params().textDocument().uri();
+    documents.erase(uri);
   }
 
   void operator()(const DidChangeTextDocumentNotification& notification) {
     std::cerr << std::format("Did receive DidChangeTextDocumentNotification\n");
+
+    const auto textDocument = notification.params().textDocument();
+    const auto uri = textDocument.uri();
+    const auto version = textDocument.version();
+
+    if (!documents.contains(uri)) {
+      std::cerr << std::format("Document not found: {}\n", uri);
+      return;
+    }
+
+    // update the document
+    auto contentChanges = notification.params().contentChanges();
+    const std::size_t contentChangeCount = contentChanges.size();
+    for (std::size_t i = 0; i < contentChangeCount; ++i) {
+      auto change = contentChanges.at(i);
+      if (std::holds_alternative<TextDocumentContentChangeWholeDocument>(
+              change)) {
+        auto text =
+            std::get<TextDocumentContentChangeWholeDocument>(change).text();
+
+        // parse the document
+        auto doc = std::make_shared<CxxDocument>(cli);
+        doc->parse(std::move(text), pathFromUri(uri));
+        documents[uri] = doc;
+
+        std::cerr << std::format("Parsed document: {}, reported {} messages\n",
+                                 uri, doc->diagnosticsClient.messages.size());
+      }
+    }
+  }
+
+  [[nodiscard]] auto pathFromUri(const std::string& uri) -> std::string {
+    if (uri.starts_with("file://")) {
+      return uri.substr(7);
+    }
+
+    lsp_runtime_error(std::format("Unsupported URI scheme: {}\n", uri));
   }
 
   //
@@ -374,6 +429,9 @@ class Server {
       InitializeResult result(storage);
       result.serverInfo<ServerInfo>().name("cxx-lsp").version(CXX_VERSION);
       result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
+      result.capabilities().diagnosticProvider<DiagnosticOptions>().identifier(
+          "cxx-lsp");
+      // .workspaceDiagnostics(true);
 
       sendToClient(result, request.id());
     });
@@ -385,6 +443,37 @@ class Server {
     withUnsafeJson([&](json storage) {
       LSPObject result(storage);
       sendToClient(result, request.id());
+    });
+  }
+
+  void operator()(const DocumentDiagnosticRequest& request) {
+    std::cerr << std::format("Did receive DocumentDiagnosticRequest\n");
+
+    auto textDocument = request.params().textDocument();
+    auto uri = textDocument.uri();
+
+    if (!documents.contains(uri)) {
+      std::cerr << std::format("Document not found: {}\n", uri);
+      return;
+    }
+
+    auto doc = documents[uri];
+
+    withUnsafeJson([&](json storage) {
+      FullDocumentDiagnosticReport report(storage);
+
+      auto diagnostics = Vector<Diagnostic>(doc->diagnosticsClient.messages);
+      report.items(diagnostics);
+
+      // TODO: string literals in C++ LSP API
+      storage["kind"] = "full";
+
+      // TODO: responses in C++ LSP API
+      json response;
+      response["jsonrpc"] = "2.0";
+      response["id"] = std::get<long>(*request.id());
+      response["result"] = report;
+      sendToClient(response);
     });
   }
 
@@ -408,7 +497,7 @@ class Server {
 };
 
 int startServer(const CLI& cli) {
-  Server server;
+  Server server{cli};
   auto exitCode = server.start();
   return exitCode;
 }
