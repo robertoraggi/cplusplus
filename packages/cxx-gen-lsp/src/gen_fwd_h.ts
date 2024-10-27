@@ -24,10 +24,14 @@ import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
 const fragment = `
-[[noreturn]] void lsp_runtime_error(const std::string& msg);
+
+class LSPObject;
 
 using LSPAny = json;
 using Pattern = std::string;
+
+[[nodiscard]] auto withUnsafeJson(auto block) { return block(json()); }
+[[noreturn]] void lsp_runtime_error(const std::string& msg);
 
 class LSPObject {
   public:
