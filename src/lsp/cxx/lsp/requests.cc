@@ -24,9 +24,14 @@
 
 namespace cxx::lsp {
 
-auto ImplementationRequest::method() const -> std::string {
-  return repr_->at("method");
+auto LSPRequest::id() const -> std::optional<std::variant<long, std::string>> {
+  if (!repr_->contains("id")) return std::nullopt;
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
 }
+
+auto LSPRequest::method() const -> std::string { return repr_->at("method"); }
 
 auto ImplementationRequest::method(std::string method)
     -> ImplementationRequest& {
@@ -34,19 +39,13 @@ auto ImplementationRequest::method(std::string method)
   return *this;
 }
 
-auto ImplementationRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ImplementationRequest::id(long id) -> ImplementationRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ImplementationRequest::id(std::string id) -> ImplementationRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ImplementationRequest::id(std::variant<long, std::string> id)
+    -> ImplementationRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -59,12 +58,6 @@ auto ImplementationRequest::params(ImplementationParams params)
     -> ImplementationRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ImplementationResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ImplementationResponse::id(long id) -> ImplementationResponse& {
@@ -89,29 +82,19 @@ auto ImplementationResponse::result(
   return *this;
 }
 
-auto TypeDefinitionRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TypeDefinitionRequest::method(std::string method)
     -> TypeDefinitionRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TypeDefinitionRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TypeDefinitionRequest::id(long id) -> TypeDefinitionRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeDefinitionRequest::id(std::string id) -> TypeDefinitionRequest& {
-  (*repr_)["id"] = std::move(id);
+auto TypeDefinitionRequest::id(std::variant<long, std::string> id)
+    -> TypeDefinitionRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -124,12 +107,6 @@ auto TypeDefinitionRequest::params(TypeDefinitionParams params)
     -> TypeDefinitionRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto TypeDefinitionResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto TypeDefinitionResponse::id(long id) -> TypeDefinitionResponse& {
@@ -154,36 +131,20 @@ auto TypeDefinitionResponse::result(
   return *this;
 }
 
-auto WorkspaceFoldersRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WorkspaceFoldersRequest::method(std::string method)
     -> WorkspaceFoldersRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WorkspaceFoldersRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WorkspaceFoldersRequest::id(long id) -> WorkspaceFoldersRequest& {
-  (*repr_)["id"] = id;
+auto WorkspaceFoldersRequest::id(std::variant<long, std::string> id)
+    -> WorkspaceFoldersRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto WorkspaceFoldersRequest::id(std::string id) -> WorkspaceFoldersRequest& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto WorkspaceFoldersResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WorkspaceFoldersResponse::id(long id) -> WorkspaceFoldersResponse& {
@@ -208,28 +169,18 @@ auto WorkspaceFoldersResponse::result(
   return *this;
 }
 
-auto ConfigurationRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ConfigurationRequest::method(std::string method) -> ConfigurationRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ConfigurationRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ConfigurationRequest::id(long id) -> ConfigurationRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ConfigurationRequest::id(std::string id) -> ConfigurationRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ConfigurationRequest::id(std::variant<long, std::string> id)
+    -> ConfigurationRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -242,12 +193,6 @@ auto ConfigurationRequest::params(ConfigurationParams params)
     -> ConfigurationRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ConfigurationResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ConfigurationResponse::id(long id) -> ConfigurationResponse& {
@@ -270,28 +215,18 @@ auto ConfigurationResponse::result(Vector<LSPAny> result)
   return *this;
 }
 
-auto DocumentColorRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentColorRequest::method(std::string method) -> DocumentColorRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentColorRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentColorRequest::id(long id) -> DocumentColorRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentColorRequest::id(std::string id) -> DocumentColorRequest& {
-  (*repr_)["id"] = std::move(id);
+auto DocumentColorRequest::id(std::variant<long, std::string> id)
+    -> DocumentColorRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -304,12 +239,6 @@ auto DocumentColorRequest::params(DocumentColorParams params)
     -> DocumentColorRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentColorResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentColorResponse::id(long id) -> DocumentColorResponse& {
@@ -332,29 +261,19 @@ auto DocumentColorResponse::result(Vector<ColorInformation> result)
   return *this;
 }
 
-auto ColorPresentationRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ColorPresentationRequest::method(std::string method)
     -> ColorPresentationRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ColorPresentationRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ColorPresentationRequest::id(long id) -> ColorPresentationRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ColorPresentationRequest::id(std::string id) -> ColorPresentationRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ColorPresentationRequest::id(std::variant<long, std::string> id)
+    -> ColorPresentationRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -367,12 +286,6 @@ auto ColorPresentationRequest::params(ColorPresentationParams params)
     -> ColorPresentationRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ColorPresentationResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ColorPresentationResponse::id(long id) -> ColorPresentationResponse& {
@@ -398,28 +311,18 @@ auto ColorPresentationResponse::result(Vector<ColorPresentation> result)
   return *this;
 }
 
-auto FoldingRangeRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto FoldingRangeRequest::method(std::string method) -> FoldingRangeRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto FoldingRangeRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto FoldingRangeRequest::id(long id) -> FoldingRangeRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto FoldingRangeRequest::id(std::string id) -> FoldingRangeRequest& {
-  (*repr_)["id"] = std::move(id);
+auto FoldingRangeRequest::id(std::variant<long, std::string> id)
+    -> FoldingRangeRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -432,12 +335,6 @@ auto FoldingRangeRequest::params(FoldingRangeParams params)
     -> FoldingRangeRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto FoldingRangeResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto FoldingRangeResponse::id(long id) -> FoldingRangeResponse& {
@@ -462,38 +359,20 @@ auto FoldingRangeResponse::result(
   return *this;
 }
 
-auto FoldingRangeRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto FoldingRangeRefreshRequest::method(std::string method)
     -> FoldingRangeRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto FoldingRangeRefreshRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto FoldingRangeRefreshRequest::id(long id) -> FoldingRangeRefreshRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto FoldingRangeRefreshRequest::id(std::string id)
+auto FoldingRangeRefreshRequest::id(std::variant<long, std::string> id)
     -> FoldingRangeRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto FoldingRangeRefreshResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto FoldingRangeRefreshResponse::id(long id) -> FoldingRangeRefreshResponse& {
@@ -517,28 +396,18 @@ auto FoldingRangeRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto DeclarationRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DeclarationRequest::method(std::string method) -> DeclarationRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DeclarationRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DeclarationRequest::id(long id) -> DeclarationRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DeclarationRequest::id(std::string id) -> DeclarationRequest& {
-  (*repr_)["id"] = std::move(id);
+auto DeclarationRequest::id(std::variant<long, std::string> id)
+    -> DeclarationRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -551,12 +420,6 @@ auto DeclarationRequest::params(DeclarationParams params)
     -> DeclarationRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DeclarationResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DeclarationResponse::id(long id) -> DeclarationResponse& {
@@ -581,29 +444,19 @@ auto DeclarationResponse::result(
   return *this;
 }
 
-auto SelectionRangeRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SelectionRangeRequest::method(std::string method)
     -> SelectionRangeRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SelectionRangeRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SelectionRangeRequest::id(long id) -> SelectionRangeRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SelectionRangeRequest::id(std::string id) -> SelectionRangeRequest& {
-  (*repr_)["id"] = std::move(id);
+auto SelectionRangeRequest::id(std::variant<long, std::string> id)
+    -> SelectionRangeRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -616,12 +469,6 @@ auto SelectionRangeRequest::params(SelectionRangeParams params)
     -> SelectionRangeRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto SelectionRangeResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto SelectionRangeResponse::id(long id) -> SelectionRangeResponse& {
@@ -646,32 +493,19 @@ auto SelectionRangeResponse::result(
   return *this;
 }
 
-auto WorkDoneProgressCreateRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WorkDoneProgressCreateRequest::method(std::string method)
     -> WorkDoneProgressCreateRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WorkDoneProgressCreateRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WorkDoneProgressCreateRequest::id(long id)
+auto WorkDoneProgressCreateRequest::id(std::variant<long, std::string> id)
     -> WorkDoneProgressCreateRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkDoneProgressCreateRequest::id(std::string id)
-    -> WorkDoneProgressCreateRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -685,13 +519,6 @@ auto WorkDoneProgressCreateRequest::params(WorkDoneProgressCreateParams params)
     -> WorkDoneProgressCreateRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WorkDoneProgressCreateResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WorkDoneProgressCreateResponse::id(long id)
@@ -716,31 +543,19 @@ auto WorkDoneProgressCreateResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto CallHierarchyPrepareRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CallHierarchyPrepareRequest::method(std::string method)
     -> CallHierarchyPrepareRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CallHierarchyPrepareRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CallHierarchyPrepareRequest::id(long id) -> CallHierarchyPrepareRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CallHierarchyPrepareRequest::id(std::string id)
+auto CallHierarchyPrepareRequest::id(std::variant<long, std::string> id)
     -> CallHierarchyPrepareRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -753,13 +568,6 @@ auto CallHierarchyPrepareRequest::params(CallHierarchyPrepareParams params)
     -> CallHierarchyPrepareRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CallHierarchyPrepareResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CallHierarchyPrepareResponse::id(long id)
@@ -788,32 +596,19 @@ auto CallHierarchyPrepareResponse::result(
   return *this;
 }
 
-auto CallHierarchyIncomingCallsRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CallHierarchyIncomingCallsRequest::method(std::string method)
     -> CallHierarchyIncomingCallsRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CallHierarchyIncomingCallsRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CallHierarchyIncomingCallsRequest::id(long id)
+auto CallHierarchyIncomingCallsRequest::id(std::variant<long, std::string> id)
     -> CallHierarchyIncomingCallsRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CallHierarchyIncomingCallsRequest::id(std::string id)
-    -> CallHierarchyIncomingCallsRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -828,13 +623,6 @@ auto CallHierarchyIncomingCallsRequest::params(
     -> CallHierarchyIncomingCallsRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CallHierarchyIncomingCallsResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CallHierarchyIncomingCallsResponse::id(long id)
@@ -863,32 +651,19 @@ auto CallHierarchyIncomingCallsResponse::result(
   return *this;
 }
 
-auto CallHierarchyOutgoingCallsRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CallHierarchyOutgoingCallsRequest::method(std::string method)
     -> CallHierarchyOutgoingCallsRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CallHierarchyOutgoingCallsRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CallHierarchyOutgoingCallsRequest::id(long id)
+auto CallHierarchyOutgoingCallsRequest::id(std::variant<long, std::string> id)
     -> CallHierarchyOutgoingCallsRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CallHierarchyOutgoingCallsRequest::id(std::string id)
-    -> CallHierarchyOutgoingCallsRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -903,13 +678,6 @@ auto CallHierarchyOutgoingCallsRequest::params(
     -> CallHierarchyOutgoingCallsRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CallHierarchyOutgoingCallsResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CallHierarchyOutgoingCallsResponse::id(long id)
@@ -938,29 +706,19 @@ auto CallHierarchyOutgoingCallsResponse::result(
   return *this;
 }
 
-auto SemanticTokensRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SemanticTokensRequest::method(std::string method)
     -> SemanticTokensRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SemanticTokensRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SemanticTokensRequest::id(long id) -> SemanticTokensRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensRequest::id(std::string id) -> SemanticTokensRequest& {
-  (*repr_)["id"] = std::move(id);
+auto SemanticTokensRequest::id(std::variant<long, std::string> id)
+    -> SemanticTokensRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -973,12 +731,6 @@ auto SemanticTokensRequest::params(SemanticTokensParams params)
     -> SemanticTokensRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto SemanticTokensResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto SemanticTokensResponse::id(long id) -> SemanticTokensResponse& {
@@ -1003,30 +755,19 @@ auto SemanticTokensResponse::result(
   return *this;
 }
 
-auto SemanticTokensDeltaRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SemanticTokensDeltaRequest::method(std::string method)
     -> SemanticTokensDeltaRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SemanticTokensDeltaRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SemanticTokensDeltaRequest::id(long id) -> SemanticTokensDeltaRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensDeltaRequest::id(std::string id)
+auto SemanticTokensDeltaRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensDeltaRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1039,13 +780,6 @@ auto SemanticTokensDeltaRequest::params(SemanticTokensDeltaParams params)
     -> SemanticTokensDeltaRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto SemanticTokensDeltaResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto SemanticTokensDeltaResponse::id(long id) -> SemanticTokensDeltaResponse& {
@@ -1073,30 +807,19 @@ auto SemanticTokensDeltaResponse::result(
   return *this;
 }
 
-auto SemanticTokensRangeRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SemanticTokensRangeRequest::method(std::string method)
     -> SemanticTokensRangeRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SemanticTokensRangeRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SemanticTokensRangeRequest::id(long id) -> SemanticTokensRangeRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensRangeRequest::id(std::string id)
+auto SemanticTokensRangeRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensRangeRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1109,13 +832,6 @@ auto SemanticTokensRangeRequest::params(SemanticTokensRangeParams params)
     -> SemanticTokensRangeRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto SemanticTokensRangeResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto SemanticTokensRangeResponse::id(long id) -> SemanticTokensRangeResponse& {
@@ -1143,40 +859,20 @@ auto SemanticTokensRangeResponse::result(
   return *this;
 }
 
-auto SemanticTokensRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SemanticTokensRefreshRequest::method(std::string method)
     -> SemanticTokensRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SemanticTokensRefreshRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SemanticTokensRefreshRequest::id(long id)
+auto SemanticTokensRefreshRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensRefreshRequest& {
-  (*repr_)["id"] = id;
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto SemanticTokensRefreshRequest::id(std::string id)
-    -> SemanticTokensRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto SemanticTokensRefreshResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto SemanticTokensRefreshResponse::id(long id)
@@ -1201,28 +897,18 @@ auto SemanticTokensRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto ShowDocumentRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ShowDocumentRequest::method(std::string method) -> ShowDocumentRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ShowDocumentRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ShowDocumentRequest::id(long id) -> ShowDocumentRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ShowDocumentRequest::id(std::string id) -> ShowDocumentRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ShowDocumentRequest::id(std::variant<long, std::string> id)
+    -> ShowDocumentRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1235,12 +921,6 @@ auto ShowDocumentRequest::params(ShowDocumentParams params)
     -> ShowDocumentRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ShowDocumentResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ShowDocumentResponse::id(long id) -> ShowDocumentResponse& {
@@ -1264,30 +944,19 @@ auto ShowDocumentResponse::result(ShowDocumentResult result)
   return *this;
 }
 
-auto LinkedEditingRangeRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto LinkedEditingRangeRequest::method(std::string method)
     -> LinkedEditingRangeRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto LinkedEditingRangeRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto LinkedEditingRangeRequest::id(long id) -> LinkedEditingRangeRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto LinkedEditingRangeRequest::id(std::string id)
+auto LinkedEditingRangeRequest::id(std::variant<long, std::string> id)
     -> LinkedEditingRangeRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1300,12 +969,6 @@ auto LinkedEditingRangeRequest::params(LinkedEditingRangeParams params)
     -> LinkedEditingRangeRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto LinkedEditingRangeResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto LinkedEditingRangeResponse::id(long id) -> LinkedEditingRangeResponse& {
@@ -1333,29 +996,19 @@ auto LinkedEditingRangeResponse::result(
   return *this;
 }
 
-auto WillCreateFilesRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WillCreateFilesRequest::method(std::string method)
     -> WillCreateFilesRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WillCreateFilesRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WillCreateFilesRequest::id(long id) -> WillCreateFilesRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillCreateFilesRequest::id(std::string id) -> WillCreateFilesRequest& {
-  (*repr_)["id"] = std::move(id);
+auto WillCreateFilesRequest::id(std::variant<long, std::string> id)
+    -> WillCreateFilesRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1368,12 +1021,6 @@ auto WillCreateFilesRequest::params(CreateFilesParams params)
     -> WillCreateFilesRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WillCreateFilesResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WillCreateFilesResponse::id(long id) -> WillCreateFilesResponse& {
@@ -1398,29 +1045,19 @@ auto WillCreateFilesResponse::result(
   return *this;
 }
 
-auto WillRenameFilesRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WillRenameFilesRequest::method(std::string method)
     -> WillRenameFilesRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WillRenameFilesRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WillRenameFilesRequest::id(long id) -> WillRenameFilesRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillRenameFilesRequest::id(std::string id) -> WillRenameFilesRequest& {
-  (*repr_)["id"] = std::move(id);
+auto WillRenameFilesRequest::id(std::variant<long, std::string> id)
+    -> WillRenameFilesRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1433,12 +1070,6 @@ auto WillRenameFilesRequest::params(RenameFilesParams params)
     -> WillRenameFilesRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WillRenameFilesResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WillRenameFilesResponse::id(long id) -> WillRenameFilesResponse& {
@@ -1463,29 +1094,19 @@ auto WillRenameFilesResponse::result(
   return *this;
 }
 
-auto WillDeleteFilesRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WillDeleteFilesRequest::method(std::string method)
     -> WillDeleteFilesRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WillDeleteFilesRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WillDeleteFilesRequest::id(long id) -> WillDeleteFilesRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillDeleteFilesRequest::id(std::string id) -> WillDeleteFilesRequest& {
-  (*repr_)["id"] = std::move(id);
+auto WillDeleteFilesRequest::id(std::variant<long, std::string> id)
+    -> WillDeleteFilesRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1498,12 +1119,6 @@ auto WillDeleteFilesRequest::params(DeleteFilesParams params)
     -> WillDeleteFilesRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WillDeleteFilesResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WillDeleteFilesResponse::id(long id) -> WillDeleteFilesResponse& {
@@ -1528,28 +1143,17 @@ auto WillDeleteFilesResponse::result(
   return *this;
 }
 
-auto MonikerRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto MonikerRequest::method(std::string method) -> MonikerRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto MonikerRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto MonikerRequest::id(long id) -> MonikerRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto MonikerRequest::id(std::string id) -> MonikerRequest& {
-  (*repr_)["id"] = std::move(id);
+auto MonikerRequest::id(std::variant<long, std::string> id) -> MonikerRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1561,12 +1165,6 @@ auto MonikerRequest::params() const -> MonikerParams {
 auto MonikerRequest::params(MonikerParams params) -> MonikerRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto MonikerResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto MonikerResponse::id(long id) -> MonikerResponse& {
@@ -1590,31 +1188,19 @@ auto MonikerResponse::result(
   return *this;
 }
 
-auto TypeHierarchyPrepareRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TypeHierarchyPrepareRequest::method(std::string method)
     -> TypeHierarchyPrepareRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TypeHierarchyPrepareRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TypeHierarchyPrepareRequest::id(long id) -> TypeHierarchyPrepareRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeHierarchyPrepareRequest::id(std::string id)
+auto TypeHierarchyPrepareRequest::id(std::variant<long, std::string> id)
     -> TypeHierarchyPrepareRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1627,13 +1213,6 @@ auto TypeHierarchyPrepareRequest::params(TypeHierarchyPrepareParams params)
     -> TypeHierarchyPrepareRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto TypeHierarchyPrepareResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto TypeHierarchyPrepareResponse::id(long id)
@@ -1662,32 +1241,19 @@ auto TypeHierarchyPrepareResponse::result(
   return *this;
 }
 
-auto TypeHierarchySupertypesRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TypeHierarchySupertypesRequest::method(std::string method)
     -> TypeHierarchySupertypesRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TypeHierarchySupertypesRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TypeHierarchySupertypesRequest::id(long id)
+auto TypeHierarchySupertypesRequest::id(std::variant<long, std::string> id)
     -> TypeHierarchySupertypesRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeHierarchySupertypesRequest::id(std::string id)
-    -> TypeHierarchySupertypesRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1701,13 +1267,6 @@ auto TypeHierarchySupertypesRequest::params(
     TypeHierarchySupertypesParams params) -> TypeHierarchySupertypesRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto TypeHierarchySupertypesResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto TypeHierarchySupertypesResponse::id(long id)
@@ -1736,32 +1295,19 @@ auto TypeHierarchySupertypesResponse::result(
   return *this;
 }
 
-auto TypeHierarchySubtypesRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TypeHierarchySubtypesRequest::method(std::string method)
     -> TypeHierarchySubtypesRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TypeHierarchySubtypesRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TypeHierarchySubtypesRequest::id(long id)
+auto TypeHierarchySubtypesRequest::id(std::variant<long, std::string> id)
     -> TypeHierarchySubtypesRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeHierarchySubtypesRequest::id(std::string id)
-    -> TypeHierarchySubtypesRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1775,13 +1321,6 @@ auto TypeHierarchySubtypesRequest::params(TypeHierarchySubtypesParams params)
     -> TypeHierarchySubtypesRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto TypeHierarchySubtypesResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto TypeHierarchySubtypesResponse::id(long id)
@@ -1810,28 +1349,18 @@ auto TypeHierarchySubtypesResponse::result(
   return *this;
 }
 
-auto InlineValueRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InlineValueRequest::method(std::string method) -> InlineValueRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InlineValueRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InlineValueRequest::id(long id) -> InlineValueRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlineValueRequest::id(std::string id) -> InlineValueRequest& {
-  (*repr_)["id"] = std::move(id);
+auto InlineValueRequest::id(std::variant<long, std::string> id)
+    -> InlineValueRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1844,12 +1373,6 @@ auto InlineValueRequest::params(InlineValueParams params)
     -> InlineValueRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto InlineValueResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InlineValueResponse::id(long id) -> InlineValueResponse& {
@@ -1874,37 +1397,20 @@ auto InlineValueResponse::result(
   return *this;
 }
 
-auto InlineValueRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InlineValueRefreshRequest::method(std::string method)
     -> InlineValueRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InlineValueRefreshRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InlineValueRefreshRequest::id(long id) -> InlineValueRefreshRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlineValueRefreshRequest::id(std::string id)
+auto InlineValueRefreshRequest::id(std::variant<long, std::string> id)
     -> InlineValueRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto InlineValueRefreshResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InlineValueRefreshResponse::id(long id) -> InlineValueRefreshResponse& {
@@ -1928,28 +1434,18 @@ auto InlineValueRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto InlayHintRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InlayHintRequest::method(std::string method) -> InlayHintRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InlayHintRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InlayHintRequest::id(long id) -> InlayHintRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlayHintRequest::id(std::string id) -> InlayHintRequest& {
-  (*repr_)["id"] = std::move(id);
+auto InlayHintRequest::id(std::variant<long, std::string> id)
+    -> InlayHintRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -1961,12 +1457,6 @@ auto InlayHintRequest::params() const -> InlayHintParams {
 auto InlayHintRequest::params(InlayHintParams params) -> InlayHintRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto InlayHintResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InlayHintResponse::id(long id) -> InlayHintResponse& {
@@ -1991,29 +1481,19 @@ auto InlayHintResponse::result(
   return *this;
 }
 
-auto InlayHintResolveRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InlayHintResolveRequest::method(std::string method)
     -> InlayHintResolveRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InlayHintResolveRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InlayHintResolveRequest::id(long id) -> InlayHintResolveRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlayHintResolveRequest::id(std::string id) -> InlayHintResolveRequest& {
-  (*repr_)["id"] = std::move(id);
+auto InlayHintResolveRequest::id(std::variant<long, std::string> id)
+    -> InlayHintResolveRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2026,12 +1506,6 @@ auto InlayHintResolveRequest::params(InlayHint params)
     -> InlayHintResolveRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto InlayHintResolveResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InlayHintResolveResponse::id(long id) -> InlayHintResolveResponse& {
@@ -2055,36 +1529,20 @@ auto InlayHintResolveResponse::result(InlayHint result)
   return *this;
 }
 
-auto InlayHintRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InlayHintRefreshRequest::method(std::string method)
     -> InlayHintRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InlayHintRefreshRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InlayHintRefreshRequest::id(long id) -> InlayHintRefreshRequest& {
-  (*repr_)["id"] = id;
+auto InlayHintRefreshRequest::id(std::variant<long, std::string> id)
+    -> InlayHintRefreshRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto InlayHintRefreshRequest::id(std::string id) -> InlayHintRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto InlayHintRefreshResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InlayHintRefreshResponse::id(long id) -> InlayHintRefreshResponse& {
@@ -2107,30 +1565,19 @@ auto InlayHintRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto DocumentDiagnosticRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentDiagnosticRequest::method(std::string method)
     -> DocumentDiagnosticRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentDiagnosticRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentDiagnosticRequest::id(long id) -> DocumentDiagnosticRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentDiagnosticRequest::id(std::string id)
+auto DocumentDiagnosticRequest::id(std::variant<long, std::string> id)
     -> DocumentDiagnosticRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2143,12 +1590,6 @@ auto DocumentDiagnosticRequest::params(DocumentDiagnosticParams params)
     -> DocumentDiagnosticRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentDiagnosticResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentDiagnosticResponse::id(long id) -> DocumentDiagnosticResponse& {
@@ -2174,30 +1615,19 @@ auto DocumentDiagnosticResponse::result(DocumentDiagnosticReport result)
   return *this;
 }
 
-auto WorkspaceDiagnosticRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WorkspaceDiagnosticRequest::method(std::string method)
     -> WorkspaceDiagnosticRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WorkspaceDiagnosticRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WorkspaceDiagnosticRequest::id(long id) -> WorkspaceDiagnosticRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceDiagnosticRequest::id(std::string id)
+auto WorkspaceDiagnosticRequest::id(std::variant<long, std::string> id)
     -> WorkspaceDiagnosticRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2210,13 +1640,6 @@ auto WorkspaceDiagnosticRequest::params(WorkspaceDiagnosticParams params)
     -> WorkspaceDiagnosticRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WorkspaceDiagnosticResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WorkspaceDiagnosticResponse::id(long id) -> WorkspaceDiagnosticResponse& {
@@ -2242,36 +1665,20 @@ auto WorkspaceDiagnosticResponse::result(WorkspaceDiagnosticReport result)
   return *this;
 }
 
-auto DiagnosticRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DiagnosticRefreshRequest::method(std::string method)
     -> DiagnosticRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DiagnosticRefreshRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DiagnosticRefreshRequest::id(long id) -> DiagnosticRefreshRequest& {
-  (*repr_)["id"] = id;
+auto DiagnosticRefreshRequest::id(std::variant<long, std::string> id)
+    -> DiagnosticRefreshRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto DiagnosticRefreshRequest::id(std::string id) -> DiagnosticRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto DiagnosticRefreshResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DiagnosticRefreshResponse::id(long id) -> DiagnosticRefreshResponse& {
@@ -2295,29 +1702,19 @@ auto DiagnosticRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto InlineCompletionRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InlineCompletionRequest::method(std::string method)
     -> InlineCompletionRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InlineCompletionRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InlineCompletionRequest::id(long id) -> InlineCompletionRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlineCompletionRequest::id(std::string id) -> InlineCompletionRequest& {
-  (*repr_)["id"] = std::move(id);
+auto InlineCompletionRequest::id(std::variant<long, std::string> id)
+    -> InlineCompletionRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2330,12 +1727,6 @@ auto InlineCompletionRequest::params(InlineCompletionParams params)
     -> InlineCompletionRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto InlineCompletionResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InlineCompletionResponse::id(long id) -> InlineCompletionResponse& {
@@ -2362,30 +1753,19 @@ auto InlineCompletionResponse::result(
   return *this;
 }
 
-auto TextDocumentContentRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TextDocumentContentRequest::method(std::string method)
     -> TextDocumentContentRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TextDocumentContentRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TextDocumentContentRequest::id(long id) -> TextDocumentContentRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TextDocumentContentRequest::id(std::string id)
+auto TextDocumentContentRequest::id(std::variant<long, std::string> id)
     -> TextDocumentContentRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2398,13 +1778,6 @@ auto TextDocumentContentRequest::params(TextDocumentContentParams params)
     -> TextDocumentContentRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto TextDocumentContentResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto TextDocumentContentResponse::id(long id) -> TextDocumentContentResponse& {
@@ -2430,32 +1803,19 @@ auto TextDocumentContentResponse::result(TextDocumentContentResult result)
   return *this;
 }
 
-auto TextDocumentContentRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TextDocumentContentRefreshRequest::method(std::string method)
     -> TextDocumentContentRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TextDocumentContentRefreshRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TextDocumentContentRefreshRequest::id(long id)
+auto TextDocumentContentRefreshRequest::id(std::variant<long, std::string> id)
     -> TextDocumentContentRefreshRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TextDocumentContentRefreshRequest::id(std::string id)
-    -> TextDocumentContentRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2470,13 +1830,6 @@ auto TextDocumentContentRefreshRequest::params(
     -> TextDocumentContentRefreshRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto TextDocumentContentRefreshResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto TextDocumentContentRefreshResponse::id(long id)
@@ -2501,28 +1854,18 @@ auto TextDocumentContentRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto RegistrationRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto RegistrationRequest::method(std::string method) -> RegistrationRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto RegistrationRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto RegistrationRequest::id(long id) -> RegistrationRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto RegistrationRequest::id(std::string id) -> RegistrationRequest& {
-  (*repr_)["id"] = std::move(id);
+auto RegistrationRequest::id(std::variant<long, std::string> id)
+    -> RegistrationRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2535,12 +1878,6 @@ auto RegistrationRequest::params(RegistrationParams params)
     -> RegistrationRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto RegistrationResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto RegistrationResponse::id(long id) -> RegistrationResponse& {
@@ -2561,29 +1898,19 @@ auto RegistrationResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto UnregistrationRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto UnregistrationRequest::method(std::string method)
     -> UnregistrationRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto UnregistrationRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto UnregistrationRequest::id(long id) -> UnregistrationRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto UnregistrationRequest::id(std::string id) -> UnregistrationRequest& {
-  (*repr_)["id"] = std::move(id);
+auto UnregistrationRequest::id(std::variant<long, std::string> id)
+    -> UnregistrationRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2596,12 +1923,6 @@ auto UnregistrationRequest::params(UnregistrationParams params)
     -> UnregistrationRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto UnregistrationResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto UnregistrationResponse::id(long id) -> UnregistrationResponse& {
@@ -2624,28 +1945,18 @@ auto UnregistrationResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto InitializeRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InitializeRequest::method(std::string method) -> InitializeRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InitializeRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InitializeRequest::id(long id) -> InitializeRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InitializeRequest::id(std::string id) -> InitializeRequest& {
-  (*repr_)["id"] = std::move(id);
+auto InitializeRequest::id(std::variant<long, std::string> id)
+    -> InitializeRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2657,12 +1968,6 @@ auto InitializeRequest::params() const -> InitializeParams {
 auto InitializeRequest::params(InitializeParams params) -> InitializeRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto InitializeResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto InitializeResponse::id(long id) -> InitializeResponse& {
@@ -2686,35 +1991,19 @@ auto InitializeResponse::result(InitializeResult result)
   return *this;
 }
 
-auto ShutdownRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ShutdownRequest::method(std::string method) -> ShutdownRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ShutdownRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ShutdownRequest::id(long id) -> ShutdownRequest& {
-  (*repr_)["id"] = id;
+auto ShutdownRequest::id(std::variant<long, std::string> id)
+    -> ShutdownRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto ShutdownRequest::id(std::string id) -> ShutdownRequest& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto ShutdownResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ShutdownResponse::id(long id) -> ShutdownResponse& {
@@ -2734,28 +2023,18 @@ auto ShutdownResponse::result(std::nullptr_t result) -> ShutdownResponse& {
   return *this;
 }
 
-auto ShowMessageRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ShowMessageRequest::method(std::string method) -> ShowMessageRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ShowMessageRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ShowMessageRequest::id(long id) -> ShowMessageRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ShowMessageRequest::id(std::string id) -> ShowMessageRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ShowMessageRequest::id(std::variant<long, std::string> id)
+    -> ShowMessageRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2768,12 +2047,6 @@ auto ShowMessageRequest::params(ShowMessageRequestParams params)
     -> ShowMessageRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ShowMessageResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ShowMessageResponse::id(long id) -> ShowMessageResponse& {
@@ -2798,32 +2071,20 @@ auto ShowMessageResponse::result(
   return *this;
 }
 
-auto WillSaveTextDocumentWaitUntilRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WillSaveTextDocumentWaitUntilRequest::method(std::string method)
     -> WillSaveTextDocumentWaitUntilRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WillSaveTextDocumentWaitUntilRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WillSaveTextDocumentWaitUntilRequest::id(long id)
+auto WillSaveTextDocumentWaitUntilRequest::id(
+    std::variant<long, std::string> id)
     -> WillSaveTextDocumentWaitUntilRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillSaveTextDocumentWaitUntilRequest::id(std::string id)
-    -> WillSaveTextDocumentWaitUntilRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2838,13 +2099,6 @@ auto WillSaveTextDocumentWaitUntilRequest::params(
     -> WillSaveTextDocumentWaitUntilRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WillSaveTextDocumentWaitUntilResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WillSaveTextDocumentWaitUntilResponse::id(long id)
@@ -2873,28 +2127,18 @@ auto WillSaveTextDocumentWaitUntilResponse::result(
   return *this;
 }
 
-auto CompletionRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CompletionRequest::method(std::string method) -> CompletionRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CompletionRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CompletionRequest::id(long id) -> CompletionRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CompletionRequest::id(std::string id) -> CompletionRequest& {
-  (*repr_)["id"] = std::move(id);
+auto CompletionRequest::id(std::variant<long, std::string> id)
+    -> CompletionRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2906,12 +2150,6 @@ auto CompletionRequest::params() const -> CompletionParams {
 auto CompletionRequest::params(CompletionParams params) -> CompletionRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CompletionResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CompletionResponse::id(long id) -> CompletionResponse& {
@@ -2936,29 +2174,19 @@ auto CompletionResponse::result(
   return *this;
 }
 
-auto CompletionResolveRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CompletionResolveRequest::method(std::string method)
     -> CompletionResolveRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CompletionResolveRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CompletionResolveRequest::id(long id) -> CompletionResolveRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CompletionResolveRequest::id(std::string id) -> CompletionResolveRequest& {
-  (*repr_)["id"] = std::move(id);
+auto CompletionResolveRequest::id(std::variant<long, std::string> id)
+    -> CompletionResolveRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -2971,12 +2199,6 @@ auto CompletionResolveRequest::params(CompletionItem params)
     -> CompletionResolveRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CompletionResolveResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CompletionResolveResponse::id(long id) -> CompletionResolveResponse& {
@@ -3002,26 +2224,17 @@ auto CompletionResolveResponse::result(CompletionItem result)
   return *this;
 }
 
-auto HoverRequest::method() const -> std::string { return repr_->at("method"); }
-
 auto HoverRequest::method(std::string method) -> HoverRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto HoverRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto HoverRequest::id(long id) -> HoverRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto HoverRequest::id(std::string id) -> HoverRequest& {
-  (*repr_)["id"] = std::move(id);
+auto HoverRequest::id(std::variant<long, std::string> id) -> HoverRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3033,12 +2246,6 @@ auto HoverRequest::params() const -> HoverParams {
 auto HoverRequest::params(HoverParams params) -> HoverRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto HoverResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto HoverResponse::id(long id) -> HoverResponse& {
@@ -3061,28 +2268,18 @@ auto HoverResponse::result(std::variant<Hover, std::nullptr_t> result)
   return *this;
 }
 
-auto SignatureHelpRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SignatureHelpRequest::method(std::string method) -> SignatureHelpRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SignatureHelpRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SignatureHelpRequest::id(long id) -> SignatureHelpRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SignatureHelpRequest::id(std::string id) -> SignatureHelpRequest& {
-  (*repr_)["id"] = std::move(id);
+auto SignatureHelpRequest::id(std::variant<long, std::string> id)
+    -> SignatureHelpRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3095,12 +2292,6 @@ auto SignatureHelpRequest::params(SignatureHelpParams params)
     -> SignatureHelpRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto SignatureHelpResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto SignatureHelpResponse::id(long id) -> SignatureHelpResponse& {
@@ -3125,28 +2316,18 @@ auto SignatureHelpResponse::result(
   return *this;
 }
 
-auto DefinitionRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DefinitionRequest::method(std::string method) -> DefinitionRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DefinitionRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DefinitionRequest::id(long id) -> DefinitionRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DefinitionRequest::id(std::string id) -> DefinitionRequest& {
-  (*repr_)["id"] = std::move(id);
+auto DefinitionRequest::id(std::variant<long, std::string> id)
+    -> DefinitionRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3158,12 +2339,6 @@ auto DefinitionRequest::params() const -> DefinitionParams {
 auto DefinitionRequest::params(DefinitionParams params) -> DefinitionRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DefinitionResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DefinitionResponse::id(long id) -> DefinitionResponse& {
@@ -3188,28 +2363,18 @@ auto DefinitionResponse::result(
   return *this;
 }
 
-auto ReferencesRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ReferencesRequest::method(std::string method) -> ReferencesRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ReferencesRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ReferencesRequest::id(long id) -> ReferencesRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ReferencesRequest::id(std::string id) -> ReferencesRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ReferencesRequest::id(std::variant<long, std::string> id)
+    -> ReferencesRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3221,12 +2386,6 @@ auto ReferencesRequest::params() const -> ReferenceParams {
 auto ReferencesRequest::params(ReferenceParams params) -> ReferencesRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ReferencesResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ReferencesResponse::id(long id) -> ReferencesResponse& {
@@ -3251,29 +2410,19 @@ auto ReferencesResponse::result(
   return *this;
 }
 
-auto DocumentHighlightRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentHighlightRequest::method(std::string method)
     -> DocumentHighlightRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentHighlightRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentHighlightRequest::id(long id) -> DocumentHighlightRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentHighlightRequest::id(std::string id) -> DocumentHighlightRequest& {
-  (*repr_)["id"] = std::move(id);
+auto DocumentHighlightRequest::id(std::variant<long, std::string> id)
+    -> DocumentHighlightRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3286,12 +2435,6 @@ auto DocumentHighlightRequest::params(DocumentHighlightParams params)
     -> DocumentHighlightRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentHighlightResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentHighlightResponse::id(long id) -> DocumentHighlightResponse& {
@@ -3319,29 +2462,19 @@ auto DocumentHighlightResponse::result(
   return *this;
 }
 
-auto DocumentSymbolRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentSymbolRequest::method(std::string method)
     -> DocumentSymbolRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentSymbolRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentSymbolRequest::id(long id) -> DocumentSymbolRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentSymbolRequest::id(std::string id) -> DocumentSymbolRequest& {
-  (*repr_)["id"] = std::move(id);
+auto DocumentSymbolRequest::id(std::variant<long, std::string> id)
+    -> DocumentSymbolRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3354,12 +2487,6 @@ auto DocumentSymbolRequest::params(DocumentSymbolParams params)
     -> DocumentSymbolRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentSymbolResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentSymbolResponse::id(long id) -> DocumentSymbolResponse& {
@@ -3386,28 +2513,18 @@ auto DocumentSymbolResponse::result(
   return *this;
 }
 
-auto CodeActionRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CodeActionRequest::method(std::string method) -> CodeActionRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CodeActionRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CodeActionRequest::id(long id) -> CodeActionRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeActionRequest::id(std::string id) -> CodeActionRequest& {
-  (*repr_)["id"] = std::move(id);
+auto CodeActionRequest::id(std::variant<long, std::string> id)
+    -> CodeActionRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3419,12 +2536,6 @@ auto CodeActionRequest::params() const -> CodeActionParams {
 auto CodeActionRequest::params(CodeActionParams params) -> CodeActionRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CodeActionResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CodeActionResponse::id(long id) -> CodeActionResponse& {
@@ -3449,29 +2560,19 @@ auto CodeActionResponse::result(
   return *this;
 }
 
-auto CodeActionResolveRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CodeActionResolveRequest::method(std::string method)
     -> CodeActionResolveRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CodeActionResolveRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CodeActionResolveRequest::id(long id) -> CodeActionResolveRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeActionResolveRequest::id(std::string id) -> CodeActionResolveRequest& {
-  (*repr_)["id"] = std::move(id);
+auto CodeActionResolveRequest::id(std::variant<long, std::string> id)
+    -> CodeActionResolveRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3484,12 +2585,6 @@ auto CodeActionResolveRequest::params(CodeAction params)
     -> CodeActionResolveRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CodeActionResolveResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CodeActionResolveResponse::id(long id) -> CodeActionResolveResponse& {
@@ -3515,29 +2610,19 @@ auto CodeActionResolveResponse::result(CodeAction result)
   return *this;
 }
 
-auto WorkspaceSymbolRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WorkspaceSymbolRequest::method(std::string method)
     -> WorkspaceSymbolRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WorkspaceSymbolRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WorkspaceSymbolRequest::id(long id) -> WorkspaceSymbolRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceSymbolRequest::id(std::string id) -> WorkspaceSymbolRequest& {
-  (*repr_)["id"] = std::move(id);
+auto WorkspaceSymbolRequest::id(std::variant<long, std::string> id)
+    -> WorkspaceSymbolRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3550,12 +2635,6 @@ auto WorkspaceSymbolRequest::params(WorkspaceSymbolParams params)
     -> WorkspaceSymbolRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WorkspaceSymbolResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WorkspaceSymbolResponse::id(long id) -> WorkspaceSymbolResponse& {
@@ -3582,32 +2661,19 @@ auto WorkspaceSymbolResponse::result(
   return *this;
 }
 
-auto WorkspaceSymbolResolveRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WorkspaceSymbolResolveRequest::method(std::string method)
     -> WorkspaceSymbolResolveRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WorkspaceSymbolResolveRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WorkspaceSymbolResolveRequest::id(long id)
+auto WorkspaceSymbolResolveRequest::id(std::variant<long, std::string> id)
     -> WorkspaceSymbolResolveRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceSymbolResolveRequest::id(std::string id)
-    -> WorkspaceSymbolResolveRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3620,13 +2686,6 @@ auto WorkspaceSymbolResolveRequest::params(WorkspaceSymbol params)
     -> WorkspaceSymbolResolveRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto WorkspaceSymbolResolveResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto WorkspaceSymbolResolveResponse::id(long id)
@@ -3653,28 +2712,18 @@ auto WorkspaceSymbolResolveResponse::result(WorkspaceSymbol result)
   return *this;
 }
 
-auto CodeLensRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CodeLensRequest::method(std::string method) -> CodeLensRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CodeLensRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CodeLensRequest::id(long id) -> CodeLensRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeLensRequest::id(std::string id) -> CodeLensRequest& {
-  (*repr_)["id"] = std::move(id);
+auto CodeLensRequest::id(std::variant<long, std::string> id)
+    -> CodeLensRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3686,12 +2735,6 @@ auto CodeLensRequest::params() const -> CodeLensParams {
 auto CodeLensRequest::params(CodeLensParams params) -> CodeLensRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CodeLensResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CodeLensResponse::id(long id) -> CodeLensResponse& {
@@ -3716,29 +2759,19 @@ auto CodeLensResponse::result(
   return *this;
 }
 
-auto CodeLensResolveRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CodeLensResolveRequest::method(std::string method)
     -> CodeLensResolveRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CodeLensResolveRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CodeLensResolveRequest::id(long id) -> CodeLensResolveRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeLensResolveRequest::id(std::string id) -> CodeLensResolveRequest& {
-  (*repr_)["id"] = std::move(id);
+auto CodeLensResolveRequest::id(std::variant<long, std::string> id)
+    -> CodeLensResolveRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3751,12 +2784,6 @@ auto CodeLensResolveRequest::params(CodeLens params)
     -> CodeLensResolveRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto CodeLensResolveResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CodeLensResolveResponse::id(long id) -> CodeLensResolveResponse& {
@@ -3780,36 +2807,20 @@ auto CodeLensResolveResponse::result(CodeLens result)
   return *this;
 }
 
-auto CodeLensRefreshRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CodeLensRefreshRequest::method(std::string method)
     -> CodeLensRefreshRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CodeLensRefreshRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CodeLensRefreshRequest::id(long id) -> CodeLensRefreshRequest& {
-  (*repr_)["id"] = id;
+auto CodeLensRefreshRequest::id(std::variant<long, std::string> id)
+    -> CodeLensRefreshRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto CodeLensRefreshRequest::id(std::string id) -> CodeLensRefreshRequest& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto CodeLensRefreshResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto CodeLensRefreshResponse::id(long id) -> CodeLensRefreshResponse& {
@@ -3832,28 +2843,18 @@ auto CodeLensRefreshResponse::result(std::nullptr_t result)
   return *this;
 }
 
-auto DocumentLinkRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentLinkRequest::method(std::string method) -> DocumentLinkRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentLinkRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentLinkRequest::id(long id) -> DocumentLinkRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentLinkRequest::id(std::string id) -> DocumentLinkRequest& {
-  (*repr_)["id"] = std::move(id);
+auto DocumentLinkRequest::id(std::variant<long, std::string> id)
+    -> DocumentLinkRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3866,12 +2867,6 @@ auto DocumentLinkRequest::params(DocumentLinkParams params)
     -> DocumentLinkRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentLinkResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentLinkResponse::id(long id) -> DocumentLinkResponse& {
@@ -3896,30 +2891,19 @@ auto DocumentLinkResponse::result(
   return *this;
 }
 
-auto DocumentLinkResolveRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentLinkResolveRequest::method(std::string method)
     -> DocumentLinkResolveRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentLinkResolveRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentLinkResolveRequest::id(long id) -> DocumentLinkResolveRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentLinkResolveRequest::id(std::string id)
+auto DocumentLinkResolveRequest::id(std::variant<long, std::string> id)
     -> DocumentLinkResolveRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -3932,13 +2916,6 @@ auto DocumentLinkResolveRequest::params(DocumentLink params)
     -> DocumentLinkResolveRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentLinkResolveResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentLinkResolveResponse::id(long id) -> DocumentLinkResolveResponse& {
@@ -3964,30 +2941,19 @@ auto DocumentLinkResolveResponse::result(DocumentLink result)
   return *this;
 }
 
-auto DocumentFormattingRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentFormattingRequest::method(std::string method)
     -> DocumentFormattingRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentFormattingRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentFormattingRequest::id(long id) -> DocumentFormattingRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentFormattingRequest::id(std::string id)
+auto DocumentFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentFormattingRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4000,12 +2966,6 @@ auto DocumentFormattingRequest::params(DocumentFormattingParams params)
     -> DocumentFormattingRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentFormattingResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentFormattingResponse::id(long id) -> DocumentFormattingResponse& {
@@ -4033,32 +2993,19 @@ auto DocumentFormattingResponse::result(
   return *this;
 }
 
-auto DocumentRangeFormattingRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentRangeFormattingRequest::method(std::string method)
     -> DocumentRangeFormattingRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentRangeFormattingRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentRangeFormattingRequest::id(long id)
+auto DocumentRangeFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentRangeFormattingRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentRangeFormattingRequest::id(std::string id)
-    -> DocumentRangeFormattingRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4072,13 +3019,6 @@ auto DocumentRangeFormattingRequest::params(
     DocumentRangeFormattingParams params) -> DocumentRangeFormattingRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentRangeFormattingResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentRangeFormattingResponse::id(long id)
@@ -4107,32 +3047,19 @@ auto DocumentRangeFormattingResponse::result(
   return *this;
 }
 
-auto DocumentRangesFormattingRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentRangesFormattingRequest::method(std::string method)
     -> DocumentRangesFormattingRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentRangesFormattingRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentRangesFormattingRequest::id(long id)
+auto DocumentRangesFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentRangesFormattingRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentRangesFormattingRequest::id(std::string id)
-    -> DocumentRangesFormattingRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4146,13 +3073,6 @@ auto DocumentRangesFormattingRequest::params(
     DocumentRangesFormattingParams params) -> DocumentRangesFormattingRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentRangesFormattingResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentRangesFormattingResponse::id(long id)
@@ -4181,32 +3101,19 @@ auto DocumentRangesFormattingResponse::result(
   return *this;
 }
 
-auto DocumentOnTypeFormattingRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DocumentOnTypeFormattingRequest::method(std::string method)
     -> DocumentOnTypeFormattingRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DocumentOnTypeFormattingRequest::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DocumentOnTypeFormattingRequest::id(long id)
+auto DocumentOnTypeFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentOnTypeFormattingRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentOnTypeFormattingRequest::id(std::string id)
-    -> DocumentOnTypeFormattingRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4220,13 +3127,6 @@ auto DocumentOnTypeFormattingRequest::params(
     DocumentOnTypeFormattingParams params) -> DocumentOnTypeFormattingRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto DocumentOnTypeFormattingResponse::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto DocumentOnTypeFormattingResponse::id(long id)
@@ -4255,28 +3155,17 @@ auto DocumentOnTypeFormattingResponse::result(
   return *this;
 }
 
-auto RenameRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto RenameRequest::method(std::string method) -> RenameRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto RenameRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto RenameRequest::id(long id) -> RenameRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto RenameRequest::id(std::string id) -> RenameRequest& {
-  (*repr_)["id"] = std::move(id);
+auto RenameRequest::id(std::variant<long, std::string> id) -> RenameRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4288,12 +3177,6 @@ auto RenameRequest::params() const -> RenameParams {
 auto RenameRequest::params(RenameParams params) -> RenameRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto RenameResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto RenameResponse::id(long id) -> RenameResponse& {
@@ -4317,28 +3200,18 @@ auto RenameResponse::result(std::variant<WorkspaceEdit, std::nullptr_t> result)
   return *this;
 }
 
-auto PrepareRenameRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto PrepareRenameRequest::method(std::string method) -> PrepareRenameRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto PrepareRenameRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto PrepareRenameRequest::id(long id) -> PrepareRenameRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto PrepareRenameRequest::id(std::string id) -> PrepareRenameRequest& {
-  (*repr_)["id"] = std::move(id);
+auto PrepareRenameRequest::id(std::variant<long, std::string> id)
+    -> PrepareRenameRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4351,12 +3224,6 @@ auto PrepareRenameRequest::params(PrepareRenameParams params)
     -> PrepareRenameRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto PrepareRenameResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto PrepareRenameResponse::id(long id) -> PrepareRenameResponse& {
@@ -4381,29 +3248,19 @@ auto PrepareRenameResponse::result(
   return *this;
 }
 
-auto ExecuteCommandRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ExecuteCommandRequest::method(std::string method)
     -> ExecuteCommandRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ExecuteCommandRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ExecuteCommandRequest::id(long id) -> ExecuteCommandRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ExecuteCommandRequest::id(std::string id) -> ExecuteCommandRequest& {
-  (*repr_)["id"] = std::move(id);
+auto ExecuteCommandRequest::id(std::variant<long, std::string> id)
+    -> ExecuteCommandRequest& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4416,12 +3273,6 @@ auto ExecuteCommandRequest::params(ExecuteCommandParams params)
     -> ExecuteCommandRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ExecuteCommandResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ExecuteCommandResponse::id(long id) -> ExecuteCommandResponse& {
@@ -4445,30 +3296,19 @@ auto ExecuteCommandResponse::result(std::variant<LSPAny, std::nullptr_t> result)
   return *this;
 }
 
-auto ApplyWorkspaceEditRequest::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ApplyWorkspaceEditRequest::method(std::string method)
     -> ApplyWorkspaceEditRequest& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ApplyWorkspaceEditRequest::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ApplyWorkspaceEditRequest::id(long id) -> ApplyWorkspaceEditRequest& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ApplyWorkspaceEditRequest::id(std::string id)
+auto ApplyWorkspaceEditRequest::id(std::variant<long, std::string> id)
     -> ApplyWorkspaceEditRequest& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4481,12 +3321,6 @@ auto ApplyWorkspaceEditRequest::params(ApplyWorkspaceEditParams params)
     -> ApplyWorkspaceEditRequest& {
   (*repr_)["params"] = std::move(params);
   return *this;
-}
-
-auto ApplyWorkspaceEditResponse::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
 }
 
 auto ApplyWorkspaceEditResponse::id(long id) -> ApplyWorkspaceEditResponse& {
@@ -4512,32 +3346,20 @@ auto ApplyWorkspaceEditResponse::result(ApplyWorkspaceEditResult result)
   return *this;
 }
 
-auto DidChangeWorkspaceFoldersNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidChangeWorkspaceFoldersNotification::method(std::string method)
     -> DidChangeWorkspaceFoldersNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidChangeWorkspaceFoldersNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidChangeWorkspaceFoldersNotification::id(long id)
+auto DidChangeWorkspaceFoldersNotification::id(
+    std::variant<long, std::string> id)
     -> DidChangeWorkspaceFoldersNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidChangeWorkspaceFoldersNotification::id(std::string id)
-    -> DidChangeWorkspaceFoldersNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4554,32 +3376,19 @@ auto DidChangeWorkspaceFoldersNotification::params(
   return *this;
 }
 
-auto WorkDoneProgressCancelNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WorkDoneProgressCancelNotification::method(std::string method)
     -> WorkDoneProgressCancelNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WorkDoneProgressCancelNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WorkDoneProgressCancelNotification::id(long id)
+auto WorkDoneProgressCancelNotification::id(std::variant<long, std::string> id)
     -> WorkDoneProgressCancelNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkDoneProgressCancelNotification::id(std::string id)
-    -> WorkDoneProgressCancelNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4596,30 +3405,19 @@ auto WorkDoneProgressCancelNotification::params(
   return *this;
 }
 
-auto DidCreateFilesNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidCreateFilesNotification::method(std::string method)
     -> DidCreateFilesNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidCreateFilesNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidCreateFilesNotification::id(long id) -> DidCreateFilesNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidCreateFilesNotification::id(std::string id)
+auto DidCreateFilesNotification::id(std::variant<long, std::string> id)
     -> DidCreateFilesNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4634,30 +3432,19 @@ auto DidCreateFilesNotification::params(CreateFilesParams params)
   return *this;
 }
 
-auto DidRenameFilesNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidRenameFilesNotification::method(std::string method)
     -> DidRenameFilesNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidRenameFilesNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidRenameFilesNotification::id(long id) -> DidRenameFilesNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidRenameFilesNotification::id(std::string id)
+auto DidRenameFilesNotification::id(std::variant<long, std::string> id)
     -> DidRenameFilesNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4672,30 +3459,19 @@ auto DidRenameFilesNotification::params(RenameFilesParams params)
   return *this;
 }
 
-auto DidDeleteFilesNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidDeleteFilesNotification::method(std::string method)
     -> DidDeleteFilesNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidDeleteFilesNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidDeleteFilesNotification::id(long id) -> DidDeleteFilesNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidDeleteFilesNotification::id(std::string id)
+auto DidDeleteFilesNotification::id(std::variant<long, std::string> id)
     -> DidDeleteFilesNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4710,32 +3486,19 @@ auto DidDeleteFilesNotification::params(DeleteFilesParams params)
   return *this;
 }
 
-auto DidOpenNotebookDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidOpenNotebookDocumentNotification::method(std::string method)
     -> DidOpenNotebookDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidOpenNotebookDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidOpenNotebookDocumentNotification::id(long id)
+auto DidOpenNotebookDocumentNotification::id(std::variant<long, std::string> id)
     -> DidOpenNotebookDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidOpenNotebookDocumentNotification::id(std::string id)
-    -> DidOpenNotebookDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4752,32 +3515,20 @@ auto DidOpenNotebookDocumentNotification::params(
   return *this;
 }
 
-auto DidChangeNotebookDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidChangeNotebookDocumentNotification::method(std::string method)
     -> DidChangeNotebookDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidChangeNotebookDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidChangeNotebookDocumentNotification::id(long id)
+auto DidChangeNotebookDocumentNotification::id(
+    std::variant<long, std::string> id)
     -> DidChangeNotebookDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidChangeNotebookDocumentNotification::id(std::string id)
-    -> DidChangeNotebookDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4794,32 +3545,19 @@ auto DidChangeNotebookDocumentNotification::params(
   return *this;
 }
 
-auto DidSaveNotebookDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidSaveNotebookDocumentNotification::method(std::string method)
     -> DidSaveNotebookDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidSaveNotebookDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidSaveNotebookDocumentNotification::id(long id)
+auto DidSaveNotebookDocumentNotification::id(std::variant<long, std::string> id)
     -> DidSaveNotebookDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidSaveNotebookDocumentNotification::id(std::string id)
-    -> DidSaveNotebookDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4836,32 +3574,20 @@ auto DidSaveNotebookDocumentNotification::params(
   return *this;
 }
 
-auto DidCloseNotebookDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidCloseNotebookDocumentNotification::method(std::string method)
     -> DidCloseNotebookDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidCloseNotebookDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidCloseNotebookDocumentNotification::id(long id)
+auto DidCloseNotebookDocumentNotification::id(
+    std::variant<long, std::string> id)
     -> DidCloseNotebookDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidCloseNotebookDocumentNotification::id(std::string id)
-    -> DidCloseNotebookDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4878,29 +3604,19 @@ auto DidCloseNotebookDocumentNotification::params(
   return *this;
 }
 
-auto InitializedNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto InitializedNotification::method(std::string method)
     -> InitializedNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto InitializedNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto InitializedNotification::id(long id) -> InitializedNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InitializedNotification::id(std::string id) -> InitializedNotification& {
-  (*repr_)["id"] = std::move(id);
+auto InitializedNotification::id(std::variant<long, std::string> id)
+    -> InitializedNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4915,33 +3631,19 @@ auto InitializedNotification::params(InitializedParams params)
   return *this;
 }
 
-auto ExitNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ExitNotification::method(std::string method) -> ExitNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ExitNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ExitNotification::id(long id) -> ExitNotification& {
-  (*repr_)["id"] = id;
+auto ExitNotification::id(std::variant<long, std::string> id)
+    -> ExitNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
-}
-
-auto ExitNotification::id(std::string id) -> ExitNotification& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto DidChangeConfigurationNotification::method() const -> std::string {
-  return repr_->at("method");
 }
 
 auto DidChangeConfigurationNotification::method(std::string method)
@@ -4950,22 +3652,13 @@ auto DidChangeConfigurationNotification::method(std::string method)
   return *this;
 }
 
-auto DidChangeConfigurationNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidChangeConfigurationNotification::id(long id)
+auto DidChangeConfigurationNotification::id(std::variant<long, std::string> id)
     -> DidChangeConfigurationNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidChangeConfigurationNotification::id(std::string id)
-    -> DidChangeConfigurationNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -4982,29 +3675,19 @@ auto DidChangeConfigurationNotification::params(
   return *this;
 }
 
-auto ShowMessageNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ShowMessageNotification::method(std::string method)
     -> ShowMessageNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ShowMessageNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ShowMessageNotification::id(long id) -> ShowMessageNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ShowMessageNotification::id(std::string id) -> ShowMessageNotification& {
-  (*repr_)["id"] = std::move(id);
+auto ShowMessageNotification::id(std::variant<long, std::string> id)
+    -> ShowMessageNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5019,29 +3702,19 @@ auto ShowMessageNotification::params(ShowMessageParams params)
   return *this;
 }
 
-auto LogMessageNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto LogMessageNotification::method(std::string method)
     -> LogMessageNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto LogMessageNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto LogMessageNotification::id(long id) -> LogMessageNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto LogMessageNotification::id(std::string id) -> LogMessageNotification& {
-  (*repr_)["id"] = std::move(id);
+auto LogMessageNotification::id(std::variant<long, std::string> id)
+    -> LogMessageNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5056,30 +3729,19 @@ auto LogMessageNotification::params(LogMessageParams params)
   return *this;
 }
 
-auto TelemetryEventNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto TelemetryEventNotification::method(std::string method)
     -> TelemetryEventNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto TelemetryEventNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto TelemetryEventNotification::id(long id) -> TelemetryEventNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TelemetryEventNotification::id(std::string id)
+auto TelemetryEventNotification::id(std::variant<long, std::string> id)
     -> TelemetryEventNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5094,32 +3756,19 @@ auto TelemetryEventNotification::params(LSPAny params)
   return *this;
 }
 
-auto DidOpenTextDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidOpenTextDocumentNotification::method(std::string method)
     -> DidOpenTextDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidOpenTextDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidOpenTextDocumentNotification::id(long id)
+auto DidOpenTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidOpenTextDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidOpenTextDocumentNotification::id(std::string id)
-    -> DidOpenTextDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5135,32 +3784,19 @@ auto DidOpenTextDocumentNotification::params(DidOpenTextDocumentParams params)
   return *this;
 }
 
-auto DidChangeTextDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidChangeTextDocumentNotification::method(std::string method)
     -> DidChangeTextDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidChangeTextDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidChangeTextDocumentNotification::id(long id)
+auto DidChangeTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidChangeTextDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidChangeTextDocumentNotification::id(std::string id)
-    -> DidChangeTextDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5176,32 +3812,19 @@ auto DidChangeTextDocumentNotification::params(
   return *this;
 }
 
-auto DidCloseTextDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidCloseTextDocumentNotification::method(std::string method)
     -> DidCloseTextDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidCloseTextDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidCloseTextDocumentNotification::id(long id)
+auto DidCloseTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidCloseTextDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidCloseTextDocumentNotification::id(std::string id)
-    -> DidCloseTextDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5217,32 +3840,19 @@ auto DidCloseTextDocumentNotification::params(DidCloseTextDocumentParams params)
   return *this;
 }
 
-auto DidSaveTextDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidSaveTextDocumentNotification::method(std::string method)
     -> DidSaveTextDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidSaveTextDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidSaveTextDocumentNotification::id(long id)
+auto DidSaveTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidSaveTextDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidSaveTextDocumentNotification::id(std::string id)
-    -> DidSaveTextDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5258,32 +3868,19 @@ auto DidSaveTextDocumentNotification::params(DidSaveTextDocumentParams params)
   return *this;
 }
 
-auto WillSaveTextDocumentNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto WillSaveTextDocumentNotification::method(std::string method)
     -> WillSaveTextDocumentNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto WillSaveTextDocumentNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto WillSaveTextDocumentNotification::id(long id)
+auto WillSaveTextDocumentNotification::id(std::variant<long, std::string> id)
     -> WillSaveTextDocumentNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillSaveTextDocumentNotification::id(std::string id)
-    -> WillSaveTextDocumentNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5299,32 +3896,19 @@ auto WillSaveTextDocumentNotification::params(WillSaveTextDocumentParams params)
   return *this;
 }
 
-auto DidChangeWatchedFilesNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto DidChangeWatchedFilesNotification::method(std::string method)
     -> DidChangeWatchedFilesNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto DidChangeWatchedFilesNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto DidChangeWatchedFilesNotification::id(long id)
+auto DidChangeWatchedFilesNotification::id(std::variant<long, std::string> id)
     -> DidChangeWatchedFilesNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DidChangeWatchedFilesNotification::id(std::string id)
-    -> DidChangeWatchedFilesNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5340,32 +3924,19 @@ auto DidChangeWatchedFilesNotification::params(
   return *this;
 }
 
-auto PublishDiagnosticsNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto PublishDiagnosticsNotification::method(std::string method)
     -> PublishDiagnosticsNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto PublishDiagnosticsNotification::id() const
-    -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto PublishDiagnosticsNotification::id(long id)
+auto PublishDiagnosticsNotification::id(std::variant<long, std::string> id)
     -> PublishDiagnosticsNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto PublishDiagnosticsNotification::id(std::string id)
-    -> PublishDiagnosticsNotification& {
-  (*repr_)["id"] = std::move(id);
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5381,28 +3952,18 @@ auto PublishDiagnosticsNotification::params(PublishDiagnosticsParams params)
   return *this;
 }
 
-auto SetTraceNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto SetTraceNotification::method(std::string method) -> SetTraceNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto SetTraceNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto SetTraceNotification::id(long id) -> SetTraceNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SetTraceNotification::id(std::string id) -> SetTraceNotification& {
-  (*repr_)["id"] = std::move(id);
+auto SetTraceNotification::id(std::variant<long, std::string> id)
+    -> SetTraceNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5417,28 +3978,18 @@ auto SetTraceNotification::params(SetTraceParams params)
   return *this;
 }
 
-auto LogTraceNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto LogTraceNotification::method(std::string method) -> LogTraceNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto LogTraceNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto LogTraceNotification::id(long id) -> LogTraceNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto LogTraceNotification::id(std::string id) -> LogTraceNotification& {
-  (*repr_)["id"] = std::move(id);
+auto LogTraceNotification::id(std::variant<long, std::string> id)
+    -> LogTraceNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5453,28 +4004,18 @@ auto LogTraceNotification::params(LogTraceParams params)
   return *this;
 }
 
-auto CancelNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto CancelNotification::method(std::string method) -> CancelNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto CancelNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto CancelNotification::id(long id) -> CancelNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CancelNotification::id(std::string id) -> CancelNotification& {
-  (*repr_)["id"] = std::move(id);
+auto CancelNotification::id(std::variant<long, std::string> id)
+    -> CancelNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
@@ -5488,28 +4029,18 @@ auto CancelNotification::params(CancelParams params) -> CancelNotification& {
   return *this;
 }
 
-auto ProgressNotification::method() const -> std::string {
-  return repr_->at("method");
-}
-
 auto ProgressNotification::method(std::string method) -> ProgressNotification& {
   (*repr_)["method"] = std::move(method);
   return *this;
 }
 
-auto ProgressNotification::id() const -> std::variant<long, std::string> {
-  const auto& id = repr_->at("id");
-  if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
-}
-
-auto ProgressNotification::id(long id) -> ProgressNotification& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ProgressNotification::id(std::string id) -> ProgressNotification& {
-  (*repr_)["id"] = std::move(id);
+auto ProgressNotification::id(std::variant<long, std::string> id)
+    -> ProgressNotification& {
+  if (std::holds_alternative<long>(id)) {
+    (*repr_)["id"] = std::get<long>(id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(id);
+  }
   return *this;
 }
 
