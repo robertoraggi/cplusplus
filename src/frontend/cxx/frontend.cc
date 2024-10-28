@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
@@ -34,24 +33,18 @@
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
-#include <format>
-
-#include "ast_printer.h"
-#include "lsp_server.h"
-#include "verify_diagnostics_client.h"
-
-// std
-#include <algorithm>
 #include <cassert>
+#include <format>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <list>
 #include <regex>
-#include <sstream>
 #include <string>
 
+#include "ast_printer.h"
 #include "cli.h"
+#include "lsp_server.h"
+#include "verify_diagnostics_client.h"
 
 namespace {
 using namespace cxx;
@@ -305,6 +298,10 @@ auto main(int argc, char* argv[]) -> int {
 
   const auto& inputFiles = cli.positionals();
 
+  if (cli.opt_lsp_test) {
+    cli.opt_lsp = true;
+  }
+
   if (!cli.opt_lsp && inputFiles.empty()) {
     std::cerr << "cxx: no input files" << std::endl
               << "Usage: cxx [options] file..." << std::endl;
@@ -314,7 +311,8 @@ auto main(int argc, char* argv[]) -> int {
   int existStatus = EXIT_SUCCESS;
 
   if (cli.opt_lsp) {
-    existStatus = lsp::startServer(cli);
+    lsp::Server server(cli);
+    existStatus = server.start();
   } else {
     for (const auto& fileName : inputFiles) {
       if (!runOnFile(cli, fileName)) {

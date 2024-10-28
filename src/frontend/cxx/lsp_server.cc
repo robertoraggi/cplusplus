@@ -20,65 +20,89 @@
 
 #include "lsp_server.h"
 
-#include <cxx/ast.h>
-#include <cxx/ast_visitor.h>
-#include <cxx/control.h>
-#include <cxx/gcc_linux_toolchain.h>
-#include <cxx/lexer.h>
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/requests.h>
 #include <cxx/lsp/types.h>
-#include <cxx/macos_toolchain.h>
-#include <cxx/preprocessor.h>
-#include <cxx/private/path.h>
-#include <cxx/scope.h>
-#include <cxx/symbol_printer.h>
-#include <cxx/symbols.h>
-#include <cxx/translation_unit.h>
-#include <cxx/wasm32_wasi_toolchain.h>
-#include <cxx/windows_toolchain.h>
 
 #include <format>
 #include <iostream>
-#include <set>
 #include <unordered_map>
 #include <vector>
 
-namespace cxx::lsp {
-
-struct Header {
-  std::string name;
-  std::string value;
-};
-
-}  // namespace cxx::lsp
-
-template <>
-struct std::less<cxx::lsp::Header> {
-  using is_transparent = void;
-
-  auto operator()(const cxx::lsp::Header& lhs,
-                  const cxx::lsp::Header& rhs) const -> bool {
-    return lhs.name < rhs.name;
-  }
-
-  auto operator()(const cxx::lsp::Header& lhs,
-                  const std::string_view& rhs) const -> bool {
-    return lhs.name < rhs;
-  }
-
-  auto operator()(const std::string_view& lhs,
-                  const cxx::lsp::Header& rhs) const -> bool {
-    return lhs < rhs.name;
-  }
-};
+#include "cxx_document.h"
 
 namespace cxx::lsp {
 
-using Headers = std::set<Header>;
+Server::Server(const CLI& cli)
+    : cli(cli), input(std::cin), output(std::cout), log(std::cerr) {
+  // create workers
+  const auto workerCount = 4;
 
-auto readHeaders(std::istream& input) -> Headers {
-  Headers headers;
+  auto worker = [] {
+
+  };
+}
+
+Server::~Server() {}
+
+auto Server::start() -> int {
+  log << std::format("Starting LSP server\n");
+
+  startWorkersIfNeeded();
+
+  while (!done_ && input.good()) {
+    if (done_) {
+      break;
+    }
+
+    if (auto req = nextRequest()) {
+      auto request = LSPRequest(req.value());
+      visit(*this, request);
+    }
+  }
+
+  stopWorkersIfNeeded();
+
+  return 0;
+}
+
+auto Server::nextRequest() -> std::optional<json> {
+  if (cli.opt_lsp_test) {
+    std::string line;
+    while (std::getline(input, line)) {
+      if (line.empty()) {
+        continue;
+      } else if (line.starts_with("#")) {
+        continue;
+      }
+      return json::parse(line);
+    }
+    return std::nullopt;
+  }
+
+  const auto headers = readHeaders(input);
+
+  // Get Content-Length
+  const auto it = headers.find("Content-Length");
+
+  if (it == headers.end()) {
+    return std::nullopt;
+  };
+
+  const auto contentLength = std::stoi(it->second);
+
+  // Read content
+  std::string content(contentLength, '\0');
+  input.read(content.data(), content.size());
+
+  // Parse JSON
+  auto request = json::parse(content);
+  return request;
+}
+
+auto Server::readHeaders(std::istream& input)
+    -> std::unordered_map<std::string, std::string> {
+  std::unordered_map<std::string, std::string> headers;
 
   std::string line;
 
@@ -101,405 +125,250 @@ auto readHeaders(std::istream& input) -> Headers {
     value.erase(0, value.find_first_not_of(" \t\r\n"));
     value.erase(value.find_last_not_of(" \t\r\n") + 1);
 
-    headers.insert({name, value});
+    headers.insert_or_assign(std::move(name), std::move(value));
   }
 
   return headers;
 }
 
-struct CxxDocument {
-  struct Diagnostics final : cxx::DiagnosticsClient {
-    json messages = json::array();
-    Vector<lsp::Diagnostic> diagnostics{messages};
-
-    void report(const cxx::Diagnostic& diag) override {
-      std::string_view fileName;
-      std::uint32_t line = 0;
-      std::uint32_t column = 0;
-
-      preprocessor()->getTokenStartPosition(diag.token(), &line, &column,
-                                            &fileName);
-
-      std::uint32_t endLine = 0;
-      std::uint32_t endColumn = 0;
-
-      preprocessor()->getTokenEndPosition(diag.token(), &endLine, &endColumn,
-                                          nullptr);
-
-      auto tmp = json::object();
-
-      auto d = diagnostics.emplace_back();
-
-      int s = std::max(int(line) - 1, 0);
-      int sc = std::max(int(column) - 1, 0);
-      int e = std::max(int(endLine) - 1, 0);
-      int ec = std::max(int(endColumn) - 1, 0);
-
-      d.message(diag.message());
-      d.range().start(lsp::Position(tmp).line(s).character(sc));
-      d.range().end(lsp::Position(tmp).line(e).character(ec));
-    }
-  };
-
-  const CLI& cli;
-  Control control;
-  Diagnostics diagnosticsClient;
-  TranslationUnit unit;
-  std::unique_ptr<Toolchain> toolchain;
-
-  CxxDocument(const CLI& cli) : cli(cli), unit(&control, &diagnosticsClient) {}
-
-  void parse(std::string source, std::string fileName) {
-    configure();
-
-    unit.setSource(std::move(source), fileName);
-
-    auto preprocessor = unit.preprocessor();
-    preprocessor->squeeze();
-
-    unit.parse(ParserConfiguration{
-        .checkTypes = cli.opt_fcheck,
-        .fuzzyTemplateResolution = true,
-        .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
-        .reflect = !cli.opt_fno_reflect,
-        .templates = cli.opt_ftemplates,
-    });
-  }
-
- private:
-  void configure() {
-    auto preprocesor = unit.preprocessor();
-
-    auto toolchainId = cli.getSingle("-toolchain");
-
-    if (!toolchainId) {
-      toolchainId = "wasm32";
-    }
-
-    if (toolchainId == "darwin" || toolchainId == "macos") {
-      toolchain = std::make_unique<MacOSToolchain>(preprocesor);
-    } else if (toolchainId == "wasm32") {
-      auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
-
-      fs::path app_dir;
-
-#if __wasi__
-      app_dir = fs::path("/usr/bin/");
-#elif !defined(CXX_NO_FILESYSTEM)
-      app_dir = std::filesystem::canonical(
-          std::filesystem::path(cli.app_name).remove_filename());
-#elif __unix__ || __APPLE__
-      char* app_name = realpath(cli.app_name.c_str(), nullptr);
-      app_dir = fs::path(app_name).remove_filename().string();
-      std::free(app_name);
+void Server::sendToClient(const json& message) {
+#ifndef CXX_NO_THREADS
+  auto locker = std::unique_lock(outputMutex_);
 #endif
 
-      wasmToolchain->setAppdir(app_dir.string());
-
-      if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-        wasmToolchain->setSysroot(paths.back());
-      } else {
-        auto sysroot_dir = app_dir / std::string("../lib/wasi-sysroot");
-        wasmToolchain->setSysroot(sysroot_dir.string());
-      }
-
-      toolchain = std::move(wasmToolchain);
-    } else if (toolchainId == "linux") {
-      std::string host;
-#ifdef __aarch64__
-      host = "aarch64";
-#elif __x86_64__
-      host = "x86_64";
-#endif
-
-      std::string arch = cli.getSingle("-arch").value_or(host);
-      toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor, arch);
-    } else if (toolchainId == "windows") {
-      auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
-
-      if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
-        windowsToolchain->setVctoolsdir(paths.back());
-      }
-
-      if (auto paths = cli.get("-winsdkdir"); !paths.empty()) {
-        windowsToolchain->setWinsdkdir(paths.back());
-      }
-
-      if (auto versions = cli.get("-winsdkversion"); !versions.empty()) {
-        windowsToolchain->setWinsdkversion(versions.back());
-      }
-
-      toolchain = std::move(windowsToolchain);
-    }
-
-    if (toolchain) {
-      control.setMemoryLayout(toolchain->memoryLayout());
-
-      if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
-
-      if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();
-
-      toolchain->addPredefinedMacros();
-    }
-
-    for (const auto& path : cli.get("-I")) {
-      preprocesor->addSystemIncludePath(path);
-    }
-
-    if (cli.opt_v) {
-      std::cerr << std::format("#include <...> search starts here:\n");
-      const auto& paths = preprocesor->systemIncludePaths();
-      for (auto it = rbegin(paths); it != rend(paths); ++it) {
-        std::cerr << std::format(" {}\n", *it);
-      }
-      std::cerr << std::format("End of search list.\n");
-    }
-
-    for (const auto& macro : cli.get("-D")) {
-      auto sep = macro.find_first_of("=");
-
-      if (sep == std::string::npos) {
-        preprocesor->defineMacro(macro, "1");
-      } else {
-        preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-      }
-    }
-
-    for (const auto& macro : cli.get("-U")) {
-      preprocesor->undefMacro(macro);
-    }
-
-    std::cerr << "Starting LSP server\n";
-  }
-};
-
-class Server {
-  const CLI& cli;
-  std::istream& input;
-  std::unordered_map<std::string, std::shared_ptr<CxxDocument>> documents;
-
- public:
-  Server(const CLI& cli) : cli(cli), input(std::cin) {}
-
-  auto start() -> int {
-    while (input.good()) {
-      auto req = nextRequest();
-
-      if (!req.has_value()) {
-        continue;
-      }
-
-      visit(*this, LSPRequest(req.value()));
-    }
-
-    return 0;
-  }
-
-  auto nextRequest() -> std::optional<json> {
-    const auto headers = readHeaders(input);
-
-    // Get Content-Length
-    const auto it = headers.find("Content-Length");
-
-    if (it == headers.end()) {
-      return std::nullopt;
-    };
-
-    const auto contentLength = std::stoi(it->value);
-
-    // Read content
-    std::string content(contentLength, '\0');
-    input.read(content.data(), content.size());
-
-    // Parse JSON
-    auto request = json::parse(content);
-    return request;
-  }
-
-  void sendToClient(const json& message, std::ostream& output = std::cout) {
+  if (cli.opt_lsp_test) {
+    output << message.dump(2) << "\n";
+  } else {
     const auto text = message.dump();
-    output << "Content-Length: " << text.size() << "\r\n\r\n";
-    output << text;
-    output.flush();
+    output << std::format("Content-Length: {}\r\n\r\n{}", text.size(), text);
   }
 
-  void sendToClient(
-      const LSPObject& result,
-      std::optional<std::variant<long, std::string>> id = std::nullopt,
-      std::ostream& output = std::cout) {
-    auto response = json::object();
-    response["jsonrpc"] = "2.0";
+  output.flush();
+}
 
-    if (id.has_value()) {
-      if (std::holds_alternative<long>(id.value())) {
-        response["id"] = std::get<long>(id.value());
-      } else {
-        response["id"] = std::get<std::string>(id.value());
-      }
+void Server::sendToClient(const LSPObject& result,
+                          std::optional<std::variant<long, std::string>> id) {
+  auto response = json::object();
+  response["jsonrpc"] = "2.0";
+
+  if (id.has_value()) {
+    if (std::holds_alternative<long>(id.value())) {
+      response["id"] = std::get<long>(id.value());
+    } else {
+      response["id"] = std::get<std::string>(id.value());
     }
-
-    response["result"] = result;
-
-    sendToClient(response);
   }
 
-  //
-  // notifications
-  //
-  void operator()(const InitializedNotification& notification) {
-    std::cerr << std::format("Did receive InitializedNotification\n");
+  response["result"] = result;
+
+  sendToClient(response);
+}
+
+void Server::sendNotification(const LSPRequest& notification) {
+  json response = notification;
+  response["jsonrpc"] = "2.0";
+
+  sendToClient(response);
+}
+
+auto Server::pathFromUri(const std::string& uri) -> std::string {
+  if (uri.starts_with("file://")) {
+    return uri.substr(7);
+  } else if (cli.opt_lsp_test && uri.starts_with("test://")) {
+    return uri.substr(7);
   }
 
-  void operator()(const ExitNotification& notification) {
-    std::cerr << std::format("Did receive ExitNotification\n");
+  lsp_runtime_error(std::format("Unsupported URI scheme: {}\n", uri));
+}
+
+void Server::startWorkersIfNeeded() {
+#ifndef CXX_NO_THREADS
+  const auto threadCountOption = cli.getSingle("-j");
+
+  if (!threadCountOption.has_value()) {
+    return;
   }
 
-  void operator()(const DidOpenTextDocumentNotification& notification) {
-    std::cerr << std::format("Did receive DidOpenTextDocumentNotification\n");
+  auto workerCount = std::stoi(threadCountOption.value());
 
-    auto textDocument = notification.params().textDocument();
-    const auto uri = textDocument.uri();
-    const auto text = textDocument.text();
-    const auto version = textDocument.version();
+  if (workerCount <= 0) {
+    workerCount = int(std::thread::hardware_concurrency());
+  }
 
-    auto doc = std::make_shared<CxxDocument>(cli);
+  for (int i = 0; i < workerCount; ++i) {
+    workers_.emplace_back([this] {
+      while (true) {
+        auto task = syncQueue_.pop();
+        if (syncQueue_.closed()) break;
+        task();
+      }
+    });
+  }
+#endif
+}
+
+void Server::stopWorkersIfNeeded() {
+#ifndef CXX_NO_THREADS
+  if (workers_.empty()) {
+    return;
+  }
+
+  syncQueue_.close();
+
+  for (int i = 0; i < workers_.size(); ++i) {
+    syncQueue_.push([] {});
+  }
+
+  std::ranges::for_each(workers_, &std::thread::join);
+#endif
+}
+
+void Server::run(std::function<void()> task) {
+#ifndef CXX_NO_THREADS
+  if (!workers_.empty()) {
+    syncQueue_.push(std::move(task));
+    return;
+  }
+#endif
+
+  task();
+}
+
+void Server::parse(std::string uri, std::string text, long version) {
+  run([text = std::move(text), uri = std::move(uri), version, this] {
+    auto doc = std::make_shared<CxxDocument>(cli, version);
     doc->parse(std::move(text), pathFromUri(uri));
-    documents[uri] = doc;
 
-    std::cerr << std::format("Parsed document: {}, reported {} messages\n", uri,
-                             doc->diagnosticsClient.messages.size());
-  }
+    {
+#ifndef CXX_NO_THREADS
+      auto locker = std::unique_lock(outputMutex_);
+#endif
 
-  void operator()(const DidCloseTextDocumentNotification& notification) {
-    std::cerr << std::format("Did receive DidCloseTextDocumentNotification\n");
-
-    const auto uri = notification.params().textDocument().uri();
-    documents.erase(uri);
-  }
-
-  void operator()(const DidChangeTextDocumentNotification& notification) {
-    std::cerr << std::format("Did receive DidChangeTextDocumentNotification\n");
-
-    const auto textDocument = notification.params().textDocument();
-    const auto uri = textDocument.uri();
-    const auto version = textDocument.version();
-
-    if (!documents.contains(uri)) {
-      std::cerr << std::format("Document not found: {}\n", uri);
-      return;
-    }
-
-    // update the document
-    auto contentChanges = notification.params().contentChanges();
-    const std::size_t contentChangeCount = contentChanges.size();
-    for (std::size_t i = 0; i < contentChangeCount; ++i) {
-      auto change = contentChanges.at(i);
-      if (std::holds_alternative<TextDocumentContentChangeWholeDocument>(
-              change)) {
-        auto text =
-            std::get<TextDocumentContentChangeWholeDocument>(change).text();
-
-        // parse the document
-        auto doc = std::make_shared<CxxDocument>(cli);
-        doc->parse(std::move(text), pathFromUri(uri));
-        documents[uri] = doc;
-
-        std::cerr << std::format("Parsed document: {}, reported {} messages\n",
-                                 uri, doc->diagnosticsClient.messages.size());
+      if (documents_.contains(uri) && documents_.at(uri)->version() > version) {
+        return;
       }
+
+      documents_[uri] = doc;
+    }
+
+    withUnsafeJson([&](json storage) {
+      PublishDiagnosticsNotification publishDiagnostics(storage);
+      publishDiagnostics.method("textDocument/publishDiagnostics");
+      publishDiagnostics.params().uri(uri);
+      publishDiagnostics.params().diagnostics(doc->diagnostics());
+      publishDiagnostics.params().version(version);
+
+      sendNotification(publishDiagnostics);
+    });
+  });
+}
+
+void Server::operator()(const InitializeRequest& request) {
+  log << std::format("Did receive InitializeRequest\n");
+
+  withUnsafeJson([&](json storage) {
+    InitializeResult result(storage);
+    result.serverInfo<ServerInfo>().name("cxx-lsp").version(CXX_VERSION);
+    result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
+    sendToClient(result, request.id());
+  });
+}
+
+void Server::operator()(const InitializedNotification& notification) {
+  log << std::format("Did receive InitializedNotification\n");
+}
+
+void Server::operator()(const ShutdownRequest& request) {
+  log << std::format("Did receive ShutdownRequest\n");
+
+  withUnsafeJson([&](json storage) {
+    LSPObject result(storage);
+    sendToClient(result, request.id());
+  });
+}
+
+void Server::operator()(const ExitNotification& notification) {
+  log << std::format("Did receive ExitNotification\n");
+  done_ = true;
+}
+
+void Server::operator()(const DidOpenTextDocumentNotification& notification) {
+  log << std::format("Did receive DidOpenTextDocumentNotification\n");
+
+  auto textDocument = notification.params().textDocument();
+  parse(textDocument.uri(), textDocument.text(), textDocument.version());
+}
+
+void Server::operator()(const DidCloseTextDocumentNotification& notification) {
+  log << std::format("Did receive DidCloseTextDocumentNotification\n");
+
+  const auto uri = notification.params().textDocument().uri();
+  documents_.erase(uri);
+}
+
+void Server::operator()(const DidChangeTextDocumentNotification& notification) {
+  log << std::format("Did receive DidChangeTextDocumentNotification\n");
+
+  const auto textDocument = notification.params().textDocument();
+  const auto uri = textDocument.uri();
+  const auto version = textDocument.version();
+
+  // update the document
+  auto contentChanges = notification.params().contentChanges();
+  const auto contentChangeCount = contentChanges.size();
+
+  std::string text;
+
+  for (std::size_t i = 0; i < contentChangeCount; ++i) {
+    auto contentChange = contentChanges.at(i);
+
+    if (auto change = std::get_if<TextDocumentContentChangeWholeDocument>(
+            &contentChange)) {
+      text = change->text();
+    } else {
+      lsp_runtime_error("Unsupported content change\n");
     }
   }
 
-  [[nodiscard]] auto pathFromUri(const std::string& uri) -> std::string {
-    if (uri.starts_with("file://")) {
-      return uri.substr(7);
-    }
+  parse(textDocument.uri(), std::move(text), textDocument.version());
+}
 
-    lsp_runtime_error(std::format("Unsupported URI scheme: {}\n", uri));
+auto Server::latestDocument(const std::string& uri)
+    -> std::shared_ptr<CxxDocument> {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(documentsMutex_);
+#endif
+
+  if (!documents_.contains(uri)) {
+    return {};
   }
 
-  //
-  // life cycle requests
-  //
+  return documents_[uri];
+}
 
-  void operator()(const InitializeRequest& request) {
-    std::cerr << std::format("Did receive InitializeRequest\n");
+void Server::operator()(const DocumentDiagnosticRequest& request) {
+  log << std::format("Did receive DocumentDiagnosticRequest\n");
+}
 
-    withUnsafeJson([&](json storage) {
-      InitializeResult result(storage);
-      result.serverInfo<ServerInfo>().name("cxx-lsp").version(CXX_VERSION);
-      result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
-      result.capabilities().diagnosticProvider<DiagnosticOptions>().identifier(
-          "cxx-lsp");
-      // .workspaceDiagnostics(true);
+void Server::operator()(const CancelNotification& notification) {
+  auto id = notification.params().id<long>();
+  log << std::format("Did receive CancelNotification for request with id {}\n",
+                     id);
+}
 
-      sendToClient(result, request.id());
-    });
+void Server::operator()(const LSPRequest& request) {
+  log << std::format("Did receive LSPRequest {}\n", request.method());
+
+  if (!request.id().has_value()) {
+    // nothing to do for notifications
+    return;
   }
 
-  void operator()(const ShutdownRequest& request) {
-    std::cerr << std::format("Did receive ShutdownRequest\n");
-
-    withUnsafeJson([&](json storage) {
-      LSPObject result(storage);
-      sendToClient(result, request.id());
-    });
-  }
-
-  void operator()(const DocumentDiagnosticRequest& request) {
-    std::cerr << std::format("Did receive DocumentDiagnosticRequest\n");
-
-    auto textDocument = request.params().textDocument();
-    auto uri = textDocument.uri();
-
-    if (!documents.contains(uri)) {
-      std::cerr << std::format("Document not found: {}\n", uri);
-      return;
-    }
-
-    auto doc = documents[uri];
-
-    withUnsafeJson([&](json storage) {
-      FullDocumentDiagnosticReport report(storage);
-
-      auto diagnostics = Vector<Diagnostic>(doc->diagnosticsClient.messages);
-      report.items(diagnostics);
-
-      // TODO: string literals in C++ LSP API
-      storage["kind"] = "full";
-
-      // TODO: responses in C++ LSP API
-      json response;
-      response["jsonrpc"] = "2.0";
-      response["id"] = std::get<long>(*request.id());
-      response["result"] = report;
-      sendToClient(response);
-    });
-  }
-
-  //
-  // Other requests
-  //
-  void operator()(const LSPRequest& request) {
-    std::cerr << "Request: " << request.method() << "\n";
-
-    if (!request.id().has_value()) {
-      // nothing to do for notifications
-      return;
-    }
-
-    // send an empty response.
-    withUnsafeJson([&](json storage) {
-      LSPObject result(storage);
-      sendToClient(result, request.id());
-    });
-  }
-};
-
-int startServer(const CLI& cli) {
-  Server server{cli};
-  auto exitCode = server.start();
-  return exitCode;
+  // send an empty response.
+  withUnsafeJson([&](json storage) {
+    LSPObject result(storage);
+    sendToClient(result, request.id());
+  });
 }
 
 }  // namespace cxx::lsp

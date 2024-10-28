@@ -198,6 +198,10 @@ std::vector<CLIOptionDescr> options{
 
     {"-lsp", "Start Language Server", &CLI::opt_lsp},
 
+    {"-lsp-test", "Start Language Server in testing mode", &CLI::opt_lsp_test},
+
+    {"-j", "<n>", "Run <n> jobs in parallel.", CLIOptionDescrKind::kSeparated},
+
     {"-v", "Show commands to run and use verbose output", &CLI::opt_v},
 
 };

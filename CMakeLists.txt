@@ -44,6 +44,8 @@ option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
 option(CXX_BUILD_TESTS "Build tests" ON)
 option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
 
+find_package(Threads)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CXX_LIBCXX_WITH_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()

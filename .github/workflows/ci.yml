@@ -47,6 +47,7 @@ jobs:
               -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
               -DCXX_NO_FILESYSTEM \
+              -DCXX_NO_THREADS \
               $i
           done
 
@@ -218,6 +219,7 @@ jobs:
               -I build.wasi/_deps/nlohmann_json-src/include \
               -I build.wasi/src/parser \
               -DCXX_NO_FILESYSTEM \
+              -DCXX_NO_THREADS \
               $i
           done
 
