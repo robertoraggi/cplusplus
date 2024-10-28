@@ -20,10 +20,86 @@
 
 #pragma once
 
+#include <cxx/lsp/fwd.h>
+
+#include <istream>
+#include <ostream>
+
+#ifndef CXX_NO_THREADS
+#include <thread>
+#include <unordered_map>
+#endif
+
+#include <vector>
+
 #include "cli.h"
+#include "sync_queue.h"
 
 namespace cxx::lsp {
 
-int startServer(const CLI& cli);
+class CxxDocument;
 
-}
+class Server {
+ public:
+  Server(const CLI& cli);
+  ~Server();
+
+  auto start() -> int;
+
+  void operator()(const InitializeRequest& request);
+  void operator()(const InitializedNotification& notification);
+
+  void operator()(const ShutdownRequest& request);
+  void operator()(const ExitNotification& notification);
+
+  void operator()(const DidOpenTextDocumentNotification& notification);
+  void operator()(const DidCloseTextDocumentNotification& notification);
+  void operator()(const DidChangeTextDocumentNotification& notification);
+
+  void operator()(const DocumentDiagnosticRequest& request);
+
+  void operator()(const CancelNotification& notification);
+  void operator()(const LSPRequest& request);
+
+ private:
+  void startWorkersIfNeeded();
+  void stopWorkersIfNeeded();
+
+  void run(std::function<void()> task);
+
+  void parse(std::string uri, std::string text, long version);
+
+  [[nodiscard]] auto latestDocument(const std::string& uri)
+      -> std::shared_ptr<CxxDocument>;
+
+  [[nodiscard]] auto nextRequest() -> std::optional<json>;
+
+  void sendNotification(const LSPRequest& notification);
+
+  void sendToClient(const json& message);
+
+  void sendToClient(
+      const LSPObject& result,
+      std::optional<std::variant<long, std::string>> id = std::nullopt);
+
+  [[nodiscard]] auto pathFromUri(const std::string& uri) -> std::string;
+
+  [[nodiscard]] auto readHeaders(std::istream& input)
+      -> std::unordered_map<std::string, std::string>;
+
+ private:
+  const CLI& cli;
+  std::istream& input;
+  std::ostream& output;
+  std::ostream& log;
+  std::unordered_map<std::string, std::shared_ptr<CxxDocument>> documents_;
+#ifndef CXX_NO_THREADS
+  SyncQueue syncQueue_;
+  std::vector<std::thread> workers_;
+  std::mutex documentsMutex_;
+  std::mutex outputMutex_;
+#endif
+  bool done_ = false;
+};
+
+}  // namespace cxx::lsp

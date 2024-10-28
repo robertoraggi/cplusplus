@@ -27,8 +27,17 @@ target_compile_definitions(cxx PRIVATE
     CXX_VERSION="${CMAKE_PROJECT_VERSION}"
 )
 
+# if cmake founds the Threads package, link with it
+if(Threads_FOUND)
+    target_link_libraries(cxx Threads::Threads)
+    target_compile_options(cxx PRIVATE -pthread)
+else()
+target_compile_definitions(cxx PRIVATE CXX_NO_THREADS)
+endif()
+
 if(EMSCRIPTEN)
-    target_link_options(cxx PUBLIC
+    target_link_options(cxx PRIVATE -pthread)
+    target_link_options(cxx PRIVATE
         "SHELL:-s EXIT_RUNTIME=1"
         "SHELL:-s WASM_BIGINT=1"
         "SHELL:-s NODERAWFS=1"

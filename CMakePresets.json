@@ -76,9 +76,7 @@
     {
       "name": "install",
       "configurePreset": "default",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
     },
     {
       "name": "build-emscripten",
@@ -87,9 +85,7 @@
     {
       "name": "install-emscripten",
       "configurePreset": "emscripten",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
     },
     {
       "name": "build-wasi",
@@ -98,9 +94,7 @@
     {
       "name": "install-wasi",
       "configurePreset": "wasi",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
     }
   ],
   "testPresets": [
