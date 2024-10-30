@@ -21,7 +21,7 @@ aux_source_directory(cxx SOURCES)
 
 add_executable(cxx ${SOURCES})
 
-target_link_libraries(cxx cxx-parser cxx-lsp)
+target_link_libraries(cxx PRIVATE cxx-parser cxx-lsp)
 
 target_compile_definitions(cxx PRIVATE
     CXX_VERSION="${CMAKE_PROJECT_VERSION}"
@@ -29,14 +29,12 @@ target_compile_definitions(cxx PRIVATE
 
 # if cmake founds the Threads package, link with it
 if(Threads_FOUND)
-    target_link_libraries(cxx Threads::Threads)
-    target_compile_options(cxx PRIVATE -pthread)
+    target_link_libraries(cxx PRIVATE Threads::Threads)
 else()
-target_compile_definitions(cxx PRIVATE CXX_NO_THREADS)
+    target_compile_definitions(cxx PRIVATE CXX_NO_THREADS)
 endif()
 
 if(EMSCRIPTEN)
-    target_link_options(cxx PRIVATE -pthread)
     target_link_options(cxx PRIVATE
         "SHELL:-s EXIT_RUNTIME=1"
         "SHELL:-s WASM_BIGINT=1"
