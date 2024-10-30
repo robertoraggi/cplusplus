@@ -26,7 +26,7 @@ config.name = "C++"
 
 config.test_format = lit.formats.ShTest()
 
-config.suffixes = [".cc"]
+config.suffixes = [".cc", ".yml"]
 
 config.test_source_root = os.path.dirname(__file__)
 

@@ -1,0 +1,18 @@
+# RUN: %cxx -lsp-test < %s | %filecheck %s
+
+{ "method": "initialize" }
+
+{ "method": "textDocument/didOpen", "params": { "textDocument": { "uri": "test:///source.cc", "version": 0, "text": "auto main() -> int;" } } }
+
+# CHECK:  "method": "textDocument/publishDiagnostics"
+# CHECK:  "params":
+# CHECK:    "diagnostics": []
+# CHECK:    "uri": "test:///source.cc"
+# CHECK:    "version": 0
+
+{ "method": "shutdown" }
+
+{ "method": "exit" }
+
+
+
