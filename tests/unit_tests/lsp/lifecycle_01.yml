@@ -1,0 +1,18 @@
+# RUN: %cxx -lsp-test < %s | %filecheck %s
+
+{ "method": "initialize" }
+
+# CHECK: "result":
+# CHECK: "capabilities":
+# CHECK: "textDocumentSync":
+
+# CHECK: "serverInfo":
+# CHECK: "name":
+# CHECK: "version":
+
+{ "method": "shutdown" }
+
+{ "method": "exit" }
+
+
+
