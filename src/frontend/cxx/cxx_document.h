@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/lsp/fwd.h>
+#include <cxx/translation_unit.h>
 
 #include <memory>
 #include <string>
@@ -38,6 +39,8 @@ class CxxDocument {
 
   [[nodiscard]] auto version() const -> long;
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
 
  private:
   struct Private;

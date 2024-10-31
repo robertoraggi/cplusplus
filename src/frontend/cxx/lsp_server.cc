@@ -23,6 +23,7 @@
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/requests.h>
 #include <cxx/lsp/types.h>
+#include <utf8/unchecked.h>
 
 #include <format>
 #include <iostream>
@@ -32,6 +33,54 @@
 #include "cxx_document.h"
 
 namespace cxx::lsp {
+
+// TODO: move to a separate file
+template <typename It>
+inline auto skipBOM(It& it, It end) -> bool {
+  if (it < end && *it == '\xEF') {
+    if (it + 1 < end && it[1] == '\xBB') {
+      if (it + 2 < end && it[2] == '\xBF') {
+        it += 3;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+auto Server::Text::offsetAt(std::size_t line, std::size_t column) const
+    -> std::size_t {
+  if (line >= lineStartOffsets.size()) {
+    return std::string::npos;
+  }
+
+  const auto lineStart = lineStartOffsets.at(line);
+  const auto nextLineStart = line + 1 < lineStartOffsets.size()
+                                 ? lineStartOffsets.at(line + 1)
+                                 : value.size();
+
+  const auto columnOffset = std::min(column, nextLineStart - lineStart);
+
+  return lineStart + columnOffset;
+}
+
+void Server::Text::computeLineStartOffsets() {
+  auto begin = value.begin();
+  auto end = value.end();
+
+  auto it = begin;
+  skipBOM(it, end);
+
+  lineStartOffsets.clear();
+  lineStartOffsets.push_back(it - begin);
+
+  while (it != end) {
+    const auto ch = utf8::unchecked::next(it);
+    if (ch == '\n') {
+      lineStartOffsets.push_back(it - begin);
+    }
+  }
+}
 
 Server::Server(const CLI& cli)
     : cli(cli), input(std::cin), output(std::cout), log(std::cerr) {
@@ -46,7 +95,9 @@ Server::Server(const CLI& cli)
 Server::~Server() {}
 
 auto Server::start() -> int {
-  log << std::format("Starting LSP server\n");
+  trace_ = TraceValue::kOff;
+
+  logTrace(std::format("Starting LSP server"));
 
   startWorkersIfNeeded();
 
@@ -137,7 +188,7 @@ void Server::sendToClient(const json& message) {
 #endif
 
   if (cli.opt_lsp_test) {
-    output << message.dump(2) << "\n";
+    output << message.dump(2) << std::endl;
   } else {
     const auto text = message.dump();
     output << std::format("Content-Length: {}\r\n\r\n{}", text.size(), text);
@@ -171,6 +222,22 @@ void Server::sendNotification(const LSPRequest& notification) {
   sendToClient(response);
 }
 
+void Server::logTrace(std::string message, std::optional<std::string> verbose) {
+  if (trace_ == TraceValue::kOff) {
+    return;
+  }
+
+  withUnsafeJson([&](json storage) {
+    LogTraceNotification logTrace(storage);
+    logTrace.method("$/logTrace");
+    logTrace.params().message(std::move(message));
+    if (verbose.has_value()) {
+      logTrace.params().verbose(std::move(*verbose));
+    }
+    sendNotification(logTrace);
+  });
+}
+
 auto Server::pathFromUri(const std::string& uri) -> std::string {
   if (uri.starts_with("file://")) {
     return uri.substr(7);
@@ -178,7 +245,7 @@ auto Server::pathFromUri(const std::string& uri) -> std::string {
     return uri.substr(7);
   }
 
-  lsp_runtime_error(std::format("Unsupported URI scheme: {}\n", uri));
+  lsp_runtime_error(std::format("Unsupported URI scheme: {}", uri));
 }
 
 void Server::startWorkersIfNeeded() {
@@ -234,7 +301,12 @@ void Server::run(std::function<void()> task) {
   task();
 }
 
-void Server::parse(std::string uri, std::string text, long version) {
+void Server::parse(const std::string& uri) {
+  const auto& doc = documentContents_.at(uri);
+
+  auto text = doc.value;
+  auto version = doc.version;
+
   run([text = std::move(text), uri = std::move(uri), version, this] {
     auto doc = std::make_shared<CxxDocument>(cli, version);
     doc->parse(std::move(text), pathFromUri(uri));
@@ -264,22 +336,23 @@ void Server::parse(std::string uri, std::string text, long version) {
 }
 
 void Server::operator()(const InitializeRequest& request) {
-  log << std::format("Did receive InitializeRequest\n");
+  logTrace(std::format("Did receive InitializeRequest"));
 
   withUnsafeJson([&](json storage) {
     InitializeResult result(storage);
     result.serverInfo<ServerInfo>().name("cxx-lsp").version(CXX_VERSION);
-    result.capabilities().textDocumentSync(TextDocumentSyncKind::kFull);
+    auto capabilities = result.capabilities();
+    capabilities.textDocumentSync(TextDocumentSyncKind::kIncremental);
     sendToClient(result, request.id());
   });
 }
 
 void Server::operator()(const InitializedNotification& notification) {
-  log << std::format("Did receive InitializedNotification\n");
+  logTrace(std::format("Did receive InitializedNotification"));
 }
 
 void Server::operator()(const ShutdownRequest& request) {
-  log << std::format("Did receive ShutdownRequest\n");
+  logTrace(std::format("Did receive ShutdownRequest"));
 
   withUnsafeJson([&](json storage) {
     LSPObject result(storage);
@@ -288,49 +361,68 @@ void Server::operator()(const ShutdownRequest& request) {
 }
 
 void Server::operator()(const ExitNotification& notification) {
-  log << std::format("Did receive ExitNotification\n");
+  logTrace(std::format("Did receive ExitNotification"));
   done_ = true;
 }
 
 void Server::operator()(const DidOpenTextDocumentNotification& notification) {
-  log << std::format("Did receive DidOpenTextDocumentNotification\n");
+  logTrace(std::format("Did receive DidOpenTextDocumentNotification"));
 
   auto textDocument = notification.params().textDocument();
-  parse(textDocument.uri(), textDocument.text(), textDocument.version());
+
+  auto text = textDocument.text();
+
+  auto& content = documentContents_[textDocument.uri()];
+  content.value = std::move(text);
+  content.version = textDocument.version();
+  content.computeLineStartOffsets();
+
+  parse(textDocument.uri());
 }
 
 void Server::operator()(const DidCloseTextDocumentNotification& notification) {
-  log << std::format("Did receive DidCloseTextDocumentNotification\n");
+  logTrace(std::format("Did receive DidCloseTextDocumentNotification"));
 
   const auto uri = notification.params().textDocument().uri();
   documents_.erase(uri);
 }
 
 void Server::operator()(const DidChangeTextDocumentNotification& notification) {
-  log << std::format("Did receive DidChangeTextDocumentNotification\n");
+  logTrace(std::format("Did receive DidChangeTextDocumentNotification"));
 
   const auto textDocument = notification.params().textDocument();
   const auto uri = textDocument.uri();
   const auto version = textDocument.version();
 
-  // update the document
+  auto& text = documentContents_[uri];
+  text.version = version;
+
+  struct {
+    Text& text;
+
+    void operator()(const TextDocumentContentChangeWholeDocument& change) {
+      text.value = change.text();
+    }
+
+    void operator()(const TextDocumentContentChangePartial& change) {
+      auto range = change.range();
+      auto start = range.start();
+      auto end = range.end();
+      auto startOffset = text.offsetAt(start.line(), start.character());
+      auto endOffset = text.offsetAt(end.line(), end.character());
+      text.value.replace(startOffset, endOffset - startOffset, change.text());
+      text.computeLineStartOffsets();
+    }
+  } visit{text};
+
   auto contentChanges = notification.params().contentChanges();
   const auto contentChangeCount = contentChanges.size();
 
-  std::string text;
-
   for (std::size_t i = 0; i < contentChangeCount; ++i) {
-    auto contentChange = contentChanges.at(i);
-
-    if (auto change = std::get_if<TextDocumentContentChangeWholeDocument>(
-            &contentChange)) {
-      text = change->text();
-    } else {
-      lsp_runtime_error("Unsupported content change\n");
-    }
+    std::visit(visit, contentChanges.at(i));
   }
 
-  parse(textDocument.uri(), std::move(text), textDocument.version());
+  parse(textDocument.uri());
 }
 
 auto Server::latestDocument(const std::string& uri)
@@ -347,17 +439,32 @@ auto Server::latestDocument(const std::string& uri)
 }
 
 void Server::operator()(const DocumentDiagnosticRequest& request) {
-  log << std::format("Did receive DocumentDiagnosticRequest\n");
+  logTrace(std::format("Did receive DocumentDiagnosticRequest"));
 }
 
 void Server::operator()(const CancelNotification& notification) {
   auto id = notification.params().id<long>();
-  log << std::format("Did receive CancelNotification for request with id {}\n",
-                     id);
+  logTrace(
+      std::format("Did receive CancelNotification for request with id {}", id));
+}
+
+void Server::operator()(const SetTraceNotification& notification) {
+  logTrace(std::format("Did receive SetTraceNotification"));
+
+  // TODO: LSP string enumerations
+  const auto traceValue =
+      notification.params().get().at("value").get<std::string>();
+
+  if (traceValue == "messages")
+    trace_ = TraceValue::kMessages;
+  else if (traceValue == "verbose")
+    trace_ = TraceValue::kVerbose;
+  else
+    trace_ = TraceValue::kOff;
 }
 
 void Server::operator()(const LSPRequest& request) {
-  log << std::format("Did receive LSPRequest {}\n", request.method());
+  logTrace(std::format("Did receive LSPRequest {}", request.method()));
 
   if (!request.id().has_value()) {
     // nothing to do for notifications

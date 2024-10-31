@@ -35,10 +35,10 @@ namespace cxx {
 struct SymbolInstantiation::MakeSymbol {
   SymbolInstantiation& self;
 
-  auto operator()(SymbolKind kind) -> Symbol* {
+  auto operator()(SymbolKind kind, SourceLocation location = {}) -> Symbol* {
 #define MAKE_SYMBOL(S)   \
   case SymbolKind::k##S: \
-    return self.control()->new##S##Symbol(nullptr);
+    return self.control()->new##S##Symbol(nullptr, location);
 
     switch (kind) {
       CXX_FOR_EACH_SYMBOL(MAKE_SYMBOL)

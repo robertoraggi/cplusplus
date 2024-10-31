@@ -20,8 +20,10 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
 #include <cxx/names_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -32,8 +34,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include "cxx/ast.h"
 
 namespace cxx {
 
@@ -117,6 +117,9 @@ class Symbol {
   [[nodiscard]] auto type() const -> const Type*;
   void setType(const Type* type);
 
+  [[nodiscard]] auto location() const -> SourceLocation;
+  void setLocation(SourceLocation location);
+
   [[nodiscard]] auto enclosingScope() const -> Scope*;
   void setEnclosingScope(Scope* enclosingScope);
 
@@ -144,6 +147,7 @@ class Symbol {
   const Type* type_ = nullptr;
   Scope* enclosingScope_ = nullptr;
   Symbol* link_ = nullptr;
+  SourceLocation location_;
 };
 
 class ScopedSymbol : public Symbol {

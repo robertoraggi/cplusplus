@@ -58,6 +58,8 @@ class Server {
 
   void operator()(const DocumentDiagnosticRequest& request);
 
+  void operator()(const SetTraceNotification& notification);
+
   void operator()(const CancelNotification& notification);
   void operator()(const LSPRequest& request);
 
@@ -67,7 +69,7 @@ class Server {
 
   void run(std::function<void()> task);
 
-  void parse(std::string uri, std::string text, long version);
+  void parse(const std::string& uri);
 
   [[nodiscard]] auto latestDocument(const std::string& uri)
       -> std::shared_ptr<CxxDocument>;
@@ -82,10 +84,22 @@ class Server {
       const LSPObject& result,
       std::optional<std::variant<long, std::string>> id = std::nullopt);
 
+  void logTrace(std::string message, std::optional<std::string> verbose = {});
+
   [[nodiscard]] auto pathFromUri(const std::string& uri) -> std::string;
 
   [[nodiscard]] auto readHeaders(std::istream& input)
       -> std::unordered_map<std::string, std::string>;
+
+  struct Text {
+    std::string value;
+    std::vector<std::size_t> lineStartOffsets;
+    int version = 0;
+
+    auto offsetAt(std::size_t line, std::size_t column) const -> std::size_t;
+
+    void computeLineStartOffsets();
+  };
 
  private:
   const CLI& cli;
@@ -93,12 +107,14 @@ class Server {
   std::ostream& output;
   std::ostream& log;
   std::unordered_map<std::string, std::shared_ptr<CxxDocument>> documents_;
+  std::unordered_map<std::string, Text> documentContents_;
 #ifndef CXX_NO_THREADS
   SyncQueue syncQueue_;
   std::vector<std::thread> workers_;
   std::mutex documentsMutex_;
   std::mutex outputMutex_;
 #endif
+  TraceValue trace_{};
   bool done_ = false;
 };
 

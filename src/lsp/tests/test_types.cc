@@ -1,10 +1,7 @@
+#include <cxx/lsp/enums.h>
+#include <cxx/lsp/fwd.h>
 #include <cxx/lsp/types.h>
 #include <gtest/gtest.h>
-
-#include <iostream>
-
-#include "cxx/lsp/enums.h"
-#include "cxx/lsp/fwd.h"
 
 using namespace cxx::lsp;
 

@@ -215,4 +215,8 @@ auto CxxDocument::diagnostics() const -> Vector<Diagnostic> {
   return Vector<Diagnostic>(d->diagnosticsClient.messages);
 }
 
+auto CxxDocument::translationUnit() const -> TranslationUnit* {
+  return &d->unit;
+}
+
 }  // namespace cxx::lsp
