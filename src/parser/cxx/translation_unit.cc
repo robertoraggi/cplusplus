@@ -45,7 +45,7 @@ TranslationUnit::TranslationUnit(Control* control,
                                  DiagnosticsClient* diagnosticsClient)
     : control_(control), diagnosticsClient_(diagnosticsClient) {
   arena_ = std::make_unique<Arena>();
-  globalNamespace_ = control_->newNamespaceSymbol(nullptr);
+  globalNamespace_ = control_->newNamespaceSymbol(nullptr, {});
 
   preprocessor_ = std::make_unique<Preprocessor>(control_, diagnosticsClient_);
 

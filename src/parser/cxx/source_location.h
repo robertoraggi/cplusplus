@@ -45,6 +45,8 @@ class SourceLocation {
 
   explicit operator unsigned int() const { return index_; }
 
+  auto operator<=>(const SourceLocation&) const = default;
+
   [[nodiscard]] auto index() const -> unsigned int { return index_; }
 
   [[nodiscard]] auto next() const -> SourceLocation {

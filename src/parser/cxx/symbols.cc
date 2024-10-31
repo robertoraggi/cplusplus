@@ -21,6 +21,7 @@
 #include <cxx/symbols.h>
 
 // cxx
+#include <cxx/ast.h>
 #include <cxx/scope.h>
 #include <cxx/types.h>
 
@@ -54,6 +55,10 @@ void Symbol::setName(const Name* name) { name_ = name; }
 auto Symbol::type() const -> const Type* { return type_; }
 
 void Symbol::setType(const Type* type) { type_ = type; }
+
+auto Symbol::location() const -> SourceLocation { return location_; }
+
+void Symbol::setLocation(SourceLocation location) { location_ = location; }
 
 auto Symbol::enclosingScope() const -> Scope* { return enclosingScope_; }
 

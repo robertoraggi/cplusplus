@@ -786,8 +786,9 @@ class Parser final {
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;
 
-  [[nodiscard]] auto enterOrCreateNamespace(const Name* name, bool isInline)
-      -> NamespaceSymbol*;
+  [[nodiscard]] auto enterOrCreateNamespace(const Identifier* identifier,
+                                            SourceLocation identifeirLoc,
+                                            bool isInline) -> NamespaceSymbol*;
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
 
