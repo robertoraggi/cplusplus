@@ -98,9 +98,8 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
 }
 
 auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
-  Control control;
   VerifyDiagnosticsClient diagnosticsClient;
-  TranslationUnit unit(&control, &diagnosticsClient);
+  TranslationUnit unit(&diagnosticsClient);
 
   auto preprocesor = unit.preprocessor();
 
@@ -174,7 +173,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (toolchain) {
-    control.setMemoryLayout(toolchain->memoryLayout());
+    unit.control()->setMemoryLayout(toolchain->memoryLayout());
 
     if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
 

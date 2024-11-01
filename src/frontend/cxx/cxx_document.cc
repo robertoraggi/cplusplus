@@ -70,9 +70,8 @@ struct Diagnostics final : cxx::DiagnosticsClient {
 struct CxxDocument::Private {
   const CLI& cli;
   long version;
-  Control control;
   Diagnostics diagnosticsClient;
-  TranslationUnit unit{&control, &diagnosticsClient};
+  TranslationUnit unit{&diagnosticsClient};
   std::shared_ptr<Toolchain> toolchain;
 
   Private(const CLI& cli, long version) : cli(cli), version(version) {}
@@ -146,7 +145,7 @@ void CxxDocument::Private::configure() {
   }
 
   if (toolchain) {
-    control.setMemoryLayout(toolchain->memoryLayout());
+    unit.control()->setMemoryLayout(toolchain->memoryLayout());
 
     if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
 

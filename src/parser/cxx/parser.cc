@@ -418,7 +418,7 @@ struct Parser::LookaheadParser {
   }
 
   ~LookaheadParser() {
-    p->unit->changeDiagnosticsClient(previousClient);
+    (void)p->unit->changeDiagnosticsClient(previousClient);
 
     if (!committed) {
       p->rewind(loc);
