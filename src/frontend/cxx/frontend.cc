@@ -87,7 +87,11 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
       kind = Lexer::classifyKeyword(tk.spell());
     }
 
-    output << std::format("{} '{}'{}\n", Token::name(kind), tk.spell(), flags);
+    output << std::format("{} '{}'{}", Token::name(kind), tk.spell(), flags);
+
+    auto pos = unit.tokenStartPosition(loc);
+
+    output << std::format(" at {}:{}:{}\n", pos.fileName, pos.line, pos.column);
 
     if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
   }
