@@ -117,13 +117,11 @@ class TranslationUnit {
 
   [[nodiscard]] auto tokenText(SourceLocation loc) const -> const std::string&;
 
-  void getTokenStartPosition(SourceLocation loc, unsigned* line,
-                             unsigned* column = nullptr,
-                             std::string_view* fileName = nullptr) const;
+  [[nodiscard]] auto tokenStartPosition(SourceLocation loc) const
+      -> SourcePosition;
 
-  void getTokenEndPosition(SourceLocation loc, unsigned* line,
-                           unsigned* column = nullptr,
-                           std::string_view* fileName = nullptr) const;
+  [[nodiscard]] auto tokenEndPosition(SourceLocation loc) const
+      -> SourcePosition;
 
   [[nodiscard]] auto identifier(SourceLocation loc) const -> const Identifier*;
 

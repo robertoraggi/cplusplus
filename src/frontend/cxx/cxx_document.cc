@@ -47,27 +47,17 @@ struct Diagnostics final : cxx::DiagnosticsClient {
   Vector<lsp::Diagnostic> diagnostics{messages};
 
   void report(const cxx::Diagnostic& diag) override {
-    std::string_view fileName;
-    std::uint32_t line = 0;
-    std::uint32_t column = 0;
-
-    preprocessor()->getTokenStartPosition(diag.token(), &line, &column,
-                                          &fileName);
-
-    std::uint32_t endLine = 0;
-    std::uint32_t endColumn = 0;
-
-    preprocessor()->getTokenEndPosition(diag.token(), &endLine, &endColumn,
-                                        nullptr);
+    auto start = preprocessor()->tokenStartPosition(diag.token());
+    auto end = preprocessor()->tokenEndPosition(diag.token());
 
     auto tmp = json::object();
 
     auto d = diagnostics.emplace_back();
 
-    int s = std::max(int(line) - 1, 0);
-    int sc = std::max(int(column) - 1, 0);
-    int e = std::max(int(endLine) - 1, 0);
-    int ec = std::max(int(endColumn) - 1, 0);
+    int s = std::max(int(start.line) - 1, 0);
+    int sc = std::max(int(start.column) - 1, 0);
+    int e = std::max(int(end.line) - 1, 0);
+    int ec = std::max(int(end.column) - 1, 0);
 
     d.message(diag.message());
     d.range().start(lsp::Position(tmp).line(s).character(sc));

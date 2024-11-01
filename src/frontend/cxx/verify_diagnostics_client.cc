@@ -20,6 +20,8 @@
 
 #include "verify_diagnostics_client.h"
 
+#include <cxx/source_location.h>
+
 namespace cxx {
 
 auto VerifyDiagnosticsClient::verify() const -> bool { return verify_; }
@@ -46,11 +48,8 @@ void VerifyDiagnosticsClient::handleComment(Preprocessor* preprocessor,
     return;
   }
 
-  std::string_view fileName;
-  unsigned line = 0;
-  unsigned column = 0;
-
-  preprocessor->getTokenStartPosition(token, &line, &column, &fileName);
+  const auto pos = preprocessor->tokenStartPosition(token);
+  auto line = pos.line;
 
   Severity severity = Severity::Error;
 
@@ -67,7 +66,7 @@ void VerifyDiagnosticsClient::handleComment(Preprocessor* preprocessor,
   const auto& message = match[3];
 
   expectedDiagnostics_.push_back(
-      {token, severity, std::string(fileName), message, line});
+      {token, severity, std::string(pos.fileName), message, line});
 }
 
 auto VerifyDiagnosticsClient::hasErrors() const -> bool {
@@ -121,15 +120,11 @@ auto VerifyDiagnosticsClient::findDiagnostic(const ExpectedDiagnostic& expected)
       return false;
     }
 
-    unsigned line = 0;
-    unsigned column = 0;
-    std::string_view fileName;
+    const auto pos = preprocessor()->tokenStartPosition(d.token());
 
-    preprocessor()->getTokenStartPosition(d.token(), &line, &column, &fileName);
+    if (pos.line != expected.line) return false;
 
-    if (line != expected.line) return false;
-
-    if (fileName != expected.fileName) return false;
+    if (pos.fileName != expected.fileName) return false;
 
     if (d.message() != expected.message) return false;
 

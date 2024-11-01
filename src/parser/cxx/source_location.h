@@ -20,7 +20,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
+#include <string_view>
 #include <tuple>
 
 namespace cxx {
@@ -69,6 +71,13 @@ class SourceLocation {
   auto operator<(const SourceLocation& other) const -> bool {
     return index_ < other.index_;
   }
+};
+
+class SourcePosition {
+ public:
+  std::string_view fileName;
+  std::uint32_t line = 0;
+  std::uint32_t column = 0;
 };
 
 }  // namespace cxx

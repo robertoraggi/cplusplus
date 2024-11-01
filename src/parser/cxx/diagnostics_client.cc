@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/preprocessor.h>
+#include <cxx/source_location.h>
 
 #include <cctype>
 #include <cstdlib>
@@ -50,19 +51,15 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
       break;
   }  // switch
 
-  std::string_view fileName;
-  std::uint32_t line = 0;
-  std::uint32_t column = 0;
+  const auto pos = preprocessor_->tokenStartPosition(diag.token());
 
-  preprocessor_->getTokenStartPosition(diag.token(), &line, &column, &fileName);
-
-  if (!fileName.empty()) {
-    std::cerr << std::format("{}:{}:{}: {}\n", fileName, line, column,
-                             diag.message());
+  if (!pos.fileName.empty()) {
+    std::cerr << std::format("{}:{}:{}: {}\n", pos.fileName, pos.line,
+                             pos.column, diag.message());
 
     const auto textLine = preprocessor_->getTextLine(diag.token());
 
-    const auto end = std::max(0, static_cast<int>(column) - 1);
+    const auto end = std::max(0, static_cast<int>(pos.column) - 1);
 
     std::string indent{textLine.substr(0, end)};
 
