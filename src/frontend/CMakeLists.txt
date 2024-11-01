@@ -45,6 +45,14 @@ endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set_target_properties(cxx PROPERTIES SUFFIX ".wasm")
+
+    if (Threads_FOUND)
+        target_link_options(cxx PRIVATE
+            "SHELL:-Wl,--import-memory"
+            "SHELL:-Wl,--export-memory"
+            "SHELL:-Wl,--max-memory=134217728"
+        )
+    endif()
 endif()
 
 if(CXX_INTERPROCEDURAL_OPTIMIZATION)

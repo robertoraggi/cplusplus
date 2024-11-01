@@ -194,6 +194,7 @@ jobs:
       - name: Test
         run: |
           wasmtime \
+            -W threads=y -S threads=y \
             --dir ${{github.workspace}}/build.wasi/install::/ \
             --dir tests::tests \
             ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v tests/manual/source.cc
@@ -205,6 +206,7 @@ jobs:
           for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             wasmtime \
+                  -W threads=y -S threads=y \
                   --dir=src::/src \
                   --dir=build.wasi/_deps::/build.wasi/_deps \
                   --dir=build.wasi/src/parser::build.wasi/src/parser \
