@@ -349,6 +349,7 @@ struct Tok final : Managed {
   std::uint16_t bol : 1 = false;
   std::uint16_t space : 1 = false;
   std::uint16_t generated : 1 = false;
+  std::uint16_t isFromMacroBody : 1 = false;
 
   Tok(const Tok &other) = default;
   auto operator=(const Tok &other) -> Tok & = default;
@@ -409,14 +410,7 @@ struct Tok final : Managed {
   Tok() = default;
 
   Tok(const Tok *tok, const Hideset *hs) {
-    kind = tok->kind;
-    text = tok->text;
-    sourceFile = tok->sourceFile;
-    bol = tok->bol;
-    space = tok->space;
-    generated = tok->generated;
-    offset = tok->offset;
-    length = tok->length;
+    *this = *tok;
     hideset = hs;
   }
 };
@@ -1189,7 +1183,8 @@ struct Preprocessor::Private {
                                          const std::vector<TokRange> &actuals)
       -> std::optional<TokRange>;
 
-  [[nodiscard]] auto copyLine(TokList *ts) -> TokList *;
+  [[nodiscard]] auto copyLine(TokList *ts, bool inMacroBody = false)
+      -> TokList *;
 
   [[nodiscard]] auto constantExpression(TokList *ts) -> long;
   [[nodiscard]] auto conditionalExpression(TokList *&ts) -> long;
@@ -1707,7 +1702,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
 
     case PreprocessorDirectiveKind::T_DEFINE: {
       if (skipping) break;
-      defineMacro(copyLine(ts));
+      defineMacro(copyLine(ts, /*inMacroBody=*/true));
       break;
     }
 
@@ -2124,8 +2119,6 @@ auto Preprocessor::Private::substitute(TokList *pointOfSubstitution,
   TokList *os = nullptr;
   auto **ip = (&os);
 
-  std::unordered_set<const Tok *> macroTokens;
-
   auto appendTokens = [&](TokList *rs) {
     if (!*ip) {
       *ip = (rs);
@@ -2136,7 +2129,7 @@ auto Preprocessor::Private::substitute(TokList *pointOfSubstitution,
   };
 
   auto appendToken = [&](const Tok *tk) {
-    if (macroTokens.contains(tk)) {
+    if (tk->isFromMacroBody) {
       // todo: make a copy of tk and override its location to be the same as
       // the point of substitution.
       auto copyTk = copy(tk);
@@ -2150,12 +2143,6 @@ auto Preprocessor::Private::substitute(TokList *pointOfSubstitution,
   };
 
   TokList *macroBody = getMacroBody(*macro);
-
-  for (auto it = macroBody; it; it = it->next) {
-    macroTokens.insert(it->tok);
-  }
-
-  // std::cerr << std::format("macro body has {} tokens\n", macroTokens.size());
 
   // set the token stream to the macro body
   TokList *ts = macroBody;
@@ -2306,15 +2293,22 @@ auto Preprocessor::Private::checkHeaderProtection(TokList *ts) const
   return prot;
 }
 
-auto Preprocessor::Private::copyLine(TokList *ts) -> TokList * {
+auto Preprocessor::Private::copyLine(TokList *ts, bool inMacroBody)
+    -> TokList * {
   assert(ts);
   TokList *line = nullptr;
   auto it = &line;
   auto lastTok = ts->tok;
   for (; ts && !lookat(ts, TokenKind::T_EOF_SYMBOL) && !bol(ts);
        ts = ts->next) {
-    *it = cons(ts->tok);
-    lastTok = ts->tok;
+    auto tok = ts->tok;
+    if (inMacroBody) {
+      auto tokCopy = copy(tok);
+      tokCopy->isFromMacroBody = true;
+      tok = tokCopy;
+    }
+    *it = cons(tok);
+    lastTok = tok;
     it = (&(*it)->next);
   }
   auto eol = gen(TokenKind::T_EOF_SYMBOL, std::string_view());
@@ -2981,6 +2975,9 @@ void Preprocessor::defineMacro(const std::string &name,
                                const std::string &body) {
   auto s = d->string(name + " " + body);
   auto tokens = d->tokenize(s, /*sourceFile=*/0, false);
+  for (auto it = tokens; it; it = it->next) {
+    const_cast<Tok *>(it->tok)->isFromMacroBody = true;
+  }
   d->defineMacro(tokens);
 }
 
