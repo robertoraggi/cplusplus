@@ -83,14 +83,7 @@ void Server::Text::computeLineStartOffsets() {
 }
 
 Server::Server(const CLI& cli)
-    : cli(cli), input(std::cin), output(std::cout), log(std::cerr) {
-  // create workers
-  const auto workerCount = 4;
-
-  auto worker = [] {
-
-  };
-}
+    : cli(cli), input(std::cin), output(std::cout), log(std::cerr) {}
 
 Server::~Server() {}
 
@@ -138,7 +131,7 @@ auto Server::nextRequest() -> std::optional<json> {
 
   if (it == headers.end()) {
     return std::nullopt;
-  };
+  }
 
   const auto contentLength = std::stoi(it->second);
 
