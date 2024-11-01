@@ -9,4 +9,4 @@ int main() {
   return result;
 }
 
-// CHECK: int result = 1;
+// CHECK: int result = 1 ;

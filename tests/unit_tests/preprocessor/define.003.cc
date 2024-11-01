@@ -9,4 +9,4 @@
 
 int main() { FOR_EACH(DECLARE_VAR) }
 
-// CHECK: int aa;int bb;int cc;
+// CHECK: int aa ; int bb ; int cc ;

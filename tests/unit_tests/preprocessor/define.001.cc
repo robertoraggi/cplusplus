@@ -7,4 +7,4 @@ int main() {
   return result;
 }
 
-// CHECK: int result = 0;
+// CHECK: int result = 0 ;

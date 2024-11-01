@@ -10,4 +10,4 @@
 const char* platform = PLATFORM;
 #endif
 
-// CHECK: const char* platform = "linux";
+// CHECK: const char* platform = "linux" ;

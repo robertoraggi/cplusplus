@@ -378,6 +378,12 @@ struct Tok final : Managed {
     return tk;
   }
 
+  [[nodiscard]] static auto Copy(Arena *pool, const Tok *tok) {
+    auto tk = new (pool) Tok();
+    *tk = *tok;
+    return tk;
+  }
+
   [[nodiscard]] static auto Gen(Arena *pool, TokenKind kind,
                                 const std::string_view &text,
                                 const Hideset *hideset = nullptr) -> Tok * {
@@ -824,6 +830,11 @@ struct Preprocessor::Private {
   [[nodiscard]] auto gen(TokenKind kind, const std::string_view &text,
                          const Hideset *hideset = nullptr) -> Tok * {
     return Tok::Gen(&pool_, kind, text, hideset);
+  }
+
+  [[nodiscard]] auto copy(const Tok *tok) -> Tok * {
+    auto copy = Tok::Copy(&pool_, tok);
+    return copy;
   }
 
   void pushState(std::tuple<bool, bool> state) {
@@ -2113,6 +2124,8 @@ auto Preprocessor::Private::substitute(TokList *pointOfSubstitution,
   TokList *os = nullptr;
   auto **ip = (&os);
 
+  std::unordered_set<const Tok *> macroTokens;
+
   auto appendTokens = [&](TokList *rs) {
     if (!*ip) {
       *ip = (rs);
@@ -2122,9 +2135,30 @@ auto Preprocessor::Private::substitute(TokList *pointOfSubstitution,
     while (*ip && (*ip)->next) ip = (&(*ip)->next);
   };
 
-  auto appendToken = [&](const Tok *tk) { appendTokens(cons(tk)); };
+  auto appendToken = [&](const Tok *tk) {
+    if (macroTokens.contains(tk)) {
+      // todo: make a copy of tk and override its location to be the same as
+      // the point of substitution.
+      auto copyTk = copy(tk);
+      copyTk->sourceFile = pointOfSubstitution->tok->sourceFile;
+      copyTk->offset = pointOfSubstitution->tok->offset;
+      copyTk->length = pointOfSubstitution->tok->length;
+      appendTokens(cons(copyTk));
+    } else {
+      appendTokens(cons(tk));
+    }
+  };
 
-  TokList *ts = getMacroBody(*macro);
+  TokList *macroBody = getMacroBody(*macro);
+
+  for (auto it = macroBody; it; it = it->next) {
+    macroTokens.insert(it->tok);
+  }
+
+  // std::cerr << std::format("macro body has {} tokens\n", macroTokens.size());
+
+  // set the token stream to the macro body
+  TokList *ts = macroBody;
 
   while (ts && !lookat(ts, TokenKind::T_EOF_SYMBOL)) {
     if (lookat(ts, TokenKind::T_HASH, TokenKind::T_IDENTIFIER)) {
