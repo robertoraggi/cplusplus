@@ -73,8 +73,8 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
 
     const ast = parser?.getAST();
 
-    ast?.walk().preVisit(({ node, slot, depth: level }) => {
-      if (!(node instanceof AST)) return;
+    for (const { node, slot, depth: level } of ast?.walk().preVisit() ?? []) {
+      if (!(node instanceof AST)) continue;
 
       const kind = ASTKind[node.getKind()];
 
@@ -93,7 +93,7 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
       const handle = node.getHandle();
 
       nodes.push({ description, slot, handle, level });
-    });
+    }
     setNodes(nodes);
   }, [parser]);
 

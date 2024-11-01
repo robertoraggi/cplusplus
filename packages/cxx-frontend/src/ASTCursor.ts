@@ -158,16 +158,15 @@ export class ASTCursor {
   /**
    * Pre-order traversal of the AST.
    *
-   * @param accept The function to call for each node.
+   * @returns A generator that yields the nodes in pre-order.
    */
-  preVisit(accept: (args: AcceptArgs) => void | boolean) {
+  *preVisit() {
     let done = false;
     let depth = 0;
 
     while (!done) {
       do {
-        if (accept({ node: this.node, slot: this.slot, depth }) === true)
-          return;
+        yield { node: this.node, slot: this.slot, depth };
         ++depth;
       } while (this.gotoFirstChild());
 

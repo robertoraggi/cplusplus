@@ -55,13 +55,13 @@ async function main() {
 
   const ast = parser.getAST();
 
-  ast?.walk().preVisit(({ node, slot, depth }) => {
-    if (!node instanceof AST) return;
+  for (const { node, slot, depth } of ast?.walk().preVisit() ?? []) {
+    if ((!node) instanceof AST) continue;
     const ind = " ".repeat(depth * 2);
     const kind = ASTKind[node.getKind()];
     const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
     console.log(`${ind}- ${member}${kind}`);
-  });
+  }
 
   parser.dispose();
 }

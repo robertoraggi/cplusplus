@@ -50,9 +50,9 @@ async function main() {
 
   const ast = parser.getAST();
 
-  ast?.walk().preVisit(({ node, depth }) => {
+  for (const { node, depth } of ast?.walk().preVisit() ?? []) {
     if (!(node instanceof AST)) {
-      return;
+      continue;
     }
 
     const nodeWithAttributes: AST & Partial<Attributes> = node;
@@ -77,7 +77,7 @@ async function main() {
     }
 
     rows.push(description);
-  });
+  }
 
   parser.dispose();
 
