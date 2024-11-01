@@ -114,9 +114,9 @@ export function gen_ast_encoder_cc({
           const className = makeClassName(m.type);
           emit(`  std::vector<flatbuffers::Offset<io::${className}>>`);
           emit(`    ${m.name}Offsets;`);
-          emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
-          emit(`     if (!it->value) continue;`);
-          emit(`     ${m.name}Offsets.emplace_back(accept(it->value).o);`);
+          emit(`  for (auto node : ListView{ast->${m.name}}) {`);
+          emit(`     if (!node) continue;`);
+          emit(`     ${m.name}Offsets.emplace_back(accept(node).o);`);
           emit(`  }`);
           emit();
           emit(`  auto ${m.name}OffsetsVector = fbb_.CreateVector(`);
@@ -130,10 +130,10 @@ export function gen_ast_encoder_cc({
           emit(`  std::vector<std::underlying_type_t<io::${className}>>`);
           emit(`    ${m.name}Types;`);
           emit();
-          emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
-          emit(`    if (!it->value) continue;`);
+          emit(`  for (auto node : ListView{ast->${m.name}}) {`);
+          emit(`    if (!node) continue;`);
           emit(`    const auto [offset, type] = accept${className}(`);
-          emit(`      it->value);`);
+          emit(`      node);`);
           emit(`    ${m.name}Offsets.push_back(offset);`);
           emit(`    ${m.name}Types.push_back(type);`);
           emit(`  }`);

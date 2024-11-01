@@ -90,7 +90,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
       }
 
       emit(
-        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`,
+        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`
       );
       emit();
       emit(`  auto firstSourceLocation() -> SourceLocation override;`);
@@ -110,7 +110,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     emit(`  switch (ast->kind()) {`);
     nodes.forEach(({ name }) => {
       emit(
-        `  case ${name}::Kind: return std::invoke(std::forward<Visitor>(visitor), static_cast<${name}*>(ast));`,
+        `  case ${name}::Kind: return std::invoke(std::forward<Visitor>(visitor), static_cast<${name}*>(ast));`
       );
     });
     emit(`    default: cxx_runtime_error("unexpected ${variantName}");`);
@@ -130,35 +130,76 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
 #include <cxx/const_value.h>
 #include <cxx/symbols_fwd.h>
 #include <optional>
+#include <ranges>
 
 namespace cxx {
 
 template <typename T>
 class List final : public Managed {
 public:
-    T value;
-    List* next;
+  T value;
+  List* next;
 
-    explicit List(const T& value, List* next = nullptr)
-        : value(value), next(next) {}
+  explicit List(const T& value, List* next = nullptr)
+      : value(value), next(next) {}
+};
+
+template <typename T>
+class ListIterator {
+ public:
+  using value_type = T;
+  using difference_type = std::ptrdiff_t;
+
+  ListIterator() = default;
+  explicit ListIterator(List<T>* list) : list_(list) {}
+
+  auto operator<=>(const ListIterator&) const = default;
+
+  auto operator*() const -> const T& { return list_->value; }
+
+  auto operator++() -> ListIterator& {
+    list_ = list_->next;
+    return *this;
+  }
+
+  auto operator++(int) -> ListIterator {
+    auto it = *this;
+    ++*this;
+    return it;
+  }
+
+ private:
+  List<T>* list_{};
+};
+
+template <typename T>
+class ListView : std::ranges::view_interface<ListView<T>> {
+ public:
+  explicit ListView(List<T>* list) : list_(list) {}
+
+  auto begin() const { return ListIterator<T>(list_); }
+  auto end() const { return ListIterator<T>(); }
+
+ private:
+  List<T>* list_;
 };
 
 class AST : public Managed {
 public:
-    explicit AST(ASTKind kind): kind_(kind) {}
+  explicit AST(ASTKind kind): kind_(kind) {}
 
-    virtual ~AST();
+  virtual ~AST();
 
-    [[nodiscard]] auto kind() const -> ASTKind { return kind_; }
+  [[nodiscard]] auto kind() const -> ASTKind { return kind_; }
 
-    virtual void accept(ASTVisitor* visitor) = 0;
+  virtual void accept(ASTVisitor* visitor) = 0;
 
-    virtual auto firstSourceLocation() -> SourceLocation = 0;
-    virtual auto lastSourceLocation() -> SourceLocation = 0;
+  virtual auto firstSourceLocation() -> SourceLocation = 0;
+  virtual auto lastSourceLocation() -> SourceLocation = 0;
 
-    [[nodiscard]] auto sourceLocationRange() -> SourceLocationRange {
-        return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
-    }
+  [[nodiscard]] auto sourceLocationRange() -> SourceLocationRange {
+      return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
+  }
 
 private:
     ASTKind kind_;
@@ -173,8 +214,8 @@ template <typename T>
 
 template <typename T>
 [[nodiscard]] inline auto firstSourceLocation(List<T>* nodes) -> SourceLocation {
-    for (auto it = nodes; it; it = it->next) {
-        if (auto loc = firstSourceLocation(it->value)) return loc;
+    for (auto node : ListView{nodes}) {
+        if (auto loc = firstSourceLocation(node)) return loc;
     }
     return {};
 }

@@ -62,8 +62,8 @@ void ASTPrinter::visit(TranslationUnitAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -77,8 +77,8 @@ void ASTPrinter::visit(ModuleUnitAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -91,8 +91,8 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -100,8 +100,8 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "decl-specifier-list");
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -109,8 +109,8 @@ void ASTPrinter::visit(SimpleDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "init-declarator-list");
-    for (auto it = ast->initDeclaratorList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->initDeclaratorList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -129,8 +129,8 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -138,8 +138,8 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "asm-qualifier-list");
-    for (auto it = ast->asmQualifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->asmQualifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -147,8 +147,8 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "output-operand-list");
-    for (auto it = ast->outputOperandList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->outputOperandList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -156,8 +156,8 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "input-operand-list");
-    for (auto it = ast->inputOperandList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->inputOperandList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -165,8 +165,8 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "clobber-list");
-    for (auto it = ast->clobberList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->clobberList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -174,8 +174,8 @@ void ASTPrinter::visit(AsmDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "goto-label-list");
-    for (auto it = ast->gotoLabelList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->gotoLabelList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -194,8 +194,8 @@ void ASTPrinter::visit(UsingDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "using-declarator-list");
-    for (auto it = ast->usingDeclaratorList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->usingDeclaratorList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -212,8 +212,8 @@ void ASTPrinter::visit(UsingDirectiveAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -239,8 +239,8 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -248,8 +248,8 @@ void ASTPrinter::visit(AliasDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "gnu-attribute-list");
-    for (auto it = ast->gnuAttributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->gnuAttributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -262,8 +262,8 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -273,8 +273,8 @@ void ASTPrinter::visit(OpaqueEnumDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -286,8 +286,8 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -295,8 +295,8 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "decl-specifier-list");
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -311,8 +311,8 @@ void ASTPrinter::visit(TemplateDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-parameter-list");
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateParameterList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -350,8 +350,8 @@ void ASTPrinter::visit(ExportCompoundDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -369,8 +369,8 @@ void ASTPrinter::visit(LinkageSpecificationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -389,8 +389,8 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -398,8 +398,8 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "nested-namespace-specifier-list");
-    for (auto it = ast->nestedNamespaceSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->nestedNamespaceSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -407,8 +407,8 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "extra-attribute-list");
-    for (auto it = ast->extraAttributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->extraAttributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -416,8 +416,8 @@ void ASTPrinter::visit(NamespaceDefinitionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -433,8 +433,8 @@ void ASTPrinter::visit(AttributeDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -447,8 +447,8 @@ void ASTPrinter::visit(ModuleImportDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -473,8 +473,8 @@ void ASTPrinter::visit(ParameterDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -482,8 +482,8 @@ void ASTPrinter::visit(ParameterDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -512,8 +512,8 @@ void ASTPrinter::visit(StructuredBindingDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -521,8 +521,8 @@ void ASTPrinter::visit(StructuredBindingDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "decl-specifier-list");
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -530,8 +530,8 @@ void ASTPrinter::visit(StructuredBindingDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "binding-list");
-    for (auto it = ast->bindingList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->bindingList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -601,8 +601,8 @@ void ASTPrinter::visit(CompoundStatementAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "statement-list");
-    for (auto it = ast->statementList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->statementList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -698,8 +698,8 @@ void ASTPrinter::visit(TryBlockStatementAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "handler-list");
-    for (auto it = ast->handlerList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->handlerList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -814,8 +814,8 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "capture-list");
-    for (auto it = ast->captureList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->captureList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -823,8 +823,8 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-parameter-list");
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateParameterList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -834,8 +834,8 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "gnu-atribute-list");
-    for (auto it = ast->gnuAtributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->gnuAtributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -843,8 +843,8 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "lambda-specifier-list");
-    for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->lambdaSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -853,8 +853,8 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -910,8 +910,8 @@ void ASTPrinter::visit(RequiresExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "requirement-list");
-    for (auto it = ast->requirementList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->requirementList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -936,8 +936,8 @@ void ASTPrinter::visit(CallExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -950,8 +950,8 @@ void ASTPrinter::visit(TypeConstructionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1112,8 +1112,8 @@ void ASTPrinter::visit(NewExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1199,8 +1199,8 @@ void ASTPrinter::visit(TypeTraitExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-id-list");
-    for (auto it = ast->typeIdList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeIdList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1212,8 +1212,8 @@ void ASTPrinter::visit(ConditionExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1221,8 +1221,8 @@ void ASTPrinter::visit(ConditionExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "decl-specifier-list");
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1241,8 +1241,8 @@ void ASTPrinter::visit(BracedInitListAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1254,8 +1254,8 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1272,8 +1272,8 @@ void ASTPrinter::visit(GlobalModuleFragmentAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1285,8 +1285,8 @@ void ASTPrinter::visit(PrivateModuleFragmentAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1300,8 +1300,8 @@ void ASTPrinter::visit(ModuleDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1343,8 +1343,8 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "ptr-op-list");
-    for (auto it = ast->ptrOpList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->ptrOpList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1353,8 +1353,8 @@ void ASTPrinter::visit(DeclaratorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declarator-chunk-list");
-    for (auto it = ast->declaratorChunkList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declaratorChunkList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1379,8 +1379,8 @@ void ASTPrinter::visit(EnumeratorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1393,8 +1393,8 @@ void ASTPrinter::visit(TypeIdAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1433,8 +1433,8 @@ void ASTPrinter::visit(BaseSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1459,8 +1459,8 @@ void ASTPrinter::visit(ParameterDeclarationClauseAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "parameter-declaration-list");
-    for (auto it = ast->parameterDeclarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->parameterDeclarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1489,8 +1489,8 @@ void ASTPrinter::visit(TypeConstraintAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-argument-list");
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1516,8 +1516,8 @@ void ASTPrinter::visit(NewPlacementAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1555,8 +1555,8 @@ void ASTPrinter::visit(TemplateTypeParameterAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-parameter-list");
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateParameterList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1773,8 +1773,8 @@ void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1815,8 +1815,8 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1826,8 +1826,8 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1835,8 +1835,8 @@ void ASTPrinter::visit(EnumSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "enumerator-list");
-    for (auto it = ast->enumeratorList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->enumeratorList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1860,8 +1860,8 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1871,8 +1871,8 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "base-specifier-list");
-    for (auto it = ast->baseSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->baseSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1880,8 +1880,8 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
-    for (auto it = ast->declarationList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1904,8 +1904,8 @@ void ASTPrinter::visit(PointerOperatorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1913,8 +1913,8 @@ void ASTPrinter::visit(PointerOperatorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "cv-qualifier-list");
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->cvQualifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1932,8 +1932,8 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1946,8 +1946,8 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1955,8 +1955,8 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "cv-qualifier-list");
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->cvQualifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -1988,8 +1988,8 @@ void ASTPrinter::visit(IdDeclaratorAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2025,8 +2025,8 @@ void ASTPrinter::visit(FunctionDeclaratorChunkAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "cv-qualifier-list");
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->cvQualifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2035,8 +2035,8 @@ void ASTPrinter::visit(FunctionDeclaratorChunkAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2050,8 +2050,8 @@ void ASTPrinter::visit(ArrayDeclaratorChunkAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2105,8 +2105,8 @@ void ASTPrinter::visit(SimpleTemplateIdAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-argument-list");
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2119,8 +2119,8 @@ void ASTPrinter::visit(LiteralOperatorTemplateIdAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-argument-list");
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2133,8 +2133,8 @@ void ASTPrinter::visit(OperatorFunctionTemplateIdAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "template-argument-list");
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2179,8 +2179,8 @@ void ASTPrinter::visit(CompoundStatementFunctionBodyAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "mem-initializer-list");
-    for (auto it = ast->memInitializerList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->memInitializerList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2193,8 +2193,8 @@ void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "mem-initializer-list");
-    for (auto it = ast->memInitializerList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->memInitializerList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2203,8 +2203,8 @@ void ASTPrinter::visit(TryStatementFunctionBodyAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "handler-list");
-    for (auto it = ast->handlerList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->handlerList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2261,8 +2261,8 @@ void ASTPrinter::visit(NewParenInitializerAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2281,8 +2281,8 @@ void ASTPrinter::visit(ParenMemInitializerAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "expression-list");
-    for (auto it = ast->expressionList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2335,8 +2335,8 @@ void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2344,8 +2344,8 @@ void ASTPrinter::visit(TypeExceptionDeclarationAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "type-specifier-list");
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      accept(node);
     }
     --indent_;
   }
@@ -2359,8 +2359,8 @@ void ASTPrinter::visit(CxxAttributeAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "attribute-list");
-    for (auto it = ast->attributeList; it; it = it->next) {
-      accept(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
     }
     --indent_;
   }

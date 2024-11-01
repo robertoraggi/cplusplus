@@ -69,8 +69,8 @@ export function new_ast_op_cc({
         }
         case "node-list": {
           emit();
-          emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
-          emit(`    auto value = operator()(it->value);`);
+          emit(`  for (auto node : ListView{ast->${m.name}}) {`);
+          emit(`    auto value = operator()(node);`);
           emit(`  }`);
           emit();
           break;
@@ -90,7 +90,7 @@ export function new_ast_op_cc({
       const resultTy = `${chopAST(base)}Result`;
       emit();
       emit(
-        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${resultTy} {`,
+        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${resultTy} {`
       );
       members.forEach((m) => {
         switch (m.kind) {
@@ -100,8 +100,8 @@ export function new_ast_op_cc({
           }
           case "node-list": {
             emit();
-            emit(`  for (auto it = ast->${m.name}; it; it = it->next) {`);
-            emit(`    auto value = accept(it->value);`);
+            emit(`  for (auto node : ListView{ast->${m.name}}) {`);
+            emit(`    auto value = accept(node);`);
             emit(`  }`);
             emit();
             break;
