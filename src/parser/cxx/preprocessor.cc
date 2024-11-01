@@ -2905,8 +2905,14 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
 
 void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
   if (tokens.empty()) return;
-  auto sourceFileId = tokens.back().fileId();
-  tokens.emplace_back(TokenKind::T_EOF_SYMBOL, sourceFileId);
+
+  // assume the main source file is the first one
+  const auto mainSourceFileId = 1;
+
+  // place the EOF token at the end of the main source file
+  const auto offset = d->sourceFiles_[mainSourceFileId - 1]->source.size();
+  auto &tk = tokens.emplace_back(TokenKind::T_EOF_SYMBOL, offset);
+  tk.setFileId(mainSourceFileId);
 }
 
 auto Preprocessor::continuePreprocessing(std::vector<Token> &tokens) -> Status {
