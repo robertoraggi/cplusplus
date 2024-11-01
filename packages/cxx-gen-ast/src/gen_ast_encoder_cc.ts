@@ -264,36 +264,34 @@ auto ASTEncoder::encodeSourceLocation(const SourceLocation& loc)
     return {};
   }
 
-  std::string_view fileName;
-  std::uint32_t line = 0, column = 0;
-  unit_->getTokenStartPosition(loc, &line, &column, &fileName);
+  const auto start = unit_->tokenStartPosition(loc);
 
   flatbuffers::Offset<io::SourceLine> sourceLineOffset;
 
-  auto key = std::tuple(fileName, line);
+  auto key = std::tuple(start.fileName, start.line);
 
   if (sourceLines_.contains(key)) {
     sourceLineOffset = sourceLines_.at(key).o;
   } else {
     flatbuffers::Offset<flatbuffers::String> fileNameOffset;
 
-    if (sourceFiles_.contains(fileName)) {
-      fileNameOffset = sourceFiles_.at(fileName);
+    if (sourceFiles_.contains(start.fileName)) {
+      fileNameOffset = sourceFiles_.at(start.fileName);
     } else {
-      fileNameOffset = fbb_.CreateString(fileName);
-      sourceFiles_.emplace(fileName, fileNameOffset.o);
+      fileNameOffset = fbb_.CreateString(start.fileName);
+      sourceFiles_.emplace(start.fileName, fileNameOffset.o);
     }
 
     io::SourceLineBuilder sourceLineBuilder{fbb_};
     sourceLineBuilder.add_file_name(fileNameOffset);
-    sourceLineBuilder.add_line(line);
+    sourceLineBuilder.add_line(start.line);
     sourceLineOffset = sourceLineBuilder.Finish();
     sourceLines_.emplace(std::move(key), sourceLineOffset.o);
   }
 
   io::SourceLocationBuilder sourceLocationBuilder{fbb_};
   sourceLocationBuilder.add_source_line(sourceLineOffset);
-  sourceLocationBuilder.add_column(column);
+  sourceLocationBuilder.add_column(start.column);
 
   auto offset = sourceLocationBuilder.Finish();
 

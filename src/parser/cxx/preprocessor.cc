@@ -1313,11 +1313,9 @@ void Preprocessor::Private::initialize() {
       "__LINE__",
       [this](const MacroExpansionContext &context) -> const TokList * {
         auto ts = context.ts;
-        unsigned line = 0;
-        preprocessor_->getTokenStartPosition(ts->tok->token(), &line, nullptr,
-                                             nullptr);
-        auto tk =
-            gen(TokenKind::T_INTEGER_LITERAL, string(std::to_string(line)));
+        const auto start = preprocessor_->tokenStartPosition(ts->tok->token());
+        auto tk = gen(TokenKind::T_INTEGER_LITERAL,
+                      string(std::to_string(start.line)));
         tk->sourceFile = ts->tok->sourceFile;
         tk->space = true;
         return cons(tk, ts->next);
@@ -2936,15 +2934,8 @@ void Preprocessor::getPreprocessedText(const std::vector<Token> &tokens,
       if (lastFileId != std::numeric_limits<std::uint32_t>::max()) {
         out << '\n';
       }
-      const auto &sourceFile = *d->sourceFiles_[fileId - 1];
-      std::uint32_t line = 0, column = 0;
-      getTokenStartPosition(token, &line, &column, nullptr);
-#if true
-      out << std::format("# {} \"{}\"\n", line, sourceFile.fileName);
-#else
-      out << std::format("# {} \"{}:{}:{}\"\n", line, sourceFile.fileName, line,
-                         column);
-#endif
+      const auto pos = tokenStartPosition(token);
+      out << std::format("# {} \"{}\"\n", pos.line, pos.fileName);
       lastFileId = fileId;
       atStartOfLine = true;
     } else if (token.startOfLine()) {
@@ -2968,10 +2959,9 @@ void Preprocessor::getPreprocessedText(const std::vector<Token> &tokens,
     }
 
     if (atStartOfLine) {
-      std::uint32_t line = 0, column = 0;
-      getTokenStartPosition(token, &line, &column, nullptr);
-      if (column > 0) {
-        for (std::uint32_t i = 0; i < column - 1; ++i) {
+      const auto pos = tokenStartPosition(token);
+      if (pos.column > 0) {
+        for (std::uint32_t i = 0; i < pos.column - 1; ++i) {
           out << ' ';
         }
       }
@@ -3059,44 +3049,42 @@ void Preprocessor::printMacros(std::ostream &out) const {
   }
 }
 
-void Preprocessor::getTokenStartPosition(const Token &token, unsigned *line,
-                                         unsigned *column,
-                                         std::string_view *fileName) const {
+auto Preprocessor::tokenStartPosition(const Token &token) const
+    -> SourcePosition {
   if (token.fileId() == 0) {
-    if (line) *line = 0;
-    if (column) *column = 0;
-    if (fileName) *fileName = std::string_view();
-    return;
+    return {};
   }
 
   auto &sourceFile = *d->sourceFiles_[token.fileId() - 1];
-  sourceFile.getTokenStartPosition(token.offset(), line, column, fileName);
+  SourcePosition pos;
+  sourceFile.getTokenStartPosition(token.offset(), &pos.line, &pos.column,
+                                   &pos.fileName);
+  return pos;
 }
 
-void Preprocessor::getTokenEndPosition(const Token &token, unsigned *line,
-                                       unsigned *column,
-                                       std::string_view *fileName) const {
+auto Preprocessor::tokenEndPosition(const Token &token) const
+    -> SourcePosition {
   if (token.fileId() == 0) {
-    if (line) *line = 0;
-    if (column) *column = 0;
-    if (fileName) *fileName = std::string_view();
-    return;
+    return {};
   }
 
   auto &sourceFile = *d->sourceFiles_[token.fileId() - 1];
-  sourceFile.getTokenStartPosition(token.offset() + token.length(), line,
-                                   column, fileName);
+
+  SourcePosition pos;
+  sourceFile.getTokenStartPosition(token.offset() + token.length(), &pos.line,
+                                   &pos.column, &pos.fileName);
+  return pos;
 }
 
 auto Preprocessor::getTextLine(const Token &token) const -> std::string_view {
   if (token.fileId() == 0) return {};
   const SourceFile *file = d->sourceFiles_[token.fileId() - 1].get();
-  unsigned line = 0;
-  getTokenStartPosition(token, &line, nullptr, nullptr);
+  const auto pos = tokenStartPosition(token);
   std::string_view source = file->source;
   const auto &lines = file->lines;
-  const auto start = lines.at(line - 1);
-  const auto end = line < lines.size() ? lines.at(line) : source.length();
+  const auto start = lines.at(pos.line - 1);
+  const auto end =
+      pos.line < lines.size() ? lines.at(pos.line) : source.length();
   auto textLine = source.substr(start, end - start);
   while (!textLine.empty()) {
     auto ch = textLine.back();

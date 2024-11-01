@@ -44,25 +44,15 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
   val messages = val::array();
 
   void report(const cxx::Diagnostic& diag) override {
-    std::string_view fileName;
-    std::uint32_t line = 0;
-    std::uint32_t column = 0;
-
-    preprocessor()->getTokenStartPosition(diag.token(), &line, &column,
-                                          &fileName);
-
-    std::uint32_t endLine = 0;
-    std::uint32_t endColumn = 0;
-
-    preprocessor()->getTokenEndPosition(diag.token(), &endLine, &endColumn,
-                                        nullptr);
+    const auto start = preprocessor()->tokenStartPosition(diag.token());
+    const auto end = preprocessor()->tokenEndPosition(diag.token());
 
     val d = val::object();
-    d.set("fileName", val(std::string(fileName)));
-    d.set("startLine", val(line));
-    d.set("startColumn", val(column));
-    d.set("endLine", val(endLine));
-    d.set("endColumn", val(endColumn));
+    d.set("fileName", val(std::string(start.fileName)));
+    d.set("startLine", val(start.line));
+    d.set("startColumn", val(start.column));
+    d.set("endLine", val(end.line));
+    d.set("endColumn", val(end.column));
     d.set("message", val(diag.message()));
     messages.call<void>("push", d);
   }
@@ -113,20 +103,15 @@ val getTokenLocation(std::intptr_t handle, std::intptr_t unitHandle) {
 
   cxx::SourceLocation loc(handle);
 
-  unsigned startLine = 0, startColumn = 0;
-
-  unit->getTokenStartPosition(loc, &startLine, &startColumn);
-
-  unsigned endLine = 0, endColumn = 0;
-
-  unit->getTokenEndPosition(loc, &endLine, &endColumn);
+  const auto start = unit->tokenStartPosition(loc);
+  const auto end = unit->tokenEndPosition(loc);
 
   val result = val::object();
 
-  result.set("startLine", startLine);
-  result.set("startColumn", startColumn);
-  result.set("endLine", endLine);
-  result.set("endColumn", endColumn);
+  result.set("startLine", start.line);
+  result.set("startColumn", start.column);
+  result.set("endLine", end.line);
+  result.set("endColumn", end.column);
 
   return result;
 }

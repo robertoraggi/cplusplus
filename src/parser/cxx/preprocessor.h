@@ -37,6 +37,7 @@ class DiagnosticsClient;
 class CommentHandler;
 class Preprocessor;
 class PreprocessorDelegate;
+class SourcePosition;
 
 class CommentHandler {
  public:
@@ -135,12 +136,11 @@ class Preprocessor {
 
   void printMacros(std::ostream &out) const;
 
-  void getTokenStartPosition(const Token &token, unsigned *line,
-                             unsigned *column,
-                             std::string_view *fileName) const;
+  [[nodiscard]] auto tokenStartPosition(const Token &token) const
+      -> SourcePosition;
 
-  void getTokenEndPosition(const Token &token, unsigned *line, unsigned *column,
-                           std::string_view *fileName) const;
+  [[nodiscard]] auto tokenEndPosition(const Token &token) const
+      -> SourcePosition;
 
   [[nodiscard]] auto getTextLine(const Token &token) const -> std::string_view;
 

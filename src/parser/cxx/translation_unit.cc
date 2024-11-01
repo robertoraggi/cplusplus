@@ -108,16 +108,14 @@ auto TranslationUnit::tokenText(SourceLocation loc) const
   }  // switch
 }
 
-void TranslationUnit::getTokenStartPosition(SourceLocation loc, unsigned* line,
-                                            unsigned* column,
-                                            std::string_view* fileName) const {
-  preprocessor_->getTokenStartPosition(tokenAt(loc), line, column, fileName);
+auto TranslationUnit::tokenStartPosition(SourceLocation loc) const
+    -> SourcePosition {
+  return preprocessor_->tokenStartPosition(tokenAt(loc));
 }
 
-void TranslationUnit::getTokenEndPosition(SourceLocation loc, unsigned* line,
-                                          unsigned* column,
-                                          std::string_view* fileName) const {
-  preprocessor_->getTokenEndPosition(tokenAt(loc), line, column, fileName);
+auto TranslationUnit::tokenEndPosition(SourceLocation loc) const
+    -> SourcePosition {
+  return preprocessor_->tokenEndPosition(tokenAt(loc));
 }
 
 void TranslationUnit::parse(const ParserConfiguration& config) {
