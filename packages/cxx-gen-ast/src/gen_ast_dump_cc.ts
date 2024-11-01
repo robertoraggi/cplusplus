@@ -42,8 +42,8 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       emit(`    ++indent_;`);
       emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(`    out_ << std::format("{}\\n", "${fieldName}");`);
-      emit(`    for (auto it = ast->${member.name}; it; it = it->next) {`);
-      emit(`      accept(it->value);`);
+      emit(`    for (auto node: ListView{ast->${member.name}}) {`);
+      emit(`      accept(node);`);
       emit(`    }`);
       emit(`    --indent_;`);
       emit(`  }`);

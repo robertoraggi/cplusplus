@@ -30,6 +30,7 @@
 #include <cxx/token.h>
 
 #include <optional>
+#include <ranges>
 
 namespace cxx {
 
@@ -41,6 +42,46 @@ class List final : public Managed {
 
   explicit List(const T& value, List* next = nullptr)
       : value(value), next(next) {}
+};
+
+template <typename T>
+class ListIterator {
+ public:
+  using value_type = T;
+  using difference_type = std::ptrdiff_t;
+
+  ListIterator() = default;
+  explicit ListIterator(List<T>* list) : list_(list) {}
+
+  auto operator<=>(const ListIterator&) const = default;
+
+  auto operator*() const -> const T& { return list_->value; }
+
+  auto operator++() -> ListIterator& {
+    list_ = list_->next;
+    return *this;
+  }
+
+  auto operator++(int) -> ListIterator {
+    auto it = *this;
+    ++*this;
+    return it;
+  }
+
+ private:
+  List<T>* list_{};
+};
+
+template <typename T>
+class ListView : std::ranges::view_interface<ListView<T>> {
+ public:
+  explicit ListView(List<T>* list) : list_(list) {}
+
+  auto begin() const { return ListIterator<T>(list_); }
+  auto end() const { return ListIterator<T>(); }
+
+ private:
+  List<T>* list_;
 };
 
 class AST : public Managed {
@@ -77,8 +118,8 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline auto firstSourceLocation(List<T>* nodes)
     -> SourceLocation {
-  for (auto it = nodes; it; it = it->next) {
-    if (auto loc = firstSourceLocation(it->value)) return loc;
+  for (auto node : ListView{nodes}) {
+    if (auto loc = firstSourceLocation(node)) return loc;
   }
   return {};
 }

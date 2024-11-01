@@ -63,7 +63,7 @@ export function new_ast_rewriter_cc({
             emit(`  copy->${m.name} = ${visitor}(ast->${m.name});`);
           } else {
             emit(
-              `  copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`,
+              `  copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`
             );
           }
           break;
@@ -72,8 +72,8 @@ export function new_ast_rewriter_cc({
           emit();
           emit(`  if (auto it = ast->${m.name}) {`);
           emit(`    auto out = &copy->${m.name};`);
-          emit(`    for (auto it = ast->${m.name}; it; it = it->next) {`);
-          emit(`        auto value = ${visitor}(it->value);`);
+          emit(`    for (auto node : ListView{ast->${m.name}}) {`);
+          emit(`        auto value = ${visitor}(node);`);
           if (isBase(m.type)) {
             emit(`*out = new (arena()) List(value);`);
           } else {
@@ -126,7 +126,7 @@ export function new_ast_rewriter_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${base}* {`,
+        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
       );
       emit(`  auto copy = new (arena()) ${name}{};`);
       emit();
