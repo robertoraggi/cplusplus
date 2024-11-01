@@ -44,9 +44,8 @@ auto dump_symbol(Symbol* symbol) -> std::string {
 }
 
 struct Source {
-  Control control;
   DiagnosticsClient diagnosticsClient;
-  TranslationUnit unit{&control, &diagnosticsClient};
+  TranslationUnit unit{&diagnosticsClient};
 
   explicit Source(std::string_view source) {
     unit.setSource(std::string(source), "<test>");
@@ -58,12 +57,13 @@ struct Source {
     });
   }
 
+  auto control() -> Control* { return unit.control(); }
   auto ast() -> UnitAST* { return unit.ast(); }
   auto scope() -> Scope* { return unit.globalScope(); }
 
   auto get(std::string_view name) -> Symbol* {
     Symbol* symbol = nullptr;
-    auto id = control.getIdentifier(name);
+    auto id = unit.control()->getIdentifier(name);
     for (auto candidate : scope()->get(id)) {
       if (symbol) return nullptr;
       symbol = candidate;
@@ -74,7 +74,7 @@ struct Source {
   auto instantiate(std::string_view name,
                    const std::vector<TemplateArgument>& arguments) -> Symbol* {
     auto symbol = get(name);
-    return control.instantiate(&unit, symbol, arguments);
+    return control()->instantiate(&unit, symbol, arguments);
   }
 };
 
@@ -86,7 +86,7 @@ struct LookupMember {
   Source& source;
 
   auto operator()(Scope* scope, std::string_view name) -> Symbol* {
-    auto id = source.control.getIdentifier(name);
+    auto id = source.control()->getIdentifier(name);
     for (auto candidate : scope->get(id)) {
       return candidate;
     }
@@ -110,7 +110,7 @@ TEST(Substitution, TypeAlias) {
     using F = T (*)(T const, U*, ...);
   )"_cxx;
 
-  auto control = &source.control;
+  auto control = source.control();
 
   {
     auto instance = source.instantiate("Ptr", {control->getCharType()});
@@ -142,7 +142,7 @@ TEST(Substitution, Variable) {
     constexpr T value = T{};
   )"_cxx;
 
-  auto control = &source.control;
+  auto control = source.control();
 
   {
     auto instance = source.instantiate("value", {control->getIntType()});
@@ -180,7 +180,7 @@ TEST(Substitution, Class) {
 
   LookupMember getMember{source};
 
-  auto control = &source.control;
+  auto control = source.control();
 
   {
     auto instance = source.instantiate("S", {control->getIntType()});

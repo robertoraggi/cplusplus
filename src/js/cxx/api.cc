@@ -59,14 +59,12 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
 };
 
 struct WrappedUnit {
-  cxx::Control control;
   std::unique_ptr<DiagnosticsClient> diagnosticsClient;
   std::unique_ptr<cxx::TranslationUnit> unit;
 
   WrappedUnit(std::string source, std::string filename) {
     diagnosticsClient = std::make_unique<DiagnosticsClient>();
-    unit = std::make_unique<cxx::TranslationUnit>(&control,
-                                                  diagnosticsClient.get());
+    unit = std::make_unique<cxx::TranslationUnit>(diagnosticsClient.get());
     if (auto preprocessor = unit->preprocessor()) {
       preprocessor->setCanResolveFiles(false);
     }
@@ -275,7 +273,7 @@ auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
 auto register_translation_unit(const char* name = "TranslationUnit")
     -> class_<cxx::TranslationUnit> {
   return class_<cxx::TranslationUnit>(name)
-      .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
+      .constructor<cxx::DiagnosticsClient*>()
       .function("setSource", &cxx::TranslationUnit::setSource)
       .function("parse", &cxx::TranslationUnit::parse)
       .function("tokenCount", &cxx::TranslationUnit::tokenCount)

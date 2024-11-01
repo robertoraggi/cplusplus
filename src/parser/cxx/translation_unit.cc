@@ -41,20 +41,21 @@
 
 namespace cxx {
 
-TranslationUnit::TranslationUnit(Control* control,
-                                 DiagnosticsClient* diagnosticsClient)
-    : control_(control), diagnosticsClient_(diagnosticsClient) {
+TranslationUnit::TranslationUnit(DiagnosticsClient* diagnosticsClient)
+    : diagnosticsClient_(diagnosticsClient) {
+  control_ = std::make_unique<Control>();
   arena_ = std::make_unique<Arena>();
   globalNamespace_ = control_->newNamespaceSymbol(nullptr, {});
 
-  preprocessor_ = std::make_unique<Preprocessor>(control_, diagnosticsClient_);
+  preprocessor_ =
+      std::make_unique<Preprocessor>(control_.get(), diagnosticsClient_);
 
   if (diagnosticsClient_) {
     diagnosticsClient_->setPreprocessor(preprocessor_.get());
   }
 }
 
-TranslationUnit::~TranslationUnit() = default;
+TranslationUnit::~TranslationUnit() {}
 
 auto TranslationUnit::diagnosticsClient() const -> DiagnosticsClient* {
   return diagnosticsClient_;
@@ -63,6 +64,11 @@ auto TranslationUnit::diagnosticsClient() const -> DiagnosticsClient* {
 auto TranslationUnit::changeDiagnosticsClient(
     DiagnosticsClient* diagnosticsClient) -> DiagnosticsClient* {
   std::swap(diagnosticsClient_, diagnosticsClient);
+
+  if (diagnosticsClient_) {
+    diagnosticsClient_->setPreprocessor(preprocessor_.get());
+  }
+
   return diagnosticsClient;
 }
 

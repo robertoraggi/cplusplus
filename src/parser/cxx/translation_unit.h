@@ -41,19 +41,17 @@ namespace cxx {
 
 class TranslationUnit {
  public:
-  explicit TranslationUnit(Control* control,
-                           DiagnosticsClient* diagosticsClient);
-
+  explicit TranslationUnit(DiagnosticsClient* diagosticsClient = nullptr);
   ~TranslationUnit();
 
-  [[nodiscard]] auto control() const -> Control* { return control_; }
+  [[nodiscard]] auto control() const -> Control* { return control_.get(); }
 
   [[nodiscard]] auto arena() const -> Arena* { return arena_.get(); }
 
   [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient*;
 
-  auto changeDiagnosticsClient(DiagnosticsClient* diagnosticsClient)
-      -> DiagnosticsClient*;
+  [[nodiscard]] auto changeDiagnosticsClient(
+      DiagnosticsClient* diagnosticsClient) -> DiagnosticsClient*;
 
   [[nodiscard]] auto ast() const -> UnitAST* { return ast_; }
 
@@ -64,6 +62,7 @@ class TranslationUnit {
   [[nodiscard]] auto fileName() const -> const std::string& {
     return fileName_;
   }
+
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
     return preprocessor_.get();
   }
@@ -137,7 +136,7 @@ class TranslationUnit {
       const std::function<void(std::span<const std::uint8_t>)>& onData) -> bool;
 
  private:
-  Control* control_;
+  std::unique_ptr<Control> control_;
   std::unique_ptr<Arena> arena_;
   std::vector<Token> tokens_;
   std::string fileName_;
