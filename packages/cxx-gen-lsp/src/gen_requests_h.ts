@@ -91,10 +91,10 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
       emit(`class ${responseTypeName} final : public LSPResponse {`);
       emit(`public:`);
       emit(`  using LSPResponse::LSPResponse;`);
+      emit(`  using LSPResponse::id;`);
+      emit(`  using Result = ${resultType};`);
       emit();
-      emit(`  [[nodiscard]] auto id() const -> std::variant<long, std::string>;`);
-      emit(`  auto id(long id) -> ${responseTypeName}&;`);
-      emit(`  auto id(std::string id) -> ${responseTypeName}&;`);
+      emit(`  auto id(std::variant<long, std::string> id) -> ${responseTypeName}&;`);
       emit();
       emit(`  [[nodiscard]] auto result() const -> ${resultType};`);
       emit();
@@ -105,7 +105,7 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
 
   emit();
   emit(`template <typename Visitor>`);
-  emit(`auto visit(Visitor&& visitor, const LSPRequest& request) -> void {`);
+  emit(`auto visit(Visitor&& visitor, LSPRequest request) -> void {`);
   emit(`#define PROCESS_REQUEST_TYPE(NAME, METHOD) \\`);
   emit(`  if (request.method() == METHOD) \\`);
   emit(`    return visitor(static_cast<const NAME##Request&>(request));`);

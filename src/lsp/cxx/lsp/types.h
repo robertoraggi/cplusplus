@@ -2533,7 +2533,7 @@ class InitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto processId() const -> std::variant<int, std::nullptr_t>;
+  [[nodiscard]] auto processId() const -> std::variant<long, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto processId() -> T {
@@ -2610,7 +2610,7 @@ class InitializeParams final : public LSPObject {
     return T(value);
   }
 
-  auto processId(std::variant<int, std::nullptr_t> processId)
+  auto processId(std::variant<long, std::nullptr_t> processId)
       -> InitializeParams&;
 
   auto clientInfo(std::optional<ClientInfo> clientInfo) -> InitializeParams&;
@@ -2959,7 +2959,7 @@ class PublishDiagnosticsParams final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const -> std::optional<int>;
+  [[nodiscard]] auto version() const -> std::optional<long>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -2971,7 +2971,7 @@ class PublishDiagnosticsParams final : public LSPObject {
 
   auto uri(std::string uri) -> PublishDiagnosticsParams&;
 
-  auto version(std::optional<int> version) -> PublishDiagnosticsParams&;
+  auto version(std::optional<long> version) -> PublishDiagnosticsParams&;
 
   auto diagnostics(Vector<Diagnostic> diagnostics) -> PublishDiagnosticsParams&;
 };
@@ -5197,7 +5197,7 @@ class CancelParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto id() const -> std::variant<int, std::string>;
+  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
 
   template <typename T>
   [[nodiscard]] auto id() -> T {
@@ -5205,7 +5205,7 @@ class CancelParams final : public LSPObject {
     return T(value);
   }
 
-  auto id(std::variant<int, std::string> id) -> CancelParams&;
+  auto id(std::variant<long, std::string> id) -> CancelParams&;
 };
 
 class ProgressParams final : public LSPObject {
@@ -5909,11 +5909,11 @@ class InlineValueContext final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto frameId() const -> int;
+  [[nodiscard]] auto frameId() const -> long;
 
   [[nodiscard]] auto stoppedLocation() const -> Range;
 
-  auto frameId(int frameId) -> InlineValueContext&;
+  auto frameId(long frameId) -> InlineValueContext&;
 
   auto stoppedLocation(Range stoppedLocation) -> InlineValueContext&;
 };
@@ -6263,7 +6263,7 @@ class NotebookDocument final : public LSPObject {
 
   [[nodiscard]] auto notebookType() const -> std::string;
 
-  [[nodiscard]] auto version() const -> int;
+  [[nodiscard]] auto version() const -> long;
 
   [[nodiscard]] auto metadata() const -> std::optional<LSPObject>;
 
@@ -6279,7 +6279,7 @@ class NotebookDocument final : public LSPObject {
 
   auto notebookType(std::string notebookType) -> NotebookDocument&;
 
-  auto version(int version) -> NotebookDocument&;
+  auto version(long version) -> NotebookDocument&;
 
   auto metadata(std::optional<LSPObject> metadata) -> NotebookDocument&;
 
@@ -6296,7 +6296,7 @@ class TextDocumentItem final : public LSPObject {
 
   [[nodiscard]] auto languageId() const -> LanguageKind;
 
-  [[nodiscard]] auto version() const -> int;
+  [[nodiscard]] auto version() const -> long;
 
   [[nodiscard]] auto text() const -> std::string;
 
@@ -6304,7 +6304,7 @@ class TextDocumentItem final : public LSPObject {
 
   auto languageId(LanguageKind languageId) -> TextDocumentItem&;
 
-  auto version(int version) -> TextDocumentItem&;
+  auto version(long version) -> TextDocumentItem&;
 
   auto text(std::string text) -> TextDocumentItem&;
 };
@@ -6340,11 +6340,11 @@ class VersionedNotebookDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const -> int;
+  [[nodiscard]] auto version() const -> long;
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(int version) -> VersionedNotebookDocumentIdentifier&;
+  auto version(long version) -> VersionedNotebookDocumentIdentifier&;
 
   auto uri(std::string uri) -> VersionedNotebookDocumentIdentifier&;
 };
@@ -6512,7 +6512,7 @@ class _InitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto processId() const -> std::variant<int, std::nullptr_t>;
+  [[nodiscard]] auto processId() const -> std::variant<long, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto processId() -> T {
@@ -6580,7 +6580,7 @@ class _InitializeParams final : public LSPObject {
     return T(value);
   }
 
-  auto processId(std::variant<int, std::nullptr_t> processId)
+  auto processId(std::variant<long, std::nullptr_t> processId)
       -> _InitializeParams&;
 
   auto clientInfo(std::optional<ClientInfo> clientInfo) -> _InitializeParams&;
@@ -7141,11 +7141,11 @@ class VersionedTextDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const -> int;
+  [[nodiscard]] auto version() const -> long;
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(int version) -> VersionedTextDocumentIdentifier&;
+  auto version(long version) -> VersionedTextDocumentIdentifier&;
 
   auto uri(std::string uri) -> VersionedTextDocumentIdentifier&;
 };
@@ -7220,7 +7220,7 @@ class Diagnostic final : public LSPObject {
   }
 
   [[nodiscard]] auto code() const
-      -> std::optional<std::variant<int, std::string>>;
+      -> std::optional<std::variant<long, std::string>>;
 
   template <typename T>
   [[nodiscard]] auto code() -> T {
@@ -7275,7 +7275,7 @@ class Diagnostic final : public LSPObject {
 
   auto severity(std::optional<DiagnosticSeverity> severity) -> Diagnostic&;
 
-  auto code(std::optional<std::variant<int, std::string>> code) -> Diagnostic&;
+  auto code(std::optional<std::variant<long, std::string>> code) -> Diagnostic&;
 
   auto codeDescription(std::optional<CodeDescription> codeDescription)
       -> Diagnostic&;
@@ -8307,7 +8307,7 @@ class OptionalVersionedTextDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
+  [[nodiscard]] auto version() const -> std::variant<long, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -8317,7 +8317,7 @@ class OptionalVersionedTextDocumentIdentifier final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(std::variant<int, std::nullptr_t> version)
+  auto version(std::variant<long, std::nullptr_t> version)
       -> OptionalVersionedTextDocumentIdentifier&;
 
   auto uri(std::string uri) -> OptionalVersionedTextDocumentIdentifier&;
@@ -8517,7 +8517,7 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
+  [[nodiscard]] auto version() const -> std::variant<long, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -8539,7 +8539,7 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   auto uri(std::string uri) -> WorkspaceFullDocumentDiagnosticReport&;
 
-  auto version(std::variant<int, std::nullptr_t> version)
+  auto version(std::variant<long, std::nullptr_t> version)
       -> WorkspaceFullDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> WorkspaceFullDocumentDiagnosticReport&;
@@ -8559,7 +8559,7 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const -> std::variant<int, std::nullptr_t>;
+  [[nodiscard]] auto version() const -> std::variant<long, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -8573,7 +8573,7 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   auto uri(std::string uri) -> WorkspaceUnchangedDocumentDiagnosticReport&;
 
-  auto version(std::variant<int, std::nullptr_t> version)
+  auto version(std::variant<long, std::nullptr_t> version)
       -> WorkspaceUnchangedDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> WorkspaceUnchangedDocumentDiagnosticReport&;

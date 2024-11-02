@@ -199,7 +199,7 @@ export function toCppType(type: Type): string {
         case "string":
           return "std::string";
         case "integer":
-          return "int";
+          return "long";
         case "uinteger":
           return "long";
         case "decimal":

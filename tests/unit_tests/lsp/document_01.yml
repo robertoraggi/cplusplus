@@ -1,8 +1,8 @@
 # RUN: %cxx -lsp-test < %s | %filecheck %s
 
-{ "method": "initialize" }
+{ "method": "initialize", "id": 0 }
 
-{ "method": "textDocument/didOpen", "params": { "textDocument": { "uri": "test:///source.cc", "version": 0, "text": "auto main() -> int;" } } }
+{ "method": "textDocument/didOpen", "id": 1, "params": { "textDocument": { "uri": "test:///source.cc", "version": 0, "text": "auto main() -> int;" } } }
 
 # CHECK:  "method": "textDocument/publishDiagnostics"
 # CHECK:  "params":
@@ -10,7 +10,7 @@
 # CHECK:    "uri": "test:///source.cc"
 # CHECK:    "version": 0
 
-{ "method": "shutdown" }
+{ "method": "shutdown", "id": 2 }
 
 { "method": "exit" }
 
