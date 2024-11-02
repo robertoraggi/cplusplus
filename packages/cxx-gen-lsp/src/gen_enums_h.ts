@@ -36,6 +36,8 @@ export function gen_enums_h({ model, outputDirectory }: { model: MetaModel; outp
   emit(`#pragma once`);
   emit();
   emit(`#include <string>`);
+  emit(`#include <string_view>`);
+  emit(`#include <optional>`);
   emit(`#include <cxx/lsp/fwd.h>`);
   emit();
   emit(`namespace cxx::lsp {`);
@@ -56,6 +58,16 @@ export function gen_enums_h({ model, outputDirectory }: { model: MetaModel; outp
     emit(`auto to_string(${enumeration.name} value) -> std::string;`);
   });
   emit();
+
+  const stringEnums = model.enumerations.filter((enumeration) => enumeration.type.name === "string");
+  emit(`namespace string_enums {`);
+  emit();
+  stringEnums.forEach((enumeration) => {
+    emit(`[[nodiscard]] auto parse${enumeration.name}(std::string_view name) -> std::optional<${enumeration.name}>;`);
+  });
+  emit(`} // namespace string_enums`);
+  emit();
+
   emit(`} // namespace cxx::lsp`);
 
   const outputFile = path.join(outputDirectory, "enums.h");

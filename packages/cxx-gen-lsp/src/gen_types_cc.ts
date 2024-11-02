@@ -80,6 +80,7 @@ class TypeGenerator {
     this.emit(copyrightHeader);
     this.emit();
     this.emit(`#include <cxx/lsp/types.h>`);
+    this.emit(`#include <cxx/lsp/enums.h>`);
     this.emit();
     this.emit(`namespace cxx::lsp {`);
     this.emit();
@@ -268,8 +269,12 @@ class TypeGenerator {
       }
 
       // todo: string-like enumeration
-      console.log(`string-like enumeration: ${property.type.name}`);
-      return false;
+      this.emit(`const auto enumValue = string_enums::parse${property.type.name}(value.get<std::string>());`);
+      this.emit();
+      this.emit(`if (enumValue.has_value()) return *enumValue;`);
+      this.emit();
+      this.emit(`lsp_runtime_error("invalid value for ${property.type.name} enumeration");`);
+      return true;
     }
 
     if (this.typeAliasByName.has(property.type.name)) {
@@ -377,8 +382,9 @@ class TypeGenerator {
         return true;
       }
 
-      // TODO: string-like enumeration
-      return false;
+      // string-like enumeration
+      this.emit(`(*repr_)["${property.name}"] = to_string(${value});`);
+      return true;
     }
 
     if (this.structByName.has(property.type.name)) {

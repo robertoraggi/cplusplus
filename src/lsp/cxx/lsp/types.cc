@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/lsp/enums.h>
 #include <cxx/lsp/types.h>
 
 namespace cxx::lsp {
@@ -943,7 +944,12 @@ auto FoldingRange::kind() const -> std::optional<FoldingRangeKind> {
 
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("FoldingRange::kind: not implemented yet");
+  const auto enumValue =
+      string_enums::parseFoldingRangeKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for FoldingRangeKind enumeration");
 }
 
 auto FoldingRange::collapsedText() const -> std::optional<std::string> {
@@ -991,7 +997,7 @@ auto FoldingRange::kind(std::optional<FoldingRangeKind> kind) -> FoldingRange& {
     repr_->erase("kind");
     return *this;
   }
-  lsp_runtime_error("FoldingRange::kind: not implemented yet");
+  (*repr_)["kind"] = to_string(kind.value());
   return *this;
 }
 
@@ -2973,7 +2979,12 @@ auto Moniker::identifier() const -> std::string {
 auto Moniker::unique() const -> UniquenessLevel {
   auto& value = (*repr_)["unique"];
 
-  lsp_runtime_error("Moniker::unique: not implemented yet");
+  const auto enumValue =
+      string_enums::parseUniquenessLevel(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for UniquenessLevel enumeration");
 }
 
 auto Moniker::kind() const -> std::optional<MonikerKind> {
@@ -2981,7 +2992,12 @@ auto Moniker::kind() const -> std::optional<MonikerKind> {
 
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("Moniker::kind: not implemented yet");
+  const auto enumValue =
+      string_enums::parseMonikerKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for MonikerKind enumeration");
 }
 
 auto Moniker::scheme(std::string scheme) -> Moniker& {
@@ -2995,7 +3011,7 @@ auto Moniker::identifier(std::string identifier) -> Moniker& {
 }
 
 auto Moniker::unique(UniquenessLevel unique) -> Moniker& {
-  lsp_runtime_error("Moniker::unique: not implemented yet");
+  (*repr_)["unique"] = to_string(unique);
   return *this;
 }
 
@@ -3004,7 +3020,7 @@ auto Moniker::kind(std::optional<MonikerKind> kind) -> Moniker& {
     repr_->erase("kind");
     return *this;
   }
-  lsp_runtime_error("Moniker::kind: not implemented yet");
+  (*repr_)["kind"] = to_string(kind.value());
   return *this;
 }
 
@@ -5030,7 +5046,12 @@ auto InitializeParams::trace() const -> std::optional<TraceValue> {
 
   auto& value = (*repr_)["trace"];
 
-  lsp_runtime_error("InitializeParams::trace: not implemented yet");
+  const auto enumValue =
+      string_enums::parseTraceValue(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for TraceValue enumeration");
 }
 
 auto InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
@@ -5164,7 +5185,7 @@ auto InitializeParams::trace(std::optional<TraceValue> trace)
     repr_->erase("trace");
     return *this;
   }
-  lsp_runtime_error("InitializeParams::trace: not implemented yet");
+  (*repr_)["trace"] = to_string(trace.value());
   return *this;
 }
 
@@ -7986,7 +8007,12 @@ auto CodeAction::kind() const -> std::optional<CodeActionKind> {
 
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("CodeAction::kind: not implemented yet");
+  const auto enumValue =
+      string_enums::parseCodeActionKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for CodeActionKind enumeration");
 }
 
 auto CodeAction::diagnostics() const -> std::optional<Vector<Diagnostic>> {
@@ -8060,7 +8086,7 @@ auto CodeAction::kind(std::optional<CodeActionKind> kind) -> CodeAction& {
     repr_->erase("kind");
     return *this;
   }
-  lsp_runtime_error("CodeAction::kind: not implemented yet");
+  (*repr_)["kind"] = to_string(kind.value());
   return *this;
 }
 
@@ -10021,11 +10047,16 @@ SetTraceParams::operator bool() const {
 auto SetTraceParams::value() const -> TraceValue {
   auto& value = (*repr_)["value"];
 
-  lsp_runtime_error("SetTraceParams::value: not implemented yet");
+  const auto enumValue =
+      string_enums::parseTraceValue(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for TraceValue enumeration");
 }
 
 auto SetTraceParams::value(TraceValue value) -> SetTraceParams& {
-  lsp_runtime_error("SetTraceParams::value: not implemented yet");
+  (*repr_)["value"] = to_string(value);
   return *this;
 }
 
@@ -11659,7 +11690,12 @@ MarkupContent::operator bool() const {
 auto MarkupContent::kind() const -> MarkupKind {
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("MarkupContent::kind: not implemented yet");
+  const auto enumValue =
+      string_enums::parseMarkupKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for MarkupKind enumeration");
 }
 
 auto MarkupContent::value() const -> std::string {
@@ -11671,7 +11707,7 @@ auto MarkupContent::value() const -> std::string {
 }
 
 auto MarkupContent::kind(MarkupKind kind) -> MarkupContent& {
-  lsp_runtime_error("MarkupContent::kind: not implemented yet");
+  (*repr_)["kind"] = to_string(kind);
   return *this;
 }
 
@@ -12179,7 +12215,12 @@ auto TextDocumentItem::uri() const -> std::string {
 auto TextDocumentItem::languageId() const -> LanguageKind {
   auto& value = (*repr_)["languageId"];
 
-  lsp_runtime_error("TextDocumentItem::languageId: not implemented yet");
+  const auto enumValue =
+      string_enums::parseLanguageKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for LanguageKind enumeration");
 }
 
 auto TextDocumentItem::version() const -> int {
@@ -12205,7 +12246,7 @@ auto TextDocumentItem::uri(std::string uri) -> TextDocumentItem& {
 
 auto TextDocumentItem::languageId(LanguageKind languageId)
     -> TextDocumentItem& {
-  lsp_runtime_error("TextDocumentItem::languageId: not implemented yet");
+  (*repr_)["languageId"] = to_string(languageId);
   return *this;
 }
 
@@ -12645,7 +12686,12 @@ auto _InitializeParams::trace() const -> std::optional<TraceValue> {
 
   auto& value = (*repr_)["trace"];
 
-  lsp_runtime_error("_InitializeParams::trace: not implemented yet");
+  const auto enumValue =
+      string_enums::parseTraceValue(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for TraceValue enumeration");
 }
 
 auto _InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
@@ -12766,7 +12812,7 @@ auto _InitializeParams::trace(std::optional<TraceValue> trace)
     repr_->erase("trace");
     return *this;
   }
-  lsp_runtime_error("_InitializeParams::trace: not implemented yet");
+  (*repr_)["trace"] = to_string(trace.value());
   return *this;
 }
 
@@ -12834,8 +12880,12 @@ auto ServerCapabilities::positionEncoding() const
 
   auto& value = (*repr_)["positionEncoding"];
 
-  lsp_runtime_error(
-      "ServerCapabilities::positionEncoding: not implemented yet");
+  const auto enumValue =
+      string_enums::parsePositionEncodingKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for PositionEncodingKind enumeration");
 }
 
 auto ServerCapabilities::textDocumentSync() const -> std::optional<
@@ -13286,8 +13336,7 @@ auto ServerCapabilities::positionEncoding(
     repr_->erase("positionEncoding");
     return *this;
   }
-  lsp_runtime_error(
-      "ServerCapabilities::positionEncoding: not implemented yet");
+  (*repr_)["positionEncoding"] = to_string(positionEncoding.value());
   return *this;
 }
 
@@ -16444,7 +16493,12 @@ auto FileOperationPattern::matches() const
 
   auto& value = (*repr_)["matches"];
 
-  lsp_runtime_error("FileOperationPattern::matches: not implemented yet");
+  const auto enumValue =
+      string_enums::parseFileOperationPatternKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for FileOperationPatternKind enumeration");
 }
 
 auto FileOperationPattern::options() const
@@ -16467,7 +16521,7 @@ auto FileOperationPattern::matches(
     repr_->erase("matches");
     return *this;
   }
-  lsp_runtime_error("FileOperationPattern::matches: not implemented yet");
+  (*repr_)["matches"] = to_string(matches.value());
   return *this;
 }
 
@@ -17618,7 +17672,12 @@ CodeActionKindDocumentation::operator bool() const {
 auto CodeActionKindDocumentation::kind() const -> CodeActionKind {
   auto& value = (*repr_)["kind"];
 
-  lsp_runtime_error("CodeActionKindDocumentation::kind: not implemented yet");
+  const auto enumValue =
+      string_enums::parseCodeActionKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for CodeActionKind enumeration");
 }
 
 auto CodeActionKindDocumentation::command() const -> Command {
@@ -17629,7 +17688,7 @@ auto CodeActionKindDocumentation::command() const -> Command {
 
 auto CodeActionKindDocumentation::kind(CodeActionKind kind)
     -> CodeActionKindDocumentation& {
-  lsp_runtime_error("CodeActionKindDocumentation::kind: not implemented yet");
+  (*repr_)["kind"] = to_string(kind);
   return *this;
 }
 
@@ -19726,8 +19785,12 @@ auto WorkspaceEditClientCapabilities::failureHandling() const
 
   auto& value = (*repr_)["failureHandling"];
 
-  lsp_runtime_error(
-      "WorkspaceEditClientCapabilities::failureHandling: not implemented yet");
+  const auto enumValue =
+      string_enums::parseFailureHandlingKind(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for FailureHandlingKind enumeration");
 }
 
 auto WorkspaceEditClientCapabilities::normalizesLineEndings() const
@@ -19800,8 +19863,7 @@ auto WorkspaceEditClientCapabilities::failureHandling(
     repr_->erase("failureHandling");
     return *this;
   }
-  lsp_runtime_error(
-      "WorkspaceEditClientCapabilities::failureHandling: not implemented yet");
+  (*repr_)["failureHandling"] = to_string(failureHandling.value());
   return *this;
 }
 
