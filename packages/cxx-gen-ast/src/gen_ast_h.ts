@@ -116,6 +116,17 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     emit(`    default: cxx_runtime_error("unexpected ${variantName}");`);
     emit(`  } // switch`);
     emit(`}`);
+    emit();
+    emit(`[[nodiscard]] inline auto is${variantName}(AST* ast) -> bool {`);
+    emit(`  if (!ast) return false;`);
+    emit(`  switch (ast->kind()) {`);
+    nodes.forEach(({ name }) => {
+      emit(`  case ${name}::Kind: `);
+    });
+    emit(`  return true;`);
+    emit(`    default: return false;`);
+    emit(`  } // switch`);
+    emit(`}`);
   });
 
   const out = `${cpy_header}
