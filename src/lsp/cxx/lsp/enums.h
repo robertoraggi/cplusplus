@@ -22,7 +22,9 @@
 
 #include <cxx/lsp/fwd.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace cxx::lsp {
 
@@ -435,5 +437,39 @@ auto to_string(ResourceOperationKind value) -> std::string;
 auto to_string(FailureHandlingKind value) -> std::string;
 auto to_string(PrepareSupportDefaultBehavior value) -> std::string;
 auto to_string(TokenFormat value) -> std::string;
+
+namespace string_enums {
+
+[[nodiscard]] auto parseSemanticTokenTypes(std::string_view name)
+    -> std::optional<SemanticTokenTypes>;
+[[nodiscard]] auto parseSemanticTokenModifiers(std::string_view name)
+    -> std::optional<SemanticTokenModifiers>;
+[[nodiscard]] auto parseDocumentDiagnosticReportKind(std::string_view name)
+    -> std::optional<DocumentDiagnosticReportKind>;
+[[nodiscard]] auto parseFoldingRangeKind(std::string_view name)
+    -> std::optional<FoldingRangeKind>;
+[[nodiscard]] auto parseUniquenessLevel(std::string_view name)
+    -> std::optional<UniquenessLevel>;
+[[nodiscard]] auto parseMonikerKind(std::string_view name)
+    -> std::optional<MonikerKind>;
+[[nodiscard]] auto parseCodeActionKind(std::string_view name)
+    -> std::optional<CodeActionKind>;
+[[nodiscard]] auto parseTraceValue(std::string_view name)
+    -> std::optional<TraceValue>;
+[[nodiscard]] auto parseMarkupKind(std::string_view name)
+    -> std::optional<MarkupKind>;
+[[nodiscard]] auto parseLanguageKind(std::string_view name)
+    -> std::optional<LanguageKind>;
+[[nodiscard]] auto parsePositionEncodingKind(std::string_view name)
+    -> std::optional<PositionEncodingKind>;
+[[nodiscard]] auto parseFileOperationPatternKind(std::string_view name)
+    -> std::optional<FileOperationPatternKind>;
+[[nodiscard]] auto parseResourceOperationKind(std::string_view name)
+    -> std::optional<ResourceOperationKind>;
+[[nodiscard]] auto parseFailureHandlingKind(std::string_view name)
+    -> std::optional<FailureHandlingKind>;
+[[nodiscard]] auto parseTokenFormat(std::string_view name)
+    -> std::optional<TokenFormat>;
+}  // namespace string_enums
 
 }  // namespace cxx::lsp

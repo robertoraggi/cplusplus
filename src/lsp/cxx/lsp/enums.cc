@@ -20,6 +20,9 @@
 
 #include <cxx/lsp/enums.h>
 
+#include <format>
+#include <unordered_map>
+
 namespace cxx::lsp {
 
 auto to_string(SemanticTokenTypes value) -> std::string {
@@ -799,5 +802,276 @@ auto to_string(TokenFormat value) -> std::string {
 
   lsp_runtime_error("invalid enumerator value");
 }
+
+namespace string_enums {
+
+auto parseSemanticTokenTypes(std::string_view name)
+    -> std::optional<SemanticTokenTypes> {
+  static std::unordered_map<std::string_view, SemanticTokenTypes> map{
+      {"namespace", SemanticTokenTypes::kNamespace},
+      {"type", SemanticTokenTypes::kType},
+      {"class", SemanticTokenTypes::kClass},
+      {"enum", SemanticTokenTypes::kEnum},
+      {"interface", SemanticTokenTypes::kInterface},
+      {"struct", SemanticTokenTypes::kStruct},
+      {"typeParameter", SemanticTokenTypes::kTypeParameter},
+      {"parameter", SemanticTokenTypes::kParameter},
+      {"variable", SemanticTokenTypes::kVariable},
+      {"property", SemanticTokenTypes::kProperty},
+      {"enumMember", SemanticTokenTypes::kEnumMember},
+      {"event", SemanticTokenTypes::kEvent},
+      {"function", SemanticTokenTypes::kFunction},
+      {"method", SemanticTokenTypes::kMethod},
+      {"macro", SemanticTokenTypes::kMacro},
+      {"keyword", SemanticTokenTypes::kKeyword},
+      {"modifier", SemanticTokenTypes::kModifier},
+      {"comment", SemanticTokenTypes::kComment},
+      {"string", SemanticTokenTypes::kString},
+      {"number", SemanticTokenTypes::kNumber},
+      {"regexp", SemanticTokenTypes::kRegexp},
+      {"operator", SemanticTokenTypes::kOperator},
+      {"decorator", SemanticTokenTypes::kDecorator},
+      {"label", SemanticTokenTypes::kLabel},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseSemanticTokenModifiers(std::string_view name)
+    -> std::optional<SemanticTokenModifiers> {
+  static std::unordered_map<std::string_view, SemanticTokenModifiers> map{
+      {"declaration", SemanticTokenModifiers::kDeclaration},
+      {"definition", SemanticTokenModifiers::kDefinition},
+      {"readonly", SemanticTokenModifiers::kReadonly},
+      {"static", SemanticTokenModifiers::kStatic},
+      {"deprecated", SemanticTokenModifiers::kDeprecated},
+      {"abstract", SemanticTokenModifiers::kAbstract},
+      {"async", SemanticTokenModifiers::kAsync},
+      {"modification", SemanticTokenModifiers::kModification},
+      {"documentation", SemanticTokenModifiers::kDocumentation},
+      {"defaultLibrary", SemanticTokenModifiers::kDefaultLibrary},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseDocumentDiagnosticReportKind(std::string_view name)
+    -> std::optional<DocumentDiagnosticReportKind> {
+  static std::unordered_map<std::string_view, DocumentDiagnosticReportKind> map{
+      {"full", DocumentDiagnosticReportKind::kFull},
+      {"unchanged", DocumentDiagnosticReportKind::kUnchanged},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseFoldingRangeKind(std::string_view name)
+    -> std::optional<FoldingRangeKind> {
+  static std::unordered_map<std::string_view, FoldingRangeKind> map{
+      {"comment", FoldingRangeKind::kComment},
+      {"imports", FoldingRangeKind::kImports},
+      {"region", FoldingRangeKind::kRegion},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseUniquenessLevel(std::string_view name)
+    -> std::optional<UniquenessLevel> {
+  static std::unordered_map<std::string_view, UniquenessLevel> map{
+      {"document", UniquenessLevel::kDocument},
+      {"project", UniquenessLevel::kProject},
+      {"group", UniquenessLevel::kGroup},
+      {"scheme", UniquenessLevel::kScheme},
+      {"global", UniquenessLevel::kGlobal},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseMonikerKind(std::string_view name) -> std::optional<MonikerKind> {
+  static std::unordered_map<std::string_view, MonikerKind> map{
+      {"import", MonikerKind::kImport},
+      {"export", MonikerKind::kExport},
+      {"local", MonikerKind::kLocal},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseCodeActionKind(std::string_view name)
+    -> std::optional<CodeActionKind> {
+  static std::unordered_map<std::string_view, CodeActionKind> map{
+      {"", CodeActionKind::kEmpty},
+      {"quickfix", CodeActionKind::kQuickFix},
+      {"refactor", CodeActionKind::kRefactor},
+      {"refactor.extract", CodeActionKind::kRefactorExtract},
+      {"refactor.inline", CodeActionKind::kRefactorInline},
+      {"refactor.move", CodeActionKind::kRefactorMove},
+      {"refactor.rewrite", CodeActionKind::kRefactorRewrite},
+      {"source", CodeActionKind::kSource},
+      {"source.organizeImports", CodeActionKind::kSourceOrganizeImports},
+      {"source.fixAll", CodeActionKind::kSourceFixAll},
+      {"notebook", CodeActionKind::kNotebook},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseTraceValue(std::string_view name) -> std::optional<TraceValue> {
+  static std::unordered_map<std::string_view, TraceValue> map{
+      {"off", TraceValue::kOff},
+      {"messages", TraceValue::kMessages},
+      {"verbose", TraceValue::kVerbose},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseMarkupKind(std::string_view name) -> std::optional<MarkupKind> {
+  static std::unordered_map<std::string_view, MarkupKind> map{
+      {"plaintext", MarkupKind::kPlainText},
+      {"markdown", MarkupKind::kMarkdown},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseLanguageKind(std::string_view name) -> std::optional<LanguageKind> {
+  static std::unordered_map<std::string_view, LanguageKind> map{
+      {"abap", LanguageKind::kABAP},
+      {"bat", LanguageKind::kWindowsBat},
+      {"bibtex", LanguageKind::kBibTeX},
+      {"clojure", LanguageKind::kClojure},
+      {"coffeescript", LanguageKind::kCoffeescript},
+      {"c", LanguageKind::kC},
+      {"cpp", LanguageKind::kCPP},
+      {"csharp", LanguageKind::kCSharp},
+      {"css", LanguageKind::kCSS},
+      {"d", LanguageKind::kD},
+      {"pascal", LanguageKind::kDelphi},
+      {"diff", LanguageKind::kDiff},
+      {"dart", LanguageKind::kDart},
+      {"dockerfile", LanguageKind::kDockerfile},
+      {"elixir", LanguageKind::kElixir},
+      {"erlang", LanguageKind::kErlang},
+      {"fsharp", LanguageKind::kFSharp},
+      {"git-commit", LanguageKind::kGitCommit},
+      {"rebase", LanguageKind::kGitRebase},
+      {"go", LanguageKind::kGo},
+      {"groovy", LanguageKind::kGroovy},
+      {"handlebars", LanguageKind::kHandlebars},
+      {"haskell", LanguageKind::kHaskell},
+      {"html", LanguageKind::kHTML},
+      {"ini", LanguageKind::kIni},
+      {"java", LanguageKind::kJava},
+      {"javascript", LanguageKind::kJavaScript},
+      {"javascriptreact", LanguageKind::kJavaScriptReact},
+      {"json", LanguageKind::kJSON},
+      {"latex", LanguageKind::kLaTeX},
+      {"less", LanguageKind::kLess},
+      {"lua", LanguageKind::kLua},
+      {"makefile", LanguageKind::kMakefile},
+      {"markdown", LanguageKind::kMarkdown},
+      {"objective-c", LanguageKind::kObjectiveC},
+      {"objective-cpp", LanguageKind::kObjectiveCPP},
+      {"pascal", LanguageKind::kPascal},
+      {"perl", LanguageKind::kPerl},
+      {"perl6", LanguageKind::kPerl6},
+      {"php", LanguageKind::kPHP},
+      {"powershell", LanguageKind::kPowershell},
+      {"jade", LanguageKind::kPug},
+      {"python", LanguageKind::kPython},
+      {"r", LanguageKind::kR},
+      {"razor", LanguageKind::kRazor},
+      {"ruby", LanguageKind::kRuby},
+      {"rust", LanguageKind::kRust},
+      {"scss", LanguageKind::kSCSS},
+      {"sass", LanguageKind::kSASS},
+      {"scala", LanguageKind::kScala},
+      {"shaderlab", LanguageKind::kShaderLab},
+      {"shellscript", LanguageKind::kShellScript},
+      {"sql", LanguageKind::kSQL},
+      {"swift", LanguageKind::kSwift},
+      {"typescript", LanguageKind::kTypeScript},
+      {"typescriptreact", LanguageKind::kTypeScriptReact},
+      {"tex", LanguageKind::kTeX},
+      {"vb", LanguageKind::kVisualBasic},
+      {"xml", LanguageKind::kXML},
+      {"xsl", LanguageKind::kXSL},
+      {"yaml", LanguageKind::kYAML},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parsePositionEncodingKind(std::string_view name)
+    -> std::optional<PositionEncodingKind> {
+  static std::unordered_map<std::string_view, PositionEncodingKind> map{
+      {"utf-8", PositionEncodingKind::kUTF8},
+      {"utf-16", PositionEncodingKind::kUTF16},
+      {"utf-32", PositionEncodingKind::kUTF32},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseFileOperationPatternKind(std::string_view name)
+    -> std::optional<FileOperationPatternKind> {
+  static std::unordered_map<std::string_view, FileOperationPatternKind> map{
+      {"file", FileOperationPatternKind::kFile},
+      {"folder", FileOperationPatternKind::kFolder},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseResourceOperationKind(std::string_view name)
+    -> std::optional<ResourceOperationKind> {
+  static std::unordered_map<std::string_view, ResourceOperationKind> map{
+      {"create", ResourceOperationKind::kCreate},
+      {"rename", ResourceOperationKind::kRename},
+      {"delete", ResourceOperationKind::kDelete},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseFailureHandlingKind(std::string_view name)
+    -> std::optional<FailureHandlingKind> {
+  static std::unordered_map<std::string_view, FailureHandlingKind> map{
+      {"abort", FailureHandlingKind::kAbort},
+      {"transactional", FailureHandlingKind::kTransactional},
+      {"textOnlyTransactional", FailureHandlingKind::kTextOnlyTransactional},
+      {"undo", FailureHandlingKind::kUndo},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseTokenFormat(std::string_view name) -> std::optional<TokenFormat> {
+  static std::unordered_map<std::string_view, TokenFormat> map{
+      {"relative", TokenFormat::kRelative},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+}  // namespace string_enums
 
 }  // namespace cxx::lsp

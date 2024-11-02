@@ -34,6 +34,8 @@ export function gen_enums_cc({ model, outputDirectory }: { model: MetaModel; out
   emit(copyrightHeader);
   emit();
   emit(`#include <cxx/lsp/enums.h>`);
+  emit(`#include <unordered_map>`);
+  emit(`#include <format>`);
   emit();
 
   emit(`namespace cxx::lsp {`);
@@ -58,7 +60,30 @@ export function gen_enums_cc({ model, outputDirectory }: { model: MetaModel; out
     emit(`}`);
   });
 
+  const stringEnums = model.enumerations.filter((enumeration) => enumeration.type.name === "string");
+
   emit();
+  emit(`namespace string_enums {`);
+  stringEnums.forEach((enumeration) => {
+    emit();
+    emit(`auto parse${enumeration.name}(std::string_view name) -> std::optional<${enumeration.name}> {`);
+    emit(`  static std::unordered_map<std::string_view, ${enumeration.name}> map{`);
+    enumeration.values.forEach((enumerator) => {
+      const enumeratorName = getEnumeratorName(enumerator);
+      const text = enumeration.type.name === "string" ? enumerator.value : enumerator.name;
+      emit(`    {"${text}", ${enumeration.name}::${enumeratorName}},`);
+    });
+    emit(`  };`);
+    emit(`  const auto it = map.find(name);`);
+    emit(`  if (it != map.end()) `);
+    emit(`    return it->second;`);
+    emit(`  return std::nullopt;`);
+    emit(`}`);
+  });
+  emit();
+  emit(`} // namespace string_enums`);
+  emit();
+
   emit(`} // namespace cxx::lsp`);
 
   const outputFile = path.join(outputDirectory, "enums.cc");

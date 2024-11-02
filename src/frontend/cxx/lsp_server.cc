@@ -444,16 +444,7 @@ void Server::operator()(const CancelNotification& notification) {
 void Server::operator()(const SetTraceNotification& notification) {
   logTrace(std::format("Did receive SetTraceNotification"));
 
-  // TODO: LSP string enumerations
-  const auto traceValue =
-      notification.params().get().at("value").get<std::string>();
-
-  if (traceValue == "messages")
-    trace_ = TraceValue::kMessages;
-  else if (traceValue == "verbose")
-    trace_ = TraceValue::kVerbose;
-  else
-    trace_ = TraceValue::kOff;
+  trace_ = notification.params().value();
 }
 
 void Server::operator()(const LSPRequest& request) {
