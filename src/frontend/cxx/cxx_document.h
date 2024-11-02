@@ -23,6 +23,7 @@
 #include <cxx/lsp/fwd.h>
 #include <cxx/translation_unit.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -41,6 +42,8 @@ class CxxDocument {
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
+
+  void preVisit(std::function<bool(AST*)> visitor);
 
  private:
   struct Private;

@@ -21,6 +21,7 @@
 #include "cxx_document.h"
 
 #include <cxx/ast.h>
+#include <cxx/ast_slot.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
@@ -206,6 +207,45 @@ auto CxxDocument::diagnostics() const -> Vector<Diagnostic> {
 
 auto CxxDocument::translationUnit() const -> TranslationUnit* {
   return &d->unit;
+}
+
+namespace {
+
+struct Visit {
+  CxxDocument* doc_;
+  std::function<bool(AST*)> visitor;
+  ASTSlot slotInfo;
+
+  void preVisit(AST* ast) {
+    if (!ast) return;
+
+    if (visitor(ast)) return;
+
+    // do a pre-visit using the low-level AST API
+
+    const auto slotCount = slotInfo(ast, 0).slotCount;
+
+    for (int index = 0; index < slotCount; ++index) {
+      const auto childInfo = slotInfo(ast, index);
+
+      if (childInfo.kind == ASTSlotKind::kNode) {
+        auto child = reinterpret_cast<AST*>(childInfo.handle);
+        if (child) preVisit(child);
+      } else if (childInfo.kind == ASTSlotKind::kNodeList) {
+        auto list = reinterpret_cast<List<AST*>*>(childInfo.handle);
+        for (auto node : ListView{list}) {
+          preVisit(node);
+        }
+      }
+    }
+  }
+};
+
+}  // namespace
+
+void CxxDocument::preVisit(std::function<bool(AST*)> visitor) {
+  auto ast = d->unit.ast();
+  Visit{this, std::move(visitor)}.preVisit(ast);
 }
 
 }  // namespace cxx::lsp

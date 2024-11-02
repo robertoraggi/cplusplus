@@ -320,13 +320,17 @@ void Server::operator()(InitializeRequest request) {
 
   withUnsafeJson([&](json storage) {
     InitializeResponse response{storage};
-    std::cerr << std::format("initializing response to {}\n",
-                             request.get().dump());
+
     response.id(*request.id());
+
+    auto serverInfo = response.result().serverInfo<ServerInfo>();
+
+    serverInfo.name("cxx-lsp").version(CXX_VERSION);
+
     auto capabilities = response.result().capabilities();
-    response.result().serverInfo<ServerInfo>().name("cxx-lsp").version(
-        CXX_VERSION);
     capabilities.textDocumentSync(TextDocumentSyncKind::kIncremental);
+    capabilities.documentSymbolProvider(true);
+
     sendToClient(response);
   });
 }
@@ -424,8 +428,18 @@ auto Server::latestDocument(const std::string& uri)
   return documents_[uri];
 }
 
-void Server::operator()(DocumentDiagnosticRequest request) {
-  logTrace(std::format("Did receive DocumentDiagnosticRequest"));
+void Server::operator()(DocumentSymbolRequest request) {
+  logTrace(std::format("Did receive DocumentSymbolRequest"));
+
+  auto uri = request.params().textDocument().uri();
+  auto doc = latestDocument(uri);
+
+  withUnsafeJson([&](json storage) {
+    DocumentSymbolResponse response(storage);
+    response.id(request.id());
+    (void)response.result();
+    sendToClient(response);
+  });
 }
 
 void Server::operator()(CancelNotification notification) {
@@ -448,7 +462,7 @@ void Server::operator()(SetTraceNotification notification) {
   trace_ = notification.params().value();
 
   if (trace_ != TraceValue::kOff) {
-    logTrace("Trace level set to {}\n", to_string(trace_));
+    logTrace("Trace level set to {}", to_string(trace_));
     return;
   }
 }
