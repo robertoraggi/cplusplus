@@ -4074,6 +4074,17 @@ auto visit(Visitor&& visitor, UnitAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isUnit(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case TranslationUnitAST::Kind:
+    case ModuleUnitAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, DeclarationAST* ast) {
   switch (ast->kind()) {
@@ -4169,6 +4180,44 @@ auto visit(Visitor&& visitor, DeclarationAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isDeclaration(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case SimpleDeclarationAST::Kind:
+    case AsmDeclarationAST::Kind:
+    case NamespaceAliasDefinitionAST::Kind:
+    case UsingDeclarationAST::Kind:
+    case UsingEnumDeclarationAST::Kind:
+    case UsingDirectiveAST::Kind:
+    case StaticAssertDeclarationAST::Kind:
+    case AliasDeclarationAST::Kind:
+    case OpaqueEnumDeclarationAST::Kind:
+    case FunctionDefinitionAST::Kind:
+    case TemplateDeclarationAST::Kind:
+    case ConceptDefinitionAST::Kind:
+    case DeductionGuideAST::Kind:
+    case ExplicitInstantiationAST::Kind:
+    case ExportDeclarationAST::Kind:
+    case ExportCompoundDeclarationAST::Kind:
+    case LinkageSpecificationAST::Kind:
+    case NamespaceDefinitionAST::Kind:
+    case EmptyDeclarationAST::Kind:
+    case AttributeDeclarationAST::Kind:
+    case ModuleImportDeclarationAST::Kind:
+    case ParameterDeclarationAST::Kind:
+    case AccessDeclarationAST::Kind:
+    case ForRangeDeclarationAST::Kind:
+    case StructuredBindingDeclarationAST::Kind:
+    case AsmOperandAST::Kind:
+    case AsmQualifierAST::Kind:
+    case AsmClobberAST::Kind:
+    case AsmGotoLabelAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, StatementAST* ast) {
   switch (ast->kind()) {
@@ -4231,6 +4280,34 @@ auto visit(Visitor&& visitor, StatementAST* ast) {
                          static_cast<TryBlockStatementAST*>(ast));
     default:
       cxx_runtime_error("unexpected Statement");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isStatement(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case LabeledStatementAST::Kind:
+    case CaseStatementAST::Kind:
+    case DefaultStatementAST::Kind:
+    case ExpressionStatementAST::Kind:
+    case CompoundStatementAST::Kind:
+    case IfStatementAST::Kind:
+    case ConstevalIfStatementAST::Kind:
+    case SwitchStatementAST::Kind:
+    case WhileStatementAST::Kind:
+    case DoStatementAST::Kind:
+    case ForRangeStatementAST::Kind:
+    case ForStatementAST::Kind:
+    case BreakStatementAST::Kind:
+    case ContinueStatementAST::Kind:
+    case ReturnStatementAST::Kind:
+    case CoroutineReturnStatementAST::Kind:
+    case GotoStatementAST::Kind:
+    case DeclarationStatementAST::Kind:
+    case TryBlockStatementAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4414,6 +4491,72 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isExpression(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case GeneratedLiteralExpressionAST::Kind:
+    case CharLiteralExpressionAST::Kind:
+    case BoolLiteralExpressionAST::Kind:
+    case IntLiteralExpressionAST::Kind:
+    case FloatLiteralExpressionAST::Kind:
+    case NullptrLiteralExpressionAST::Kind:
+    case StringLiteralExpressionAST::Kind:
+    case UserDefinedStringLiteralExpressionAST::Kind:
+    case ThisExpressionAST::Kind:
+    case NestedExpressionAST::Kind:
+    case IdExpressionAST::Kind:
+    case LambdaExpressionAST::Kind:
+    case FoldExpressionAST::Kind:
+    case RightFoldExpressionAST::Kind:
+    case LeftFoldExpressionAST::Kind:
+    case RequiresExpressionAST::Kind:
+    case VaArgExpressionAST::Kind:
+    case SubscriptExpressionAST::Kind:
+    case CallExpressionAST::Kind:
+    case TypeConstructionAST::Kind:
+    case BracedTypeConstructionAST::Kind:
+    case SpliceMemberExpressionAST::Kind:
+    case MemberExpressionAST::Kind:
+    case PostIncrExpressionAST::Kind:
+    case CppCastExpressionAST::Kind:
+    case BuiltinBitCastExpressionAST::Kind:
+    case TypeidExpressionAST::Kind:
+    case TypeidOfTypeExpressionAST::Kind:
+    case SpliceExpressionAST::Kind:
+    case GlobalScopeReflectExpressionAST::Kind:
+    case NamespaceReflectExpressionAST::Kind:
+    case TypeIdReflectExpressionAST::Kind:
+    case ReflectExpressionAST::Kind:
+    case UnaryExpressionAST::Kind:
+    case AwaitExpressionAST::Kind:
+    case SizeofExpressionAST::Kind:
+    case SizeofTypeExpressionAST::Kind:
+    case SizeofPackExpressionAST::Kind:
+    case AlignofTypeExpressionAST::Kind:
+    case AlignofExpressionAST::Kind:
+    case NoexceptExpressionAST::Kind:
+    case NewExpressionAST::Kind:
+    case DeleteExpressionAST::Kind:
+    case CastExpressionAST::Kind:
+    case ImplicitCastExpressionAST::Kind:
+    case BinaryExpressionAST::Kind:
+    case ConditionalExpressionAST::Kind:
+    case YieldExpressionAST::Kind:
+    case ThrowExpressionAST::Kind:
+    case AssignmentExpressionAST::Kind:
+    case PackExpansionExpressionAST::Kind:
+    case DesignatedInitializerClauseAST::Kind:
+    case TypeTraitExpressionAST::Kind:
+    case ConditionExpressionAST::Kind:
+    case EqualInitializerAST::Kind:
+    case BracedInitListAST::Kind:
+    case ParenInitializerAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, TemplateParameterAST* ast) {
   switch (ast->kind()) {
@@ -4431,6 +4574,19 @@ auto visit(Visitor&& visitor, TemplateParameterAST* ast) {
                          static_cast<ConstraintTypeParameterAST*>(ast));
     default:
       cxx_runtime_error("unexpected TemplateParameter");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isTemplateParameter(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case TemplateTypeParameterAST::Kind:
+    case NonTypeTemplateParameterAST::Kind:
+    case TypenameTypeParameterAST::Kind:
+    case ConstraintTypeParameterAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4550,6 +4706,51 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isSpecifier(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case GeneratedTypeSpecifierAST::Kind:
+    case TypedefSpecifierAST::Kind:
+    case FriendSpecifierAST::Kind:
+    case ConstevalSpecifierAST::Kind:
+    case ConstinitSpecifierAST::Kind:
+    case ConstexprSpecifierAST::Kind:
+    case InlineSpecifierAST::Kind:
+    case StaticSpecifierAST::Kind:
+    case ExternSpecifierAST::Kind:
+    case ThreadLocalSpecifierAST::Kind:
+    case ThreadSpecifierAST::Kind:
+    case MutableSpecifierAST::Kind:
+    case VirtualSpecifierAST::Kind:
+    case ExplicitSpecifierAST::Kind:
+    case AutoTypeSpecifierAST::Kind:
+    case VoidTypeSpecifierAST::Kind:
+    case SizeTypeSpecifierAST::Kind:
+    case SignTypeSpecifierAST::Kind:
+    case VaListTypeSpecifierAST::Kind:
+    case IntegralTypeSpecifierAST::Kind:
+    case FloatingPointTypeSpecifierAST::Kind:
+    case ComplexTypeSpecifierAST::Kind:
+    case NamedTypeSpecifierAST::Kind:
+    case AtomicTypeSpecifierAST::Kind:
+    case UnderlyingTypeSpecifierAST::Kind:
+    case ElaboratedTypeSpecifierAST::Kind:
+    case DecltypeAutoSpecifierAST::Kind:
+    case DecltypeSpecifierAST::Kind:
+    case PlaceholderTypeSpecifierAST::Kind:
+    case ConstQualifierAST::Kind:
+    case VolatileQualifierAST::Kind:
+    case RestrictQualifierAST::Kind:
+    case EnumSpecifierAST::Kind:
+    case ClassSpecifierAST::Kind:
+    case TypenameSpecifierAST::Kind:
+    case SplicerTypeSpecifierAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, PtrOperatorAST* ast) {
   switch (ast->kind()) {
@@ -4564,6 +4765,18 @@ auto visit(Visitor&& visitor, PtrOperatorAST* ast) {
                          static_cast<PtrToMemberOperatorAST*>(ast));
     default:
       cxx_runtime_error("unexpected PtrOperator");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isPtrOperator(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case PointerOperatorAST::Kind:
+    case ReferenceOperatorAST::Kind:
+    case PtrToMemberOperatorAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4587,6 +4800,19 @@ auto visit(Visitor&& visitor, CoreDeclaratorAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isCoreDeclarator(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case BitfieldDeclaratorAST::Kind:
+    case ParameterPackAST::Kind:
+    case IdDeclaratorAST::Kind:
+    case NestedDeclaratorAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, DeclaratorChunkAST* ast) {
   switch (ast->kind()) {
@@ -4598,6 +4824,17 @@ auto visit(Visitor&& visitor, DeclaratorChunkAST* ast) {
                          static_cast<ArrayDeclaratorChunkAST*>(ast));
     default:
       cxx_runtime_error("unexpected DeclaratorChunk");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isDeclaratorChunk(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case FunctionDeclaratorChunkAST::Kind:
+    case ArrayDeclaratorChunkAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4636,6 +4873,24 @@ auto visit(Visitor&& visitor, UnqualifiedIdAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isUnqualifiedId(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case NameIdAST::Kind:
+    case DestructorIdAST::Kind:
+    case DecltypeIdAST::Kind:
+    case OperatorFunctionIdAST::Kind:
+    case LiteralOperatorIdAST::Kind:
+    case ConversionFunctionIdAST::Kind:
+    case SimpleTemplateIdAST::Kind:
+    case LiteralOperatorTemplateIdAST::Kind:
+    case OperatorFunctionTemplateIdAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, NestedNameSpecifierAST* ast) {
   switch (ast->kind()) {
@@ -4653,6 +4908,19 @@ auto visit(Visitor&& visitor, NestedNameSpecifierAST* ast) {
                          static_cast<TemplateNestedNameSpecifierAST*>(ast));
     default:
       cxx_runtime_error("unexpected NestedNameSpecifier");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isNestedNameSpecifier(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case GlobalNestedNameSpecifierAST::Kind:
+    case SimpleNestedNameSpecifierAST::Kind:
+    case DecltypeNestedNameSpecifierAST::Kind:
+    case TemplateNestedNameSpecifierAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4676,6 +4944,19 @@ auto visit(Visitor&& visitor, FunctionBodyAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isFunctionBody(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case DefaultFunctionBodyAST::Kind:
+    case CompoundStatementFunctionBodyAST::Kind:
+    case TryStatementFunctionBodyAST::Kind:
+    case DeleteFunctionBodyAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, TemplateArgumentAST* ast) {
   switch (ast->kind()) {
@@ -4690,6 +4971,17 @@ auto visit(Visitor&& visitor, TemplateArgumentAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isTemplateArgument(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case TypeTemplateArgumentAST::Kind:
+    case ExpressionTemplateArgumentAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, ExceptionSpecifierAST* ast) {
   switch (ast->kind()) {
@@ -4701,6 +4993,17 @@ auto visit(Visitor&& visitor, ExceptionSpecifierAST* ast) {
                          static_cast<NoexceptSpecifierAST*>(ast));
     default:
       cxx_runtime_error("unexpected ExceptionSpecifier");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isExceptionSpecifier(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case ThrowExceptionSpecifierAST::Kind:
+    case NoexceptSpecifierAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4724,6 +5027,19 @@ auto visit(Visitor&& visitor, RequirementAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isRequirement(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case SimpleRequirementAST::Kind:
+    case CompoundRequirementAST::Kind:
+    case TypeRequirementAST::Kind:
+    case NestedRequirementAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, NewInitializerAST* ast) {
   switch (ast->kind()) {
@@ -4738,6 +5054,17 @@ auto visit(Visitor&& visitor, NewInitializerAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isNewInitializer(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case NewParenInitializerAST::Kind:
+    case NewBracedInitializerAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, MemInitializerAST* ast) {
   switch (ast->kind()) {
@@ -4749,6 +5076,17 @@ auto visit(Visitor&& visitor, MemInitializerAST* ast) {
                          static_cast<BracedMemInitializerAST*>(ast));
     default:
       cxx_runtime_error("unexpected MemInitializer");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isMemInitializer(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case ParenMemInitializerAST::Kind:
+    case BracedMemInitializerAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4778,6 +5116,21 @@ auto visit(Visitor&& visitor, LambdaCaptureAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isLambdaCapture(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case ThisLambdaCaptureAST::Kind:
+    case DerefThisLambdaCaptureAST::Kind:
+    case SimpleLambdaCaptureAST::Kind:
+    case RefLambdaCaptureAST::Kind:
+    case RefInitLambdaCaptureAST::Kind:
+    case InitLambdaCaptureAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, ExceptionDeclarationAST* ast) {
   switch (ast->kind()) {
@@ -4789,6 +5142,17 @@ auto visit(Visitor&& visitor, ExceptionDeclarationAST* ast) {
                          static_cast<TypeExceptionDeclarationAST*>(ast));
     default:
       cxx_runtime_error("unexpected ExceptionDeclaration");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isExceptionDeclaration(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case EllipsisExceptionDeclarationAST::Kind:
+    case TypeExceptionDeclarationAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
@@ -4815,6 +5179,20 @@ auto visit(Visitor&& visitor, AttributeSpecifierAST* ast) {
   }  // switch
 }
 
+[[nodiscard]] inline auto isAttributeSpecifier(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case CxxAttributeAST::Kind:
+    case GccAttributeAST::Kind:
+    case AlignasAttributeAST::Kind:
+    case AlignasTypeAttributeAST::Kind:
+    case AsmAttributeAST::Kind:
+      return true;
+    default:
+      return false;
+  }  // switch
+}
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, AttributeTokenAST* ast) {
   switch (ast->kind()) {
@@ -4826,6 +5204,17 @@ auto visit(Visitor&& visitor, AttributeTokenAST* ast) {
                          static_cast<SimpleAttributeTokenAST*>(ast));
     default:
       cxx_runtime_error("unexpected AttributeToken");
+  }  // switch
+}
+
+[[nodiscard]] inline auto isAttributeToken(AST* ast) -> bool {
+  if (!ast) return false;
+  switch (ast->kind()) {
+    case ScopedAttributeTokenAST::Kind:
+    case SimpleAttributeTokenAST::Kind:
+      return true;
+    default:
+      return false;
   }  // switch
 }
 
