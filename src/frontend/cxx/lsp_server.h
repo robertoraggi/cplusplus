@@ -56,7 +56,7 @@ class Server {
   void operator()(DidCloseTextDocumentNotification notification);
   void operator()(DidChangeTextDocumentNotification notification);
 
-  void operator()(DocumentDiagnosticRequest request);
+  void operator()(DocumentSymbolRequest request);
 
   void operator()(SetTraceNotification notification);
 

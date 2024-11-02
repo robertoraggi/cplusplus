@@ -78,12 +78,6 @@ class StackEntry {
   }
 }
 
-interface AcceptArgs {
-  node: AST | Token;
-  depth: number;
-  slot?: ASTSlot;
-}
-
 /**
  * AST cursor.
  *
