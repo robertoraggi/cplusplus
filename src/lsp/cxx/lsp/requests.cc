@@ -31,7 +31,42 @@ auto LSPRequest::id() const -> std::optional<std::variant<long, std::string>> {
   return id.get<long>();
 }
 
+auto LSPRequest::id(std::optional<std::variant<long, std::string>> id)
+    -> LSPRequest& {
+  if (!id.has_value()) {
+    repr_->erase("id");
+    return *this;
+  }
+  if (std::holds_alternative<long>(*id)) {
+    (*repr_)["id"] = std::get<long>(*id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(*id);
+  }
+  return *this;
+}
+
 auto LSPRequest::method() const -> std::string { return repr_->at("method"); }
+
+auto LSPResponse::id() const -> std::optional<std::variant<long, std::string>> {
+  if (!repr_->contains("id")) return std::nullopt;
+  const auto& id = repr_->at("id");
+  if (id.is_string()) return id.get<std::string>();
+  return id.get<long>();
+}
+
+auto LSPResponse::id(std::optional<std::variant<long, std::string>> id)
+    -> LSPResponse& {
+  if (!id.has_value()) {
+    repr_->erase("id");
+    return *this;
+  }
+  if (std::holds_alternative<long>(*id)) {
+    (*repr_)["id"] = std::get<long>(*id);
+  } else {
+    (*repr_)["id"] = std::get<std::string>(*id);
+  }
+  return *this;
+}
 
 auto ImplementationRequest::method(std::string method)
     -> ImplementationRequest& {
@@ -41,12 +76,7 @@ auto ImplementationRequest::method(std::string method)
 
 auto ImplementationRequest::id(std::variant<long, std::string> id)
     -> ImplementationRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ImplementationRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ImplementationRequest::params() const -> ImplementationParams {
@@ -60,26 +90,20 @@ auto ImplementationRequest::params(ImplementationParams params)
   return *this;
 }
 
-auto ImplementationResponse::id(long id) -> ImplementationResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ImplementationResponse::id(std::string id) -> ImplementationResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto ImplementationResponse::id(std::variant<long, std::string> id)
+    -> ImplementationResponse& {
+  return static_cast<ImplementationResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto ImplementationResponse::result() const
     -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> {
-  lsp_runtime_error("ImplementationResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto ImplementationResponse::result(
-    std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
-    -> ImplementationResponse& {
-  lsp_runtime_error("ImplementationResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto TypeDefinitionRequest::method(std::string method)
@@ -90,12 +114,7 @@ auto TypeDefinitionRequest::method(std::string method)
 
 auto TypeDefinitionRequest::id(std::variant<long, std::string> id)
     -> TypeDefinitionRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TypeDefinitionRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto TypeDefinitionRequest::params() const -> TypeDefinitionParams {
@@ -109,26 +128,20 @@ auto TypeDefinitionRequest::params(TypeDefinitionParams params)
   return *this;
 }
 
-auto TypeDefinitionResponse::id(long id) -> TypeDefinitionResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeDefinitionResponse::id(std::string id) -> TypeDefinitionResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto TypeDefinitionResponse::id(std::variant<long, std::string> id)
+    -> TypeDefinitionResponse& {
+  return static_cast<TypeDefinitionResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto TypeDefinitionResponse::result() const
     -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> {
-  lsp_runtime_error("TypeDefinitionResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto TypeDefinitionResponse::result(
-    std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
-    -> TypeDefinitionResponse& {
-  lsp_runtime_error("TypeDefinitionResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WorkspaceFoldersRequest::method(std::string method)
@@ -139,34 +152,23 @@ auto WorkspaceFoldersRequest::method(std::string method)
 
 auto WorkspaceFoldersRequest::id(std::variant<long, std::string> id)
     -> WorkspaceFoldersRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WorkspaceFoldersRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto WorkspaceFoldersResponse::id(long id) -> WorkspaceFoldersResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceFoldersResponse::id(std::string id) -> WorkspaceFoldersResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto WorkspaceFoldersResponse::id(std::variant<long, std::string> id)
+    -> WorkspaceFoldersResponse& {
+  return static_cast<WorkspaceFoldersResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto WorkspaceFoldersResponse::result() const
     -> std::variant<Vector<WorkspaceFolder>, std::nullptr_t> {
-  lsp_runtime_error("WorkspaceFoldersResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto WorkspaceFoldersResponse::result(
-    std::variant<Vector<WorkspaceFolder>, std::nullptr_t> result)
-    -> WorkspaceFoldersResponse& {
-  lsp_runtime_error("WorkspaceFoldersResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<WorkspaceFolder>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto ConfigurationRequest::method(std::string method) -> ConfigurationRequest& {
@@ -176,12 +178,7 @@ auto ConfigurationRequest::method(std::string method) -> ConfigurationRequest& {
 
 auto ConfigurationRequest::id(std::variant<long, std::string> id)
     -> ConfigurationRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ConfigurationRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ConfigurationRequest::params() const -> ConfigurationParams {
@@ -195,24 +192,16 @@ auto ConfigurationRequest::params(ConfigurationParams params)
   return *this;
 }
 
-auto ConfigurationResponse::id(long id) -> ConfigurationResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ConfigurationResponse::id(std::string id) -> ConfigurationResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto ConfigurationResponse::id(std::variant<long, std::string> id)
+    -> ConfigurationResponse& {
+  return static_cast<ConfigurationResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto ConfigurationResponse::result() const -> Vector<LSPAny> {
-  lsp_runtime_error("ConfigurationResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto ConfigurationResponse::result(Vector<LSPAny> result)
-    -> ConfigurationResponse& {
-  lsp_runtime_error("ConfigurationResponse::result() - not implemented yet");
-  return *this;
+  if (value.is_null()) value = json::array();
+  return Vector<LSPAny>(value);
 }
 
 auto DocumentColorRequest::method(std::string method) -> DocumentColorRequest& {
@@ -222,12 +211,7 @@ auto DocumentColorRequest::method(std::string method) -> DocumentColorRequest& {
 
 auto DocumentColorRequest::id(std::variant<long, std::string> id)
     -> DocumentColorRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentColorRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DocumentColorRequest::params() const -> DocumentColorParams {
@@ -241,24 +225,16 @@ auto DocumentColorRequest::params(DocumentColorParams params)
   return *this;
 }
 
-auto DocumentColorResponse::id(long id) -> DocumentColorResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentColorResponse::id(std::string id) -> DocumentColorResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto DocumentColorResponse::id(std::variant<long, std::string> id)
+    -> DocumentColorResponse& {
+  return static_cast<DocumentColorResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto DocumentColorResponse::result() const -> Vector<ColorInformation> {
-  lsp_runtime_error("DocumentColorResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentColorResponse::result(Vector<ColorInformation> result)
-    -> DocumentColorResponse& {
-  lsp_runtime_error("DocumentColorResponse::result() - not implemented yet");
-  return *this;
+  if (value.is_null()) value = json::array();
+  return Vector<ColorInformation>(value);
 }
 
 auto ColorPresentationRequest::method(std::string method)
@@ -269,12 +245,7 @@ auto ColorPresentationRequest::method(std::string method)
 
 auto ColorPresentationRequest::id(std::variant<long, std::string> id)
     -> ColorPresentationRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ColorPresentationRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ColorPresentationRequest::params() const -> ColorPresentationParams {
@@ -288,27 +259,17 @@ auto ColorPresentationRequest::params(ColorPresentationParams params)
   return *this;
 }
 
-auto ColorPresentationResponse::id(long id) -> ColorPresentationResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ColorPresentationResponse::id(std::string id)
+auto ColorPresentationResponse::id(std::variant<long, std::string> id)
     -> ColorPresentationResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<ColorPresentationResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto ColorPresentationResponse::result() const -> Vector<ColorPresentation> {
-  lsp_runtime_error(
-      "ColorPresentationResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto ColorPresentationResponse::result(Vector<ColorPresentation> result)
-    -> ColorPresentationResponse& {
-  lsp_runtime_error(
-      "ColorPresentationResponse::result() - not implemented yet");
-  return *this;
+  if (value.is_null()) value = json::array();
+  return Vector<ColorPresentation>(value);
 }
 
 auto FoldingRangeRequest::method(std::string method) -> FoldingRangeRequest& {
@@ -318,12 +279,7 @@ auto FoldingRangeRequest::method(std::string method) -> FoldingRangeRequest& {
 
 auto FoldingRangeRequest::id(std::variant<long, std::string> id)
     -> FoldingRangeRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<FoldingRangeRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto FoldingRangeRequest::params() const -> FoldingRangeParams {
@@ -337,26 +293,20 @@ auto FoldingRangeRequest::params(FoldingRangeParams params)
   return *this;
 }
 
-auto FoldingRangeResponse::id(long id) -> FoldingRangeResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto FoldingRangeResponse::id(std::string id) -> FoldingRangeResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto FoldingRangeResponse::id(std::variant<long, std::string> id)
+    -> FoldingRangeResponse& {
+  return static_cast<FoldingRangeResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto FoldingRangeResponse::result() const
     -> std::variant<Vector<FoldingRange>, std::nullptr_t> {
-  lsp_runtime_error("FoldingRangeResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto FoldingRangeResponse::result(
-    std::variant<Vector<FoldingRange>, std::nullptr_t> result)
-    -> FoldingRangeResponse& {
-  lsp_runtime_error("FoldingRangeResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<FoldingRange>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto FoldingRangeRefreshRequest::method(std::string method)
@@ -367,33 +317,21 @@ auto FoldingRangeRefreshRequest::method(std::string method)
 
 auto FoldingRangeRefreshRequest::id(std::variant<long, std::string> id)
     -> FoldingRangeRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<FoldingRangeRefreshRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
-auto FoldingRangeRefreshResponse::id(long id) -> FoldingRangeRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto FoldingRangeRefreshResponse::id(std::string id)
+auto FoldingRangeRefreshResponse::id(std::variant<long, std::string> id)
     -> FoldingRangeRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<FoldingRangeRefreshResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto FoldingRangeRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto FoldingRangeRefreshResponse::result(std::nullptr_t result)
-    -> FoldingRangeRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto DeclarationRequest::method(std::string method) -> DeclarationRequest& {
@@ -403,12 +341,7 @@ auto DeclarationRequest::method(std::string method) -> DeclarationRequest& {
 
 auto DeclarationRequest::id(std::variant<long, std::string> id)
     -> DeclarationRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DeclarationRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DeclarationRequest::params() const -> DeclarationParams {
@@ -422,26 +355,20 @@ auto DeclarationRequest::params(DeclarationParams params)
   return *this;
 }
 
-auto DeclarationResponse::id(long id) -> DeclarationResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DeclarationResponse::id(std::string id) -> DeclarationResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto DeclarationResponse::id(std::variant<long, std::string> id)
+    -> DeclarationResponse& {
+  return static_cast<DeclarationResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto DeclarationResponse::result() const
     -> std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t> {
-  lsp_runtime_error("DeclarationResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DeclarationResponse::result(
-    std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t> result)
-    -> DeclarationResponse& {
-  lsp_runtime_error("DeclarationResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto SelectionRangeRequest::method(std::string method)
@@ -452,12 +379,7 @@ auto SelectionRangeRequest::method(std::string method)
 
 auto SelectionRangeRequest::id(std::variant<long, std::string> id)
     -> SelectionRangeRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SelectionRangeRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto SelectionRangeRequest::params() const -> SelectionRangeParams {
@@ -471,26 +393,20 @@ auto SelectionRangeRequest::params(SelectionRangeParams params)
   return *this;
 }
 
-auto SelectionRangeResponse::id(long id) -> SelectionRangeResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SelectionRangeResponse::id(std::string id) -> SelectionRangeResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto SelectionRangeResponse::id(std::variant<long, std::string> id)
+    -> SelectionRangeResponse& {
+  return static_cast<SelectionRangeResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto SelectionRangeResponse::result() const
     -> std::variant<Vector<SelectionRange>, std::nullptr_t> {
-  lsp_runtime_error("SelectionRangeResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto SelectionRangeResponse::result(
-    std::variant<Vector<SelectionRange>, std::nullptr_t> result)
-    -> SelectionRangeResponse& {
-  lsp_runtime_error("SelectionRangeResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<SelectionRange>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WorkDoneProgressCreateRequest::method(std::string method)
@@ -501,12 +417,8 @@ auto WorkDoneProgressCreateRequest::method(std::string method)
 
 auto WorkDoneProgressCreateRequest::id(std::variant<long, std::string> id)
     -> WorkDoneProgressCreateRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WorkDoneProgressCreateRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto WorkDoneProgressCreateRequest::params() const
@@ -521,26 +433,17 @@ auto WorkDoneProgressCreateRequest::params(WorkDoneProgressCreateParams params)
   return *this;
 }
 
-auto WorkDoneProgressCreateResponse::id(long id)
+auto WorkDoneProgressCreateResponse::id(std::variant<long, std::string> id)
     -> WorkDoneProgressCreateResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkDoneProgressCreateResponse::id(std::string id)
-    -> WorkDoneProgressCreateResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<WorkDoneProgressCreateResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto WorkDoneProgressCreateResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto WorkDoneProgressCreateResponse::result(std::nullptr_t result)
-    -> WorkDoneProgressCreateResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto CallHierarchyPrepareRequest::method(std::string method)
@@ -551,12 +454,8 @@ auto CallHierarchyPrepareRequest::method(std::string method)
 
 auto CallHierarchyPrepareRequest::id(std::variant<long, std::string> id)
     -> CallHierarchyPrepareRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CallHierarchyPrepareRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto CallHierarchyPrepareRequest::params() const -> CallHierarchyPrepareParams {
@@ -570,30 +469,21 @@ auto CallHierarchyPrepareRequest::params(CallHierarchyPrepareParams params)
   return *this;
 }
 
-auto CallHierarchyPrepareResponse::id(long id)
+auto CallHierarchyPrepareResponse::id(std::variant<long, std::string> id)
     -> CallHierarchyPrepareResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CallHierarchyPrepareResponse::id(std::string id)
-    -> CallHierarchyPrepareResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<CallHierarchyPrepareResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto CallHierarchyPrepareResponse::result() const
     -> std::variant<Vector<CallHierarchyItem>, std::nullptr_t> {
-  lsp_runtime_error(
-      "CallHierarchyPrepareResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto CallHierarchyPrepareResponse::result(
-    std::variant<Vector<CallHierarchyItem>, std::nullptr_t> result)
-    -> CallHierarchyPrepareResponse& {
-  lsp_runtime_error(
-      "CallHierarchyPrepareResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<CallHierarchyItem>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CallHierarchyIncomingCallsRequest::method(std::string method)
@@ -604,12 +494,8 @@ auto CallHierarchyIncomingCallsRequest::method(std::string method)
 
 auto CallHierarchyIncomingCallsRequest::id(std::variant<long, std::string> id)
     -> CallHierarchyIncomingCallsRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CallHierarchyIncomingCallsRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto CallHierarchyIncomingCallsRequest::params() const
@@ -625,30 +511,21 @@ auto CallHierarchyIncomingCallsRequest::params(
   return *this;
 }
 
-auto CallHierarchyIncomingCallsResponse::id(long id)
+auto CallHierarchyIncomingCallsResponse::id(std::variant<long, std::string> id)
     -> CallHierarchyIncomingCallsResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CallHierarchyIncomingCallsResponse::id(std::string id)
-    -> CallHierarchyIncomingCallsResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<CallHierarchyIncomingCallsResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto CallHierarchyIncomingCallsResponse::result() const
     -> std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t> {
-  lsp_runtime_error(
-      "CallHierarchyIncomingCallsResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto CallHierarchyIncomingCallsResponse::result(
-    std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t> result)
-    -> CallHierarchyIncomingCallsResponse& {
-  lsp_runtime_error(
-      "CallHierarchyIncomingCallsResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CallHierarchyOutgoingCallsRequest::method(std::string method)
@@ -659,12 +536,8 @@ auto CallHierarchyOutgoingCallsRequest::method(std::string method)
 
 auto CallHierarchyOutgoingCallsRequest::id(std::variant<long, std::string> id)
     -> CallHierarchyOutgoingCallsRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CallHierarchyOutgoingCallsRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto CallHierarchyOutgoingCallsRequest::params() const
@@ -680,30 +553,21 @@ auto CallHierarchyOutgoingCallsRequest::params(
   return *this;
 }
 
-auto CallHierarchyOutgoingCallsResponse::id(long id)
+auto CallHierarchyOutgoingCallsResponse::id(std::variant<long, std::string> id)
     -> CallHierarchyOutgoingCallsResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CallHierarchyOutgoingCallsResponse::id(std::string id)
-    -> CallHierarchyOutgoingCallsResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<CallHierarchyOutgoingCallsResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto CallHierarchyOutgoingCallsResponse::result() const
     -> std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t> {
-  lsp_runtime_error(
-      "CallHierarchyOutgoingCallsResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto CallHierarchyOutgoingCallsResponse::result(
-    std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t> result)
-    -> CallHierarchyOutgoingCallsResponse& {
-  lsp_runtime_error(
-      "CallHierarchyOutgoingCallsResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto SemanticTokensRequest::method(std::string method)
@@ -714,12 +578,7 @@ auto SemanticTokensRequest::method(std::string method)
 
 auto SemanticTokensRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SemanticTokensRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto SemanticTokensRequest::params() const -> SemanticTokensParams {
@@ -733,26 +592,20 @@ auto SemanticTokensRequest::params(SemanticTokensParams params)
   return *this;
 }
 
-auto SemanticTokensResponse::id(long id) -> SemanticTokensResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensResponse::id(std::string id) -> SemanticTokensResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto SemanticTokensResponse::id(std::variant<long, std::string> id)
+    -> SemanticTokensResponse& {
+  return static_cast<SemanticTokensResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto SemanticTokensResponse::result() const
     -> std::variant<SemanticTokens, std::nullptr_t> {
-  lsp_runtime_error("SemanticTokensResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto SemanticTokensResponse::result(
-    std::variant<SemanticTokens, std::nullptr_t> result)
-    -> SemanticTokensResponse& {
-  lsp_runtime_error("SemanticTokensResponse::result() - not implemented yet");
-  return *this;
+  std::variant<SemanticTokens, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto SemanticTokensDeltaRequest::method(std::string method)
@@ -763,12 +616,8 @@ auto SemanticTokensDeltaRequest::method(std::string method)
 
 auto SemanticTokensDeltaRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensDeltaRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SemanticTokensDeltaRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto SemanticTokensDeltaRequest::params() const -> SemanticTokensDeltaParams {
@@ -782,29 +631,21 @@ auto SemanticTokensDeltaRequest::params(SemanticTokensDeltaParams params)
   return *this;
 }
 
-auto SemanticTokensDeltaResponse::id(long id) -> SemanticTokensDeltaResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensDeltaResponse::id(std::string id)
+auto SemanticTokensDeltaResponse::id(std::variant<long, std::string> id)
     -> SemanticTokensDeltaResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<SemanticTokensDeltaResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto SemanticTokensDeltaResponse::result() const
     -> std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t> {
-  lsp_runtime_error(
-      "SemanticTokensDeltaResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto SemanticTokensDeltaResponse::result(
-    std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t> result)
-    -> SemanticTokensDeltaResponse& {
-  lsp_runtime_error(
-      "SemanticTokensDeltaResponse::result() - not implemented yet");
-  return *this;
+  std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto SemanticTokensRangeRequest::method(std::string method)
@@ -815,12 +656,8 @@ auto SemanticTokensRangeRequest::method(std::string method)
 
 auto SemanticTokensRangeRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensRangeRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SemanticTokensRangeRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto SemanticTokensRangeRequest::params() const -> SemanticTokensRangeParams {
@@ -834,29 +671,21 @@ auto SemanticTokensRangeRequest::params(SemanticTokensRangeParams params)
   return *this;
 }
 
-auto SemanticTokensRangeResponse::id(long id) -> SemanticTokensRangeResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensRangeResponse::id(std::string id)
+auto SemanticTokensRangeResponse::id(std::variant<long, std::string> id)
     -> SemanticTokensRangeResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<SemanticTokensRangeResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto SemanticTokensRangeResponse::result() const
     -> std::variant<SemanticTokens, std::nullptr_t> {
-  lsp_runtime_error(
-      "SemanticTokensRangeResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto SemanticTokensRangeResponse::result(
-    std::variant<SemanticTokens, std::nullptr_t> result)
-    -> SemanticTokensRangeResponse& {
-  lsp_runtime_error(
-      "SemanticTokensRangeResponse::result() - not implemented yet");
-  return *this;
+  std::variant<SemanticTokens, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto SemanticTokensRefreshRequest::method(std::string method)
@@ -867,34 +696,21 @@ auto SemanticTokensRefreshRequest::method(std::string method)
 
 auto SemanticTokensRefreshRequest::id(std::variant<long, std::string> id)
     -> SemanticTokensRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SemanticTokensRefreshRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
-auto SemanticTokensRefreshResponse::id(long id)
+auto SemanticTokensRefreshResponse::id(std::variant<long, std::string> id)
     -> SemanticTokensRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SemanticTokensRefreshResponse::id(std::string id)
-    -> SemanticTokensRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<SemanticTokensRefreshResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto SemanticTokensRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto SemanticTokensRefreshResponse::result(std::nullptr_t result)
-    -> SemanticTokensRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto ShowDocumentRequest::method(std::string method) -> ShowDocumentRequest& {
@@ -904,12 +720,7 @@ auto ShowDocumentRequest::method(std::string method) -> ShowDocumentRequest& {
 
 auto ShowDocumentRequest::id(std::variant<long, std::string> id)
     -> ShowDocumentRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ShowDocumentRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ShowDocumentRequest::params() const -> ShowDocumentParams {
@@ -923,25 +734,15 @@ auto ShowDocumentRequest::params(ShowDocumentParams params)
   return *this;
 }
 
-auto ShowDocumentResponse::id(long id) -> ShowDocumentResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ShowDocumentResponse::id(std::string id) -> ShowDocumentResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto ShowDocumentResponse::id(std::variant<long, std::string> id)
+    -> ShowDocumentResponse& {
+  return static_cast<ShowDocumentResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto ShowDocumentResponse::result() const -> ShowDocumentResult {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return ShowDocumentResult(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto ShowDocumentResponse::result(ShowDocumentResult result)
-    -> ShowDocumentResponse& {
-  lsp_runtime_error("ShowDocumentResponse::result() - not implemented yet");
-  return *this;
+  return ShowDocumentResult(value);
 }
 
 auto LinkedEditingRangeRequest::method(std::string method)
@@ -952,12 +753,7 @@ auto LinkedEditingRangeRequest::method(std::string method)
 
 auto LinkedEditingRangeRequest::id(std::variant<long, std::string> id)
     -> LinkedEditingRangeRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<LinkedEditingRangeRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto LinkedEditingRangeRequest::params() const -> LinkedEditingRangeParams {
@@ -971,29 +767,21 @@ auto LinkedEditingRangeRequest::params(LinkedEditingRangeParams params)
   return *this;
 }
 
-auto LinkedEditingRangeResponse::id(long id) -> LinkedEditingRangeResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto LinkedEditingRangeResponse::id(std::string id)
+auto LinkedEditingRangeResponse::id(std::variant<long, std::string> id)
     -> LinkedEditingRangeResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<LinkedEditingRangeResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto LinkedEditingRangeResponse::result() const
     -> std::variant<LinkedEditingRanges, std::nullptr_t> {
-  lsp_runtime_error(
-      "LinkedEditingRangeResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto LinkedEditingRangeResponse::result(
-    std::variant<LinkedEditingRanges, std::nullptr_t> result)
-    -> LinkedEditingRangeResponse& {
-  lsp_runtime_error(
-      "LinkedEditingRangeResponse::result() - not implemented yet");
-  return *this;
+  std::variant<LinkedEditingRanges, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WillCreateFilesRequest::method(std::string method)
@@ -1004,12 +792,7 @@ auto WillCreateFilesRequest::method(std::string method)
 
 auto WillCreateFilesRequest::id(std::variant<long, std::string> id)
     -> WillCreateFilesRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WillCreateFilesRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto WillCreateFilesRequest::params() const -> CreateFilesParams {
@@ -1023,26 +806,20 @@ auto WillCreateFilesRequest::params(CreateFilesParams params)
   return *this;
 }
 
-auto WillCreateFilesResponse::id(long id) -> WillCreateFilesResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillCreateFilesResponse::id(std::string id) -> WillCreateFilesResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto WillCreateFilesResponse::id(std::variant<long, std::string> id)
+    -> WillCreateFilesResponse& {
+  return static_cast<WillCreateFilesResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto WillCreateFilesResponse::result() const
     -> std::variant<WorkspaceEdit, std::nullptr_t> {
-  lsp_runtime_error("WillCreateFilesResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto WillCreateFilesResponse::result(
-    std::variant<WorkspaceEdit, std::nullptr_t> result)
-    -> WillCreateFilesResponse& {
-  lsp_runtime_error("WillCreateFilesResponse::result() - not implemented yet");
-  return *this;
+  std::variant<WorkspaceEdit, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WillRenameFilesRequest::method(std::string method)
@@ -1053,12 +830,7 @@ auto WillRenameFilesRequest::method(std::string method)
 
 auto WillRenameFilesRequest::id(std::variant<long, std::string> id)
     -> WillRenameFilesRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WillRenameFilesRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto WillRenameFilesRequest::params() const -> RenameFilesParams {
@@ -1072,26 +844,20 @@ auto WillRenameFilesRequest::params(RenameFilesParams params)
   return *this;
 }
 
-auto WillRenameFilesResponse::id(long id) -> WillRenameFilesResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillRenameFilesResponse::id(std::string id) -> WillRenameFilesResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto WillRenameFilesResponse::id(std::variant<long, std::string> id)
+    -> WillRenameFilesResponse& {
+  return static_cast<WillRenameFilesResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto WillRenameFilesResponse::result() const
     -> std::variant<WorkspaceEdit, std::nullptr_t> {
-  lsp_runtime_error("WillRenameFilesResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto WillRenameFilesResponse::result(
-    std::variant<WorkspaceEdit, std::nullptr_t> result)
-    -> WillRenameFilesResponse& {
-  lsp_runtime_error("WillRenameFilesResponse::result() - not implemented yet");
-  return *this;
+  std::variant<WorkspaceEdit, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WillDeleteFilesRequest::method(std::string method)
@@ -1102,12 +868,7 @@ auto WillDeleteFilesRequest::method(std::string method)
 
 auto WillDeleteFilesRequest::id(std::variant<long, std::string> id)
     -> WillDeleteFilesRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WillDeleteFilesRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto WillDeleteFilesRequest::params() const -> DeleteFilesParams {
@@ -1121,26 +882,20 @@ auto WillDeleteFilesRequest::params(DeleteFilesParams params)
   return *this;
 }
 
-auto WillDeleteFilesResponse::id(long id) -> WillDeleteFilesResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillDeleteFilesResponse::id(std::string id) -> WillDeleteFilesResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto WillDeleteFilesResponse::id(std::variant<long, std::string> id)
+    -> WillDeleteFilesResponse& {
+  return static_cast<WillDeleteFilesResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto WillDeleteFilesResponse::result() const
     -> std::variant<WorkspaceEdit, std::nullptr_t> {
-  lsp_runtime_error("WillDeleteFilesResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto WillDeleteFilesResponse::result(
-    std::variant<WorkspaceEdit, std::nullptr_t> result)
-    -> WillDeleteFilesResponse& {
-  lsp_runtime_error("WillDeleteFilesResponse::result() - not implemented yet");
-  return *this;
+  std::variant<WorkspaceEdit, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto MonikerRequest::method(std::string method) -> MonikerRequest& {
@@ -1149,12 +904,7 @@ auto MonikerRequest::method(std::string method) -> MonikerRequest& {
 }
 
 auto MonikerRequest::id(std::variant<long, std::string> id) -> MonikerRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<MonikerRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto MonikerRequest::params() const -> MonikerParams {
@@ -1167,25 +917,20 @@ auto MonikerRequest::params(MonikerParams params) -> MonikerRequest& {
   return *this;
 }
 
-auto MonikerResponse::id(long id) -> MonikerResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto MonikerResponse::id(std::string id) -> MonikerResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto MonikerResponse::id(std::variant<long, std::string> id)
+    -> MonikerResponse& {
+  return static_cast<MonikerResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto MonikerResponse::result() const
     -> std::variant<Vector<Moniker>, std::nullptr_t> {
-  lsp_runtime_error("MonikerResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto MonikerResponse::result(
-    std::variant<Vector<Moniker>, std::nullptr_t> result) -> MonikerResponse& {
-  lsp_runtime_error("MonikerResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<Moniker>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto TypeHierarchyPrepareRequest::method(std::string method)
@@ -1196,12 +941,8 @@ auto TypeHierarchyPrepareRequest::method(std::string method)
 
 auto TypeHierarchyPrepareRequest::id(std::variant<long, std::string> id)
     -> TypeHierarchyPrepareRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TypeHierarchyPrepareRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto TypeHierarchyPrepareRequest::params() const -> TypeHierarchyPrepareParams {
@@ -1215,30 +956,21 @@ auto TypeHierarchyPrepareRequest::params(TypeHierarchyPrepareParams params)
   return *this;
 }
 
-auto TypeHierarchyPrepareResponse::id(long id)
+auto TypeHierarchyPrepareResponse::id(std::variant<long, std::string> id)
     -> TypeHierarchyPrepareResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeHierarchyPrepareResponse::id(std::string id)
-    -> TypeHierarchyPrepareResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<TypeHierarchyPrepareResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto TypeHierarchyPrepareResponse::result() const
     -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> {
-  lsp_runtime_error(
-      "TypeHierarchyPrepareResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto TypeHierarchyPrepareResponse::result(
-    std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
-    -> TypeHierarchyPrepareResponse& {
-  lsp_runtime_error(
-      "TypeHierarchyPrepareResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto TypeHierarchySupertypesRequest::method(std::string method)
@@ -1249,12 +981,8 @@ auto TypeHierarchySupertypesRequest::method(std::string method)
 
 auto TypeHierarchySupertypesRequest::id(std::variant<long, std::string> id)
     -> TypeHierarchySupertypesRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TypeHierarchySupertypesRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto TypeHierarchySupertypesRequest::params() const
@@ -1269,30 +997,21 @@ auto TypeHierarchySupertypesRequest::params(
   return *this;
 }
 
-auto TypeHierarchySupertypesResponse::id(long id)
+auto TypeHierarchySupertypesResponse::id(std::variant<long, std::string> id)
     -> TypeHierarchySupertypesResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeHierarchySupertypesResponse::id(std::string id)
-    -> TypeHierarchySupertypesResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<TypeHierarchySupertypesResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto TypeHierarchySupertypesResponse::result() const
     -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> {
-  lsp_runtime_error(
-      "TypeHierarchySupertypesResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto TypeHierarchySupertypesResponse::result(
-    std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
-    -> TypeHierarchySupertypesResponse& {
-  lsp_runtime_error(
-      "TypeHierarchySupertypesResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto TypeHierarchySubtypesRequest::method(std::string method)
@@ -1303,12 +1022,8 @@ auto TypeHierarchySubtypesRequest::method(std::string method)
 
 auto TypeHierarchySubtypesRequest::id(std::variant<long, std::string> id)
     -> TypeHierarchySubtypesRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TypeHierarchySubtypesRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto TypeHierarchySubtypesRequest::params() const
@@ -1323,30 +1038,21 @@ auto TypeHierarchySubtypesRequest::params(TypeHierarchySubtypesParams params)
   return *this;
 }
 
-auto TypeHierarchySubtypesResponse::id(long id)
+auto TypeHierarchySubtypesResponse::id(std::variant<long, std::string> id)
     -> TypeHierarchySubtypesResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TypeHierarchySubtypesResponse::id(std::string id)
-    -> TypeHierarchySubtypesResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<TypeHierarchySubtypesResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto TypeHierarchySubtypesResponse::result() const
     -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> {
-  lsp_runtime_error(
-      "TypeHierarchySubtypesResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto TypeHierarchySubtypesResponse::result(
-    std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
-    -> TypeHierarchySubtypesResponse& {
-  lsp_runtime_error(
-      "TypeHierarchySubtypesResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto InlineValueRequest::method(std::string method) -> InlineValueRequest& {
@@ -1356,12 +1062,7 @@ auto InlineValueRequest::method(std::string method) -> InlineValueRequest& {
 
 auto InlineValueRequest::id(std::variant<long, std::string> id)
     -> InlineValueRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InlineValueRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto InlineValueRequest::params() const -> InlineValueParams {
@@ -1375,26 +1076,20 @@ auto InlineValueRequest::params(InlineValueParams params)
   return *this;
 }
 
-auto InlineValueResponse::id(long id) -> InlineValueResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlineValueResponse::id(std::string id) -> InlineValueResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto InlineValueResponse::id(std::variant<long, std::string> id)
+    -> InlineValueResponse& {
+  return static_cast<InlineValueResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto InlineValueResponse::result() const
     -> std::variant<Vector<InlineValue>, std::nullptr_t> {
-  lsp_runtime_error("InlineValueResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto InlineValueResponse::result(
-    std::variant<Vector<InlineValue>, std::nullptr_t> result)
-    -> InlineValueResponse& {
-  lsp_runtime_error("InlineValueResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<InlineValue>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto InlineValueRefreshRequest::method(std::string method)
@@ -1405,33 +1100,20 @@ auto InlineValueRefreshRequest::method(std::string method)
 
 auto InlineValueRefreshRequest::id(std::variant<long, std::string> id)
     -> InlineValueRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InlineValueRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto InlineValueRefreshResponse::id(long id) -> InlineValueRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlineValueRefreshResponse::id(std::string id)
+auto InlineValueRefreshResponse::id(std::variant<long, std::string> id)
     -> InlineValueRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<InlineValueRefreshResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto InlineValueRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto InlineValueRefreshResponse::result(std::nullptr_t result)
-    -> InlineValueRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto InlayHintRequest::method(std::string method) -> InlayHintRequest& {
@@ -1441,12 +1123,7 @@ auto InlayHintRequest::method(std::string method) -> InlayHintRequest& {
 
 auto InlayHintRequest::id(std::variant<long, std::string> id)
     -> InlayHintRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InlayHintRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto InlayHintRequest::params() const -> InlayHintParams {
@@ -1459,26 +1136,20 @@ auto InlayHintRequest::params(InlayHintParams params) -> InlayHintRequest& {
   return *this;
 }
 
-auto InlayHintResponse::id(long id) -> InlayHintResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlayHintResponse::id(std::string id) -> InlayHintResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto InlayHintResponse::id(std::variant<long, std::string> id)
+    -> InlayHintResponse& {
+  return static_cast<InlayHintResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto InlayHintResponse::result() const
     -> std::variant<Vector<InlayHint>, std::nullptr_t> {
-  lsp_runtime_error("InlayHintResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto InlayHintResponse::result(
-    std::variant<Vector<InlayHint>, std::nullptr_t> result)
-    -> InlayHintResponse& {
-  lsp_runtime_error("InlayHintResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<InlayHint>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto InlayHintResolveRequest::method(std::string method)
@@ -1489,12 +1160,7 @@ auto InlayHintResolveRequest::method(std::string method)
 
 auto InlayHintResolveRequest::id(std::variant<long, std::string> id)
     -> InlayHintResolveRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InlayHintResolveRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto InlayHintResolveRequest::params() const -> InlayHint {
@@ -1508,25 +1174,15 @@ auto InlayHintResolveRequest::params(InlayHint params)
   return *this;
 }
 
-auto InlayHintResolveResponse::id(long id) -> InlayHintResolveResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlayHintResolveResponse::id(std::string id) -> InlayHintResolveResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto InlayHintResolveResponse::id(std::variant<long, std::string> id)
+    -> InlayHintResolveResponse& {
+  return static_cast<InlayHintResolveResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto InlayHintResolveResponse::result() const -> InlayHint {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return InlayHint(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto InlayHintResolveResponse::result(InlayHint result)
-    -> InlayHintResolveResponse& {
-  lsp_runtime_error("InlayHintResolveResponse::result() - not implemented yet");
-  return *this;
+  return InlayHint(value);
 }
 
 auto InlayHintRefreshRequest::method(std::string method)
@@ -1537,32 +1193,19 @@ auto InlayHintRefreshRequest::method(std::string method)
 
 auto InlayHintRefreshRequest::id(std::variant<long, std::string> id)
     -> InlayHintRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InlayHintRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto InlayHintRefreshResponse::id(long id) -> InlayHintRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlayHintRefreshResponse::id(std::string id) -> InlayHintRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto InlayHintRefreshResponse::id(std::variant<long, std::string> id)
+    -> InlayHintRefreshResponse& {
+  return static_cast<InlayHintRefreshResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto InlayHintRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto InlayHintRefreshResponse::result(std::nullptr_t result)
-    -> InlayHintRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto DocumentDiagnosticRequest::method(std::string method)
@@ -1573,12 +1216,7 @@ auto DocumentDiagnosticRequest::method(std::string method)
 
 auto DocumentDiagnosticRequest::id(std::variant<long, std::string> id)
     -> DocumentDiagnosticRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentDiagnosticRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DocumentDiagnosticRequest::params() const -> DocumentDiagnosticParams {
@@ -1592,27 +1230,20 @@ auto DocumentDiagnosticRequest::params(DocumentDiagnosticParams params)
   return *this;
 }
 
-auto DocumentDiagnosticResponse::id(long id) -> DocumentDiagnosticResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentDiagnosticResponse::id(std::string id)
+auto DocumentDiagnosticResponse::id(std::variant<long, std::string> id)
     -> DocumentDiagnosticResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentDiagnosticResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentDiagnosticResponse::result() const -> DocumentDiagnosticReport {
-  lsp_runtime_error(
-      "DocumentDiagnosticResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentDiagnosticResponse::result(DocumentDiagnosticReport result)
-    -> DocumentDiagnosticResponse& {
-  lsp_runtime_error(
-      "DocumentDiagnosticResponse::result() - not implemented yet");
-  return *this;
+  DocumentDiagnosticReport result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WorkspaceDiagnosticRequest::method(std::string method)
@@ -1623,12 +1254,8 @@ auto WorkspaceDiagnosticRequest::method(std::string method)
 
 auto WorkspaceDiagnosticRequest::id(std::variant<long, std::string> id)
     -> WorkspaceDiagnosticRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WorkspaceDiagnosticRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto WorkspaceDiagnosticRequest::params() const -> WorkspaceDiagnosticParams {
@@ -1642,27 +1269,16 @@ auto WorkspaceDiagnosticRequest::params(WorkspaceDiagnosticParams params)
   return *this;
 }
 
-auto WorkspaceDiagnosticResponse::id(long id) -> WorkspaceDiagnosticResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceDiagnosticResponse::id(std::string id)
+auto WorkspaceDiagnosticResponse::id(std::variant<long, std::string> id)
     -> WorkspaceDiagnosticResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<WorkspaceDiagnosticResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto WorkspaceDiagnosticResponse::result() const -> WorkspaceDiagnosticReport {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return WorkspaceDiagnosticReport(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto WorkspaceDiagnosticResponse::result(WorkspaceDiagnosticReport result)
-    -> WorkspaceDiagnosticResponse& {
-  lsp_runtime_error(
-      "WorkspaceDiagnosticResponse::result() - not implemented yet");
-  return *this;
+  return WorkspaceDiagnosticReport(value);
 }
 
 auto DiagnosticRefreshRequest::method(std::string method)
@@ -1673,33 +1289,20 @@ auto DiagnosticRefreshRequest::method(std::string method)
 
 auto DiagnosticRefreshRequest::id(std::variant<long, std::string> id)
     -> DiagnosticRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DiagnosticRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto DiagnosticRefreshResponse::id(long id) -> DiagnosticRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DiagnosticRefreshResponse::id(std::string id)
+auto DiagnosticRefreshResponse::id(std::variant<long, std::string> id)
     -> DiagnosticRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DiagnosticRefreshResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DiagnosticRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto DiagnosticRefreshResponse::result(std::nullptr_t result)
-    -> DiagnosticRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto InlineCompletionRequest::method(std::string method)
@@ -1710,12 +1313,7 @@ auto InlineCompletionRequest::method(std::string method)
 
 auto InlineCompletionRequest::id(std::variant<long, std::string> id)
     -> InlineCompletionRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InlineCompletionRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto InlineCompletionRequest::params() const -> InlineCompletionParams {
@@ -1729,28 +1327,23 @@ auto InlineCompletionRequest::params(InlineCompletionParams params)
   return *this;
 }
 
-auto InlineCompletionResponse::id(long id) -> InlineCompletionResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InlineCompletionResponse::id(std::string id) -> InlineCompletionResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto InlineCompletionResponse::id(std::variant<long, std::string> id)
+    -> InlineCompletionResponse& {
+  return static_cast<InlineCompletionResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto InlineCompletionResponse::result() const
     -> std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
                     std::nullptr_t> {
-  lsp_runtime_error("InlineCompletionResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto InlineCompletionResponse::result(
-    std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
-                 std::nullptr_t>
-        result) -> InlineCompletionResponse& {
-  lsp_runtime_error("InlineCompletionResponse::result() - not implemented yet");
-  return *this;
+  std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
+               std::nullptr_t>
+      result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto TextDocumentContentRequest::method(std::string method)
@@ -1761,12 +1354,8 @@ auto TextDocumentContentRequest::method(std::string method)
 
 auto TextDocumentContentRequest::id(std::variant<long, std::string> id)
     -> TextDocumentContentRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TextDocumentContentRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto TextDocumentContentRequest::params() const -> TextDocumentContentParams {
@@ -1780,27 +1369,16 @@ auto TextDocumentContentRequest::params(TextDocumentContentParams params)
   return *this;
 }
 
-auto TextDocumentContentResponse::id(long id) -> TextDocumentContentResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TextDocumentContentResponse::id(std::string id)
+auto TextDocumentContentResponse::id(std::variant<long, std::string> id)
     -> TextDocumentContentResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<TextDocumentContentResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto TextDocumentContentResponse::result() const -> TextDocumentContentResult {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return TextDocumentContentResult(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto TextDocumentContentResponse::result(TextDocumentContentResult result)
-    -> TextDocumentContentResponse& {
-  lsp_runtime_error(
-      "TextDocumentContentResponse::result() - not implemented yet");
-  return *this;
+  return TextDocumentContentResult(value);
 }
 
 auto TextDocumentContentRefreshRequest::method(std::string method)
@@ -1811,12 +1389,8 @@ auto TextDocumentContentRefreshRequest::method(std::string method)
 
 auto TextDocumentContentRefreshRequest::id(std::variant<long, std::string> id)
     -> TextDocumentContentRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TextDocumentContentRefreshRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto TextDocumentContentRefreshRequest::params() const
@@ -1832,26 +1406,17 @@ auto TextDocumentContentRefreshRequest::params(
   return *this;
 }
 
-auto TextDocumentContentRefreshResponse::id(long id)
+auto TextDocumentContentRefreshResponse::id(std::variant<long, std::string> id)
     -> TextDocumentContentRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto TextDocumentContentRefreshResponse::id(std::string id)
-    -> TextDocumentContentRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<TextDocumentContentRefreshResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto TextDocumentContentRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto TextDocumentContentRefreshResponse::result(std::nullptr_t result)
-    -> TextDocumentContentRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto RegistrationRequest::method(std::string method) -> RegistrationRequest& {
@@ -1861,12 +1426,7 @@ auto RegistrationRequest::method(std::string method) -> RegistrationRequest& {
 
 auto RegistrationRequest::id(std::variant<long, std::string> id)
     -> RegistrationRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<RegistrationRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto RegistrationRequest::params() const -> RegistrationParams {
@@ -1880,22 +1440,16 @@ auto RegistrationRequest::params(RegistrationParams params)
   return *this;
 }
 
-auto RegistrationResponse::id(long id) -> RegistrationResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto RegistrationResponse::id(std::string id) -> RegistrationResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
-
-auto RegistrationResponse::result() const -> std::nullptr_t { return nullptr; }
-
-auto RegistrationResponse::result(std::nullptr_t result)
+auto RegistrationResponse::id(std::variant<long, std::string> id)
     -> RegistrationResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  return static_cast<RegistrationResponse&>(LSPResponse::id(std::move(id)));
+}
+
+auto RegistrationResponse::result() const -> std::nullptr_t {
+  auto& value = (*repr_)["result"];
+
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto UnregistrationRequest::method(std::string method)
@@ -1906,12 +1460,7 @@ auto UnregistrationRequest::method(std::string method)
 
 auto UnregistrationRequest::id(std::variant<long, std::string> id)
     -> UnregistrationRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<UnregistrationRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto UnregistrationRequest::params() const -> UnregistrationParams {
@@ -1925,24 +1474,16 @@ auto UnregistrationRequest::params(UnregistrationParams params)
   return *this;
 }
 
-auto UnregistrationResponse::id(long id) -> UnregistrationResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto UnregistrationResponse::id(std::string id) -> UnregistrationResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto UnregistrationResponse::id(std::variant<long, std::string> id)
+    -> UnregistrationResponse& {
+  return static_cast<UnregistrationResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto UnregistrationResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto UnregistrationResponse::result(std::nullptr_t result)
-    -> UnregistrationResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto InitializeRequest::method(std::string method) -> InitializeRequest& {
@@ -1952,12 +1493,7 @@ auto InitializeRequest::method(std::string method) -> InitializeRequest& {
 
 auto InitializeRequest::id(std::variant<long, std::string> id)
     -> InitializeRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InitializeRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto InitializeRequest::params() const -> InitializeParams {
@@ -1970,25 +1506,15 @@ auto InitializeRequest::params(InitializeParams params) -> InitializeRequest& {
   return *this;
 }
 
-auto InitializeResponse::id(long id) -> InitializeResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto InitializeResponse::id(std::string id) -> InitializeResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto InitializeResponse::id(std::variant<long, std::string> id)
+    -> InitializeResponse& {
+  return static_cast<InitializeResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto InitializeResponse::result() const -> InitializeResult {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return InitializeResult(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto InitializeResponse::result(InitializeResult result)
-    -> InitializeResponse& {
-  lsp_runtime_error("InitializeResponse::result() - not implemented yet");
-  return *this;
+  return InitializeResult(value);
 }
 
 auto ShutdownRequest::method(std::string method) -> ShutdownRequest& {
@@ -1998,29 +1524,19 @@ auto ShutdownRequest::method(std::string method) -> ShutdownRequest& {
 
 auto ShutdownRequest::id(std::variant<long, std::string> id)
     -> ShutdownRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ShutdownRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto ShutdownResponse::id(long id) -> ShutdownResponse& {
-  (*repr_)["id"] = id;
-  return *this;
+auto ShutdownResponse::id(std::variant<long, std::string> id)
+    -> ShutdownResponse& {
+  return static_cast<ShutdownResponse&>(LSPResponse::id(std::move(id)));
 }
 
-auto ShutdownResponse::id(std::string id) -> ShutdownResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
-}
+auto ShutdownResponse::result() const -> std::nullptr_t {
+  auto& value = (*repr_)["result"];
 
-auto ShutdownResponse::result() const -> std::nullptr_t { return nullptr; }
-
-auto ShutdownResponse::result(std::nullptr_t result) -> ShutdownResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto ShowMessageRequest::method(std::string method) -> ShowMessageRequest& {
@@ -2030,12 +1546,7 @@ auto ShowMessageRequest::method(std::string method) -> ShowMessageRequest& {
 
 auto ShowMessageRequest::id(std::variant<long, std::string> id)
     -> ShowMessageRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ShowMessageRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ShowMessageRequest::params() const -> ShowMessageRequestParams {
@@ -2049,26 +1560,20 @@ auto ShowMessageRequest::params(ShowMessageRequestParams params)
   return *this;
 }
 
-auto ShowMessageResponse::id(long id) -> ShowMessageResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ShowMessageResponse::id(std::string id) -> ShowMessageResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto ShowMessageResponse::id(std::variant<long, std::string> id)
+    -> ShowMessageResponse& {
+  return static_cast<ShowMessageResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto ShowMessageResponse::result() const
     -> std::variant<MessageActionItem, std::nullptr_t> {
-  lsp_runtime_error("ShowMessageResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto ShowMessageResponse::result(
-    std::variant<MessageActionItem, std::nullptr_t> result)
-    -> ShowMessageResponse& {
-  lsp_runtime_error("ShowMessageResponse::result() - not implemented yet");
-  return *this;
+  std::variant<MessageActionItem, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WillSaveTextDocumentWaitUntilRequest::method(std::string method)
@@ -2080,12 +1585,8 @@ auto WillSaveTextDocumentWaitUntilRequest::method(std::string method)
 auto WillSaveTextDocumentWaitUntilRequest::id(
     std::variant<long, std::string> id)
     -> WillSaveTextDocumentWaitUntilRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WillSaveTextDocumentWaitUntilRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto WillSaveTextDocumentWaitUntilRequest::params() const
@@ -2101,30 +1602,22 @@ auto WillSaveTextDocumentWaitUntilRequest::params(
   return *this;
 }
 
-auto WillSaveTextDocumentWaitUntilResponse::id(long id)
+auto WillSaveTextDocumentWaitUntilResponse::id(
+    std::variant<long, std::string> id)
     -> WillSaveTextDocumentWaitUntilResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WillSaveTextDocumentWaitUntilResponse::id(std::string id)
-    -> WillSaveTextDocumentWaitUntilResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<WillSaveTextDocumentWaitUntilResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto WillSaveTextDocumentWaitUntilResponse::result() const
     -> std::variant<Vector<TextEdit>, std::nullptr_t> {
-  lsp_runtime_error(
-      "WillSaveTextDocumentWaitUntilResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto WillSaveTextDocumentWaitUntilResponse::result(
-    std::variant<Vector<TextEdit>, std::nullptr_t> result)
-    -> WillSaveTextDocumentWaitUntilResponse& {
-  lsp_runtime_error(
-      "WillSaveTextDocumentWaitUntilResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TextEdit>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CompletionRequest::method(std::string method) -> CompletionRequest& {
@@ -2134,12 +1627,7 @@ auto CompletionRequest::method(std::string method) -> CompletionRequest& {
 
 auto CompletionRequest::id(std::variant<long, std::string> id)
     -> CompletionRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CompletionRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto CompletionRequest::params() const -> CompletionParams {
@@ -2152,26 +1640,20 @@ auto CompletionRequest::params(CompletionParams params) -> CompletionRequest& {
   return *this;
 }
 
-auto CompletionResponse::id(long id) -> CompletionResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CompletionResponse::id(std::string id) -> CompletionResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto CompletionResponse::id(std::variant<long, std::string> id)
+    -> CompletionResponse& {
+  return static_cast<CompletionResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto CompletionResponse::result() const
     -> std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t> {
-  lsp_runtime_error("CompletionResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto CompletionResponse::result(
-    std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t> result)
-    -> CompletionResponse& {
-  lsp_runtime_error("CompletionResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CompletionResolveRequest::method(std::string method)
@@ -2182,12 +1664,7 @@ auto CompletionResolveRequest::method(std::string method)
 
 auto CompletionResolveRequest::id(std::variant<long, std::string> id)
     -> CompletionResolveRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CompletionResolveRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto CompletionResolveRequest::params() const -> CompletionItem {
@@ -2201,27 +1678,16 @@ auto CompletionResolveRequest::params(CompletionItem params)
   return *this;
 }
 
-auto CompletionResolveResponse::id(long id) -> CompletionResolveResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CompletionResolveResponse::id(std::string id)
+auto CompletionResolveResponse::id(std::variant<long, std::string> id)
     -> CompletionResolveResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<CompletionResolveResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto CompletionResolveResponse::result() const -> CompletionItem {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return CompletionItem(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto CompletionResolveResponse::result(CompletionItem result)
-    -> CompletionResolveResponse& {
-  lsp_runtime_error(
-      "CompletionResolveResponse::result() - not implemented yet");
-  return *this;
+  return CompletionItem(value);
 }
 
 auto HoverRequest::method(std::string method) -> HoverRequest& {
@@ -2230,12 +1696,7 @@ auto HoverRequest::method(std::string method) -> HoverRequest& {
 }
 
 auto HoverRequest::id(std::variant<long, std::string> id) -> HoverRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<HoverRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto HoverRequest::params() const -> HoverParams {
@@ -2248,24 +1709,18 @@ auto HoverRequest::params(HoverParams params) -> HoverRequest& {
   return *this;
 }
 
-auto HoverResponse::id(long id) -> HoverResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto HoverResponse::id(std::string id) -> HoverResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto HoverResponse::id(std::variant<long, std::string> id) -> HoverResponse& {
+  return static_cast<HoverResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto HoverResponse::result() const -> std::variant<Hover, std::nullptr_t> {
-  lsp_runtime_error("HoverResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto HoverResponse::result(std::variant<Hover, std::nullptr_t> result)
-    -> HoverResponse& {
-  lsp_runtime_error("HoverResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Hover, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto SignatureHelpRequest::method(std::string method) -> SignatureHelpRequest& {
@@ -2275,12 +1730,7 @@ auto SignatureHelpRequest::method(std::string method) -> SignatureHelpRequest& {
 
 auto SignatureHelpRequest::id(std::variant<long, std::string> id)
     -> SignatureHelpRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SignatureHelpRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto SignatureHelpRequest::params() const -> SignatureHelpParams {
@@ -2294,26 +1744,20 @@ auto SignatureHelpRequest::params(SignatureHelpParams params)
   return *this;
 }
 
-auto SignatureHelpResponse::id(long id) -> SignatureHelpResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto SignatureHelpResponse::id(std::string id) -> SignatureHelpResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto SignatureHelpResponse::id(std::variant<long, std::string> id)
+    -> SignatureHelpResponse& {
+  return static_cast<SignatureHelpResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto SignatureHelpResponse::result() const
     -> std::variant<SignatureHelp, std::nullptr_t> {
-  lsp_runtime_error("SignatureHelpResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto SignatureHelpResponse::result(
-    std::variant<SignatureHelp, std::nullptr_t> result)
-    -> SignatureHelpResponse& {
-  lsp_runtime_error("SignatureHelpResponse::result() - not implemented yet");
-  return *this;
+  std::variant<SignatureHelp, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DefinitionRequest::method(std::string method) -> DefinitionRequest& {
@@ -2323,12 +1767,7 @@ auto DefinitionRequest::method(std::string method) -> DefinitionRequest& {
 
 auto DefinitionRequest::id(std::variant<long, std::string> id)
     -> DefinitionRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DefinitionRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DefinitionRequest::params() const -> DefinitionParams {
@@ -2341,26 +1780,20 @@ auto DefinitionRequest::params(DefinitionParams params) -> DefinitionRequest& {
   return *this;
 }
 
-auto DefinitionResponse::id(long id) -> DefinitionResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DefinitionResponse::id(std::string id) -> DefinitionResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto DefinitionResponse::id(std::variant<long, std::string> id)
+    -> DefinitionResponse& {
+  return static_cast<DefinitionResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto DefinitionResponse::result() const
     -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> {
-  lsp_runtime_error("DefinitionResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DefinitionResponse::result(
-    std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
-    -> DefinitionResponse& {
-  lsp_runtime_error("DefinitionResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto ReferencesRequest::method(std::string method) -> ReferencesRequest& {
@@ -2370,12 +1803,7 @@ auto ReferencesRequest::method(std::string method) -> ReferencesRequest& {
 
 auto ReferencesRequest::id(std::variant<long, std::string> id)
     -> ReferencesRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ReferencesRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ReferencesRequest::params() const -> ReferenceParams {
@@ -2388,26 +1816,20 @@ auto ReferencesRequest::params(ReferenceParams params) -> ReferencesRequest& {
   return *this;
 }
 
-auto ReferencesResponse::id(long id) -> ReferencesResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ReferencesResponse::id(std::string id) -> ReferencesResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto ReferencesResponse::id(std::variant<long, std::string> id)
+    -> ReferencesResponse& {
+  return static_cast<ReferencesResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto ReferencesResponse::result() const
     -> std::variant<Vector<Location>, std::nullptr_t> {
-  lsp_runtime_error("ReferencesResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto ReferencesResponse::result(
-    std::variant<Vector<Location>, std::nullptr_t> result)
-    -> ReferencesResponse& {
-  lsp_runtime_error("ReferencesResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<Location>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DocumentHighlightRequest::method(std::string method)
@@ -2418,12 +1840,7 @@ auto DocumentHighlightRequest::method(std::string method)
 
 auto DocumentHighlightRequest::id(std::variant<long, std::string> id)
     -> DocumentHighlightRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentHighlightRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DocumentHighlightRequest::params() const -> DocumentHighlightParams {
@@ -2437,29 +1854,21 @@ auto DocumentHighlightRequest::params(DocumentHighlightParams params)
   return *this;
 }
 
-auto DocumentHighlightResponse::id(long id) -> DocumentHighlightResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentHighlightResponse::id(std::string id)
+auto DocumentHighlightResponse::id(std::variant<long, std::string> id)
     -> DocumentHighlightResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentHighlightResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentHighlightResponse::result() const
     -> std::variant<Vector<DocumentHighlight>, std::nullptr_t> {
-  lsp_runtime_error(
-      "DocumentHighlightResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentHighlightResponse::result(
-    std::variant<Vector<DocumentHighlight>, std::nullptr_t> result)
-    -> DocumentHighlightResponse& {
-  lsp_runtime_error(
-      "DocumentHighlightResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<DocumentHighlight>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DocumentSymbolRequest::method(std::string method)
@@ -2470,12 +1879,7 @@ auto DocumentSymbolRequest::method(std::string method)
 
 auto DocumentSymbolRequest::id(std::variant<long, std::string> id)
     -> DocumentSymbolRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentSymbolRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DocumentSymbolRequest::params() const -> DocumentSymbolParams {
@@ -2489,28 +1893,23 @@ auto DocumentSymbolRequest::params(DocumentSymbolParams params)
   return *this;
 }
 
-auto DocumentSymbolResponse::id(long id) -> DocumentSymbolResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentSymbolResponse::id(std::string id) -> DocumentSymbolResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto DocumentSymbolResponse::id(std::variant<long, std::string> id)
+    -> DocumentSymbolResponse& {
+  return static_cast<DocumentSymbolResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto DocumentSymbolResponse::result() const
     -> std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
                     std::nullptr_t> {
-  lsp_runtime_error("DocumentSymbolResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentSymbolResponse::result(
-    std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
-                 std::nullptr_t>
-        result) -> DocumentSymbolResponse& {
-  lsp_runtime_error("DocumentSymbolResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
+               std::nullptr_t>
+      result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CodeActionRequest::method(std::string method) -> CodeActionRequest& {
@@ -2520,12 +1919,7 @@ auto CodeActionRequest::method(std::string method) -> CodeActionRequest& {
 
 auto CodeActionRequest::id(std::variant<long, std::string> id)
     -> CodeActionRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CodeActionRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto CodeActionRequest::params() const -> CodeActionParams {
@@ -2538,26 +1932,21 @@ auto CodeActionRequest::params(CodeActionParams params) -> CodeActionRequest& {
   return *this;
 }
 
-auto CodeActionResponse::id(long id) -> CodeActionResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeActionResponse::id(std::string id) -> CodeActionResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto CodeActionResponse::id(std::variant<long, std::string> id)
+    -> CodeActionResponse& {
+  return static_cast<CodeActionResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto CodeActionResponse::result() const
     -> std::variant<Vector<std::variant<Command, CodeAction>>, std::nullptr_t> {
-  lsp_runtime_error("CodeActionResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto CodeActionResponse::result(
-    std::variant<Vector<std::variant<Command, CodeAction>>, std::nullptr_t>
-        result) -> CodeActionResponse& {
-  lsp_runtime_error("CodeActionResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<std::variant<Command, CodeAction>>, std::nullptr_t>
+      result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CodeActionResolveRequest::method(std::string method)
@@ -2568,12 +1957,7 @@ auto CodeActionResolveRequest::method(std::string method)
 
 auto CodeActionResolveRequest::id(std::variant<long, std::string> id)
     -> CodeActionResolveRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CodeActionResolveRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto CodeActionResolveRequest::params() const -> CodeAction {
@@ -2587,27 +1971,16 @@ auto CodeActionResolveRequest::params(CodeAction params)
   return *this;
 }
 
-auto CodeActionResolveResponse::id(long id) -> CodeActionResolveResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeActionResolveResponse::id(std::string id)
+auto CodeActionResolveResponse::id(std::variant<long, std::string> id)
     -> CodeActionResolveResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<CodeActionResolveResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto CodeActionResolveResponse::result() const -> CodeAction {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return CodeAction(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto CodeActionResolveResponse::result(CodeAction result)
-    -> CodeActionResolveResponse& {
-  lsp_runtime_error(
-      "CodeActionResolveResponse::result() - not implemented yet");
-  return *this;
+  return CodeAction(value);
 }
 
 auto WorkspaceSymbolRequest::method(std::string method)
@@ -2618,12 +1991,7 @@ auto WorkspaceSymbolRequest::method(std::string method)
 
 auto WorkspaceSymbolRequest::id(std::variant<long, std::string> id)
     -> WorkspaceSymbolRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WorkspaceSymbolRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto WorkspaceSymbolRequest::params() const -> WorkspaceSymbolParams {
@@ -2637,28 +2005,23 @@ auto WorkspaceSymbolRequest::params(WorkspaceSymbolParams params)
   return *this;
 }
 
-auto WorkspaceSymbolResponse::id(long id) -> WorkspaceSymbolResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceSymbolResponse::id(std::string id) -> WorkspaceSymbolResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto WorkspaceSymbolResponse::id(std::variant<long, std::string> id)
+    -> WorkspaceSymbolResponse& {
+  return static_cast<WorkspaceSymbolResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto WorkspaceSymbolResponse::result() const
     -> std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
                     std::nullptr_t> {
-  lsp_runtime_error("WorkspaceSymbolResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto WorkspaceSymbolResponse::result(
-    std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
-                 std::nullptr_t>
-        result) -> WorkspaceSymbolResponse& {
-  lsp_runtime_error("WorkspaceSymbolResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
+               std::nullptr_t>
+      result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto WorkspaceSymbolResolveRequest::method(std::string method)
@@ -2669,12 +2032,8 @@ auto WorkspaceSymbolResolveRequest::method(std::string method)
 
 auto WorkspaceSymbolResolveRequest::id(std::variant<long, std::string> id)
     -> WorkspaceSymbolResolveRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WorkspaceSymbolResolveRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto WorkspaceSymbolResolveRequest::params() const -> WorkspaceSymbol {
@@ -2688,28 +2047,16 @@ auto WorkspaceSymbolResolveRequest::params(WorkspaceSymbol params)
   return *this;
 }
 
-auto WorkspaceSymbolResolveResponse::id(long id)
+auto WorkspaceSymbolResolveResponse::id(std::variant<long, std::string> id)
     -> WorkspaceSymbolResolveResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto WorkspaceSymbolResolveResponse::id(std::string id)
-    -> WorkspaceSymbolResolveResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<WorkspaceSymbolResolveResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto WorkspaceSymbolResolveResponse::result() const -> WorkspaceSymbol {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return WorkspaceSymbol(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto WorkspaceSymbolResolveResponse::result(WorkspaceSymbol result)
-    -> WorkspaceSymbolResolveResponse& {
-  lsp_runtime_error(
-      "WorkspaceSymbolResolveResponse::result() - not implemented yet");
-  return *this;
+  return WorkspaceSymbol(value);
 }
 
 auto CodeLensRequest::method(std::string method) -> CodeLensRequest& {
@@ -2719,12 +2066,7 @@ auto CodeLensRequest::method(std::string method) -> CodeLensRequest& {
 
 auto CodeLensRequest::id(std::variant<long, std::string> id)
     -> CodeLensRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CodeLensRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto CodeLensRequest::params() const -> CodeLensParams {
@@ -2737,26 +2079,20 @@ auto CodeLensRequest::params(CodeLensParams params) -> CodeLensRequest& {
   return *this;
 }
 
-auto CodeLensResponse::id(long id) -> CodeLensResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeLensResponse::id(std::string id) -> CodeLensResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto CodeLensResponse::id(std::variant<long, std::string> id)
+    -> CodeLensResponse& {
+  return static_cast<CodeLensResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto CodeLensResponse::result() const
     -> std::variant<Vector<CodeLens>, std::nullptr_t> {
-  lsp_runtime_error("CodeLensResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto CodeLensResponse::result(
-    std::variant<Vector<CodeLens>, std::nullptr_t> result)
-    -> CodeLensResponse& {
-  lsp_runtime_error("CodeLensResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<CodeLens>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto CodeLensResolveRequest::method(std::string method)
@@ -2767,12 +2103,7 @@ auto CodeLensResolveRequest::method(std::string method)
 
 auto CodeLensResolveRequest::id(std::variant<long, std::string> id)
     -> CodeLensResolveRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CodeLensResolveRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto CodeLensResolveRequest::params() const -> CodeLens {
@@ -2786,25 +2117,15 @@ auto CodeLensResolveRequest::params(CodeLens params)
   return *this;
 }
 
-auto CodeLensResolveResponse::id(long id) -> CodeLensResolveResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeLensResolveResponse::id(std::string id) -> CodeLensResolveResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto CodeLensResolveResponse::id(std::variant<long, std::string> id)
+    -> CodeLensResolveResponse& {
+  return static_cast<CodeLensResolveResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto CodeLensResolveResponse::result() const -> CodeLens {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return CodeLens(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto CodeLensResolveResponse::result(CodeLens result)
-    -> CodeLensResolveResponse& {
-  lsp_runtime_error("CodeLensResolveResponse::result() - not implemented yet");
-  return *this;
+  return CodeLens(value);
 }
 
 auto CodeLensRefreshRequest::method(std::string method)
@@ -2815,32 +2136,19 @@ auto CodeLensRefreshRequest::method(std::string method)
 
 auto CodeLensRefreshRequest::id(std::variant<long, std::string> id)
     -> CodeLensRefreshRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CodeLensRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto CodeLensRefreshResponse::id(long id) -> CodeLensRefreshResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto CodeLensRefreshResponse::id(std::string id) -> CodeLensRefreshResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto CodeLensRefreshResponse::id(std::variant<long, std::string> id)
+    -> CodeLensRefreshResponse& {
+  return static_cast<CodeLensRefreshResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto CodeLensRefreshResponse::result() const -> std::nullptr_t {
-  return nullptr;
-}
+  auto& value = (*repr_)["result"];
 
-auto CodeLensRefreshResponse::result(std::nullptr_t result)
-    -> CodeLensRefreshResponse& {
-  (*repr_)["result"] = std::move(result);  // base
-  return *this;
+  assert(value.is_null());
+  return nullptr;
 }
 
 auto DocumentLinkRequest::method(std::string method) -> DocumentLinkRequest& {
@@ -2850,12 +2158,7 @@ auto DocumentLinkRequest::method(std::string method) -> DocumentLinkRequest& {
 
 auto DocumentLinkRequest::id(std::variant<long, std::string> id)
     -> DocumentLinkRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentLinkRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DocumentLinkRequest::params() const -> DocumentLinkParams {
@@ -2869,26 +2172,20 @@ auto DocumentLinkRequest::params(DocumentLinkParams params)
   return *this;
 }
 
-auto DocumentLinkResponse::id(long id) -> DocumentLinkResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentLinkResponse::id(std::string id) -> DocumentLinkResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto DocumentLinkResponse::id(std::variant<long, std::string> id)
+    -> DocumentLinkResponse& {
+  return static_cast<DocumentLinkResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto DocumentLinkResponse::result() const
     -> std::variant<Vector<DocumentLink>, std::nullptr_t> {
-  lsp_runtime_error("DocumentLinkResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentLinkResponse::result(
-    std::variant<Vector<DocumentLink>, std::nullptr_t> result)
-    -> DocumentLinkResponse& {
-  lsp_runtime_error("DocumentLinkResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<DocumentLink>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DocumentLinkResolveRequest::method(std::string method)
@@ -2899,12 +2196,8 @@ auto DocumentLinkResolveRequest::method(std::string method)
 
 auto DocumentLinkResolveRequest::id(std::variant<long, std::string> id)
     -> DocumentLinkResolveRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentLinkResolveRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DocumentLinkResolveRequest::params() const -> DocumentLink {
@@ -2918,27 +2211,16 @@ auto DocumentLinkResolveRequest::params(DocumentLink params)
   return *this;
 }
 
-auto DocumentLinkResolveResponse::id(long id) -> DocumentLinkResolveResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentLinkResolveResponse::id(std::string id)
+auto DocumentLinkResolveResponse::id(std::variant<long, std::string> id)
     -> DocumentLinkResolveResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentLinkResolveResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentLinkResolveResponse::result() const -> DocumentLink {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return DocumentLink(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentLinkResolveResponse::result(DocumentLink result)
-    -> DocumentLinkResolveResponse& {
-  lsp_runtime_error(
-      "DocumentLinkResolveResponse::result() - not implemented yet");
-  return *this;
+  return DocumentLink(value);
 }
 
 auto DocumentFormattingRequest::method(std::string method)
@@ -2949,12 +2231,7 @@ auto DocumentFormattingRequest::method(std::string method)
 
 auto DocumentFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentFormattingRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentFormattingRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto DocumentFormattingRequest::params() const -> DocumentFormattingParams {
@@ -2968,29 +2245,21 @@ auto DocumentFormattingRequest::params(DocumentFormattingParams params)
   return *this;
 }
 
-auto DocumentFormattingResponse::id(long id) -> DocumentFormattingResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentFormattingResponse::id(std::string id)
+auto DocumentFormattingResponse::id(std::variant<long, std::string> id)
     -> DocumentFormattingResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentFormattingResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentFormattingResponse::result() const
     -> std::variant<Vector<TextEdit>, std::nullptr_t> {
-  lsp_runtime_error(
-      "DocumentFormattingResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentFormattingResponse::result(
-    std::variant<Vector<TextEdit>, std::nullptr_t> result)
-    -> DocumentFormattingResponse& {
-  lsp_runtime_error(
-      "DocumentFormattingResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TextEdit>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DocumentRangeFormattingRequest::method(std::string method)
@@ -3001,12 +2270,8 @@ auto DocumentRangeFormattingRequest::method(std::string method)
 
 auto DocumentRangeFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentRangeFormattingRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentRangeFormattingRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DocumentRangeFormattingRequest::params() const
@@ -3021,30 +2286,21 @@ auto DocumentRangeFormattingRequest::params(
   return *this;
 }
 
-auto DocumentRangeFormattingResponse::id(long id)
+auto DocumentRangeFormattingResponse::id(std::variant<long, std::string> id)
     -> DocumentRangeFormattingResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentRangeFormattingResponse::id(std::string id)
-    -> DocumentRangeFormattingResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentRangeFormattingResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentRangeFormattingResponse::result() const
     -> std::variant<Vector<TextEdit>, std::nullptr_t> {
-  lsp_runtime_error(
-      "DocumentRangeFormattingResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentRangeFormattingResponse::result(
-    std::variant<Vector<TextEdit>, std::nullptr_t> result)
-    -> DocumentRangeFormattingResponse& {
-  lsp_runtime_error(
-      "DocumentRangeFormattingResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TextEdit>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DocumentRangesFormattingRequest::method(std::string method)
@@ -3055,12 +2311,8 @@ auto DocumentRangesFormattingRequest::method(std::string method)
 
 auto DocumentRangesFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentRangesFormattingRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentRangesFormattingRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DocumentRangesFormattingRequest::params() const
@@ -3075,30 +2327,21 @@ auto DocumentRangesFormattingRequest::params(
   return *this;
 }
 
-auto DocumentRangesFormattingResponse::id(long id)
+auto DocumentRangesFormattingResponse::id(std::variant<long, std::string> id)
     -> DocumentRangesFormattingResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentRangesFormattingResponse::id(std::string id)
-    -> DocumentRangesFormattingResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentRangesFormattingResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentRangesFormattingResponse::result() const
     -> std::variant<Vector<TextEdit>, std::nullptr_t> {
-  lsp_runtime_error(
-      "DocumentRangesFormattingResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentRangesFormattingResponse::result(
-    std::variant<Vector<TextEdit>, std::nullptr_t> result)
-    -> DocumentRangesFormattingResponse& {
-  lsp_runtime_error(
-      "DocumentRangesFormattingResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TextEdit>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto DocumentOnTypeFormattingRequest::method(std::string method)
@@ -3109,12 +2352,8 @@ auto DocumentOnTypeFormattingRequest::method(std::string method)
 
 auto DocumentOnTypeFormattingRequest::id(std::variant<long, std::string> id)
     -> DocumentOnTypeFormattingRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DocumentOnTypeFormattingRequest&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DocumentOnTypeFormattingRequest::params() const
@@ -3129,30 +2368,21 @@ auto DocumentOnTypeFormattingRequest::params(
   return *this;
 }
 
-auto DocumentOnTypeFormattingResponse::id(long id)
+auto DocumentOnTypeFormattingResponse::id(std::variant<long, std::string> id)
     -> DocumentOnTypeFormattingResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto DocumentOnTypeFormattingResponse::id(std::string id)
-    -> DocumentOnTypeFormattingResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<DocumentOnTypeFormattingResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto DocumentOnTypeFormattingResponse::result() const
     -> std::variant<Vector<TextEdit>, std::nullptr_t> {
-  lsp_runtime_error(
-      "DocumentOnTypeFormattingResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto DocumentOnTypeFormattingResponse::result(
-    std::variant<Vector<TextEdit>, std::nullptr_t> result)
-    -> DocumentOnTypeFormattingResponse& {
-  lsp_runtime_error(
-      "DocumentOnTypeFormattingResponse::result() - not implemented yet");
-  return *this;
+  std::variant<Vector<TextEdit>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto RenameRequest::method(std::string method) -> RenameRequest& {
@@ -3161,12 +2391,7 @@ auto RenameRequest::method(std::string method) -> RenameRequest& {
 }
 
 auto RenameRequest::id(std::variant<long, std::string> id) -> RenameRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<RenameRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto RenameRequest::params() const -> RenameParams {
@@ -3179,25 +2404,19 @@ auto RenameRequest::params(RenameParams params) -> RenameRequest& {
   return *this;
 }
 
-auto RenameResponse::id(long id) -> RenameResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto RenameResponse::id(std::string id) -> RenameResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto RenameResponse::id(std::variant<long, std::string> id) -> RenameResponse& {
+  return static_cast<RenameResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto RenameResponse::result() const
     -> std::variant<WorkspaceEdit, std::nullptr_t> {
-  lsp_runtime_error("RenameResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto RenameResponse::result(std::variant<WorkspaceEdit, std::nullptr_t> result)
-    -> RenameResponse& {
-  lsp_runtime_error("RenameResponse::result() - not implemented yet");
-  return *this;
+  std::variant<WorkspaceEdit, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto PrepareRenameRequest::method(std::string method) -> PrepareRenameRequest& {
@@ -3207,12 +2426,7 @@ auto PrepareRenameRequest::method(std::string method) -> PrepareRenameRequest& {
 
 auto PrepareRenameRequest::id(std::variant<long, std::string> id)
     -> PrepareRenameRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<PrepareRenameRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto PrepareRenameRequest::params() const -> PrepareRenameParams {
@@ -3226,26 +2440,20 @@ auto PrepareRenameRequest::params(PrepareRenameParams params)
   return *this;
 }
 
-auto PrepareRenameResponse::id(long id) -> PrepareRenameResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto PrepareRenameResponse::id(std::string id) -> PrepareRenameResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto PrepareRenameResponse::id(std::variant<long, std::string> id)
+    -> PrepareRenameResponse& {
+  return static_cast<PrepareRenameResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto PrepareRenameResponse::result() const
     -> std::variant<PrepareRenameResult, std::nullptr_t> {
-  lsp_runtime_error("PrepareRenameResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto PrepareRenameResponse::result(
-    std::variant<PrepareRenameResult, std::nullptr_t> result)
-    -> PrepareRenameResponse& {
-  lsp_runtime_error("PrepareRenameResponse::result() - not implemented yet");
-  return *this;
+  std::variant<PrepareRenameResult, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto ExecuteCommandRequest::method(std::string method)
@@ -3256,12 +2464,7 @@ auto ExecuteCommandRequest::method(std::string method)
 
 auto ExecuteCommandRequest::id(std::variant<long, std::string> id)
     -> ExecuteCommandRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ExecuteCommandRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ExecuteCommandRequest::params() const -> ExecuteCommandParams {
@@ -3275,25 +2478,20 @@ auto ExecuteCommandRequest::params(ExecuteCommandParams params)
   return *this;
 }
 
-auto ExecuteCommandResponse::id(long id) -> ExecuteCommandResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ExecuteCommandResponse::id(std::string id) -> ExecuteCommandResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+auto ExecuteCommandResponse::id(std::variant<long, std::string> id)
+    -> ExecuteCommandResponse& {
+  return static_cast<ExecuteCommandResponse&>(LSPResponse::id(std::move(id)));
 }
 
 auto ExecuteCommandResponse::result() const
     -> std::variant<LSPAny, std::nullptr_t> {
-  lsp_runtime_error("ExecuteCommandResponse::result() - not implemented yet");
-}
+  auto& value = (*repr_)["result"];
 
-auto ExecuteCommandResponse::result(std::variant<LSPAny, std::nullptr_t> result)
-    -> ExecuteCommandResponse& {
-  lsp_runtime_error("ExecuteCommandResponse::result() - not implemented yet");
-  return *this;
+  std::variant<LSPAny, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto ApplyWorkspaceEditRequest::method(std::string method)
@@ -3304,12 +2502,7 @@ auto ApplyWorkspaceEditRequest::method(std::string method)
 
 auto ApplyWorkspaceEditRequest::id(std::variant<long, std::string> id)
     -> ApplyWorkspaceEditRequest& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ApplyWorkspaceEditRequest&>(LSPRequest::id(std::move(id)));
 }
 
 auto ApplyWorkspaceEditRequest::params() const -> ApplyWorkspaceEditParams {
@@ -3323,27 +2516,16 @@ auto ApplyWorkspaceEditRequest::params(ApplyWorkspaceEditParams params)
   return *this;
 }
 
-auto ApplyWorkspaceEditResponse::id(long id) -> ApplyWorkspaceEditResponse& {
-  (*repr_)["id"] = id;
-  return *this;
-}
-
-auto ApplyWorkspaceEditResponse::id(std::string id)
+auto ApplyWorkspaceEditResponse::id(std::variant<long, std::string> id)
     -> ApplyWorkspaceEditResponse& {
-  (*repr_)["id"] = std::move(id);
-  return *this;
+  return static_cast<ApplyWorkspaceEditResponse&>(
+      LSPResponse::id(std::move(id)));
 }
 
 auto ApplyWorkspaceEditResponse::result() const -> ApplyWorkspaceEditResult {
-  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;
-  return ApplyWorkspaceEditResult(repr_->at("result"));  // reference
-}
+  auto& value = (*repr_)["result"];
 
-auto ApplyWorkspaceEditResponse::result(ApplyWorkspaceEditResult result)
-    -> ApplyWorkspaceEditResponse& {
-  lsp_runtime_error(
-      "ApplyWorkspaceEditResponse::result() - not implemented yet");
-  return *this;
+  return ApplyWorkspaceEditResult(value);
 }
 
 auto DidChangeWorkspaceFoldersNotification::method(std::string method)
@@ -3355,12 +2537,8 @@ auto DidChangeWorkspaceFoldersNotification::method(std::string method)
 auto DidChangeWorkspaceFoldersNotification::id(
     std::variant<long, std::string> id)
     -> DidChangeWorkspaceFoldersNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidChangeWorkspaceFoldersNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidChangeWorkspaceFoldersNotification::params() const
@@ -3384,12 +2562,8 @@ auto WorkDoneProgressCancelNotification::method(std::string method)
 
 auto WorkDoneProgressCancelNotification::id(std::variant<long, std::string> id)
     -> WorkDoneProgressCancelNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WorkDoneProgressCancelNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto WorkDoneProgressCancelNotification::params() const
@@ -3413,12 +2587,8 @@ auto DidCreateFilesNotification::method(std::string method)
 
 auto DidCreateFilesNotification::id(std::variant<long, std::string> id)
     -> DidCreateFilesNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidCreateFilesNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidCreateFilesNotification::params() const -> CreateFilesParams {
@@ -3440,12 +2610,8 @@ auto DidRenameFilesNotification::method(std::string method)
 
 auto DidRenameFilesNotification::id(std::variant<long, std::string> id)
     -> DidRenameFilesNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidRenameFilesNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidRenameFilesNotification::params() const -> RenameFilesParams {
@@ -3467,12 +2633,8 @@ auto DidDeleteFilesNotification::method(std::string method)
 
 auto DidDeleteFilesNotification::id(std::variant<long, std::string> id)
     -> DidDeleteFilesNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidDeleteFilesNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidDeleteFilesNotification::params() const -> DeleteFilesParams {
@@ -3494,12 +2656,8 @@ auto DidOpenNotebookDocumentNotification::method(std::string method)
 
 auto DidOpenNotebookDocumentNotification::id(std::variant<long, std::string> id)
     -> DidOpenNotebookDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidOpenNotebookDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidOpenNotebookDocumentNotification::params() const
@@ -3524,12 +2682,8 @@ auto DidChangeNotebookDocumentNotification::method(std::string method)
 auto DidChangeNotebookDocumentNotification::id(
     std::variant<long, std::string> id)
     -> DidChangeNotebookDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidChangeNotebookDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidChangeNotebookDocumentNotification::params() const
@@ -3553,12 +2707,8 @@ auto DidSaveNotebookDocumentNotification::method(std::string method)
 
 auto DidSaveNotebookDocumentNotification::id(std::variant<long, std::string> id)
     -> DidSaveNotebookDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidSaveNotebookDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidSaveNotebookDocumentNotification::params() const
@@ -3583,12 +2733,8 @@ auto DidCloseNotebookDocumentNotification::method(std::string method)
 auto DidCloseNotebookDocumentNotification::id(
     std::variant<long, std::string> id)
     -> DidCloseNotebookDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidCloseNotebookDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidCloseNotebookDocumentNotification::params() const
@@ -3612,12 +2758,7 @@ auto InitializedNotification::method(std::string method)
 
 auto InitializedNotification::id(std::variant<long, std::string> id)
     -> InitializedNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<InitializedNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto InitializedNotification::params() const -> InitializedParams {
@@ -3638,12 +2779,7 @@ auto ExitNotification::method(std::string method) -> ExitNotification& {
 
 auto ExitNotification::id(std::variant<long, std::string> id)
     -> ExitNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ExitNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto DidChangeConfigurationNotification::method(std::string method)
@@ -3654,12 +2790,8 @@ auto DidChangeConfigurationNotification::method(std::string method)
 
 auto DidChangeConfigurationNotification::id(std::variant<long, std::string> id)
     -> DidChangeConfigurationNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidChangeConfigurationNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidChangeConfigurationNotification::params() const
@@ -3683,12 +2815,7 @@ auto ShowMessageNotification::method(std::string method)
 
 auto ShowMessageNotification::id(std::variant<long, std::string> id)
     -> ShowMessageNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ShowMessageNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto ShowMessageNotification::params() const -> ShowMessageParams {
@@ -3710,12 +2837,7 @@ auto LogMessageNotification::method(std::string method)
 
 auto LogMessageNotification::id(std::variant<long, std::string> id)
     -> LogMessageNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<LogMessageNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto LogMessageNotification::params() const -> LogMessageParams {
@@ -3737,12 +2859,8 @@ auto TelemetryEventNotification::method(std::string method)
 
 auto TelemetryEventNotification::id(std::variant<long, std::string> id)
     -> TelemetryEventNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<TelemetryEventNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto TelemetryEventNotification::params() const -> LSPAny {
@@ -3764,12 +2882,8 @@ auto DidOpenTextDocumentNotification::method(std::string method)
 
 auto DidOpenTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidOpenTextDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidOpenTextDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidOpenTextDocumentNotification::params() const
@@ -3792,12 +2906,8 @@ auto DidChangeTextDocumentNotification::method(std::string method)
 
 auto DidChangeTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidChangeTextDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidChangeTextDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidChangeTextDocumentNotification::params() const
@@ -3820,12 +2930,8 @@ auto DidCloseTextDocumentNotification::method(std::string method)
 
 auto DidCloseTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidCloseTextDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidCloseTextDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidCloseTextDocumentNotification::params() const
@@ -3848,12 +2954,8 @@ auto DidSaveTextDocumentNotification::method(std::string method)
 
 auto DidSaveTextDocumentNotification::id(std::variant<long, std::string> id)
     -> DidSaveTextDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidSaveTextDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidSaveTextDocumentNotification::params() const
@@ -3876,12 +2978,8 @@ auto WillSaveTextDocumentNotification::method(std::string method)
 
 auto WillSaveTextDocumentNotification::id(std::variant<long, std::string> id)
     -> WillSaveTextDocumentNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<WillSaveTextDocumentNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto WillSaveTextDocumentNotification::params() const
@@ -3904,12 +3002,8 @@ auto DidChangeWatchedFilesNotification::method(std::string method)
 
 auto DidChangeWatchedFilesNotification::id(std::variant<long, std::string> id)
     -> DidChangeWatchedFilesNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<DidChangeWatchedFilesNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto DidChangeWatchedFilesNotification::params() const
@@ -3932,12 +3026,8 @@ auto PublishDiagnosticsNotification::method(std::string method)
 
 auto PublishDiagnosticsNotification::id(std::variant<long, std::string> id)
     -> PublishDiagnosticsNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<PublishDiagnosticsNotification&>(
+      LSPRequest::id(std::move(id)));
 }
 
 auto PublishDiagnosticsNotification::params() const
@@ -3959,12 +3049,7 @@ auto SetTraceNotification::method(std::string method) -> SetTraceNotification& {
 
 auto SetTraceNotification::id(std::variant<long, std::string> id)
     -> SetTraceNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<SetTraceNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto SetTraceNotification::params() const -> SetTraceParams {
@@ -3985,12 +3070,7 @@ auto LogTraceNotification::method(std::string method) -> LogTraceNotification& {
 
 auto LogTraceNotification::id(std::variant<long, std::string> id)
     -> LogTraceNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<LogTraceNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto LogTraceNotification::params() const -> LogTraceParams {
@@ -4011,12 +3091,7 @@ auto CancelNotification::method(std::string method) -> CancelNotification& {
 
 auto CancelNotification::id(std::variant<long, std::string> id)
     -> CancelNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<CancelNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto CancelNotification::params() const -> CancelParams {
@@ -4036,12 +3111,7 @@ auto ProgressNotification::method(std::string method) -> ProgressNotification& {
 
 auto ProgressNotification::id(std::variant<long, std::string> id)
     -> ProgressNotification& {
-  if (std::holds_alternative<long>(id)) {
-    (*repr_)["id"] = std::get<long>(id);
-  } else {
-    (*repr_)["id"] = std::get<std::string>(id);
-  }
-  return *this;
+  return static_cast<ProgressNotification&>(LSPRequest::id(std::move(id)));
 }
 
 auto ProgressNotification::params() const -> ProgressParams {

@@ -19,24 +19,14 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { Enumeration, isRequest, MetaModel, Structure, toCppType, Type, TypeAlias } from "./MetaModel.js";
+import { isRequest, MetaModel, Structure, toCppType, Type } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
+import { TypeGenerator } from "./gen_types_cc.js";
 
-class RequestGenerator {
-  readonly structByName: Map<string, Structure>;
-  readonly enumByName: Map<string, Enumeration>;
-  readonly typeAliasByName: Map<string, TypeAlias>;
-  readonly model: MetaModel;
-  readonly outputDirectory: string;
-  out: string = "";
-
+class RequestGenerator extends TypeGenerator {
   constructor({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
-    this.model = model;
-    this.outputDirectory = outputDirectory;
-    this.structByName = new Map(model.structures.map((s) => [s.name, s]));
-    this.enumByName = new Map(model.enumerations.map((e) => [e.name, e]));
-    this.typeAliasByName = new Map(model.typeAliases.map((t) => [t.name, t]));
+    super({ model, outputDirectory });
   }
 
   genTypes() {
@@ -50,8 +40,43 @@ class RequestGenerator {
     this.emit(`  return id.get<long>();`);
     this.emit(`}`);
     this.emit();
+    this.emit(`auto LSPRequest::id(std::optional<std::variant<long, std::string>> id)`);
+    this.emit(`    -> LSPRequest& {`);
+    this.emit(`  if (!id.has_value()) {`);
+    this.emit(`    repr_->erase("id");`);
+    this.emit(`    return *this;`);
+    this.emit(`  }`);
+    this.emit(`  if (std::holds_alternative<long>(*id)) {`);
+    this.emit(`    (*repr_)["id"] = std::get<long>(*id);`);
+    this.emit(`  } else {`);
+    this.emit(`    (*repr_)["id"] = std::get<std::string>(*id);`);
+    this.emit(`  }`);
+    this.emit(`  return *this;`);
+    this.emit(`}`);
+    this.emit();
     this.emit(`auto LSPRequest::method() const -> std::string {`);
     this.emit(`  return repr_->at("method");`);
+    this.emit(`}`);
+    this.emit();
+    this.emit(`auto LSPResponse::id() const -> std::optional<std::variant<long, std::string>> {`);
+    this.emit(`  if (!repr_->contains("id")) return std::nullopt;`);
+    this.emit(`  const auto& id = repr_->at("id");`);
+    this.emit(`  if (id.is_string()) return id.get<std::string>();`);
+    this.emit(`  return id.get<long>();`);
+    this.emit(`}`);
+    this.emit();
+    this.emit(`auto LSPResponse::id(std::optional<std::variant<long, std::string>> id)`);
+    this.emit(`    -> LSPResponse& {`);
+    this.emit(`  if (!id.has_value()) {`);
+    this.emit(`    repr_->erase("id");`);
+    this.emit(`    return *this;`);
+    this.emit(`  }`);
+    this.emit(`  if (std::holds_alternative<long>(*id)) {`);
+    this.emit(`    (*repr_)["id"] = std::get<long>(*id);`);
+    this.emit(`  } else {`);
+    this.emit(`    (*repr_)["id"] = std::get<std::string>(*id);`);
+    this.emit(`  }`);
+    this.emit(`  return *this;`);
     this.emit(`}`);
 
     const requestsAndNotifications = [...this.model.requests, ...this.model.notifications];
@@ -65,12 +90,7 @@ class RequestGenerator {
       this.emit(`}`);
       this.emit();
       this.emit(`auto ${typeName}::id(std::variant<long, std::string> id) -> ${typeName}& {`);
-      this.emit(`  if (std::holds_alternative<long>(id)) {`);
-      this.emit(`    (*repr_)["id"] = std::get<long>(id);`);
-      this.emit(`  } else {`);
-      this.emit(`    (*repr_)["id"] = std::get<std::string>(id);`);
-      this.emit(`  }`);
-      this.emit(`  return *this;`);
+      this.emit(`  return static_cast<${typeName}&>(LSPRequest::id(std::move(id)));`);
       this.emit(`}`);
 
       if (request.params) {
@@ -90,64 +110,24 @@ class RequestGenerator {
 
       if (isRequest(request) && request.result) {
         const responseTypeName = typeName.replace(/Request$/, "Response");
-        const resultTypeName = toCppType(request.result);
 
         this.emit();
-        this.emit(`auto ${responseTypeName}::id(long id) -> ${responseTypeName}& {`);
-        this.emit(`  (*repr_)["id"] = id;`);
-        this.emit(`  return *this;`);
+        this.emit(`auto ${responseTypeName}::id(std::variant<long, std::string> id) -> ${responseTypeName}& {`);
+        this.emit(`  return static_cast<${responseTypeName}&>(LSPResponse::id(std::move(id)));`);
         this.emit(`}`);
-        this.emit();
-        this.emit(`auto ${responseTypeName}::id(std::string id) -> ${responseTypeName}& {`);
-        this.emit(`  (*repr_)["id"] = std::move(id);`);
-        this.emit(`  return *this;`);
-        this.emit(`}`);
-        this.emit();
-        this.emit(`auto ${responseTypeName}::result() const -> ${resultTypeName} {`);
-        switch (request.result.kind) {
-          case "base": {
-            if (request.result.name === "null") {
-              this.emit(`  return nullptr;`);
-            } else {
-              this.emit(`  return repr_->at("result").get<${toCppType(request.result)}>(); // base`);
-            }
-            break;
-          }
 
-          case "reference": {
-            if (this.structByName.has(request.result.name)) {
-              this.emit(`  if (!repr_->contains("result")) (*repr_)["result"] = nullptr;`);
-              this.emit(`  return ${resultTypeName}(repr_->at("result")); // reference`);
-            } else {
-              this.emit(`  lsp_runtime_error("${responseTypeName}::result() - not implemented yet");`);
-            }
-            break;
-          }
+        // synthetic structure with result property
 
-          default: {
-            this.emit(`  lsp_runtime_error("${responseTypeName}::result() - not implemented yet");`);
-          }
-        } // swtch
-        this.emit(`}`);
-        this.emit();
-        this.emit(`auto ${responseTypeName}::result(${resultTypeName} result) -> ${responseTypeName}& {`);
-        switch (request.result.kind) {
-          case "base":
-            this.emit(`  (*repr_)["result"] = std::move(result); // base`);
-            break;
-          default:
-            this.emit(`  lsp_runtime_error("${responseTypeName}::result() - not implemented yet");`);
-        } // switch
-        this.emit(`  return *this;`);
-        this.emit(`}`);
+        const structure: Structure = {
+          name: responseTypeName,
+          properties: [{ name: "result", type: request.result, optional: false }],
+        };
+
+        this.generateGetters({ structure, properties: structure.properties });
       }
     });
 
     this.end();
-  }
-
-  emit(s: string = "") {
-    this.out += `${s}\n`;
   }
 
   getPropertyType({ type, optional }: { type: Type; optional?: boolean }): string {

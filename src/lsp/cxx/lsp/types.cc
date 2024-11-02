@@ -4974,10 +4974,10 @@ InitializeParams::operator bool() const {
   return true;
 }
 
-auto InitializeParams::processId() const -> std::variant<int, std::nullptr_t> {
+auto InitializeParams::processId() const -> std::variant<long, std::nullptr_t> {
   auto& value = (*repr_)["processId"];
 
-  std::variant<int, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5079,12 +5079,12 @@ auto InitializeParams::workspaceFolders() const
   return result;
 }
 
-auto InitializeParams::processId(std::variant<int, std::nullptr_t> processId)
+auto InitializeParams::processId(std::variant<long, std::nullptr_t> processId)
     -> InitializeParams& {
   struct {
     json* repr_;
 
-    void operator()(int processId) {
+    void operator()(long processId) {
       (*repr_)["processId"] = std::move(processId);
     }
 
@@ -5824,7 +5824,7 @@ auto PublishDiagnosticsParams::uri() const -> std::string {
   return value.get<std::string>();
 }
 
-auto PublishDiagnosticsParams::version() const -> std::optional<int> {
+auto PublishDiagnosticsParams::version() const -> std::optional<long> {
   if (!repr_->contains("version")) return std::nullopt;
 
   auto& value = (*repr_)["version"];
@@ -5847,7 +5847,7 @@ auto PublishDiagnosticsParams::uri(std::string uri)
   return *this;
 }
 
-auto PublishDiagnosticsParams::version(std::optional<int> version)
+auto PublishDiagnosticsParams::version(std::optional<long> version)
     -> PublishDiagnosticsParams& {
   if (!version.has_value()) {
     repr_->erase("version");
@@ -10105,21 +10105,21 @@ CancelParams::operator bool() const {
   return true;
 }
 
-auto CancelParams::id() const -> std::variant<int, std::string> {
+auto CancelParams::id() const -> std::variant<long, std::string> {
   auto& value = (*repr_)["id"];
 
-  std::variant<int, std::string> result;
+  std::variant<long, std::string> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto CancelParams::id(std::variant<int, std::string> id) -> CancelParams& {
+auto CancelParams::id(std::variant<long, std::string> id) -> CancelParams& {
   struct {
     json* repr_;
 
-    void operator()(int id) { (*repr_)["id"] = std::move(id); }
+    void operator()(long id) { (*repr_)["id"] = std::move(id); }
 
     void operator()(std::string id) { (*repr_)["id"] = std::move(id); }
   } v{repr_};
@@ -11414,7 +11414,7 @@ InlineValueContext::operator bool() const {
   return true;
 }
 
-auto InlineValueContext::frameId() const -> int {
+auto InlineValueContext::frameId() const -> long {
   auto& value = (*repr_)["frameId"];
 
   if (value.is_null()) value = 0;
@@ -11428,7 +11428,7 @@ auto InlineValueContext::stoppedLocation() const -> Range {
   return Range(value);
 }
 
-auto InlineValueContext::frameId(int frameId) -> InlineValueContext& {
+auto InlineValueContext::frameId(long frameId) -> InlineValueContext& {
   (*repr_)["frameId"] = std::move(frameId);
   return *this;
 }
@@ -12140,7 +12140,7 @@ auto NotebookDocument::notebookType() const -> std::string {
   return value.get<std::string>();
 }
 
-auto NotebookDocument::version() const -> int {
+auto NotebookDocument::version() const -> long {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
@@ -12175,7 +12175,7 @@ auto NotebookDocument::notebookType(std::string notebookType)
   return *this;
 }
 
-auto NotebookDocument::version(int version) -> NotebookDocument& {
+auto NotebookDocument::version(long version) -> NotebookDocument& {
   (*repr_)["version"] = std::move(version);
   return *this;
 }
@@ -12223,7 +12223,7 @@ auto TextDocumentItem::languageId() const -> LanguageKind {
   lsp_runtime_error("invalid value for LanguageKind enumeration");
 }
 
-auto TextDocumentItem::version() const -> int {
+auto TextDocumentItem::version() const -> long {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
@@ -12250,7 +12250,7 @@ auto TextDocumentItem::languageId(LanguageKind languageId)
   return *this;
 }
 
-auto TextDocumentItem::version(int version) -> TextDocumentItem& {
+auto TextDocumentItem::version(long version) -> TextDocumentItem& {
   (*repr_)["version"] = std::move(version);
   return *this;
 }
@@ -12311,7 +12311,7 @@ VersionedNotebookDocumentIdentifier::operator bool() const {
   return true;
 }
 
-auto VersionedNotebookDocumentIdentifier::version() const -> int {
+auto VersionedNotebookDocumentIdentifier::version() const -> long {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
@@ -12327,7 +12327,7 @@ auto VersionedNotebookDocumentIdentifier::uri() const -> std::string {
   return value.get<std::string>();
 }
 
-auto VersionedNotebookDocumentIdentifier::version(int version)
+auto VersionedNotebookDocumentIdentifier::version(long version)
     -> VersionedNotebookDocumentIdentifier& {
   (*repr_)["version"] = std::move(version);
   return *this;
@@ -12614,10 +12614,11 @@ _InitializeParams::operator bool() const {
   return true;
 }
 
-auto _InitializeParams::processId() const -> std::variant<int, std::nullptr_t> {
+auto _InitializeParams::processId() const
+    -> std::variant<long, std::nullptr_t> {
   auto& value = (*repr_)["processId"];
 
-  std::variant<int, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -12706,12 +12707,12 @@ auto _InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
-auto _InitializeParams::processId(std::variant<int, std::nullptr_t> processId)
+auto _InitializeParams::processId(std::variant<long, std::nullptr_t> processId)
     -> _InitializeParams& {
   struct {
     json* repr_;
 
-    void operator()(int processId) {
+    void operator()(long processId) {
       (*repr_)["processId"] = std::move(processId);
     }
 
@@ -14218,7 +14219,7 @@ VersionedTextDocumentIdentifier::operator bool() const {
   return true;
 }
 
-auto VersionedTextDocumentIdentifier::version() const -> int {
+auto VersionedTextDocumentIdentifier::version() const -> long {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
@@ -14234,7 +14235,7 @@ auto VersionedTextDocumentIdentifier::uri() const -> std::string {
   return value.get<std::string>();
 }
 
-auto VersionedTextDocumentIdentifier::version(int version)
+auto VersionedTextDocumentIdentifier::version(long version)
     -> VersionedTextDocumentIdentifier& {
   (*repr_)["version"] = std::move(version);
   return *this;
@@ -14362,12 +14363,13 @@ auto Diagnostic::severity() const -> std::optional<DiagnosticSeverity> {
   return DiagnosticSeverity(value);
 }
 
-auto Diagnostic::code() const -> std::optional<std::variant<int, std::string>> {
+auto Diagnostic::code() const
+    -> std::optional<std::variant<long, std::string>> {
   if (!repr_->contains("code")) return std::nullopt;
 
   auto& value = (*repr_)["code"];
 
-  std::variant<int, std::string> result;
+  std::variant<long, std::string> result;
 
   details::try_emplace(result, value);
 
@@ -14443,7 +14445,7 @@ auto Diagnostic::severity(std::optional<DiagnosticSeverity> severity)
   return *this;
 }
 
-auto Diagnostic::code(std::optional<std::variant<int, std::string>> code)
+auto Diagnostic::code(std::optional<std::variant<long, std::string>> code)
     -> Diagnostic& {
   if (!code.has_value()) {
     repr_->erase("code");
@@ -14453,7 +14455,7 @@ auto Diagnostic::code(std::optional<std::variant<int, std::string>> code)
   struct {
     json* repr_;
 
-    void operator()(int code) { (*repr_)["code"] = std::move(code); }
+    void operator()(long code) { (*repr_)["code"] = std::move(code); }
 
     void operator()(std::string code) { (*repr_)["code"] = std::move(code); }
   } v{repr_};
@@ -16158,10 +16160,10 @@ OptionalVersionedTextDocumentIdentifier::operator bool() const {
 }
 
 auto OptionalVersionedTextDocumentIdentifier::version() const
-    -> std::variant<int, std::nullptr_t> {
+    -> std::variant<long, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<int, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16177,12 +16179,12 @@ auto OptionalVersionedTextDocumentIdentifier::uri() const -> std::string {
 }
 
 auto OptionalVersionedTextDocumentIdentifier::version(
-    std::variant<int, std::nullptr_t> version)
+    std::variant<long, std::nullptr_t> version)
     -> OptionalVersionedTextDocumentIdentifier& {
   struct {
     json* repr_;
 
-    void operator()(int version) { (*repr_)["version"] = std::move(version); }
+    void operator()(long version) { (*repr_)["version"] = std::move(version); }
 
     void operator()(std::nullptr_t version) {
       (*repr_)["version"] = std::move(version);
@@ -16555,10 +16557,10 @@ auto WorkspaceFullDocumentDiagnosticReport::uri() const -> std::string {
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::version() const
-    -> std::variant<int, std::nullptr_t> {
+    -> std::variant<long, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<int, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16599,12 +16601,12 @@ auto WorkspaceFullDocumentDiagnosticReport::uri(std::string uri)
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::version(
-    std::variant<int, std::nullptr_t> version)
+    std::variant<long, std::nullptr_t> version)
     -> WorkspaceFullDocumentDiagnosticReport& {
   struct {
     json* repr_;
 
-    void operator()(int version) { (*repr_)["version"] = std::move(version); }
+    void operator()(long version) { (*repr_)["version"] = std::move(version); }
 
     void operator()(std::nullptr_t version) {
       (*repr_)["version"] = std::move(version);
@@ -16659,10 +16661,10 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::uri() const -> std::string {
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::version() const
-    -> std::variant<int, std::nullptr_t> {
+    -> std::variant<long, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<int, std::nullptr_t> result;
+  std::variant<long, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16693,12 +16695,12 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::uri(std::string uri)
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::version(
-    std::variant<int, std::nullptr_t> version)
+    std::variant<long, std::nullptr_t> version)
     -> WorkspaceUnchangedDocumentDiagnosticReport& {
   struct {
     json* repr_;
 
-    void operator()(int version) { (*repr_)["version"] = std::move(version); }
+    void operator()(long version) { (*repr_)["version"] = std::move(version); }
 
     void operator()(std::nullptr_t version) {
       (*repr_)["version"] = std::move(version);

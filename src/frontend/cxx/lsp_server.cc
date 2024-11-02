@@ -175,7 +175,7 @@ auto Server::readHeaders(std::istream& input)
   return headers;
 }
 
-void Server::sendToClient(const json& message) {
+void Server::sendMessage(const json& message) {
 #ifndef CXX_NO_THREADS
   auto locker = std::unique_lock(outputMutex_);
 #endif
@@ -190,29 +190,16 @@ void Server::sendToClient(const json& message) {
   output.flush();
 }
 
-void Server::sendToClient(const LSPObject& result,
-                          std::optional<std::variant<long, std::string>> id) {
-  auto response = json::object();
-  response["jsonrpc"] = "2.0";
-
-  if (id.has_value()) {
-    if (std::holds_alternative<long>(id.value())) {
-      response["id"] = std::get<long>(id.value());
-    } else {
-      response["id"] = std::get<std::string>(id.value());
-    }
-  }
-
-  response["result"] = result;
-
-  sendToClient(response);
+void Server::sendToClient(LSPResponse response) {
+  json& message = response.get();
+  message["jsonrpc"] = "2.0";
+  sendMessage(message);
 }
 
-void Server::sendNotification(const LSPRequest& notification) {
+void Server::sendToClient(LSPRequest notification) {
   json response = notification;
   response["jsonrpc"] = "2.0";
-
-  sendToClient(response);
+  sendMessage(response);
 }
 
 void Server::logTrace(std::string message, std::optional<std::string> verbose) {
@@ -227,7 +214,7 @@ void Server::logTrace(std::string message, std::optional<std::string> verbose) {
     if (verbose.has_value()) {
       logTrace.params().verbose(std::move(*verbose));
     }
-    sendNotification(logTrace);
+    sendToClient(logTrace);
   });
 }
 
@@ -323,42 +310,48 @@ void Server::parse(const std::string& uri) {
       publishDiagnostics.params().diagnostics(doc->diagnostics());
       publishDiagnostics.params().version(version);
 
-      sendNotification(publishDiagnostics);
+      sendToClient(publishDiagnostics);
     });
   });
 }
 
-void Server::operator()(const InitializeRequest& request) {
+void Server::operator()(InitializeRequest request) {
   logTrace(std::format("Did receive InitializeRequest"));
 
   withUnsafeJson([&](json storage) {
-    InitializeResult result(storage);
-    result.serverInfo<ServerInfo>().name("cxx-lsp").version(CXX_VERSION);
-    auto capabilities = result.capabilities();
+    InitializeResponse response{storage};
+    std::cerr << std::format("initializing response to {}\n",
+                             request.get().dump());
+    response.id(*request.id());
+    auto capabilities = response.result().capabilities();
+    response.result().serverInfo<ServerInfo>().name("cxx-lsp").version(
+        CXX_VERSION);
     capabilities.textDocumentSync(TextDocumentSyncKind::kIncremental);
-    sendToClient(result, request.id());
+    sendToClient(response);
   });
 }
 
-void Server::operator()(const InitializedNotification& notification) {
+void Server::operator()(InitializedNotification notification) {
   logTrace(std::format("Did receive InitializedNotification"));
 }
 
-void Server::operator()(const ShutdownRequest& request) {
+void Server::operator()(ShutdownRequest request) {
   logTrace(std::format("Did receive ShutdownRequest"));
 
   withUnsafeJson([&](json storage) {
-    LSPObject result(storage);
-    sendToClient(result, request.id());
+    LSPResponse response(storage);
+    response.id(request.id());
+    response.get().emplace("result", nullptr);
+    sendToClient(response);
   });
 }
 
-void Server::operator()(const ExitNotification& notification) {
+void Server::operator()(ExitNotification notification) {
   logTrace(std::format("Did receive ExitNotification"));
   done_ = true;
 }
 
-void Server::operator()(const DidOpenTextDocumentNotification& notification) {
+void Server::operator()(DidOpenTextDocumentNotification notification) {
   logTrace(std::format("Did receive DidOpenTextDocumentNotification"));
 
   auto textDocument = notification.params().textDocument();
@@ -373,14 +366,14 @@ void Server::operator()(const DidOpenTextDocumentNotification& notification) {
   parse(textDocument.uri());
 }
 
-void Server::operator()(const DidCloseTextDocumentNotification& notification) {
+void Server::operator()(DidCloseTextDocumentNotification notification) {
   logTrace(std::format("Did receive DidCloseTextDocumentNotification"));
 
   const auto uri = notification.params().textDocument().uri();
   documents_.erase(uri);
 }
 
-void Server::operator()(const DidChangeTextDocumentNotification& notification) {
+void Server::operator()(DidChangeTextDocumentNotification notification) {
   logTrace(std::format("Did receive DidChangeTextDocumentNotification"));
 
   const auto textDocument = notification.params().textDocument();
@@ -431,34 +424,50 @@ auto Server::latestDocument(const std::string& uri)
   return documents_[uri];
 }
 
-void Server::operator()(const DocumentDiagnosticRequest& request) {
+void Server::operator()(DocumentDiagnosticRequest request) {
   logTrace(std::format("Did receive DocumentDiagnosticRequest"));
 }
 
-void Server::operator()(const CancelNotification& notification) {
-  auto id = notification.params().id<long>();
-  logTrace(
-      std::format("Did receive CancelNotification for request with id {}", id));
+void Server::operator()(CancelNotification notification) {
+  const auto id = notification.params().id();
+
+  if (std::holds_alternative<std::string>(id)) {
+    logTrace(
+        std::format("Did receive CancelNotification for request with id {}",
+                    std::get<std::string>(id)));
+  } else {
+    logTrace(
+        std::format("Did receive CancelNotification for request with id {}",
+                    std::get<long>(id)));
+  }
 }
 
-void Server::operator()(const SetTraceNotification& notification) {
+void Server::operator()(SetTraceNotification notification) {
   logTrace(std::format("Did receive SetTraceNotification"));
 
   trace_ = notification.params().value();
+
+  if (trace_ != TraceValue::kOff) {
+    logTrace("Trace level set to {}\n", to_string(trace_));
+    return;
+  }
 }
 
-void Server::operator()(const LSPRequest& request) {
-  logTrace(std::format("Did receive LSPRequest {}", request.method()));
-
+void Server::operator()(LSPRequest request) {
   if (!request.id().has_value()) {
     // nothing to do for notifications
+    logTrace(std::format("Did receive notification {}", request.method()));
     return;
   }
 
+  logTrace(std::format("Did receive request {}", request.method()));
+
   // send an empty response.
   withUnsafeJson([&](json storage) {
-    LSPObject result(storage);
-    sendToClient(result, request.id());
+    LSPResponse response(storage);
+    response.id(request.id());
+    request.get().emplace("result", nullptr);
+    sendToClient(response);
   });
 }
 

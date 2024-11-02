@@ -32,7 +32,7 @@ import {
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
-class TypeGenerator {
+export class TypeGenerator {
   readonly structByName: Map<string, Structure>;
   readonly enumByName: Map<string, Enumeration>;
   readonly typeAliasByName: Map<string, TypeAlias>;
@@ -202,7 +202,9 @@ class TypeGenerator {
 
     switch (property.type.name) {
       case "null":
-        throw new Error(`Unexpected null type`);
+        this.emit(`assert(value.is_null());`);
+        this.emit(`return nullptr;`);
+        return true;
 
       case "string":
         this.emit(`if (value.is_null()) value = "";`);

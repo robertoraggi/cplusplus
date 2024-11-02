@@ -46,22 +46,22 @@ class Server {
 
   auto start() -> int;
 
-  void operator()(const InitializeRequest& request);
-  void operator()(const InitializedNotification& notification);
+  void operator()(InitializeRequest request);
+  void operator()(InitializedNotification notification);
 
-  void operator()(const ShutdownRequest& request);
-  void operator()(const ExitNotification& notification);
+  void operator()(ShutdownRequest request);
+  void operator()(ExitNotification notification);
 
-  void operator()(const DidOpenTextDocumentNotification& notification);
-  void operator()(const DidCloseTextDocumentNotification& notification);
-  void operator()(const DidChangeTextDocumentNotification& notification);
+  void operator()(DidOpenTextDocumentNotification notification);
+  void operator()(DidCloseTextDocumentNotification notification);
+  void operator()(DidChangeTextDocumentNotification notification);
 
-  void operator()(const DocumentDiagnosticRequest& request);
+  void operator()(DocumentDiagnosticRequest request);
 
-  void operator()(const SetTraceNotification& notification);
+  void operator()(SetTraceNotification notification);
 
-  void operator()(const CancelNotification& notification);
-  void operator()(const LSPRequest& request);
+  void operator()(CancelNotification notification);
+  void operator()(LSPRequest request);
 
  private:
   void startWorkersIfNeeded();
@@ -76,13 +76,9 @@ class Server {
 
   [[nodiscard]] auto nextRequest() -> std::optional<json>;
 
-  void sendNotification(const LSPRequest& notification);
-
-  void sendToClient(const json& message);
-
-  void sendToClient(
-      const LSPObject& result,
-      std::optional<std::variant<long, std::string>> id = std::nullopt);
+  void sendToClient(LSPRequest notification);
+  void sendToClient(LSPResponse response);
+  void sendMessage(const json& message);
 
   void logTrace(std::string message, std::optional<std::string> verbose = {});
 

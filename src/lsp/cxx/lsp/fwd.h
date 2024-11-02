@@ -637,8 +637,12 @@ class LSPObject {
   explicit LSPObject(json& repr) : repr_(&repr) {}
 
   [[nodiscard]] explicit operator bool() const { return repr_ != nullptr; }
+
   [[nodiscard]] operator const json&() const { return *repr_; }
-  [[nodiscard]] auto get() const -> json& { return *repr_; }
+  [[nodiscard]] operator json&() { return *repr_; }
+
+  [[nodiscard]] auto get() const -> const json& { return *repr_; }
+  [[nodiscard]] auto get() -> json& { return *repr_; }
 
  protected:
   json* repr_{nullptr};
@@ -650,12 +654,18 @@ class LSPRequest : public LSPObject {
 
   [[nodiscard]] auto id() const
       -> std::optional<std::variant<long, std::string>>;
+  auto id(std::optional<std::variant<long, std::string>>) -> LSPRequest&;
+
   [[nodiscard]] auto method() const -> std::string;
 };
 
 class LSPResponse : public LSPObject {
  public:
   using LSPObject::LSPObject;
+
+  [[nodiscard]] auto id() const
+      -> std::optional<std::variant<long, std::string>>;
+  auto id(std::optional<std::variant<long, std::string>>) -> LSPResponse&;
 };
 
 template <typename T>
@@ -911,7 +921,7 @@ using WorkspaceDocumentDiagnosticReport =
 
 using ChangeAnnotationIdentifier = std::string;
 
-using ProgressToken = std::variant<int, std::string>;
+using ProgressToken = std::variant<long, std::string>;
 
 using DocumentSelector = Vector<DocumentFilter>;
 

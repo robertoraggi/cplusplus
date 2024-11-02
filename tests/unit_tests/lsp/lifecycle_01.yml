@@ -1,6 +1,6 @@
 # RUN: %cxx -lsp-test < %s | %filecheck %s
 
-{ "method": "initialize" }
+{ "method": "initialize", "id": 0 }
 
 # CHECK: "result":
 # CHECK: "capabilities":
@@ -10,7 +10,7 @@
 # CHECK: "name":
 # CHECK: "version":
 
-{ "method": "shutdown" }
+{ "method": "shutdown", "id": 1 }
 
 { "method": "exit" }
 
