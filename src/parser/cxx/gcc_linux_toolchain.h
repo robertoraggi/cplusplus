@@ -38,6 +38,11 @@ class GCCLinuxToolchain final : public Toolchain {
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
+  void addCommonMacros();
+  void addAmd64Macros();
+  void addArm64Macros();
+  void addCxx26Macros();
+
  private:
   std::optional<int> version_;
   std::string arch_;
