@@ -2796,6 +2796,17 @@ void Preprocessor::setOnWillIncludeHeader(
 
 void Preprocessor::squeeze() { d->pool_.reset(); }
 
+auto Preprocessor::sourceFileName(uint32_t sourceFileId) const
+    -> const std::string & {
+  assert(sourceFileId > 0);
+  return d->sourceFiles_[sourceFileId - 1]->fileName;
+}
+
+auto Preprocessor::source(uint32_t sourceFileId) const -> const std::string & {
+  assert(sourceFileId > 0);
+  return d->sourceFiles_[sourceFileId - 1]->source;
+}
+
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
   struct {
