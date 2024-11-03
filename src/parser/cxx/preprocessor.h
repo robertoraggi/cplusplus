@@ -119,6 +119,11 @@ class Preprocessor {
   [[nodiscard]] auto continuePreprocessing(std::vector<Token> &outputTokens)
       -> Status;
 
+  [[nodiscard]] auto sourceFileName(uint32_t sourceFileId) const
+      -> const std::string &;
+
+  [[nodiscard]] auto source(uint32_t sourceFileId) const -> const std::string &;
+
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token> &tokens);
 
