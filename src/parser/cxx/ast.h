@@ -2262,6 +2262,7 @@ class InitDeclaratorAST final : public AST {
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
   ExpressionAST* initializer = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

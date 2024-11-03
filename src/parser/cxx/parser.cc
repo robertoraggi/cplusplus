@@ -14,9 +14,9 @@
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FRnewOM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #include <cxx/parser.h>
 
@@ -6726,6 +6726,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                                    DeclaratorAST* declarator, Decl& decl)
     -> bool {
+  Symbol* declaredSynbol = nullptr;
   if (auto declId = decl.declaratorId; declId) {
     auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
     const auto name = convertName(declId->unqualifiedId);
@@ -6735,6 +6736,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
         symbol->setName(name);
         symbol->setType(symbolType);
         std::invoke(DeclareSymbol{this, scope_}, symbol);
+        declaredSynbol = symbol;
       } else if (getFunctionPrototype(declarator)) {
         auto functionSymbol =
             control_->newFunctionSymbol(scope_, decl.location());
@@ -6742,15 +6744,18 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
         functionSymbol->setName(name);
         functionSymbol->setType(symbolType);
         std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
+        declaredSynbol = functionSymbol;
       } else {
         auto symbol = control_->newVariableSymbol(scope_, decl.location());
         applySpecifiers(symbol, decl.specs);
         symbol->setName(name);
         symbol->setType(symbolType);
         std::invoke(DeclareSymbol{this, scope_}, symbol);
+        declaredSynbol = symbol;
       }
     }
   }
+
   RequiresClauseAST* requiresClause = nullptr;
   ExpressionAST* initializer = nullptr;
 
@@ -6765,6 +6770,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   ast->declarator = declarator;
   ast->requiresClause = requiresClause;
   ast->initializer = initializer;
+  ast->symbol = declaredSynbol;
 
   return true;
 }
