@@ -784,8 +784,11 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
   globalScope_ = unit->globalScope();
   scope_ = globalScope_;
 
+  // temporary workarounds to the gnu  until we have a proper
+  // support for templates
   mark_maybe_template_name(control_->getIdentifier("__make_integer_seq"));
   mark_maybe_template_name(control_->getIdentifier("__type_pack_element"));
+  template_names_.insert(control_->getIdentifier("_S_invoke"));
 }
 
 Parser::~Parser() = default;
