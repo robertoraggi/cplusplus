@@ -22,13 +22,10 @@
 #include <cxx/ast_cursor.h>
 #include <cxx/ast_slot.h>
 
-#include <format>
-#include <iostream>
-
 namespace cxx {
 
 ASTCursor::ASTCursor(AST* root, std::string_view name) {
-  stack_.emplace_back(root, name);
+  stack_.push_back(Node{root, name});
 }
 
 ASTCursor::~ASTCursor() {}
@@ -57,12 +54,13 @@ void ASTCursor::step() {
         auto name = to_string(slot.nameIndex);
         if (slot.kind == ASTSlotKind::kNode) {
           auto node = reinterpret_cast<AST*>(slot.handle);
-          stack_.emplace_back(node, name);
+          stack_.push_back(Node{node, name});
         } else if (slot.kind == ASTSlotKind::kNodeList) {
           auto list = reinterpret_cast<List<AST*>*>(slot.handle);
-          stack_.emplace_back(list, name);
+          stack_.push_back(Node{list, name});
         }
       }
+
       break;
     } else if (auto list = std::get_if<List<AST*>*>(&node)) {
       if (!*list) continue;
@@ -74,8 +72,9 @@ void ASTCursor::step() {
       }
 
       for (const auto& ast : children | std::views::reverse) {
-        stack_.emplace_back(ast, kind);
+        stack_.push_back(Node{ast, kind});
       }
+
       break;
     }
   }

@@ -20,9 +20,14 @@
 
 #include "lsp_server.h"
 
+#include <cxx/ast.h>
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/requests.h>
 #include <cxx/lsp/types.h>
+#include <cxx/name_printer.h>
+#include <cxx/preprocessor.h>
+#include <cxx/symbols.h>
+#include <cxx/type_printer.h>
 #include <utf8/unchecked.h>
 
 #include <format>
@@ -433,12 +438,15 @@ void Server::operator()(DocumentSymbolRequest request) {
 
   auto uri = request.params().textDocument().uri();
   auto doc = latestDocument(uri);
+  auto id = request.id();
 
-  withUnsafeJson([&](json storage) {
-    DocumentSymbolResponse response(storage);
-    response.id(request.id());
-    (void)response.result();
-    sendToClient(response);
+  run([=, this] {
+    withUnsafeJson([&](json storage) {
+      DocumentSymbolResponse response(storage);
+      response.id(id);
+      (void)response.result();
+      sendToClient(response);
+    });
   });
 }
 
@@ -462,7 +470,7 @@ void Server::operator()(SetTraceNotification notification) {
   trace_ = notification.params().value();
 
   if (trace_ != TraceValue::kOff) {
-    logTrace("Trace level set to {}", to_string(trace_));
+    logTrace(std::format("Trace level set to {}", to_string(trace_)));
     return;
   }
 }
