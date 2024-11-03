@@ -117,7 +117,16 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (toolchainId == "darwin" || toolchainId == "macos") {
-    toolchain = std::make_unique<MacOSToolchain>(preprocesor);
+    auto macosToolchain = std::make_unique<MacOSToolchain>(preprocesor);
+    std::string host;
+#ifdef __aarch64__
+    host = "aarch64";
+#elif __x86_64__
+    host = "x86_64";
+#endif
+    macosToolchain->setArch(cli.getSingle("-arch").value_or(host));
+    toolchain = std::move(macosToolchain);
+
   } else if (toolchainId == "wasm32") {
     auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
 
