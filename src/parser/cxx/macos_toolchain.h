@@ -32,13 +32,22 @@ class MacOSToolchain final : public Toolchain {
 
   explicit MacOSToolchain(Preprocessor* preprocessor);
 
+  [[nodiscard]] auto arch() const -> std::string { return arch_; }
+  void setArch(std::string arch) { arch_ = std::move(arch); }
+
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
+  void addCommonMacros();
+  void addCxx26Macros();
+  void addArm64Macros();
+  void addAmd64Macros();
+
  private:
   std::string platformPath_;
   std::string toolchainPath_;
+  std::string arch_{"aarch64"};
 };
 
 }  // namespace cxx
