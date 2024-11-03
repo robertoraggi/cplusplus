@@ -21,13 +21,8 @@
 #include "cxx_document.h"
 
 #include <cxx/ast.h>
-#include <cxx/ast_slot.h>
-#include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
-#include <cxx/lexer.h>
-#include <cxx/lsp/enums.h>
-#include <cxx/lsp/requests.h>
 #include <cxx/lsp/types.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
@@ -209,43 +204,28 @@ auto CxxDocument::translationUnit() const -> TranslationUnit* {
   return &d->unit;
 }
 
-namespace {
+auto CxxDocument::textOf(AST* ast) -> std::optional<std::string_view> {
+  return textInRange(ast->firstSourceLocation(), ast->lastSourceLocation());
+}
 
-struct Visit {
-  CxxDocument* doc_;
-  std::function<bool(AST*)> visitor;
-  ASTSlot slotInfo;
+auto CxxDocument::textInRange(SourceLocation start, SourceLocation end)
+    -> std::optional<std::string_view> {
+  auto& unit = d->unit;
+  auto preprocessor = unit.preprocessor();
 
-  void preVisit(AST* ast) {
-    if (!ast) return;
+  const auto startToken = unit.tokenAt(start);
+  const auto endToken = unit.tokenAt(end.previous());
 
-    if (visitor(ast)) return;
-
-    // do a pre-visit using the low-level AST API
-
-    const auto slotCount = slotInfo(ast, 0).slotCount;
-
-    for (int index = 0; index < slotCount; ++index) {
-      const auto childInfo = slotInfo(ast, index);
-
-      if (childInfo.kind == ASTSlotKind::kNode) {
-        auto child = reinterpret_cast<AST*>(childInfo.handle);
-        if (child) preVisit(child);
-      } else if (childInfo.kind == ASTSlotKind::kNodeList) {
-        auto list = reinterpret_cast<List<AST*>*>(childInfo.handle);
-        for (auto node : ListView{list}) {
-          preVisit(node);
-        }
-      }
-    }
+  if (startToken.fileId() != endToken.fileId()) {
+    return std::nullopt;
   }
-};
 
-}  // namespace
+  std::string_view source = preprocessor->source(startToken.fileId());
 
-void CxxDocument::preVisit(std::function<bool(AST*)> visitor) {
-  auto ast = d->unit.ast();
-  Visit{this, std::move(visitor)}.preVisit(ast);
+  const auto offset = startToken.offset();
+  const auto length = endToken.offset() + endToken.length() - offset;
+
+  return source.substr(offset, length);
 }
 
 }  // namespace cxx::lsp

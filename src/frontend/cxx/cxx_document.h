@@ -23,8 +23,7 @@
 #include <cxx/lsp/fwd.h>
 #include <cxx/translation_unit.h>
 
-#include <functional>
-#include <memory>
+#include <optional>
 #include <string>
 
 #include "cli.h"
@@ -43,7 +42,10 @@ class CxxDocument {
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
 
-  void preVisit(std::function<bool(AST*)> visitor);
+  [[nodiscard]] auto textOf(AST* ast) -> std::optional<std::string_view>;
+
+  [[nodiscard]] auto textInRange(SourceLocation start, SourceLocation end)
+      -> std::optional<std::string_view>;
 
  private:
   struct Private;
