@@ -1035,62 +1035,86 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto checkPragmaOnceProtected(TokList *ts) const -> bool;
 
+  struct Resolve {
+    const Private *d;
+    bool wantNextInlude;
+    bool didFindCurrentPath = false;
+    std::optional<fs::path> firstMatch;
+
+    Resolve(const Private *d, bool next) : d(d), wantNextInlude(next) {}
+
+    [[nodiscard]] auto search(auto view, const std::string &headerName)
+        -> std::optional<fs::path> {
+      auto transformToIncludePath = std::views::transform(
+          [&](const fs::path &path) { return path / headerName; });
+
+      auto filterExistingFiles = std::views::filter(
+          [&](const fs::path &path) { return d->fileExists(path); });
+
+      for (const auto &path : view | transformToIncludePath |
+                                  filterExistingFiles | std::views::reverse) {
+        firstMatch = path;
+
+        if (wantNextInlude && path == d->currentPath_) {
+          didFindCurrentPath = true;
+          continue;
+        }
+
+        if (wantNextInlude && !didFindCurrentPath) {
+          continue;
+        }
+
+        return path;
+      }
+
+      return std::nullopt;
+    }
+
+    [[nodiscard]] auto operator()(const QuoteInclude &include)
+        -> std::optional<fs::path> {
+      const auto &headerName = include.fileName;
+
+      // search in the current path
+      if (auto p = search(std::views::single(d->currentPath_), headerName)) {
+        return p;
+      }
+
+      // search in the quote include paths
+      if (auto p = search(d->quoteIncludePaths_, headerName)) {
+        return p;
+      }
+
+      // fallback to system include paths
+      if (auto p = search(d->systemIncludePaths_, headerName)) {
+        return p;
+      }
+
+      if (wantNextInlude && !didFindCurrentPath) {
+        return firstMatch;
+      }
+
+      return std::nullopt;
+    }
+
+    [[nodiscard]] auto operator()(const SystemInclude &include)
+        -> std::optional<fs::path> {
+      if (auto p = search(d->systemIncludePaths_, include.fileName)) {
+        return p;
+      }
+
+      if (wantNextInlude && !didFindCurrentPath) {
+        return firstMatch;
+      }
+
+      return std::nullopt;
+    }
+  };
+
   [[nodiscard]] auto resolve(const Include &include, bool next) const
       -> std::optional<fs::path> {
     if (!canResolveFiles_) return std::nullopt;
 
-    struct Resolve {
-      const Private *d;
-      bool next;
-
-      Resolve(const Private *d, bool next) : d(d), next(next) {}
-
-      [[nodiscard]] auto operator()(const SystemInclude &include) const
-          -> std::optional<fs::path> {
-        bool hit = false;
-        for (const auto &includePath :
-             d->systemIncludePaths_ | std::views::reverse) {
-          const auto path = fs::path(includePath) / include.fileName;
-          if (d->fileExists(path)) {
-            if (!next || hit) return path;
-            hit = true;
-          }
-        }
-        return {};
-      }
-
-      [[nodiscard]] auto operator()(const QuoteInclude &include) const
-          -> std::optional<fs::path> {
-        bool hit = false;
-
-        if (auto path = d->currentPath_ / include.fileName;
-            d->fileExists(path)) {
-          if (!next) return path;
-          hit = true;
-        }
-
-        for (const auto &includePath :
-             d->quoteIncludePaths_ | std::views::reverse) {
-          const auto path = fs::path(includePath) / include.fileName;
-          if (d->fileExists(path)) {
-            if (!next || hit) return path;
-            hit = true;
-          }
-        }
-
-        for (const auto &includePath :
-             d->systemIncludePaths_ | std::views::reverse) {
-          const auto path = fs::path(includePath) / include.fileName;
-          if (d->fileExists(path)) {
-            if (!next || hit) return path;
-            hit = true;
-          }
-        }
-        return {};
-      }
-    };
-
-    return std::visit(Resolve(this, next), include);
+    return std::visit(Resolve{this, next}, include);
   }
 
   [[nodiscard]] auto isDefined(const std::string_view &id) const -> bool {
@@ -2979,6 +3003,9 @@ auto Preprocessor::systemIncludePaths() const
 }
 
 void Preprocessor::addSystemIncludePath(std::string path) {
+  while (path.length() > 1 && path.ends_with(fs::path::preferred_separator)) {
+    path.pop_back();
+  }
   d->systemIncludePaths_.push_back(std::move(path));
 }
 
