@@ -25,6 +25,7 @@
 #include <functional>
 #include <iosfwd>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -38,6 +39,25 @@ class CommentHandler;
 class Preprocessor;
 class PreprocessorDelegate;
 class SourcePosition;
+
+struct SystemInclude {
+  std::string fileName;
+
+  SystemInclude() = default;
+
+  explicit SystemInclude(std::string fileName)
+      : fileName(std::move(fileName)) {}
+};
+
+struct QuoteInclude {
+  std::string fileName;
+
+  QuoteInclude() = default;
+
+  explicit QuoteInclude(std::string fileName) : fileName(std::move(fileName)) {}
+};
+
+using Include = std::variant<SystemInclude, QuoteInclude>;
 
 class CommentHandler {
  public:
@@ -90,10 +110,11 @@ class Preprocessor {
 
   struct NeedToResolveInclude {
     Preprocessor &preprocessor;
-    std::string fileName;
-    bool isQuoted = false;
+    Include include;
     bool isIncludeNext = false;
-    const void *loc = nullptr;
+    void *loc = nullptr;
+
+    void continueWith(std::string fileName) const;
   };
 
   struct NeedToKnowIfFileExists {
@@ -150,6 +171,9 @@ class Preprocessor {
   [[nodiscard]] auto getTextLine(const Token &token) const -> std::string_view;
 
   [[nodiscard]] auto getTokenText(const Token &token) const -> std::string_view;
+
+  [[nodiscard]] auto resolve(const Include &include, bool isIncludeNext) const
+      -> std::optional<std::string>;
 
   void squeeze();
 

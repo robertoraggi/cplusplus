@@ -219,26 +219,7 @@ class Hideset {
   std::set<std::string_view> names_;
 };
 
-struct SystemInclude {
-  std::string fileName;
-
-  SystemInclude() = default;
-
-  explicit SystemInclude(std::string fileName)
-      : fileName(std::move(fileName)) {}
-};
-
-struct QuoteInclude {
-  std::string fileName;
-
-  QuoteInclude() = default;
-
-  explicit QuoteInclude(std::string fileName) : fileName(std::move(fileName)) {}
-};
-
-using Include = std::variant<SystemInclude, QuoteInclude>;
-
-inline auto getHeaderName(const Include &include) -> std::string {
+inline auto getHeaderName(const cxx::Include &include) -> std::string {
   return std::visit([](const auto &include) { return include.fileName; },
                     include);
 }
@@ -1053,7 +1034,7 @@ struct Preprocessor::Private {
     Resolve(const Private *d, bool next) : d(d), wantNextInlude(next) {}
 
     [[nodiscard]] auto search(auto view, const std::string &headerName)
-        -> std::optional<fs::path> {
+        -> std::optional<std::string> {
       auto transformToIncludePath = std::views::transform(
           [&](const fs::path &path) { return path / headerName; });
 
@@ -1073,14 +1054,14 @@ struct Preprocessor::Private {
           continue;
         }
 
-        return path;
+        return path.string();
       }
 
       return std::nullopt;
     }
 
     [[nodiscard]] auto operator()(const QuoteInclude &include)
-        -> std::optional<fs::path> {
+        -> std::optional<std::string> {
       const auto &headerName = include.fileName;
 
       // search in the current path
@@ -1099,20 +1080,20 @@ struct Preprocessor::Private {
       }
 
       if (wantNextInlude && !didFindCurrentPath) {
-        return firstMatch;
+        return firstMatch->string();
       }
 
       return std::nullopt;
     }
 
     [[nodiscard]] auto operator()(const SystemInclude &include)
-        -> std::optional<fs::path> {
+        -> std::optional<std::string> {
       if (auto p = search(d->systemIncludePaths_, include.fileName)) {
         return p;
       }
 
       if (wantNextInlude && !didFindCurrentPath) {
-        return firstMatch;
+        return firstMatch->string();
       }
 
       return std::nullopt;
@@ -1120,7 +1101,7 @@ struct Preprocessor::Private {
   };
 
   [[nodiscard]] auto resolve(const Include &include, bool next) const
-      -> std::optional<fs::path> {
+      -> std::optional<std::string> {
     if (!canResolveFiles_) return std::nullopt;
 
     return std::visit(Resolve{this, next}, include);
@@ -1192,8 +1173,11 @@ struct Preprocessor::Private {
   [[nodiscard]] auto parseIncludeDirective(TokList *directive, TokList *ts)
       -> std::optional<ParsedIncludeDirective>;
 
-  [[nodiscard]] auto resolveIncludeDirective(
-      const ParsedIncludeDirective &directive) -> SourceFile *;
+  [[nodiscard]] auto findOrCreateSourceFile(const Include &include,
+                                            bool isIncludeNext) -> SourceFile *;
+
+  [[nodiscard]] auto findOrCreateSourceFile(const std::string &fileName)
+      -> SourceFile *;
 
   [[nodiscard]] auto parseHeaderName(TokList *ts)
       -> std::tuple<TokList *, std::optional<Include>>;
@@ -1691,9 +1675,7 @@ auto Preprocessor::Private::expand(
       if (auto parsedInclude = parseDirective(source, start.toTokList())) {
         NeedToResolveInclude status{
             .preprocessor = *preprocessor_,
-            .fileName = getHeaderName(parsedInclude->header),
-            .isQuoted =
-                std::holds_alternative<QuoteInclude>(parsedInclude->header),
+            .include = parsedInclude->header,
             .isIncludeNext = parsedInclude->includeNext,
             .loc = parsedInclude->loc,
         };
@@ -1946,31 +1928,33 @@ auto Preprocessor::Private::parseIncludeDirective(TokList *directive,
   return std::nullopt;
 }
 
-auto Preprocessor::Private::resolveIncludeDirective(
-    const ParsedIncludeDirective &directive) -> SourceFile * {
-  const auto path = resolve(directive.header, directive.includeNext);
-
-  if (!path) {
-    const auto file = getHeaderName(directive.header);
-    error(directive.loc, std::format("file '{}' not found", file));
-    return nullptr;
+auto Preprocessor::Private::findOrCreateSourceFile(const Include &include,
+                                                   bool isIncludeNext)
+    -> SourceFile * {
+  if (auto path = resolve(include, isIncludeNext)) {
+    auto sourceFile = findOrCreateSourceFile(path.value());
+    return sourceFile;
   }
 
-  std::string currentFileName = path->string();
+  return nullptr;
+}
 
-  if (auto it = ifndefProtectedFiles_.find(currentFileName);
+auto Preprocessor::Private::findOrCreateSourceFile(const std::string &fileName)
+    -> SourceFile * {
+  if (auto it = ifndefProtectedFiles_.find(fileName);
       it != ifndefProtectedFiles_.end() && macros_.contains(it->second)) {
     return nullptr;
   }
 
-  auto sourceFile = findSourceFile(currentFileName);
+  auto sourceFile = findSourceFile(fileName);
 
   if (sourceFile && sourceFile->pragmaOnceProtected) {
+    // nothing to do
     return nullptr;
   }
 
   if (!sourceFile) {
-    sourceFile = createSourceFile(path->string(), readFile(*path));
+    sourceFile = createSourceFile(fileName, readFile(fileName));
 
     sourceFile->pragmaOnceProtected =
         checkPragmaOnceProtected(sourceFile->tokens);
@@ -1986,7 +1970,7 @@ auto Preprocessor::Private::resolveIncludeDirective(
   }
 
   if (willIncludeHeader_) {
-    willIncludeHeader_(currentFileName, includeDepth_ + 1);
+    willIncludeHeader_(fileName, includeDepth_ + 1);
   }
 
   return sourceFile;
@@ -2879,34 +2863,19 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
     }
 
     void operator()(const NeedToResolveInclude &status) {
-      // the header file resolution may be asynchronous
-      Include header;
+      auto d = self.d.get();
 
-      if (status.isQuoted) {
-        header = QuoteInclude(status.fileName);
-      } else {
-        header = SystemInclude(status.fileName);
+      if (auto resolvedInclude =
+              d->resolve(status.include, status.isIncludeNext)) {
+        status.continueWith(resolvedInclude.value());
+        return;
       }
 
-      Private::ParsedIncludeDirective parsedInclude{
-          .header = header,
-          .includeNext = status.isIncludeNext,
-          .loc = static_cast<TokList *>(const_cast<void *>(status.loc)),
-      };
+      auto loc = static_cast<TokList *>(status.loc);
 
-      auto continuation = self.d->resolveIncludeDirective(parsedInclude);
-      if (!continuation) return;
+      const auto file = getHeaderName(status.include);
 
-      // make the continuation the current file
-      fs::path dirpath = fs::path(continuation->fileName);
-      dirpath.remove_filename();
-
-      self.d->buffers_.push_back(Private::Buffer{
-          .source = continuation,
-          .currentPath = dirpath,
-          .ts = continuation->tokens,
-          .includeDepth = self.d->includeDepth_ + 1,
-      });
+      d->error(loc, std::format("file '{}' not found", file));
     }
 
     void operator()(const NeedToKnowIfFileExists &status) {
@@ -2927,6 +2896,25 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   }
 
   endPreprocessing(tokens);
+}
+
+void Preprocessor::NeedToResolveInclude::continueWith(
+    std::string fileName) const {
+  auto d = preprocessor.d.get();
+
+  auto continuation = d->findOrCreateSourceFile(fileName);
+  if (!continuation) return;
+
+  // make the continuation the current file
+  fs::path dirpath = fs::path(continuation->fileName);
+  dirpath.remove_filename();
+
+  d->buffers_.push_back(Private::Buffer{
+      .source = continuation,
+      .currentPath = dirpath,
+      .ts = continuation->tokens,
+      .includeDepth = d->includeDepth_ + 1,
+  });
 }
 
 void Preprocessor::NeedToKnowIfFileExists::setFileExists(bool exists) const {}
@@ -3163,6 +3151,11 @@ auto Preprocessor::getTokenText(const Token &token) const -> std::string_view {
   const SourceFile *file = d->sourceFiles_[token.fileId() - 1].get();
   std::string_view source = file->source;
   return source.substr(token.offset(), token.length());
+}
+
+auto Preprocessor::resolve(const Include &include, bool isIncludeNext) const
+    -> std::optional<std::string> {
+  return d->resolve(include, isIncludeNext);
 }
 
 }  // namespace cxx
