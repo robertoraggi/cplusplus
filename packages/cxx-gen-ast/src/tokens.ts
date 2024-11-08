@@ -32,6 +32,7 @@ export const BASE_TOKENS: string[] = [
   "UTF32_STRING_LITERAL",
   "UTF8_STRING_LITERAL",
   "WIDE_STRING_LITERAL",
+  "PP_INTERNAL_VARIABLE",
 ];
 
 export const OPERATORS: Array<[kind: string, spelling: string]> = [
