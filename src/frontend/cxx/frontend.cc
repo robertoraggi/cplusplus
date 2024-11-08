@@ -101,13 +101,13 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   VerifyDiagnosticsClient diagnosticsClient;
   TranslationUnit unit(&diagnosticsClient);
 
-  auto preprocesor = unit.preprocessor();
+  auto preprocessor = unit.preprocessor();
 
   std::unique_ptr<Toolchain> toolchain;
 
   if (cli.opt_verify) {
     diagnosticsClient.setVerify(true);
-    preprocesor->setCommentHandler(&diagnosticsClient);
+    preprocessor->setCommentHandler(&diagnosticsClient);
   }
 
   auto toolchainId = cli.getSingle("-toolchain");
@@ -117,7 +117,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (toolchainId == "darwin" || toolchainId == "macos") {
-    auto macosToolchain = std::make_unique<MacOSToolchain>(preprocesor);
+    auto macosToolchain = std::make_unique<MacOSToolchain>(preprocessor);
     std::string host;
 #ifdef __aarch64__
     host = "aarch64";
@@ -128,7 +128,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     toolchain = std::move(macosToolchain);
 
   } else if (toolchainId == "wasm32") {
-    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
+    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
 
     fs::path app_dir;
 
@@ -162,9 +162,9 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 #endif
 
     std::string arch = cli.getSingle("-arch").value_or(host);
-    toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor, arch);
+    toolchain = std::make_unique<GCCLinuxToolchain>(preprocessor, arch);
   } else if (toolchainId == "windows") {
-    auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
+    auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocessor);
 
     if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
       windowsToolchain->setVctoolsdir(paths.back());
@@ -192,12 +192,12 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   for (const auto& path : cli.get("-I")) {
-    preprocesor->addSystemIncludePath(path);
+    preprocessor->addSystemIncludePath(path);
   }
 
   if (cli.opt_v) {
     std::cerr << std::format("#include <...> search starts here:\n");
-    const auto& paths = preprocesor->systemIncludePaths();
+    const auto& paths = preprocessor->systemIncludePaths();
     for (auto it = rbegin(paths); it != rend(paths); ++it) {
       std::cerr << std::format(" {}\n", *it);
     }
@@ -208,14 +208,14 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     auto sep = macro.find_first_of("=");
 
     if (sep == std::string::npos) {
-      preprocesor->defineMacro(macro, "1");
+      preprocessor->defineMacro(macro, "1");
     } else {
-      preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
     }
   }
 
   for (const auto& macro : cli.get("-U")) {
-    preprocesor->undefMacro(macro);
+    preprocessor->undefMacro(macro);
   }
 
   auto outputs = cli.get("-o");
@@ -229,11 +229,11 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   bool shouldExit = false;
 
   if (cli.opt_P) {
-    preprocesor->setOmitLineMarkers(true);
+    preprocessor->setOmitLineMarkers(true);
   }
 
   if (cli.opt_H && (cli.opt_E || cli.opt_Eonly)) {
-    preprocesor->setOnWillIncludeHeader(
+    preprocessor->setOnWillIncludeHeader(
         [&](const std::string& header, int level) {
           std::string fill(level, '.');
           std::cout << std::format("{} {}\n", fill, header);
@@ -243,14 +243,14 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   if (auto source = readAll(fileName)) {
     if (cli.opt_E && !cli.opt_dM) {
       std::vector<Token> tokens;
-      preprocesor->preprocess(std::move(*source), fileName, tokens);
-      preprocesor->getPreprocessedText(tokens, output);
+      preprocessor->preprocess(std::move(*source), fileName, tokens);
+      preprocessor->getPreprocessedText(tokens, output);
       shouldExit = true;
     } else {
       unit.setSource(std::move(*source), fileName);
 
       if (cli.opt_dM) {
-        preprocesor->printMacros(output);
+        preprocessor->printMacros(output);
         shouldExit = true;
       } else if (cli.opt_dump_tokens) {
         dumpTokens(cli, unit, output);
@@ -266,7 +266,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (!shouldExit) {
-    preprocesor->squeeze();
+    preprocessor->squeeze();
 
     unit.parse(ParserConfiguration{
         .checkTypes = cli.opt_fcheck,
