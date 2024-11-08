@@ -155,7 +155,6 @@ void MacOSToolchain::addCommonMacros() {
   defineMacro("__ATOMIC_SEQ_CST", "5");
   defineMacro("__BIGGEST_ALIGNMENT__", "16");
   defineMacro("__BITINT_MAXWIDTH__", "8388608");
-  defineMacro("__BLOCKS__", "1");
   defineMacro("__BOOL_WIDTH__", "8");
   defineMacro("__BYTE_ORDER__", "__ORDER_LITTLE_ENDIAN__");
   defineMacro("__CHAR16_TYPE__", "unsigned short");
