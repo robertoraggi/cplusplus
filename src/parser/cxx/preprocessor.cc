@@ -26,19 +26,13 @@
 #include <cxx/diagnostics_client.h>
 #include <cxx/lexer.h>
 #include <cxx/literals.h>
-#include <cxx/private/path.h>
-
-// fmt
-#include <format>
-
-// utf8
-#include <utf8/unchecked.h>
-
-// stl
 #include <cxx/preprocessor.h>
+#include <cxx/private/path.h>
+#include <utf8/unchecked.h>
 
 #include <algorithm>
 #include <cassert>
+#include <format>
 #include <forward_list>
 #include <fstream>
 #include <functional>
@@ -716,9 +710,10 @@ struct Preprocessor::Private {
     std::string_view local;
     Include include;
     bool isIncludeNext = false;
-    int value = 0;
+    bool exists = false;
   };
   std::vector<Dep> dependencies_;
+  std::function<void()> continuation_;
   int localCount_ = 0;
 
   int counter_ = 0;
@@ -1167,8 +1162,15 @@ struct Preprocessor::Private {
     TokList *loc = nullptr;
   };
 
+  struct ParsedIfDirective {
+    std::function<void()> resume;
+  };
+
+  using ParsedDirective =
+      std::variant<std::monostate, ParsedIncludeDirective, ParsedIfDirective>;
+
   [[nodiscard]] auto parseDirective(SourceFile *source, TokList *start)
-      -> std::optional<ParsedIncludeDirective>;
+      -> ParsedDirective;
 
   [[nodiscard]] auto parseIncludeDirective(TokList *directive, TokList *ts)
       -> std::optional<ParsedIncludeDirective>;
@@ -1203,7 +1205,9 @@ struct Preprocessor::Private {
   [[nodiscard]] auto copyLine(TokList *ts, bool inMacroBody = false)
       -> TokList *;
 
-  [[nodiscard]] auto constantExpression(TokList *ts) -> long;
+  [[nodiscard]] auto prepareConstantExpression(TokList *ts) -> TokList *;
+
+  [[nodiscard]] auto evaluateConstantExpression(TokList *ts) -> long;
   [[nodiscard]] auto conditionalExpression(TokList *&ts) -> long;
   [[nodiscard]] auto binaryExpression(TokList *&ts) -> long;
   [[nodiscard]] auto binaryExpressionHelper(TokList *&ts, long lhs, int minPrec)
@@ -1647,7 +1651,7 @@ auto Preprocessor::Private::expandTokens(TokIterator it, TokIterator last,
 
 auto Preprocessor::Private::expand(
     const std::function<void(const Tok *)> &emitToken) -> Status {
-  if (buffers_.empty()) return IsDone{};
+  if (buffers_.empty()) return ProcessingComplete{};
 
   auto buffer = buffers_.back();
   buffers_.pop_back();
@@ -1672,8 +1676,11 @@ auto Preprocessor::Private::expand(
       // skip the rest of the line
       it = skipLine(it, last);
 
-      if (auto parsedInclude = parseDirective(source, start.toTokList())) {
-        NeedToResolveInclude status{
+      auto parsedDirective = parseDirective(source, start.toTokList());
+
+      if (auto parsedInclude =
+              std::get_if<ParsedIncludeDirective>(&parsedDirective)) {
+        PendingInclude status{
             .preprocessor = *preprocessor_,
             .include = parsedInclude->header,
             .isIncludeNext = parsedInclude->includeNext,
@@ -1692,6 +1699,37 @@ auto Preprocessor::Private::expand(
         it = last;
 
         return status;
+      } else if (auto directive =
+                     std::get_if<ParsedIfDirective>(&parsedDirective)) {
+        // suspend and resolve the dependencies
+        continuation_ = std::move(directive->resume);
+
+        // suspend the current file and start processing the continuation
+        buffers_.push_back(Buffer{
+            .source = source,
+            .currentPath = currentPath_,
+            .ts = it.toTokList(),
+            .includeDepth = includeDepth_,
+        });
+
+        // reset the token stream, so we can start processing the continuation
+        it = last;
+
+        std::vector<PendingHasIncludes::Request> dependencies;
+        for (auto &dep : dependencies_) {
+          dependencies.push_back({
+              .include = dep.include,
+              .isIncludeNext = dep.isIncludeNext,
+              .exists = dep.exists,
+          });
+        }
+
+        PendingHasIncludes status{
+            .preprocessor = *preprocessor_,
+            .requests = dependencies,
+        };
+
+        return status;
       }
     } else if (skipping) {
       it = skipLine(++it, last);
@@ -1701,16 +1739,16 @@ auto Preprocessor::Private::expand(
     }
   }
 
-  if (buffers_.empty()) return IsDone{};
+  if (buffers_.empty()) return ProcessingComplete{};
 
-  return CanContinue{};
+  return CanContinuePreprocessing{};
 }
 
 auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
-    -> std::optional<ParsedIncludeDirective> {
+    -> ParsedDirective {
   auto directive = start->next;
 
-  if (!lookat(directive, TokenKind::T_IDENTIFIER)) return std::nullopt;
+  if (!lookat(directive, TokenKind::T_IDENTIFIER)) return std::monostate{};
 
   dependencies_.clear();
 
@@ -1725,7 +1763,11 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
     case PreprocessorDirectiveKind::T_INCLUDE_NEXT:
     case PreprocessorDirectiveKind::T_INCLUDE: {
       if (skipping) break;
-      return parseIncludeDirective(directive, ts);
+      auto includeDirective = parseIncludeDirective(directive, ts);
+      if (includeDirective.has_value()) {
+        return *includeDirective;
+      }
+      break;
     }
 
     case PreprocessorDirectiveKind::T_DEFINE: {
@@ -1781,11 +1823,23 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
       if (skipping) {
         pushState(std::tuple(true, false));
       } else {
-        const auto value = constantExpression(ts);
-        if (value) {
-          pushState(std::tuple(skipping, false));
+        auto expression = prepareConstantExpression(ts);
+
+        auto resume = [=, this] {
+          const auto value = evaluateConstantExpression(expression);
+
+          if (value) {
+            pushState(std::tuple(skipping, false));
+          } else {
+            pushState(std::tuple(true, !skipping));
+          }
+        };
+
+        if (dependencies_.empty()) {
+          resume();
         } else {
-          pushState(std::tuple(true, !skipping));
+          // rewquest the resolution of the dependencies
+          return ParsedIfDirective{.resume = std::move(resume)};
         }
       }
 
@@ -1796,11 +1850,23 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
       if (!evaluating) {
         setState(std::tuple(true, false));
       } else {
-        const auto value = constantExpression(ts);
-        if (value) {
-          setState(std::tuple(!evaluating, false));
+        auto expression = prepareConstantExpression(ts);
+
+        auto resume = [=, this] {
+          const auto value = evaluateConstantExpression(expression);
+
+          if (value) {
+            setState(std::tuple(!evaluating, false));
+          } else {
+            setState(std::tuple(true, evaluating));
+          }
+        };
+
+        if (dependencies_.empty()) {
+          resume();
         } else {
-          setState(std::tuple(true, evaluating));
+          // rewquest the resolution of the dependencies
+          return ParsedIfDirective{.resume = std::move(resume)};
         }
       }
 
@@ -1899,7 +1965,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
       break;
   }  // switch
 
-  return std::nullopt;
+  return std::monostate{};
 }
 
 auto Preprocessor::Private::parseIncludeDirective(TokList *directive,
@@ -2348,18 +2414,22 @@ auto Preprocessor::Private::copyLine(TokList *ts, bool inMacroBody)
   return line;
 }
 
-auto Preprocessor::Private::constantExpression(TokList *ts) -> long {
+auto Preprocessor::Private::prepareConstantExpression(TokList *ts)
+    -> TokList * {
   auto line = copyLine(ts);
+
   dependencies_.clear();
+
   auto it = expandTokens(TokIterator{line}, TokIterator{},
                          /*inConditionalExpression*/ true);
-  // evaluate the deps
-  for (auto &d : dependencies_) {
-    auto resolved = resolve(d.include, d.isIncludeNext);
-    d.value = resolved.has_value();
-  }
-  auto e = it.toTokList();
-  return conditionalExpression(e);
+
+  auto expression = it.toTokList();
+
+  return expression;
+}
+
+auto Preprocessor::Private::evaluateConstantExpression(TokList *ts) -> long {
+  return conditionalExpression(ts);
 }
 
 auto Preprocessor::Private::conditionalExpression(TokList *&ts) -> long {
@@ -2543,7 +2613,7 @@ auto Preprocessor::Private::primaryExpression(TokList *&ts) -> long {
     for (const auto &dep : dependencies_) {
       if (dep.local == tk->text) {
         ts = ts->next;
-        return dep.value;
+        return dep.exists;
       }
     }
   }
@@ -2852,57 +2922,30 @@ auto Preprocessor::source(uint32_t sourceFileId) const -> const std::string & {
 
 void Preprocessor::preprocess(std::string source, std::string fileName,
                               std::vector<Token> &tokens) {
-  struct {
-    Preprocessor &self;
-    bool done = false;
-
-    void operator()(const IsDone &) { done = true; }
-
-    void operator()(const CanContinue &) {
-      // keep going
-    }
-
-    void operator()(const NeedToResolveInclude &status) {
-      auto d = self.d.get();
-
-      if (auto resolvedInclude =
-              d->resolve(status.include, status.isIncludeNext)) {
-        status.continueWith(resolvedInclude.value());
-        return;
-      }
-
-      auto loc = static_cast<TokList *>(status.loc);
-
-      const auto file = getHeaderName(status.include);
-
-      d->error(loc, std::format("file '{}' not found", file));
-    }
-
-    void operator()(const NeedToKnowIfFileExists &status) {
-      auto exists = self.d->fileExists(status.fileName);
-      status.setFileExists(exists);
-    }
-
-    void operator()(const NeedToReadFile &status) {
-      auto source = self.d->readFile(status.fileName);
-      status.setContents(std::move(source));
-    }
-  } state{*this};
-
   beginPreprocessing(std::move(source), std::move(fileName), tokens);
 
-  while (!state.done) {
+  DefaultPreprocessorState state{*this};
+
+  while (state) {
+    // advance the state of the preprocessor
     std::visit(state, continuePreprocessing(tokens));
   }
 
   endPreprocessing(tokens);
 }
 
-void Preprocessor::NeedToResolveInclude::continueWith(
-    std::string fileName) const {
+void Preprocessor::PendingInclude::resolveWith(
+    std::optional<std::string> fileName) const {
   auto d = preprocessor.d.get();
 
-  auto continuation = d->findOrCreateSourceFile(fileName);
+  if (!fileName.has_value()) {
+    const auto &header = getHeaderName(include);
+    d->error(static_cast<TokList *>(loc),
+             std::format("file '{}' not found", header));
+    return;
+  }
+
+  auto continuation = d->findOrCreateSourceFile(*fileName);
   if (!continuation) return;
 
   // make the continuation the current file
@@ -2916,10 +2959,6 @@ void Preprocessor::NeedToResolveInclude::continueWith(
       .includeDepth = d->includeDepth_ + 1,
   });
 }
-
-void Preprocessor::NeedToKnowIfFileExists::setFileExists(bool exists) const {}
-
-void Preprocessor::NeedToReadFile::setContents(std::string contents) const {}
 
 void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
                                       std::vector<Token> &tokens) {
@@ -2948,6 +2987,11 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
 }
 
 void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
+  // consume the continuation if there is one
+  std::function<void()> continuation;
+  std::swap(continuation, d->continuation_);
+  if (continuation) continuation();
+
   if (tokens.empty()) return;
 
   // assume the main source file is the first one
@@ -2960,7 +3004,13 @@ void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
 }
 
 auto Preprocessor::continuePreprocessing(std::vector<Token> &tokens) -> Status {
+  // consume the continuation if there is one
+  std::function<void()> continuation;
+  std::swap(continuation, d->continuation_);
+  if (continuation) continuation();
+
   auto emitToken = [&](const Tok *tk) { d->finalizeToken(tokens, tk); };
+
   return d->expand(emitToken);
 }
 
@@ -3156,6 +3206,31 @@ auto Preprocessor::getTokenText(const Token &token) const -> std::string_view {
 auto Preprocessor::resolve(const Include &include, bool isIncludeNext) const
     -> std::optional<std::string> {
   return d->resolve(include, isIncludeNext);
+}
+
+void DefaultPreprocessorState::operator()(
+    const Preprocessor::ProcessingComplete &) {
+  done = true;
+}
+
+void DefaultPreprocessorState::operator()(
+    const Preprocessor::CanContinuePreprocessing &) {}
+
+void DefaultPreprocessorState::operator()(
+    const Preprocessor::PendingInclude &status) {
+  auto resolvedInclude = self.resolve(status.include, status.isIncludeNext);
+
+  status.resolveWith(resolvedInclude);
+}
+
+void DefaultPreprocessorState::operator()(
+    const Preprocessor::PendingHasIncludes &status) {
+  using Request = Preprocessor::PendingHasIncludes::Request;
+
+  std::ranges::for_each(status.requests, [&](const Request &dep) {
+    auto resolved = self.resolve(dep.include, dep.isIncludeNext);
+    dep.setExists(resolved.has_value());
+  });
 }
 
 }  // namespace cxx

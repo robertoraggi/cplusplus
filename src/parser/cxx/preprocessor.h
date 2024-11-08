@@ -108,34 +108,34 @@ class Preprocessor {
 
   void endPreprocessing(std::vector<Token> &outputTokens);
 
-  struct NeedToResolveInclude {
+  struct PendingInclude {
     Preprocessor &preprocessor;
     Include include;
     bool isIncludeNext = false;
     void *loc = nullptr;
 
-    void continueWith(std::string fileName) const;
+    void resolveWith(std::optional<std::string> fileName) const;
   };
 
-  struct NeedToKnowIfFileExists {
+  struct PendingHasIncludes {
+    struct Request {
+      Include include;
+      bool isIncludeNext = false;
+      bool &exists;
+
+      void setExists(bool value) const { exists = value; }
+    };
+
     Preprocessor &preprocessor;
-    std::string fileName;
-
-    void setFileExists(bool exists) const;
+    std::vector<Request> requests;
   };
 
-  struct NeedToReadFile {
-    Preprocessor &preprocessor;
-    std::string fileName;
+  struct CanContinuePreprocessing {};
 
-    void setContents(std::string contents) const;
-  };
+  struct ProcessingComplete {};
 
-  struct CanContinue {};
-  struct IsDone {};
-
-  using Status = std::variant<NeedToResolveInclude, NeedToKnowIfFileExists,
-                              NeedToReadFile, CanContinue, IsDone>;
+  using Status = std::variant<PendingInclude, PendingHasIncludes,
+                              CanContinuePreprocessing, ProcessingComplete>;
 
   [[nodiscard]] auto continuePreprocessing(std::vector<Token> &outputTokens)
       -> Status;
@@ -181,6 +181,21 @@ class Preprocessor {
   struct Private;
   struct ParseArguments;
   std::unique_ptr<Private> d;
+};
+
+class DefaultPreprocessorState {
+  Preprocessor &self;
+  bool done = false;
+
+ public:
+  explicit DefaultPreprocessorState(Preprocessor &self) : self(self) {}
+
+  explicit operator bool() const { return !done; }
+
+  void operator()(const Preprocessor::ProcessingComplete &);
+  void operator()(const Preprocessor::CanContinuePreprocessing &);
+  void operator()(const Preprocessor::PendingInclude &status);
+  void operator()(const Preprocessor::PendingHasIncludes &status);
 };
 
 }  // namespace cxx
