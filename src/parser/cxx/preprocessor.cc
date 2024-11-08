@@ -731,6 +731,15 @@ struct Preprocessor::Private {
   std::function<std::string(std::string)> readFile_;
   std::function<void(const std::string &, int)> willIncludeHeader_;
   std::vector<Buffer> buffers_;
+  struct Dep {
+    std::string_view local;
+    Include include;
+    bool isIncludeNext = false;
+    int value = 0;
+  };
+  std::vector<Dep> dependencies_;
+  int localCount_ = 0;
+
   int counter_ = 0;
   int includeDepth_ = 0;
   bool omitLineMarkers_ = false;
@@ -1379,6 +1388,15 @@ void Preprocessor::Private::initialize() {
     return cons(tk, ts);
   };
 
+  auto replaceWithLocal = [this](const Tok *token, std::string_view local,
+                                 TokList *ts) {
+    auto tk = gen(TokenKind::T_PP_INTERNAL_VARIABLE, local);
+    tk->sourceFile = token->sourceFile;
+    tk->space = token->space;
+    tk->bol = token->bol;
+    return cons(tk, ts);
+  };
+
   adddBuiltinFunctionMacro(
       "__has_feature",
       [this, replaceWithBoolLiteral](
@@ -1435,7 +1453,7 @@ void Preprocessor::Private::initialize() {
         return replaceWithBoolLiteral(macroId, enabled, ts);
       });
 
-  auto hasInclude = [this, replaceWithBoolLiteral](
+  auto hasInclude = [this, replaceWithLocal, replaceWithBoolLiteral](
                         const MacroExpansionContext &context) -> TokList * {
     auto ts = context.ts;
 
@@ -1478,9 +1496,11 @@ void Preprocessor::Private::initialize() {
       include = SystemInclude(std::move(fn));
     }
 
-    const auto value = resolve(include, isIncludeNext);
+    std::string_view local = string(std::format("@{}", localCount_++));
 
-    return replaceWithBoolLiteral(macroName, value.has_value(), rest);
+    dependencies_.push_back({local, include, isIncludeNext});
+
+    return replaceWithLocal(macroName, local, rest);
   };
 
   adddBuiltinFunctionMacro("__has_include", hasInclude);
@@ -1709,6 +1729,8 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
   auto directive = start->next;
 
   if (!lookat(directive, TokenKind::T_IDENTIFIER)) return std::nullopt;
+
+  dependencies_.clear();
 
   const auto directiveKind = classifyDirective(directive->tok->text.data(),
                                                directive->tok->text.length());
@@ -2344,8 +2366,14 @@ auto Preprocessor::Private::copyLine(TokList *ts, bool inMacroBody)
 
 auto Preprocessor::Private::constantExpression(TokList *ts) -> long {
   auto line = copyLine(ts);
+  dependencies_.clear();
   auto it = expandTokens(TokIterator{line}, TokIterator{},
                          /*inConditionalExpression*/ true);
+  // evaluate the deps
+  for (auto &d : dependencies_) {
+    auto resolved = resolve(d.include, d.isIncludeNext);
+    d.value = resolved.has_value();
+  }
   auto e = it.toTokList();
   return conditionalExpression(e);
 }
@@ -2527,6 +2555,13 @@ auto Preprocessor::Private::primaryExpression(TokList *&ts) -> long {
     auto result = conditionalExpression(ts);
     expect(ts, TokenKind::T_RPAREN);
     return result;
+  } else if (tk->is(TokenKind::T_PP_INTERNAL_VARIABLE)) {
+    for (const auto &dep : dependencies_) {
+      if (dep.local == tk->text) {
+        ts = ts->next;
+        return dep.value;
+      }
+    }
   }
 
   ts = ts->next;

@@ -42,7 +42,8 @@ class Token;
   V(UTF16_STRING_LITERAL, "<utf16_string_literal>")               \
   V(UTF32_STRING_LITERAL, "<utf32_string_literal>")               \
   V(UTF8_STRING_LITERAL, "<utf8_string_literal>")                 \
-  V(WIDE_STRING_LITERAL, "<wide_string_literal>")
+  V(WIDE_STRING_LITERAL, "<wide_string_literal>")                 \
+  V(PP_INTERNAL_VARIABLE, "<PP_INTERNAL_VARIABLE>")
 
 #define FOR_EACH_OPERATOR(V)      \
   V(AMP_AMP, "&&")                \
