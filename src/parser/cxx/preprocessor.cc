@@ -1135,7 +1135,7 @@ struct Preprocessor::Private {
   [[nodiscard]] auto parseMacroDefinition(TokList *ts) -> Macro;
 
   [[nodiscard]] auto expand(const std::function<void(const Tok *)> &emitToken)
-      -> Status;
+      -> PreprocessingState;
 
   [[nodiscard]] auto expandTokens(TokIterator it, TokIterator last,
                                   bool inConditionalExpression) -> TokIterator;
@@ -1650,7 +1650,7 @@ auto Preprocessor::Private::expandTokens(TokIterator it, TokIterator last,
 }
 
 auto Preprocessor::Private::expand(
-    const std::function<void(const Tok *)> &emitToken) -> Status {
+    const std::function<void(const Tok *)> &emitToken) -> PreprocessingState {
   if (buffers_.empty()) return ProcessingComplete{};
 
   auto buffer = buffers_.back();
@@ -2934,8 +2934,7 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   endPreprocessing(tokens);
 }
 
-void Preprocessor::PendingInclude::resolveWith(
-    std::optional<std::string> fileName) const {
+void PendingInclude::resolveWith(std::optional<std::string> fileName) const {
   auto d = preprocessor.d.get();
 
   if (!fileName.has_value()) {
@@ -2952,7 +2951,7 @@ void Preprocessor::PendingInclude::resolveWith(
   fs::path dirpath = fs::path(continuation->fileName);
   dirpath.remove_filename();
 
-  d->buffers_.push_back(Private::Buffer{
+  d->buffers_.push_back(Preprocessor::Private::Buffer{
       .source = continuation,
       .currentPath = dirpath,
       .ts = continuation->tokens,
@@ -3003,7 +3002,8 @@ void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
   tk.setFileId(mainSourceFileId);
 }
 
-auto Preprocessor::continuePreprocessing(std::vector<Token> &tokens) -> Status {
+auto Preprocessor::continuePreprocessing(std::vector<Token> &tokens)
+    -> PreprocessingState {
   // consume the continuation if there is one
   std::function<void()> continuation;
   std::swap(continuation, d->continuation_);
@@ -3208,24 +3208,20 @@ auto Preprocessor::resolve(const Include &include, bool isIncludeNext) const
   return d->resolve(include, isIncludeNext);
 }
 
-void DefaultPreprocessorState::operator()(
-    const Preprocessor::ProcessingComplete &) {
+void DefaultPreprocessorState::operator()(const ProcessingComplete &) {
   done = true;
 }
 
-void DefaultPreprocessorState::operator()(
-    const Preprocessor::CanContinuePreprocessing &) {}
+void DefaultPreprocessorState::operator()(const CanContinuePreprocessing &) {}
 
-void DefaultPreprocessorState::operator()(
-    const Preprocessor::PendingInclude &status) {
+void DefaultPreprocessorState::operator()(const PendingInclude &status) {
   auto resolvedInclude = self.resolve(status.include, status.isIncludeNext);
 
   status.resolveWith(resolvedInclude);
 }
 
-void DefaultPreprocessorState::operator()(
-    const Preprocessor::PendingHasIncludes &status) {
-  using Request = Preprocessor::PendingHasIncludes::Request;
+void DefaultPreprocessorState::operator()(const PendingHasIncludes &status) {
+  using Request = PendingHasIncludes::Request;
 
   std::ranges::for_each(status.requests, [&](const Request &dep) {
     auto resolved = self.resolve(dep.include, dep.isIncludeNext);
