@@ -26,6 +26,7 @@
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/parser_fwd.h>
+#include <cxx/preprocessor_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
@@ -67,7 +68,14 @@ class TranslationUnit {
     return preprocessor_.get();
   }
 
+  // set source and preprocess, deprecated.
   void setSource(std::string source, std::string fileName);
+
+  void beginPreprocessing(std::string source, std::string fileName);
+
+  [[nodiscard]] auto continuePreprocessing() -> PreprocessingState;
+
+  void endPreprocessing();
 
   [[nodiscard]] auto fatalErrors() const -> bool {
     return diagnosticsClient_->fatalErrors();

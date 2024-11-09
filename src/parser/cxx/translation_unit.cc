@@ -73,8 +73,27 @@ auto TranslationUnit::changeDiagnosticsClient(
 }
 
 void TranslationUnit::setSource(std::string source, std::string fileName) {
+  beginPreprocessing(std::move(source), std::move(fileName));
+  DefaultPreprocessorState state{*preprocessor_};
+  while (state) {
+    std::visit(state, continuePreprocessing());
+  }
+  endPreprocessing();
+}
+
+void TranslationUnit::beginPreprocessing(std::string source,
+                                         std::string fileName) {
   fileName_ = std::move(fileName);
-  preprocessor_->preprocess(std::move(source), fileName_, tokens_);
+  preprocessor_->beginPreprocessing(std::move(source), fileName_, tokens_);
+}
+
+auto TranslationUnit::continuePreprocessing() -> PreprocessingState {
+  return preprocessor_->continuePreprocessing(tokens_);
+}
+
+void TranslationUnit::endPreprocessing() {
+  preprocessor_->endPreprocessing(tokens_);
+  preprocessor_->squeeze();
 }
 
 auto TranslationUnit::tokenLength(SourceLocation loc) const -> int {
@@ -125,6 +144,10 @@ auto TranslationUnit::tokenEndPosition(SourceLocation loc) const
 }
 
 void TranslationUnit::parse(const ParserConfiguration& config) {
+  if (ast_) {
+    cxx_runtime_error("translation unit already parsed");
+  }
+
   Parser parse(this);
   parse.setConfig(config);
   parse(ast_);

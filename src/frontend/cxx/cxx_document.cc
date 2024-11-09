@@ -181,7 +181,6 @@ void CxxDocument::parse(std::string source, std::string fileName) {
   unit.setSource(std::move(source), fileName);
 
   auto preprocessor = unit.preprocessor();
-  preprocessor->squeeze();
 
   unit.parse(ParserConfiguration{
       .checkTypes = cli.opt_fcheck,

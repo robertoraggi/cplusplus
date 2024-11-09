@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/cxx_fwd.h>
+#include <cxx/preprocessor_fwd.h>
 
 #include <functional>
 #include <iosfwd>
@@ -28,7 +28,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -39,25 +38,6 @@ class CommentHandler;
 class Preprocessor;
 class PreprocessorDelegate;
 class SourcePosition;
-
-struct SystemInclude {
-  std::string fileName;
-
-  SystemInclude() = default;
-
-  explicit SystemInclude(std::string fileName)
-      : fileName(std::move(fileName)) {}
-};
-
-struct QuoteInclude {
-  std::string fileName;
-
-  QuoteInclude() = default;
-
-  explicit QuoteInclude(std::string fileName) : fileName(std::move(fileName)) {}
-};
-
-using Include = std::variant<SystemInclude, QuoteInclude>;
 
 class CommentHandler {
  public:
@@ -108,37 +88,8 @@ class Preprocessor {
 
   void endPreprocessing(std::vector<Token> &outputTokens);
 
-  struct PendingInclude {
-    Preprocessor &preprocessor;
-    Include include;
-    bool isIncludeNext = false;
-    void *loc = nullptr;
-
-    void resolveWith(std::optional<std::string> fileName) const;
-  };
-
-  struct PendingHasIncludes {
-    struct Request {
-      Include include;
-      bool isIncludeNext = false;
-      bool &exists;
-
-      void setExists(bool value) const { exists = value; }
-    };
-
-    Preprocessor &preprocessor;
-    std::vector<Request> requests;
-  };
-
-  struct CanContinuePreprocessing {};
-
-  struct ProcessingComplete {};
-
-  using Status = std::variant<PendingInclude, PendingHasIncludes,
-                              CanContinuePreprocessing, ProcessingComplete>;
-
   [[nodiscard]] auto continuePreprocessing(std::vector<Token> &outputTokens)
-      -> Status;
+      -> PreprocessingState;
 
   [[nodiscard]] auto sourceFileName(uint32_t sourceFileId) const
       -> const std::string &;
@@ -180,6 +131,7 @@ class Preprocessor {
  private:
   struct Private;
   struct ParseArguments;
+  friend struct PendingInclude;
   std::unique_ptr<Private> d;
 };
 
@@ -192,10 +144,10 @@ class DefaultPreprocessorState {
 
   explicit operator bool() const { return !done; }
 
-  void operator()(const Preprocessor::ProcessingComplete &);
-  void operator()(const Preprocessor::CanContinuePreprocessing &);
-  void operator()(const Preprocessor::PendingInclude &status);
-  void operator()(const Preprocessor::PendingHasIncludes &status);
+  void operator()(const ProcessingComplete &);
+  void operator()(const CanContinuePreprocessing &);
+  void operator()(const PendingInclude &status);
+  void operator()(const PendingHasIncludes &status);
 };
 
 }  // namespace cxx
