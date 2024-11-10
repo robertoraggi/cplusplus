@@ -121,6 +121,7 @@ class Preprocessor {
   struct Private;
   struct ParseArguments;
   friend struct PendingInclude;
+  friend struct PendingFileContent;
   std::unique_ptr<Private> d;
 };
 
@@ -137,6 +138,7 @@ class DefaultPreprocessorState {
   void operator()(const CanContinuePreprocessing &);
   void operator()(const PendingInclude &status);
   void operator()(const PendingHasIncludes &status);
+  void operator()(const PendingFileContent &status);
 };
 
 }  // namespace cxx
