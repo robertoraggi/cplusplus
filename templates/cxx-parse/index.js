@@ -22,6 +22,8 @@ const { Parser, AST, ASTKind, ASTSlot } = require("cxx-frontend");
 const { readFileSync } = require("fs");
 
 const source = `
+#include <cstdio>
+
 template <typename T>
 concept CanAdd = requires(T n) {
   n + n;
@@ -40,12 +42,15 @@ int main() {
 
 async function main() {
   const wasmBinaryFile = require.resolve("cxx-frontend/dist/wasm/cxx-js.wasm");
-  const wasmBinary = readFileSync(wasmBinaryFile);
-  await Parser.init({ wasm: wasmBinary });
+  const wasm = readFileSync(wasmBinaryFile);
+  await Parser.init({ wasm });
 
-  const parser = new Parser({ source, path: "source.cc" });
+  const parser = new Parser({
+    source,
+    path: "source.cc",
+  });
 
-  parser.parse();
+  await parser.parse();
 
   const diagnostics = parser.getDiagnostics();
 

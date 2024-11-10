@@ -20,6 +20,7 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 

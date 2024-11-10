@@ -83,6 +83,14 @@ interface Lexer {
   tokenText(): string;
 }
 
+interface Api {
+  resolve?: (
+    name: string,
+    kind: "quoted" | "angled",
+    isIncludeNext: boolean,
+  ) => Promise<string | undefined>;
+}
+
 export type CXX = {
   Control: Control;
   DiagnosticsClient: DiagnosticsClient;
@@ -90,7 +98,7 @@ export type CXX = {
   Lexer: Lexer;
   TranslationUnit: TranslationUnit;
 
-  createUnit(source: string, path: string): Unit;
+  createUnit(source: string, path: string, api: Api): Unit;
   getASTKind(handle: number): number;
   getASTSlot(handle: number, slot: number): number;
   getASTSlotKind(handle: number, slot: number): ASTSlotKind;

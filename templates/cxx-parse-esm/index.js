@@ -51,7 +51,7 @@ async function main() {
 
   const parser = new Parser({ source, path: "source.cc" });
 
-  parser.parse();
+  await parser.parse();
 
   const diagnostics = parser.getDiagnostics();
 

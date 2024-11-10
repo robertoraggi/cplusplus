@@ -22,7 +22,7 @@ import initCxx, { cxx } from "./cxx";
 import { Unit } from "./Unit";
 import { AST } from "./AST";
 
-interface ParseParams {
+interface ParserParams {
   /**
    * Path to the file to parse.
    */
@@ -32,6 +32,12 @@ interface ParseParams {
    * Source code to parse.
    */
   source: string;
+
+  resolve?: (
+    name: string,
+    kind: "quoted" | "angled",
+    next: boolean,
+  ) => Promise<string | undefined>;
 }
 
 export class Parser {
@@ -69,8 +75,8 @@ export class Parser {
     return cxx !== undefined && cxx !== null;
   }
 
-  constructor(options: ParseParams) {
-    const { path, source } = options;
+  constructor(options: ParserParams) {
+    const { path, source, resolve } = options;
 
     if (typeof path !== "string") {
       throw new TypeError("expected parameter 'path' of type 'string'");
@@ -80,14 +86,14 @@ export class Parser {
       throw new TypeError("expected parameter 'source' of type 'string'");
     }
 
-    this.#unit = cxx.createUnit(source, path);
+    this.#unit = cxx.createUnit(source, path, { resolve });
   }
 
-  parse() {
+  async parse() {
     if (!this.#unit) {
       return;
     }
-    this.#unit.parse();
+    await this.#unit.parse();
     this.#ast = AST.from(this.#unit.getHandle(), this);
   }
 

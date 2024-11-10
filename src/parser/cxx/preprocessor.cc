@@ -687,7 +687,6 @@ struct Preprocessor::Private {
   Control *control_ = nullptr;
   DiagnosticsClient *diagnosticsClient_ = nullptr;
   CommentHandler *commentHandler_ = nullptr;
-  PreprocessorDelegate *delegate_ = nullptr;
   bool canResolveFiles_ = true;
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
@@ -702,8 +701,6 @@ struct Preprocessor::Private {
   std::vector<bool> skipping_;
   std::string_view date_;
   std::string_view time_;
-  std::function<bool(std::string)> fileExists_;
-  std::function<std::string(std::string)> readFile_;
   std::function<void(const std::string &, int)> willIncludeHeader_;
   std::vector<Buffer> buffers_;
   struct Dep {
@@ -713,7 +710,7 @@ struct Preprocessor::Private {
     bool exists = false;
   };
   std::vector<Dep> dependencies_;
-  std::function<void()> continuation_;
+  std::function<auto()->std::optional<PreprocessingState>> continuation_;
   int localCount_ = 0;
 
   int counter_ = 0;
@@ -1004,12 +1001,10 @@ struct Preprocessor::Private {
   }
 
   [[nodiscard]] auto fileExists(const fs::path &file) const -> bool {
-    if (fileExists_) return fileExists_(file.string());
     return fs::exists(file);
   }
 
   [[nodiscard]] auto readFile(const fs::path &file) const -> std::string {
-    if (readFile_) return readFile_(file.string());
     std::ifstream in(file);
     std::ostringstream out;
     out << in.rdbuf();
@@ -1021,12 +1016,23 @@ struct Preprocessor::Private {
   [[nodiscard]] auto checkPragmaOnceProtected(TokList *ts) const -> bool;
 
   struct Resolve {
+    enum struct Mode {
+      kFirst,
+      kAll,
+    };
+
     const Private *d;
     bool wantNextInlude;
     bool didFindCurrentPath = false;
     std::optional<fs::path> firstMatch;
+    Mode mode;
+    std::vector<std::string> candidates;
 
-    Resolve(const Private *d, bool next) : d(d), wantNextInlude(next) {}
+    Resolve(const Resolve &other) = delete;
+    auto operator=(const Resolve &other) -> Resolve & = delete;
+
+    Resolve(const Private *d, bool next, Mode mode = Mode::kFirst)
+        : d(d), wantNextInlude(next), mode(mode) {}
 
     [[nodiscard]] auto search(auto view, const std::string &headerName)
         -> std::optional<std::string> {
@@ -1049,7 +1055,9 @@ struct Preprocessor::Private {
           continue;
         }
 
-        return path.string();
+        if (mode == Mode::kFirst) return path.string();
+
+        candidates.push_back(path.string());
       }
 
       return std::nullopt;
@@ -1060,22 +1068,29 @@ struct Preprocessor::Private {
       const auto &headerName = include.fileName;
 
       // search in the current path
-      if (auto p = search(std::views::single(d->currentPath_), headerName)) {
+      if (auto p = search(std::views::single(d->currentPath_), headerName);
+          mode == Mode::kFirst && p) {
         return p;
       }
 
       // search in the quote include paths
-      if (auto p = search(d->quoteIncludePaths_, headerName)) {
+      if (auto p = search(d->quoteIncludePaths_, headerName);
+          mode == Mode::kFirst && p) {
         return p;
       }
 
       // fallback to system include paths
-      if (auto p = search(d->systemIncludePaths_, headerName)) {
+      if (auto p = search(d->systemIncludePaths_, headerName);
+          mode == Mode::kFirst && p) {
         return p;
       }
 
       if (wantNextInlude && !didFindCurrentPath) {
-        return firstMatch->string();
+        if (mode == Mode::kFirst)
+          return firstMatch->string();
+        else {
+          candidates.push_back(firstMatch->string());
+        }
       }
 
       return std::nullopt;
@@ -1088,7 +1103,10 @@ struct Preprocessor::Private {
       }
 
       if (wantNextInlude && !didFindCurrentPath) {
-        return firstMatch->string();
+        if (mode == Mode::kFirst)
+          return firstMatch->string();
+        else
+          candidates.push_back(firstMatch->string());
       }
 
       return std::nullopt;
@@ -1163,7 +1181,7 @@ struct Preprocessor::Private {
   };
 
   struct ParsedIfDirective {
-    std::function<void()> resume;
+    std::function<auto()->std::optional<PreprocessingState>> resume;
   };
 
   using ParsedDirective =
@@ -1174,9 +1192,6 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto parseIncludeDirective(TokList *directive, TokList *ts)
       -> std::optional<ParsedIncludeDirective>;
-
-  [[nodiscard]] auto findOrCreateSourceFile(const Include &include,
-                                            bool isIncludeNext) -> SourceFile *;
 
   [[nodiscard]] auto findOrCreateSourceFile(const std::string &fileName)
       -> SourceFile *;
@@ -1680,11 +1695,20 @@ auto Preprocessor::Private::expand(
 
       if (auto parsedInclude =
               std::get_if<ParsedIncludeDirective>(&parsedDirective)) {
-        PendingInclude status{
+        PendingInclude nextState{
             .preprocessor = *preprocessor_,
             .include = parsedInclude->header,
             .isIncludeNext = parsedInclude->includeNext,
             .loc = parsedInclude->loc,
+        };
+
+        nextState.candidates = [=, this]() -> std::vector<std::string> {
+          auto resolve =
+              Resolve{this, parsedInclude->includeNext, Resolve::Mode::kAll};
+
+          (void)std::visit(resolve, parsedInclude->header);
+
+          return resolve.candidates;
         };
 
         // suspend the current file and start processing the continuation
@@ -1698,7 +1722,7 @@ auto Preprocessor::Private::expand(
         // reset the token stream, so we can start processing the continuation
         it = last;
 
-        return status;
+        return nextState;
       } else if (auto directive =
                      std::get_if<ParsedIfDirective>(&parsedDirective)) {
         // suspend and resolve the dependencies
@@ -1825,7 +1849,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
       } else {
         auto expression = prepareConstantExpression(ts);
 
-        auto resume = [=, this] {
+        auto resume = [=, this]() -> std::optional<PreprocessingState> {
           const auto value = evaluateConstantExpression(expression);
 
           if (value) {
@@ -1833,6 +1857,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
           } else {
             pushState(std::tuple(true, !skipping));
           }
+          return std::nullopt;
         };
 
         if (dependencies_.empty()) {
@@ -1852,7 +1877,7 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
       } else {
         auto expression = prepareConstantExpression(ts);
 
-        auto resume = [=, this] {
+        auto resume = [=, this]() -> std::optional<PreprocessingState> {
           const auto value = evaluateConstantExpression(expression);
 
           if (value) {
@@ -1860,6 +1885,8 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
           } else {
             setState(std::tuple(true, evaluating));
           }
+
+          return std::nullopt;
         };
 
         if (dependencies_.empty()) {
@@ -1992,17 +2019,6 @@ auto Preprocessor::Private::parseIncludeDirective(TokList *directive,
   }
 
   return std::nullopt;
-}
-
-auto Preprocessor::Private::findOrCreateSourceFile(const Include &include,
-                                                   bool isIncludeNext)
-    -> SourceFile * {
-  if (auto path = resolve(include, isIncludeNext)) {
-    auto sourceFile = findOrCreateSourceFile(path.value());
-    return sourceFile;
-  }
-
-  return nullptr;
 }
 
 auto Preprocessor::Private::findOrCreateSourceFile(const std::string &fileName)
@@ -2860,14 +2876,6 @@ void Preprocessor::setCommentHandler(CommentHandler *commentHandler) {
   d->commentHandler_ = commentHandler;
 }
 
-auto Preprocessor::delegate() const -> PreprocessorDelegate * {
-  return d->delegate_;
-}
-
-void Preprocessor::setDelegate(PreprocessorDelegate *delegate) {
-  d->delegate_ = delegate;
-}
-
 auto Preprocessor::canResolveFiles() const -> bool {
   return d->canResolveFiles_;
 }
@@ -2890,16 +2898,6 @@ auto Preprocessor::omitLineMarkers() const -> bool {
 
 void Preprocessor::setOmitLineMarkers(bool omitLineMarkers) {
   d->omitLineMarkers_ = omitLineMarkers;
-}
-
-void Preprocessor::setFileExistsFunction(
-    std::function<bool(std::string)> fileExists) {
-  d->fileExists_ = std::move(fileExists);
-}
-
-void Preprocessor::setReadFileFunction(
-    std::function<std::string(std::string)> readFile) {
-  d->readFile_ = std::move(readFile);
 }
 
 void Preprocessor::setOnWillIncludeHeader(
@@ -2944,19 +2942,31 @@ void PendingInclude::resolveWith(std::optional<std::string> fileName) const {
     return;
   }
 
-  auto continuation = d->findOrCreateSourceFile(*fileName);
-  if (!continuation) return;
+  auto resume = [=]() -> std::optional<PreprocessingState> {
+    auto continuation = d->findOrCreateSourceFile(*fileName);
+    if (!continuation) return std::nullopt;
 
-  // make the continuation the current file
-  fs::path dirpath = fs::path(continuation->fileName);
-  dirpath.remove_filename();
+    // make the continuation the current file
+    auto dirpath = fs::path(continuation->fileName);
+    dirpath.remove_filename();
 
-  d->buffers_.push_back(Preprocessor::Private::Buffer{
-      .source = continuation,
-      .currentPath = dirpath,
-      .ts = continuation->tokens,
-      .includeDepth = d->includeDepth_ + 1,
-  });
+    d->buffers_.push_back(Preprocessor::Private::Buffer{
+        .source = continuation,
+        .currentPath = dirpath,
+        .ts = continuation->tokens,
+        .includeDepth = d->includeDepth_ + 1,
+    });
+
+    return std::nullopt;
+  };
+
+  auto sourceFile = d->findSourceFile(*fileName);
+  if (sourceFile) {
+    resume();
+    return;
+  }
+
+  d->continuation_ = std::move(resume);
 }
 
 void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
@@ -2987,7 +2997,7 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
 
 void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
   // consume the continuation if there is one
-  std::function<void()> continuation;
+  std::function<auto()->std::optional<PreprocessingState>> continuation;
   std::swap(continuation, d->continuation_);
   if (continuation) continuation();
 
@@ -3005,9 +3015,12 @@ void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
 auto Preprocessor::continuePreprocessing(std::vector<Token> &tokens)
     -> PreprocessingState {
   // consume the continuation if there is one
-  std::function<void()> continuation;
+  std::function<std::optional<PreprocessingState>()> continuation;
   std::swap(continuation, d->continuation_);
-  if (continuation) continuation();
+  if (continuation) {
+    auto next = continuation();
+    if (next) return *next;
+  }
 
   auto emitToken = [&](const Tok *tk) { d->finalizeToken(tokens, tk); };
 
