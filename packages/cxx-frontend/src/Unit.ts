@@ -22,7 +22,7 @@ import { Diagnostic } from "./Diagnostic";
 
 export interface Unit {
   delete(): void;
-  parse(): boolean;
+  parse(): Promise<boolean>;
   getHandle(): number;
   getUnitHandle(): number;
   getDiagnostics(): Diagnostic[];

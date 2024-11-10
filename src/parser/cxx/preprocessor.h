@@ -47,11 +47,6 @@ class CommentHandler {
                              const Token &token) = 0;
 };
 
-class PreprocessorDelegate {
- public:
-  virtual ~PreprocessorDelegate() = default;
-};
-
 class Preprocessor {
  public:
   Preprocessor(Preprocessor &&) noexcept = default;
@@ -65,9 +60,6 @@ class Preprocessor {
   [[nodiscard]] auto commentHandler() const -> CommentHandler *;
   void setCommentHandler(CommentHandler *commentHandler);
 
-  [[nodiscard]] auto delegate() const -> PreprocessorDelegate *;
-  void setDelegate(PreprocessorDelegate *delegate);
-
   [[nodiscard]] auto canResolveFiles() const -> bool;
   void setCanResolveFiles(bool canResolveFiles);
 
@@ -76,9 +68,6 @@ class Preprocessor {
 
   [[nodiscard]] auto omitLineMarkers() const -> bool;
   void setOmitLineMarkers(bool omitLineMarkers);
-
-  void setFileExistsFunction(std::function<bool(std::string)> fileExists);
-  void setReadFileFunction(std::function<std::string(std::string)> readFile);
 
   void setOnWillIncludeHeader(
       std::function<void(const std::string &, int)> willIncludeHeader);

@@ -32,6 +32,7 @@
 #include <emscripten/val.h>
 
 #include <format>
+#include <iostream>
 #include <sstream>
 
 using namespace emscripten;
@@ -61,42 +62,121 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
 struct WrappedUnit {
   std::unique_ptr<DiagnosticsClient> diagnosticsClient;
   std::unique_ptr<cxx::TranslationUnit> unit;
+  val api;
 
-  WrappedUnit(std::string source, std::string filename) {
+  WrappedUnit(std::string source, std::string filename, val api = {})
+      : api(api) {
     diagnosticsClient = std::make_unique<DiagnosticsClient>();
+
     unit = std::make_unique<cxx::TranslationUnit>(diagnosticsClient.get());
+
     if (auto preprocessor = unit->preprocessor()) {
-      preprocessor->setCanResolveFiles(false);
+      preprocessor->setCanResolveFiles(true);
     }
 
-    unit->setSource(std::move(source), std::move(filename));
+    unit->beginPreprocessing(std::move(source), std::move(filename));
   }
 
-  std::intptr_t getUnitHandle() const { return (std::intptr_t)unit.get(); }
+  auto getUnitHandle() const -> std::intptr_t {
+    return (std::intptr_t)unit.get();
+  }
 
-  std::intptr_t getHandle() const { return (std::intptr_t)unit->ast(); }
+  auto getHandle() const -> std::intptr_t { return (std::intptr_t)unit->ast(); }
 
-  val getDiagnostics() const { return diagnosticsClient->messages; }
+  auto getDiagnostics() const -> val { return diagnosticsClient->messages; }
 
-  bool parse() {
+  auto parse() -> val {
+    val resolve = val::undefined();
+
+    if (!api.isUndefined()) {
+      resolve = api["resolve"];
+    }
+
+    struct {
+      auto operator()(const cxx::SystemInclude& include) -> val {
+        return val(include.fileName);
+      }
+      auto operator()(const cxx::QuoteInclude& include) -> val {
+        return val(include.fileName);
+      }
+    } getHeaderName;
+
+    struct {
+      val quoted{"quoted"};
+      val angled{"angled"};
+
+      auto operator()(const cxx::SystemInclude& include) -> val {
+        return angled;
+      }
+      auto operator()(const cxx::QuoteInclude& include) -> val {
+        return quoted;
+      }
+    } getIncludeType;
+
+    while (true) {
+      auto state = unit->continuePreprocessing();
+
+      if (std::holds_alternative<cxx::ProcessingComplete>(state)) break;
+
+      if (auto pendingInclude = std::get_if<cxx::PendingInclude>(&state)) {
+        if (resolve.isUndefined()) {
+          pendingInclude->resolveWith(std::nullopt);
+          continue;
+        }
+
+        auto header = std::visit(getHeaderName, pendingInclude->include);
+        auto includeType = std::visit(getIncludeType, pendingInclude->include);
+
+        val resolved = co_await resolve(header, includeType,
+                                        pendingInclude->isIncludeNext);
+
+        if (resolved.isString()) {
+          pendingInclude->resolveWith(resolved.as<std::string>());
+        } else {
+          pendingInclude->resolveWith(std::nullopt);
+        }
+
+      } else if (auto pendingHasIncludes =
+                     std::get_if<cxx::PendingHasIncludes>(&state)) {
+        for (auto& request : pendingHasIncludes->requests) {
+          if (resolve.isUndefined()) {
+            request.setExists(false);
+            continue;
+          }
+
+          auto header = std::visit(getHeaderName, request.include);
+          auto includeType = std::visit(getIncludeType, request.include);
+
+          val resolved =
+              co_await resolve(header, includeType, request.isIncludeNext);
+
+          request.setExists(resolved.isString());
+        }
+      }
+    }
+
+    unit->endPreprocessing();
+
     unit->parse();
-    return true;
+
+    co_return val{true};
   }
 };
 
-std::string getTokenText(std::intptr_t handle, std::intptr_t unitHandle) {
+auto getTokenText(std::intptr_t handle, std::intptr_t unitHandle)
+    -> std::string {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
   auto text = unit->tokenText(cxx::SourceLocation(handle));
   return text;
 }
 
-int getTokenKind(std::intptr_t handle, std::intptr_t unitHandle) {
+auto getTokenKind(std::intptr_t handle, std::intptr_t unitHandle) -> int {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
   auto kind = unit->tokenKind(cxx::SourceLocation(handle));
   return static_cast<int>(kind);
 }
 
-val getTokenLocation(std::intptr_t handle, std::intptr_t unitHandle) {
+auto getTokenLocation(std::intptr_t handle, std::intptr_t unitHandle) -> val {
   auto unit = reinterpret_cast<cxx::TranslationUnit*>(unitHandle);
 
   cxx::SourceLocation loc(handle);
@@ -114,71 +194,71 @@ val getTokenLocation(std::intptr_t handle, std::intptr_t unitHandle) {
   return result;
 }
 
-val getStartLocation(std::intptr_t handle, std::intptr_t unitHandle) {
+auto getStartLocation(std::intptr_t handle, std::intptr_t unitHandle) -> val {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   const auto loc = ast->firstSourceLocation();
   if (!loc) return {};
   return getTokenLocation(loc.index(), unitHandle);
 }
 
-val getEndLocation(std::intptr_t handle, std::intptr_t unitHandle) {
+auto getEndLocation(std::intptr_t handle, std::intptr_t unitHandle) -> val {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   const auto loc = ast->lastSourceLocation().previous();
   if (!loc) return {};
   return getTokenLocation(loc.index(), unitHandle);
 }
 
-val getIdentifierValue(std::intptr_t handle) {
+auto getIdentifierValue(std::intptr_t handle) -> val {
   auto id = reinterpret_cast<const cxx::Identifier*>(handle);
   if (!id) return {};
   return val(id->value());
 }
 
-val getLiteralValue(std::intptr_t handle) {
+auto getLiteralValue(std::intptr_t handle) -> val {
   auto id = reinterpret_cast<const cxx::Literal*>(handle);
   if (!id) return {};
   return val(id->value());
 }
 
-int getASTKind(std::intptr_t handle) {
+auto getASTKind(std::intptr_t handle) -> int {
   return static_cast<int>(((cxx::AST*)handle)->kind());
 }
 
-int getListValue(std::intptr_t handle) {
+auto getListValue(std::intptr_t handle) -> int {
   auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
   return std::intptr_t(list->value);
 }
 
-std::intptr_t getListNext(std::intptr_t handle) {
+auto getListNext(std::intptr_t handle) -> std::intptr_t {
   auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
   return std::intptr_t(list->next);
 }
 
-std::intptr_t getASTSlot(std::intptr_t handle, int slot) {
+auto getASTSlot(std::intptr_t handle, int slot) -> std::intptr_t {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return value;
 }
 
-int getASTSlotKind(std::intptr_t handle, int slot) {
+auto getASTSlotKind(std::intptr_t handle, int slot) -> int {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotKind);
 }
 
-int getASTSlotName(std::intptr_t handle, int slot) {
+auto getASTSlotName(std::intptr_t handle, int slot) -> int {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotName, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotName);
 }
 
-int getASTSlotCount(std::intptr_t handle, int slot) {
+auto getASTSlotCount(std::intptr_t handle, int slot) -> int {
   auto ast = reinterpret_cast<cxx::AST*>(handle);
   auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
   return static_cast<int>(slotCount);
 }
 
-WrappedUnit* createUnit(std::string source, std::string filename) {
+auto createUnit(std::string source, std::string filename) -> WrappedUnit* {
   auto wrapped = new WrappedUnit(std::move(source), std::move(filename));
 
   return wrapped;
@@ -194,17 +274,6 @@ auto lexerTokenText(cxx::Lexer& lexer) -> std::string {
 
 auto lexerNext(cxx::Lexer& lexer) -> int {
   return static_cast<int>(lexer.next());
-}
-
-void preprocessorSetup(cxx::Preprocessor& preprocessor, val fileExistsFn,
-                       val readFileFn) {
-  preprocessor.setFileExistsFunction([fileExistsFn](std::string fileName) {
-    return fileExistsFn(fileName).as<bool>();
-  });
-
-  preprocessor.setReadFileFunction([readFileFn](std::string fileName) {
-    return readFileFn(fileName).as<std::string>();
-  });
 }
 
 auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
@@ -241,7 +310,6 @@ auto register_preprocessor(const char* name = "Preprocessor")
   return class_<cxx::Preprocessor>(name)
       .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
       .function("preprocess", &preprocesorPreprocess)
-      .function("setup", &preprocessorSetup)
       .function("addIncludePath", &cxx::Preprocessor::addSystemIncludePath)
       .function("defineMacro", &cxx::Preprocessor::defineMacro)
       .function("undefineMacro", &cxx::Preprocessor::undefMacro)
@@ -283,7 +351,7 @@ auto register_translation_unit(const char* name = "TranslationUnit")
 
 }  // namespace
 
-EMSCRIPTEN_BINDINGS(my_module) {
+EMSCRIPTEN_BINDINGS(cxx) {
   register_control();
   register_diagnostics_client();
   register_preprocessor();

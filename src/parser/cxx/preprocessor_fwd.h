@@ -22,6 +22,7 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <variant>
@@ -56,6 +57,7 @@ struct PendingInclude {
   Include include;
   bool isIncludeNext = false;
   void *loc = nullptr;
+  std::function<auto()->std::vector<std::string>> candidates;
 
   void resolveWith(std::optional<std::string> fileName) const;
 };
