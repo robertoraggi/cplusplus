@@ -94,9 +94,6 @@ struct WrappedUnit {
     if (!api.isUndefined()) {
       resolve = api["resolve"];
       readFile = api["readFile"];
-      std::cerr << "set resolve and read file\n";
-    } else {
-      std::cerr << "no resolve and read file\n";
     }
 
     struct {
