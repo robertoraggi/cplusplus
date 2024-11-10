@@ -89,6 +89,8 @@ interface Api {
     kind: "quoted" | "angled",
     isIncludeNext: boolean,
   ) => Promise<string | undefined>;
+
+  readFile?: (path: string) => Promise<string | undefined>;
 }
 
 export type CXX = {

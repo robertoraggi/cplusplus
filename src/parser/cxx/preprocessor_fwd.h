@@ -75,12 +75,19 @@ struct PendingHasIncludes {
   std::vector<Request> requests;
 };
 
+struct PendingFileContent {
+  Preprocessor &preprocessor;
+  std::string fileName;
+
+  void setContent(std::optional<std::string> content) const;
+};
+
 struct CanContinuePreprocessing {};
 
 struct ProcessingComplete {};
 
 using PreprocessingState =
-    std::variant<PendingInclude, PendingHasIncludes, CanContinuePreprocessing,
-                 ProcessingComplete>;
+    std::variant<PendingInclude, PendingHasIncludes, PendingFileContent,
+                 CanContinuePreprocessing, ProcessingComplete>;
 
 }  // namespace cxx

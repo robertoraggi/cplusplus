@@ -45,6 +45,7 @@
 #include <unordered_set>
 #include <variant>
 
+#include "cxx/preprocessor_fwd.h"
 #include "pp_keywords-priv.h"
 
 namespace {
@@ -1004,13 +1005,6 @@ struct Preprocessor::Private {
     return fs::exists(file);
   }
 
-  [[nodiscard]] auto readFile(const fs::path &file) const -> std::string {
-    std::ifstream in(file);
-    std::ostringstream out;
-    out << in.rdbuf();
-    return out.str();
-  }
-
   [[nodiscard]] auto checkHeaderProtection(TokList *ts) const -> TokList *;
 
   [[nodiscard]] auto checkPragmaOnceProtected(TokList *ts) const -> bool;
@@ -1193,9 +1187,6 @@ struct Preprocessor::Private {
   [[nodiscard]] auto parseIncludeDirective(TokList *directive, TokList *ts)
       -> std::optional<ParsedIncludeDirective>;
 
-  [[nodiscard]] auto findOrCreateSourceFile(const std::string &fileName)
-      -> SourceFile *;
-
   [[nodiscard]] auto parseHeaderName(TokList *ts)
       -> std::tuple<TokList *, std::optional<Include>>;
 
@@ -1312,6 +1303,110 @@ struct Preprocessor::ParseArguments {
     return it;
   }
 };
+
+void PendingInclude::resolveWith(
+    std::optional<std::string> resolvedFileName) const {
+  auto d = preprocessor.d.get();
+
+  if (!resolvedFileName.has_value()) {
+    const auto &header = getHeaderName(include);
+    d->error(static_cast<TokList *>(loc),
+             std::format("file '{}' not found", header));
+    return;
+  }
+
+  auto fileName = resolvedFileName.value();
+
+  auto resume = [=, this]() -> std::optional<PreprocessingState> {
+    auto sourceFile = d->findSourceFile(fileName);
+    if (!sourceFile) {
+      PendingFileContent request{
+          .preprocessor = preprocessor,
+          .fileName = fileName,
+      };
+      return request;
+    }
+
+    if (sourceFile->pragmaOnceProtected) {
+      // nothing to do
+      return std::nullopt;
+    }
+
+    if (auto it = d->ifndefProtectedFiles_.find(fileName);
+        it != d->ifndefProtectedFiles_.end() &&
+        d->macros_.contains(it->second)) {
+      return std::nullopt;
+    }
+
+    auto continuation = sourceFile;
+    if (!continuation) return std::nullopt;
+
+    // make the continuation the current file
+    auto dirpath = fs::path(continuation->fileName);
+    dirpath.remove_filename();
+
+    d->buffers_.push_back(Preprocessor::Private::Buffer{
+        .source = continuation,
+        .currentPath = dirpath,
+        .ts = continuation->tokens,
+        .includeDepth = d->includeDepth_ + 1,
+    });
+
+    if (d->willIncludeHeader_) {
+      d->willIncludeHeader_(fileName, d->includeDepth_ + 1);
+    }
+
+    return std::nullopt;
+  };
+
+  auto sourceFile = d->findSourceFile(fileName);
+  if (sourceFile) {
+    resume();
+    return;
+  }
+
+  d->continuation_ = std::move(resume);
+}
+
+void PendingFileContent::setContent(std::optional<std::string> content) const {
+  auto d = preprocessor.d.get();
+
+  if (!content.has_value()) {
+    // report error
+    return;
+  }
+
+  auto sourceFile = d->createSourceFile(fileName, std::move(*content));
+
+  sourceFile->pragmaOnceProtected =
+      d->checkPragmaOnceProtected(sourceFile->tokens);
+
+  sourceFile->headerProtection = d->checkHeaderProtection(sourceFile->tokens);
+
+  if (sourceFile->headerProtection) {
+    sourceFile->headerProtectionLevel = d->evaluating_.size();
+
+    d->ifndefProtectedFiles_.insert_or_assign(
+        sourceFile->fileName, sourceFile->headerProtection->tok->text);
+  }
+
+  auto continuation = sourceFile;
+
+  // make the continuation the current file
+  auto dirpath = fs::path(continuation->fileName);
+  dirpath.remove_filename();
+
+  d->buffers_.push_back(Preprocessor::Private::Buffer{
+      .source = continuation,
+      .currentPath = dirpath,
+      .ts = continuation->tokens,
+      .includeDepth = d->includeDepth_ + 1,
+  });
+
+  if (d->willIncludeHeader_) {
+    d->willIncludeHeader_(fileName, d->includeDepth_ + 1);
+  }
+}
 
 Preprocessor::Private::Private() {
   skipping_.push_back(false);
@@ -2019,43 +2114,6 @@ auto Preprocessor::Private::parseIncludeDirective(TokList *directive,
   }
 
   return std::nullopt;
-}
-
-auto Preprocessor::Private::findOrCreateSourceFile(const std::string &fileName)
-    -> SourceFile * {
-  if (auto it = ifndefProtectedFiles_.find(fileName);
-      it != ifndefProtectedFiles_.end() && macros_.contains(it->second)) {
-    return nullptr;
-  }
-
-  auto sourceFile = findSourceFile(fileName);
-
-  if (sourceFile && sourceFile->pragmaOnceProtected) {
-    // nothing to do
-    return nullptr;
-  }
-
-  if (!sourceFile) {
-    sourceFile = createSourceFile(fileName, readFile(fileName));
-
-    sourceFile->pragmaOnceProtected =
-        checkPragmaOnceProtected(sourceFile->tokens);
-
-    sourceFile->headerProtection = checkHeaderProtection(sourceFile->tokens);
-
-    if (sourceFile->headerProtection) {
-      sourceFile->headerProtectionLevel = evaluating_.size();
-
-      ifndefProtectedFiles_.insert_or_assign(
-          sourceFile->fileName, sourceFile->headerProtection->tok->text);
-    }
-  }
-
-  if (willIncludeHeader_) {
-    willIncludeHeader_(fileName, includeDepth_ + 1);
-  }
-
-  return sourceFile;
 }
 
 auto Preprocessor::Private::parseHeaderName(TokList *ts)
@@ -2932,43 +2990,6 @@ void Preprocessor::preprocess(std::string source, std::string fileName,
   endPreprocessing(tokens);
 }
 
-void PendingInclude::resolveWith(std::optional<std::string> fileName) const {
-  auto d = preprocessor.d.get();
-
-  if (!fileName.has_value()) {
-    const auto &header = getHeaderName(include);
-    d->error(static_cast<TokList *>(loc),
-             std::format("file '{}' not found", header));
-    return;
-  }
-
-  auto resume = [=]() -> std::optional<PreprocessingState> {
-    auto continuation = d->findOrCreateSourceFile(*fileName);
-    if (!continuation) return std::nullopt;
-
-    // make the continuation the current file
-    auto dirpath = fs::path(continuation->fileName);
-    dirpath.remove_filename();
-
-    d->buffers_.push_back(Preprocessor::Private::Buffer{
-        .source = continuation,
-        .currentPath = dirpath,
-        .ts = continuation->tokens,
-        .includeDepth = d->includeDepth_ + 1,
-    });
-
-    return std::nullopt;
-  };
-
-  auto sourceFile = d->findSourceFile(*fileName);
-  if (sourceFile) {
-    resume();
-    return;
-  }
-
-  d->continuation_ = std::move(resume);
-}
-
 void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
                                       std::vector<Token> &tokens) {
   assert(!d->findSourceFile(fileName));
@@ -3240,6 +3261,14 @@ void DefaultPreprocessorState::operator()(const PendingHasIncludes &status) {
     auto resolved = self.resolve(dep.include, dep.isIncludeNext);
     dep.setExists(resolved.has_value());
   });
+}
+
+void DefaultPreprocessorState::operator()(const PendingFileContent &request) {
+  std::ifstream in(request.fileName);
+  std::ostringstream out;
+  out << in.rdbuf();
+
+  request.setContent(out.str());
 }
 
 }  // namespace cxx

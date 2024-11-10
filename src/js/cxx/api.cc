@@ -31,8 +31,10 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
+#include <cstdlib>
 #include <format>
 #include <iostream>
+#include <optional>
 #include <sstream>
 
 using namespace emscripten;
@@ -87,9 +89,14 @@ struct WrappedUnit {
 
   auto parse() -> val {
     val resolve = val::undefined();
+    val readFile = val::undefined();
 
     if (!api.isUndefined()) {
       resolve = api["resolve"];
+      readFile = api["readFile"];
+      std::cerr << "set resolve and read file\n";
+    } else {
+      std::cerr << "no resolve and read file\n";
     }
 
     struct {
@@ -151,6 +158,20 @@ struct WrappedUnit {
               co_await resolve(header, includeType, request.isIncludeNext);
 
           request.setExists(resolved.isString());
+        }
+      } else if (auto pendingFileContent =
+                     std::get_if<cxx::PendingFileContent>(&state)) {
+        if (readFile.isUndefined()) {
+          pendingFileContent->setContent(std::nullopt);
+          continue;
+        }
+
+        val content = co_await readFile(pendingFileContent->fileName);
+
+        if (content.isString()) {
+          pendingFileContent->setContent(content.as<std::string>());
+        } else {
+          pendingFileContent->setContent(std::nullopt);
         }
       }
     }
@@ -258,8 +279,9 @@ auto getASTSlotCount(std::intptr_t handle, int slot) -> int {
   return static_cast<int>(slotCount);
 }
 
-auto createUnit(std::string source, std::string filename) -> WrappedUnit* {
-  auto wrapped = new WrappedUnit(std::move(source), std::move(filename));
+auto createUnit(std::string source, std::string filename, val api)
+    -> WrappedUnit* {
+  auto wrapped = new WrappedUnit(std::move(source), std::move(filename), api);
 
   return wrapped;
 }

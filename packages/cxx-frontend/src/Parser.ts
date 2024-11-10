@@ -33,11 +33,19 @@ interface ParserParams {
    */
   source: string;
 
+  /**
+   * Function to resolve include directives.
+   */
   resolve?: (
     name: string,
     kind: "quoted" | "angled",
     next: boolean,
   ) => Promise<string | undefined>;
+
+  /**
+   * Function to read files.
+   */
+  readFile?: (path: string) => Promise<string | undefined>;
 }
 
 export class Parser {
@@ -76,7 +84,7 @@ export class Parser {
   }
 
   constructor(options: ParserParams) {
-    const { path, source, resolve } = options;
+    const { path, source, resolve, readFile } = options;
 
     if (typeof path !== "string") {
       throw new TypeError("expected parameter 'path' of type 'string'");
@@ -86,7 +94,7 @@ export class Parser {
       throw new TypeError("expected parameter 'source' of type 'string'");
     }
 
-    this.#unit = cxx.createUnit(source, path, { resolve });
+    this.#unit = cxx.createUnit(source, path, { resolve, readFile });
   }
 
   async parse() {
