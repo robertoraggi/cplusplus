@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
+#include <cxx/cli.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
@@ -42,7 +43,6 @@
 #include <string>
 
 #include "ast_printer.h"
-#include "cli.h"
 #include "lsp_server.h"
 #include "verify_diagnostics_client.h"
 

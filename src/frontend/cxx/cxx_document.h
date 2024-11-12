@@ -20,13 +20,12 @@
 
 #pragma once
 
+#include <cxx/cli.h>
 #include <cxx/lsp/fwd.h>
 #include <cxx/translation_unit.h>
 
 #include <optional>
 #include <string>
-
-#include "cli.h"
 
 namespace cxx::lsp {
 
