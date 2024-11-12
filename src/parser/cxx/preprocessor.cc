@@ -31,6 +31,7 @@
 #include <utf8/unchecked.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <format>
 #include <forward_list>
@@ -1019,8 +1020,9 @@ struct Preprocessor::Private {
     Resolve(const Resolve &other) = delete;
     auto operator=(const Resolve &other) -> Resolve & = delete;
 
-    Resolve(const Private *d, bool next)
-        : d(d), wantNextInlude(next), currentPaths{{d->currentPath_}} {}
+    Resolve(const Private *d, bool next) : d(d), wantNextInlude(next) {
+      currentPaths[0] = d->currentPath_.string();
+    }
 
     using SearchPaths = std::vector<std::span<const std::string>>;
 
@@ -1041,8 +1043,8 @@ struct Preprocessor::Private {
         return p;
       }
 
-      if (wantNextInlude && !didFindCurrentPath) {
-        return firstMatch;
+      if (wantNextInlude && !didFindCurrentPath && firstMatch.has_value()) {
+        return firstMatch->string();
       }
 
       return std::nullopt;
@@ -1050,15 +1052,15 @@ struct Preprocessor::Private {
 
     [[nodiscard]] auto userHeaderSearchPaths() -> SearchPaths {
       std::vector<std::span<const std::string>> paths;
-      paths.push_back(currentPaths);
-      paths.push_back(d->quoteIncludePaths_);
-      paths.push_back(d->systemIncludePaths_);
+      paths.push_back(std::span<const std::string>(currentPaths));
+      paths.push_back(std::span<const std::string>(d->quoteIncludePaths_));
+      paths.push_back(std::span<const std::string>(d->systemIncludePaths_));
       return paths;
     }
 
     [[nodiscard]] auto systemHeaderSearchPaths() -> SearchPaths {
       std::vector<std::span<const std::string>> paths;
-      paths.push_back(d->systemIncludePaths_);
+      paths.push_back(std::span<const std::string>(d->systemIncludePaths_));
       return paths;
     }
 
