@@ -41,7 +41,6 @@ class GCCLinuxToolchain final : public Toolchain {
   void addCommonMacros();
   void addAmd64Macros();
   void addArm64Macros();
-  void addCxx26Macros();
 
  private:
   std::optional<int> version_;
