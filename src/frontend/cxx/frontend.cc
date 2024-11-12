@@ -24,6 +24,7 @@
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
+#include <cxx/lsp/lsp_server.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
@@ -43,7 +44,6 @@
 #include <string>
 
 #include "ast_printer.h"
-#include "lsp_server.h"
 #include "verify_diagnostics_client.h"
 
 namespace {

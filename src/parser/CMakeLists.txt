@@ -27,6 +27,10 @@ add_library(cxx-parser ${SOURCES}
     pp_keywords-priv.h
 )
 
+target_compile_definitions(cxx-parser PUBLIC
+    CXX_VERSION="${CMAKE_PROJECT_VERSION}"
+)
+
 target_include_directories(cxx-parser
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>

@@ -26,6 +26,15 @@ add_library(cxx-lsp
     ${CXX_LSP_INCLUDE_HEADER_FILES}
 )
 
+target_link_libraries(cxx-lsp PUBLIC cxx-parser)
+
+# if cmake founds the Threads package, link with it
+if(Threads_FOUND)
+    target_link_libraries(cxx-lsp PUBLIC Threads::Threads)
+else()
+    target_compile_definitions(cxx-lsp PUBLIC CXX_NO_THREADS)
+endif()
+
 target_include_directories(cxx-lsp
     PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>

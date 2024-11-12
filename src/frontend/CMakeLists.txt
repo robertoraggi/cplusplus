@@ -23,17 +23,6 @@ add_executable(cxx ${SOURCES})
 
 target_link_libraries(cxx PRIVATE cxx-parser cxx-lsp)
 
-target_compile_definitions(cxx PRIVATE
-    CXX_VERSION="${CMAKE_PROJECT_VERSION}"
-)
-
-# if cmake founds the Threads package, link with it
-if(Threads_FOUND)
-    target_link_libraries(cxx PRIVATE Threads::Threads)
-else()
-    target_compile_definitions(cxx PRIVATE CXX_NO_THREADS)
-endif()
-
 if(EMSCRIPTEN)
     target_link_options(cxx PRIVATE
         "SHELL:-s EXIT_RUNTIME=1"
