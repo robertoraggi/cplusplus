@@ -30,9 +30,10 @@
 #include <unordered_map>
 #endif
 
+#include <cxx/cli.h>
+
 #include <vector>
 
-#include "cli.h"
 #include "sync_queue.h"
 
 namespace cxx::lsp {
