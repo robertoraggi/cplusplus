@@ -1010,23 +1010,57 @@ struct Preprocessor::Private {
   [[nodiscard]] auto checkPragmaOnceProtected(TokList *ts) const -> bool;
 
   struct Resolve {
-    enum struct Mode {
-      kFirst,
-      kAll,
-    };
-
     const Private *d;
     bool wantNextInlude;
     bool didFindCurrentPath = false;
     std::optional<fs::path> firstMatch;
-    Mode mode;
-    std::vector<std::string> candidates;
+    std::array<std::string, 1> currentPaths;
 
     Resolve(const Resolve &other) = delete;
     auto operator=(const Resolve &other) -> Resolve & = delete;
 
-    Resolve(const Private *d, bool next, Mode mode = Mode::kFirst)
-        : d(d), wantNextInlude(next), mode(mode) {}
+    Resolve(const Private *d, bool next)
+        : d(d), wantNextInlude(next), currentPaths{{d->currentPath_}} {}
+
+    using SearchPaths = std::vector<std::span<const std::string>>;
+
+    [[nodiscard]] auto operator()(const Include &include)
+        -> std::optional<std::string> {
+      // search in the current path
+      auto header = getHeaderName(include);
+
+      SearchPaths searchPaths;
+
+      if (std::holds_alternative<QuoteInclude>(include)) {
+        searchPaths = userHeaderSearchPaths();
+      } else {
+        searchPaths = systemHeaderSearchPaths();
+      }
+
+      if (auto p = search(searchPaths | std::views::join, header)) {
+        return p;
+      }
+
+      if (wantNextInlude && !didFindCurrentPath) {
+        return firstMatch;
+      }
+
+      return std::nullopt;
+    }
+
+    [[nodiscard]] auto userHeaderSearchPaths() -> SearchPaths {
+      std::vector<std::span<const std::string>> paths;
+      paths.push_back(currentPaths);
+      paths.push_back(d->quoteIncludePaths_);
+      paths.push_back(d->systemIncludePaths_);
+      return paths;
+    }
+
+    [[nodiscard]] auto systemHeaderSearchPaths() -> SearchPaths {
+      std::vector<std::span<const std::string>> paths;
+      paths.push_back(d->systemIncludePaths_);
+      return paths;
+    }
 
     [[nodiscard]] auto search(auto view, const std::string &headerName)
         -> std::optional<std::string> {
@@ -1038,69 +1072,15 @@ struct Preprocessor::Private {
 
       for (const auto &path : view | transformToIncludePath |
                                   filterExistingFiles | std::views::reverse) {
+        if (!wantNextInlude) return path.string();
+
         firstMatch = path;
 
-        if (wantNextInlude && path == d->currentPath_) {
+        if (path == d->currentPath_) {
           didFindCurrentPath = true;
-          continue;
+        } else if (didFindCurrentPath) {
+          return path.string();
         }
-
-        if (wantNextInlude && !didFindCurrentPath) {
-          continue;
-        }
-
-        if (mode == Mode::kFirst) return path.string();
-
-        candidates.push_back(path.string());
-      }
-
-      return std::nullopt;
-    }
-
-    [[nodiscard]] auto operator()(const QuoteInclude &include)
-        -> std::optional<std::string> {
-      const auto &headerName = include.fileName;
-
-      // search in the current path
-      if (auto p = search(std::views::single(d->currentPath_), headerName);
-          mode == Mode::kFirst && p) {
-        return p;
-      }
-
-      // search in the quote include paths
-      if (auto p = search(d->quoteIncludePaths_, headerName);
-          mode == Mode::kFirst && p) {
-        return p;
-      }
-
-      // fallback to system include paths
-      if (auto p = search(d->systemIncludePaths_, headerName);
-          mode == Mode::kFirst && p) {
-        return p;
-      }
-
-      if (wantNextInlude && !didFindCurrentPath) {
-        if (mode == Mode::kFirst)
-          return firstMatch->string();
-        else {
-          candidates.push_back(firstMatch->string());
-        }
-      }
-
-      return std::nullopt;
-    }
-
-    [[nodiscard]] auto operator()(const SystemInclude &include)
-        -> std::optional<std::string> {
-      if (auto p = search(d->systemIncludePaths_, include.fileName)) {
-        return p;
-      }
-
-      if (wantNextInlude && !didFindCurrentPath) {
-        if (mode == Mode::kFirst)
-          return firstMatch->string();
-        else
-          candidates.push_back(firstMatch->string());
       }
 
       return std::nullopt;
@@ -1111,7 +1091,7 @@ struct Preprocessor::Private {
       -> std::optional<std::string> {
     if (!canResolveFiles_) return std::nullopt;
 
-    return std::visit(Resolve{this, next}, include);
+    return Resolve{this, next}(include);
   }
 
   [[nodiscard]] auto isDefined(const std::string_view &id) const -> bool {
@@ -1795,15 +1775,6 @@ auto Preprocessor::Private::expand(
             .include = parsedInclude->header,
             .isIncludeNext = parsedInclude->includeNext,
             .loc = parsedInclude->loc,
-        };
-
-        nextState.candidates = [=, this]() -> std::vector<std::string> {
-          auto resolve =
-              Resolve{this, parsedInclude->includeNext, Resolve::Mode::kAll};
-
-          (void)std::visit(resolve, parsedInclude->header);
-
-          return resolve.candidates;
         };
 
         // suspend the current file and start processing the continuation
