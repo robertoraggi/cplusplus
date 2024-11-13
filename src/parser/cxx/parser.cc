@@ -8492,7 +8492,6 @@ auto Parser::parse_attribute_specifier(AttributeSpecifierAST*& yyast,
 auto Parser::lookat_cxx_attribute_specifier() -> bool {
   if (!lookat(TokenKind::T_LBRACKET)) return false;
   if (LA(1).isNot(TokenKind::T_LBRACKET)) return false;
-  if (LA(1).leadingSpace() || LA(1).startOfLine()) return false;
   return true;
 }
 
