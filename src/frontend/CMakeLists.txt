@@ -21,7 +21,7 @@ aux_source_directory(cxx SOURCES)
 
 add_executable(cxx ${SOURCES})
 
-target_link_libraries(cxx PRIVATE cxx-parser cxx-lsp)
+target_link_libraries(cxx PRIVATE cxx-lsp)
 
 if(EMSCRIPTEN)
     target_link_options(cxx PRIVATE
