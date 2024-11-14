@@ -637,24 +637,37 @@ struct SourceFile {
     initLineMap();
   }
 
-  void getTokenStartPosition(unsigned offset, unsigned *line, unsigned *column,
-                             std::string_view *fileName) const {
+  [[nodiscard]] auto getTokenStartPosition(unsigned offset) const
+      -> SourcePosition {
     auto it = std::lower_bound(lines.cbegin(), lines.cend(),
                                static_cast<int>(offset));
     if (*it != static_cast<int>(offset)) --it;
 
     assert(*it <= int(offset));
 
-    if (line) *line = int(std::distance(cbegin(lines), it) + 1);
+    auto line = std::uint32_t(std::distance(cbegin(lines), it) + 1);
 
-    if (column) {
-      const auto start = cbegin(source) + *it;
-      const auto end = cbegin(source) + offset;
+    const auto start = cbegin(source) + *it;
+    const auto end = cbegin(source) + offset;
 
-      *column = utf8::unchecked::distance(start, end) + 1;
+    const auto column =
+        std::uint32_t(utf8::unchecked::distance(start, end) + 1);
+
+    return SourcePosition{fileName, line, column};
+  }
+
+  [[nodiscard]] auto offsetAt(std::uint32_t line, std::uint32_t column) const
+      -> std::uint32_t {
+    if (line == 0 && column == 0) return 0;
+    if (line > lines.size()) return static_cast<std::uint32_t>(source.size());
+    const auto start = source.data();
+    const auto end = start + source.size();
+    const auto offsetOfTheLine = lines[line - 1];
+    auto it = start + offsetOfTheLine;
+    for (std::uint32_t i = 1; i < column; ++i) {
+      utf8::unchecked::next(it);
     }
-
-    if (fileName) *fileName = this->fileName;
+    return static_cast<std::uint32_t>(it - start);
   }
 
  private:
@@ -713,6 +726,8 @@ struct Preprocessor::Private {
   };
   std::vector<Dep> dependencies_;
   std::function<auto()->std::optional<PreprocessingState>> continuation_;
+  std::optional<SourcePosition> codeCompletionLocation_;
+  std::uint32_t codeCompletionOffset_ = 0;
   int localCount_ = 0;
 
   int counter_ = 0;
@@ -1592,6 +1607,18 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
   auto kind = tk->kind;
   const auto fileId = tk->sourceFile;
   TokenValue value{};
+
+  if (tk->sourceFile == 1 && codeCompletionLocation_.has_value()) {
+    if (codeCompletionOffset_ < tk->offset ||
+        (codeCompletionOffset_ >= tk->offset &&
+         codeCompletionOffset_ < tk->offset + tk->length)) {
+      auto &completionToken =
+          tokens.emplace_back(TokenKind::T_CODE_COMPLETION, tk->offset, 0);
+      completionToken.setFileId(fileId);
+
+      codeCompletionLocation_ = std::nullopt;
+    }
+  }
 
   switch (tk->kind) {
     case TokenKind::T_IDENTIFIER: {
@@ -2987,6 +3014,10 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
   if (tokens.empty()) {
     tokens.emplace_back(TokenKind::T_ERROR);
   }
+
+  if (auto loc = d->codeCompletionLocation_) {
+    d->codeCompletionOffset_ = sourceFile->offsetAt(loc->line, loc->column);
+  }
 }
 
 void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
@@ -3002,6 +3033,16 @@ void Preprocessor::endPreprocessing(std::vector<Token> &tokens) {
 
   // place the EOF token at the end of the main source file
   const auto offset = d->sourceFiles_[mainSourceFileId - 1]->source.size();
+
+  if (d->codeCompletionLocation_.has_value()) {
+    auto sourceFile = d->sourceFiles_[0].get();
+
+    auto &tk = tokens.emplace_back(TokenKind::T_CODE_COMPLETION, offset, 0);
+    tk.setFileId(mainSourceFileId);
+
+    d->codeCompletionLocation_ = std::nullopt;
+  }
+
   auto &tk = tokens.emplace_back(TokenKind::T_EOF_SYMBOL, offset);
   tk.setFileId(mainSourceFileId);
 }
@@ -3165,10 +3206,7 @@ auto Preprocessor::tokenStartPosition(const Token &token) const
   }
 
   auto &sourceFile = *d->sourceFiles_[token.fileId() - 1];
-  SourcePosition pos;
-  sourceFile.getTokenStartPosition(token.offset(), &pos.line, &pos.column,
-                                   &pos.fileName);
-  return pos;
+  return sourceFile.getTokenStartPosition(token.offset());
 }
 
 auto Preprocessor::tokenEndPosition(const Token &token) const
@@ -3179,10 +3217,7 @@ auto Preprocessor::tokenEndPosition(const Token &token) const
 
   auto &sourceFile = *d->sourceFiles_[token.fileId() - 1];
 
-  SourcePosition pos;
-  sourceFile.getTokenStartPosition(token.offset() + token.length(), &pos.line,
-                                   &pos.column, &pos.fileName);
-  return pos;
+  return sourceFile.getTokenStartPosition(token.offset() + token.length());
 }
 
 auto Preprocessor::getTextLine(const Token &token) const -> std::string_view {
@@ -3213,6 +3248,11 @@ auto Preprocessor::getTokenText(const Token &token) const -> std::string_view {
 auto Preprocessor::resolve(const Include &include, bool isIncludeNext) const
     -> std::optional<std::string> {
   return d->resolve(include, isIncludeNext);
+}
+
+void Preprocessor::requestCodeCompletionAt(std::uint32_t line,
+                                           std::uint32_t column) {
+  d->codeCompletionLocation_ = SourcePosition{{}, line, column};
 }
 
 void DefaultPreprocessorState::operator()(const ProcessingComplete &) {

@@ -115,6 +115,8 @@ class Preprocessor {
   [[nodiscard]] auto resolve(const Include &include, bool isIncludeNext) const
       -> std::optional<std::string>;
 
+  void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column);
+
   void squeeze();
 
  private:
