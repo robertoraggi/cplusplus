@@ -4567,7 +4567,8 @@ auto Parser::parse_template_class_declaration(
 }
 
 auto Parser::parse_empty_or_attribute_declaration(
-    DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> auto {
+    DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
+    BindingContext ctx) -> auto {
   LookaheadParser lookahead{this};
 
   SourceLocation semicolonLoc;
@@ -4594,9 +4595,9 @@ auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations,
     BindingContext ctx) -> bool {
-  LookaheadParser lookahead{this};
-
   if (!context_allows_function_definition(ctx)) return false;
+
+  LookaheadParser lookahead{this};
 
   DeclSpecs specs{this};
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -4625,6 +4626,8 @@ auto Parser::parse_type_or_forward_declaration(
     List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations,
     BindingContext ctx) -> bool {
+  if (ctx == BindingContext::kInitStatement) return false;
+
   LookaheadParser lookahead{this};
 
   List<AttributeSpecifierAST*>* trailingAttributes = nullptr;
@@ -4738,7 +4741,7 @@ auto Parser::parse_simple_declaration(
   if (parse_template_class_declaration(yyast, attributes, templateDeclarations,
                                        ctx))
     return true;
-  else if (parse_empty_or_attribute_declaration(yyast, attributes))
+  else if (parse_empty_or_attribute_declaration(yyast, attributes, ctx))
     return true;
   else if (parse_notypespec_function_definition(yyast, attributes,
                                                 templateDeclarations, ctx))
@@ -4864,7 +4867,8 @@ auto Parser::parse_simple_declaration(
   auto declIt = &initDeclaratorList;
 
   InitDeclaratorAST* initDeclarator = nullptr;
-  if (!parse_init_declarator(initDeclarator, declarator, decl)) return false;
+  if (!parse_init_declarator(initDeclarator, declarator, decl, ctx))
+    return false;
 
   if (ctx == BindingContext::kTemplate) {
     auto declarator = initDeclarator->declarator;
@@ -4879,7 +4883,7 @@ auto Parser::parse_simple_declaration(
 
     while (match(TokenKind::T_COMMA, commaLoc)) {
       InitDeclaratorAST* initDeclarator = nullptr;
-      if (!parse_init_declarator(initDeclarator, specs)) return false;
+      if (!parse_init_declarator(initDeclarator, specs, ctx)) return false;
 
       *declIt = make_list_node(pool_, initDeclarator);
       declIt = &(*declIt)->next;
@@ -6742,17 +6746,18 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
 }
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
-                                   const DeclSpecs& specs) -> bool {
+                                   const DeclSpecs& specs, BindingContext ctx)
+    -> bool {
   DeclaratorAST* declarator = nullptr;
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
-  return parse_init_declarator(yyast, declarator, decl);
+  return parse_init_declarator(yyast, declarator, decl, ctx);
 }
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
-                                   DeclaratorAST* declarator, Decl& decl)
-    -> bool {
+                                   DeclaratorAST* declarator, Decl& decl,
+                                   BindingContext ctx) -> bool {
   Symbol* declaredSynbol = nullptr;
   if (auto declId = decl.declaratorId; declId) {
     auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
