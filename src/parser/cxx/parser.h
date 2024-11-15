@@ -383,7 +383,8 @@ class Parser final {
       const std::vector<TemplateDeclarationAST*>& templateDeclarations,
       BindingContext ctx) -> bool;
   [[nodiscard]] auto parse_empty_or_attribute_declaration(
-      DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> auto;
+      DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
+      BindingContext ctx) -> auto;
 
   [[nodiscard]] auto parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
@@ -472,10 +473,12 @@ class Parser final {
   [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast,
                                                       DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_init_declarator(InitDeclaratorAST*& yyast,
-                                           const DeclSpecs& specs) -> bool;
+                                           const DeclSpecs& specs,
+                                           BindingContext ctx) -> bool;
   [[nodiscard]] auto parse_init_declarator(InitDeclaratorAST*& yyast,
                                            DeclaratorAST* declarator,
-                                           Decl& decl) -> bool;
+                                           Decl& decl, BindingContext ctx)
+      -> bool;
   [[nodiscard]] auto parse_declarator_initializer(
       RequiresClauseAST*& requiresClause, ExpressionAST*& yyast) -> bool;
   void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyast,
