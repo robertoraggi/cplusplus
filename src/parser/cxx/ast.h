@@ -2999,6 +2999,7 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   UnqualifiedIdAST* unqualifiedId = nullptr;
   TokenKind classKey = TokenKind::T_EOF_SYMBOL;
   bool isTemplateIntroduced = false;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
