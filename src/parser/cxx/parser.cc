@@ -3734,7 +3734,17 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
     DeclarationAST* declaration = nullptr;
     if (!parse_simple_declaration(declaration, BindingContext::kInitStatement))
       return false;
+
     lookahead.commit();
+
+    if (auto simpleDeclaration = ast_cast<SimpleDeclarationAST>(declaration)) {
+      // recover the declared symbols and add them to the scope
+      for (auto initDeclaraotr :
+           ListView(simpleDeclaration->initDeclaratorList)) {
+        auto symbol = initDeclaraotr->symbol;
+        std::invoke(DeclareSymbol{this, scope_}, symbol);
+      }
+    }
 
     auto ast = make_node<DeclarationStatementAST>(pool_);
     yyast = ast;
@@ -3777,6 +3787,15 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
     DeclaratorAST* declarator = nullptr;
     Decl decl{specs};
     if (!parse_declarator(declarator, decl)) return false;
+
+    auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
+
+    auto symbol = control_->newVariableSymbol(scope_, decl.location());
+    applySpecifiers(symbol, decl.specs);
+    symbol->setName(decl.getName());
+    symbol->setType(symbolType);
+
+    std::invoke(DeclareSymbol{this, scope_}, symbol);
 
     ExpressionAST* initializer = nullptr;
 
@@ -3978,6 +3997,10 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   ScopeGuard scopeGuard{this};
 
+  auto blockSymbol = control_->newBlockSymbol(scope_, ifLoc);
+  std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
+  scope_ = blockSymbol->scope();
+
   if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
     auto ast = make_node<ConstevalIfStatementAST>(pool_);
     yyast = ast;
@@ -4057,6 +4080,10 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   ScopeGuard scopeGuard{this};
 
+  auto blockSymbol = control_->newBlockSymbol(scope_, whileLoc);
+  std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
+  scope_ = blockSymbol->scope();
+
   auto ast = make_node<WhileStatementAST>(pool_);
   yyast = ast;
 
@@ -4106,6 +4133,11 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
   SourceLocation forLoc;
   if (!match(TokenKind::T_FOR, forLoc)) return false;
 
+  ScopeGuard scopeGuard{this};
+
+  auto blockSymbol = control_->newBlockSymbol(scope_, forLoc);
+  scope_ = blockSymbol->scope();
+
   SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
@@ -4119,6 +4151,8 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
   lookahead.commit();
+
+  std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
 
   auto ast = make_node<ForRangeStatementAST>(pool_);
   yyast = ast;
@@ -4144,6 +4178,12 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   SourceLocation forLoc;
 
   if (!match(TokenKind::T_FOR, forLoc)) return false;
+
+  ScopeGuard scopeGuard{this};
+
+  auto blockSymbol = control_->newBlockSymbol(scope_, forLoc);
+  std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
+  scope_ = blockSymbol->scope();
 
   auto ast = make_node<ForStatementAST>(pool_);
   yyast = ast;
@@ -6782,7 +6822,9 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
         applySpecifiers(symbol, decl.specs);
         symbol->setName(name);
         symbol->setType(symbolType);
-        std::invoke(DeclareSymbol{this, scope_}, symbol);
+        if (ctx != BindingContext::kInitStatement) {
+          std::invoke(DeclareSymbol{this, scope_}, symbol);
+        }
         declaredSynbol = symbol;
       }
     }
