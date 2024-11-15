@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
+#include <ranges>
 
 namespace cxx {
 
@@ -6568,23 +6569,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
   SourceLocation templateLoc;
   const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
 
-  UnqualifiedIdAST* unqualifiedId = nullptr;
-  const auto loc = currentLocation();
-
-  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) {
-    if (SimpleTemplateIdAST* templateId = nullptr; parse_simple_template_id(
-            templateId, nestedNameSpecifier, isTemplateIntroduced)) {
-      unqualifiedId = templateId;
-    } else {
-      parse_error(loc, "expected a template-id");
-    }
-  } else if (NameIdAST* nameId = nullptr; parse_name_id(nameId)) {
-    unqualifiedId = nameId;
-    auto symbol = Lookup{scope_}(nestedNameSpecifier, nameId->identifier);
-  } else {
-    parse_error("expected a name");
-  }
-
   auto ast = make_node<ElaboratedTypeSpecifierAST>(pool_);
   yyast = ast;
 
@@ -6592,9 +6576,49 @@ auto Parser::parse_elaborated_type_specifier_helper(
   ast->attributeList = attributes;
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->templateLoc = templateLoc;
-  ast->unqualifiedId = unqualifiedId;
   ast->classKey = unit->tokenKind(classLoc);
   ast->isTemplateIntroduced = isTemplateIntroduced;
+
+  const auto loc = currentLocation();
+
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) {
+    if (SimpleTemplateIdAST* templateId = nullptr; parse_simple_template_id(
+            templateId, nestedNameSpecifier, isTemplateIntroduced)) {
+      ast->unqualifiedId = templateId;
+    } else {
+      parse_error(loc, "expected a template-id");
+    }
+  } else if (NameIdAST* nameId = nullptr; parse_name_id(nameId)) {
+    ast->unqualifiedId = nameId;
+
+    auto symbol = Lookup{scope_}(nestedNameSpecifier, nameId->identifier);
+
+    auto class_symbols_view = std::views::filter(&Symbol::isClass);
+
+    auto enum_symbols_view = std::views::filter([](Symbol* symbol) {
+      return symbol->isEnum() || symbol->isScopedEnum();
+    });
+
+    if (ast->classKey == TokenKind::T_CLASS ||
+        ast->classKey == TokenKind::T_STRUCT ||
+        ast->classKey == TokenKind::T_UNION) {
+      for (auto symbol : SymbolChainView(symbol) | class_symbols_view) {
+        if (symbol->name() != nameId->identifier) continue;
+        ast->symbol = symbol;
+        specs.type = symbol->type();
+        break;
+      }
+    } else if (ast->classKey == TokenKind::T_ENUM) {
+      for (auto symbol : SymbolChainView(symbol) | enum_symbols_view) {
+        if (symbol->name() != nameId->identifier) continue;
+        ast->symbol = symbol;
+        specs.type = symbol->type();
+        break;
+      }
+    }
+  } else {
+    parse_error(loc, "expected a name");
+  }
 
   return true;
 }
