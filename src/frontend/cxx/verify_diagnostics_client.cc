@@ -76,6 +76,8 @@ auto VerifyDiagnosticsClient::hasErrors() const -> bool {
 }
 
 void VerifyDiagnosticsClient::report(const Diagnostic& diagnostic) {
+  if (!shouldReportErrors()) return;
+
   if (verify_) {
     reportedDiagnostics_.push_back(diagnostic);
     return;

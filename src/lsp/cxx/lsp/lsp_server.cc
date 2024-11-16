@@ -493,22 +493,24 @@ void Server::operator()(CompletionRequest request) {
   auto column = request.params().position().character();
 
   const auto& text = documentContents_.at(uri);
-  auto value = text.value;
+  auto source = text.value;
 
   run([=, this, fileName = pathFromUri(uri)] {
     withUnsafeJson([&](json storage) {
+      CompletionResponse response(storage);
+      response.id(request.id());
+
       // the version is not relevant for code completion requests as we don't
       // need to store the document in the cache.
       auto cxxDocument = std::make_shared<CxxDocument>(cli, std::move(fileName),
                                                        /*version=*/0);
 
-      // cxx expects 1-based line and column numbers
-      cxxDocument->requestCodeCompletion(line + 1, column + 1);
-      cxxDocument->parse(std::move(value));
-
-      CompletionResponse response(storage);
-      response.id(request.id());
       auto completionItems = response.result<Vector<CompletionItem>>();
+
+      // cxx expects 1-based line and column numbers
+      cxxDocument->codeCompletionAt(std::move(source), line + 1, column + 1,
+                                    completionItems);
+
       sendToClient(response);
     });
   });

@@ -23,20 +23,27 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
+#include <cxx/lsp/enums.h>
 #include <cxx/lsp/types.h>
 #include <cxx/macos_toolchain.h>
+#include <cxx/name_printer.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_printer.h>
+#include <cxx/types.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
 #ifndef CXX_NO_THREADS
 #include <atomic>
 #endif
+
+#include <format>
+#include <iostream>
 
 namespace cxx::lsp {
 
@@ -74,6 +81,7 @@ struct CxxDocument::Private {
   Diagnostics diagnosticsClient;
   TranslationUnit unit{&diagnosticsClient};
   std::shared_ptr<Toolchain> toolchain;
+  Vector<CompletionItem> completionItems;
 
 #ifndef CXX_NO_THREADS
   std::atomic<bool> cancelled{false};
@@ -202,10 +210,20 @@ void CxxDocument::cancel() {
 
 auto CxxDocument::fileName() const -> const std::string& { return d->fileName; }
 
-void CxxDocument::requestCodeCompletion(std::uint32_t line,
-                                        std::uint32_t column) {
+void CxxDocument::codeCompletionAt(std::string source, std::uint32_t line,
+                                   std::uint32_t column,
+                                   Vector<CompletionItem> completionItems) {
+  std::swap(d->completionItems, completionItems);
+
   auto& unit = d->unit;
+
+  (void)unit.blockErrors(true);
+
   unit.preprocessor()->requestCodeCompletionAt(line, column);
+
+  parse(std::move(source));
+
+  std::swap(d->completionItems, completionItems);
 }
 
 void CxxDocument::parse(std::string source) {
@@ -227,13 +245,37 @@ void CxxDocument::parse(std::string source) {
 
   unit.endPreprocessing();
 
+  auto stopParsingPredicate = [this] { return isCancelled(); };
+
+  auto complete = [this](const CodeCompletionContext& context) {
+    if (auto memberCompletionContext =
+            std::get_if<MemberCompletionContext>(&context)) {
+      // simple member completion
+      auto objectType = memberCompletionContext->objectType;
+
+      if (auto pointerType = type_cast<PointerType>(objectType)) {
+        objectType = type_cast<ClassType>(pointerType->elementType());
+      }
+
+      if (auto classType = type_cast<ClassType>(objectType)) {
+        auto classSymbol = classType->symbol();
+        for (auto member : classSymbol->members()) {
+          if (!member->name()) continue;
+          auto item = d->completionItems.emplace_back();
+          item.label(to_string(member->name()));
+        }
+      }
+    }
+  };
+
   unit.parse(ParserConfiguration{
       .checkTypes = cli.opt_fcheck,
       .fuzzyTemplateResolution = true,
       .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
       .reflect = !cli.opt_fno_reflect,
       .templates = cli.opt_ftemplates,
-      .stopParsingPredicate = [this] { return isCancelled(); },
+      .stopParsingPredicate = stopParsingPredicate,
+      .complete = complete,
   });
 }
 

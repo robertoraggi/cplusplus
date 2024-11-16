@@ -38,7 +38,15 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
+#include <iostream>
 #include <ranges>
+#include <unordered_set>
+
+#include "cxx/cxx_fwd.h"
+#include "cxx/parser_fwd.h"
+#include "cxx/source_location.h"
+#include "cxx/symbols_fwd.h"
+#include "cxx/token_fwd.h"
 
 namespace cxx {
 
@@ -1271,6 +1279,20 @@ void Parser::parse_skip_declaration(bool& skipping) {
   skipping = true;
 }
 
+auto Parser::parse_completion(SourceLocation& loc) -> bool {
+  // if already reported a completion, return false
+  if (didAcceptCompletionToken_) return false;
+
+  // if there is no completer, return false
+  if (!config_.complete) return false;
+
+  if (!match(TokenKind::T_CODE_COMPLETION, loc)) return false;
+
+  didAcceptCompletionToken_ = true;
+
+  return true;
+}
+
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
   UnqualifiedIdAST* name = nullptr;
@@ -2433,6 +2455,22 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
   parse_optional_nested_name_specifier(ast->nestedNameSpecifier);
 
   ast->isTemplateIntroduced = match(TokenKind::T_TEMPLATE, ast->templateLoc);
+
+  const Type* objectType = nullptr;
+
+  if (ast->baseExpression) {
+    // test if the base expression has a type
+    objectType = ast->baseExpression->type;
+  }
+
+  if (SourceLocation completionLoc;
+      objectType && parse_completion(completionLoc)) {
+    // trigger the completion
+    config_.complete(MemberCompletionContext{
+        .objectType = objectType,
+        .accessOp = ast->accessOp,
+    });
+  }
 
   if (!parse_unqualified_id(ast->unqualifiedId, ast->nestedNameSpecifier,
                             ast->isTemplateIntroduced,

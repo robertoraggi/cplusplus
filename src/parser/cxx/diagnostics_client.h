@@ -48,6 +48,10 @@ class DiagnosticsClient {
   [[nodiscard]] auto fatalErrors() const -> bool { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
+  [[nodiscard]] auto shouldReportErrors() const -> bool {
+    return !blockErrors_;
+  }
+
   auto blockErrors(bool blockErrors = true) -> bool {
     std::swap(blockErrors_, blockErrors);
     return blockErrors;

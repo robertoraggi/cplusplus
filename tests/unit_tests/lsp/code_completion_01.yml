@@ -1,0 +1,24 @@
+# RUN: %cxx -lsp-test < %s | %filecheck %s
+
+{ "method": "initialize", "id": 0 }
+
+# CHECK: "id": 0
+
+{ "method": "textDocument/didOpen", "id": 1, "params": { "textDocument": { "uri": "test:///source.cc", "version": 0, "text": "struct P { int x, y; }; void ff() { P p; p.\n\n\n}" } } }
+
+{ "method": "$/setTrace", "id": 2, "params": { "value": "verbose" } }
+
+{ "method": "textDocument/completion", "id": 3, "params": { "textDocument": { "uri": "test:///source.cc" }, "position": { "line": 2, "character": 1 } } }
+
+# CHECK: "message": "Did receive CompletionRequest"
+# CHECK: "id": 3
+# CHECK: "result":
+# CHECK: "label": "x"
+# CHECK: "label": "y"
+
+{ "method": "shutdown", "id": 4 }
+
+{ "method": "exit" }
+
+
+
