@@ -108,6 +108,7 @@ class Parser final {
   static auto prec(TokenKind tk) -> Prec;
 
   [[nodiscard]] auto shouldStopParsing() const -> bool {
+    if (didAcceptCompletionToken_) return true;
     if (config_.stopParsingPredicate) return config_.stopParsingPredicate();
     return false;
   }
@@ -140,6 +141,8 @@ class Parser final {
   void error(SourceLocation loc, std::string message);
 
   void parse_translation_unit(UnitAST*& yyast);
+
+  [[nodiscard]] auto parse_completion(SourceLocation& loc) -> bool;
 
   [[nodiscard]] auto parse_id(const Identifier* id, SourceLocation& loc)
       -> bool;
@@ -871,7 +874,7 @@ class Parser final {
   std::uint32_t cursor_ = 0;
   int templateParameterDepth_ = -1;
   int templateParameterCount_ = 0;
-
+  bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 
   template <typename T>

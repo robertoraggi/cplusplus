@@ -21,11 +21,28 @@
 
 #pragma once
 
+#include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
+#include <cxx/types_fwd.h>
+
 #include <functional>
+#include <variant>
 
 namespace cxx {
 
 class Parser;
+
+struct UnqualifiedCompletionContext {
+  Scope* scope = nullptr;
+};
+
+struct MemberCompletionContext {
+  const Type* objectType = nullptr;
+  TokenKind accessOp = TokenKind::T_DOT;
+};
+
+using CodeCompletionContext =
+    std::variant<UnqualifiedCompletionContext, MemberCompletionContext>;
 
 struct ParserConfiguration {
   bool checkTypes = false;
@@ -34,6 +51,7 @@ struct ParserConfiguration {
   bool reflect = true;
   bool templates = false;
   std::function<bool()> stopParsingPredicate;
+  std::function<void(const CodeCompletionContext&)> complete;
 };
 
 }  // namespace cxx
