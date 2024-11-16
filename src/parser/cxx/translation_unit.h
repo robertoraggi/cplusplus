@@ -60,13 +60,13 @@ class TranslationUnit {
 
   [[nodiscard]] auto globalScope() const -> Scope*;
 
-  [[nodiscard]] auto fileName() const -> const std::string& {
-    return fileName_;
-  }
+  [[nodiscard]] auto fileName() const -> const std::string&;
 
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
     return preprocessor_.get();
   }
+
+  void parse(ParserConfiguration config = {});
 
   // set source and preprocess, deprecated.
   void setSource(std::string source, std::string fileName);
@@ -77,27 +77,13 @@ class TranslationUnit {
 
   void endPreprocessing();
 
-  [[nodiscard]] auto fatalErrors() const -> bool {
-    return diagnosticsClient_->fatalErrors();
-  }
+  [[nodiscard]] auto fatalErrors() const -> bool;
+  void setFatalErrors(bool fatalErrors);
 
-  void setFatalErrors(bool fatalErrors) {
-    diagnosticsClient_->setFatalErrors(fatalErrors);
-  }
+  auto blockErrors(bool blockErrors = true) -> bool;
 
-  auto blockErrors(bool blockErrors = true) -> bool {
-    return diagnosticsClient_->blockErrors(blockErrors);
-  }
-
-  void error(SourceLocation loc, std::string message) const {
-    diagnosticsClient_->report(tokenAt(loc), Severity::Error,
-                               std::move(message));
-  }
-
-  void warning(SourceLocation loc, std::string message) const {
-    diagnosticsClient_->report(tokenAt(loc), Severity::Warning,
-                               std::move(message));
-  }
+  void error(SourceLocation loc, std::string message) const;
+  void warning(SourceLocation loc, std::string message) const;
 
   // tokens
   [[nodiscard]] inline auto tokenCount() const -> unsigned {
@@ -134,8 +120,6 @@ class TranslationUnit {
 
   [[nodiscard]] auto literal(SourceLocation loc) const -> const Literal*;
 
-  void parse(const ParserConfiguration& config = {});
-
   [[nodiscard]] auto load(std::span<const std::uint8_t> data) -> bool;
 
   [[nodiscard]] auto serialize(std::ostream& out) -> bool;
@@ -146,13 +130,13 @@ class TranslationUnit {
  private:
   std::unique_ptr<Control> control_;
   std::unique_ptr<Arena> arena_;
+  std::unique_ptr<Preprocessor> preprocessor_;
   std::vector<Token> tokens_;
   std::string fileName_;
   UnitAST* ast_ = nullptr;
   const char* yyptr = nullptr;
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   NamespaceSymbol* globalNamespace_ = nullptr;
-  std::unique_ptr<Preprocessor> preprocessor_;
 };
 
 }  // namespace cxx

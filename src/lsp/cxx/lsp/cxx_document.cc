@@ -172,7 +172,8 @@ void CxxDocument::Private::configure() {
 CxxDocument::CxxDocument(const CLI& cli, long version)
     : d(std::make_unique<Private>(cli, version)) {}
 
-void CxxDocument::parse(std::string source, std::string fileName) {
+void CxxDocument::parse(std::string source, std::string fileName,
+                        std::function<bool()> stopParsingPredicate) {
   d->configure();
 
   auto& unit = d->unit;
@@ -188,6 +189,7 @@ void CxxDocument::parse(std::string source, std::string fileName) {
       .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
       .reflect = !cli.opt_fno_reflect,
       .templates = cli.opt_ftemplates,
+      .stopParsingPredicate = std::move(stopParsingPredicate),
   });
 }
 

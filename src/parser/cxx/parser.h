@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <functional>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -54,26 +55,6 @@ class Parser final {
 
   [[nodiscard]] auto control() const -> Control* { return control_; }
 
-  [[nodiscard]] auto config() const -> const ParserConfiguration& {
-    return config_;
-  }
-
-  void setConfig(const ParserConfiguration& config) { config_ = config; }
-
-  /**
-   * Whether to enable fuzzy template resolution.
-   */
-  [[nodiscard]] auto fuzzyTemplateResolution() const -> bool;
-
-  /**
-   * Sets whether to enable fuzzy template resolution.
-   *
-   * When enabled, the parser will try to resolve template names
-   *
-   * @param fuzzyTemplateResolution whether to enable fuzzy template resolution
-   */
-  void setFuzzyTemplateResolution(bool fuzzyTemplateResolution);
-
   /**
    * Parse the given unit.
    */
@@ -83,6 +64,9 @@ class Parser final {
    * Parse the given unit.
    */
   void operator()(UnitAST*& ast);
+
+  [[nodiscard]] auto config() const -> const ParserConfiguration&;
+  void setConfig(ParserConfiguration config);
 
  private:
   struct DeclSpecs;
@@ -122,6 +106,11 @@ class Parser final {
   };
 
   static auto prec(TokenKind tk) -> Prec;
+
+  [[nodiscard]] auto shouldStopParsing() const -> bool {
+    if (config_.stopParsingPredicate) return config_.stopParsingPredicate();
+    return false;
+  }
 
   [[nodiscard]] auto context_allows_function_definition(
       BindingContext ctx) const -> bool {

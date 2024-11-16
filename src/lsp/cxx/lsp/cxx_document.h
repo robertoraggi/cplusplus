@@ -34,7 +34,8 @@ class CxxDocument {
   explicit CxxDocument(const CLI& cli, long version);
   ~CxxDocument();
 
-  void parse(std::string source, std::string fileName);
+  void parse(std::string source, std::string fileName,
+             std::function<bool()> stopParsingPredicate = {});
 
   [[nodiscard]] auto version() const -> long;
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
