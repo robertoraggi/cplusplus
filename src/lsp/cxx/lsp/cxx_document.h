@@ -31,11 +31,15 @@ namespace cxx::lsp {
 
 class CxxDocument {
  public:
-  explicit CxxDocument(const CLI& cli, long version);
+  explicit CxxDocument(const CLI& cli, std::string fileName, long version);
   ~CxxDocument();
 
-  void parse(std::string source, std::string fileName,
-             std::function<bool()> stopParsingPredicate = {});
+  [[nodiscard]] auto isCancelled() const -> bool;
+  void cancel();
+
+  [[nodiscard]] auto fileName() const -> const std::string&;
+
+  void parse(std::string source);
 
   [[nodiscard]] auto version() const -> long;
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;

@@ -34,6 +34,10 @@
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
+#ifndef CXX_NO_THREADS
+#include <atomic>
+#endif
+
 namespace cxx::lsp {
 
 namespace {
@@ -65,12 +69,20 @@ struct Diagnostics final : cxx::DiagnosticsClient {
 
 struct CxxDocument::Private {
   const CLI& cli;
+  std::string fileName;
   long version;
   Diagnostics diagnosticsClient;
   TranslationUnit unit{&diagnosticsClient};
   std::shared_ptr<Toolchain> toolchain;
 
-  Private(const CLI& cli, long version) : cli(cli), version(version) {}
+#ifndef CXX_NO_THREADS
+  std::atomic<bool> cancelled{false};
+#else
+  bool cancelled{false};
+#endif
+
+  Private(const CLI& cli, std::string fileName, long version)
+      : cli(cli), fileName(std::move(fileName)), version(version) {}
 
   void configure();
 };
@@ -169,19 +181,45 @@ void CxxDocument::Private::configure() {
   }
 }
 
-CxxDocument::CxxDocument(const CLI& cli, long version)
-    : d(std::make_unique<Private>(cli, version)) {}
+CxxDocument::CxxDocument(const CLI& cli, std::string fileName, long version)
+    : d(std::make_unique<Private>(cli, std::move(fileName), version)) {}
 
-void CxxDocument::parse(std::string source, std::string fileName,
-                        std::function<bool()> stopParsingPredicate) {
+auto CxxDocument::isCancelled() const -> bool {
+#ifndef CXX_NO_THREADS
+  return d->cancelled.load();
+#else
+  return d->cancelled;
+#endif
+}
+
+void CxxDocument::cancel() {
+#ifndef CXX_NO_THREADS
+  d->cancelled.store(true);
+#else
+  d->cancelled = true;
+#endif
+}
+
+auto CxxDocument::fileName() const -> const std::string& { return d->fileName; }
+
+void CxxDocument::parse(std::string source) {
   d->configure();
 
   auto& unit = d->unit;
   auto& cli = d->cli;
 
-  unit.setSource(std::move(source), fileName);
-
   auto preprocessor = unit.preprocessor();
+
+  DefaultPreprocessorState state{*preprocessor};
+
+  unit.beginPreprocessing(std::move(source), d->fileName);
+
+  while (state) {
+    if (isCancelled()) break;
+    std::visit(state, unit.continuePreprocessing());
+  }
+
+  unit.endPreprocessing();
 
   unit.parse(ParserConfiguration{
       .checkTypes = cli.opt_fcheck,
@@ -189,7 +227,7 @@ void CxxDocument::parse(std::string source, std::string fileName,
       .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
       .reflect = !cli.opt_fno_reflect,
       .templates = cli.opt_ftemplates,
-      .stopParsingPredicate = std::move(stopParsingPredicate),
+      .stopParsingPredicate = [this] { return isCancelled(); },
   });
 }
 

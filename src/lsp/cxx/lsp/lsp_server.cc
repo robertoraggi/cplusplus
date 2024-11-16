@@ -286,6 +286,23 @@ void Server::run(std::function<void()> task) {
   task();
 }
 
+void Server::cancelPendingParserRequests(const std::string& fileName) {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(documentsMutex_);
+#endif
+
+  std::vector<std::shared_ptr<CxxDocument>> pendingParserRequests;
+  std::swap(pendingParserRequests_, pendingParserRequests);
+
+  for (const auto& doc : pendingParserRequests) {
+    if (doc->fileName() == fileName) {
+      doc->cancel();
+    } else {
+      pendingParserRequests_.push_back(doc);
+    }
+  }
+}
+
 void Server::parse(const std::string& uri) {
   const auto& doc = documentContents_.at(uri);
 
@@ -293,13 +310,24 @@ void Server::parse(const std::string& uri) {
   auto version = doc.version;
 
   run([text = std::move(text), uri = std::move(uri), version, this] {
-    auto doc = std::make_shared<CxxDocument>(cli, version);
-    doc->parse(std::move(text), pathFromUri(uri));
+    auto fileName = pathFromUri(uri);
+
+    cancelPendingParserRequests(fileName);
+
+    auto doc = std::make_shared<CxxDocument>(cli, std::move(fileName), version);
+    pendingParserRequests_.push_back(doc);
+
+    doc->parse(std::move(text));
 
     {
 #ifndef CXX_NO_THREADS
       auto locker = std::unique_lock(outputMutex_);
 #endif
+
+      if (auto it = std::ranges::find(pendingParserRequests_, doc);
+          it != pendingParserRequests_.end()) {
+        pendingParserRequests_.erase(it);
+      }
 
       if (documents_.contains(uri) && documents_.at(uri)->version() > version) {
         return;

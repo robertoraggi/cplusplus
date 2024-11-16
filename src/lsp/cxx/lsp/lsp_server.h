@@ -68,6 +68,8 @@ class Server {
   void startWorkersIfNeeded();
   void stopWorkersIfNeeded();
 
+  void cancelPendingParserRequests(const std::string& fileName);
+
   void run(std::function<void()> task);
 
   void parse(const std::string& uri);
@@ -105,6 +107,7 @@ class Server {
   std::ostream& log;
   std::unordered_map<std::string, std::shared_ptr<CxxDocument>> documents_;
   std::unordered_map<std::string, Text> documentContents_;
+  std::vector<std::shared_ptr<CxxDocument>> pendingParserRequests_;
 #ifndef CXX_NO_THREADS
   SyncQueue syncQueue_;
   std::vector<std::thread> workers_;
