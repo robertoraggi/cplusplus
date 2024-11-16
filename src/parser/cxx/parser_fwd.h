@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <functional>
+
 namespace cxx {
 
 class Parser;
@@ -31,6 +33,7 @@ struct ParserConfiguration {
   bool staticAssert = false;
   bool reflect = true;
   bool templates = false;
+  std::function<bool()> stopParsingPredicate;
 };
 
 }  // namespace cxx

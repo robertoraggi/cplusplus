@@ -869,6 +869,12 @@ auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
 
 void Parser::operator()(UnitAST*& ast) { parse(ast); }
 
+auto Parser::config() const -> const ParserConfiguration& { return config_; }
+
+void Parser::setConfig(ParserConfiguration config) {
+  config_ = std::move(config);
+}
+
 void Parser::parse(UnitAST*& ast) { parse_translation_unit(ast); }
 
 void Parser::parse_warn(std::string message) {
@@ -1211,6 +1217,8 @@ void Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
   LoopParser loop(this);
 
   while (LA()) {
+    if (shouldStopParsing()) break;
+
     loop.start();
 
     DeclarationAST* declaration = nullptr;
@@ -1233,6 +1241,8 @@ void Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) {
   LoopParser loop(this);
 
   while (LA()) {
+    if (shouldStopParsing()) break;
+
     if (lookat(TokenKind::T_RBRACE)) break;
 
     if (parse_maybe_module()) break;
@@ -8111,6 +8121,8 @@ void Parser::parse_namespace_body(NamespaceDefinitionAST* yyast) {
   LoopParser loop{this};
 
   while (LA()) {
+    if (shouldStopParsing()) break;
+
     if (lookat(TokenKind::T_RBRACE)) break;
 
     loop.start();
@@ -9160,6 +9172,8 @@ void Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
   LoopParser loop{this};
 
   while (LA()) {
+    if (shouldStopParsing()) break;
+
     if (lookat(TokenKind::T_RBRACE)) break;
 
     loop.start();

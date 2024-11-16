@@ -96,6 +96,27 @@ void TranslationUnit::endPreprocessing() {
   preprocessor_->squeeze();
 }
 
+auto TranslationUnit::fatalErrors() const -> bool {
+  return diagnosticsClient_->fatalErrors();
+}
+
+void TranslationUnit::setFatalErrors(bool fatalErrors) {
+  diagnosticsClient_->setFatalErrors(fatalErrors);
+}
+
+auto TranslationUnit::blockErrors(bool blockErrors) -> bool {
+  return diagnosticsClient_->blockErrors(blockErrors);
+}
+
+void TranslationUnit::error(SourceLocation loc, std::string message) const {
+  diagnosticsClient_->report(tokenAt(loc), Severity::Error, std::move(message));
+}
+
+void TranslationUnit::warning(SourceLocation loc, std::string message) const {
+  TranslationUnit::diagnosticsClient_->report(tokenAt(loc), Severity::Warning,
+                                              std::move(message));
+}
+
 auto TranslationUnit::tokenLength(SourceLocation loc) const -> int {
   const auto& tk = tokenAt(loc);
   if (tk.kind() == TokenKind::T_IDENTIFIER) {
@@ -143,19 +164,23 @@ auto TranslationUnit::tokenEndPosition(SourceLocation loc) const
   return preprocessor_->tokenEndPosition(tokenAt(loc));
 }
 
-void TranslationUnit::parse(const ParserConfiguration& config) {
+void TranslationUnit::parse(ParserConfiguration config) {
   if (ast_) {
     cxx_runtime_error("translation unit already parsed");
   }
 
   Parser parse(this);
-  parse.setConfig(config);
+  parse.setConfig(std::move(config));
   parse(ast_);
 }
 
 auto TranslationUnit::globalScope() const -> Scope* {
   if (!globalNamespace_) return nullptr;
   return globalNamespace_->scope();
+}
+
+auto TranslationUnit::fileName() const -> const std::string& {
+  return fileName_;
 }
 
 auto TranslationUnit::load(std::span<const std::uint8_t> data) -> bool {
