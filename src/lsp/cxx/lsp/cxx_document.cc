@@ -202,6 +202,12 @@ void CxxDocument::cancel() {
 
 auto CxxDocument::fileName() const -> const std::string& { return d->fileName; }
 
+void CxxDocument::requestCodeCompletion(std::uint32_t line,
+                                        std::uint32_t column) {
+  auto& unit = d->unit;
+  unit.preprocessor()->requestCodeCompletionAt(line, column);
+}
+
 void CxxDocument::parse(std::string source) {
   d->configure();
 

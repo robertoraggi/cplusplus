@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { MetaModel, toCppType, Request, Notification, isRequest } from "./MetaModel.js";
+import { MetaModel, toCppType, Request, Notification, isRequest, Property, Structure } from "./MetaModel.js";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.js";
 
@@ -96,9 +96,27 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
       emit();
       emit(`  auto id(std::variant<long, std::string> id) -> ${responseTypeName}&;`);
       emit();
-      emit(`  [[nodiscard]] auto result() const -> ${resultType};`);
-      emit();
-      emit(`  auto result(${resultType} result) -> ${responseTypeName}&;`);
+
+      const structure: Structure = {
+        name: responseTypeName,
+        properties: [{ name: "result", type: request.result, optional: false }],
+      };
+
+      structure.properties.forEach((property) => {
+        const propertyName = property.name;
+        const returnType = toCppType(property.type);
+        emit();
+        emit(`    [[nodiscard ]]auto ${propertyName}() const -> ${returnType};`);
+        if (property.type.kind === "or") {
+          emit();
+          emit(`template <typename T>`);
+          emit(`[[nodiscard]] auto ${propertyName}() -> T {`);
+          emit(`  auto& value = (*repr_)["${propertyName}"];`);
+          emit(`  return T(value);`);
+          emit(`}`);
+        }
+      });
+
       emit(`};`);
     }
   });

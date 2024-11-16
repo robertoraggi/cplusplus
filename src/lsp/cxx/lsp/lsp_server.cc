@@ -364,6 +364,11 @@ void Server::operator()(InitializeRequest request) {
     capabilities.textDocumentSync(TextDocumentSyncKind::kIncremental);
     capabilities.documentSymbolProvider(true);
 
+    auto completionOptions =
+        capabilities.completionProvider<CompletionOptions>();
+
+    completionOptions.triggerCharacters({":", ".", ">"});
+
     sendToClient(response);
   });
 }
@@ -473,6 +478,37 @@ void Server::operator()(DocumentSymbolRequest request) {
       DocumentSymbolResponse response(storage);
       response.id(id);
       (void)response.result();
+      sendToClient(response);
+    });
+  });
+}
+
+void Server::operator()(CompletionRequest request) {
+  logTrace(std::format("Did receive CompletionRequest"));
+
+  auto textDocument = request.params().textDocument();
+  auto uri = textDocument.uri();
+  auto id = request.id();
+  auto line = request.params().position().line();
+  auto column = request.params().position().character();
+
+  const auto& text = documentContents_.at(uri);
+  auto value = text.value;
+
+  run([=, this, fileName = pathFromUri(uri)] {
+    withUnsafeJson([&](json storage) {
+      // the version is not relevant for code completion requests as we don't
+      // need to store the document in the cache.
+      auto cxxDocument = std::make_shared<CxxDocument>(cli, std::move(fileName),
+                                                       /*version=*/0);
+
+      // cxx expects 1-based line and column numbers
+      cxxDocument->requestCodeCompletion(line + 1, column + 1);
+      cxxDocument->parse(std::move(value));
+
+      CompletionResponse response(storage);
+      response.id(request.id());
+      auto completionItems = response.result<Vector<CompletionItem>>();
       sendToClient(response);
     });
   });
