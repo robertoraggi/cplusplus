@@ -39,6 +39,8 @@ class CxxDocument {
 
   [[nodiscard]] auto fileName() const -> const std::string&;
 
+  void requestCodeCompletion(std::uint32_t line, std::uint32_t column);
+
   void parse(std::string source);
 
   [[nodiscard]] auto version() const -> long;

@@ -148,9 +148,11 @@ class ImplementationResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t>;
 
-  auto result(
-      std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
-      -> ImplementationResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class TypeDefinitionRequest final : public LSPRequest {
@@ -178,9 +180,11 @@ class TypeDefinitionResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t>;
 
-  auto result(
-      std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
-      -> TypeDefinitionResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WorkspaceFoldersRequest final : public LSPRequest {
@@ -204,8 +208,11 @@ class WorkspaceFoldersResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<WorkspaceFolder>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<WorkspaceFolder>, std::nullptr_t> result)
-      -> WorkspaceFoldersResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class ConfigurationRequest final : public LSPRequest {
@@ -230,8 +237,6 @@ class ConfigurationResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> ConfigurationResponse&;
 
   [[nodiscard]] auto result() const -> Vector<LSPAny>;
-
-  auto result(Vector<LSPAny> result) -> ConfigurationResponse&;
 };
 
 class DocumentColorRequest final : public LSPRequest {
@@ -256,8 +261,6 @@ class DocumentColorResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> DocumentColorResponse&;
 
   [[nodiscard]] auto result() const -> Vector<ColorInformation>;
-
-  auto result(Vector<ColorInformation> result) -> DocumentColorResponse&;
 };
 
 class ColorPresentationRequest final : public LSPRequest {
@@ -282,8 +285,6 @@ class ColorPresentationResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> ColorPresentationResponse&;
 
   [[nodiscard]] auto result() const -> Vector<ColorPresentation>;
-
-  auto result(Vector<ColorPresentation> result) -> ColorPresentationResponse&;
 };
 
 class FoldingRangeRequest final : public LSPRequest {
@@ -310,8 +311,11 @@ class FoldingRangeResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<FoldingRange>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<FoldingRange>, std::nullptr_t> result)
-      -> FoldingRangeResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class FoldingRangeRefreshRequest final : public LSPRequest {
@@ -333,8 +337,6 @@ class FoldingRangeRefreshResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> FoldingRangeRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> FoldingRangeRefreshResponse&;
 };
 
 class DeclarationRequest final : public LSPRequest {
@@ -362,9 +364,11 @@ class DeclarationResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t>;
 
-  auto result(
-      std::variant<Declaration, Vector<DeclarationLink>, std::nullptr_t> result)
-      -> DeclarationResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class SelectionRangeRequest final : public LSPRequest {
@@ -391,8 +395,11 @@ class SelectionRangeResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<SelectionRange>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<SelectionRange>, std::nullptr_t> result)
-      -> SelectionRangeResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WorkDoneProgressCreateRequest final : public LSPRequest {
@@ -419,8 +426,6 @@ class WorkDoneProgressCreateResponse final : public LSPResponse {
       -> WorkDoneProgressCreateResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> WorkDoneProgressCreateResponse&;
 };
 
 class CallHierarchyPrepareRequest final : public LSPRequest {
@@ -448,8 +453,11 @@ class CallHierarchyPrepareResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<CallHierarchyItem>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<CallHierarchyItem>, std::nullptr_t> result)
-      -> CallHierarchyPrepareResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CallHierarchyIncomingCallsRequest final : public LSPRequest {
@@ -480,9 +488,11 @@ class CallHierarchyIncomingCallsResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t>;
 
-  auto result(
-      std::variant<Vector<CallHierarchyIncomingCall>, std::nullptr_t> result)
-      -> CallHierarchyIncomingCallsResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CallHierarchyOutgoingCallsRequest final : public LSPRequest {
@@ -513,9 +523,11 @@ class CallHierarchyOutgoingCallsResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t>;
 
-  auto result(
-      std::variant<Vector<CallHierarchyOutgoingCall>, std::nullptr_t> result)
-      -> CallHierarchyOutgoingCallsResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class SemanticTokensRequest final : public LSPRequest {
@@ -542,8 +554,11 @@ class SemanticTokensResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<SemanticTokens, std::nullptr_t>;
 
-  auto result(std::variant<SemanticTokens, std::nullptr_t> result)
-      -> SemanticTokensResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class SemanticTokensDeltaRequest final : public LSPRequest {
@@ -571,9 +586,11 @@ class SemanticTokensDeltaResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t>;
 
-  auto result(
-      std::variant<SemanticTokens, SemanticTokensDelta, std::nullptr_t> result)
-      -> SemanticTokensDeltaResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class SemanticTokensRangeRequest final : public LSPRequest {
@@ -600,8 +617,11 @@ class SemanticTokensRangeResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<SemanticTokens, std::nullptr_t>;
 
-  auto result(std::variant<SemanticTokens, std::nullptr_t> result)
-      -> SemanticTokensRangeResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class SemanticTokensRefreshRequest final : public LSPRequest {
@@ -623,8 +643,6 @@ class SemanticTokensRefreshResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> SemanticTokensRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> SemanticTokensRefreshResponse&;
 };
 
 class ShowDocumentRequest final : public LSPRequest {
@@ -649,8 +667,6 @@ class ShowDocumentResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> ShowDocumentResponse&;
 
   [[nodiscard]] auto result() const -> ShowDocumentResult;
-
-  auto result(ShowDocumentResult result) -> ShowDocumentResponse&;
 };
 
 class LinkedEditingRangeRequest final : public LSPRequest {
@@ -677,8 +693,11 @@ class LinkedEditingRangeResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<LinkedEditingRanges, std::nullptr_t>;
 
-  auto result(std::variant<LinkedEditingRanges, std::nullptr_t> result)
-      -> LinkedEditingRangeResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WillCreateFilesRequest final : public LSPRequest {
@@ -705,8 +724,11 @@ class WillCreateFilesResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<WorkspaceEdit, std::nullptr_t>;
 
-  auto result(std::variant<WorkspaceEdit, std::nullptr_t> result)
-      -> WillCreateFilesResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WillRenameFilesRequest final : public LSPRequest {
@@ -733,8 +755,11 @@ class WillRenameFilesResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<WorkspaceEdit, std::nullptr_t>;
 
-  auto result(std::variant<WorkspaceEdit, std::nullptr_t> result)
-      -> WillRenameFilesResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WillDeleteFilesRequest final : public LSPRequest {
@@ -761,8 +786,11 @@ class WillDeleteFilesResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<WorkspaceEdit, std::nullptr_t>;
 
-  auto result(std::variant<WorkspaceEdit, std::nullptr_t> result)
-      -> WillDeleteFilesResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class MonikerRequest final : public LSPRequest {
@@ -789,8 +817,11 @@ class MonikerResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<Moniker>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<Moniker>, std::nullptr_t> result)
-      -> MonikerResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class TypeHierarchyPrepareRequest final : public LSPRequest {
@@ -818,8 +849,11 @@ class TypeHierarchyPrepareResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
-      -> TypeHierarchyPrepareResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class TypeHierarchySupertypesRequest final : public LSPRequest {
@@ -849,8 +883,11 @@ class TypeHierarchySupertypesResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
-      -> TypeHierarchySupertypesResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class TypeHierarchySubtypesRequest final : public LSPRequest {
@@ -878,8 +915,11 @@ class TypeHierarchySubtypesResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TypeHierarchyItem>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TypeHierarchyItem>, std::nullptr_t> result)
-      -> TypeHierarchySubtypesResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class InlineValueRequest final : public LSPRequest {
@@ -906,8 +946,11 @@ class InlineValueResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<InlineValue>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<InlineValue>, std::nullptr_t> result)
-      -> InlineValueResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class InlineValueRefreshRequest final : public LSPRequest {
@@ -929,8 +972,6 @@ class InlineValueRefreshResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> InlineValueRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> InlineValueRefreshResponse&;
 };
 
 class InlayHintRequest final : public LSPRequest {
@@ -957,8 +998,11 @@ class InlayHintResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<InlayHint>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<InlayHint>, std::nullptr_t> result)
-      -> InlayHintResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class InlayHintResolveRequest final : public LSPRequest {
@@ -983,8 +1027,6 @@ class InlayHintResolveResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> InlayHintResolveResponse&;
 
   [[nodiscard]] auto result() const -> InlayHint;
-
-  auto result(InlayHint result) -> InlayHintResolveResponse&;
 };
 
 class InlayHintRefreshRequest final : public LSPRequest {
@@ -1006,8 +1048,6 @@ class InlayHintRefreshResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> InlayHintRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> InlayHintRefreshResponse&;
 };
 
 class DocumentDiagnosticRequest final : public LSPRequest {
@@ -1032,8 +1072,6 @@ class DocumentDiagnosticResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> DocumentDiagnosticResponse&;
 
   [[nodiscard]] auto result() const -> DocumentDiagnosticReport;
-
-  auto result(DocumentDiagnosticReport result) -> DocumentDiagnosticResponse&;
 };
 
 class WorkspaceDiagnosticRequest final : public LSPRequest {
@@ -1058,8 +1096,6 @@ class WorkspaceDiagnosticResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> WorkspaceDiagnosticResponse&;
 
   [[nodiscard]] auto result() const -> WorkspaceDiagnosticReport;
-
-  auto result(WorkspaceDiagnosticReport result) -> WorkspaceDiagnosticResponse&;
 };
 
 class DiagnosticRefreshRequest final : public LSPRequest {
@@ -1081,8 +1117,6 @@ class DiagnosticRefreshResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> DiagnosticRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> DiagnosticRefreshResponse&;
 };
 
 class InlineCompletionRequest final : public LSPRequest {
@@ -1111,9 +1145,11 @@ class InlineCompletionResponse final : public LSPResponse {
       -> std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
                       std::nullptr_t>;
 
-  auto result(std::variant<InlineCompletionList, Vector<InlineCompletionItem>,
-                           std::nullptr_t>
-                  result) -> InlineCompletionResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class TextDocumentContentRequest final : public LSPRequest {
@@ -1138,8 +1174,6 @@ class TextDocumentContentResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> TextDocumentContentResponse&;
 
   [[nodiscard]] auto result() const -> TextDocumentContentResult;
-
-  auto result(TextDocumentContentResult result) -> TextDocumentContentResponse&;
 };
 
 class TextDocumentContentRefreshRequest final : public LSPRequest {
@@ -1167,8 +1201,6 @@ class TextDocumentContentRefreshResponse final : public LSPResponse {
       -> TextDocumentContentRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> TextDocumentContentRefreshResponse&;
 };
 
 class RegistrationRequest final : public LSPRequest {
@@ -1193,8 +1225,6 @@ class RegistrationResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> RegistrationResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> RegistrationResponse&;
 };
 
 class UnregistrationRequest final : public LSPRequest {
@@ -1219,8 +1249,6 @@ class UnregistrationResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> UnregistrationResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> UnregistrationResponse&;
 };
 
 class InitializeRequest final : public LSPRequest {
@@ -1245,8 +1273,6 @@ class InitializeResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> InitializeResponse&;
 
   [[nodiscard]] auto result() const -> InitializeResult;
-
-  auto result(InitializeResult result) -> InitializeResponse&;
 };
 
 class ShutdownRequest final : public LSPRequest {
@@ -1268,8 +1294,6 @@ class ShutdownResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> ShutdownResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> ShutdownResponse&;
 };
 
 class ShowMessageRequest final : public LSPRequest {
@@ -1296,8 +1320,11 @@ class ShowMessageResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<MessageActionItem, std::nullptr_t>;
 
-  auto result(std::variant<MessageActionItem, std::nullptr_t> result)
-      -> ShowMessageResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WillSaveTextDocumentWaitUntilRequest final : public LSPRequest {
@@ -1327,8 +1354,11 @@ class WillSaveTextDocumentWaitUntilResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TextEdit>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TextEdit>, std::nullptr_t> result)
-      -> WillSaveTextDocumentWaitUntilResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CompletionRequest final : public LSPRequest {
@@ -1356,9 +1386,11 @@ class CompletionResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t>;
 
-  auto result(
-      std::variant<Vector<CompletionItem>, CompletionList, std::nullptr_t>
-          result) -> CompletionResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CompletionResolveRequest final : public LSPRequest {
@@ -1383,8 +1415,6 @@ class CompletionResolveResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> CompletionResolveResponse&;
 
   [[nodiscard]] auto result() const -> CompletionItem;
-
-  auto result(CompletionItem result) -> CompletionResolveResponse&;
 };
 
 class HoverRequest final : public LSPRequest {
@@ -1410,7 +1440,11 @@ class HoverResponse final : public LSPResponse {
 
   [[nodiscard]] auto result() const -> std::variant<Hover, std::nullptr_t>;
 
-  auto result(std::variant<Hover, std::nullptr_t> result) -> HoverResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class SignatureHelpRequest final : public LSPRequest {
@@ -1437,8 +1471,11 @@ class SignatureHelpResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<SignatureHelp, std::nullptr_t>;
 
-  auto result(std::variant<SignatureHelp, std::nullptr_t> result)
-      -> SignatureHelpResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DefinitionRequest final : public LSPRequest {
@@ -1466,9 +1503,11 @@ class DefinitionResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t>;
 
-  auto result(
-      std::variant<Definition, Vector<DefinitionLink>, std::nullptr_t> result)
-      -> DefinitionResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class ReferencesRequest final : public LSPRequest {
@@ -1495,8 +1534,11 @@ class ReferencesResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<Location>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<Location>, std::nullptr_t> result)
-      -> ReferencesResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DocumentHighlightRequest final : public LSPRequest {
@@ -1523,8 +1565,11 @@ class DocumentHighlightResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<DocumentHighlight>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<DocumentHighlight>, std::nullptr_t> result)
-      -> DocumentHighlightResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DocumentSymbolRequest final : public LSPRequest {
@@ -1553,9 +1598,11 @@ class DocumentSymbolResponse final : public LSPResponse {
       -> std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
                       std::nullptr_t>;
 
-  auto result(std::variant<Vector<SymbolInformation>, Vector<DocumentSymbol>,
-                           std::nullptr_t>
-                  result) -> DocumentSymbolResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CodeActionRequest final : public LSPRequest {
@@ -1584,9 +1631,11 @@ class CodeActionResponse final : public LSPResponse {
       -> std::variant<Vector<std::variant<Command, CodeAction>>,
                       std::nullptr_t>;
 
-  auto result(
-      std::variant<Vector<std::variant<Command, CodeAction>>, std::nullptr_t>
-          result) -> CodeActionResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CodeActionResolveRequest final : public LSPRequest {
@@ -1611,8 +1660,6 @@ class CodeActionResolveResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> CodeActionResolveResponse&;
 
   [[nodiscard]] auto result() const -> CodeAction;
-
-  auto result(CodeAction result) -> CodeActionResolveResponse&;
 };
 
 class WorkspaceSymbolRequest final : public LSPRequest {
@@ -1641,9 +1688,11 @@ class WorkspaceSymbolResponse final : public LSPResponse {
       -> std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
                       std::nullptr_t>;
 
-  auto result(std::variant<Vector<SymbolInformation>, Vector<WorkspaceSymbol>,
-                           std::nullptr_t>
-                  result) -> WorkspaceSymbolResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class WorkspaceSymbolResolveRequest final : public LSPRequest {
@@ -1669,8 +1718,6 @@ class WorkspaceSymbolResolveResponse final : public LSPResponse {
       -> WorkspaceSymbolResolveResponse&;
 
   [[nodiscard]] auto result() const -> WorkspaceSymbol;
-
-  auto result(WorkspaceSymbol result) -> WorkspaceSymbolResolveResponse&;
 };
 
 class CodeLensRequest final : public LSPRequest {
@@ -1697,8 +1744,11 @@ class CodeLensResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<CodeLens>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<CodeLens>, std::nullptr_t> result)
-      -> CodeLensResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class CodeLensResolveRequest final : public LSPRequest {
@@ -1723,8 +1773,6 @@ class CodeLensResolveResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> CodeLensResolveResponse&;
 
   [[nodiscard]] auto result() const -> CodeLens;
-
-  auto result(CodeLens result) -> CodeLensResolveResponse&;
 };
 
 class CodeLensRefreshRequest final : public LSPRequest {
@@ -1746,8 +1794,6 @@ class CodeLensRefreshResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> CodeLensRefreshResponse&;
 
   [[nodiscard]] auto result() const -> std::nullptr_t;
-
-  auto result(std::nullptr_t result) -> CodeLensRefreshResponse&;
 };
 
 class DocumentLinkRequest final : public LSPRequest {
@@ -1774,8 +1820,11 @@ class DocumentLinkResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<DocumentLink>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<DocumentLink>, std::nullptr_t> result)
-      -> DocumentLinkResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DocumentLinkResolveRequest final : public LSPRequest {
@@ -1800,8 +1849,6 @@ class DocumentLinkResolveResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> DocumentLinkResolveResponse&;
 
   [[nodiscard]] auto result() const -> DocumentLink;
-
-  auto result(DocumentLink result) -> DocumentLinkResolveResponse&;
 };
 
 class DocumentFormattingRequest final : public LSPRequest {
@@ -1828,8 +1875,11 @@ class DocumentFormattingResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TextEdit>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TextEdit>, std::nullptr_t> result)
-      -> DocumentFormattingResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DocumentRangeFormattingRequest final : public LSPRequest {
@@ -1859,8 +1909,11 @@ class DocumentRangeFormattingResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TextEdit>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TextEdit>, std::nullptr_t> result)
-      -> DocumentRangeFormattingResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DocumentRangesFormattingRequest final : public LSPRequest {
@@ -1890,8 +1943,11 @@ class DocumentRangesFormattingResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TextEdit>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TextEdit>, std::nullptr_t> result)
-      -> DocumentRangesFormattingResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DocumentOnTypeFormattingRequest final : public LSPRequest {
@@ -1921,8 +1977,11 @@ class DocumentOnTypeFormattingResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<Vector<TextEdit>, std::nullptr_t>;
 
-  auto result(std::variant<Vector<TextEdit>, std::nullptr_t> result)
-      -> DocumentOnTypeFormattingResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class RenameRequest final : public LSPRequest {
@@ -1949,8 +2008,11 @@ class RenameResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<WorkspaceEdit, std::nullptr_t>;
 
-  auto result(std::variant<WorkspaceEdit, std::nullptr_t> result)
-      -> RenameResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class PrepareRenameRequest final : public LSPRequest {
@@ -1977,8 +2039,11 @@ class PrepareRenameResponse final : public LSPResponse {
   [[nodiscard]] auto result() const
       -> std::variant<PrepareRenameResult, std::nullptr_t>;
 
-  auto result(std::variant<PrepareRenameResult, std::nullptr_t> result)
-      -> PrepareRenameResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class ExecuteCommandRequest final : public LSPRequest {
@@ -2004,8 +2069,11 @@ class ExecuteCommandResponse final : public LSPResponse {
 
   [[nodiscard]] auto result() const -> std::variant<LSPAny, std::nullptr_t>;
 
-  auto result(std::variant<LSPAny, std::nullptr_t> result)
-      -> ExecuteCommandResponse&;
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class ApplyWorkspaceEditRequest final : public LSPRequest {
@@ -2030,8 +2098,6 @@ class ApplyWorkspaceEditResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> ApplyWorkspaceEditResponse&;
 
   [[nodiscard]] auto result() const -> ApplyWorkspaceEditResult;
-
-  auto result(ApplyWorkspaceEditResult result) -> ApplyWorkspaceEditResponse&;
 };
 
 class DidChangeWorkspaceFoldersNotification final : public LSPRequest {

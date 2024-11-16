@@ -58,6 +58,7 @@ class Server {
   void operator()(DidChangeTextDocumentNotification notification);
 
   void operator()(DocumentSymbolRequest request);
+  void operator()(CompletionRequest request);
 
   void operator()(SetTraceNotification notification);
 
