@@ -21,10 +21,10 @@
 #pragma once
 
 #include <cxx/names_fwd.h>
-#include <cxx/symbol_chain_view.h>
 #include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
+#include <cxx/views/symbol_chain.h>
 
 #include <vector>
 
