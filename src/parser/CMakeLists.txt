@@ -18,6 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 file(GLOB CXX_INCLUDE_HEADER_FILES cxx/*.h)
+file(GLOB CXX_VIEWS_INCLUDE_HEADER_FILES cxx/views/*.h)
 
 aux_source_directory(cxx SOURCES)
 
@@ -25,6 +26,9 @@ add_library(cxx-parser ${SOURCES}
     # generated files
     keywords-priv.h
     pp_keywords-priv.h
+    # headers
+    ${CXX_INCLUDE_HEADER_FILES}
+    ${CXX_VIEWS_INCLUDE_HEADER_FILES}
 )
 
 target_compile_definitions(cxx-parser PUBLIC
@@ -83,6 +87,11 @@ endif()
 install(
     FILES ${CXX_INCLUDE_HEADER_FILES}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx
+)
+
+install(
+    FILES ${CXX_VIEWS_INCLUDE_HEADER_FILES}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cxx/views
 )
 
 install(

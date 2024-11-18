@@ -18,16 +18,4 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/views/symbol_chain.h>
-
-// cxx
-#include <cxx/symbols.h>
-
-namespace cxx {
-
-auto SymbolChainView::Generator::operator++() -> Generator& {
-  symbol_ = symbol_->next();
-  return *this;
-}
-
-}  // namespace cxx
+#include <cxx/views/base_classes.h>

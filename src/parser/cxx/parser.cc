@@ -29,12 +29,12 @@
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
-#include <cxx/symbol_chain_view.h>
 #include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/type_printer.h>
 #include <cxx/types.h>
+#include <cxx/views/symbol_chain.h>
 
 #include <algorithm>
 #include <cstring>
@@ -9867,6 +9867,10 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
 
       baseClassSymbol->setVirtual(ast->isVirtual);
       baseClassSymbol->setSymbol(symbol);
+
+      if (symbol) {
+        baseClassSymbol->setName(symbol->name());
+      }
 
       switch (ast->accessSpecifier) {
         case TokenKind::T_PRIVATE:
