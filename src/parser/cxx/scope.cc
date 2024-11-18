@@ -18,8 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/names.h>
 #include <cxx/scope.h>
+
+// cxx
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 
 #include <algorithm>
@@ -69,17 +71,6 @@ struct AddTemplateSymbol {
 };
 
 }  // namespace
-
-auto Scope::MemberIterator::operator++() -> MemberIterator& {
-  symbol_ = symbol_->next();
-  return *this;
-}
-
-auto Scope::MemberIterator::operator++(int) -> MemberIterator {
-  auto it = *this;
-  symbol_ = symbol_->next();
-  return it;
-}
 
 Scope::Scope(Scope* parent) : parent_(parent) {}
 
@@ -163,25 +154,20 @@ void Scope::replaceSymbol(Symbol* symbol, Symbol* newSymbol) {
   }
 }
 
-auto Scope::usingDirectives() const -> const std::vector<Scope*>& {
-  return usingDirectives_;
-}
-
 void Scope::addUsingDirective(Scope* scope) {
   usingDirectives_.push_back(scope);
 }
 
-auto Scope::getHelper(const Name* name) const
-    -> std::pair<MemberIterator, MemberIterator> {
+auto Scope::find(const Name* name) const -> SymbolChainView {
   if (!symbols_.empty()) {
     const auto h = std::hash<const void*>{}(name) % buckets_.size();
     for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
       if (symbol->name() == name) {
-        return {MemberIterator{symbol}, MemberIterator{}};
+        return SymbolChainView{symbol};
       }
     }
   }
-  return {};
+  return SymbolChainView{nullptr};
 }
 
 }  // namespace cxx

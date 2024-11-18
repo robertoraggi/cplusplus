@@ -29,6 +29,7 @@
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
+#include <cxx/symbol_chain_view.h>
 #include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
@@ -754,7 +755,7 @@ struct Parser::DeclareSymbol {
 
   void operator()(Symbol* symbol) {
     if (auto f = symbol_cast<FunctionSymbol>(symbol)) {
-      for (Symbol* candidate : scope_->get(symbol->name())) {
+      for (Symbol* candidate : scope_->find(symbol->name())) {
         if (auto currentFunction = symbol_cast<FunctionSymbol>(candidate)) {
           auto ovl =
               control()->newOverloadSetSymbol(candidate->enclosingScope(), {});
@@ -4561,8 +4562,8 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
   if (!identifier) {
     namespaceSymbol = parentNamespace->unnamedNamespace();
   } else {
-    auto resolved =
-        parentScope->get(identifier) | std::views::filter(&Symbol::isNamespace);
+    auto resolved = parentScope->find(identifier) |
+                    std::views::filter(&Symbol::isNamespace);
     if (std::ranges::distance(resolved) == 1) {
       namespaceSymbol =
           symbol_cast<NamespaceSymbol>(*std::ranges::begin(resolved));
@@ -9309,7 +9310,7 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
 
   if (id && !isTemplateSpecialization) {
     for (auto previous :
-         scope_->get(id) | std::views::filter(&Symbol::isClass)) {
+         scope_->find(id) | std::views::filter(&Symbol::isClass)) {
       if (auto previousClass = symbol_cast<ClassSymbol>(previous)) {
         if (previousClass->isComplete()) {
           parse_error(classHead.name->firstSourceLocation(),
@@ -11272,7 +11273,7 @@ auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
 }
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
     -> FunctionSymbol* {
-  for (auto candidate : scope->get(name)) {
+  for (auto candidate : scope->find(name)) {
     if (auto function = symbol_cast<FunctionSymbol>(candidate)) {
       if (control_->is_same(function->type(), type)) {
         return function;

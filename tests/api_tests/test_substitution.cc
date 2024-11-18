@@ -64,7 +64,7 @@ struct Source {
   auto get(std::string_view name) -> Symbol* {
     Symbol* symbol = nullptr;
     auto id = unit.control()->getIdentifier(name);
-    for (auto candidate : scope()->get(id)) {
+    for (auto candidate : scope()->find(id)) {
       if (symbol) return nullptr;
       symbol = candidate;
     }
@@ -87,7 +87,7 @@ struct LookupMember {
 
   auto operator()(Scope* scope, std::string_view name) -> Symbol* {
     auto id = source.control()->getIdentifier(name);
-    for (auto candidate : scope->get(id)) {
+    for (auto candidate : scope->find(id)) {
       return candidate;
     }
     return nullptr;

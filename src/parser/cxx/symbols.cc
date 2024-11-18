@@ -88,10 +88,6 @@ ScopedSymbol::~ScopedSymbol() {}
 
 auto ScopedSymbol::scope() const -> Scope* { return scope_.get(); }
 
-auto ScopedSymbol::members() const -> const std::vector<Symbol*>& {
-  return scope_->symbols();
-}
-
 void ScopedSymbol::addMember(Symbol* symbol) { scope_->addSymbol(symbol); }
 
 NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope)

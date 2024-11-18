@@ -139,6 +139,14 @@ class Symbol {
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
+  [[nodiscard]] auto isClassOrNamespace() const -> bool {
+    return isClass() || isNamespace();
+  }
+
+  [[nodiscard]] auto isEnumOrScopedEnum() const -> bool {
+    return isEnum() || isScopedEnum();
+  }
+
  private:
   friend class Scope;
 
@@ -150,53 +158,12 @@ class Symbol {
   SourceLocation location_;
 };
 
-class SymbolChainIterator {
- public:
-  using difference_type = std::ptrdiff_t;
-  using value_type = Symbol*;
-
-  SymbolChainIterator() = default;
-  explicit SymbolChainIterator(Symbol* symbol) : symbol_(symbol) {}
-
-  auto operator*() const -> Symbol* { return symbol_; }
-
-  auto operator++() -> SymbolChainIterator& {
-    symbol_ = symbol_->next();
-    return *this;
-  }
-
-  auto operator++(int) -> SymbolChainIterator {
-    auto it = *this;
-    ++*this;
-    return it;
-  }
-
-  auto operator==(const SymbolChainIterator&) const -> bool = default;
-
- private:
-  Symbol* symbol_ = nullptr;
-};
-
-static_assert(std::forward_iterator<SymbolChainIterator>);
-
-class SymbolChainView : public std::ranges::view_interface<SymbolChainView> {
- public:
-  explicit SymbolChainView(Symbol* symbol) : begin_{symbol} {}
-
-  auto begin() const -> SymbolChainIterator { return begin_; }
-  auto end() const -> SymbolChainIterator { return SymbolChainIterator(); }
-
- private:
-  SymbolChainIterator begin_;
-};
-
 class ScopedSymbol : public Symbol {
  public:
   ScopedSymbol(SymbolKind kind, Scope* enclosingScope);
   ~ScopedSymbol() override;
 
   [[nodiscard]] auto scope() const -> Scope*;
-  [[nodiscard]] auto members() const -> const std::vector<Symbol*>&;
 
   void addMember(Symbol* member);
 

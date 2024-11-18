@@ -21,68 +21,46 @@
 #pragma once
 
 #include <cxx/names_fwd.h>
+#include <cxx/symbol_chain_view.h>
+#include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
-#include <ranges>
 #include <vector>
 
 namespace cxx {
 
+class SymbolChainView;
+
 class Scope {
  public:
-  class MemberIterator {
-   public:
-    using value_type = Symbol*;
-    using difference_type = std::ptrdiff_t;
-
-    MemberIterator() = default;
-    explicit MemberIterator(Symbol* symbol) : symbol_(symbol) {}
-
-    auto operator<=>(const MemberIterator&) const = default;
-
-    auto operator*() const -> Symbol* { return symbol_; }
-    auto operator++() -> MemberIterator&;
-    auto operator++(int) -> MemberIterator;
-
-   private:
-    Symbol* symbol_ = nullptr;
-  };
-
   explicit Scope(Scope* parent);
   ~Scope();
 
   [[nodiscard]] auto isEnumScope() const -> bool;
   [[nodiscard]] auto isTemplateParametersScope() const -> bool;
-
-  [[nodiscard]] auto parent() const -> Scope* { return parent_; }
-  void setParent(Scope* parent) { parent_ = parent; }
-
   [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;
 
+  [[nodiscard]] auto parent() const -> Scope* { return parent_; }
   [[nodiscard]] auto owner() const -> ScopedSymbol* { return owner_; }
+
+  [[nodiscard]] auto symbols() const { return std::views::all(symbols_); }
+
+  [[nodiscard]] auto usingDirectives() const {
+    return std::views::all(usingDirectives_);
+  }
+
+  [[nodiscard]] auto find(const Name* name) const -> SymbolChainView;
+
+  void setParent(Scope* parent) { parent_ = parent; }
   void setOwner(ScopedSymbol* owner) { owner_ = owner; }
 
-  [[nodiscard]] auto symbols() const -> const std::vector<Symbol*>& {
-    return symbols_;
-  }
-
-  [[nodiscard]] auto get(const Name* name) const {
-    auto [first, last] = getHelper(name);
-    return std::ranges::subrange(first, last);
-  }
-
   void addSymbol(Symbol* symbol);
-  void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
-
-  [[nodiscard]] auto usingDirectives() const -> const std::vector<Scope*>&;
-
   void addUsingDirective(Scope* scope);
 
- private:
-  [[nodiscard]] auto getHelper(const Name* name) const
-      -> std::pair<MemberIterator, MemberIterator>;
+  void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
 
+ private:
   void rehash();
 
  private:
@@ -92,5 +70,42 @@ class Scope {
   std::vector<Symbol*> buckets_;
   std::vector<Scope*> usingDirectives_;
 };
+
+namespace views {
+
+constexpr auto class_or_namespaces =
+    std::views::filter(&Symbol::isClassOrNamespace) |
+    std::views::transform(
+        [](Symbol* s) { return static_cast<ScopedSymbol*>(s); });
+
+constexpr auto enum_or_scoped_enums =
+    std::views::filter(&Symbol::isEnumOrScopedEnum) |
+    std::views::transform(
+        [](Symbol* s) { return static_cast<ScopedSymbol*>(s); });
+
+constexpr const auto namespaces =
+    std::views::filter(&Symbol::isNamespace) |
+    std::views::transform(symbol_cast<NamespaceSymbol>);
+
+constexpr auto concepts = std::views::filter(&Symbol::isConcept) |
+                          std::views::transform(symbol_cast<ConceptSymbol>);
+
+constexpr auto classes = std::views::filter(&Symbol::isClass) |
+                         std::views::transform(symbol_cast<ClassSymbol>);
+
+constexpr auto enums = std::views::filter(&Symbol::isEnum) |
+                       std::views::transform(symbol_cast<EnumSymbol>);
+
+constexpr auto scoped_enums =
+    std::views::filter(&Symbol::isScopedEnum) |
+    std::views::transform(symbol_cast<ScopedEnumSymbol>);
+
+constexpr auto functions = std::views::filter(&Symbol::isFunction) |
+                           std::views::transform(symbol_cast<FunctionSymbol>);
+
+constexpr auto variables = std::views::filter(&Symbol::isVariable) |
+                           std::views::transform(symbol_cast<VariableSymbol>);
+
+}  // namespace views
 
 }  // namespace cxx
