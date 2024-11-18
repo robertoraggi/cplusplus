@@ -229,7 +229,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(ClassSymbol* symbol)
     auto newCtor = self.instantiate(ctor);
     newSymbol->addConstructor(newCtor);
   }
-  for (auto member : symbol->scope()->symbols()) {
+  for (auto member : views::members(symbol)) {
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }
@@ -239,7 +239,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(ClassSymbol* symbol)
 auto SymbolInstantiation::VisitSymbol::operator()(EnumSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
-  for (auto member : symbol->scope()->symbols()) {
+  for (auto member : views::members(symbol)) {
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }
@@ -249,7 +249,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(EnumSymbol* symbol)
 auto SymbolInstantiation::VisitSymbol::operator()(ScopedEnumSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
-  for (auto member : symbol->scope()->symbols()) {
+  for (auto member : views::members(symbol)) {
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }
@@ -259,7 +259,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(ScopedEnumSymbol* symbol)
 auto SymbolInstantiation::VisitSymbol::operator()(FunctionSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
-  for (auto member : symbol->scope()->symbols()) {
+  for (auto member : views::members(symbol)) {
     if (member->isBlock()) continue;
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
@@ -300,7 +300,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(EnumeratorSymbol* symbol)
 auto SymbolInstantiation::VisitSymbol::operator()(
     FunctionParametersSymbol* symbol) -> Symbol* {
   auto newSymbol = self.replacement(symbol);
-  for (auto member : symbol->scope()->symbols()) {
+  for (auto member : views::members(symbol)) {
     if (member->isBlock()) continue;
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
@@ -311,7 +311,7 @@ auto SymbolInstantiation::VisitSymbol::operator()(
 auto SymbolInstantiation::VisitSymbol::operator()(
     TemplateParametersSymbol* symbol) -> Symbol* {
   auto newSymbol = self.replacement(symbol);
-  for (auto member : symbol->scope()->symbols()) {
+  for (auto member : views::members(symbol)) {
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }

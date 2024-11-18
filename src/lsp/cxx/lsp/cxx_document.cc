@@ -259,8 +259,7 @@ void CxxDocument::parse(std::string source) {
 
       if (auto classType = type_cast<ClassType>(objectType)) {
         auto classSymbol = classType->symbol();
-        for (auto member : classSymbol->scope()->symbols()) {
-          if (!member->name()) continue;
+        for (auto member : views::members(classSymbol)) {
           auto item = d->completionItems.emplace_back();
           item.label(to_string(member->name()));
         }

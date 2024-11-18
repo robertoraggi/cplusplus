@@ -106,6 +106,18 @@ constexpr auto functions = std::views::filter(&Symbol::isFunction) |
 constexpr auto variables = std::views::filter(&Symbol::isVariable) |
                            std::views::transform(symbol_cast<VariableSymbol>);
 
+inline auto members(Scope* scope) { return std::views::all(scope->symbols()); }
+
+inline auto members(ScopedSymbol* symbol) {
+  return std::views::all(symbol->scope()->symbols());
+}
+
+inline auto find(Scope* scope, const Name* name) {
+  return scope ? scope->find(name) : SymbolChainView{nullptr};
+}
+
+constexpr auto named_symbol = std::views::filter(&Symbol::name);
+
 }  // namespace views
 
 }  // namespace cxx
