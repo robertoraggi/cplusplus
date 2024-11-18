@@ -83,7 +83,7 @@ auto Lookup::lookupHelper(Scope* scope, const Name* name,
 
   cache.insert(scope);
 
-  for (auto symbol : scope->get(name)) {
+  for (auto symbol : scope->find(name)) {
     return symbol;
   }
 
