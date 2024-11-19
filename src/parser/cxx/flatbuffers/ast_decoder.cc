@@ -876,6 +876,7 @@ auto ASTDecoder::decodeSimpleDeclaration(const io::SimpleDeclaration* node)
     }
   }
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -901,6 +902,9 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->asmLoc = SourceLocation(node->asm_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->output_operand_list()) {
     auto* inserter = &ast->outputOperandList;
     for (std::size_t i = 0; i < node->output_operand_list()->size(); ++i) {
@@ -933,6 +937,8 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -941,9 +947,13 @@ auto ASTDecoder::decodeNamespaceAliasDefinition(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NamespaceAliasDefinitionAST();
+  ast->namespaceLoc = SourceLocation(node->namespace_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -956,6 +966,7 @@ auto ASTDecoder::decodeUsingDeclaration(const io::UsingDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) UsingDeclarationAST();
+  ast->usingLoc = SourceLocation(node->using_loc());
   if (node->using_declarator_list()) {
     auto* inserter = &ast->usingDeclaratorList;
     for (std::size_t i = 0; i < node->using_declarator_list()->size(); ++i) {
@@ -964,6 +975,7 @@ auto ASTDecoder::decodeUsingDeclaration(const io::UsingDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -972,8 +984,10 @@ auto ASTDecoder::decodeUsingEnumDeclaration(
   if (!node) return nullptr;
 
   auto ast = new (pool_) UsingEnumDeclarationAST();
+  ast->usingLoc = SourceLocation(node->using_loc());
   ast->enumTypeSpecifier =
       decodeElaboratedTypeSpecifier(node->enum_type_specifier());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -991,9 +1005,12 @@ auto ASTDecoder::decodeUsingDirective(const io::UsingDirective* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->usingLoc = SourceLocation(node->using_loc());
+  ast->namespaceLoc = SourceLocation(node->namespace_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1002,8 +1019,14 @@ auto ASTDecoder::decodeStaticAssertDeclaration(
   if (!node) return nullptr;
 
   auto ast = new (pool_) StaticAssertDeclarationAST();
+  ast->staticAssertLoc = SourceLocation(node->static_assert_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->commaLoc = SourceLocation(node->comma_loc());
+  ast->literalLoc = SourceLocation(node->literal_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1012,6 +1035,8 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AliasDeclarationAST();
+  ast->usingLoc = SourceLocation(node->using_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -1021,6 +1046,7 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->equalLoc = SourceLocation(node->equal_loc());
   if (node->gnu_attribute_list()) {
     auto* inserter = &ast->gnuAttributeList;
     for (std::size_t i = 0; i < node->gnu_attribute_list()->size(); ++i) {
@@ -1031,6 +1057,7 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
     }
   }
   ast->typeId = decodeTypeId(node->type_id());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1043,6 +1070,8 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   if (!node) return nullptr;
 
   auto ast = new (pool_) OpaqueEnumDeclarationAST();
+  ast->enumLoc = SourceLocation(node->enum_loc());
+  ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -1055,6 +1084,7 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
     for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
@@ -1064,6 +1094,7 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->emicolonLoc = SourceLocation(node->emicolon_loc());
   return ast;
 }
 
@@ -1102,6 +1133,8 @@ auto ASTDecoder::decodeTemplateDeclaration(const io::TemplateDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TemplateDeclarationAST();
+  ast->templateLoc = SourceLocation(node->template_loc());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
     for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
@@ -1111,6 +1144,7 @@ auto ASTDecoder::decodeTemplateDeclaration(const io::TemplateDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
   ast->declaration =
       decodeDeclaration(node->declaration(), node->declaration_type());
@@ -1122,8 +1156,12 @@ auto ASTDecoder::decodeConceptDefinition(const io::ConceptDefinition* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConceptDefinitionAST();
+  ast->conceptLoc = SourceLocation(node->concept_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1138,9 +1176,14 @@ auto ASTDecoder::decodeDeductionGuide(const io::DeductionGuide* node)
   auto ast = new (pool_) DeductionGuideAST();
   ast->explicitSpecifier = decodeSpecifier(node->explicit_specifier(),
                                            node->explicit_specifier_type());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->arrowLoc = SourceLocation(node->arrow_loc());
   ast->templateId = decodeSimpleTemplateId(node->template_id());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1153,6 +1196,8 @@ auto ASTDecoder::decodeExplicitInstantiation(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ExplicitInstantiationAST();
+  ast->externLoc = SourceLocation(node->extern_loc());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->declaration =
       decodeDeclaration(node->declaration(), node->declaration_type());
   return ast;
@@ -1163,6 +1208,7 @@ auto ASTDecoder::decodeExportDeclaration(const io::ExportDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ExportDeclarationAST();
+  ast->exportLoc = SourceLocation(node->export_loc());
   ast->declaration =
       decodeDeclaration(node->declaration(), node->declaration_type());
   return ast;
@@ -1174,6 +1220,8 @@ auto ASTDecoder::decodeExportCompoundDeclaration(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ExportCompoundDeclarationAST();
+  ast->exportLoc = SourceLocation(node->export_loc());
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
@@ -1183,6 +1231,7 @@ auto ASTDecoder::decodeExportCompoundDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   return ast;
 }
 
@@ -1191,6 +1240,9 @@ auto ASTDecoder::decodeLinkageSpecification(
   if (!node) return nullptr;
 
   auto ast = new (pool_) LinkageSpecificationAST();
+  ast->externLoc = SourceLocation(node->extern_loc());
+  ast->stringliteralLoc = SourceLocation(node->stringliteral_loc());
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
@@ -1200,6 +1252,7 @@ auto ASTDecoder::decodeLinkageSpecification(
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   if (node->string_literal()) {
     ast->stringLiteral =
         unit_->control()->stringLiteral(node->string_literal()->str());
@@ -1212,6 +1265,8 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NamespaceDefinitionAST();
+  ast->inlineLoc = SourceLocation(node->inline_loc());
+  ast->namespaceLoc = SourceLocation(node->namespace_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -1230,6 +1285,7 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->extra_attribute_list()) {
     auto* inserter = &ast->extraAttributeList;
     for (std::size_t i = 0; i < node->extra_attribute_list()->size(); ++i) {
@@ -1239,6 +1295,7 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
@@ -1248,6 +1305,7 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1260,6 +1318,7 @@ auto ASTDecoder::decodeEmptyDeclaration(const io::EmptyDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) EmptyDeclarationAST();
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1277,6 +1336,7 @@ auto ASTDecoder::decodeAttributeDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1285,6 +1345,7 @@ auto ASTDecoder::decodeModuleImportDeclaration(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ModuleImportDeclarationAST();
+  ast->importLoc = SourceLocation(node->import_loc());
   ast->importName = decodeImportName(node->import_name());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
@@ -1295,6 +1356,7 @@ auto ASTDecoder::decodeModuleImportDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1312,6 +1374,7 @@ auto ASTDecoder::decodeParameterDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->thisLoc = SourceLocation(node->this_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
     for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
@@ -1322,6 +1385,7 @@ auto ASTDecoder::decodeParameterDeclaration(
     }
   }
   ast->declarator = decodeDeclarator(node->declarator());
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   if (node->identifier()) {
@@ -1336,6 +1400,8 @@ auto ASTDecoder::decodeAccessDeclaration(const io::AccessDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AccessDeclarationAST();
+  ast->accessLoc = SourceLocation(node->access_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
   return ast;
 }
@@ -1372,6 +1438,8 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->refQualifierLoc = SourceLocation(node->ref_qualifier_loc());
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
   if (node->binding_list()) {
     auto* inserter = &ast->bindingList;
     for (std::size_t i = 0; i < node->binding_list()->size(); ++i) {
@@ -1379,8 +1447,10 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   ast->initializer =
       decodeExpression(node->initializer(), node->initializer_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1389,8 +1459,14 @@ auto ASTDecoder::decodeAsmOperand(const io::AsmOperand* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AsmOperandAST();
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->symbolicNameLoc = SourceLocation(node->symbolic_name_loc());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
+  ast->constraintLiteralLoc = SourceLocation(node->constraint_literal_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   if (node->symbolic_name()) {
     ast->symbolicName =
         unit_->control()->getIdentifier(node->symbolic_name()->str());
@@ -1403,6 +1479,7 @@ auto ASTDecoder::decodeAsmQualifier(const io::AsmQualifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AsmQualifierAST();
+  ast->qualifierLoc = SourceLocation(node->qualifier_loc());
   ast->qualifier = static_cast<TokenKind>(node->qualifier());
   return ast;
 }
@@ -1412,6 +1489,7 @@ auto ASTDecoder::decodeAsmClobber(const io::AsmClobber* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AsmClobberAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->literal()) {
     ast->literal = unit_->control()->stringLiteral(node->literal()->str());
   }
@@ -1423,6 +1501,7 @@ auto ASTDecoder::decodeAsmGotoLabel(const io::AsmGotoLabel* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AsmGotoLabelAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1435,6 +1514,8 @@ auto ASTDecoder::decodeLabeledStatement(const io::LabeledStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LabeledStatementAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1447,8 +1528,10 @@ auto ASTDecoder::decodeCaseStatement(const io::CaseStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CaseStatementAST();
+  ast->caseLoc = SourceLocation(node->case_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   return ast;
 }
 
@@ -1457,6 +1540,8 @@ auto ASTDecoder::decodeDefaultStatement(const io::DefaultStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DefaultStatementAST();
+  ast->defaultLoc = SourceLocation(node->default_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   return ast;
 }
 
@@ -1467,6 +1552,7 @@ auto ASTDecoder::decodeExpressionStatement(const io::ExpressionStatement* node)
   auto ast = new (pool_) ExpressionStatementAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1475,6 +1561,7 @@ auto ASTDecoder::decodeCompoundStatement(const io::CompoundStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CompoundStatementAST();
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->statement_list()) {
     auto* inserter = &ast->statementList;
     for (std::size_t i = 0; i < node->statement_list()->size(); ++i) {
@@ -1484,6 +1571,7 @@ auto ASTDecoder::decodeCompoundStatement(const io::CompoundStatement* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   return ast;
 }
 
@@ -1492,10 +1580,15 @@ auto ASTDecoder::decodeIfStatement(const io::IfStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) IfStatementAST();
+  ast->ifLoc = SourceLocation(node->if_loc());
+  ast->constexprLoc = SourceLocation(node->constexpr_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->initializer =
       decodeStatement(node->initializer(), node->initializer_type());
   ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
+  ast->elseLoc = SourceLocation(node->else_loc());
   ast->elseStatement =
       decodeStatement(node->else_statement(), node->else_statement_type());
   return ast;
@@ -1506,7 +1599,11 @@ auto ASTDecoder::decodeConstevalIfStatement(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConstevalIfStatementAST();
+  ast->ifLoc = SourceLocation(node->if_loc());
+  ast->exclaimLoc = SourceLocation(node->exclaim_loc());
+  ast->constvalLoc = SourceLocation(node->constval_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
+  ast->elseLoc = SourceLocation(node->else_loc());
   ast->elseStatement =
       decodeStatement(node->else_statement(), node->else_statement_type());
   return ast;
@@ -1517,9 +1614,12 @@ auto ASTDecoder::decodeSwitchStatement(const io::SwitchStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) SwitchStatementAST();
+  ast->switchLoc = SourceLocation(node->switch_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->initializer =
       decodeStatement(node->initializer(), node->initializer_type());
   ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
   return ast;
 }
@@ -1529,7 +1629,10 @@ auto ASTDecoder::decodeWhileStatement(const io::WhileStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) WhileStatementAST();
+  ast->whileLoc = SourceLocation(node->while_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
   return ast;
 }
@@ -1539,9 +1642,14 @@ auto ASTDecoder::decodeDoStatement(const io::DoStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DoStatementAST();
+  ast->doLoc = SourceLocation(node->do_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
+  ast->whileLoc = SourceLocation(node->while_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1550,12 +1658,16 @@ auto ASTDecoder::decodeForRangeStatement(const io::ForRangeStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ForRangeStatementAST();
+  ast->forLoc = SourceLocation(node->for_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->initializer =
       decodeStatement(node->initializer(), node->initializer_type());
   ast->rangeDeclaration = decodeDeclaration(node->range_declaration(),
                                             node->range_declaration_type());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   ast->rangeInitializer = decodeExpression(node->range_initializer(),
                                            node->range_initializer_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
   return ast;
 }
@@ -1565,11 +1677,15 @@ auto ASTDecoder::decodeForStatement(const io::ForStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ForStatementAST();
+  ast->forLoc = SourceLocation(node->for_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->initializer =
       decodeStatement(node->initializer(), node->initializer_type());
   ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
   return ast;
 }
@@ -1579,6 +1695,8 @@ auto ASTDecoder::decodeBreakStatement(const io::BreakStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) BreakStatementAST();
+  ast->breakLoc = SourceLocation(node->break_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1587,6 +1705,8 @@ auto ASTDecoder::decodeContinueStatement(const io::ContinueStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ContinueStatementAST();
+  ast->continueLoc = SourceLocation(node->continue_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1595,8 +1715,10 @@ auto ASTDecoder::decodeReturnStatement(const io::ReturnStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ReturnStatementAST();
+  ast->returnLoc = SourceLocation(node->return_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1605,8 +1727,10 @@ auto ASTDecoder::decodeCoroutineReturnStatement(
   if (!node) return nullptr;
 
   auto ast = new (pool_) CoroutineReturnStatementAST();
+  ast->coreturnLoc = SourceLocation(node->coreturn_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -1615,6 +1739,9 @@ auto ASTDecoder::decodeGotoStatement(const io::GotoStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) GotoStatementAST();
+  ast->gotoLoc = SourceLocation(node->goto_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -1637,6 +1764,7 @@ auto ASTDecoder::decodeTryBlockStatement(const io::TryBlockStatement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TryBlockStatementAST();
+  ast->tryLoc = SourceLocation(node->try_loc());
   ast->statement = decodeCompoundStatement(node->statement());
   if (node->handler_list()) {
     auto* inserter = &ast->handlerList;
@@ -1654,6 +1782,7 @@ auto ASTDecoder::decodeGeneratedLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) GeneratedLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   return ast;
 }
 
@@ -1662,6 +1791,7 @@ auto ASTDecoder::decodeCharLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) CharLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->literal()) {
     ast->literal = unit_->control()->charLiteral(node->literal()->str());
   }
@@ -1673,6 +1803,7 @@ auto ASTDecoder::decodeBoolLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) BoolLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   return ast;
 }
 
@@ -1681,6 +1812,7 @@ auto ASTDecoder::decodeIntLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) IntLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->literal()) {
     ast->literal = unit_->control()->integerLiteral(node->literal()->str());
   }
@@ -1692,6 +1824,7 @@ auto ASTDecoder::decodeFloatLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) FloatLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->literal()) {
     ast->literal = unit_->control()->floatLiteral(node->literal()->str());
   }
@@ -1703,6 +1836,7 @@ auto ASTDecoder::decodeNullptrLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NullptrLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   ast->literal = static_cast<TokenKind>(node->literal());
   return ast;
 }
@@ -1712,6 +1846,7 @@ auto ASTDecoder::decodeStringLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) StringLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->literal()) {
     ast->literal = unit_->control()->stringLiteral(node->literal()->str());
   }
@@ -1724,6 +1859,7 @@ auto ASTDecoder::decodeUserDefinedStringLiteralExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) UserDefinedStringLiteralExpressionAST();
+  ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->literal()) {
     ast->literal = unit_->control()->stringLiteral(node->literal()->str());
   }
@@ -1735,6 +1871,7 @@ auto ASTDecoder::decodeThisExpression(const io::ThisExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ThisExpressionAST();
+  ast->thisLoc = SourceLocation(node->this_loc());
   return ast;
 }
 
@@ -1743,8 +1880,10 @@ auto ASTDecoder::decodeNestedExpression(const io::NestedExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NestedExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -1755,6 +1894,7 @@ auto ASTDecoder::decodeIdExpression(const io::IdExpression* node)
   auto ast = new (pool_) IdExpressionAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
@@ -1765,6 +1905,8 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LambdaExpressionAST();
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->captureDefaultLoc = SourceLocation(node->capture_default_loc());
   if (node->capture_list()) {
     auto* inserter = &ast->captureList;
     for (std::size_t i = 0; i < node->capture_list()->size(); ++i) {
@@ -1774,6 +1916,8 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
     for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
@@ -1783,10 +1927,13 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   ast->templateRequiresClause =
       decodeRequiresClause(node->template_requires_clause());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   if (node->gnu_atribute_list()) {
     auto* inserter = &ast->gnuAtributeList;
     for (std::size_t i = 0; i < node->gnu_atribute_list()->size(); ++i) {
@@ -1828,10 +1975,15 @@ auto ASTDecoder::decodeFoldExpression(const io::FoldExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) FoldExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->leftExpression =
       decodeExpression(node->left_expression(), node->left_expression_type());
+  ast->opLoc = SourceLocation(node->op_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->foldOpLoc = SourceLocation(node->fold_op_loc());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->op = static_cast<TokenKind>(node->op());
   ast->foldOp = static_cast<TokenKind>(node->fold_op());
   return ast;
@@ -1842,8 +1994,12 @@ auto ASTDecoder::decodeRightFoldExpression(const io::RightFoldExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) RightFoldExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->opLoc = SourceLocation(node->op_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
@@ -1853,8 +2009,12 @@ auto ASTDecoder::decodeLeftFoldExpression(const io::LeftFoldExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LeftFoldExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->opLoc = SourceLocation(node->op_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
@@ -1864,8 +2024,12 @@ auto ASTDecoder::decodeRequiresExpression(const io::RequiresExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) RequiresExpressionAST();
+  ast->requiresLoc = SourceLocation(node->requires_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->requirement_list()) {
     auto* inserter = &ast->requirementList;
     for (std::size_t i = 0; i < node->requirement_list()->size(); ++i) {
@@ -1875,6 +2039,7 @@ auto ASTDecoder::decodeRequiresExpression(const io::RequiresExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   return ast;
 }
 
@@ -1883,9 +2048,13 @@ auto ASTDecoder::decodeVaArgExpression(const io::VaArgExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VaArgExpressionAST();
+  ast->vaArgLoc = SourceLocation(node->va_arg_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->commaLoc = SourceLocation(node->comma_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -1896,8 +2065,10 @@ auto ASTDecoder::decodeSubscriptExpression(const io::SubscriptExpression* node)
   auto ast = new (pool_) SubscriptExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
   ast->indexExpression =
       decodeExpression(node->index_expression(), node->index_expression_type());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   return ast;
 }
 
@@ -1908,6 +2079,7 @@ auto ASTDecoder::decodeCallExpression(const io::CallExpression* node)
   auto ast = new (pool_) CallExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -1917,6 +2089,7 @@ auto ASTDecoder::decodeCallExpression(const io::CallExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -1927,6 +2100,7 @@ auto ASTDecoder::decodeTypeConstruction(const io::TypeConstruction* node)
   auto ast = new (pool_) TypeConstructionAST();
   ast->typeSpecifier =
       decodeSpecifier(node->type_specifier(), node->type_specifier_type());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -1936,6 +2110,7 @@ auto ASTDecoder::decodeTypeConstruction(const io::TypeConstruction* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -1957,6 +2132,8 @@ auto ASTDecoder::decodeSpliceMemberExpression(
   auto ast = new (pool_) SpliceMemberExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->accessLoc = SourceLocation(node->access_loc());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->splicer = decodeSplicer(node->splicer());
   ast->accessOp = static_cast<TokenKind>(node->access_op());
   return ast;
@@ -1969,8 +2146,10 @@ auto ASTDecoder::decodeMemberExpression(const io::MemberExpression* node)
   auto ast = new (pool_) MemberExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->accessLoc = SourceLocation(node->access_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->accessOp = static_cast<TokenKind>(node->access_op());
@@ -1984,6 +2163,7 @@ auto ASTDecoder::decodePostIncrExpression(const io::PostIncrExpression* node)
   auto ast = new (pool_) PostIncrExpressionAST();
   ast->baseExpression =
       decodeExpression(node->base_expression(), node->base_expression_type());
+  ast->opLoc = SourceLocation(node->op_loc());
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
@@ -1993,9 +2173,14 @@ auto ASTDecoder::decodeCppCastExpression(const io::CppCastExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CppCastExpressionAST();
+  ast->castLoc = SourceLocation(node->cast_loc());
+  ast->lessLoc = SourceLocation(node->less_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->greaterLoc = SourceLocation(node->greater_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2004,9 +2189,13 @@ auto ASTDecoder::decodeBuiltinBitCastExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) BuiltinBitCastExpressionAST();
+  ast->castLoc = SourceLocation(node->cast_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->commaLoc = SourceLocation(node->comma_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2015,8 +2204,11 @@ auto ASTDecoder::decodeTypeidExpression(const io::TypeidExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypeidExpressionAST();
+  ast->typeidLoc = SourceLocation(node->typeid_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2025,7 +2217,10 @@ auto ASTDecoder::decodeTypeidOfTypeExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypeidOfTypeExpressionAST();
+  ast->typeidLoc = SourceLocation(node->typeid_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2044,6 +2239,8 @@ auto ASTDecoder::decodeGlobalScopeReflectExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) GlobalScopeReflectExpressionAST();
+  ast->caretLoc = SourceLocation(node->caret_loc());
+  ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;
 }
 
@@ -2053,6 +2250,8 @@ auto ASTDecoder::decodeNamespaceReflectExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NamespaceReflectExpressionAST();
+  ast->caretLoc = SourceLocation(node->caret_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2065,6 +2264,7 @@ auto ASTDecoder::decodeTypeIdReflectExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypeIdReflectExpressionAST();
+  ast->caretLoc = SourceLocation(node->caret_loc());
   ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
@@ -2074,6 +2274,7 @@ auto ASTDecoder::decodeReflectExpression(const io::ReflectExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ReflectExpressionAST();
+  ast->caretLoc = SourceLocation(node->caret_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2084,6 +2285,7 @@ auto ASTDecoder::decodeUnaryExpression(const io::UnaryExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) UnaryExpressionAST();
+  ast->opLoc = SourceLocation(node->op_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   ast->op = static_cast<TokenKind>(node->op());
@@ -2095,6 +2297,7 @@ auto ASTDecoder::decodeAwaitExpression(const io::AwaitExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AwaitExpressionAST();
+  ast->awaitLoc = SourceLocation(node->await_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2105,6 +2308,7 @@ auto ASTDecoder::decodeSizeofExpression(const io::SizeofExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) SizeofExpressionAST();
+  ast->sizeofLoc = SourceLocation(node->sizeof_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2115,7 +2319,10 @@ auto ASTDecoder::decodeSizeofTypeExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) SizeofTypeExpressionAST();
+  ast->sizeofLoc = SourceLocation(node->sizeof_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2124,6 +2331,11 @@ auto ASTDecoder::decodeSizeofPackExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) SizeofPackExpressionAST();
+  ast->sizeofLoc = SourceLocation(node->sizeof_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2136,7 +2348,10 @@ auto ASTDecoder::decodeAlignofTypeExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) AlignofTypeExpressionAST();
+  ast->alignofLoc = SourceLocation(node->alignof_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2145,6 +2360,7 @@ auto ASTDecoder::decodeAlignofExpression(const io::AlignofExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AlignofExpressionAST();
+  ast->alignofLoc = SourceLocation(node->alignof_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2155,8 +2371,11 @@ auto ASTDecoder::decodeNoexceptExpression(const io::NoexceptExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NoexceptExpressionAST();
+  ast->noexceptLoc = SourceLocation(node->noexcept_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2165,7 +2384,10 @@ auto ASTDecoder::decodeNewExpression(const io::NewExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NewExpressionAST();
+  ast->scopeLoc = SourceLocation(node->scope_loc());
+  ast->newLoc = SourceLocation(node->new_loc());
   ast->newPlacement = decodeNewPlacement(node->new_placement());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
     for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
@@ -2176,6 +2398,7 @@ auto ASTDecoder::decodeNewExpression(const io::NewExpression* node)
     }
   }
   ast->declarator = decodeDeclarator(node->declarator());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->newInitalizer =
       decodeNewInitializer(node->new_initalizer(), node->new_initalizer_type());
   return ast;
@@ -2186,6 +2409,10 @@ auto ASTDecoder::decodeDeleteExpression(const io::DeleteExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DeleteExpressionAST();
+  ast->scopeLoc = SourceLocation(node->scope_loc());
+  ast->deleteLoc = SourceLocation(node->delete_loc());
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2196,7 +2423,9 @@ auto ASTDecoder::decodeCastExpression(const io::CastExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CastExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2219,6 +2448,7 @@ auto ASTDecoder::decodeBinaryExpression(const io::BinaryExpression* node)
   auto ast = new (pool_) BinaryExpressionAST();
   ast->leftExpression =
       decodeExpression(node->left_expression(), node->left_expression_type());
+  ast->opLoc = SourceLocation(node->op_loc());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
   ast->op = static_cast<TokenKind>(node->op());
@@ -2231,8 +2461,10 @@ auto ASTDecoder::decodeConditionalExpression(
 
   auto ast = new (pool_) ConditionalExpressionAST();
   ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->questionLoc = SourceLocation(node->question_loc());
   ast->iftrueExpression = decodeExpression(node->iftrue_expression(),
                                            node->iftrue_expression_type());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   ast->iffalseExpression = decodeExpression(node->iffalse_expression(),
                                             node->iffalse_expression_type());
   return ast;
@@ -2243,6 +2475,7 @@ auto ASTDecoder::decodeYieldExpression(const io::YieldExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) YieldExpressionAST();
+  ast->yieldLoc = SourceLocation(node->yield_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2253,6 +2486,7 @@ auto ASTDecoder::decodeThrowExpression(const io::ThrowExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ThrowExpressionAST();
+  ast->throwLoc = SourceLocation(node->throw_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2265,6 +2499,7 @@ auto ASTDecoder::decodeAssignmentExpression(
   auto ast = new (pool_) AssignmentExpressionAST();
   ast->leftExpression =
       decodeExpression(node->left_expression(), node->left_expression_type());
+  ast->opLoc = SourceLocation(node->op_loc());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
   ast->op = static_cast<TokenKind>(node->op());
@@ -2278,6 +2513,7 @@ auto ASTDecoder::decodePackExpansionExpression(
   auto ast = new (pool_) PackExpansionExpressionAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -2287,6 +2523,8 @@ auto ASTDecoder::decodeDesignatedInitializerClause(
   if (!node) return nullptr;
 
   auto ast = new (pool_) DesignatedInitializerClauseAST();
+  ast->dotLoc = SourceLocation(node->dot_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2301,6 +2539,8 @@ auto ASTDecoder::decodeTypeTraitExpression(const io::TypeTraitExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypeTraitExpressionAST();
+  ast->typeTraitLoc = SourceLocation(node->type_trait_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->type_id_list()) {
     auto* inserter = &ast->typeIdList;
     for (std::size_t i = 0; i < node->type_id_list()->size(); ++i) {
@@ -2308,6 +2548,7 @@ auto ASTDecoder::decodeTypeTraitExpression(const io::TypeTraitExpression* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2345,6 +2586,7 @@ auto ASTDecoder::decodeEqualInitializer(const io::EqualInitializer* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) EqualInitializerAST();
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2355,6 +2597,7 @@ auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) BracedInitListAST();
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -2364,6 +2607,8 @@ auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->commaLoc = SourceLocation(node->comma_loc());
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   return ast;
 }
 
@@ -2372,6 +2617,7 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ParenInitializerAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -2381,6 +2627,7 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2388,8 +2635,13 @@ auto ASTDecoder::decodeSplicer(const io::Splicer* node) -> SplicerAST* {
   if (!node) return nullptr;
 
   auto ast = new (pool_) SplicerAST();
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->secondColonLoc = SourceLocation(node->second_colon_loc());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   return ast;
 }
 
@@ -2398,6 +2650,8 @@ auto ASTDecoder::decodeGlobalModuleFragment(
   if (!node) return nullptr;
 
   auto ast = new (pool_) GlobalModuleFragmentAST();
+  ast->moduleLoc = SourceLocation(node->module_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
@@ -2415,6 +2669,10 @@ auto ASTDecoder::decodePrivateModuleFragment(
   if (!node) return nullptr;
 
   auto ast = new (pool_) PrivateModuleFragmentAST();
+  ast->moduleLoc = SourceLocation(node->module_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
+  ast->privateLoc = SourceLocation(node->private_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
@@ -2432,6 +2690,8 @@ auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ModuleDeclarationAST();
+  ast->exportLoc = SourceLocation(node->export_loc());
+  ast->moduleLoc = SourceLocation(node->module_loc());
   ast->moduleName = decodeModuleName(node->module_name());
   ast->modulePartition = decodeModulePartition(node->module_partition());
   if (node->attribute_list()) {
@@ -2443,6 +2703,7 @@ auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -2452,6 +2713,7 @@ auto ASTDecoder::decodeModuleName(const io::ModuleName* node)
 
   auto ast = new (pool_) ModuleNameAST();
   ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2465,6 +2727,8 @@ auto ASTDecoder::decodeModuleQualifier(const io::ModuleQualifier* node)
 
   auto ast = new (pool_) ModuleQualifierAST();
   ast->moduleQualifier = decodeModuleQualifier(node->module_qualifier());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->dotLoc = SourceLocation(node->dot_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2477,6 +2741,7 @@ auto ASTDecoder::decodeModulePartition(const io::ModulePartition* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ModulePartitionAST();
+  ast->colonLoc = SourceLocation(node->colon_loc());
   ast->moduleName = decodeModuleName(node->module_name());
   return ast;
 }
@@ -2486,6 +2751,7 @@ auto ASTDecoder::decodeImportName(const io::ImportName* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ImportNameAST();
+  ast->headerLoc = SourceLocation(node->header_loc());
   ast->modulePartition = decodeModulePartition(node->module_partition());
   ast->moduleName = decodeModuleName(node->module_name());
   return ast;
@@ -2536,10 +2802,12 @@ auto ASTDecoder::decodeUsingDeclarator(const io::UsingDeclarator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) UsingDeclaratorAST();
+  ast->typenameLoc = SourceLocation(node->typename_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -2548,6 +2816,7 @@ auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) EnumeratorAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -2557,6 +2826,7 @@ auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   if (node->identifier()) {
@@ -2587,8 +2857,11 @@ auto ASTDecoder::decodeHandler(const io::Handler* node) -> HandlerAST* {
   if (!node) return nullptr;
 
   auto ast = new (pool_) HandlerAST();
+  ast->catchLoc = SourceLocation(node->catch_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->exceptionDeclaration = decodeExceptionDeclaration(
       node->exception_declaration(), node->exception_declaration_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeCompoundStatement(node->statement());
   return ast;
 }
@@ -2609,6 +2882,7 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
   }
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
@@ -2620,6 +2894,7 @@ auto ASTDecoder::decodeRequiresClause(const io::RequiresClause* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) RequiresClauseAST();
+  ast->requiresLoc = SourceLocation(node->requires_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -2640,6 +2915,8 @@ auto ASTDecoder::decodeParameterDeclarationClause(
       inserter = &(*inserter)->next;
     }
   }
+  ast->commaLoc = SourceLocation(node->comma_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -2648,6 +2925,7 @@ auto ASTDecoder::decodeTrailingReturnType(const io::TrailingReturnType* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TrailingReturnTypeAST();
+  ast->minusGreaterLoc = SourceLocation(node->minus_greater_loc());
   ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
@@ -2657,6 +2935,7 @@ auto ASTDecoder::decodeLambdaSpecifier(const io::LambdaSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LambdaSpecifierAST();
+  ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
@@ -2668,6 +2947,8 @@ auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
   auto ast = new (pool_) TypeConstraintAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -2677,6 +2958,7 @@ auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2689,6 +2971,8 @@ auto ASTDecoder::decodeAttributeArgumentClause(
   if (!node) return nullptr;
 
   auto ast = new (pool_) AttributeArgumentClauseAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2700,6 +2984,7 @@ auto ASTDecoder::decodeAttribute(const io::Attribute* node) -> AttributeAST* {
                                              node->attribute_token_type());
   ast->attributeArgumentClause =
       decodeAttributeArgumentClause(node->attribute_argument_clause());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -2708,6 +2993,9 @@ auto ASTDecoder::decodeAttributeUsingPrefix(
   if (!node) return nullptr;
 
   auto ast = new (pool_) AttributeUsingPrefixAST();
+  ast->usingLoc = SourceLocation(node->using_loc());
+  ast->attributeNamespaceLoc = SourceLocation(node->attribute_namespace_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   return ast;
 }
 
@@ -2716,6 +3004,7 @@ auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NewPlacementAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -2725,6 +3014,7 @@ auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2733,6 +3023,9 @@ auto ASTDecoder::decodeNestedNamespaceSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NestedNamespaceSpecifierAST();
+  ast->inlineLoc = SourceLocation(node->inline_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->scopeLoc = SourceLocation(node->scope_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -2745,6 +3038,8 @@ auto ASTDecoder::decodeTemplateTypeParameter(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TemplateTypeParameterAST();
+  ast->templateLoc = SourceLocation(node->template_loc());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
     for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
@@ -2754,7 +3049,12 @@ auto ASTDecoder::decodeTemplateTypeParameter(
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   ast->requiresClause = decodeRequiresClause(node->requires_clause());
+  ast->classKeyLoc = SourceLocation(node->class_key_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->idExpression = decodeIdExpression(node->id_expression());
   if (node->identifier()) {
     ast->identifier =
@@ -2777,6 +3077,10 @@ auto ASTDecoder::decodeTypenameTypeParameter(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypenameTypeParameterAST();
+  ast->classKeyLoc = SourceLocation(node->class_key_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->typeId = decodeTypeId(node->type_id());
   if (node->identifier()) {
     ast->identifier =
@@ -2791,6 +3095,9 @@ auto ASTDecoder::decodeConstraintTypeParameter(
 
   auto ast = new (pool_) ConstraintTypeParameterAST();
   ast->typeConstraint = decodeTypeConstraint(node->type_constraint());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->equalLoc = SourceLocation(node->equal_loc());
   ast->typeId = decodeTypeId(node->type_id());
   if (node->identifier()) {
     ast->identifier =
@@ -2804,6 +3111,7 @@ auto ASTDecoder::decodeGeneratedTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) GeneratedTypeSpecifierAST();
+  ast->typeLoc = SourceLocation(node->type_loc());
   return ast;
 }
 
@@ -2812,6 +3120,7 @@ auto ASTDecoder::decodeTypedefSpecifier(const io::TypedefSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypedefSpecifierAST();
+  ast->typedefLoc = SourceLocation(node->typedef_loc());
   return ast;
 }
 
@@ -2820,6 +3129,7 @@ auto ASTDecoder::decodeFriendSpecifier(const io::FriendSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) FriendSpecifierAST();
+  ast->friendLoc = SourceLocation(node->friend_loc());
   return ast;
 }
 
@@ -2828,6 +3138,7 @@ auto ASTDecoder::decodeConstevalSpecifier(const io::ConstevalSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConstevalSpecifierAST();
+  ast->constevalLoc = SourceLocation(node->consteval_loc());
   return ast;
 }
 
@@ -2836,6 +3147,7 @@ auto ASTDecoder::decodeConstinitSpecifier(const io::ConstinitSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConstinitSpecifierAST();
+  ast->constinitLoc = SourceLocation(node->constinit_loc());
   return ast;
 }
 
@@ -2844,6 +3156,7 @@ auto ASTDecoder::decodeConstexprSpecifier(const io::ConstexprSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConstexprSpecifierAST();
+  ast->constexprLoc = SourceLocation(node->constexpr_loc());
   return ast;
 }
 
@@ -2852,6 +3165,7 @@ auto ASTDecoder::decodeInlineSpecifier(const io::InlineSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) InlineSpecifierAST();
+  ast->inlineLoc = SourceLocation(node->inline_loc());
   return ast;
 }
 
@@ -2860,6 +3174,7 @@ auto ASTDecoder::decodeStaticSpecifier(const io::StaticSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) StaticSpecifierAST();
+  ast->staticLoc = SourceLocation(node->static_loc());
   return ast;
 }
 
@@ -2868,6 +3183,7 @@ auto ASTDecoder::decodeExternSpecifier(const io::ExternSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ExternSpecifierAST();
+  ast->externLoc = SourceLocation(node->extern_loc());
   return ast;
 }
 
@@ -2876,6 +3192,7 @@ auto ASTDecoder::decodeThreadLocalSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ThreadLocalSpecifierAST();
+  ast->threadLocalLoc = SourceLocation(node->thread_local_loc());
   return ast;
 }
 
@@ -2884,6 +3201,7 @@ auto ASTDecoder::decodeThreadSpecifier(const io::ThreadSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ThreadSpecifierAST();
+  ast->threadLoc = SourceLocation(node->thread_loc());
   return ast;
 }
 
@@ -2892,6 +3210,7 @@ auto ASTDecoder::decodeMutableSpecifier(const io::MutableSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) MutableSpecifierAST();
+  ast->mutableLoc = SourceLocation(node->mutable_loc());
   return ast;
 }
 
@@ -2900,6 +3219,7 @@ auto ASTDecoder::decodeVirtualSpecifier(const io::VirtualSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VirtualSpecifierAST();
+  ast->virtualLoc = SourceLocation(node->virtual_loc());
   return ast;
 }
 
@@ -2908,8 +3228,11 @@ auto ASTDecoder::decodeExplicitSpecifier(const io::ExplicitSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ExplicitSpecifierAST();
+  ast->explicitLoc = SourceLocation(node->explicit_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -2918,6 +3241,7 @@ auto ASTDecoder::decodeAutoTypeSpecifier(const io::AutoTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AutoTypeSpecifierAST();
+  ast->autoLoc = SourceLocation(node->auto_loc());
   return ast;
 }
 
@@ -2926,6 +3250,7 @@ auto ASTDecoder::decodeVoidTypeSpecifier(const io::VoidTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VoidTypeSpecifierAST();
+  ast->voidLoc = SourceLocation(node->void_loc());
   return ast;
 }
 
@@ -2934,6 +3259,7 @@ auto ASTDecoder::decodeSizeTypeSpecifier(const io::SizeTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) SizeTypeSpecifierAST();
+  ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
@@ -2943,6 +3269,7 @@ auto ASTDecoder::decodeSignTypeSpecifier(const io::SignTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) SignTypeSpecifierAST();
+  ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
@@ -2952,6 +3279,7 @@ auto ASTDecoder::decodeVaListTypeSpecifier(const io::VaListTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VaListTypeSpecifierAST();
+  ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
@@ -2961,6 +3289,7 @@ auto ASTDecoder::decodeIntegralTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) IntegralTypeSpecifierAST();
+  ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
@@ -2971,6 +3300,7 @@ auto ASTDecoder::decodeFloatingPointTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) FloatingPointTypeSpecifierAST();
+  ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;
 }
@@ -2980,6 +3310,7 @@ auto ASTDecoder::decodeComplexTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ComplexTypeSpecifierAST();
+  ast->complexLoc = SourceLocation(node->complex_loc());
   return ast;
 }
 
@@ -2990,6 +3321,7 @@ auto ASTDecoder::decodeNamedTypeSpecifier(const io::NamedTypeSpecifier* node)
   auto ast = new (pool_) NamedTypeSpecifierAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
@@ -3000,7 +3332,10 @@ auto ASTDecoder::decodeAtomicTypeSpecifier(const io::AtomicTypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AtomicTypeSpecifierAST();
+  ast->atomicLoc = SourceLocation(node->atomic_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3009,7 +3344,10 @@ auto ASTDecoder::decodeUnderlyingTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) UnderlyingTypeSpecifierAST();
+  ast->underlyingTypeLoc = SourceLocation(node->underlying_type_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3018,6 +3356,7 @@ auto ASTDecoder::decodeElaboratedTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ElaboratedTypeSpecifierAST();
+  ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3029,6 +3368,7 @@ auto ASTDecoder::decodeElaboratedTypeSpecifier(
   }
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->classKey = static_cast<TokenKind>(node->class_key());
@@ -3040,6 +3380,10 @@ auto ASTDecoder::decodeDecltypeAutoSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) DecltypeAutoSpecifierAST();
+  ast->decltypeLoc = SourceLocation(node->decltype_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->autoLoc = SourceLocation(node->auto_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3048,8 +3392,11 @@ auto ASTDecoder::decodeDecltypeSpecifier(const io::DecltypeSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DecltypeSpecifierAST();
+  ast->decltypeLoc = SourceLocation(node->decltype_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3068,6 +3415,7 @@ auto ASTDecoder::decodeConstQualifier(const io::ConstQualifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConstQualifierAST();
+  ast->constLoc = SourceLocation(node->const_loc());
   return ast;
 }
 
@@ -3076,6 +3424,7 @@ auto ASTDecoder::decodeVolatileQualifier(const io::VolatileQualifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) VolatileQualifierAST();
+  ast->volatileLoc = SourceLocation(node->volatile_loc());
   return ast;
 }
 
@@ -3084,6 +3433,7 @@ auto ASTDecoder::decodeRestrictQualifier(const io::RestrictQualifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) RestrictQualifierAST();
+  ast->restrictLoc = SourceLocation(node->restrict_loc());
   return ast;
 }
 
@@ -3092,6 +3442,8 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) EnumSpecifierAST();
+  ast->enumLoc = SourceLocation(node->enum_loc());
+  ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3104,6 +3456,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
     for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
@@ -3113,6 +3466,8 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
+  ast->commaLoc = SourceLocation(node->comma_loc());
   if (node->enumerator_list()) {
     auto* inserter = &ast->enumeratorList;
     for (std::size_t i = 0; i < node->enumerator_list()->size(); ++i) {
@@ -3121,6 +3476,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   return ast;
 }
 
@@ -3129,6 +3485,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ClassSpecifierAST();
+  ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3142,6 +3499,8 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->finalLoc = SourceLocation(node->final_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->base_specifier_list()) {
     auto* inserter = &ast->baseSpecifierList;
     for (std::size_t i = 0; i < node->base_specifier_list()->size(); ++i) {
@@ -3150,6 +3509,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
     for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
@@ -3159,6 +3519,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   ast->classKey = static_cast<TokenKind>(node->class_key());
   return ast;
 }
@@ -3168,6 +3529,7 @@ auto ASTDecoder::decodeTypenameSpecifier(const io::TypenameSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypenameSpecifierAST();
+  ast->typenameLoc = SourceLocation(node->typename_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
@@ -3180,6 +3542,7 @@ auto ASTDecoder::decodeSplicerTypeSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) SplicerTypeSpecifierAST();
+  ast->typenameLoc = SourceLocation(node->typename_loc());
   ast->splicer = decodeSplicer(node->splicer());
   return ast;
 }
@@ -3189,6 +3552,7 @@ auto ASTDecoder::decodePointerOperator(const io::PointerOperator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) PointerOperatorAST();
+  ast->starLoc = SourceLocation(node->star_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3215,6 +3579,7 @@ auto ASTDecoder::decodeReferenceOperator(const io::ReferenceOperator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ReferenceOperatorAST();
+  ast->refLoc = SourceLocation(node->ref_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3235,6 +3600,7 @@ auto ASTDecoder::decodePtrToMemberOperator(const io::PtrToMemberOperator* node)
   auto ast = new (pool_) PtrToMemberOperatorAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->starLoc = SourceLocation(node->star_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3262,6 +3628,7 @@ auto ASTDecoder::decodeBitfieldDeclarator(const io::BitfieldDeclarator* node)
 
   auto ast = new (pool_) BitfieldDeclaratorAST();
   ast->unqualifiedId = decodeNameId(node->unqualified_id());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   ast->sizeExpression =
       decodeExpression(node->size_expression(), node->size_expression_type());
   return ast;
@@ -3272,6 +3639,7 @@ auto ASTDecoder::decodeParameterPack(const io::ParameterPack* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ParameterPackAST();
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   ast->coreDeclarator = decodeCoreDeclarator(node->core_declarator(),
                                              node->core_declarator_type());
   return ast;
@@ -3284,6 +3652,7 @@ auto ASTDecoder::decodeIdDeclarator(const io::IdDeclarator* node)
   auto ast = new (pool_) IdDeclaratorAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   if (node->attribute_list()) {
@@ -3303,7 +3672,9 @@ auto ASTDecoder::decodeNestedDeclarator(const io::NestedDeclarator* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NestedDeclaratorAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->declarator = decodeDeclarator(node->declarator());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3312,8 +3683,10 @@ auto ASTDecoder::decodeFunctionDeclaratorChunk(
   if (!node) return nullptr;
 
   auto ast = new (pool_) FunctionDeclaratorChunkAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   if (node->cv_qualifier_list()) {
     auto* inserter = &ast->cvQualifierList;
     for (std::size_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
@@ -3323,6 +3696,7 @@ auto ASTDecoder::decodeFunctionDeclaratorChunk(
       inserter = &(*inserter)->next;
     }
   }
+  ast->refLoc = SourceLocation(node->ref_loc());
   ast->exceptionSpecifier = decodeExceptionSpecifier(
       node->exception_specifier(), node->exception_specifier_type());
   if (node->attribute_list()) {
@@ -3344,8 +3718,10 @@ auto ASTDecoder::decodeArrayDeclaratorChunk(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ArrayDeclaratorChunkAST();
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
     for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
@@ -3362,6 +3738,7 @@ auto ASTDecoder::decodeNameId(const io::NameId* node) -> NameIdAST* {
   if (!node) return nullptr;
 
   auto ast = new (pool_) NameIdAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -3374,6 +3751,7 @@ auto ASTDecoder::decodeDestructorId(const io::DestructorId* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DestructorIdAST();
+  ast->tildeLoc = SourceLocation(node->tilde_loc());
   ast->id = decodeUnqualifiedId(node->id(), node->id_type());
   return ast;
 }
@@ -3392,6 +3770,10 @@ auto ASTDecoder::decodeOperatorFunctionId(const io::OperatorFunctionId* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) OperatorFunctionIdAST();
+  ast->operatorLoc = SourceLocation(node->operator_loc());
+  ast->opLoc = SourceLocation(node->op_loc());
+  ast->openLoc = SourceLocation(node->open_loc());
+  ast->closeLoc = SourceLocation(node->close_loc());
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
@@ -3401,6 +3783,9 @@ auto ASTDecoder::decodeLiteralOperatorId(const io::LiteralOperatorId* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) LiteralOperatorIdAST();
+  ast->operatorLoc = SourceLocation(node->operator_loc());
+  ast->literalLoc = SourceLocation(node->literal_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -3413,6 +3798,7 @@ auto ASTDecoder::decodeConversionFunctionId(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ConversionFunctionIdAST();
+  ast->operatorLoc = SourceLocation(node->operator_loc());
   ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
@@ -3422,6 +3808,8 @@ auto ASTDecoder::decodeSimpleTemplateId(const io::SimpleTemplateId* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) SimpleTemplateIdAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -3431,6 +3819,7 @@ auto ASTDecoder::decodeSimpleTemplateId(const io::SimpleTemplateId* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -3445,6 +3834,7 @@ auto ASTDecoder::decodeLiteralOperatorTemplateId(
 
   auto ast = new (pool_) LiteralOperatorTemplateIdAST();
   ast->literalOperatorId = decodeLiteralOperatorId(node->literal_operator_id());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -3454,6 +3844,7 @@ auto ASTDecoder::decodeLiteralOperatorTemplateId(
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   return ast;
 }
 
@@ -3465,6 +3856,7 @@ auto ASTDecoder::decodeOperatorFunctionTemplateId(
   auto ast = new (pool_) OperatorFunctionTemplateIdAST();
   ast->operatorFunctionId =
       decodeOperatorFunctionId(node->operator_function_id());
+  ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
     for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
@@ -3474,6 +3866,7 @@ auto ASTDecoder::decodeOperatorFunctionTemplateId(
       inserter = &(*inserter)->next;
     }
   }
+  ast->greaterLoc = SourceLocation(node->greater_loc());
   return ast;
 }
 
@@ -3483,6 +3876,7 @@ auto ASTDecoder::decodeGlobalNestedNameSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) GlobalNestedNameSpecifierAST();
+  ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;
 }
 
@@ -3494,10 +3888,12 @@ auto ASTDecoder::decodeSimpleNestedNameSpecifier(
   auto ast = new (pool_) SimpleNestedNameSpecifierAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
   }
+  ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;
 }
 
@@ -3510,6 +3906,7 @@ auto ASTDecoder::decodeDecltypeNestedNameSpecifier(
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->decltypeSpecifier = decodeDecltypeSpecifier(node->decltype_specifier());
+  ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;
 }
 
@@ -3521,7 +3918,9 @@ auto ASTDecoder::decodeTemplateNestedNameSpecifier(
   auto ast = new (pool_) TemplateNestedNameSpecifierAST();
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->templateId = decodeSimpleTemplateId(node->template_id());
+  ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;
 }
 
@@ -3530,6 +3929,9 @@ auto ASTDecoder::decodeDefaultFunctionBody(const io::DefaultFunctionBody* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DefaultFunctionBodyAST();
+  ast->equalLoc = SourceLocation(node->equal_loc());
+  ast->defaultLoc = SourceLocation(node->default_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -3539,6 +3941,7 @@ auto ASTDecoder::decodeCompoundStatementFunctionBody(
   if (!node) return nullptr;
 
   auto ast = new (pool_) CompoundStatementFunctionBodyAST();
+  ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->mem_initializer_list()) {
     auto* inserter = &ast->memInitializerList;
     for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
@@ -3557,6 +3960,8 @@ auto ASTDecoder::decodeTryStatementFunctionBody(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TryStatementFunctionBodyAST();
+  ast->tryLoc = SourceLocation(node->try_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->mem_initializer_list()) {
     auto* inserter = &ast->memInitializerList;
     for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
@@ -3582,6 +3987,9 @@ auto ASTDecoder::decodeDeleteFunctionBody(const io::DeleteFunctionBody* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DeleteFunctionBodyAST();
+  ast->equalLoc = SourceLocation(node->equal_loc());
+  ast->deleteLoc = SourceLocation(node->delete_loc());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -3610,6 +4018,9 @@ auto ASTDecoder::decodeThrowExceptionSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ThrowExceptionSpecifierAST();
+  ast->throwLoc = SourceLocation(node->throw_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3618,8 +4029,11 @@ auto ASTDecoder::decodeNoexceptSpecifier(const io::NoexceptSpecifier* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NoexceptSpecifierAST();
+  ast->noexceptLoc = SourceLocation(node->noexcept_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3630,6 +4044,7 @@ auto ASTDecoder::decodeSimpleRequirement(const io::SimpleRequirement* node)
   auto ast = new (pool_) SimpleRequirementAST();
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -3638,9 +4053,14 @@ auto ASTDecoder::decodeCompoundRequirement(const io::CompoundRequirement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CompoundRequirementAST();
+  ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->rbraceLoc = SourceLocation(node->rbrace_loc());
+  ast->noexceptLoc = SourceLocation(node->noexcept_loc());
+  ast->minusGreaterLoc = SourceLocation(node->minus_greater_loc());
   ast->typeConstraint = decodeTypeConstraint(node->type_constraint());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -3649,10 +4069,12 @@ auto ASTDecoder::decodeTypeRequirement(const io::TypeRequirement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypeRequirementAST();
+  ast->typenameLoc = SourceLocation(node->typename_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -3661,8 +4083,10 @@ auto ASTDecoder::decodeNestedRequirement(const io::NestedRequirement* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NestedRequirementAST();
+  ast->requiresLoc = SourceLocation(node->requires_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   return ast;
 }
 
@@ -3671,6 +4095,7 @@ auto ASTDecoder::decodeNewParenInitializer(const io::NewParenInitializer* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) NewParenInitializerAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -3680,6 +4105,7 @@ auto ASTDecoder::decodeNewParenInitializer(const io::NewParenInitializer* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3701,6 +4127,7 @@ auto ASTDecoder::decodeParenMemInitializer(const io::ParenMemInitializer* node)
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
     for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
@@ -3710,6 +4137,8 @@ auto ASTDecoder::decodeParenMemInitializer(const io::ParenMemInitializer* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -3723,6 +4152,7 @@ auto ASTDecoder::decodeBracedMemInitializer(
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -3731,6 +4161,7 @@ auto ASTDecoder::decodeThisLambdaCapture(const io::ThisLambdaCapture* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ThisLambdaCaptureAST();
+  ast->thisLoc = SourceLocation(node->this_loc());
   return ast;
 }
 
@@ -3739,6 +4170,8 @@ auto ASTDecoder::decodeDerefThisLambdaCapture(
   if (!node) return nullptr;
 
   auto ast = new (pool_) DerefThisLambdaCaptureAST();
+  ast->starLoc = SourceLocation(node->star_loc());
+  ast->thisLoc = SourceLocation(node->this_loc());
   return ast;
 }
 
@@ -3747,6 +4180,8 @@ auto ASTDecoder::decodeSimpleLambdaCapture(const io::SimpleLambdaCapture* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) SimpleLambdaCaptureAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -3759,6 +4194,9 @@ auto ASTDecoder::decodeRefLambdaCapture(const io::RefLambdaCapture* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) RefLambdaCaptureAST();
+  ast->ampLoc = SourceLocation(node->amp_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
@@ -3771,6 +4209,9 @@ auto ASTDecoder::decodeRefInitLambdaCapture(
   if (!node) return nullptr;
 
   auto ast = new (pool_) RefInitLambdaCaptureAST();
+  ast->ampLoc = SourceLocation(node->amp_loc());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   ast->initializer =
       decodeExpression(node->initializer(), node->initializer_type());
   if (node->identifier()) {
@@ -3785,6 +4226,8 @@ auto ASTDecoder::decodeInitLambdaCapture(const io::InitLambdaCapture* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) InitLambdaCaptureAST();
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   ast->initializer =
       decodeExpression(node->initializer(), node->initializer_type());
   if (node->identifier()) {
@@ -3800,6 +4243,7 @@ auto ASTDecoder::decodeEllipsisExceptionDeclaration(
   if (!node) return nullptr;
 
   auto ast = new (pool_) EllipsisExceptionDeclarationAST();
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   return ast;
 }
 
@@ -3835,6 +4279,8 @@ auto ASTDecoder::decodeCxxAttribute(const io::CxxAttribute* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) CxxAttributeAST();
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->lbracket2Loc = SourceLocation(node->lbracket2_loc());
   ast->attributeUsingPrefix =
       decodeAttributeUsingPrefix(node->attribute_using_prefix());
   if (node->attribute_list()) {
@@ -3845,6 +4291,8 @@ auto ASTDecoder::decodeCxxAttribute(const io::CxxAttribute* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
+  ast->rbracket2Loc = SourceLocation(node->rbracket2_loc());
   return ast;
 }
 
@@ -3853,6 +4301,11 @@ auto ASTDecoder::decodeGccAttribute(const io::GccAttribute* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) GccAttributeAST();
+  ast->attributeLoc = SourceLocation(node->attribute_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->lparen2Loc = SourceLocation(node->lparen2_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->rparen2Loc = SourceLocation(node->rparen2_loc());
   return ast;
 }
 
@@ -3861,8 +4314,12 @@ auto ASTDecoder::decodeAlignasAttribute(const io::AlignasAttribute* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AlignasAttributeAST();
+  ast->alignasLoc = SourceLocation(node->alignas_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3871,7 +4328,11 @@ auto ASTDecoder::decodeAlignasTypeAttribute(
   if (!node) return nullptr;
 
   auto ast = new (pool_) AlignasTypeAttributeAST();
+  ast->alignasLoc = SourceLocation(node->alignas_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3880,6 +4341,10 @@ auto ASTDecoder::decodeAsmAttribute(const io::AsmAttribute* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) AsmAttributeAST();
+  ast->asmLoc = SourceLocation(node->asm_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->literalLoc = SourceLocation(node->literal_loc());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 
@@ -3888,6 +4353,9 @@ auto ASTDecoder::decodeScopedAttributeToken(
   if (!node) return nullptr;
 
   auto ast = new (pool_) ScopedAttributeTokenAST();
+  ast->attributeNamespaceLoc = SourceLocation(node->attribute_namespace_loc());
+  ast->scopeLoc = SourceLocation(node->scope_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->attribute_namespace()) {
     ast->attributeNamespace =
         unit_->control()->getIdentifier(node->attribute_namespace()->str());
@@ -3904,6 +4372,7 @@ auto ASTDecoder::decodeSimpleAttributeToken(
   if (!node) return nullptr;
 
   auto ast = new (pool_) SimpleAttributeTokenAST();
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());

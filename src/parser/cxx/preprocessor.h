@@ -26,6 +26,7 @@
 #include <iosfwd>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -101,6 +102,13 @@ class Preprocessor {
   void undefMacro(const std::string &name);
 
   void printMacros(std::ostream &out) const;
+
+  struct Source {
+    std::string_view fileName;
+    std::span<int> lineOffsets;
+  };
+
+  [[nodiscard]] auto sources() const -> std::vector<Source>;
 
   [[nodiscard]] auto tokenStartPosition(const Token &token) const
       -> SourcePosition;
