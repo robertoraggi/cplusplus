@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "typescript": "^5.6.3",
-    "vite": "^5.4.9"
+    "vite": "^5.4.11"
   },
   "dependencies": {
     "cxx-frontend": "^1.1.27"
