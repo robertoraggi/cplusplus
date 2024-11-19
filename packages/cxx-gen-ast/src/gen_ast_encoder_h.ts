@@ -43,22 +43,12 @@ export function gen_ast_encoder_h({
   emit(`  using Table = std::unordered_map<const T*,`);
   emit(`    flatbuffers::Offset<flatbuffers::String>>;`);
   emit();
-  emit(`  using SourceFiles = std::unordered_map<`);
-  emit(`    std::string_view,`);
-  emit(`    flatbuffers::Offset<flatbuffers::String>>;`);
-  emit();
-  emit(`  using SourceLines = std::map<`);
-  emit(`    std::tuple<std::string_view, std::uint32_t>,`);
-  emit(`    flatbuffers::Offset<flatbuffers::String>>;`);
-  emit();
   emit(`  TranslationUnit* unit_ = nullptr;`);
   emit(`  Table<Identifier> identifiers_;`);
   emit(`  Table<CharLiteral> charLiterals_;`);
   emit(`  Table<StringLiteral> stringLiterals_;`);
   emit(`  Table<IntegerLiteral> integerLiterals_;`);
   emit(`  Table<FloatLiteral> floatLiterals_;`);
-  emit(`  SourceFiles sourceFiles_;`);
-  emit(`  SourceLines sourceLines_;`);
   emit(`  flatbuffers::FlatBufferBuilder fbb_;`);
   emit(`  flatbuffers::Offset<> offset_;`);
   emit(`  std::uint32_t type_ = 0;`);
@@ -70,9 +60,6 @@ export function gen_ast_encoder_h({
   emit(`    -> std::span<const std::uint8_t>;`);
 
   emit(`private:`);
-  emit(`  auto encodeSourceLocation(const SourceLocation& loc)`);
-  emit(`    -> flatbuffers::Offset<>;`);
-  emit();
   emit(`  auto accept(AST* ast) -> flatbuffers::Offset<>;`);
   by_base.forEach((_nodes, base) => {
     if (base === "AST") return;

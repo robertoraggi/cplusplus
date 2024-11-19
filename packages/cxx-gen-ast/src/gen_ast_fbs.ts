@@ -95,10 +95,10 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
             case "node-list":
               break;
             case "token":
-              emit(`  ${fieldName}: SourceLocation;`);
+              emit(`  ${fieldName}: uint32;`);
               break;
             case "token-list":
-              emit(`  ${fieldName}: [SourceLocation];`);
+              throw new Error("unexpected token-list");
               break;
             case "attribute": {
               break;
@@ -115,14 +115,9 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
   const out = `${cpy_header}
 namespace cxx.io;
 
-table SourceLine {
+table Source {
   file_name: string;
-  line: uint32;
-}
-
-table SourceLocation {
-  source_line: SourceLine;
-  column: uint32;
+  line_offsets: [int];
 }
 
 ${code.join("\n")}
@@ -131,6 +126,8 @@ table SerializedUnit {
   version: uint32;
   unit: Unit;
   file_name: string;
+  token_list: [uint64];
+  source_list: [Source];
 }
 
 root_type SerializedUnit;

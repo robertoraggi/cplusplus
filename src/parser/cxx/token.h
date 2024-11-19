@@ -97,13 +97,20 @@ class Token {
   [[nodiscard]] auto isBuiltinTypeTrait() const -> bool;
   [[nodiscard]] auto builtinTypeTrait() const -> BuiltinTypeTraitKind;
 
+  [[nodiscard]] auto raw() const -> std::uint64_t { return raw_; }
+
  private:
-  std::uint64_t kind_ : 8;
-  std::uint64_t startOfLine_ : 1;
-  std::uint64_t leadingSpace_ : 1;
-  std::uint64_t fileId_ : 12;
-  std::uint64_t length_ : 17;
-  std::uint64_t offset_ : 25;
+  union {
+    struct {
+      std::uint64_t kind_ : 8;
+      std::uint64_t startOfLine_ : 1;
+      std::uint64_t leadingSpace_ : 1;
+      std::uint64_t fileId_ : 12;
+      std::uint64_t length_ : 17;
+      std::uint64_t offset_ : 25;
+    };
+    std::uint64_t raw_;
+  };
   TokenValue value_;
 };
 

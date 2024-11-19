@@ -40,21 +40,12 @@ class ASTEncoder : ASTVisitor {
   using Table =
       std::unordered_map<const T*, flatbuffers::Offset<flatbuffers::String>>;
 
-  using SourceFiles =
-      std::unordered_map<std::string_view,
-                         flatbuffers::Offset<flatbuffers::String>>;
-
-  using SourceLines = std::map<std::tuple<std::string_view, std::uint32_t>,
-                               flatbuffers::Offset<flatbuffers::String>>;
-
   TranslationUnit* unit_ = nullptr;
   Table<Identifier> identifiers_;
   Table<CharLiteral> charLiterals_;
   Table<StringLiteral> stringLiterals_;
   Table<IntegerLiteral> integerLiterals_;
   Table<FloatLiteral> floatLiterals_;
-  SourceFiles sourceFiles_;
-  SourceLines sourceLines_;
   flatbuffers::FlatBufferBuilder fbb_;
   flatbuffers::Offset<> offset_;
   std::uint32_t type_ = 0;
@@ -65,8 +56,6 @@ class ASTEncoder : ASTVisitor {
   auto operator()(TranslationUnit* unit) -> std::span<const std::uint8_t>;
 
  private:
-  auto encodeSourceLocation(const SourceLocation& loc) -> flatbuffers::Offset<>;
-
   auto accept(AST* ast) -> flatbuffers::Offset<>;
 
   auto acceptUnit(UnitAST* ast)

@@ -48,14 +48,14 @@ export function gen_ast_decoder_cc({
     const className = makeClassName(base);
     emit();
     emit(
-      `  auto ASTDecoder::decode${className}(const void* ptr, io::${className} type) -> ${base}* {`,
+      `  auto ASTDecoder::decode${className}(const void* ptr, io::${className} type) -> ${base}* {`
     );
     emit(`  switch (type) {`);
     nodes.forEach(({ name }) => {
       const className = makeClassName(name);
       emit(`  case io::${baseClassName}_${className}:`);
       emit(
-        `    return decode${className}(reinterpret_cast<const io::${className}*>(ptr));`,
+        `    return decode${className}(reinterpret_cast<const io::${className}*>(ptr));`
       );
     });
     emit(`  default:`);
@@ -70,7 +70,7 @@ export function gen_ast_decoder_cc({
       const className = makeClassName(name);
       emit();
       emit(
-        `  auto ASTDecoder::decode${className}(const io::${className}* node) -> ${name}* {`,
+        `  auto ASTDecoder::decode${className}(const io::${className}* node) -> ${name}* {`
       );
       emit(`  if (!node) return nullptr;`);
       emit();
@@ -135,6 +135,8 @@ export function gen_ast_decoder_cc({
         } else if (m.kind == "attribute" && m.type === "TokenKind") {
           emit(`  ast->${m.name} = static_cast<TokenKind>(`);
           emit(`    node->${snakeName}());`);
+        } else if (m.kind == "token") {
+          emit(`  ast->${m.name} = SourceLocation(node->${snakeName}());`);
         }
       });
       emit(`  return ast;`);

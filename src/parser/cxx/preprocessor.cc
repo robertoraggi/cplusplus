@@ -3199,6 +3199,15 @@ void Preprocessor::printMacros(std::ostream &out) const {
   }
 }
 
+auto Preprocessor::sources() const -> std::vector<Source> {
+  std::vector<Source> sources;
+  for (const auto &sourceFile : d->sourceFiles_) {
+    sources.push_back(Source{.fileName = sourceFile->fileName,
+                             .lineOffsets = sourceFile->lines});
+  }
+  return sources;
+}
+
 auto Preprocessor::tokenStartPosition(const Token &token) const
     -> SourcePosition {
   if (token.fileId() == 0) {
