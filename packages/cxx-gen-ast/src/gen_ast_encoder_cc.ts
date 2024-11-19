@@ -225,9 +225,8 @@ auto ASTEncoder::operator()(TranslationUnit* unit) -> std::span<const std::uint8
   std::vector<flatbuffers::Offset<io::Source>> sources;
   for (const auto& source : unit_->preprocessor()->sources()) {
     auto file_name = fbb_.CreateString(source.fileName);
-    std::vector<int> lineOffsets(source.lineOffsets.begin(),
-                                 source.lineOffsets.end());
-    auto line_offsets = fbb_.CreateVector(lineOffsets);
+    auto line_offsets =
+        fbb_.CreateVector(source.lineOffsets.data(), source.lineOffsets.size());
     sources.push_back(io::CreateSource(fbb_, file_name, line_offsets));
   }
 
