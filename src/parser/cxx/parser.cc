@@ -705,10 +705,10 @@ struct Parser::ScopeGuard {
 
   explicit ScopeGuard(Parser* p, Scope* scope = nullptr)
       : p(p), savedScope(p->scope_) {
-    if (scope) p->scope_ = scope;
+    if (scope) p->setScope(scope);
   }
 
-  ~ScopeGuard() { p->scope_ = savedScope; }
+  ~ScopeGuard() { p->setScope(savedScope); }
 };
 
 struct Parser::ExprContext {
@@ -792,7 +792,7 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
   overrideId_ = control_->getIdentifier("override");
 
   globalScope_ = unit->globalScope();
-  scope_ = globalScope_;
+  setScope(globalScope_);
 
   // temporary workarounds to the gnu  until we have a proper
   // support for templates
@@ -1727,7 +1727,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
   auto symbol = control_->newLambdaSymbol(scope_, currentLocation());
 
-  scope_ = symbol->scope();
+  setScope(symbol);
 
   TemplateHeadContext templateHeadContext{this};
 
@@ -1786,9 +1786,9 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     auto lambdaScope = symbol->scope();
     std::invoke(DeclareSymbol{this, lambdaScope},
                 params->functionParametersSymbol);
-    scope_ = params->functionParametersSymbol->scope();
+    setScope(params->functionParametersSymbol);
   } else {
-    scope_ = symbol->scope();
+    setScope(symbol);
   }
 
   if (!lookat(TokenKind::T_LBRACE)) return false;
@@ -3964,7 +3964,7 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 
   auto blockSymbol = control_->newBlockSymbol(scope_, lbraceLoc);
   std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
-  scope_ = blockSymbol->scope();
+  setScope(blockSymbol);
 
   auto ast = make_node<CompoundStatementAST>(pool_);
   yyast = ast;
@@ -4002,7 +4002,7 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 void Parser::finish_compound_statement(CompoundStatementAST* ast) {
   ScopeGuard scopeGuard{this};
 
-  scope_ = ast->symbol->scope();
+  setScope(ast->symbol);
 
   bool skipping = false;
 
@@ -4048,7 +4048,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   auto blockSymbol = control_->newBlockSymbol(scope_, ifLoc);
   std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
-  scope_ = blockSymbol->scope();
+  setScope(blockSymbol);
 
   if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
     auto ast = make_node<ConstevalIfStatementAST>(pool_);
@@ -4131,7 +4131,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   auto blockSymbol = control_->newBlockSymbol(scope_, whileLoc);
   std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
-  scope_ = blockSymbol->scope();
+  setScope(blockSymbol);
 
   auto ast = make_node<WhileStatementAST>(pool_);
   yyast = ast;
@@ -4185,7 +4185,7 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
   ScopeGuard scopeGuard{this};
 
   auto blockSymbol = control_->newBlockSymbol(scope_, forLoc);
-  scope_ = blockSymbol->scope();
+  setScope(blockSymbol);
 
   SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
@@ -4232,7 +4232,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
 
   auto blockSymbol = control_->newBlockSymbol(scope_, forLoc);
   std::invoke(DeclareSymbol{this, scope_}, blockSymbol);
-  scope_ = blockSymbol->scope();
+  setScope(blockSymbol);
 
   auto ast = make_node<ForStatementAST>(pool_);
   yyast = ast;
@@ -4562,8 +4562,7 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
   if (!identifier) {
     namespaceSymbol = parentNamespace->unnamedNamespace();
   } else {
-    auto resolved = parentScope->find(identifier) |
-                    std::views::filter(&Symbol::isNamespace);
+    auto resolved = parentScope->find(identifier) | views::namespaces;
     if (std::ranges::distance(resolved) == 1) {
       namespaceSymbol =
           symbol_cast<NamespaceSymbol>(*std::ranges::begin(resolved));
@@ -4588,7 +4587,7 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
     }
   }
 
-  scope_ = namespaceSymbol->scope();
+  setScope(namespaceSymbol);
 
   return namespaceSymbol;
 }
@@ -4891,7 +4890,7 @@ auto Parser::parse_simple_declaration(
     auto q = decl.getNestedNameSpecifier();
 
     if (auto scope = decl.getScope()) {
-      scope_ = scope;
+      setScope(scope);
     } else if (q && config_.checkTypes) {
       parse_error(q->firstSourceLocation(),
                   std::format("unresolved class or namespace"));
@@ -4918,9 +4917,9 @@ auto Parser::parse_simple_declaration(
       auto functionScope = functionSymbol->scope();
       std::invoke(DeclareSymbol{this, functionScope},
                   params->functionParametersSymbol);
-      scope_ = params->functionParametersSymbol->scope();
+      setScope(params->functionParametersSymbol);
     } else {
-      scope_ = functionSymbol->scope();
+      setScope(functionSymbol);
     }
 
     if (ctx == BindingContext::kTemplate) {
@@ -5005,7 +5004,7 @@ auto Parser::parse_notypespec_function_definition(
   ScopeGuard scopeGuard{this};
 
   if (auto scope = decl.getScope()) {
-    scope_ = scope;
+    setScope(scope);
   } else if (auto q = decl.getNestedNameSpecifier()) {
     if (config_.checkTypes) {
       parse_error(q->firstSourceLocation(),
@@ -5091,9 +5090,9 @@ auto Parser::parse_notypespec_function_definition(
     auto functionScope = functionSymbol->scope();
     std::invoke(DeclareSymbol{this, functionScope},
                 params->functionParametersSymbol);
-    scope_ = params->functionParametersSymbol->scope();
+    setScope(params->functionParametersSymbol);
   } else {
-    scope_ = functionSymbol->scope();
+    setScope(functionSymbol);
   }
 
   FunctionBodyAST* functionBody = nullptr;
@@ -6686,23 +6685,18 @@ auto Parser::parse_elaborated_type_specifier_helper(
 
     auto symbol = Lookup{scope_}(nestedNameSpecifier, nameId->identifier);
 
-    auto class_symbols_view = std::views::filter(&Symbol::isClass);
-
-    auto enum_symbols_view = std::views::filter([](Symbol* symbol) {
-      return symbol->isEnum() || symbol->isScopedEnum();
-    });
-
     if (ast->classKey == TokenKind::T_CLASS ||
         ast->classKey == TokenKind::T_STRUCT ||
         ast->classKey == TokenKind::T_UNION) {
-      for (auto symbol : SymbolChainView(symbol) | class_symbols_view) {
+      for (auto symbol : SymbolChainView(symbol) | views::classes) {
         if (symbol->name() != nameId->identifier) continue;
         ast->symbol = symbol;
         specs.type = symbol->type();
         break;
       }
     } else if (ast->classKey == TokenKind::T_ENUM) {
-      for (auto symbol : SymbolChainView(symbol) | enum_symbols_view) {
+      for (auto symbol :
+           SymbolChainView(symbol) | views::enum_or_scoped_enums) {
         if (symbol->name() != nameId->identifier) continue;
         ast->symbol = symbol;
         specs.type = symbol->type();
@@ -6944,7 +6938,7 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
   auto q = decl.getNestedNameSpecifier();
 
   if (auto scope = decl.getScope()) {
-    scope_ = scope;
+    setScope(scope);
   } else if (q && config_.checkTypes) {
     parse_error(q->firstSourceLocation(),
                 std::format("unresolved class or namespace"));
@@ -7412,7 +7406,7 @@ auto Parser::parse_parameter_declaration_list(
 
   functionParametersSymbol = control_->newFunctionParametersSymbol(scope_, {});
 
-  scope_ = functionParametersSymbol->scope();
+  setScope(functionParametersSymbol);
 
   ParameterDeclarationAST* declaration = nullptr;
 
@@ -7849,7 +7843,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     enumSymbol->setUnderlyingType(underlyingType);
     std::invoke(DeclareSymbol{this, scope_}, enumSymbol);
 
-    scope_ = enumSymbol->scope();
+    setScope(enumSymbol);
   } else {
     auto enumSymbol = control_->newEnumSymbol(scope_, location);
     symbol = enumSymbol;
@@ -7858,7 +7852,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     enumSymbol->setUnderlyingType(underlyingType);
     std::invoke(DeclareSymbol{this, scope_}, enumSymbol);
 
-    scope_ = enumSymbol->scope();
+    setScope(enumSymbol);
   }
 
   auto ast = make_node<EnumSpecifierAST>(pool_);
@@ -9281,13 +9275,11 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
         enclosingScope = enclosingNamespace->scope();
       }
 
-      if (!scope_) {
-        if (config_.checkTypes) {
-          parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
-                      "unresolved nested name specifier");
-        }
-      } else {
-        scope_ = enclosingScope;
+      if (enclosingScope) {
+        setScope(enclosingScope);
+      } else if (config_.checkTypes) {
+        parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
+                    "unresolved nested name specifier");
       }
     }
   }
@@ -9309,17 +9301,14 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
   ClassSymbol* classSymbol = nullptr;
 
   if (id && !isTemplateSpecialization) {
-    for (auto previous :
-         scope_->find(id) | std::views::filter(&Symbol::isClass)) {
-      if (auto previousClass = symbol_cast<ClassSymbol>(previous)) {
-        if (previousClass->isComplete()) {
-          parse_error(classHead.name->firstSourceLocation(),
-                      "class name already declared");
-        } else {
-          classSymbol = previousClass;
-        }
-        break;
+    for (auto previousClass : scope_->find(id) | views::classes) {
+      if (previousClass->isComplete()) {
+        parse_error(classHead.name->firstSourceLocation(),
+                    "class name already declared");
+      } else {
+        classSymbol = previousClass;
       }
+      break;
     }
   }
 
@@ -9337,7 +9326,7 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
     classSymbol->setFinal(true);
   }
 
-  scope_ = classSymbol->scope();
+  setScope(classSymbol);
 
   (void)parse_base_clause(classSymbol, classHead.colonLoc,
                           classHead.baseSpecifierList);
@@ -9502,9 +9491,9 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
       auto functionScope = functionSymbol->scope();
       std::invoke(DeclareSymbol{this, functionScope},
                   params->functionParametersSymbol);
-      scope_ = params->functionParametersSymbol->scope();
+      setScope(params->functionParametersSymbol);
     } else {
-      scope_ = functionSymbol->scope();
+      setScope(functionSymbol);
     }
 
     FunctionBodyAST* functionBody = nullptr;
@@ -10215,7 +10204,7 @@ auto Parser::parse_template_declaration(
 
   std::invoke(DeclareSymbol{this, scope_}, templateParametersSymbol);
 
-  scope_ = ast->symbol->scope();
+  setScope(ast->symbol);
 
   templateDeclarations.push_back(ast);
 
@@ -10482,13 +10471,13 @@ void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
     auto parameters =
         control_->newTemplateParametersSymbol(scope_, ast->templateLoc);
 
-    scope_ = parameters->scope();
+    setScope(parameters);
 
     parse_template_parameter_list(ast->templateParameterList);
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-    scope_ = parameters->enclosingScope();
+    setScope(parameters->enclosingScope());
   }
 
   (void)parse_requires_clause(ast->requiresClause);
@@ -11250,6 +11239,10 @@ void Parser::completePendingFunctionDefinitions() {
   }
 }
 
+void Parser::setScope(Scope* scope) { scope_ = scope; }
+
+void Parser::setScope(ScopedSymbol* symbol) { setScope(symbol->scope()); }
+
 void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;
 
@@ -11260,7 +11253,7 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
 
   ScopeGuard scopeGuard{this};
 
-  scope_ = ast->symbol->scope();
+  setScope(ast->symbol);
 
   const auto saved = currentLocation();
 

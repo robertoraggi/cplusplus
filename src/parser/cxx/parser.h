@@ -775,6 +775,9 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
+  void setScope(Scope* scope);
+  void setScope(ScopedSymbol* symbol);
+
   // lookup
   [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
 
