@@ -9284,38 +9284,43 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
     }
   }
 
-  const Identifier* id = nullptr;
+  const Identifier* identifier = nullptr;
   SourceLocation location;
   bool isTemplateSpecialization = false;
   if (const auto simpleName = ast_cast<NameIdAST>(classHead.name)) {
     location = simpleName->identifierLoc;
-    id = simpleName->identifier;
+    identifier = simpleName->identifier;
   } else if (const auto t = ast_cast<SimpleTemplateIdAST>(classHead.name)) {
     location = t->firstSourceLocation();
     isTemplateSpecialization = true;
-    id = t->identifier;
+    identifier = t->identifier;
   } else {
     location = currentLocation();
   }
 
   ClassSymbol* classSymbol = nullptr;
 
-  if (id && !isTemplateSpecialization) {
-    for (auto previousClass : scope_->find(id) | views::classes) {
-      if (previousClass->isComplete()) {
-        parse_error(classHead.name->firstSourceLocation(),
-                    "class name already declared");
-      } else {
-        classSymbol = previousClass;
+  if (identifier) {
+    if (!is_class_declaration) {
+      auto symbol = symbol_cast<ClassSymbol>(Lookup{scope_}(identifier));
+      classSymbol = symbol;
+    } else if (!isTemplateSpecialization) {
+      for (auto previousClass : scope_->find(identifier) | views::classes) {
+        if (previousClass->isComplete()) {
+          parse_error(classHead.name->firstSourceLocation(),
+                      "class name already declared");
+        } else {
+          classSymbol = previousClass;
+        }
+        break;
       }
-      break;
     }
   }
 
   if (!classSymbol) {
     classSymbol = control_->newClassSymbol(scope_, location);
     classSymbol->setIsUnion(isUnion);
-    classSymbol->setName(id);
+    classSymbol->setName(identifier);
 
     std::invoke(DeclareSymbol{this, scope_}, classSymbol);
   }
