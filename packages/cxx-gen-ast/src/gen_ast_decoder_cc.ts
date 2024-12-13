@@ -88,7 +88,7 @@ export function gen_ast_decoder_cc({
           const className = makeClassName(m.type);
           emit(`  if (node->${snakeName}()) {`);
           emit(`    auto* inserter = &ast->${m.name};`);
-          emit(`    for (std::size_t i = 0; i < node->${snakeName}()->size();`);
+          emit(`    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`);
           emit(`         ++i) {`);
           emit(`    *inserter = new (pool_) List(decode${className}(`);
           emit(`      node->${snakeName}()->Get(i),`);
@@ -100,7 +100,7 @@ export function gen_ast_decoder_cc({
           const className = makeClassName(m.type);
           emit(`  if (node->${snakeName}()) {`);
           emit(`    auto* inserter = &ast->${m.name};`);
-          emit(`    for (std::size_t i = 0; i < node->${snakeName}()->size();`);
+          emit(`    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`);
           emit(`         ++i) {`);
           emit(`    *inserter = new (pool_) List(decode${className}(`);
           emit(`      node->${snakeName}()->Get(i)));`);

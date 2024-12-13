@@ -304,7 +304,7 @@ class ClassSymbol final : public ScopedSymbol {
   std::vector<FunctionSymbol*> constructors_;
   std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
   ClassSymbol* templateClass_ = nullptr;
-  int templateSepcializationIndex_ = 0;
+  std::size_t templateSepcializationIndex_ = 0;
   std::size_t sizeInBytes_ = 0;
   union {
     std::uint32_t flags_{};

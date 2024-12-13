@@ -60,7 +60,7 @@ class Lexer {
   [[nodiscard]] auto tokenPos() const -> int { return tokenPos_; }
 
   [[nodiscard]] auto tokenLength() const -> std::uint32_t {
-    return (pos_ - cbegin(source_)) - tokenPos_;
+    return std::uint32_t((pos_ - cbegin(source_)) - tokenPos_);
   }
 
   [[nodiscard]] auto tokenIsClean() const -> bool { return tokenIsClean_; }

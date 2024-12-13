@@ -94,7 +94,7 @@ class Server {
   struct Text {
     std::string value;
     std::vector<std::size_t> lineStartOffsets;
-    int version = 0;
+    std::int64_t version = 0;
 
     auto offsetAt(std::size_t line, std::size_t column) const -> std::size_t;
 
