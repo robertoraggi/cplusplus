@@ -74,12 +74,10 @@ if (CXX_ENABLE_FLATBUFFERS)
         FLAGS --cpp)
 
     target_link_libraries(cxx-parser
-        PRIVATE $<BUILD_INTERFACE:cxx-ast-flatbuffers>
-    )
-
-    target_link_libraries(cxx-parser
         PRIVATE $<BUILD_INTERFACE:flatbuffers::header-only>
     )
+
+    add_dependencies(cxx-parser GENERATE_cxx-ast-flatbuffers)
 else()
     target_compile_definitions(cxx-parser PRIVATE CXX_NO_FLATBUFFERS)
 endif()
