@@ -444,9 +444,9 @@ void Server::operator()(DidChangeTextDocumentNotification notification) {
   } visit{text};
 
   auto contentChanges = notification.params().contentChanges();
-  const auto contentChangeCount = contentChanges.size();
+  const auto contentChangeCount = int(contentChanges.size());
 
-  for (std::size_t i = 0; i < contentChangeCount; ++i) {
+  for (int i = 0; i < contentChangeCount; ++i) {
     std::visit(visit, contentChanges.at(i));
   }
 
@@ -508,8 +508,8 @@ void Server::operator()(CompletionRequest request) {
       auto completionItems = response.result<Vector<CompletionItem>>();
 
       // cxx expects 1-based line and column numbers
-      cxxDocument->codeCompletionAt(std::move(source), line + 1, column + 1,
-                                    completionItems);
+      cxxDocument->codeCompletionAt(std::move(source), std::uint32_t(line + 1),
+                                    std::uint32_t(column + 1), completionItems);
 
       sendToClient(response);
     });

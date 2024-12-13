@@ -812,7 +812,7 @@ auto ASTDecoder::decodeTranslationUnit(const io::TranslationUnit* node)
   auto ast = new (pool_) TranslationUnitAST();
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -832,7 +832,7 @@ auto ASTDecoder::decodeModuleUnit(const io::ModuleUnit* node)
   ast->moduleDeclaration = decodeModuleDeclaration(node->module_declaration());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -851,7 +851,7 @@ auto ASTDecoder::decodeSimpleDeclaration(const io::SimpleDeclaration* node)
   auto ast = new (pool_) SimpleDeclarationAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -860,7 +860,7 @@ auto ASTDecoder::decodeSimpleDeclaration(const io::SimpleDeclaration* node)
   }
   if (node->decl_specifier_list()) {
     auto* inserter = &ast->declSpecifierList;
-    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->decl_specifier_list()->Get(i),
           io::Specifier(node->decl_specifier_list_type()->Get(i))));
@@ -869,7 +869,7 @@ auto ASTDecoder::decodeSimpleDeclaration(const io::SimpleDeclaration* node)
   }
   if (node->init_declarator_list()) {
     auto* inserter = &ast->initDeclaratorList;
-    for (std::size_t i = 0; i < node->init_declarator_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->init_declarator_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeInitDeclarator(node->init_declarator_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -887,7 +887,7 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   auto ast = new (pool_) AsmDeclarationAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -896,7 +896,7 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   }
   if (node->asm_qualifier_list()) {
     auto* inserter = &ast->asmQualifierList;
-    for (std::size_t i = 0; i < node->asm_qualifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->asm_qualifier_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeAsmQualifier(node->asm_qualifier_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -907,7 +907,7 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   ast->literalLoc = SourceLocation(node->literal_loc());
   if (node->output_operand_list()) {
     auto* inserter = &ast->outputOperandList;
-    for (std::size_t i = 0; i < node->output_operand_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->output_operand_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeAsmOperand(node->output_operand_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -915,7 +915,7 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   }
   if (node->input_operand_list()) {
     auto* inserter = &ast->inputOperandList;
-    for (std::size_t i = 0; i < node->input_operand_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->input_operand_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeAsmOperand(node->input_operand_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -923,7 +923,7 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   }
   if (node->clobber_list()) {
     auto* inserter = &ast->clobberList;
-    for (std::size_t i = 0; i < node->clobber_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->clobber_list()->size(); ++i) {
       *inserter =
           new (pool_) List(decodeAsmClobber(node->clobber_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -931,7 +931,7 @@ auto ASTDecoder::decodeAsmDeclaration(const io::AsmDeclaration* node)
   }
   if (node->goto_label_list()) {
     auto* inserter = &ast->gotoLabelList;
-    for (std::size_t i = 0; i < node->goto_label_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->goto_label_list()->size(); ++i) {
       *inserter =
           new (pool_) List(decodeAsmGotoLabel(node->goto_label_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -969,7 +969,7 @@ auto ASTDecoder::decodeUsingDeclaration(const io::UsingDeclaration* node)
   ast->usingLoc = SourceLocation(node->using_loc());
   if (node->using_declarator_list()) {
     auto* inserter = &ast->usingDeclaratorList;
-    for (std::size_t i = 0; i < node->using_declarator_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->using_declarator_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeUsingDeclarator(node->using_declarator_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -998,7 +998,7 @@ auto ASTDecoder::decodeUsingDirective(const io::UsingDirective* node)
   auto ast = new (pool_) UsingDirectiveAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1039,7 +1039,7 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
   ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1049,7 +1049,7 @@ auto ASTDecoder::decodeAliasDeclaration(const io::AliasDeclaration* node)
   ast->equalLoc = SourceLocation(node->equal_loc());
   if (node->gnu_attribute_list()) {
     auto* inserter = &ast->gnuAttributeList;
-    for (std::size_t i = 0; i < node->gnu_attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->gnu_attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->gnu_attribute_list()->Get(i),
           io::AttributeSpecifier(node->gnu_attribute_list_type()->Get(i))));
@@ -1074,7 +1074,7 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1087,7 +1087,7 @@ auto ASTDecoder::decodeOpaqueEnumDeclaration(
   ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->type_specifier_list()->Get(i),
           io::Specifier(node->type_specifier_list_type()->Get(i))));
@@ -1105,7 +1105,7 @@ auto ASTDecoder::decodeFunctionDefinition(const io::FunctionDefinition* node)
   auto ast = new (pool_) FunctionDefinitionAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1114,7 +1114,7 @@ auto ASTDecoder::decodeFunctionDefinition(const io::FunctionDefinition* node)
   }
   if (node->decl_specifier_list()) {
     auto* inserter = &ast->declSpecifierList;
-    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->decl_specifier_list()->Get(i),
           io::Specifier(node->decl_specifier_list_type()->Get(i))));
@@ -1137,7 +1137,8 @@ auto ASTDecoder::decodeTemplateDeclaration(const io::TemplateDeclaration* node)
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
-    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_parameter_list()->size();
+         ++i) {
       *inserter = new (pool_) List(decodeTemplateParameter(
           node->template_parameter_list()->Get(i),
           io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
@@ -1224,7 +1225,7 @@ auto ASTDecoder::decodeExportCompoundDeclaration(
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -1245,7 +1246,7 @@ auto ASTDecoder::decodeLinkageSpecification(
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -1269,7 +1270,7 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   ast->namespaceLoc = SourceLocation(node->namespace_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1278,8 +1279,8 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   }
   if (node->nested_namespace_specifier_list()) {
     auto* inserter = &ast->nestedNamespaceSpecifierList;
-    for (std::size_t i = 0; i < node->nested_namespace_specifier_list()->size();
-         ++i) {
+    for (std::uint32_t i = 0;
+         i < node->nested_namespace_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeNestedNamespaceSpecifier(
           node->nested_namespace_specifier_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -1288,7 +1289,7 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->extra_attribute_list()) {
     auto* inserter = &ast->extraAttributeList;
-    for (std::size_t i = 0; i < node->extra_attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->extra_attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->extra_attribute_list()->Get(i),
           io::AttributeSpecifier(node->extra_attribute_list_type()->Get(i))));
@@ -1298,7 +1299,7 @@ auto ASTDecoder::decodeNamespaceDefinition(const io::NamespaceDefinition* node)
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -1329,7 +1330,7 @@ auto ASTDecoder::decodeAttributeDeclaration(
   auto ast = new (pool_) AttributeDeclarationAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1349,7 +1350,7 @@ auto ASTDecoder::decodeModuleImportDeclaration(
   ast->importName = decodeImportName(node->import_name());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1367,7 +1368,7 @@ auto ASTDecoder::decodeParameterDeclaration(
   auto ast = new (pool_) ParameterDeclarationAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1377,7 +1378,7 @@ auto ASTDecoder::decodeParameterDeclaration(
   ast->thisLoc = SourceLocation(node->this_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->type_specifier_list()->Get(i),
           io::Specifier(node->type_specifier_list_type()->Get(i))));
@@ -1422,7 +1423,7 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
   auto ast = new (pool_) StructuredBindingDeclarationAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -1431,7 +1432,7 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
   }
   if (node->decl_specifier_list()) {
     auto* inserter = &ast->declSpecifierList;
-    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->decl_specifier_list()->Get(i),
           io::Specifier(node->decl_specifier_list_type()->Get(i))));
@@ -1442,7 +1443,7 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
   ast->lbracketLoc = SourceLocation(node->lbracket_loc());
   if (node->binding_list()) {
     auto* inserter = &ast->bindingList;
-    for (std::size_t i = 0; i < node->binding_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->binding_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeNameId(node->binding_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
@@ -1564,7 +1565,7 @@ auto ASTDecoder::decodeCompoundStatement(const io::CompoundStatement* node)
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->statement_list()) {
     auto* inserter = &ast->statementList;
-    for (std::size_t i = 0; i < node->statement_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->statement_list()->size(); ++i) {
       *inserter = new (pool_) List(
           decodeStatement(node->statement_list()->Get(i),
                           io::Statement(node->statement_list_type()->Get(i))));
@@ -1768,7 +1769,7 @@ auto ASTDecoder::decodeTryBlockStatement(const io::TryBlockStatement* node)
   ast->statement = decodeCompoundStatement(node->statement());
   if (node->handler_list()) {
     auto* inserter = &ast->handlerList;
-    for (std::size_t i = 0; i < node->handler_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->handler_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeHandler(node->handler_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
@@ -1909,7 +1910,7 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   ast->captureDefaultLoc = SourceLocation(node->capture_default_loc());
   if (node->capture_list()) {
     auto* inserter = &ast->captureList;
-    for (std::size_t i = 0; i < node->capture_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->capture_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeLambdaCapture(
           node->capture_list()->Get(i),
           io::LambdaCapture(node->capture_list_type()->Get(i))));
@@ -1920,7 +1921,8 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
-    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_parameter_list()->size();
+         ++i) {
       *inserter = new (pool_) List(decodeTemplateParameter(
           node->template_parameter_list()->Get(i),
           io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
@@ -1936,7 +1938,7 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   ast->rparenLoc = SourceLocation(node->rparen_loc());
   if (node->gnu_atribute_list()) {
     auto* inserter = &ast->gnuAtributeList;
-    for (std::size_t i = 0; i < node->gnu_atribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->gnu_atribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->gnu_atribute_list()->Get(i),
           io::AttributeSpecifier(node->gnu_atribute_list_type()->Get(i))));
@@ -1945,7 +1947,7 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   }
   if (node->lambda_specifier_list()) {
     auto* inserter = &ast->lambdaSpecifierList;
-    for (std::size_t i = 0; i < node->lambda_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->lambda_specifier_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeLambdaSpecifier(node->lambda_specifier_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -1955,7 +1957,7 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
       node->exception_specifier(), node->exception_specifier_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -2032,7 +2034,7 @@ auto ASTDecoder::decodeRequiresExpression(const io::RequiresExpression* node)
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->requirement_list()) {
     auto* inserter = &ast->requirementList;
-    for (std::size_t i = 0; i < node->requirement_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->requirement_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeRequirement(
           node->requirement_list()->Get(i),
           io::Requirement(node->requirement_list_type()->Get(i))));
@@ -2082,7 +2084,7 @@ auto ASTDecoder::decodeCallExpression(const io::CallExpression* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -2103,7 +2105,7 @@ auto ASTDecoder::decodeTypeConstruction(const io::TypeConstruction* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -2390,7 +2392,7 @@ auto ASTDecoder::decodeNewExpression(const io::NewExpression* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->type_specifier_list()->Get(i),
           io::Specifier(node->type_specifier_list_type()->Get(i))));
@@ -2543,7 +2545,7 @@ auto ASTDecoder::decodeTypeTraitExpression(const io::TypeTraitExpression* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->type_id_list()) {
     auto* inserter = &ast->typeIdList;
-    for (std::size_t i = 0; i < node->type_id_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_id_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeTypeId(node->type_id_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
@@ -2559,7 +2561,7 @@ auto ASTDecoder::decodeConditionExpression(const io::ConditionExpression* node)
   auto ast = new (pool_) ConditionExpressionAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -2568,7 +2570,7 @@ auto ASTDecoder::decodeConditionExpression(const io::ConditionExpression* node)
   }
   if (node->decl_specifier_list()) {
     auto* inserter = &ast->declSpecifierList;
-    for (std::size_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->decl_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->decl_specifier_list()->Get(i),
           io::Specifier(node->decl_specifier_list_type()->Get(i))));
@@ -2600,7 +2602,7 @@ auto ASTDecoder::decodeBracedInitList(const io::BracedInitList* node)
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -2620,7 +2622,7 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -2654,7 +2656,7 @@ auto ASTDecoder::decodeGlobalModuleFragment(
   ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -2675,7 +2677,7 @@ auto ASTDecoder::decodePrivateModuleFragment(
   ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -2696,7 +2698,7 @@ auto ASTDecoder::decodeModuleDeclaration(const io::ModuleDeclaration* node)
   ast->modulePartition = decodeModulePartition(node->module_partition());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -2776,7 +2778,7 @@ auto ASTDecoder::decodeDeclarator(const io::Declarator* node)
   auto ast = new (pool_) DeclaratorAST();
   if (node->ptr_op_list()) {
     auto* inserter = &ast->ptrOpList;
-    for (std::size_t i = 0; i < node->ptr_op_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->ptr_op_list()->size(); ++i) {
       *inserter = new (pool_) List(
           decodePtrOperator(node->ptr_op_list()->Get(i),
                             io::PtrOperator(node->ptr_op_list_type()->Get(i))));
@@ -2787,7 +2789,7 @@ auto ASTDecoder::decodeDeclarator(const io::Declarator* node)
                                              node->core_declarator_type());
   if (node->declarator_chunk_list()) {
     auto* inserter = &ast->declaratorChunkList;
-    for (std::size_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declarator_chunk_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaratorChunk(
           node->declarator_chunk_list()->Get(i),
           io::DeclaratorChunk(node->declarator_chunk_list_type()->Get(i))));
@@ -2819,7 +2821,7 @@ auto ASTDecoder::decodeEnumerator(const io::Enumerator* node)
   ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -2842,7 +2844,7 @@ auto ASTDecoder::decodeTypeId(const io::TypeId* node) -> TypeIdAST* {
   auto ast = new (pool_) TypeIdAST();
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->type_specifier_list()->Get(i),
           io::Specifier(node->type_specifier_list_type()->Get(i))));
@@ -2873,7 +2875,7 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
   auto ast = new (pool_) BaseSpecifierAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -2908,7 +2910,7 @@ auto ASTDecoder::decodeParameterDeclarationClause(
   auto ast = new (pool_) ParameterDeclarationClauseAST();
   if (node->parameter_declaration_list()) {
     auto* inserter = &ast->parameterDeclarationList;
-    for (std::size_t i = 0; i < node->parameter_declaration_list()->size();
+    for (std::uint32_t i = 0; i < node->parameter_declaration_list()->size();
          ++i) {
       *inserter = new (pool_) List(decodeParameterDeclaration(
           node->parameter_declaration_list()->Get(i)));
@@ -2951,7 +2953,7 @@ auto ASTDecoder::decodeTypeConstraint(const io::TypeConstraint* node)
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
-    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_argument_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeTemplateArgument(
           node->template_argument_list()->Get(i),
           io::TemplateArgument(node->template_argument_list_type()->Get(i))));
@@ -3007,7 +3009,7 @@ auto ASTDecoder::decodeNewPlacement(const io::NewPlacement* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -3042,7 +3044,8 @@ auto ASTDecoder::decodeTemplateTypeParameter(
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_parameter_list()) {
     auto* inserter = &ast->templateParameterList;
-    for (std::size_t i = 0; i < node->template_parameter_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_parameter_list()->size();
+         ++i) {
       *inserter = new (pool_) List(decodeTemplateParameter(
           node->template_parameter_list()->Get(i),
           io::TemplateParameter(node->template_parameter_list_type()->Get(i))));
@@ -3359,7 +3362,7 @@ auto ASTDecoder::decodeElaboratedTypeSpecifier(
   ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3446,7 +3449,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3459,7 +3462,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->type_specifier_list()->Get(i),
           io::Specifier(node->type_specifier_list_type()->Get(i))));
@@ -3470,7 +3473,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
   ast->commaLoc = SourceLocation(node->comma_loc());
   if (node->enumerator_list()) {
     auto* inserter = &ast->enumeratorList;
-    for (std::size_t i = 0; i < node->enumerator_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->enumerator_list()->size(); ++i) {
       *inserter =
           new (pool_) List(decodeEnumerator(node->enumerator_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -3488,7 +3491,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
   ast->classLoc = SourceLocation(node->class_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3503,7 +3506,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
   ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->base_specifier_list()) {
     auto* inserter = &ast->baseSpecifierList;
-    for (std::size_t i = 0; i < node->base_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->base_specifier_list()->size(); ++i) {
       *inserter = new (pool_)
           List(decodeBaseSpecifier(node->base_specifier_list()->Get(i)));
       inserter = &(*inserter)->next;
@@ -3512,7 +3515,7 @@ auto ASTDecoder::decodeClassSpecifier(const io::ClassSpecifier* node)
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
   if (node->declaration_list()) {
     auto* inserter = &ast->declarationList;
-    for (std::size_t i = 0; i < node->declaration_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->declaration_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeDeclaration(
           node->declaration_list()->Get(i),
           io::Declaration(node->declaration_list_type()->Get(i))));
@@ -3555,7 +3558,7 @@ auto ASTDecoder::decodePointerOperator(const io::PointerOperator* node)
   ast->starLoc = SourceLocation(node->star_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3564,7 +3567,7 @@ auto ASTDecoder::decodePointerOperator(const io::PointerOperator* node)
   }
   if (node->cv_qualifier_list()) {
     auto* inserter = &ast->cvQualifierList;
-    for (std::size_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->cv_qualifier_list()->Get(i),
           io::Specifier(node->cv_qualifier_list_type()->Get(i))));
@@ -3582,7 +3585,7 @@ auto ASTDecoder::decodeReferenceOperator(const io::ReferenceOperator* node)
   ast->refLoc = SourceLocation(node->ref_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3603,7 +3606,7 @@ auto ASTDecoder::decodePtrToMemberOperator(const io::PtrToMemberOperator* node)
   ast->starLoc = SourceLocation(node->star_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3612,7 +3615,7 @@ auto ASTDecoder::decodePtrToMemberOperator(const io::PtrToMemberOperator* node)
   }
   if (node->cv_qualifier_list()) {
     auto* inserter = &ast->cvQualifierList;
-    for (std::size_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->cv_qualifier_list()->Get(i),
           io::Specifier(node->cv_qualifier_list_type()->Get(i))));
@@ -3657,7 +3660,7 @@ auto ASTDecoder::decodeIdDeclarator(const io::IdDeclarator* node)
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3689,7 +3692,7 @@ auto ASTDecoder::decodeFunctionDeclaratorChunk(
   ast->rparenLoc = SourceLocation(node->rparen_loc());
   if (node->cv_qualifier_list()) {
     auto* inserter = &ast->cvQualifierList;
-    for (std::size_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->cv_qualifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->cv_qualifier_list()->Get(i),
           io::Specifier(node->cv_qualifier_list_type()->Get(i))));
@@ -3701,7 +3704,7 @@ auto ASTDecoder::decodeFunctionDeclaratorChunk(
       node->exception_specifier(), node->exception_specifier_type());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3724,7 +3727,7 @@ auto ASTDecoder::decodeArrayDeclaratorChunk(
   ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -3812,7 +3815,7 @@ auto ASTDecoder::decodeSimpleTemplateId(const io::SimpleTemplateId* node)
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
-    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_argument_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeTemplateArgument(
           node->template_argument_list()->Get(i),
           io::TemplateArgument(node->template_argument_list_type()->Get(i))));
@@ -3837,7 +3840,7 @@ auto ASTDecoder::decodeLiteralOperatorTemplateId(
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
-    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_argument_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeTemplateArgument(
           node->template_argument_list()->Get(i),
           io::TemplateArgument(node->template_argument_list_type()->Get(i))));
@@ -3859,7 +3862,7 @@ auto ASTDecoder::decodeOperatorFunctionTemplateId(
   ast->lessLoc = SourceLocation(node->less_loc());
   if (node->template_argument_list()) {
     auto* inserter = &ast->templateArgumentList;
-    for (std::size_t i = 0; i < node->template_argument_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->template_argument_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeTemplateArgument(
           node->template_argument_list()->Get(i),
           io::TemplateArgument(node->template_argument_list_type()->Get(i))));
@@ -3944,7 +3947,7 @@ auto ASTDecoder::decodeCompoundStatementFunctionBody(
   ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->mem_initializer_list()) {
     auto* inserter = &ast->memInitializerList;
-    for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeMemInitializer(
           node->mem_initializer_list()->Get(i),
           io::MemInitializer(node->mem_initializer_list_type()->Get(i))));
@@ -3964,7 +3967,7 @@ auto ASTDecoder::decodeTryStatementFunctionBody(
   ast->colonLoc = SourceLocation(node->colon_loc());
   if (node->mem_initializer_list()) {
     auto* inserter = &ast->memInitializerList;
-    for (std::size_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->mem_initializer_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeMemInitializer(
           node->mem_initializer_list()->Get(i),
           io::MemInitializer(node->mem_initializer_list_type()->Get(i))));
@@ -3974,7 +3977,7 @@ auto ASTDecoder::decodeTryStatementFunctionBody(
   ast->statement = decodeCompoundStatement(node->statement());
   if (node->handler_list()) {
     auto* inserter = &ast->handlerList;
-    for (std::size_t i = 0; i < node->handler_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->handler_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeHandler(node->handler_list()->Get(i)));
       inserter = &(*inserter)->next;
     }
@@ -4098,7 +4101,7 @@ auto ASTDecoder::decodeNewParenInitializer(const io::NewParenInitializer* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -4130,7 +4133,7 @@ auto ASTDecoder::decodeParenMemInitializer(const io::ParenMemInitializer* node)
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   if (node->expression_list()) {
     auto* inserter = &ast->expressionList;
-    for (std::size_t i = 0; i < node->expression_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->expression_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeExpression(
           node->expression_list()->Get(i),
           io::Expression(node->expression_list_type()->Get(i))));
@@ -4254,7 +4257,7 @@ auto ASTDecoder::decodeTypeExceptionDeclaration(
   auto ast = new (pool_) TypeExceptionDeclarationAST();
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeAttributeSpecifier(
           node->attribute_list()->Get(i),
           io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
@@ -4263,7 +4266,7 @@ auto ASTDecoder::decodeTypeExceptionDeclaration(
   }
   if (node->type_specifier_list()) {
     auto* inserter = &ast->typeSpecifierList;
-    for (std::size_t i = 0; i < node->type_specifier_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->type_specifier_list()->size(); ++i) {
       *inserter = new (pool_) List(decodeSpecifier(
           node->type_specifier_list()->Get(i),
           io::Specifier(node->type_specifier_list_type()->Get(i))));
@@ -4285,7 +4288,7 @@ auto ASTDecoder::decodeCxxAttribute(const io::CxxAttribute* node)
       decodeAttributeUsingPrefix(node->attribute_using_prefix());
   if (node->attribute_list()) {
     auto* inserter = &ast->attributeList;
-    for (std::size_t i = 0; i < node->attribute_list()->size(); ++i) {
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
       *inserter =
           new (pool_) List(decodeAttribute(node->attribute_list()->Get(i)));
       inserter = &(*inserter)->next;

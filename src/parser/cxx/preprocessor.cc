@@ -1218,7 +1218,7 @@ struct Preprocessor::Private {
   [[nodiscard]] auto unaryExpression(TokList *&ts) -> long;
   [[nodiscard]] auto primaryExpression(TokList *&ts) -> long;
 
-  [[nodiscard]] auto parseArguments(TokList *ts, int formalCount,
+  [[nodiscard]] auto parseArguments(TokList *ts, std::size_t formalCount,
                                     bool ignoreComma = false)
       -> std::tuple<std::vector<TokRange>, TokList *, const Hideset *>;
 
@@ -1241,8 +1241,8 @@ struct Preprocessor::ParseArguments {
   Private &d;
 
   template <std::sentinel_for<TokIterator> S>
-  auto operator()(TokIterator it, S last, int formalCount, bool ignoreComma)
-      -> std::optional<Result> {
+  auto operator()(TokIterator it, S last, std::size_t formalCount,
+                  bool ignoreComma) -> std::optional<Result> {
     if (!cxx::lookat(it, last, TokenKind::T_LPAREN)) {
       cxx_runtime_error("expected '('");
       return std::nullopt;
@@ -1381,7 +1381,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
   sourceFile->headerProtection = d->checkHeaderProtection(sourceFile->tokens);
 
   if (sourceFile->headerProtection) {
-    sourceFile->headerProtectionLevel = d->evaluating_.size();
+    sourceFile->headerProtectionLevel = int(d->evaluating_.size());
 
     d->ifndefProtectedFiles_.insert_or_assign(
         sourceFile->fileName, sourceFile->headerProtection->tok->text);
@@ -1871,8 +1871,8 @@ auto Preprocessor::Private::parseDirective(SourceFile *source, TokList *start)
 
   dependencies_.clear();
 
-  const auto directiveKind = classifyDirective(directive->tok->text.data(),
-                                               directive->tok->text.length());
+  const auto directiveKind = classifyDirective(
+      directive->tok->text.data(), int(directive->tok->text.length()));
 
   TokList *ts = directive->next;
 
@@ -2706,7 +2706,7 @@ auto Preprocessor::Private::instantiate(TokList *ts, const Hideset *hideset)
   return ts;
 }
 
-auto Preprocessor::Private::parseArguments(TokList *ts, int formalCount,
+auto Preprocessor::Private::parseArguments(TokList *ts, std::size_t formalCount,
                                            bool ignoreComma)
     -> std::tuple<std::vector<TokRange>, TokList *, const Hideset *> {
   assert(lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_LPAREN));

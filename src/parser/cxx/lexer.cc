@@ -142,7 +142,7 @@ auto Lexer::readToken() -> TokenKind {
   const auto hasMoreChars = skipSpaces();
 
   tokenIsClean_ = true;
-  tokenPos_ = pos_ - cbegin(source_);
+  tokenPos_ = int(pos_ - cbegin(source_));
   text_.clear();
 
   if (!hasMoreChars) return TokenKind::T_EOF_SYMBOL;
@@ -231,16 +231,16 @@ auto Lexer::readToken() -> TokenKind {
 
       auto lookat_delimiter = [&]() -> bool {
         if (LA() != ')') return false;
-        if (LA(delimiter.size() + 1) != '"') return false;
+        if (LA(int(delimiter.size() + 1)) != '"') return false;
         for (std::size_t i = 0; i < delimiter.size(); ++i) {
-          if (LA(i + 1) != delimiter[i]) return false;
+          if (LA(int(i + 1)) != delimiter[i]) return false;
         }
         return true;
       };
 
       while (pos_ != end_) {
         if (lookat_delimiter()) {
-          consume(delimiter.size() + 2);
+          consume(int(delimiter.size() + 2));
           break;
         }
         consume();
