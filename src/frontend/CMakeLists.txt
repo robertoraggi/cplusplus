@@ -54,3 +54,17 @@ if (CXX_INSTALL_TOOLS)
         EXPORT cxxTargets
     )
 endif()
+
+add_custom_target(link_cxx_include ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../lib/cxx/include $<TARGET_FILE_DIR:cxx>/../lib/cxx/include
+)
+
+add_custom_command(
+    OUTPUT wasi-sysroot.timestamp
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${wasi_sysroot_SOURCE_DIR} $<TARGET_FILE_DIR:cxx>/../lib/wasi-sysroot
+    COMMAND ${CMAKE_COMMAND} -E touch wasi-sysroot.timestamp
+)
+
+add_custom_target(link_wasi_sysroot ALL
+    DEPENDS wasi-sysroot.timestamp
+)
