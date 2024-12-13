@@ -9,4 +9,4 @@ target_link_libraries(test_lsp
     GTest::gtest_main
     cxx-lsp)
 
-gtest_discover_tests(test_lsp)
+gtest_discover_tests(test_lsp DISCOVERY_MODE PRE_TEST)
