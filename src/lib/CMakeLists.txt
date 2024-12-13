@@ -17,9 +17,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-add_custom_target(link_wasi_sysroot ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${wasi_sysroot_SOURCE_DIR} wasi-sysroot)
-
 add_subdirectory(cxx)
 
 if (CXX_INSTALL_WASI_SYSROOT)
