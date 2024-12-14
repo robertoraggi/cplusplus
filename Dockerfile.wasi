@@ -1,4 +1,4 @@
-FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-24 as wasi
+FROM ghcr.io/webassembly/wasi-sdk:wasi-sdk-25 as wasi
 
 RUN apt-get update && apt-get install -y \
     g++ \
