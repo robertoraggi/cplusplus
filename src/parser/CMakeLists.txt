@@ -41,7 +41,7 @@ target_include_directories(cxx-parser
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(cxx-parser PUBLIC cxx_std_20)
+target_compile_features(cxx-parser PUBLIC cxx_std_23)
 
 # disable exception when targeting emscripten
 if (EMSCRIPTEN)
