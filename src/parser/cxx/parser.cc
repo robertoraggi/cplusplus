@@ -797,8 +797,11 @@ Parser::Parser(TranslationUnit* unit) : unit(unit) {
   // temporary workarounds to the gnu  until we have a proper
   // support for templates
   mark_maybe_template_name(control_->getIdentifier("__make_integer_seq"));
-  mark_maybe_template_name(control_->getIdentifier("__type_pack_element"));
+  mark_maybe_template_name(control_->getIdentifier("__remove_reference_t"));
+  mark_maybe_template_name(control_->getIdentifier("__integer_pack"));
+
   template_names_.insert(control_->getIdentifier("_S_invoke"));
+  template_names_.insert(control_->getIdentifier("__type_pack_element"));
 }
 
 Parser::~Parser() = default;

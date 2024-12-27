@@ -22,20 +22,16 @@
 
 import "zx/globals";
 
-const workspacePath = path.join(__dirname, "../");
-
 async function main() {
-  const gcc = argv.cc ?? "g++";
-  const std = argv.std ?? "c++20";
-
   const predefinedMacros = String(
-    await $`${gcc} -E -dM -x c++ -std=${std} - < /dev/null`.quiet(),
+    // await $`${gcc} -E -dM -x c++ -std=${std} - < /dev/null`.quiet()
+    await $`wasm32-clang++ -target wasm32-wasi -xc++ -std=c++26 -E -dM - < /dev/null`.quiet()
   );
 
   const out = [];
   const emit = (s) => out.push(s);
 
-  const toolchain = "GCCLinuxToolchain";
+  const toolchain = "Wasm32WasiToolchain";
 
   emit(`void ${toolchain}::addPredefinedMacros() {`);
 

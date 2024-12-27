@@ -108,8 +108,7 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
 
 FetchContent_Declare(
     wasi_sysroot
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sysroot-22.0.tar.gz
-    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/wasi-sysroot.patch
+    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sysroot-25.0.tar.gz
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)
