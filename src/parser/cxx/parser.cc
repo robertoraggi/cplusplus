@@ -996,7 +996,8 @@ auto Parser::parse_type_name(UnqualifiedIdAST*& yyast,
   auto lookat_simple_template_id = [&] {
     LookaheadParser lookahead{this};
     SimpleTemplateIdAST* templateId = nullptr;
-    if (!parse_simple_template_id(templateId, nestedNameSpecifier))
+    if (!parse_simple_template_id(templateId, nestedNameSpecifier,
+                                  isTemplateIntroduced))
       return false;
     yyast = templateId;
     lookahead.commit();
@@ -2297,9 +2298,13 @@ auto Parser::parse_type_requirement(RequirementAST*& yyast) -> bool {
 
   parse_optional_nested_name_specifier(ast->nestedNameSpecifier);
 
+  SourceLocation templateLoc;
+  const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
+
   if (!parse_type_name(ast->unqualifiedId, ast->nestedNameSpecifier,
-                       /*isTemplateIntroduced=*/false))
+                       isTemplateIntroduced)) {
     parse_error("expected a type name");
+  }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
@@ -10646,6 +10651,10 @@ auto Parser::parse_simple_template_id(
 
   Symbol* primaryTemplateSymbol = nullptr;
   Symbol* candidate = Lookup{scope_}(nestedNameSpecifier, identifier);
+
+  if (symbol_cast<NonTypeParameterSymbol>(candidate)) {
+    return false;
+  }
 
   if (is_template(candidate))
     primaryTemplateSymbol = candidate;
