@@ -42,8 +42,6 @@ target_include_directories(cxx-lsp
 
 target_link_libraries(cxx-lsp PUBLIC nlohmann_json::nlohmann_json)
 
-target_compile_features(cxx-lsp PUBLIC cxx_std_20)
-
 # disable exception when targeting emscripten
 if (EMSCRIPTEN)
     target_compile_options(cxx-lsp PUBLIC -fno-exceptions)
