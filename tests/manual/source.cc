@@ -59,7 +59,11 @@
 #include <list>
 #include <locale>
 #include <map>
+
+#ifdef __cpp_lib_mdspan
 #include <mdspan>
+#endif
+
 #include <memory>
 #include <memory_resource>
 
