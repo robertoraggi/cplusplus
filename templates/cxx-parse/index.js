@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,7 @@ async function main() {
   const ast = parser.getAST();
 
   for (const { node, slot, depth } of ast?.walk().preVisit() ?? []) {
-    if ((!node) instanceof AST) continue;
+    if (!node instanceof AST) continue;
     const ind = " ".repeat(depth * 2);
     const kind = ASTKind[node.getKind()];
     const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
