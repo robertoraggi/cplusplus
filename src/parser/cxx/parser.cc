@@ -1302,7 +1302,9 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
   UnqualifiedIdAST* name = nullptr;
 
-  if (parse_this_expression(yyast)) {
+  if (parse_builtin_call_expression(yyast, ctx)) {
+    return true;
+  } else if (parse_this_expression(yyast)) {
     return true;
   } else if (parse_literal(yyast)) {
     return true;
@@ -2408,9 +2410,7 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool {
-  if (parse_builtin_call_expression(yyast, ctx))
-    return true;
-  else if (parse_va_arg_expression(yyast, ctx))
+  if (parse_va_arg_expression(yyast, ctx))
     return true;
   else if (parse_cpp_cast_expression(yyast, ctx))
     return true;
