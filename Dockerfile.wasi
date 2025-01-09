@@ -12,7 +12,7 @@ COPY tools/kwgen/kwgen.cc /tmp/kwgen.cc
 
 RUN g++ -std=c++20 /tmp/kwgen.cc -o /usr/bin/kwgen
 
-RUN wget https://github.com/google/flatbuffers/releases/download/v24.3.25/Linux.flatc.binary.clang++-15.zip && \
-    unzip Linux.flatc.binary.clang++-15.zip && \
+RUN wget https://github.com/google/flatbuffers/releases/download/v24.12.23/Linux.flatc.binary.clang++-18.zip && \
+    unzip Linux.flatc.binary.clang++-18.zip && \
     mv flatc /usr/bin/flatc && \
-    rm Linux.flatc.binary.clang++-15.zip
+    rm Linux.flatc.binary.clang++-18.zip
