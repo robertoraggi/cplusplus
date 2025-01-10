@@ -26,6 +26,7 @@ namespace cxx::fs {}
 
 #else
 
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace cxx::fs {
@@ -52,6 +53,14 @@ path operator/(path lhs, const std::string& rhs) {
 }
 
 path current_path() { return {}; }
+
+auto is_directory(const path& p) -> bool {
+  struct stat st;
+  if (stat(p.string().c_str(), &st) != 0) {
+    return false;
+  }
+  return S_ISDIR(st.st_mode);
+}
 
 }  // namespace cxx::fs
 
