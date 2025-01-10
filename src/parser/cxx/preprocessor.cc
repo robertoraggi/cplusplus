@@ -1022,7 +1022,7 @@ struct Preprocessor::Private {
   }
 
   [[nodiscard]] auto fileExists(const fs::path &file) const -> bool {
-    return fs::exists(file);
+    return fs::exists(file) && !fs::is_directory(file);
   }
 
   [[nodiscard]] auto checkHeaderProtection(TokList *ts) const -> TokList *;

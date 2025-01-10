@@ -31,6 +31,7 @@ using path = std::filesystem::path;
 
 using std::filesystem::current_path;
 using std::filesystem::exists;
+using std::filesystem::is_directory;
 using std::filesystem::is_symlink;
 using std::filesystem::read_symlink;
 
@@ -56,11 +57,12 @@ class path {
   path& remove_filename();
 };
 
-bool exists(const path& path);
-path operator/(path lhs, const path& rhs);
-path operator/(path lhs, const std::string& rhs);
-path current_path();
-path absolute(const path& p);
+auto exists(const path& path) -> bool;
+auto operator/(path lhs, const path& rhs) -> path;
+auto operator/(path lhs, const std::string& rhs) -> path;
+auto current_path() -> path;
+auto absolute(const path& p) -> path;
+auto is_directory(const path& p) -> bool;
 
 }  // namespace cxx::fs
 
