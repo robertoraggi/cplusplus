@@ -34,28 +34,28 @@ namespace cxx {
 DiagnosticsClient::~DiagnosticsClient() = default;
 
 void DiagnosticsClient::report(const Diagnostic& diag) {
-  std::string_view Severity;
+  std::string_view severity;
 
   switch (diag.severity()) {
     case Severity::Message:
-      Severity = "message";
+      severity = "message";
       break;
     case Severity::Warning:
-      Severity = "warning";
+      severity = "warning";
       break;
     case Severity::Error:
-      Severity = "error";
+      severity = "error";
       break;
     case Severity::Fatal:
-      Severity = "fatal";
+      severity = "fatal";
       break;
   }  // switch
 
   const auto pos = preprocessor_->tokenStartPosition(diag.token());
 
   if (!pos.fileName.empty()) {
-    std::cerr << std::format("{}:{}:{}: {}\n", pos.fileName, pos.line,
-                             pos.column, diag.message());
+    std::cerr << std::format("{}:{}:{}: {}: {}\n", pos.fileName, pos.line,
+                             pos.column, severity, diag.message());
 
     const auto textLine = preprocessor_->getTextLine(diag.token());
 
