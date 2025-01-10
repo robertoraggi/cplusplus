@@ -7577,19 +7577,18 @@ auto Parser::parse_initializer_clause(ExpressionAST*& yyast,
   return true;
 }
 
-auto Parser::parse_braced_init_list(BracedInitListAST*& yyast,
+auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
                                     const ExprContext& ctx) -> bool {
   SourceLocation lbraceLoc;
-  SourceLocation rbraceLoc;
-
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
+  if (!ast) {
+    ast = make_node<BracedInitListAST>(pool_);
+  }
+
+  ast->lbraceLoc = lbraceLoc;
+
   if (lookat(TokenKind::T_DOT)) {
-    auto ast = make_node<BracedInitListAST>(pool_);
-    yyast = ast;
-
-    ast->lbraceLoc = lbraceLoc;
-
     auto it = &ast->expressionList;
 
     DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
@@ -7625,37 +7624,19 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& yyast,
     return true;
   }
 
-  SourceLocation commaLoc;
-
-  if (match(TokenKind::T_COMMA, commaLoc)) {
-    expect(TokenKind::T_RBRACE, rbraceLoc);
-
-    auto ast = make_node<BracedInitListAST>(pool_);
-    yyast = ast;
-
-    ast->lbraceLoc = lbraceLoc;
-    ast->commaLoc = commaLoc;
-    ast->rbraceLoc = rbraceLoc;
+  if (match(TokenKind::T_COMMA, ast->commaLoc)) {
+    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
     return true;
   }
 
-  List<ExpressionAST*>* expressionList = nullptr;
-
-  if (!match(TokenKind::T_RBRACE, rbraceLoc)) {
-    if (!parse_initializer_list(expressionList, ctx)) {
+  if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+    if (!parse_initializer_list(ast->expressionList, ctx)) {
       parse_error("expected initializer list");
     }
 
-    expect(TokenKind::T_RBRACE, rbraceLoc);
+    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
-
-  auto ast = make_node<BracedInitListAST>(pool_);
-  yyast = ast;
-
-  ast->lbraceLoc = lbraceLoc;
-  ast->expressionList = expressionList;
-  ast->rbraceLoc = rbraceLoc;
 
   return true;
 }
@@ -10013,8 +9994,16 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
     ast->nestedNameSpecifier = nestedNameSpecifier;
     ast->unqualifiedId = name;
 
-    if (!parse_braced_init_list(ast->bracedInitList, ExprContext{})) {
-      parse_error("expected an initializer");
+    if (classDepth_) {
+      ast->bracedInitList = make_node<BracedInitListAST>(pool_);
+      ast->bracedInitList->lbraceLoc = currentLocation();
+      if (parse_skip_balanced()) {
+        ast->bracedInitList->rbraceLoc = currentLocation().previous();
+      }
+    } else {
+      if (!parse_braced_init_list(ast->bracedInitList, ExprContext{})) {
+        parse_error("expected an initializer");
+      }
     }
 
     match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
@@ -10028,14 +10017,27 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = name;
 
-  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  if (classDepth_) {
+    // postpone parsing of the intiializer
+    if (lookat(TokenKind::T_LPAREN)) {
+      ast->lparenLoc = currentLocation();
 
-  if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
-    if (!parse_expression_list(ast->expressionList, ExprContext{})) {
-      parse_error("expected an expression");
+      if (parse_skip_balanced()) {
+        ast->rparenLoc = currentLocation().previous();
+      }
+    } else {
+      expect(TokenKind::T_LPAREN, ast->lparenLoc);
     }
+  } else {
+    expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+    if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
+      if (!parse_expression_list(ast->expressionList, ExprContext{})) {
+        parse_error("expected an expression");
+      }
+
+      expect(TokenKind::T_RPAREN, ast->rparenLoc);
+    }
   }
 
   match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
@@ -11295,6 +11297,39 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   setScope(ast->symbol);
 
   const auto saved = currentLocation();
+
+  for (auto memInitializer : ListView{functionBody->memInitializerList}) {
+    if (auto parenMemInitializer =
+            ast_cast<ParenMemInitializerAST>(memInitializer)) {
+      if (!parenMemInitializer->lparenLoc) {
+        // found an invalid mem-initializer, the parser
+        // already reported an error in this case, so
+        // we just skip it
+        continue;
+      }
+
+      // go after the lparen
+      rewind(parenMemInitializer->lparenLoc.next());
+
+      if (SourceLocation rparenLoc; !match(TokenKind::T_RPAREN, rparenLoc)) {
+        if (!parse_expression_list(parenMemInitializer->expressionList,
+                                   ExprContext{})) {
+          parse_error("expected an expression");
+        }
+
+        expect(TokenKind::T_RPAREN, rparenLoc);
+      }
+    }
+
+    if (auto bracedMemInitializer =
+            ast_cast<BracedMemInitializerAST>(memInitializer)) {
+      rewind(bracedMemInitializer->bracedInitList->lbraceLoc);
+      if (!parse_braced_init_list(bracedMemInitializer->bracedInitList,
+                                  ExprContext{})) {
+        parse_error("expected a braced-init-list");
+      }
+    }
+  }
 
   rewind(functionBody->statement->lbraceLoc.next());
 
