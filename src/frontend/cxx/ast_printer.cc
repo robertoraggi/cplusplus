@@ -1025,6 +1025,12 @@ void ASTPrinter::visit(BuiltinBitCastExpressionAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(BuiltinOffsetofExpressionAST* ast) {
+  out_ << std::format("{}\n", "builtin-offsetof-expression");
+  accept(ast->typeId, "type-id");
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(TypeidExpressionAST* ast) {
   out_ << std::format("{}\n", "typeid-expression");
   accept(ast->expression, "expression");

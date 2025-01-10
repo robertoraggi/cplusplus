@@ -178,6 +178,7 @@ export const KEYWORDS: string[] = [
   "while",
   "__attribute__",
   "__builtin_bit_cast",
+  "__builtin_offsetof",
   "__builtin_va_arg",
   "__builtin_va_list",
   "__complex__",

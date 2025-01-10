@@ -292,6 +292,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_BuiltinBitCastExpression:
       return decodeBuiltinBitCastExpression(
           reinterpret_cast<const io::BuiltinBitCastExpression*>(ptr));
+    case io::Expression_BuiltinOffsetofExpression:
+      return decodeBuiltinOffsetofExpression(
+          reinterpret_cast<const io::BuiltinOffsetofExpression*>(ptr));
     case io::Expression_TypeidExpression:
       return decodeTypeidExpression(
           reinterpret_cast<const io::TypeidExpression*>(ptr));
@@ -2192,6 +2195,22 @@ auto ASTDecoder::decodeBuiltinBitCastExpression(
 
   auto ast = new (pool_) BuiltinBitCastExpressionAST();
   ast->castLoc = SourceLocation(node->cast_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->typeId = decodeTypeId(node->type_id());
+  ast->commaLoc = SourceLocation(node->comma_loc());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeBuiltinOffsetofExpression(
+    const io::BuiltinOffsetofExpression* node)
+    -> BuiltinOffsetofExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BuiltinOffsetofExpressionAST();
+  ast->offsetofLoc = SourceLocation(node->offsetof_loc());
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
   ast->commaLoc = SourceLocation(node->comma_loc());

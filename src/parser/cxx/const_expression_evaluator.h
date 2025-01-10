@@ -77,6 +77,8 @@ class ConstExpressionEvaluator {
   auto operator()(CppCastExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(BuiltinBitCastExpressionAST* ast)
       -> std::optional<ConstValue>;
+  auto operator()(BuiltinOffsetofExpressionAST* ast)
+      -> std::optional<ConstValue>;
   auto operator()(TypeidExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(TypeidOfTypeExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(UnaryExpressionAST* ast) -> std::optional<ConstValue>;

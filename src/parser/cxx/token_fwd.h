@@ -187,6 +187,7 @@ class Token;
   V(WHILE, "while")                           \
   V(__ATTRIBUTE__, "__attribute__")           \
   V(__BUILTIN_BIT_CAST, "__builtin_bit_cast") \
+  V(__BUILTIN_OFFSETOF, "__builtin_offsetof") \
   V(__BUILTIN_VA_ARG, "__builtin_va_arg")     \
   V(__BUILTIN_VA_LIST, "__builtin_va_list")   \
   V(__COMPLEX__, "__complex__")               \

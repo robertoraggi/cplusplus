@@ -5154,6 +5154,72 @@ export class BuiltinBitCastExpressionAST extends ExpressionAST {
 }
 
 /**
+ * BuiltinOffsetofExpressionAST node.
+ */
+export class BuiltinOffsetofExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBuiltinOffsetofExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the offsetof token in this node
+   */
+  getOffsetofToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+}
+
+/**
  * TypeidExpressionAST node.
  */
 export class TypeidExpressionAST extends ExpressionAST {
@@ -12703,6 +12769,7 @@ const AST_CONSTRUCTORS: Array<
   PostIncrExpressionAST,
   CppCastExpressionAST,
   BuiltinBitCastExpressionAST,
+  BuiltinOffsetofExpressionAST,
   TypeidExpressionAST,
   TypeidOfTypeExpressionAST,
   SpliceExpressionAST,

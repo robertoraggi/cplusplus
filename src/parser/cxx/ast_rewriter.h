@@ -311,6 +311,9 @@ class ASTRewriter {
     [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast)
         -> ExpressionAST*;
 
+    [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast)
+        -> ExpressionAST*;
+
     [[nodiscard]] auto operator()(TypeidExpressionAST* ast) -> ExpressionAST*;
 
     [[nodiscard]] auto operator()(TypeidOfTypeExpressionAST* ast)

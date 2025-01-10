@@ -1951,6 +1951,22 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   return copy;
 }
 
+auto ASTRewriter::ExpressionVisitor::operator()(
+    BuiltinOffsetofExpressionAST* ast) -> ExpressionAST* {
+  auto copy = new (arena()) BuiltinOffsetofExpressionAST{};
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->offsetofLoc = ast->offsetofLoc;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->typeId = rewrite(ast->typeId);
+  copy->commaLoc = ast->commaLoc;
+  copy->expression = rewrite(ast->expression);
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
 auto ASTRewriter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
     -> ExpressionAST* {
   auto copy = new (arena()) TypeidExpressionAST{};

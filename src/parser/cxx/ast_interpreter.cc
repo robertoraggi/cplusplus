@@ -1089,6 +1089,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   return {};
 }
 
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    BuiltinOffsetofExpressionAST* ast) -> ExpressionResult {
+  auto typeIdResult = accept(ast->typeId);
+  auto expressionResult = accept(ast->expression);
+
+  return {};
+}
+
 auto ASTInterpreter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);

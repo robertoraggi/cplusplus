@@ -2326,6 +2326,24 @@ void ASTEncoder::visit(BuiltinBitCastExpressionAST* ast) {
   type_ = io::Expression_BuiltinBitCastExpression;
 }
 
+void ASTEncoder::visit(BuiltinOffsetofExpressionAST* ast) {
+  const auto typeId = accept(ast->typeId);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::BuiltinOffsetofExpression::Builder builder{fbb_};
+  builder.add_offsetof_loc(ast->offsetofLoc.index());
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_type_id(typeId.o);
+  builder.add_comma_loc(ast->commaLoc.index());
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_rparen_loc(ast->rparenLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_BuiltinOffsetofExpression;
+}
+
 void ASTEncoder::visit(TypeidExpressionAST* ast) {
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 

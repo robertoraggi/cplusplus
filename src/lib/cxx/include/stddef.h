@@ -52,3 +52,7 @@ typedef int wint_t;
 #endif
 
 #endif /* __need_wint_t */
+
+#if !defined(offsetof)
+#define offsetof(t, d) __builtin_offsetof(t, d)
+#endif

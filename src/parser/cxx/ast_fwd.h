@@ -160,6 +160,7 @@ class MemberExpressionAST;
 class PostIncrExpressionAST;
 class CppCastExpressionAST;
 class BuiltinBitCastExpressionAST;
+class BuiltinOffsetofExpressionAST;
 class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;
 class SpliceExpressionAST;

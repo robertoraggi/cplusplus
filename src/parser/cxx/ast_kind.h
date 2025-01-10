@@ -107,6 +107,7 @@ enum struct ASTKind {
   PostIncrExpression,
   CppCastExpression,
   BuiltinBitCastExpression,
+  BuiltinOffsetofExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
   SpliceExpression,

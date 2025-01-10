@@ -242,6 +242,9 @@ class Parser final {
   [[nodiscard]] auto parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
                                                        const ExprContext& ctx)
       -> bool;
+  [[nodiscard]] auto parse_builtin_offsetof_expression(ExpressionAST*& yyast,
+                                                       const ExprContext& ctx)
+      -> bool;
   [[nodiscard]] auto parse_cpp_type_cast_expression(ExpressionAST*& yyast,
                                                     const ExprContext& ctx)
       -> bool;
