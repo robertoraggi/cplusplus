@@ -73,6 +73,7 @@ void Wasm32WasiToolchain::addSystemCppIncludePaths() {
 
 void Wasm32WasiToolchain::addPredefinedMacros() {
   // clang-format off
+  defineMacro("__extension__", "");
   defineMacro("__autoreleasing", "");
   defineMacro("__strong", "");
   defineMacro("__unsafe_unretained", "");

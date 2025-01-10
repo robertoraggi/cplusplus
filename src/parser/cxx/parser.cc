@@ -1304,6 +1304,8 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 
   if (parse_builtin_call_expression(yyast, ctx)) {
     return true;
+  } else if (parse_builtin_offsetof_expression(yyast, ctx)) {
+    return true;
   } else if (parse_this_expression(yyast)) {
     return true;
   } else if (parse_literal(yyast)) {
@@ -2623,6 +2625,23 @@ auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
   return true;
 }
 
+auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
+                                               const ExprContext& ctx) -> bool {
+  if (!lookat(TokenKind::T___BUILTIN_OFFSETOF)) return false;
+
+  auto ast = make_node<BuiltinOffsetofExpressionAST>(pool_);
+  yyast = ast;
+
+  ast->offsetofLoc = consumeToken();
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  expect(TokenKind::T_COMMA, ast->commaLoc);
+  parse_expression(ast->expression, ctx);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  return true;
+}
+
 auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
                                             const ExprContext& ctx) -> bool {
   auto lookat_function_call = [&] {
@@ -3293,7 +3312,10 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
 
   ExpressionAST* expression = nullptr;
 
-  if (!parse_cast_expression(expression, ctx)) {
+  if (BracedInitListAST* bracedInitList = nullptr;
+      parse_braced_init_list(bracedInitList, ctx)) {
+    expression = bracedInitList;
+  } else if (!parse_cast_expression(expression, ctx)) {
     return false;
   }
 

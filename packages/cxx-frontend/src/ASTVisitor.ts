@@ -926,6 +926,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit BuiltinOffsetofExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitBuiltinOffsetofExpression(
+    node: ast.BuiltinOffsetofExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit TypeidExpression node.
    *
    * @param node The node to visit.

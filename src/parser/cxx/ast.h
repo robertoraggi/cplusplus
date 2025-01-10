@@ -1608,6 +1608,25 @@ class BuiltinBitCastExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class BuiltinOffsetofExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::BuiltinOffsetofExpression;
+
+  BuiltinOffsetofExpressionAST() : ExpressionAST(Kind) {}
+
+  SourceLocation offsetofLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation commaLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class TypeidExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeidExpression;
@@ -4395,6 +4414,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case BuiltinBitCastExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<BuiltinBitCastExpressionAST*>(ast));
+    case BuiltinOffsetofExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<BuiltinOffsetofExpressionAST*>(ast));
     case TypeidExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<TypeidExpressionAST*>(ast));
@@ -4522,6 +4544,7 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case PostIncrExpressionAST::Kind:
     case CppCastExpressionAST::Kind:
     case BuiltinBitCastExpressionAST::Kind:
+    case BuiltinOffsetofExpressionAST::Kind:
     case TypeidExpressionAST::Kind:
     case TypeidOfTypeExpressionAST::Kind:
     case SpliceExpressionAST::Kind:

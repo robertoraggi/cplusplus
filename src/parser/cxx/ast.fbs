@@ -147,6 +147,7 @@ union Expression {
   PostIncrExpression,
   CppCastExpression,
   BuiltinBitCastExpression,
+  BuiltinOffsetofExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
   SpliceExpression,
@@ -1021,6 +1022,15 @@ table BuiltinBitCastExpression /* ExpressionAST */ {
   type_id: TypeId;
   expression: Expression;
   cast_loc: uint32;
+  lparen_loc: uint32;
+  comma_loc: uint32;
+  rparen_loc: uint32;
+}
+
+table BuiltinOffsetofExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  expression: Expression;
+  offsetof_loc: uint32;
   lparen_loc: uint32;
   comma_loc: uint32;
   rparen_loc: uint32;

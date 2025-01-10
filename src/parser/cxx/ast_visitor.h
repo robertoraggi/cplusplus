@@ -111,6 +111,7 @@ class ASTVisitor {
   virtual void visit(PostIncrExpressionAST* ast) = 0;
   virtual void visit(CppCastExpressionAST* ast) = 0;
   virtual void visit(BuiltinBitCastExpressionAST* ast) = 0;
+  virtual void visit(BuiltinOffsetofExpressionAST* ast) = 0;
   virtual void visit(TypeidExpressionAST* ast) = 0;
   virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
   virtual void visit(SpliceExpressionAST* ast) = 0;

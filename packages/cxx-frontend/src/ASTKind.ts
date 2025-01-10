@@ -102,6 +102,7 @@ export enum ASTKind {
   PostIncrExpression,
   CppCastExpression,
   BuiltinBitCastExpression,
+  BuiltinOffsetofExpression,
   TypeidExpression,
   TypeidOfTypeExpression,
   SpliceExpression,

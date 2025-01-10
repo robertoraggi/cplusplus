@@ -172,6 +172,7 @@ export enum TokenKind {
   WHILE,
   __ATTRIBUTE__,
   __BUILTIN_BIT_CAST,
+  __BUILTIN_OFFSETOF,
   __BUILTIN_VA_ARG,
   __BUILTIN_VA_LIST,
   __COMPLEX__,

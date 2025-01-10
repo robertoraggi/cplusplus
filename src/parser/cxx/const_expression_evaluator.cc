@@ -207,6 +207,11 @@ auto ConstExpressionEvaluator::operator()(BuiltinBitCastExpressionAST* ast)
   return std::nullopt;
 }
 
+auto ConstExpressionEvaluator::operator()(BuiltinOffsetofExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
 auto ConstExpressionEvaluator::operator()(TypeidExpressionAST* ast)
     -> std::optional<ConstValue> {
   return std::nullopt;

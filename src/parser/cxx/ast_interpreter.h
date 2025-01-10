@@ -357,6 +357,9 @@ class ASTInterpreter {
     [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast)
         -> ExpressionResult;
 
+    [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast)
+        -> ExpressionResult;
+
     [[nodiscard]] auto operator()(TypeidExpressionAST* ast) -> ExpressionResult;
 
     [[nodiscard]] auto operator()(TypeidOfTypeExpressionAST* ast)

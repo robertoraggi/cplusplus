@@ -121,6 +121,7 @@ class ASTPrinter : ASTVisitor {
   void visit(PostIncrExpressionAST* ast) override;
   void visit(CppCastExpressionAST* ast) override;
   void visit(BuiltinBitCastExpressionAST* ast) override;
+  void visit(BuiltinOffsetofExpressionAST* ast) override;
   void visit(TypeidExpressionAST* ast) override;
   void visit(TypeidOfTypeExpressionAST* ast) override;
   void visit(SpliceExpressionAST* ast) override;
