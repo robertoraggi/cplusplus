@@ -38,6 +38,11 @@
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
+#ifdef CXX_WITH_MLIR
+#include <cxx/mlir/codegen.h>
+#include <cxx/mlir/cxx_dialect.h>
+#endif
+
 #include <cassert>
 #include <format>
 #include <fstream>
@@ -289,6 +294,21 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       ASTPrinter printAST(&unit, std::cout);
       printAST(unit.ast());
     }
+
+#ifdef CXX_WITH_MLIR
+    if (cli.opt_ir_dump) {
+      mlir::MLIRContext context;
+      context.loadDialect<mlir::cxx::CxxDialect>();
+
+      cxx::Codegen codegen(context, &unit);
+
+      auto ir = codegen(unit.ast());
+
+      mlir::OpPrintingFlags flags;
+      flags.enableDebugInfo(true);
+      ir.module->print(llvm::outs(), flags);
+    }
+#endif
   }
 
   diagnosticsClient.verifyExpectedDiagnostics();

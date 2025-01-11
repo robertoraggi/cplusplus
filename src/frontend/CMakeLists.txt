@@ -23,6 +23,11 @@ add_executable(cxx ${SOURCES})
 
 target_link_libraries(cxx PRIVATE cxx-lsp)
 
+if (CXX_ENABLE_MLIR)
+    target_compile_definitions(cxx PRIVATE CXX_WITH_MLIR)
+    target_link_libraries(cxx PRIVATE cxx-mlir)
+endif()
+
 if(EMSCRIPTEN)
     target_link_options(cxx PRIVATE
         "SHELL:-s EXIT_RUNTIME=1"
