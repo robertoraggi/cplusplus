@@ -21,4 +21,9 @@ add_subdirectory(lib)
 add_subdirectory(parser)
 add_subdirectory(lsp)
 add_subdirectory(js)
+
+if (CXX_ENABLE_MLIR)
+  add_subdirectory(mlir)
+endif()
+
 add_subdirectory(frontend)

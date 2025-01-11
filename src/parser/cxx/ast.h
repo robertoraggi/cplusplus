@@ -84,6 +84,9 @@ class ListView : std::ranges::view_interface<ListView<T>> {
   List<T>* list_;
 };
 
+template <typename T>
+ListView(List<T>*) -> ListView<T>;
+
 class AST : public Managed {
  public:
   explicit AST(ASTKind kind) : kind_(kind) {}
