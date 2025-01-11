@@ -2071,6 +2071,20 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
+  if (lookat(TokenKind::T_LBRACE)) {
+    auto ast = make_node<NestedStatementExpressionAST>(pool_);
+    yyast = ast;
+
+    ast->lparenLoc = lparenLoc;
+
+    if (!parse_compound_statement(ast->statement)) {
+      parse_error("expected a compound statement");
+    }
+
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+    return ast;
+  }
+
   auto ast = make_node<NestedExpressionAST>(pool_);
   yyast = ast;
 

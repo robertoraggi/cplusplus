@@ -783,6 +783,11 @@ void ASTPrinter::visit(ThisExpressionAST* ast) {
   out_ << std::format("{}\n", "this-expression");
 }
 
+void ASTPrinter::visit(NestedStatementExpressionAST* ast) {
+  out_ << std::format("{}\n", "nested-statement-expression");
+  accept(ast->statement, "statement");
+}
+
 void ASTPrinter::visit(NestedExpressionAST* ast) {
   out_ << std::format("{}\n", "nested-expression");
   accept(ast->expression, "expression");

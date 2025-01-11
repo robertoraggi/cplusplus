@@ -926,6 +926,13 @@ auto ASTInterpreter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
   return {};
 }
 
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    NestedStatementExpressionAST* ast) -> ExpressionResult {
+  auto expressionResult = accept(ast->statement);
+
+  return {};
+}
+
 auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionResult {
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);

@@ -104,6 +104,7 @@ class ASTPrinter : ASTVisitor {
   void visit(StringLiteralExpressionAST* ast) override;
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
+  void visit(NestedStatementExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
   void visit(IdExpressionAST* ast) override;
   void visit(LambdaExpressionAST* ast) override;

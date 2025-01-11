@@ -958,6 +958,20 @@ auto ThisExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto NestedStatementExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto NestedStatementExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
 auto NestedExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;

@@ -722,6 +722,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit NestedStatementExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitNestedStatementExpression(
+    node: ast.NestedStatementExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit NestedExpression node.
    *
    * @param node The node to visit.

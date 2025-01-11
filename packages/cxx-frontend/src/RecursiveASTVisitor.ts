@@ -831,6 +831,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitThisExpression(node: ast.ThisExpressionAST, context: Context): void {}
 
   /**
+   * Visit a NestedStatementExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitNestedStatementExpression(
+    node: ast.NestedStatementExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getStatement(), context);
+  }
+
+  /**
    * Visit a NestedExpression node.
    *
    * @param node The node to visit.

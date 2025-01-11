@@ -1616,6 +1616,18 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
   return copy;
 }
 
+auto ASTRewriter::ExpressionVisitor::operator()(
+    NestedStatementExpressionAST* ast) -> ExpressionAST* {
+  auto copy = new (arena()) NestedStatementExpressionAST{};
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->statement = ast_cast<CompoundStatementAST>(rewrite(ast->statement));
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
   auto copy = new (arena()) IdExpressionAST{};

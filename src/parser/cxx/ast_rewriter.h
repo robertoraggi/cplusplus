@@ -274,6 +274,9 @@ class ASTRewriter {
 
     [[nodiscard]] auto operator()(NestedExpressionAST* ast) -> ExpressionAST*;
 
+    [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
+        -> ExpressionAST*;
+
     [[nodiscard]] auto operator()(IdExpressionAST* ast) -> ExpressionAST*;
 
     [[nodiscard]] auto operator()(LambdaExpressionAST* ast) -> ExpressionAST*;

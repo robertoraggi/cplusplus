@@ -98,6 +98,11 @@ auto ConstExpressionEvaluator::operator()(NestedExpressionAST* ast)
   return std::nullopt;
 }
 
+auto ConstExpressionEvaluator::operator()(NestedStatementExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  return std::nullopt;
+}
+
 auto ConstExpressionEvaluator::operator()(IdExpressionAST* ast)
     -> std::optional<ConstValue> {
   if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {

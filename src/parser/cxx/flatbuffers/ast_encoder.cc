@@ -1877,6 +1877,18 @@ void ASTEncoder::visit(ThisExpressionAST* ast) {
   type_ = io::Expression_ThisExpression;
 }
 
+void ASTEncoder::visit(NestedStatementExpressionAST* ast) {
+  const auto statement = accept(ast->statement);
+
+  io::NestedStatementExpression::Builder builder{fbb_};
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_statement(statement.o);
+  builder.add_rparen_loc(ast->rparenLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_NestedStatementExpression;
+}
+
 void ASTEncoder::visit(NestedExpressionAST* ast) {
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
