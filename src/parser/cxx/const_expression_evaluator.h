@@ -53,6 +53,8 @@ class ConstExpressionEvaluator {
       -> std::optional<ConstValue>;
   auto operator()(ThisExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(NestedExpressionAST* ast) -> std::optional<ConstValue>;
+  auto operator()(NestedStatementExpressionAST* ast)
+      -> std::optional<ConstValue>;
   auto operator()(IdExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(LambdaExpressionAST* ast) -> std::optional<ConstValue>;
   auto operator()(FoldExpressionAST* ast) -> std::optional<ConstValue>;

@@ -316,6 +316,9 @@ class ASTInterpreter {
 
     [[nodiscard]] auto operator()(NestedExpressionAST* ast) -> ExpressionResult;
 
+    [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
+        -> ExpressionResult;
+
     [[nodiscard]] auto operator()(IdExpressionAST* ast) -> ExpressionResult;
 
     [[nodiscard]] auto operator()(LambdaExpressionAST* ast) -> ExpressionResult;

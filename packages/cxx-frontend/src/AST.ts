@@ -3879,6 +3879,48 @@ export class ThisExpressionAST extends ExpressionAST {
 }
 
 /**
+ * NestedStatementExpressionAST node.
+ */
+export class NestedStatementExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNestedStatementExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the statement of this node
+   */
+  getStatement(): CompoundStatementAST | undefined {
+    return AST.from<CompoundStatementAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
  * NestedExpressionAST node.
  */
 export class NestedExpressionAST extends ExpressionAST {
@@ -12752,6 +12794,7 @@ const AST_CONSTRUCTORS: Array<
   StringLiteralExpressionAST,
   UserDefinedStringLiteralExpressionAST,
   ThisExpressionAST,
+  NestedStatementExpressionAST,
   NestedExpressionAST,
   IdExpressionAST,
   LambdaExpressionAST,

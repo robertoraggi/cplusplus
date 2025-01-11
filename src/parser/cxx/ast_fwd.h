@@ -143,6 +143,7 @@ class NullptrLiteralExpressionAST;
 class StringLiteralExpressionAST;
 class UserDefinedStringLiteralExpressionAST;
 class ThisExpressionAST;
+class NestedStatementExpressionAST;
 class NestedExpressionAST;
 class IdExpressionAST;
 class LambdaExpressionAST;

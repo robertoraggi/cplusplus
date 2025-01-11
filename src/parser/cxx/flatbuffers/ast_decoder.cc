@@ -242,6 +242,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ThisExpression:
       return decodeThisExpression(
           reinterpret_cast<const io::ThisExpression*>(ptr));
+    case io::Expression_NestedStatementExpression:
+      return decodeNestedStatementExpression(
+          reinterpret_cast<const io::NestedStatementExpression*>(ptr));
     case io::Expression_NestedExpression:
       return decodeNestedExpression(
           reinterpret_cast<const io::NestedExpression*>(ptr));
@@ -1876,6 +1879,18 @@ auto ASTDecoder::decodeThisExpression(const io::ThisExpression* node)
 
   auto ast = new (pool_) ThisExpressionAST();
   ast->thisLoc = SourceLocation(node->this_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeNestedStatementExpression(
+    const io::NestedStatementExpression* node)
+    -> NestedStatementExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NestedStatementExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->statement = decodeCompoundStatement(node->statement());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 

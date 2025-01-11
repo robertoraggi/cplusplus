@@ -1971,6 +1971,28 @@ void ASTSlot::visit(ThisExpressionAST* ast) {
   slotCount_ = 1;
 }
 
+void ASTSlot::visit(NestedStatementExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // lparenLoc
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{130};
+      break;
+    case 1:  // statement
+      value_ = reinterpret_cast<std::intptr_t>(ast->statement);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{186};
+      break;
+    case 2:  // rparenLoc
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{176};
+      break;
+  }  // switch
+
+  slotCount_ = 3;
+}
+
 void ASTSlot::visit(NestedExpressionAST* ast) {
   switch (slot_) {
     case 0:  // lparenLoc

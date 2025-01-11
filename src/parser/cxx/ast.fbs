@@ -130,6 +130,7 @@ union Expression {
   StringLiteralExpression,
   UserDefinedStringLiteralExpression,
   ThisExpression,
+  NestedStatementExpression,
   NestedExpression,
   IdExpression,
   LambdaExpression,
@@ -874,6 +875,12 @@ table UserDefinedStringLiteralExpression /* ExpressionAST */ {
 
 table ThisExpression /* ExpressionAST */ {
   this_loc: uint32;
+}
+
+table NestedStatementExpression /* ExpressionAST */ {
+  statement: CompoundStatement;
+  lparen_loc: uint32;
+  rparen_loc: uint32;
 }
 
 table NestedExpression /* ExpressionAST */ {

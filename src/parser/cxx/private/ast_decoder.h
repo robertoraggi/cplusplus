@@ -193,6 +193,9 @@ class ASTDecoder {
       -> UserDefinedStringLiteralExpressionAST*;
   auto decodeThisExpression(const io::ThisExpression* node)
       -> ThisExpressionAST*;
+  auto decodeNestedStatementExpression(
+      const io::NestedStatementExpression* node)
+      -> NestedStatementExpressionAST*;
   auto decodeNestedExpression(const io::NestedExpression* node)
       -> NestedExpressionAST*;
   auto decodeIdExpression(const io::IdExpression* node) -> IdExpressionAST*;
