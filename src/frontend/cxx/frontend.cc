@@ -296,7 +296,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     }
 
 #ifdef CXX_WITH_MLIR
-    if (cli.opt_ir_dump) {
+    if (cli.opt_emit_ir) {
       mlir::MLIRContext context;
       context.loadDialect<mlir::cxx::CxxDialect>();
 
@@ -305,7 +305,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       auto ir = codegen(unit.ast());
 
       mlir::OpPrintingFlags flags;
-      flags.enableDebugInfo(true);
+      flags.enableDebugInfo(true, true);
       ir.module->print(llvm::outs(), flags);
     }
 #endif

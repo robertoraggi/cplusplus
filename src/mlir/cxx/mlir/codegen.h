@@ -52,7 +52,6 @@ class Codegen {
   };
 
   struct DeclarationResult {};
-  struct StatementResult {};
 
   struct ExpressionResult {
     mlir::Value value;
@@ -105,8 +104,10 @@ class Codegen {
   // run on the base nodes
   [[nodiscard]] auto operator()(UnitAST* ast) -> UnitResult;
   [[nodiscard]] auto operator()(DeclarationAST* ast) -> DeclarationResult;
-  [[nodiscard]] auto operator()(StatementAST* ast) -> StatementResult;
-  [[nodiscard]] auto operator()(ExpressionAST* ast) -> ExpressionResult;
+
+  void statement(StatementAST* ast);
+  [[nodiscard]] auto expression(ExpressionAST* ast) -> ExpressionResult;
+
   [[nodiscard]] auto operator()(TemplateParameterAST* ast)
       -> TemplateParameterResult;
   [[nodiscard]] auto operator()(SpecifierAST* ast) -> SpecifierResult;
@@ -163,10 +164,12 @@ class Codegen {
       -> NestedNamespaceSpecifierResult;
 
  private:
-  auto emitTodoStmt(SourceLocation loc, std::string_view message)
+  [[nodiscard]] auto getLocation(SourceLocation loc) -> mlir::Location;
+
+  [[nodiscard]] auto emitTodoStmt(SourceLocation loc, std::string_view message)
       -> mlir::cxx::TodoStmtOp;
 
-  auto emitTodoExpr(SourceLocation loc, std::string_view message)
+  [[nodiscard]] auto emitTodoExpr(SourceLocation loc, std::string_view message)
       -> mlir::cxx::TodoExprOp;
 
   struct UnitVisitor;

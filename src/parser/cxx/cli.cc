@@ -155,9 +155,9 @@ std::vector<CLIOptionDescr> options{
 
     {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},
 
-    {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
+    {"-emit-ir", "Emit the IR for the source inputs", &CLI::opt_emit_ir},
 
-    {"-ir-dump", "Dump the IR", &CLI::opt_ir_dump},
+    {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
     {"-dump-symbols", "Dump the symbol tables", &CLI::opt_dump_symbols},
 
