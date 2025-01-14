@@ -18,6 +18,7 @@ target_link_libraries(cxx-mlir PUBLIC
     MLIRIR
     MLIRFuncDialect
     MLIRControlFlowDialect
+    MLIRSCFDialect
 )
 add_dependencies(cxx-mlir MLIRCxxOpsIncGen)
 
