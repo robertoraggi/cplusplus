@@ -26,5 +26,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(cxx-mlir PRIVATE
         -Wno-unused-variable
         -Wno-covered-switch-default
+        -Wno-unused-but-set-variable
     )
 endif()
