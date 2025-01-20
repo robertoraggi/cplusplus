@@ -9440,12 +9440,16 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     return true;
   }
 
+  Decl decl{specs};
+
+  DeclaratorAST* declarator = nullptr;
+  InitDeclaratorAST* initDeclarator = nullptr;
+  if (!parse_bitfield_declarator(initDeclarator)) {
+    (void)parse_declarator(declarator, decl);
+  }
+
   auto lookat_function_definition = [&] {
     LookaheadParser lookahead{this};
-
-    DeclaratorAST* declarator = nullptr;
-    Decl decl{specs};
-    (void)parse_declarator(declarator, decl);
 
     auto functionDeclarator = getFunctionPrototype(declarator);
     if (!functionDeclarator) return false;
@@ -9508,22 +9512,13 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   ast->attributeList = attributes;
   ast->declSpecifierList = declSpecifierList;
 
-  if (!parse_member_declarator_list(ast->initDeclaratorList, specs)) {
-    parse_error("expected a declarator");
+  if (!initDeclarator) {
+    if (!parse_member_declarator(initDeclarator, declarator, decl)) {
+      parse_error("expected a member declarator");
+    }
   }
 
-  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
-
-  return true;
-}
-
-auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
-                                          const DeclSpecs& specs) -> bool {
-  auto it = &yyast;
-
-  InitDeclaratorAST* initDeclarator = nullptr;
-
-  if (!parse_member_declarator(initDeclarator, specs)) return false;
+  auto it = &ast->initDeclaratorList;
 
   if (initDeclarator) {
     *it = make_list_node(pool_, initDeclarator);
@@ -9544,6 +9539,8 @@ auto Parser::parse_member_declarator_list(List<InitDeclaratorAST*>*& yyast,
       it = &(*it)->next;
     }
   }
+
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   return true;
 }
@@ -9611,9 +9608,19 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   lookahead.commit();
 
+  return parse_member_declarator(yyast, declarator, decl);
+}
+
+auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
+                                     DeclaratorAST* declarator,
+                                     const Decl& decl) -> bool {
+  if (!declarator) {
+    return false;
+  }
+
   auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
 
-  if (specs.isTypedef) {
+  if (decl.specs.isTypedef) {
     auto typedefSymbol = control_->newTypeAliasSymbol(scope_, decl.location());
     typedefSymbol->setName(decl.getName());
     typedefSymbol->setType(symbolType);
