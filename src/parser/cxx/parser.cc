@@ -6647,22 +6647,12 @@ auto Parser::parse_elaborated_type_specifier(
 
   const auto start = currentLocation();
 
-  if (auto entry = elaborated_type_specifiers_.get(start)) {
-    auto [cursor, ast, parsed, hit] = *entry;
-    rewind(cursor);
-    yyast = ast;
-
-    return parsed;
-  }
-
   ElaboratedTypeSpecifierAST* ast = nullptr;
 
   const auto parsed =
       parse_elaborated_type_specifier_helper(ast, specs, templateDeclarations);
 
   yyast = ast;
-
-  elaborated_type_specifiers_.set(start, currentLocation(), ast, parsed);
 
   return parsed;
 }
@@ -9138,16 +9128,6 @@ auto Parser::parse_class_specifier(
                     TokenKind::T_UNION))
     return false;
 
-  const auto start = currentLocation();
-
-  if (auto entry = class_specifiers_.get(start)) {
-    auto [cursor, ast, parsed, hit] = *entry;
-    rewind(cursor);
-    yyast = ast;
-
-    return parsed;
-  }
-
   ScopeGuard scopeGuard{this};
 
   ClassHead classHead{templateDeclarations};
@@ -9161,9 +9141,6 @@ auto Parser::parse_class_specifier(
         return true;
       }
     }
-
-    class_specifiers_.set(start, currentLocation(),
-                          static_cast<ClassSpecifierAST*>(nullptr), false);
 
     return false;
   };
@@ -9198,8 +9175,6 @@ auto Parser::parse_class_specifier(
     parse_class_body(ast->declarationList);
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
-
-  class_specifiers_.set(start, currentLocation(), ast, true);
 
   return true;
 }

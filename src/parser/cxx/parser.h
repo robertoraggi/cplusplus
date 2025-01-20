@@ -951,8 +951,6 @@ class Parser final {
     std::deque<const_iterator> queue_;
   };
 
-  CachedAST<ClassSpecifierAST> class_specifiers_;
-  CachedAST<ElaboratedTypeSpecifierAST> elaborated_type_specifiers_;
   CachedAST<ExpressionAST> cast_expressions_;
   CachedAST<NestedNameSpecifierAST> nested_name_specifiers_;
   CachedAST<ParameterDeclarationClauseAST> parameter_declaration_clauses_;
