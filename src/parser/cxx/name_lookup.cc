@@ -106,4 +106,46 @@ auto Lookup::lookupHelper(Scope* scope, const Name* name,
   return nullptr;
 }
 
+auto Lookup::lookupNamespace(NestedNameSpecifierAST* nestedNameSpecifier,
+                             const Identifier* id) const -> NamespaceSymbol* {
+  std::unordered_set<Scope*> set;
+
+  if (!nestedNameSpecifier) {
+    // unqualified lookup, start with the current scope and go up.
+    for (auto scope = scope_; scope; scope = scope->parent()) {
+      if (auto ns = lookupNamespaceHelper(scope, id, set)) {
+        return ns;
+      }
+    }
+
+    return nullptr;
+  }
+
+  auto base = symbol_cast<NamespaceSymbol>(nestedNameSpecifier->symbol);
+
+  if (!base) return nullptr;
+
+  return lookupNamespaceHelper(base->scope(), id, set);
+}
+
+auto Lookup::lookupNamespaceHelper(Scope* scope, const Identifier* id,
+                                   std::unordered_set<Scope*>& set) const
+    -> NamespaceSymbol* {
+  if (!set.insert(scope).second) {
+    return nullptr;
+  }
+
+  for (auto candidate : scope->find(id) | views::namespaces) {
+    return candidate;
+  }
+
+  for (auto u : scope->usingDirectives()) {
+    if (auto ns = lookupNamespaceHelper(u, id, set)) {
+      return ns;
+    }
+  }
+
+  return nullptr;
+}
+
 }  // namespace cxx

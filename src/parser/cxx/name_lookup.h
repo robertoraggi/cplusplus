@@ -30,25 +30,38 @@ class Lookup {
  public:
   explicit Lookup(Scope* scope);
 
-  auto operator()(const Name* name) const -> Symbol* {
+  [[nodiscard]] auto operator()(const Name* name) const -> Symbol* {
     return lookup(nullptr, name);
   }
 
-  auto operator()(NestedNameSpecifierAST* nestedNameSpecifier,
-                  const Name* name) const -> Symbol* {
+  [[nodiscard]] auto operator()(NestedNameSpecifierAST* nestedNameSpecifier,
+                                const Name* name) const -> Symbol* {
     return lookup(nestedNameSpecifier, name);
   }
 
-  auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
-              const Name* name) const -> Symbol*;
+  [[nodiscard]] auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
+                            const Name* name) const -> Symbol*;
+
+  [[nodiscard]] auto lookupNamespace(
+      NestedNameSpecifierAST* nestedNameSpecifier, const Identifier* id) const
+      -> NamespaceSymbol*;
 
  private:
-  auto unqualifiedLookup(const Name* name) const -> Symbol*;
-  auto qualifiedLookup(Scope* scope, const Name* name) const -> Symbol*;
-  auto qualifiedLookup(Symbol* scopedSymbol, const Name* name) const -> Symbol*;
+  [[nodiscard]] auto lookupNamespaceHelper(
+      Scope* scope, const Identifier* id, std::unordered_set<Scope*>& set) const
+      -> NamespaceSymbol*;
 
-  auto lookupHelper(Scope* scope, const Name* name,
-                    std::unordered_set<Scope*>& cache) const -> Symbol*;
+  [[nodiscard]] auto unqualifiedLookup(const Name* name) const -> Symbol*;
+
+  [[nodiscard]] auto qualifiedLookup(Scope* scope, const Name* name) const
+      -> Symbol*;
+
+  [[nodiscard]] auto qualifiedLookup(Symbol* scopedSymbol,
+                                     const Name* name) const -> Symbol*;
+
+  [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
+                                  std::unordered_set<Scope*>& cache) const
+      -> Symbol*;
 
  private:
   Scope* scope_ = nullptr;
