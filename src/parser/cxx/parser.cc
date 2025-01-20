@@ -8247,13 +8247,15 @@ auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
     parse_error("expected a namespace name");
   } else {
     auto id = ast->unqualifiedId->identifier;
-    auto symbol = Lookup{scope_}(ast->nestedNameSpecifier, id);
 
-    if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol)) {
+    NamespaceSymbol* namespaceSymbol =
+        Lookup{scope_}.lookupNamespace(ast->nestedNameSpecifier, id);
+
+    if (namespaceSymbol) {
       scope_->addUsingDirective(namespaceSymbol->scope());
     } else {
       parse_error(ast->unqualifiedId->firstSourceLocation(),
-                  "expected a namespace name");
+                  std::format("'{}' is not a namespace name", id->name()));
     }
   }
 
