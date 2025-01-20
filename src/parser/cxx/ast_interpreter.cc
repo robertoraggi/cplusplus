@@ -1795,7 +1795,6 @@ auto ASTInterpreter::NestedNameSpecifierVisitor::operator()(
 
 auto ASTInterpreter::NestedNameSpecifierVisitor::operator()(
     DecltypeNestedNameSpecifierAST* ast) -> NestedNameSpecifierResult {
-  auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto decltypeSpecifierResult = accept(ast->decltypeSpecifier);
 
   return {};
