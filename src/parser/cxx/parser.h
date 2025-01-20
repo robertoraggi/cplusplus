@@ -651,10 +651,11 @@ class Parser final {
   [[nodiscard]] auto parse_maybe_template_member() -> bool;
   [[nodiscard]] auto parse_member_declaration_helper(DeclarationAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_member_declarator_list(
-      List<InitDeclaratorAST*>*& yyast, const DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
                                              const DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
+                                             DeclaratorAST* declarator,
+                                             const Decl& decl) -> bool;
   [[nodiscard]] auto parse_virt_specifier(
       FunctionDeclaratorChunkAST* functionDeclarator) -> bool;
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
