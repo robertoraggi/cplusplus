@@ -148,4 +148,66 @@ auto Lookup::lookupNamespaceHelper(Scope* scope, const Identifier* id,
   return nullptr;
 }
 
+auto Lookup::lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
+                        const Identifier* id) const -> Symbol* {
+  std::unordered_set<Scope*> set;
+
+  if (!nestedNameSpecifier) {
+    // unqualified lookup, start with the current scope and go up.
+    for (auto scope = scope_; scope; scope = scope->parent()) {
+      if (auto ns = lookupTypeHelper(scope, id, set)) {
+        return ns;
+      }
+    }
+
+    return nullptr;
+  }
+
+  if (!nestedNameSpecifier->symbol) return nullptr;
+
+  switch (nestedNameSpecifier->symbol->kind()) {
+    case SymbolKind::kNamespace:
+    case SymbolKind::kClass:
+    case SymbolKind::kEnum:
+    case SymbolKind::kScopedEnum: {
+      auto scopedSymbol =
+          static_cast<ScopedSymbol*>(nestedNameSpecifier->symbol);
+      return lookupTypeHelper(scopedSymbol->scope(), id, set);
+    }
+    default:
+      return nullptr;
+  }  // swotch
+}
+
+auto Lookup::lookupTypeHelper(Scope* scope, const Identifier* id,
+                              std::unordered_set<Scope*>& set) const
+    -> Symbol* {
+  if (!set.insert(scope).second) {
+    return nullptr;
+  }
+
+  for (auto candidate : scope->find(id)) {
+    if (candidate->isClassOrNamespace() || candidate->isEnumOrScopedEnum())
+      return candidate;
+  }
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(scope->owner())) {
+    for (const auto& base : classSymbol->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) continue;
+      if (auto ns = lookupTypeHelper(baseClass->scope(), id, set)) {
+        return ns;
+      }
+    }
+  }
+
+  for (auto u : scope->usingDirectives()) {
+    if (auto ns = lookupTypeHelper(u, id, set)) {
+      return ns;
+    }
+  }
+
+  return nullptr;
+}
+
 }  // namespace cxx

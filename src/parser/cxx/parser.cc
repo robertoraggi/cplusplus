@@ -1634,7 +1634,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     auto identifierLoc = consumeToken();
     auto identifier = unit->identifier(identifierLoc);
     auto scopeLoc = consumeToken();
-    auto symbol = Lookup{scope_}(yyast, identifier);
+    auto symbol = Lookup{scope_}.lookupType(yyast, identifier);
 
     auto ast = make_node<SimpleNestedNameSpecifierAST>(pool_);
     ast->nestedNameSpecifier = yyast;

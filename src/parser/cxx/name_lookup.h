@@ -46,11 +46,10 @@ class Lookup {
       NestedNameSpecifierAST* nestedNameSpecifier, const Identifier* id) const
       -> NamespaceSymbol*;
 
- private:
-  [[nodiscard]] auto lookupNamespaceHelper(
-      Scope* scope, const Identifier* id, std::unordered_set<Scope*>& set) const
-      -> NamespaceSymbol*;
+  [[nodiscard]] auto lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
+                                const Identifier* id) const -> Symbol*;
 
+ private:
   [[nodiscard]] auto unqualifiedLookup(const Name* name) const -> Symbol*;
 
   [[nodiscard]] auto qualifiedLookup(Scope* scope, const Name* name) const
@@ -61,6 +60,14 @@ class Lookup {
 
   [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
                                   std::unordered_set<Scope*>& cache) const
+      -> Symbol*;
+
+  [[nodiscard]] auto lookupNamespaceHelper(
+      Scope* scope, const Identifier* id, std::unordered_set<Scope*>& set) const
+      -> NamespaceSymbol*;
+
+  [[nodiscard]] auto lookupTypeHelper(Scope* scope, const Identifier* id,
+                                      std::unordered_set<Scope*>& set) const
       -> Symbol*;
 
  private:
