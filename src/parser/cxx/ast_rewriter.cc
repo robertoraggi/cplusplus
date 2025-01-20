@@ -3319,7 +3319,6 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   auto copy = new (arena()) DecltypeNestedNameSpecifierAST{};
 
   copy->symbol = ast->symbol;
-  copy->nestedNameSpecifier = rewrite(ast->nestedNameSpecifier);
   copy->decltypeSpecifier =
       ast_cast<DecltypeSpecifierAST>(rewrite(ast->decltypeSpecifier));
   copy->scopeLoc = ast->scopeLoc;

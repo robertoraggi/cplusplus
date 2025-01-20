@@ -2632,7 +2632,6 @@ auto Codegen::NestedNameSpecifierVisitor::operator()(
 
 auto Codegen::NestedNameSpecifierVisitor::operator()(
     DecltypeNestedNameSpecifierAST* ast) -> NestedNameSpecifierResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
   auto decltypeSpecifierResult = gen(ast->decltypeSpecifier);
 
   return {};

@@ -2527,7 +2527,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.DecltypeNestedNameSpecifierAST,
     context: Context,
   ): void {
-    this.accept(node.getNestedNameSpecifier(), context);
     this.accept(node.getDecltypeSpecifier(), context);
   }
 

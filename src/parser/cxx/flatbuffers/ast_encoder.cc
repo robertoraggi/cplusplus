@@ -4547,15 +4547,9 @@ void ASTEncoder::visit(SimpleNestedNameSpecifierAST* ast) {
 }
 
 void ASTEncoder::visit(DecltypeNestedNameSpecifierAST* ast) {
-  const auto [nestedNameSpecifier, nestedNameSpecifierType] =
-      acceptNestedNameSpecifier(ast->nestedNameSpecifier);
-
   const auto decltypeSpecifier = accept(ast->decltypeSpecifier);
 
   io::DecltypeNestedNameSpecifier::Builder builder{fbb_};
-  builder.add_nested_name_specifier(nestedNameSpecifier);
-  builder.add_nested_name_specifier_type(
-      static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
   builder.add_decltype_specifier(decltypeSpecifier.o);
   builder.add_scope_loc(ast->scopeLoc.index());
 

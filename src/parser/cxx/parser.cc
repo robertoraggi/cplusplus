@@ -1596,23 +1596,7 @@ void Parser::parse_optional_nested_name_specifier(
 
 auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     -> bool {
-  auto lookat_global_nested_name_specifier = [&] {
-    if (yyast) return false;
-
-    SourceLocation scopeLoc;
-    if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
-
-    auto ast = make_node<GlobalNestedNameSpecifierAST>(pool_);
-    yyast = ast;
-    ast->scopeLoc = scopeLoc;
-    ast->symbol = globalScope_->owner();
-
-    return true;
-  };
-
   auto lookat_decltype_nested_name_specifier = [&] {
-    if (yyast) return false;
-
     LookaheadParser lookahead{this};
 
     DecltypeSpecifierAST* decltypeSpecifier = nullptr;
@@ -1624,7 +1608,6 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     lookahead.commit();
 
     auto ast = make_node<DecltypeNestedNameSpecifierAST>(pool_);
-    ast->nestedNameSpecifier = yyast;
     yyast = ast;
 
     ast->decltypeSpecifier = decltypeSpecifier;
@@ -1704,14 +1687,18 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
 
   yyast = nullptr;
 
+  if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
+    auto ast = make_node<GlobalNestedNameSpecifierAST>(pool_);
+    yyast = ast;
+    ast->scopeLoc = scopeLoc;
+    ast->symbol = globalScope_->owner();
+  } else if (lookat_decltype_nested_name_specifier()) {
+    //
+  }
+
   while (true) {
-    if (lookat_global_nested_name_specifier())
-      continue;
-    else if (lookat_simple_nested_name_specifier())
-      continue;
-    else if (lookat_decltype_nested_name_specifier())
-      continue;
-    else if (lookat_template_nested_name_specifier())
+    if (lookat_simple_nested_name_specifier()) continue;
+    if (lookat_template_nested_name_specifier())
       continue;
     else
       break;

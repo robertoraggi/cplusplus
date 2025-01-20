@@ -11082,21 +11082,11 @@ export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
   }
 
   /**
-   * Returns the nestedNameSpecifier of this node
-   */
-  getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
-    return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
-      this.parser,
-    );
-  }
-
-  /**
    * Returns the decltypeSpecifier of this node
    */
   getDecltypeSpecifier(): DecltypeSpecifierAST | undefined {
     return AST.from<DecltypeSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 0),
       this.parser,
     );
   }
@@ -11105,7 +11095,7 @@ export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
    * Returns the location of the scope token in this node
    */
   getScopeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 }
 

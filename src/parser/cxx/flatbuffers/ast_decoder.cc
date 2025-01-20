@@ -3940,8 +3940,6 @@ auto ASTDecoder::decodeDecltypeNestedNameSpecifier(
   if (!node) return nullptr;
 
   auto ast = new (pool_) DecltypeNestedNameSpecifierAST();
-  ast->nestedNameSpecifier = decodeNestedNameSpecifier(
-      node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->decltypeSpecifier = decodeDecltypeSpecifier(node->decltype_specifier());
   ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;

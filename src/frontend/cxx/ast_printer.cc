@@ -2163,7 +2163,6 @@ void ASTPrinter::visit(SimpleNestedNameSpecifierAST* ast) {
 
 void ASTPrinter::visit(DecltypeNestedNameSpecifierAST* ast) {
   out_ << std::format("{}\n", "decltype-nested-name-specifier");
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->decltypeSpecifier, "decltype-specifier");
 }
 

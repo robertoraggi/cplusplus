@@ -2931,7 +2931,6 @@ auto SimpleNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto DecltypeNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(decltypeSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   return {};
@@ -2940,7 +2939,6 @@ auto DecltypeNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
 auto DecltypeNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(decltypeSpecifier)) return loc;
-  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   return {};
 }
 

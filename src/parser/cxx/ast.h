@@ -3558,7 +3558,6 @@ class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
   DecltypeNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
   SourceLocation scopeLoc;
 

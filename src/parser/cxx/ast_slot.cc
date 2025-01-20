@@ -5408,24 +5408,19 @@ void ASTSlot::visit(SimpleNestedNameSpecifierAST* ast) {
 
 void ASTSlot::visit(DecltypeNestedNameSpecifierAST* ast) {
   switch (slot_) {
-    case 0:  // nestedNameSpecifier
-      value_ = reinterpret_cast<std::intptr_t>(ast->nestedNameSpecifier);
-      slotKind_ = ASTSlotKind::kNode;
-      slotNameIndex_ = SlotNameIndex{140};
-      break;
-    case 1:  // decltypeSpecifier
+    case 0:  // decltypeSpecifier
       value_ = reinterpret_cast<std::intptr_t>(ast->decltypeSpecifier);
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{58};
       break;
-    case 2:  // scopeLoc
+    case 1:  // scopeLoc
       value_ = ast->scopeLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{177};
       break;
   }  // switch
 
-  slotCount_ = 3;
+  slotCount_ = 2;
 }
 
 void ASTSlot::visit(TemplateNestedNameSpecifierAST* ast) {
