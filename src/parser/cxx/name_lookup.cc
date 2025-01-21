@@ -174,6 +174,17 @@ auto Lookup::lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
           static_cast<ScopedSymbol*>(nestedNameSpecifier->symbol);
       return lookupTypeHelper(scopedSymbol->scope(), id, set);
     }
+
+    case SymbolKind::kTypeAlias: {
+      auto alias = symbol_cast<TypeAliasSymbol>(nestedNameSpecifier->symbol);
+      auto classType = type_cast<ClassType>(alias->type());
+      if (classType) {
+        auto classSymbol = classType->symbol();
+        return lookupTypeHelper(classSymbol->scope(), id, set);
+      }
+      return nullptr;
+    }
+
     default:
       return nullptr;
   }  // swotch
@@ -187,7 +198,8 @@ auto Lookup::lookupTypeHelper(Scope* scope, const Identifier* id,
   }
 
   for (auto candidate : scope->find(id)) {
-    if (candidate->isClassOrNamespace() || candidate->isEnumOrScopedEnum())
+    if (candidate->isClassOrNamespace() || candidate->isEnumOrScopedEnum() ||
+        candidate->isTypeAlias() || candidate->isTypeParameter())
       return candidate;
   }
 

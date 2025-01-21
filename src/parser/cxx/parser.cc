@@ -5725,7 +5725,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
   } else {
     auto name = ast_cast<NameIdAST>(unqualifiedId);
-    auto symbol = Lookup{scope_}(nestedNameSpecifier, name->identifier);
+    auto symbol =
+        Lookup{scope_}.lookupType(nestedNameSpecifier, name->identifier);
 
     if (is_type(symbol)) {
       specs.type = symbol->type();
