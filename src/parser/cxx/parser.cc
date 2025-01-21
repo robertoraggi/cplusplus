@@ -9270,7 +9270,7 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
   ClassSymbol* classSymbol = nullptr;
 
   if (identifier) {
-    if (!is_class_declaration) {
+    if (!is_class_declaration && !lookat(TokenKind::T_SEMICOLON)) {
       auto symbol = symbol_cast<ClassSymbol>(Lookup{scope_}(identifier));
       classSymbol = symbol;
     } else if (!isTemplateSpecialization) {
