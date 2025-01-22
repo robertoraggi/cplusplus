@@ -24,7 +24,7 @@
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
-    "zx": "^8.2.2"
+    "zx": "latest"
   },
   "workspaces": [
     "packages/*"
