@@ -1,0 +1,9 @@
+dist
+out
+node_modules
+docs
+*.tgz
+README.md
+CHANGELOG.md
+cxx-js.js
+package-lock.json

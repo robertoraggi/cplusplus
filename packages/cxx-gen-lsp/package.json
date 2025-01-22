@@ -1,0 +1,36 @@
+{
+  "name": "@robertoraggi/cxx-gen-lsp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scripts to generate the LSP server for C++",
+  "main": "./dist/main.js",
+  "bin": {
+    "cxx-gen-lsp": "./dist/main.js"
+  },
+  "scripts": {
+    "postinstall": "npm run build",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robertoraggi/cplusplus"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "eslint": "latest",
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "prettier": "latest"
+  }
+}

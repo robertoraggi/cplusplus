@@ -1,0 +1,47 @@
+{
+  "name": "cxx-frontend",
+  "version": "1.1.27",
+  "description": "A compiler front end for the C++ language",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.js",
+  "types": "dist/dts/index.d.ts",
+  "type": "module",
+  "browser": {
+    "url": false
+  },
+  "scripts": {
+    "watch": "watchexec --print-events -r npm run build",
+    "build": "zx scripts/build.js",
+    "docs": "typedoc src/index.ts",
+    "prettier": "npx prettier --check .",
+    "prettier:fix": "npx prettier --write . "
+  },
+  "keywords": [
+    "c++",
+    "compiler",
+    "lexer",
+    "parser",
+    "preprocessor",
+    "syntax"
+  ],
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robertoraggi/cplusplus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/robertoraggi/cplusplus/issues"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "esbuild": "latest",
+    "prettier": "latest",
+    "typedoc": "latest",
+    "typescript": "latest",
+    "zx": "latest"
+  }
+}

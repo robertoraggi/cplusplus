@@ -1,0 +1,21 @@
+# RUN: %cxx -lsp-test < %s | %filecheck %s
+
+{ "method": "initialize", "id": 0 }
+
+# CHECK: "id": 0
+
+{ "method": "textDocument/didOpen", "id": 1, "params": { "textDocument": { "uri": "test:///source.cc", "version": 0, "text": "#include <cstdio>\nauto main() -> int;" } } }
+
+{ "method": "$/setTrace", "id": 2, "params": { "value": "verbose" } }
+
+{ "method": "textDocument/documentSymbol", "id": 3, "params": { "textDocument": { "uri": "test:///source.cc" } } }
+
+# CHECK: "message": "Did receive DocumentSymbolRequest"
+# CHECK: "id": 3
+
+{ "method": "shutdown", "id": 4 }
+
+{ "method": "exit" }
+
+
+

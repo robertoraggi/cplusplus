@@ -1,0 +1,11 @@
+{
+  "id": "wasi-sdk",
+  "version": "1.0.0",
+  "name": "Wasi SDK",
+  "dependsOn": {
+    "ghcr.io/devcontainers/features/common-utils": {}
+  },
+  "containerEnv": {
+    "WASI_SDK_PATH": "/opt/wasi-sdk"
+  }
+}

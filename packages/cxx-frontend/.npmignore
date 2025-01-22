@@ -1,0 +1,7 @@
+*.tgz
+*.map
+src
+scripts
+examples
+.prettierignore
+docs

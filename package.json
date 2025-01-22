@@ -1,0 +1,44 @@
+{
+  "name": "@robertoraggi/cplusplus",
+  "version": "1.1.27",
+  "description": "A compiler frontend for C++23",
+  "private": true,
+  "keywords": [
+    "c++",
+    "compiler",
+    "lexer",
+    "parser",
+    "preprocessor",
+    "syntax"
+  ],
+  "author": {
+    "name": "Roberto Raggi",
+    "email": "roberto.raggi@gmail.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/robertoraggi/cplusplus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/robertoraggi/cplusplus/issues"
+  },
+  "devDependencies": {
+    "zx": "latest"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:cxx-frontend": "npm run build -w cxx-frontend",
+    "build:storybook": "npm run build-storybook -w @robertoraggi/cxx-storybook",
+    "build:emscripten": "npm run build -w cxx-frontend",
+    "build:wasi": "zx scripts/build-wasi.mjs",
+    "storybook": "npm run storybook -w @robertoraggi/cxx-storybook",
+    "setup-venv": "zx scripts/setup-venv.mjs",
+    "update-tests": "zx scripts/update-tests.mjs",
+    "cxx-gen-ast": "node packages/cxx-gen-ast",
+    "cxx-gen-lsp": "node packages/cxx-gen-lsp packages/cxx-gen-lsp/metaModel.json packages/cxx-gen-lsp -o src/lsp/cxx/lsp",
+    "download-lsp-model": "zx scripts/download-lsp-model.mjs"
+  }
+}

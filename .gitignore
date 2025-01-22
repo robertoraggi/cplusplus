@@ -1,0 +1,10 @@
+.DS_Store
+/build*/
+out
+.venv
+node_modules
+*.tgz
+.vscode/launch.json
+.cache
+.clangd
+*.pch

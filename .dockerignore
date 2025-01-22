@@ -1,0 +1,6 @@
+.git
+.venv
+build
+build.em
+build.wasm
+out

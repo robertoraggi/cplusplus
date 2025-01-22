@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.sb-main-fullscreen #storybook-root {
+  height: 100svh;
+}

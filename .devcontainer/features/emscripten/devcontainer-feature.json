@@ -1,0 +1,11 @@
+{
+  "id": "emscripten",
+  "version": "1.0.0",
+  "name": "Emscripten",
+  "dependsOn": {
+    "ghcr.io/devcontainers/features/common-utils": {}
+  },
+  "containerEnv": {
+    "EMSCRIPTEN_ROOT": "/opt/emsdk/upstream/emscripten"
+  }
+}

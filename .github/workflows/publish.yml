@@ -1,0 +1,39 @@
+name: Node.js Package
+
+on:
+  workflow_dispatch:
+
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup emscripten cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.emscripten-cache
+          key: ${{ runner.os }}-emscripten
+          restore-keys: |
+            ${{ runner.os }}-emscripten
+
+      - uses: actions/setup-node@v4
+        with:
+          registry-url: https://registry.npmjs.org/
+
+      - name: Build
+        run: |
+          npm ci
+          npm -w cxx-frontend run build
+
+      - name: Publish
+        working-directory: packages/cxx-frontend
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
