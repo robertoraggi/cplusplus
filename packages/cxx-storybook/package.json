@@ -30,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "latest",
     "@typescript-eslint/parser": "latest",
     "@vitejs/plugin-react": "latest",
+    "autoprefixer": "^10.4.20",
     "codemirror": "latest",
     "cxx-frontend": "^1.1.27",
     "eslint": "latest",
@@ -37,13 +38,16 @@
     "eslint-plugin-react-refresh": "latest",
     "eslint-plugin-storybook": "latest",
     "lodash": "latest",
+    "postcss": "^8.5.1",
     "prop-types": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-virtualized-auto-sizer": "latest",
     "react-window": "latest",
     "storybook": "latest",
+    "tailwindcss": "latest",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "clsx": "latest"
   }
 }

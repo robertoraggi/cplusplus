@@ -20,8 +20,9 @@
 
 import { FixedSizeList } from "react-window";
 import { AST, ASTKind, ASTSlot, Parser, TokenKind } from "cxx-frontend";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
+import clsx from "clsx";
 
 function hasOp(node: any): node is AST & { getOp(): TokenKind } {
   return typeof node.getOp === "function" && node.getOp();
@@ -54,6 +55,7 @@ function hasLiteral(node: any): node is AST & { getLiteral(): string } {
 interface SyntaxTreeProps {
   parser: Parser | null;
   cursorPosition?: { line: number; column: number };
+  onNodeSelected?: (node: AST) => void;
 }
 
 interface SyntaxTreeNode {
@@ -63,38 +65,58 @@ interface SyntaxTreeNode {
   slot?: ASTSlot;
 }
 
-export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
+export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTreeProps) {
   const listRef = useRef<FixedSizeList>(null);
   const [selectedNodeHandle, setSelectedNodeHandle] = useState(0);
   const [nodes, setNodes] = useState<SyntaxTreeNode[]>([]);
 
+  const onNodeSelectedRef = useRef(onNodeSelected);
+  useLayoutEffect(() => {
+    onNodeSelectedRef.current = onNodeSelected;
+  }, [onNodeSelected]);
+
   useEffect(() => {
-    const nodes: SyntaxTreeNode[] = [];
+    const update = async () => {
+      const nodes: SyntaxTreeNode[] = [];
 
-    const ast = parser?.getAST();
+      const visitor = parser?.getAST()?.walk().preVisit();
 
-    for (const { node, slot, depth: level } of ast?.walk().preVisit() ?? []) {
-      if (!(node instanceof AST)) continue;
+      if (visitor) {
+        let count = 0;
 
-      const kind = ASTKind[node.getKind()];
+        for (const { node, slot, depth: level } of visitor) {
+          if (!(node instanceof AST)) continue;
 
-      let extra = "";
-      if (hasIdentifier(node)) extra += ` (${node.getIdentifier()})`;
-      if (hasLiteral(node)) extra += ` (${node.getLiteral()})`;
-      if (hasOp(node)) extra += ` (${TokenKind[node.getOp()]})`;
-      if (hasAccessOp(node)) extra += ` (${TokenKind[node.getAccessOp()]})`;
-      if (hasSpecifier(node)) extra += ` (${TokenKind[node.getSpecifier()]})`;
-      if (hasAccessSpecifier(node))
-        extra += ` (${TokenKind[node.getAccessSpecifier()]})`;
+          ++count;
 
-      const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
+          if ((count % 1000) === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
 
-      const description = `${member}${kind}${extra}`;
-      const handle = node.getHandle();
+          const kind = ASTKind[node.getKind()];
 
-      nodes.push({ description, slot, handle, level });
+          let extra = "";
+          if (hasIdentifier(node)) extra += ` (${node.getIdentifier()})`;
+          if (hasLiteral(node)) extra += ` (${node.getLiteral()})`;
+          if (hasOp(node)) extra += ` (${TokenKind[node.getOp()]})`;
+          if (hasAccessOp(node)) extra += ` (${TokenKind[node.getAccessOp()]})`;
+          if (hasSpecifier(node)) extra += ` (${TokenKind[node.getSpecifier()]})`;
+          if (hasAccessSpecifier(node))
+            extra += ` (${TokenKind[node.getAccessSpecifier()]})`;
+
+          const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
+
+          const description = `${member}${kind}${extra}`;
+          const handle = node.getHandle();
+
+          nodes.push({ description, slot, handle, level });
+        }
+      }
+
+      setNodes(nodes);
     }
-    setNodes(nodes);
+
+    update();
   }, [parser]);
 
   useEffect(() => {
@@ -116,21 +138,15 @@ export function SyntaxTree({ parser, cursorPosition }: SyntaxTreeProps) {
     }
   }, [parser, nodes, cursorPosition]);
 
-  const basicStyle: CSSProperties = {
-    fontFamily: "monospace",
-    fontSize: 12,
-  };
-
   function Item({ index, style }: { index: number; style: CSSProperties }) {
     const { description, level, handle } = nodes[index];
     const indent = " ".repeat(level * 4);
     const isSelected = selectedNodeHandle === handle;
-    const itemStyle: CSSProperties = isSelected
-      ? { ...basicStyle, backgroundColor: "#ffb" }
-      : basicStyle;
+
     return (
-      <div style={{ ...style, whiteSpace: "pre" }}>
-        {indent}- <a style={itemStyle}>{description}</a>
+      <div className="whitespace-pre" style={style}>
+        {indent}- <a
+          className={clsx("cursor-default p-0.5 font-[monospace] text-xs", { "bg-sky-500 text-white": isSelected })}>{description}</a>
       </div>
     );
   }
