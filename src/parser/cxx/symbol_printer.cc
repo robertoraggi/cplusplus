@@ -22,9 +22,11 @@
 
 // cxx
 #include <cxx/name_printer.h>
+#include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/type_printer.h>
+#include <cxx/types.h>
 
 #include <algorithm>
 #include <format>
@@ -102,6 +104,14 @@ struct DumpSymbols {
     } else {
       out << std::format("{} {}\n", classKey, to_string(symbol->name()));
     }
+    indent();
+    if (!symbol->constructors().empty()) {
+      ++depth;
+      for (auto constructor : symbol->constructors()) {
+        visit(*this, constructor);
+      }
+      --depth;
+    }
     dumpScope(symbol->scope());
     dumpSpecializations(symbol->specializations());
   }
@@ -152,7 +162,11 @@ struct DumpSymbols {
       out << std::format("template ");
     }
 
-    out << std::format("function");
+    if (symbol->isConstructor()) {
+      out << std::format("constructor");
+    } else {
+      out << std::format("function");
+    }
 
     if (symbol->isStatic()) out << " static";
     if (symbol->isExtern()) out << " extern";

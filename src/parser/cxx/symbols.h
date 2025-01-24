@@ -387,6 +387,8 @@ class FunctionSymbol final : public ScopedSymbol {
   [[nodiscard]] auto isDefaulted() const -> bool;
   void setDefaulted(bool isDefaulted);
 
+  [[nodiscard]] auto isConstructor() const -> bool;
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
 

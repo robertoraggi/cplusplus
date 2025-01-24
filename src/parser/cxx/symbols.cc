@@ -323,6 +323,24 @@ void FunctionSymbol::setDefaulted(bool isDefaulted) {
   isDefaulted_ = isDefaulted;
 }
 
+auto FunctionSymbol::isConstructor() const -> bool {
+  auto parent = symbol_cast<ClassSymbol>(enclosingSymbol());
+  if (!parent) return false;
+
+  auto functionType = type_cast<FunctionType>(type());
+  if (functionType->returnType()) {
+    // constructors don't have a return type
+    return false;
+  }
+
+  if (name() != parent->name()) {
+    // constructors have the same name as the class
+    return false;
+  }
+
+  return true;
+}
+
 OverloadSetSymbol::OverloadSetSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
