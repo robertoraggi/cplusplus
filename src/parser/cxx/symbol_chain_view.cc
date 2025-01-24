@@ -26,7 +26,10 @@
 namespace cxx {
 
 auto SymbolChainView::Generator::operator++() -> Generator& {
-  symbol_ = symbol_->next();
+  auto name = symbol_->name();
+  do {
+    symbol_ = symbol_->next();
+  } while (symbol_ && symbol_->name() != name);
   return *this;
 }
 
