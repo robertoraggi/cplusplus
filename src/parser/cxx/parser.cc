@@ -6690,7 +6690,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
         ast->classKey == TokenKind::T_STRUCT ||
         ast->classKey == TokenKind::T_UNION) {
       for (auto symbol : SymbolChainView(symbol) | views::classes) {
-        if (symbol->name() != nameId->identifier) continue;
         ast->symbol = symbol;
         specs.type = symbol->type();
         break;
@@ -6698,7 +6697,6 @@ auto Parser::parse_elaborated_type_specifier_helper(
     } else if (ast->classKey == TokenKind::T_ENUM) {
       for (auto symbol :
            SymbolChainView(symbol) | views::enum_or_scoped_enums) {
-        if (symbol->name() != nameId->identifier) continue;
         ast->symbol = symbol;
         specs.type = symbol->type();
         break;
