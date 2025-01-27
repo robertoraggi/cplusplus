@@ -631,4 +631,23 @@ void UsingDeclarationSymbol::setDeclarator(UsingDeclaratorAST* declarator) {
   declarator_ = declarator;
 }
 
+bool is_type(Symbol* symbol) {
+  if (!symbol) return false;
+  switch (symbol->kind()) {
+    case SymbolKind::kTypeParameter:
+    case SymbolKind::kConstraintTypeParameter:
+    case SymbolKind::kTypeAlias:
+    case SymbolKind::kClass:
+    case SymbolKind::kEnum:
+    case SymbolKind::kScopedEnum:
+      return true;
+    case SymbolKind::kUsingDeclaration: {
+      auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol);
+      return is_type(usingDeclaration->target());
+    }
+    default:
+      return false;
+  }  // switch
+}
+
 }  // namespace cxx
