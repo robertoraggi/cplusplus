@@ -45,7 +45,8 @@ namespace cxx {
   V(TemplateTypeParameter)     \
   V(ConstraintTypeParameter)   \
   V(OverloadSet)               \
-  V(BaseClass)
+  V(BaseClass)                 \
+  V(UsingDeclaration)
 
 class Symbol;
 class ScopedSymbol;

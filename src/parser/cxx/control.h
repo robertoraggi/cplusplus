@@ -217,6 +217,9 @@ class Control {
   [[nodiscard]] auto newEnumeratorSymbol(Scope* enclosingScope,
                                          SourceLocation sourceLocation)
       -> EnumeratorSymbol*;
+  [[nodiscard]] auto newUsingDeclarationSymbol(Scope* enclosingScope,
+                                               SourceLocation sourceLocation)
+      -> UsingDeclarationSymbol*;
 
   [[nodiscard]] auto instantiate(TranslationUnit* unit, Symbol* primaryTemplate,
                                  const std::vector<TemplateArgument>& arguments)

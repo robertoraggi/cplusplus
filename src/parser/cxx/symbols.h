@@ -697,6 +697,24 @@ class EnumeratorSymbol final : public Symbol {
   std::optional<ConstValue> value_;
 };
 
+class UsingDeclarationSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kUsingDeclaration;
+
+  explicit UsingDeclarationSymbol(Scope* enclosingScope);
+  ~UsingDeclarationSymbol() override;
+
+  [[nodiscard]] auto declarator() const -> UsingDeclaratorAST*;
+  void setDeclarator(UsingDeclaratorAST* declarator);
+
+  [[nodiscard]] auto target() const -> Symbol*;
+  void setTarget(Symbol* symbol);
+
+ private:
+  Symbol* target_ = nullptr;
+  UsingDeclaratorAST* declarator_ = nullptr;
+};
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, Symbol* symbol) {
 #define PROCESS_SYMBOL(S) \

@@ -73,6 +73,7 @@ struct SymbolInstantiation::VisitSymbol {
       -> Symbol*;
   [[nodiscard]] auto operator()(OverloadSetSymbol* symbol) -> Symbol*;
   [[nodiscard]] auto operator()(BaseClassSymbol* symbol) -> Symbol*;
+  [[nodiscard]] auto operator()(UsingDeclarationSymbol* symbol) -> Symbol*;
 };
 
 struct SymbolInstantiation::VisitType {
@@ -370,6 +371,13 @@ auto SymbolInstantiation::VisitSymbol::operator()(OverloadSetSymbol* symbol)
 auto SymbolInstantiation::VisitSymbol::operator()(BaseClassSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
+  return newSymbol;
+}
+
+auto SymbolInstantiation::VisitSymbol::operator()(
+    UsingDeclarationSymbol* symbol) -> Symbol* {
+  auto newSymbol = self.replacement(symbol);
+  newSymbol->setTarget(self.instantiate(symbol->target()));
   return newSymbol;
 }
 

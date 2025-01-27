@@ -104,7 +104,6 @@ struct DumpSymbols {
     } else {
       out << std::format("{} {}\n", classKey, to_string(symbol->name()));
     }
-    indent();
     if (!symbol->constructors().empty()) {
       ++depth;
       for (auto constructor : symbol->constructors()) {
@@ -307,6 +306,18 @@ struct DumpSymbols {
     indent();
     out << std::format("enumerator {}\n",
                        to_string(symbol->type(), symbol->name()));
+  }
+
+  void operator()(UsingDeclarationSymbol* symbol) {
+    indent();
+
+    if (auto target = symbol->target()) {
+      out << std::format("using {}\n",
+                         to_string(target->type(), target->name()));
+    } else {
+      // unresolved symbol
+      out << std::format("using unresolved {}\n", to_string(symbol->name()));
+    }
   }
 };
 
