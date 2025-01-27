@@ -851,7 +851,6 @@ class Parser final {
   [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
 
-  [[nodiscard]] auto is_type(Symbol* symbol) const -> bool;
   [[nodiscard]] auto is_template(Symbol* symbol) const -> bool;
   [[nodiscard]] auto is_constructor(Symbol* symbol) const -> bool;
 

@@ -84,6 +84,11 @@ auto Lookup::lookupHelper(Scope* scope, const Name* name,
   cache.insert(scope);
 
   for (auto symbol : scope->find(name)) {
+    if (auto u = symbol_cast<UsingDeclarationSymbol>(symbol);
+        u && u->target()) {
+      return u->target();
+    }
+
     return symbol;
   }
 
@@ -185,6 +190,30 @@ auto Lookup::lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
       return nullptr;
     }
 
+    case SymbolKind::kUsingDeclaration: {
+      auto usingDeclaration =
+          symbol_cast<UsingDeclarationSymbol>(nestedNameSpecifier->symbol);
+
+      if (!usingDeclaration->target()) return nullptr;
+
+      if (auto classSymbol =
+              symbol_cast<ClassSymbol>(usingDeclaration->target())) {
+        return lookupTypeHelper(classSymbol->scope(), id, set);
+      }
+
+      if (auto enumSymbol =
+              symbol_cast<EnumSymbol>(usingDeclaration->target())) {
+        return lookupTypeHelper(enumSymbol->scope(), id, set);
+      }
+
+      if (auto scopedEnumSymbol =
+              symbol_cast<ScopedEnumSymbol>(usingDeclaration->target())) {
+        return lookupTypeHelper(scopedEnumSymbol->scope(), id, set);
+      }
+
+      return nullptr;
+    }
+
     default:
       return nullptr;
   }  // swotch
@@ -198,9 +227,9 @@ auto Lookup::lookupTypeHelper(Scope* scope, const Identifier* id,
   }
 
   for (auto candidate : scope->find(id)) {
-    if (candidate->isClassOrNamespace() || candidate->isEnumOrScopedEnum() ||
-        candidate->isTypeAlias() || candidate->isTypeParameter())
+    if (is_type(candidate) || candidate->isNamespace()) {
       return candidate;
+    }
   }
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope->owner())) {

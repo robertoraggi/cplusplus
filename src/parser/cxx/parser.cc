@@ -6588,20 +6588,6 @@ auto Parser::is_glvalue(ExpressionAST* expr) const -> bool {
          expr->valueCategory == ValueCategory::kXValue;
 }
 
-auto Parser::is_type(Symbol* symbol) const -> bool {
-  if (!symbol) return false;
-  switch (symbol->kind()) {
-    case SymbolKind::kTypeParameter:
-    case SymbolKind::kTypeAlias:
-    case SymbolKind::kClass:
-    case SymbolKind::kEnum:
-    case SymbolKind::kScopedEnum:
-      return true;
-    default:
-      return false;
-  }  // switch
-}
-
 auto Parser::is_template(Symbol* symbol) const -> bool {
   auto templateParameters = cxx::getTemplateParameters(symbol);
   return templateParameters != nullptr;
@@ -8324,6 +8310,10 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
   yyast->isPack = isPack;
 
   auto target = Lookup{scope_}.lookup(nestedNameSpecifier, name);
+
+  if (auto u = symbol_cast<UsingDeclarationSymbol>(target)) {
+    target = u->target();
+  }
 
   auto symbol = control_->newUsingDeclarationSymbol(
       scope_, unqualifiedId->firstSourceLocation());
