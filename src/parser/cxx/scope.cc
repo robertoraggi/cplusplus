@@ -76,6 +76,13 @@ Scope::Scope(Scope* parent) : parent_(parent) {}
 
 Scope::~Scope() {}
 
+auto Scope::isTransparent() const -> bool {
+  if (!owner_) return true;
+  if (owner_->isTemplateParameters()) return true;
+  if (owner_->isFunctionParameters()) return true;
+  return false;
+}
+
 auto Scope::isEnumScope() const -> bool {
   return owner_ && (owner_->isEnum() || owner_->isScopedEnum());
 }

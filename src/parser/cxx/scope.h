@@ -37,6 +37,7 @@ class Scope {
   explicit Scope(Scope* parent);
   ~Scope();
 
+  [[nodiscard]] auto isTransparent() const -> bool;
   [[nodiscard]] auto isEnumScope() const -> bool;
   [[nodiscard]] auto isTemplateParametersScope() const -> bool;
   [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;

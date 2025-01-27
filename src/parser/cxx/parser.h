@@ -458,14 +458,22 @@ class Parser final {
   [[nodiscard]] auto parse_type_name(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced) -> bool;
+
   [[nodiscard]] auto parse_elaborated_type_specifier(
       SpecifierAST*& yyast, DeclSpecs& specs,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+
   [[nodiscard]] auto parse_elaborated_type_specifier_helper(
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+
   [[nodiscard]] auto parse_elaborated_enum_specifier(
       ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
+
+  void finish_elaborated_class_specifier(
+      ElaboratedTypeSpecifierAST* elab,
+      const std::vector<TemplateDeclarationAST*>& templateDeclarations);
+
   [[nodiscard]] auto parse_decltype_specifier(DecltypeSpecifierAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast,
@@ -785,8 +793,26 @@ class Parser final {
   void setScope(Scope* scope);
   void setScope(ScopedSymbol* symbol);
 
+  [[nodiscard]] auto currentNamespace() const -> NamespaceSymbol*;
+  [[nodiscard]] auto currentClassOrNamespace() const -> ScopedSymbol*;
+  [[nodiscard]] auto currentDeclaringScope() const -> Scope*;
+
+  [[nodiscard]] auto isClassKey(TokenKind tk) const -> bool;
+
   // lookup
+  [[nodiscard]] auto findClass(ScopedSymbol* scope,
+                               const Identifier* className) const
+      -> ClassSymbol*;
+
+  [[nodiscard]] auto findClass(Scope* scope, const Identifier* className) const
+      -> ClassSymbol*;
+
+  [[nodiscard]] auto getClassOrNamespace(
+      NestedNameSpecifierAST* nestedNameSpecifier) const -> ScopedSymbol*;
+
   [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
+
+  [[nodiscard]] auto getIdentifier(UnqualifiedIdAST* id) -> const Identifier*;
 
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;

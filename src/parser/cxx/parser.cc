@@ -6658,41 +6658,67 @@ auto Parser::parse_elaborated_type_specifier_helper(
   ast->classKey = unit->tokenKind(classLoc);
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
-  const auto loc = currentLocation();
+  if (!parse_simple_template_or_name_id(ast->unqualifiedId,
+                                        ast->nestedNameSpecifier,
+                                        ast->isTemplateIntroduced)) {
+    parse_error("expected a name");
+    return false;
+  }
 
-  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) {
-    if (SimpleTemplateIdAST* templateId = nullptr; parse_simple_template_id(
-            templateId, nestedNameSpecifier, isTemplateIntroduced)) {
-      ast->unqualifiedId = templateId;
-    } else {
-      parse_error(loc, "expected a template-id");
-    }
-  } else if (NameIdAST* nameId = nullptr; parse_name_id(nameId)) {
-    ast->unqualifiedId = nameId;
+  const auto loc = ast->unqualifiedId->firstSourceLocation();
 
-    auto symbol = Lookup{scope_}(nestedNameSpecifier, nameId->identifier);
-
-    if (ast->classKey == TokenKind::T_CLASS ||
-        ast->classKey == TokenKind::T_STRUCT ||
-        ast->classKey == TokenKind::T_UNION) {
-      for (auto symbol : SymbolChainView(symbol) | views::classes) {
-        ast->symbol = symbol;
-        specs.type = symbol->type();
-        break;
-      }
-    } else if (ast->classKey == TokenKind::T_ENUM) {
-      for (auto symbol :
-           SymbolChainView(symbol) | views::enum_or_scoped_enums) {
-        ast->symbol = symbol;
-        specs.type = symbol->type();
-        break;
-      }
-    }
-  } else {
-    parse_error(loc, "expected a name");
+  if (isClassKey(ast->classKey)) {
+    finish_elaborated_class_specifier(ast, templateDeclarations);
+    return true;
   }
 
   return true;
+}
+
+void Parser::finish_elaborated_class_specifier(
+    ElaboratedTypeSpecifierAST* elab,
+    const std::vector<TemplateDeclarationAST*>& templateDeclarations) {
+  auto className = getIdentifier(elab->unqualifiedId);
+
+  if (elab->nestedNameSpecifier) {
+    auto parent = getClassOrNamespace(elab->nestedNameSpecifier);
+    ClassSymbol* classSymbol = findClass(parent, className);
+    elab->symbol = classSymbol;
+    return;
+  }
+
+  const auto isForwardClassDeclaration = lookat(TokenKind::T_SEMICOLON);
+
+  auto declaringScope = currentDeclaringScope();
+  if (!declaringScope) {
+    cxx_runtime_error("no declaring scope");
+  }
+
+  auto parent = declaringScope->owner();
+
+  if (isForwardClassDeclaration && !parent->isClassOrNamespace()) {
+    parent = currentNamespace();
+  }
+
+  if (auto classSymbol = findClass(parent, className)) {
+    elab->symbol = classSymbol;
+    return;
+  }
+
+  const auto isUnion = elab->classKey == TokenKind::T_UNION;
+
+  // create a forward declaration
+  auto classSymbol = control_->newClassSymbol(
+      parent->scope(), elab->unqualifiedId->firstSourceLocation());
+  classSymbol->setName(className);
+  classSymbol->setIsUnion(isUnion);
+
+  auto templateParameters =
+      symbol_cast<TemplateParametersSymbol>(scope_->owner());
+
+  classSymbol->setTemplateParameters(templateParameters);
+
+  std::invoke(DeclareSymbol{this, parent->scope()}, classSymbol);
 }
 
 auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
@@ -9207,86 +9233,66 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
 
   parse_optional_attribute_specifier_seq(classHead.attributeList);
 
-  auto is_class_declaration = false;
+  bool isClassDeclaration = false;
+  bool isForwardClassDeclaration = false;
 
   if (parse_class_head_name(classHead.nestedNameSpecifier, classHead.name)) {
     if (parse_class_virt_specifier(classHead.finalLoc)) {
-      is_class_declaration = true;
+      isClassDeclaration = true;
     }
   }
 
-  if (LA().isOneOf(TokenKind::T_COLON, TokenKind::T_LBRACE)) {
-    is_class_declaration = true;
+  if (!isClassDeclaration) {
+    isClassDeclaration = LA().isOneOf(TokenKind::T_COLON, TokenKind::T_LBRACE);
   }
 
-  auto is_template_declaration = !classHead.templateDeclarations.empty();
+  if (!isClassDeclaration) {
+    return false;
+  }
 
-  if (is_class_declaration && is_template_declaration &&
-      !classHead.nestedNameSpecifier) {
+  auto isTemplateDeclaration = !classHead.templateDeclarations.empty();
+
+  if (isTemplateDeclaration) {
     mark_maybe_template_name(classHead.name);
   }
 
-  if (classHead.nestedNameSpecifier) {
-    auto enclosingSymbol = classHead.nestedNameSpecifier->symbol;
-    if (!enclosingSymbol) {
-      if (config_.checkTypes) {
-        parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
-                    "unresolved nested name specifier");
-      }
-    } else {
-      Scope* enclosingScope = nullptr;
+  auto templateId = ast_cast<SimpleTemplateIdAST>(classHead.name);
 
-      if (auto alias = symbol_cast<TypeAliasSymbol>(enclosingSymbol)) {
-        if (auto classTy = type_cast<ClassType>(alias->type())) {
-          enclosingScope = classTy->symbol()->scope();
-        }
-      } else if (auto enclosingClass =
-                     symbol_cast<ClassSymbol>(enclosingSymbol)) {
-        enclosingScope = enclosingClass->scope();
-      } else if (auto enclosingNamespace =
-                     symbol_cast<NamespaceSymbol>(enclosingSymbol)) {
-        enclosingScope = enclosingNamespace->scope();
-      }
+  const Identifier* identifier = getIdentifier(classHead.name);
 
-      if (enclosingScope) {
-        setScope(enclosingScope);
-      } else if (config_.checkTypes) {
-        parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
-                    "unresolved nested name specifier");
-      }
-    }
-  }
+  SourceLocation location = currentLocation();
 
-  const Identifier* identifier = nullptr;
-  SourceLocation location;
-  bool isTemplateSpecialization = false;
-  if (const auto simpleName = ast_cast<NameIdAST>(classHead.name)) {
-    location = simpleName->identifierLoc;
-    identifier = simpleName->identifier;
-  } else if (const auto t = ast_cast<SimpleTemplateIdAST>(classHead.name)) {
-    location = t->firstSourceLocation();
-    isTemplateSpecialization = true;
-    identifier = t->identifier;
-  } else {
-    location = currentLocation();
+  if (classHead.name) {
+    location = classHead.name->firstSourceLocation();
   }
 
   ClassSymbol* classSymbol = nullptr;
 
   if (identifier) {
-    if (!is_class_declaration && !lookat(TokenKind::T_SEMICOLON)) {
-      auto symbol = symbol_cast<ClassSymbol>(Lookup{scope_}(identifier));
-      classSymbol = symbol;
-    } else if (!isTemplateSpecialization) {
-      for (auto previousClass : scope_->find(identifier) | views::classes) {
-        if (previousClass->isComplete()) {
-          parse_error(classHead.name->firstSourceLocation(),
-                      "class name already declared");
-        } else {
-          classSymbol = previousClass;
+    ScopedSymbol* parent = nullptr;
+
+    if (classHead.nestedNameSpecifier) {
+      if (auto ns = symbol_cast<NamespaceSymbol>(
+              classHead.nestedNameSpecifier->symbol)) {
+        parent = ns;
+      } else if (auto cls = symbol_cast<ClassSymbol>(
+                     classHead.nestedNameSpecifier->symbol)) {
+        parent = cls;
+      } else {
+        if (config_.checkTypes) {
+          parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
+                      "expected a namespace or class");
         }
-        break;
       }
+    }
+
+    if (!parent) {
+      parent = currentClassOrNamespace();
+    }
+
+    for (auto candidate : parent->scope()->find(identifier) | views::classes) {
+      classSymbol = candidate;
+      break;
     }
   }
 
@@ -9296,6 +9302,8 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
     classSymbol->setName(identifier);
 
     std::invoke(DeclareSymbol{this, scope_}, classSymbol);
+  } else {
+    classSymbol->setLocation(location);
   }
 
   classHead.symbol = classSymbol;
@@ -11253,6 +11261,36 @@ void Parser::setScope(Scope* scope) { scope_ = scope; }
 
 void Parser::setScope(ScopedSymbol* symbol) { setScope(symbol->scope()); }
 
+auto Parser::currentClassOrNamespace() const -> ScopedSymbol* {
+  for (auto scope = scope_; scope; scope = scope->parent()) {
+    if (auto ns = symbol_cast<NamespaceSymbol>(scope->owner())) {
+      return ns;
+    }
+
+    if (auto cls = symbol_cast<ClassSymbol>(scope->owner())) {
+      return cls;
+    }
+  }
+
+  return nullptr;
+}
+
+auto Parser::currentNamespace() const -> NamespaceSymbol* {
+  for (auto scope = scope_; scope; scope = scope->parent()) {
+    if (auto ns = symbol_cast<NamespaceSymbol>(scope->owner())) {
+      return ns;
+    }
+  }
+
+  return nullptr;
+}
+
+auto Parser::currentDeclaringScope() const -> Scope* {
+  auto scope = scope_;
+  while (scope && scope->isTransparent()) scope = scope->parent();
+  return scope;
+}
+
 void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;
 
@@ -11307,10 +11345,58 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   rewind(saved);
 }
 
+auto Parser::isClassKey(TokenKind tk) const -> bool {
+  return tk == TokenKind::T_CLASS || tk == TokenKind::T_STRUCT ||
+         tk == TokenKind::T_UNION;
+}
+
+auto Parser::findClass(ScopedSymbol* parent, const Identifier* className) const
+    -> ClassSymbol* {
+  if (!parent) return nullptr;
+
+  return findClass(parent->scope(), className);
+}
+
+auto Parser::findClass(Scope* scope, const Identifier* className) const
+    -> ClassSymbol* {
+  if (!scope) return nullptr;
+
+  for (auto candidate : scope->find(className) | views::classes) {
+    return candidate;
+  }
+
+  return nullptr;
+}
+
+auto Parser::getClassOrNamespace(
+    NestedNameSpecifierAST* nestedNameSpecifier) const -> ScopedSymbol* {
+  if (auto ns = symbol_cast<NamespaceSymbol>(nestedNameSpecifier->symbol))
+    return ns;
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(nestedNameSpecifier->symbol))
+    return classSymbol;
+
+  return nullptr;
+}
+
 auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
   if (!id) return nullptr;
   return visit(ConvertToName{control_}, id);
 }
+
+auto Parser::getIdentifier(UnqualifiedIdAST* unqualifiedId)
+    -> const Identifier* {
+  if (auto nameId = ast_cast<NameIdAST>(unqualifiedId)) {
+    return nameId->identifier;
+  }
+
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    return templateId->identifier;
+  }
+
+  return nullptr;
+}
+
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
     -> FunctionSymbol* {
   for (auto candidate : scope->find(name)) {
