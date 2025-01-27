@@ -614,4 +614,21 @@ void EnumeratorSymbol::setValue(const std::optional<ConstValue>& value) {
   value_ = value;
 }
 
+UsingDeclarationSymbol::UsingDeclarationSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+UsingDeclarationSymbol::~UsingDeclarationSymbol() {}
+
+auto UsingDeclarationSymbol::target() const -> Symbol* { return target_; }
+
+void UsingDeclarationSymbol::setTarget(Symbol* symbol) { target_ = symbol; }
+
+auto UsingDeclarationSymbol::declarator() const -> UsingDeclaratorAST* {
+  return declarator_;
+}
+
+void UsingDeclarationSymbol::setDeclarator(UsingDeclaratorAST* declarator) {
+  declarator_ = declarator;
+}
+
 }  // namespace cxx

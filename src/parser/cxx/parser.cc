@@ -8277,8 +8277,6 @@ auto Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast)
 
   if (!parse_using_declarator(declarator)) return false;
 
-  declarator->isPack = match(TokenKind::T_DOT_DOT_DOT, declarator->ellipsisLoc);
-
   *it = make_list_node(pool_, declarator);
   it = &(*it)->next;
 
@@ -8287,9 +8285,6 @@ auto Parser::parse_using_declarator_list(List<UsingDeclaratorAST*>*& yyast)
   while (match(TokenKind::T_COMMA, commaLoc)) {
     if (UsingDeclaratorAST* declarator = nullptr;
         parse_using_declarator(declarator)) {
-      declarator->isPack =
-          match(TokenKind::T_DOT_DOT_DOT, declarator->ellipsisLoc);
-
       *it = make_list_node(pool_, declarator);
       it = &(*it)->next;
     } else {
@@ -8316,10 +8311,30 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
                             /*inRequiresClause*/ false))
     return false;
 
+  auto name = convertName(unqualifiedId);
+
+  SourceLocation ellipsisLoc;
+  auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
   yyast = make_node<UsingDeclaratorAST>(pool_);
   yyast->typenameLoc = typenameLoc;
   yyast->nestedNameSpecifier = nestedNameSpecifier;
   yyast->unqualifiedId = unqualifiedId;
+  yyast->ellipsisLoc = ellipsisLoc;
+  yyast->isPack = isPack;
+
+  auto target = Lookup{scope_}.lookup(nestedNameSpecifier, name);
+
+  auto symbol = control_->newUsingDeclarationSymbol(
+      scope_, unqualifiedId->firstSourceLocation());
+
+  yyast->symbol = symbol;
+
+  symbol->setName(name);
+  symbol->setDeclarator(yyast);
+  symbol->setTarget(target);
+
+  std::invoke(DeclareSymbol{this, scope_}, symbol);
 
   return true;
 }

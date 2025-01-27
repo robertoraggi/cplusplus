@@ -149,6 +149,7 @@ struct Control::Private {
   std::forward_list<ConstraintTypeParameterSymbol>
       constraintTypeParameterSymbols;
   std::forward_list<EnumeratorSymbol> enumeratorSymbols;
+  std::forward_list<UsingDeclarationSymbol> usingDeclarationSymbols;
 
   std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
 
@@ -620,6 +621,14 @@ auto Control::newConstraintTypeParameterSymbol(Scope* enclosingScope,
 auto Control::newEnumeratorSymbol(Scope* enclosingScope, SourceLocation loc)
     -> EnumeratorSymbol* {
   auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope);
+  symbol->setLocation(loc);
+  return symbol;
+}
+
+auto Control::newUsingDeclarationSymbol(Scope* enclosingScope,
+                                        SourceLocation loc)
+    -> UsingDeclarationSymbol* {
+  auto symbol = &d->usingDeclarationSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }

@@ -177,6 +177,8 @@ struct ExternalNameEncoder::SymbolVisitor {
   void operator()(OverloadSetSymbol* symbol) {}
 
   void operator()(BaseClassSymbol* symbol) {}
+
+  void operator()(UsingDeclarationSymbol* symbol) {}
 };
 
 ExternalNameEncoder::ExternalNameEncoder() {}
