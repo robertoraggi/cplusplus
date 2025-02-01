@@ -785,6 +785,11 @@ class Parser final {
   void setScope(Scope* scope);
   void setScope(ScopedSymbol* symbol);
 
+  [[nodiscard]] auto currentTemplateParameters() const
+      -> TemplateParametersSymbol*;
+
+  [[nodiscard]] auto declaringScope() const -> Scope*;
+
   // lookup
   [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
 
@@ -796,6 +801,26 @@ class Parser final {
                                             bool isInline) -> NamespaceSymbol*;
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
+
+  [[nodiscard]] auto declareMemberSymbol(DeclaratorAST* declarator,
+                                         const Decl& decl) -> Symbol*;
+
+  [[nodiscard]] auto declareTypeAlias(SourceLocation identifierLoc,
+                                      TypeIdAST* typeId) -> TypeAliasSymbol*;
+
+  [[nodiscard]] auto declareTypedef(DeclaratorAST* declarator, const Decl& decl)
+      -> TypeAliasSymbol*;
+
+  [[nodiscard]] auto declareFunction(DeclaratorAST* declarator,
+                                     const Decl& decl) -> FunctionSymbol*;
+
+  [[nodiscard]] auto declareField(DeclaratorAST* declarator, const Decl& decl)
+      -> FieldSymbol*;
+
+  [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
+                                     const Decl& decl,
+                                     const BindingContext& ctx)
+      -> VariableSymbol*;
 
   [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
 

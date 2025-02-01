@@ -3867,14 +3867,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
     Decl decl{specs};
     if (!parse_declarator(declarator, decl)) return false;
 
-    auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
-
-    auto symbol = control_->newVariableSymbol(scope_, decl.location());
-    applySpecifiers(symbol, decl.specs);
-    symbol->setName(decl.getName());
-    symbol->setType(symbolType);
-
-    std::invoke(DeclareSymbol{this, scope_}, symbol);
+    auto symbol = declareVariable(declarator, decl, BindingContext::kCondition);
 
     ExpressionAST* initializer = nullptr;
 
@@ -4521,6 +4514,7 @@ auto Parser::parse_alias_declaration(
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   SourceLocation usingLoc;
   SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
   List<AttributeSpecifierAST*>* attributes = nullptr;
   SourceLocation equalLoc;
 
@@ -4530,6 +4524,8 @@ auto Parser::parse_alias_declaration(
     if (!match(TokenKind::T_USING, usingLoc)) return false;
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+    identifier = unit->identifier(identifierLoc);
 
     parse_optional_attribute_specifier_seq(attributes);
 
@@ -4559,24 +4555,20 @@ auto Parser::parse_alias_declaration(
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
-  auto aliasName = unit->identifier(identifierLoc);
-
-  auto aliasSymbol = control_->newTypeAliasSymbol(scope_, identifierLoc);
-  aliasSymbol->setName(aliasName);
-  if (typeId) aliasSymbol->setType(typeId->type);
-  std::invoke(DeclareSymbol{this, scope_}, aliasSymbol);
+  auto symbol = declareTypeAlias(identifierLoc, typeId);
 
   auto ast = make_node<AliasDeclarationAST>(pool_);
   yyast = ast;
 
   ast->usingLoc = usingLoc;
   ast->identifierLoc = identifierLoc;
-  ast->identifier = aliasName;
+  ast->identifier = identifier;
   ast->attributeList = attributes;
   ast->equalLoc = equalLoc;
   ast->gnuAttributeList = gnuAttributeList;
   ast->typeId = typeId;
   ast->semicolonLoc = semicolonLoc;
+  ast->symbol = symbol;
 
   return true;
 }
@@ -4906,11 +4898,7 @@ auto Parser::parse_simple_declaration(
                                 to_string(functionName)));
       }
 
-      functionSymbol = control_->newFunctionSymbol(scope_, decl.location());
-      applySpecifiers(functionSymbol, decl.specs);
-      functionSymbol->setName(functionName);
-      functionSymbol->setType(functionType);
-      std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
+      functionSymbol = declareFunction(declarator, decl);
     }
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
@@ -5047,19 +5035,7 @@ auto Parser::parse_notypespec_function_definition(
       getFunction(scope_, decl.getName(), functionType);
 
   if (!functionSymbol) {
-    functionSymbol = control_->newFunctionSymbol(scope_, decl.location());
-    applySpecifiers(functionSymbol, decl.specs);
-    functionSymbol->setName(decl.getName());
-    functionSymbol->setType(functionType);
-
-    if (is_constructor(functionSymbol)) {
-      auto enclosingClass = symbol_cast<ClassSymbol>(scope_->owner());
-      if (enclosingClass) {
-        enclosingClass->addConstructor(functionSymbol);
-      }
-    } else {
-      std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
-    }
+    functionSymbol = declareFunction(declarator, decl);
   }
 
   SourceLocation semicolonLoc;
@@ -6826,35 +6802,18 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                                    DeclaratorAST* declarator, Decl& decl,
                                    BindingContext ctx) -> bool {
-  Symbol* declaredSynbol = nullptr;
+  Symbol* symbol = nullptr;
+
   if (auto declId = decl.declaratorId; declId) {
-    auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
-    const auto name = convertName(declId->unqualifiedId);
-    if (name) {
-      if (decl.specs.isTypedef) {
-        auto symbol = control_->newTypeAliasSymbol(scope_, decl.location());
-        symbol->setName(name);
-        symbol->setType(symbolType);
-        std::invoke(DeclareSymbol{this, scope_}, symbol);
-        declaredSynbol = symbol;
-      } else if (getFunctionPrototype(declarator)) {
-        auto functionSymbol =
-            control_->newFunctionSymbol(scope_, decl.location());
-        applySpecifiers(functionSymbol, decl.specs);
-        functionSymbol->setName(name);
-        functionSymbol->setType(symbolType);
-        std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
-        declaredSynbol = functionSymbol;
-      } else {
-        auto symbol = control_->newVariableSymbol(scope_, decl.location());
-        applySpecifiers(symbol, decl.specs);
-        symbol->setName(name);
-        symbol->setType(symbolType);
-        if (ctx != BindingContext::kInitStatement) {
-          std::invoke(DeclareSymbol{this, scope_}, symbol);
-        }
-        declaredSynbol = symbol;
-      }
+    if (decl.specs.isTypedef) {
+      auto typedefSymbol = declareTypedef(declarator, decl);
+      symbol = typedefSymbol;
+    } else if (getFunctionPrototype(declarator)) {
+      auto functionSymbol = declareFunction(declarator, decl);
+      symbol = functionSymbol;
+    } else {
+      auto variableSymbol = declareVariable(declarator, decl, ctx);
+      symbol = variableSymbol;
     }
   }
 
@@ -6872,7 +6831,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   ast->declarator = declarator;
   ast->requiresClause = requiresClause;
   ast->initializer = initializer;
-  ast->symbol = declaredSynbol;
+  ast->symbol = symbol;
 
   return true;
 }
@@ -9294,8 +9253,9 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
     classSymbol = control_->newClassSymbol(scope_, location);
     classSymbol->setIsUnion(isUnion);
     classSymbol->setName(identifier);
+    classSymbol->setTemplateParameters(currentTemplateParameters());
 
-    std::invoke(DeclareSymbol{this, scope_}, classSymbol);
+    std::invoke(DeclareSymbol{this, declaringScope()}, classSymbol);
   }
 
   classHead.symbol = classSymbol;
@@ -9458,14 +9418,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
     lookahead.commit();
 
-    auto functionType =
-        GetDeclaratorType{this}(declarator, decl.specs.getType());
-
-    auto functionSymbol = control_->newFunctionSymbol(scope_, decl.location());
-    applySpecifiers(functionSymbol, decl.specs);
-    functionSymbol->setName(decl.getName());
-    functionSymbol->setType(functionType);
-    std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
+    auto functionSymbol = declareFunction(declarator, decl);
 
     ScopeGuard scopeGuard{this};
 
@@ -9604,6 +9557,88 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   return parse_member_declarator(yyast, declarator, decl);
 }
 
+auto Parser::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId)
+    -> TypeAliasSymbol* {
+  auto name = unit->identifier(identifierLoc);
+  auto symbol = control_->newTypeAliasSymbol(scope_, identifierLoc);
+  symbol->setName(name);
+  if (typeId) symbol->setType(typeId->type);
+  symbol->setTemplateParameters(currentTemplateParameters());
+  std::invoke(DeclareSymbol{this, declaringScope()}, symbol);
+  return symbol;
+}
+
+auto Parser::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
+    -> TypeAliasSymbol* {
+  auto name = decl.getName();
+  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto typedefSymbol = control_->newTypeAliasSymbol(scope_, decl.location());
+  typedefSymbol->setName(name);
+  typedefSymbol->setType(type);
+  std::invoke(DeclareSymbol{this, scope_}, typedefSymbol);
+  return typedefSymbol;
+}
+
+auto Parser::declareFunction(DeclaratorAST* declarator, const Decl& decl)
+    -> FunctionSymbol* {
+  auto name = decl.getName();
+  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto functionSymbol = control_->newFunctionSymbol(scope_, decl.location());
+  applySpecifiers(functionSymbol, decl.specs);
+  functionSymbol->setName(name);
+  functionSymbol->setType(type);
+  functionSymbol->setTemplateParameters(currentTemplateParameters());
+
+  if (is_constructor(functionSymbol)) {
+    auto enclosingClass = symbol_cast<ClassSymbol>(scope_->owner());
+
+    if (enclosingClass) {
+      enclosingClass->addConstructor(functionSymbol);
+    }
+  } else {
+    std::invoke(DeclareSymbol{this, declaringScope()}, functionSymbol);
+  }
+
+  return functionSymbol;
+}
+
+auto Parser::declareField(DeclaratorAST* declarator, const Decl& decl)
+    -> FieldSymbol* {
+  auto name = decl.getName();
+  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto fieldSymbol = control_->newFieldSymbol(scope_, decl.location());
+  applySpecifiers(fieldSymbol, decl.specs);
+  fieldSymbol->setName(name);
+  fieldSymbol->setType(type);
+  std::invoke(DeclareSymbol{this, scope_}, fieldSymbol);
+  return fieldSymbol;
+}
+
+auto Parser::declareVariable(DeclaratorAST* declarator, const Decl& decl,
+                             const BindingContext& ctx) -> VariableSymbol* {
+  auto name = decl.getName();
+  auto symbol = control_->newVariableSymbol(scope_, decl.location());
+  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  applySpecifiers(symbol, decl.specs);
+  symbol->setName(name);
+  symbol->setType(type);
+  symbol->setTemplateParameters(currentTemplateParameters());
+  if (ctx != BindingContext::kInitStatement) {
+    std::invoke(DeclareSymbol{this, declaringScope()}, symbol);
+  }
+  return symbol;
+}
+
+auto Parser::declareMemberSymbol(DeclaratorAST* declarator, const Decl& decl)
+    -> Symbol* {
+  if (decl.specs.isTypedef) return declareTypedef(declarator, decl);
+
+  if (getFunctionPrototype(declarator))
+    return declareFunction(declarator, decl);
+
+  return declareField(declarator, decl);
+}
+
 auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
                                      DeclaratorAST* declarator,
                                      const Decl& decl) -> bool {
@@ -9611,34 +9646,13 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     return false;
   }
 
-  auto symbolType = GetDeclaratorType{this}(declarator, decl.specs.getType());
-
-  if (decl.specs.isTypedef) {
-    auto typedefSymbol = control_->newTypeAliasSymbol(scope_, decl.location());
-    typedefSymbol->setName(decl.getName());
-    typedefSymbol->setType(symbolType);
-    std::invoke(DeclareSymbol{this, scope_}, typedefSymbol);
-  } else {
-    if (auto functionDeclarator = getFunctionPrototype(declarator)) {
-      auto functionSymbol =
-          control_->newFunctionSymbol(scope_, decl.location());
-      applySpecifiers(functionSymbol, decl.specs);
-      functionSymbol->setName(decl.getName());
-      functionSymbol->setType(symbolType);
-      std::invoke(DeclareSymbol{this, scope_}, functionSymbol);
-    } else {
-      auto fieldSymbol = control_->newFieldSymbol(scope_, decl.location());
-      applySpecifiers(fieldSymbol, decl.specs);
-      fieldSymbol->setName(decl.getName());
-      fieldSymbol->setType(symbolType);
-      std::invoke(DeclareSymbol{this, scope_}, fieldSymbol);
-    }
-  }
+  auto symbol = declareMemberSymbol(declarator, decl);
 
   auto ast = make_node<InitDeclaratorAST>(pool_);
   yyast = ast;
 
   ast->declarator = declarator;
+  ast->symbol = symbol;
 
   if (auto functionDeclarator = getFunctionPrototype(declarator)) {
     RequiresClauseAST* requiresClause = nullptr;
@@ -10207,8 +10221,6 @@ auto Parser::parse_template_declaration(
   auto templateParametersSymbol =
       control_->newTemplateParametersSymbol(scope_, {});
   ast->symbol = templateParametersSymbol;
-
-  std::invoke(DeclareSymbol{this, scope_}, templateParametersSymbol);
 
   setScope(ast->symbol);
 
@@ -10954,9 +10966,13 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
   ast->identifier = unit->identifier(ast->identifierLoc);
 
+  auto templateParameters = currentTemplateParameters();
+
   auto symbol = control_->newConceptSymbol(scope_, ast->identifierLoc);
   symbol->setName(ast->identifier);
-  std::invoke(DeclareSymbol{this, scope_}, symbol);
+  symbol->setTemplateParameters(templateParameters);
+
+  std::invoke(DeclareSymbol{this, declaringScope()}, symbol);
 
   if (ast->identifierLoc) {
     concept_names_.insert(ast->identifier);
@@ -11252,6 +11268,18 @@ void Parser::completePendingFunctionDefinitions() {
 void Parser::setScope(Scope* scope) { scope_ = scope; }
 
 void Parser::setScope(ScopedSymbol* symbol) { setScope(symbol->scope()); }
+
+auto Parser::currentTemplateParameters() const -> TemplateParametersSymbol* {
+  auto templateParameters =
+      symbol_cast<TemplateParametersSymbol>(scope_->owner());
+
+  return templateParameters;
+}
+
+auto Parser::declaringScope() const -> Scope* {
+  if (!scope_->isTemplateParametersScope()) return scope_;
+  return scope_->enclosingNonTemplateParametersScope();
+}
 
 void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;
