@@ -26,55 +26,21 @@
 
 #include <algorithm>
 #include <cassert>
+#include <format>
 #include <functional>
 
 namespace cxx {
 
-namespace {
-
-struct AddTemplateSymbol {
-  TemplateParametersSymbol* templateParameters;
-
-  auto addSymbol(auto symbol) {
-    auto templateScope = templateParameters->scope();
-    auto parentScope = templateScope->enclosingNonTemplateParametersScope();
-    symbol->setTemplateParameters(templateParameters);
-    parentScope->addSymbol(symbol);
-  }
-
-  auto operator()(TypeAliasSymbol* symbol) -> bool {
-    addSymbol(symbol);
-    return true;
-  }
-
-  auto operator()(ConceptSymbol* symbol) -> bool {
-    addSymbol(symbol);
-    return true;
-  }
-
-  auto operator()(ClassSymbol* symbol) -> bool {
-    addSymbol(symbol);
-    return true;
-  }
-
-  auto operator()(FunctionSymbol* symbol) -> bool {
-    addSymbol(symbol);
-    return true;
-  }
-
-  auto operator()(VariableSymbol* symbol) -> bool {
-    addSymbol(symbol);
-    return true;
-  }
-
-  auto operator()(auto) -> bool { return false; }
-};
-
-}  // namespace
-
 Scope::Scope(Scope* parent) : parent_(parent) {}
 
 Scope::~Scope() {}
+
+auto Scope::isTransparent() const -> bool {
+  if (!owner_) return true;
+  if (owner_->isTemplateParameters()) return true;
+  if (owner_->isFunctionParameters()) return true;
+  return false;
+}
 
 auto Scope::isEnumScope() const -> bool {
   return owner_ && (owner_->isEnum() || owner_->isScopedEnum());
@@ -95,10 +61,18 @@ auto Scope::enclosingNonTemplateParametersScope() const -> Scope* {
 }
 
 void Scope::addSymbol(Symbol* symbol) {
-  if (symbol->isTemplateParameters()) return;
+  if (symbol->isTemplateParameters()) {
+    cxx_runtime_error("trying to add a template parameters symbol to a scope");
+    return;
+  }
 
   if (auto templateParameters = symbol_cast<TemplateParametersSymbol>(owner_)) {
-    if (visit(AddTemplateSymbol{templateParameters}, symbol)) return;
+    if (!(symbol->isTypeParameter() || symbol->isTemplateTypeParameter() ||
+          symbol->isNonTypeParameter() ||
+          symbol->isConstraintTypeParameter())) {
+      cxx_runtime_error(
+          "invalid symbol in template parameters scope");
+    }
   }
 
   symbol->setEnclosingScope(this);
