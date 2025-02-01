@@ -127,7 +127,7 @@ if (CXX_ENABLE_FLATBUFFERS)
 
     FetchContent_Declare(
         flatbuffers
-        URL https://github.com/google/flatbuffers/archive/refs/tags/v24.12.23.tar.gz
+        URL https://github.com/google/flatbuffers/archive/refs/tags/v25.1.24.tar.gz
     )
 
     FetchContent_MakeAvailable(flatbuffers)
