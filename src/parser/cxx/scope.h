@@ -38,12 +38,18 @@ class Scope {
   ~Scope();
 
   [[nodiscard]] auto isTransparent() const -> bool;
+  [[nodiscard]] auto isNamespaceScope() const -> bool;
+  [[nodiscard]] auto isBlockScope() const -> bool;
   [[nodiscard]] auto isEnumScope() const -> bool;
   [[nodiscard]] auto isTemplateParametersScope() const -> bool;
+
+  [[nodiscard]] auto enclosingNamespaceScope() const -> Scope*;
   [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;
 
   [[nodiscard]] auto parent() const -> Scope* { return parent_; }
   [[nodiscard]] auto owner() const -> ScopedSymbol* { return owner_; }
+
+  [[nodiscard]] auto empty() const -> bool { return symbols_.empty(); }
 
   [[nodiscard]] auto symbols() const { return std::views::all(symbols_); }
 
@@ -60,6 +66,8 @@ class Scope {
   void addUsingDirective(Scope* scope);
 
   void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
+
+  void reset();
 
  private:
   void rehash();

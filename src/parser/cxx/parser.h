@@ -79,7 +79,6 @@ class Parser final {
   struct LoopParser;
   struct ClassHead;
   struct GetDeclaratorType;
-  struct DeclareSymbol;
 
   enum struct BindingContext {
     kNamespace,
@@ -818,9 +817,7 @@ class Parser final {
       -> FieldSymbol*;
 
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
-                                     const Decl& decl,
-                                     const BindingContext& ctx)
-      -> VariableSymbol*;
+                                     const Decl& decl) -> VariableSymbol*;
 
   [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
 

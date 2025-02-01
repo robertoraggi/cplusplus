@@ -26,7 +26,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <format>
 #include <functional>
 
 namespace cxx {
@@ -35,6 +34,16 @@ Scope::Scope(Scope* parent) : parent_(parent) {}
 
 Scope::~Scope() {}
 
+void Scope::reset() {
+  for (auto symbol : symbols_) {
+    symbol->link_ = nullptr;
+    symbol->setEnclosingScope(nullptr);
+  }
+  symbols_.clear();
+  buckets_.clear();
+  usingDirectives_.clear();
+}
+
 auto Scope::isTransparent() const -> bool {
   if (!owner_) return true;
   if (owner_->isTemplateParameters()) return true;
@@ -42,12 +51,27 @@ auto Scope::isTransparent() const -> bool {
   return false;
 }
 
+auto Scope::isNamespaceScope() const -> bool {
+  return owner_ && owner_->isNamespace();
+}
+
+auto Scope::isBlockScope() const -> bool { return owner_ && owner_->isBlock(); }
+
 auto Scope::isEnumScope() const -> bool {
   return owner_ && (owner_->isEnum() || owner_->isScopedEnum());
 }
 
 auto Scope::isTemplateParametersScope() const -> bool {
   return owner_ && owner_->isTemplateParameters();
+}
+
+auto Scope::enclosingNamespaceScope() const -> Scope* {
+  for (auto scope = parent_; scope; scope = scope->parent()) {
+    if (scope->isNamespaceScope()) {
+      return scope;
+    }
+  }
+  return nullptr;
 }
 
 auto Scope::enclosingNonTemplateParametersScope() const -> Scope* {
@@ -66,12 +90,11 @@ void Scope::addSymbol(Symbol* symbol) {
     return;
   }
 
-  if (auto templateParameters = symbol_cast<TemplateParametersSymbol>(owner_)) {
+  if (isTemplateParametersScope()) {
     if (!(symbol->isTypeParameter() || symbol->isTemplateTypeParameter() ||
           symbol->isNonTypeParameter() ||
           symbol->isConstraintTypeParameter())) {
-      cxx_runtime_error(
-          "invalid symbol in template parameters scope");
+      cxx_runtime_error("invalid symbol in template parameters scope");
     }
   }
 
@@ -126,6 +149,8 @@ void Scope::replaceSymbol(Symbol* symbol, Symbol* newSymbol) {
       }
     }
   }
+
+  symbol->link_ = nullptr;
 }
 
 void Scope::addUsingDirective(Scope* scope) {
