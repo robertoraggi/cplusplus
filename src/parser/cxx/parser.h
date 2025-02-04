@@ -342,7 +342,6 @@ class Parser final {
   [[nodiscard]] auto parse_switch_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_while_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_do_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_for_range_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_for_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_for_range_declaration(DeclarationAST*& yyast)
       -> bool;
