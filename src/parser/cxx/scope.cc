@@ -55,6 +55,16 @@ auto Scope::isNamespaceScope() const -> bool {
   return owner_ && owner_->isNamespace();
 }
 
+auto Scope::isClassScope() const -> bool { return owner_ && owner_->isClass(); }
+
+auto Scope::isClassOrNamespaceScope() const -> bool {
+  return isClassScope() || isNamespaceScope();
+}
+
+auto Scope::isFunctionScope() const -> bool {
+  return owner_ && owner_->isFunction();
+}
+
 auto Scope::isBlockScope() const -> bool { return owner_ && owner_->isBlock(); }
 
 auto Scope::isEnumScope() const -> bool {

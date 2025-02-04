@@ -482,6 +482,23 @@ struct Parser::ClassHead {
   SourceLocation finalLoc;
   SourceLocation colonLoc;
   List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
+
+  [[nodiscard]] auto location() const -> SourceLocation {
+    if (name) return name->firstSourceLocation();
+    return classLoc;
+  }
+
+  [[nodiscard]] auto className() const -> const Identifier* {
+    if (auto templateId = ast_cast<SimpleTemplateIdAST>(name)) {
+      return templateId->identifier;
+    }
+
+    if (auto nameId = ast_cast<NameIdAST>(name)) {
+      return nameId->identifier;
+    }
+
+    return nullptr;
+  }
 };
 
 struct Parser::DeclSpecs {
@@ -6533,92 +6550,7 @@ auto Parser::evaluate_constant_expression(ExpressionAST* expr)
   return sem.evaluate(expr);
 }
 
-auto Parser::parse_elaborated_type_specifier(
-    SpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  if (specs.typeSpecifier) return false;
-
-  if (!LA().isOneOf(TokenKind::T_ENUM, TokenKind::T_CLASS, TokenKind::T_STRUCT,
-                    TokenKind::T_UNION))
-    return false;
-
-  const auto start = currentLocation();
-
-  ElaboratedTypeSpecifierAST* ast = nullptr;
-
-  const auto parsed =
-      parse_elaborated_type_specifier_helper(ast, specs, templateDeclarations);
-
-  yyast = ast;
-
-  return parsed;
-}
-
-auto Parser::parse_elaborated_type_specifier_helper(
-    ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  if (parse_elaborated_enum_specifier(yyast, specs)) return true;
-
-  SourceLocation classLoc;
-  if (!parse_class_key(classLoc)) return false;
-
-  List<AttributeSpecifierAST*>* attributes = nullptr;
-  parse_optional_attribute_specifier_seq(attributes);
-
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  parse_optional_nested_name_specifier(nestedNameSpecifier);
-
-  SourceLocation templateLoc;
-  const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
-
-  auto ast = make_node<ElaboratedTypeSpecifierAST>(pool_);
-  yyast = ast;
-
-  ast->classLoc = classLoc;
-  ast->attributeList = attributes;
-  ast->nestedNameSpecifier = nestedNameSpecifier;
-  ast->templateLoc = templateLoc;
-  ast->classKey = unit->tokenKind(classLoc);
-  ast->isTemplateIntroduced = isTemplateIntroduced;
-
-  const auto loc = currentLocation();
-
-  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) {
-    if (SimpleTemplateIdAST* templateId = nullptr; parse_simple_template_id(
-            templateId, nestedNameSpecifier, isTemplateIntroduced)) {
-      ast->unqualifiedId = templateId;
-    } else {
-      parse_error(loc, "expected a template-id");
-    }
-  } else if (NameIdAST* nameId = nullptr; parse_name_id(nameId)) {
-    ast->unqualifiedId = nameId;
-
-    auto symbol = Lookup{scope_}(nestedNameSpecifier, nameId->identifier);
-
-    if (ast->classKey == TokenKind::T_CLASS ||
-        ast->classKey == TokenKind::T_STRUCT ||
-        ast->classKey == TokenKind::T_UNION) {
-      for (auto symbol : SymbolChainView(symbol) | views::classes) {
-        ast->symbol = symbol;
-        specs.type = symbol->type();
-        break;
-      }
-    } else if (ast->classKey == TokenKind::T_ENUM) {
-      for (auto symbol :
-           SymbolChainView(symbol) | views::enum_or_scoped_enums) {
-        ast->symbol = symbol;
-        specs.type = symbol->type();
-        break;
-      }
-    }
-  } else {
-    parse_error(loc, "expected a name");
-  }
-
-  return true;
-}
-
-auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
+auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
   SourceLocation enumLoc;
   if (!match(TokenKind::T_ENUM, enumLoc)) return false;
@@ -6638,6 +6570,91 @@ auto Parser::parse_elaborated_enum_specifier(ElaboratedTypeSpecifierAST*& yyast,
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = name;
   ast->classKey = TokenKind::T_ENUM;
+
+  return true;
+}
+
+auto Parser::parse_elaborated_type_specifier(
+    SpecifierAST*& yyast, DeclSpecs& specs,
+    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+  if (specs.typeSpecifier) return false;
+
+  if (parse_elaborated_enum_specifier(yyast, specs)) return true;
+
+  SourceLocation classLoc;
+  if (!parse_class_key(classLoc)) return false;
+
+  List<AttributeSpecifierAST*>* attributes = nullptr;
+  parse_optional_attribute_specifier_seq(attributes);
+
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  parse_optional_nested_name_specifier(nestedNameSpecifier);
+
+  SourceLocation templateLoc;
+  const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
+
+  if (!lookat(TokenKind::T_IDENTIFIER)) return false;
+
+  const auto classKey = unit->tokenKind(classLoc);
+
+  auto ast = make_node<ElaboratedTypeSpecifierAST>(pool_);
+  yyast = ast;
+
+  ast->classLoc = classLoc;
+  ast->attributeList = attributes;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->templateLoc = templateLoc;
+  ast->classKey = unit->tokenKind(classLoc);
+  ast->isTemplateIntroduced = isTemplateIntroduced;
+
+  const Identifier* className = nullptr;
+  SimpleTemplateIdAST* templateId = nullptr;
+
+  if (parse_simple_template_id(templateId, ast->nestedNameSpecifier,
+                               ast->isTemplateIntroduced)) {
+    ast->unqualifiedId = templateId;
+    className = templateId->identifier;
+  } else {
+    // if we reach here, we have a name-id
+    NameIdAST* nameId = nullptr;
+    (void)parse_name_id(nameId);
+
+    ast->unqualifiedId = nameId;
+    className = nameId->identifier;
+  }
+
+  const auto location = ast->unqualifiedId->firstSourceLocation();
+
+  const auto _ = ScopeGuard{this};
+
+  if (ast->nestedNameSpecifier) {
+    auto parent = ast->nestedNameSpecifier->symbol;
+
+    if (parent && parent->isClassOrNamespace()) {
+      setScope(static_cast<ScopedSymbol*>(parent));
+    }
+  }
+
+  ClassSymbol* classSymbol = nullptr;
+
+  if (scope_->isClassOrNamespaceScope()) {
+    for (auto candidate : scope_->find(className) | views::classes) {
+      classSymbol = candidate;
+      break;
+    }
+  }
+
+  if (!classSymbol) {
+    const auto isUnion = classKey == TokenKind::T_UNION;
+    classSymbol = control_->newClassSymbol(scope_, location);
+
+    classSymbol->setIsUnion(isUnion);
+    classSymbol->setName(className);
+    classSymbol->setTemplateParameters(currentTemplateParameters());
+    declaringScope()->addSymbol(classSymbol);
+  }
+
+  ast->symbol = classSymbol;
 
   return true;
 }
@@ -7906,9 +7923,12 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
 
   DeclSpecs specs{this};
 
-  if (!parse_elaborated_enum_specifier(ast->enumTypeSpecifier, specs)) {
+  SpecifierAST* typeSpecifier = nullptr;
+  if (!parse_elaborated_type_specifier(typeSpecifier, specs, {})) {
     parse_error("expected an elaborated enum specifier");
   }
+
+  ast->enumTypeSpecifier = ast_cast<ElaboratedTypeSpecifierAST>(typeSpecifier);
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
@@ -9023,28 +9043,10 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
 auto Parser::parse_class_specifier(
     ClassSpecifierAST*& yyast, DeclSpecs& specs,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  if (!LA().isOneOf(TokenKind::T_CLASS, TokenKind::T_STRUCT,
-                    TokenKind::T_UNION))
-    return false;
-
   ScopeGuard scopeGuard{this};
 
   ClassHead classHead{templateDeclarations};
-
-  auto lookat_class_specifier = [&] {
-    LookaheadParser lookahead{this};
-
-    if (parse_class_head(classHead)) {
-      if (classHead.colonLoc || lookat(TokenKind::T_LBRACE)) {
-        lookahead.commit();
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  if (!lookat_class_specifier()) return false;
+  if (!parse_class_head(classHead)) return false;
 
   SourceLocation lbraceLoc;
   expect(TokenKind::T_LBRACE, lbraceLoc);
@@ -9074,6 +9076,8 @@ auto Parser::parse_class_specifier(
     parse_class_body(ast->declarationList);
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
+
+  ast->symbol->setComplete(true);
 
   return true;
 }
@@ -9106,6 +9110,8 @@ void Parser::parse_class_body(List<DeclarationAST*>*& yyast) {
 }
 
 auto Parser::parse_class_head(ClassHead& classHead) -> bool {
+  LookaheadParser lookahead{this};
+
   if (!parse_class_key(classHead.classLoc)) return false;
 
   const auto isUnion =
@@ -9113,96 +9119,80 @@ auto Parser::parse_class_head(ClassHead& classHead) -> bool {
 
   parse_optional_attribute_specifier_seq(classHead.attributeList);
 
-  auto is_class_declaration = false;
-
   if (parse_class_head_name(classHead.nestedNameSpecifier, classHead.name)) {
-    if (parse_class_virt_specifier(classHead.finalLoc)) {
-      is_class_declaration = true;
-    }
+    (void)parse_class_virt_specifier(classHead.finalLoc);
   }
 
-  if (LA().isOneOf(TokenKind::T_COLON, TokenKind::T_LBRACE)) {
-    is_class_declaration = true;
+  if (!LA().isOneOf(TokenKind::T_COLON, TokenKind::T_LBRACE)) {
+    return false;
   }
 
-  auto is_template_declaration = !classHead.templateDeclarations.empty();
+  lookahead.commit();
 
-  if (is_class_declaration && is_template_declaration &&
-      !classHead.nestedNameSpecifier) {
+  if (scope_->isTemplateParametersScope()) {
     mark_maybe_template_name(classHead.name);
   }
 
+  SimpleTemplateIdAST* templateId =
+      ast_cast<SimpleTemplateIdAST>(classHead.name);
+
+  bool isTemplateSpecialization = false;
+  if (templateId) isTemplateSpecialization = true;
+
+  const auto className = classHead.className();
+  const auto location = classHead.location();
+
+  auto templateParameters = currentTemplateParameters();
+
   if (classHead.nestedNameSpecifier) {
-    auto enclosingSymbol = classHead.nestedNameSpecifier->symbol;
-    if (!enclosingSymbol) {
-      if (config_.checkTypes) {
-        parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
-                    "unresolved nested name specifier");
-      }
-    } else {
-      Scope* enclosingScope = nullptr;
+    auto parent = classHead.nestedNameSpecifier->symbol;
 
-      if (auto alias = symbol_cast<TypeAliasSymbol>(enclosingSymbol)) {
-        if (auto classTy = type_cast<ClassType>(alias->type())) {
-          enclosingScope = classTy->symbol()->scope();
-        }
-      } else if (auto enclosingClass =
-                     symbol_cast<ClassSymbol>(enclosingSymbol)) {
-        enclosingScope = enclosingClass->scope();
-      } else if (auto enclosingNamespace =
-                     symbol_cast<NamespaceSymbol>(enclosingSymbol)) {
-        enclosingScope = enclosingNamespace->scope();
-      }
-
-      if (enclosingScope) {
-        setScope(enclosingScope);
-      } else if (config_.checkTypes) {
-        parse_error(classHead.nestedNameSpecifier->firstSourceLocation(),
-                    "unresolved nested name specifier");
-      }
+    if (parent && parent->isClassOrNamespace()) {
+      setScope(static_cast<ScopedSymbol*>(parent));
     }
   }
 
-  const Identifier* identifier = nullptr;
-  SourceLocation location;
-  bool isTemplateSpecialization = false;
-  if (const auto simpleName = ast_cast<NameIdAST>(classHead.name)) {
-    location = simpleName->identifierLoc;
-    identifier = simpleName->identifier;
-  } else if (const auto t = ast_cast<SimpleTemplateIdAST>(classHead.name)) {
-    location = t->firstSourceLocation();
-    isTemplateSpecialization = true;
-    identifier = t->identifier;
-  } else {
-    location = currentLocation();
+  ClassSymbol* primaryTemplate = nullptr;
+
+  if (templateId && scope_->isTemplateParametersScope()) {
+    for (auto candidate : declaringScope()->find(className) | views::classes) {
+      primaryTemplate = candidate;
+      break;
+    }
+
+    if (!primaryTemplate && config_.checkTypes) {
+      parse_error(location,
+                  std::format("specialization of undeclared template '{}'",
+                              className->name()));
+    }
   }
 
   ClassSymbol* classSymbol = nullptr;
 
-  if (identifier) {
-    if (!is_class_declaration && !lookat(TokenKind::T_SEMICOLON)) {
-      auto symbol = symbol_cast<ClassSymbol>(Lookup{scope_}(identifier));
-      classSymbol = symbol;
-    } else if (!isTemplateSpecialization) {
-      for (auto previousClass : scope_->find(identifier) | views::classes) {
-        if (previousClass->isComplete()) {
-          parse_error(classHead.name->firstSourceLocation(),
-                      "class name already declared");
-        } else {
-          classSymbol = previousClass;
-        }
-        break;
-      }
+  if (className) {
+    for (auto candidate : declaringScope()->find(className) | views::classes) {
+      classSymbol = candidate;
+      break;
     }
+  }
+
+  if (classSymbol && classSymbol->isComplete()) {
+    classSymbol = nullptr;
   }
 
   if (!classSymbol) {
     classSymbol = control_->newClassSymbol(scope_, location);
     classSymbol->setIsUnion(isUnion);
-    classSymbol->setName(identifier);
-    classSymbol->setTemplateParameters(currentTemplateParameters());
+    classSymbol->setName(className);
+    classSymbol->setTemplateParameters(templateParameters);
 
-    declaringScope()->addSymbol(classSymbol);
+    if (!primaryTemplate) {
+      declaringScope()->addSymbol(classSymbol);
+    } else {
+      std::vector<TemplateArgument> arguments;
+      // TODO: parse template arguments
+      primaryTemplate->addSpecialization(arguments, classSymbol);
+    }
   }
 
   classHead.symbol = classSymbol;
@@ -9225,13 +9215,9 @@ auto Parser::parse_class_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
 
   check_type_traits();
 
-  UnqualifiedIdAST* name = nullptr;
-
-  if (!parse_type_name(name, nestedNameSpecifier,
+  if (!parse_type_name(yyast, nestedNameSpecifier,
                        /*isTemplateIntroduced*/ false))
     return false;
-
-  yyast = name;
 
   return true;
 }
