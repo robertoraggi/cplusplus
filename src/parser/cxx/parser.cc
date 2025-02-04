@@ -1650,15 +1650,6 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
     return true;
   };
 
-  const auto start = currentLocation();
-
-  if (auto entry = nested_name_specifiers_.get(start)) {
-    auto [cursor, ast, parsed, hit] = *entry;
-    rewind(cursor);
-    yyast = ast;
-    return parsed;
-  }
-
   yyast = nullptr;
 
   if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
@@ -1679,8 +1670,6 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
   }
 
   const auto parsed = yyast != nullptr;
-
-  nested_name_specifiers_.set(start, currentLocation(), yyast, parsed);
 
   return parsed;
 }
