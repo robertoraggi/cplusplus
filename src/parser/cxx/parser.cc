@@ -3245,13 +3245,6 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast,
                                    const ExprContext& ctx) -> bool {
   const auto start = currentLocation();
 
-  if (auto it = cast_expressions_.get(start)) {
-    auto [endLoc, ast, parsed, hit] = *it;
-    rewind(endLoc);
-    yyast = ast;
-    return parsed;
-  }
-
   auto lookat_cast_expression = [&] {
     LookaheadParser lookahead{this};
     if (!parse_cast_expression_helper(yyast, ctx)) return false;
@@ -3259,15 +3252,9 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast,
     return true;
   };
 
-  auto parsed = lookat_cast_expression();
+  if (lookat_cast_expression()) return true;
 
-  if (!parsed) {
-    parsed = parse_unary_expression(yyast, ctx);
-  }
-
-  cast_expressions_.set(start, currentLocation(), yyast, parsed);
-
-  return parsed;
+  return parse_unary_expression(yyast, ctx);
 }
 
 auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
