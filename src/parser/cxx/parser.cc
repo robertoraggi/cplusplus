@@ -1565,6 +1565,14 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
   auto lookat_decltype_nested_name_specifier = [&] {
     LookaheadParser lookahead{this};
 
+    SourceLocation decltypeLoc;
+    if (!match(TokenKind::T_DECLTYPE, decltypeLoc)) return false;
+    if (!lookat(TokenKind::T_LPAREN)) return false;
+    if (!parse_skip_balanced()) return false;
+    if (!lookat(TokenKind::T_COLON_COLON)) return false;
+
+    rewind(decltypeLoc);
+
     DecltypeSpecifierAST* decltypeSpecifier = nullptr;
     if (!parse_decltype_specifier(decltypeSpecifier)) return false;
 
