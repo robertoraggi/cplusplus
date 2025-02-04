@@ -39,6 +39,9 @@ class Scope {
 
   [[nodiscard]] auto isTransparent() const -> bool;
   [[nodiscard]] auto isNamespaceScope() const -> bool;
+  [[nodiscard]] auto isClassScope() const -> bool;
+  [[nodiscard]] auto isClassOrNamespaceScope() const -> bool;
+  [[nodiscard]] auto isFunctionScope() const -> bool;
   [[nodiscard]] auto isBlockScope() const -> bool;
   [[nodiscard]] auto isEnumScope() const -> bool;
   [[nodiscard]] auto isTemplateParametersScope() const -> bool;

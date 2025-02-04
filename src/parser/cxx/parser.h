@@ -459,11 +459,8 @@ class Parser final {
   [[nodiscard]] auto parse_elaborated_type_specifier(
       SpecifierAST*& yyast, DeclSpecs& specs,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
-  [[nodiscard]] auto parse_elaborated_type_specifier_helper(
-      ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
-  [[nodiscard]] auto parse_elaborated_enum_specifier(
-      ElaboratedTypeSpecifierAST*& yyast, DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_elaborated_enum_specifier(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decltype_specifier(DecltypeSpecifierAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_placeholder_type_specifier(SpecifierAST*& yyast,
