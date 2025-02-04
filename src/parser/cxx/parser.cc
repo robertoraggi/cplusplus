@@ -4180,9 +4180,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
-  LookaheadParser lookahead{this};
-
+auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   SourceLocation forLoc;
   if (!match(TokenKind::T_FOR, forLoc)) return false;
 
@@ -4190,63 +4188,56 @@ auto Parser::parse_for_range_statement(StatementAST*& yyast) -> bool {
 
   auto parentScope = scope_;
   auto blockSymbol = control_->newBlockSymbol(scope_, forLoc);
+  parentScope->addSymbol(blockSymbol);
+
   setScope(blockSymbol);
 
   SourceLocation lparenLoc;
-  if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
+  expect(TokenKind::T_LPAREN, lparenLoc);
 
   StatementAST* initializer = nullptr;
   parse_init_statement(initializer);
 
   DeclarationAST* rangeDeclaration = nullptr;
-  if (!parse_for_range_declaration(rangeDeclaration)) return false;
-
   SourceLocation colonLoc;
-  if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  lookahead.commit();
+  auto lookat_for_range_declaration = [&] {
+    LookaheadParser lookahead{this};
 
-  parentScope->addSymbol(blockSymbol);
+    if (!parse_for_range_declaration(rangeDeclaration)) return false;
 
-  auto ast = make_node<ForRangeStatementAST>(pool_);
-  yyast = ast;
+    if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  ast->forLoc = forLoc;
-  ast->rangeDeclaration = rangeDeclaration;
-  ast->lparenLoc = lparenLoc;
-  ast->initializer = initializer;
-  ast->colonLoc = colonLoc;
+    lookahead.commit();
 
-  parse_for_range_initializer(ast->rangeInitializer);
+    return true;
+  };
 
-  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  if (lookat_for_range_declaration()) {
+    auto ast = make_node<ForRangeStatementAST>(pool_);
+    yyast = ast;
 
-  parse_statement(ast->statement);
+    ast->forLoc = forLoc;
+    ast->rangeDeclaration = rangeDeclaration;
+    ast->lparenLoc = lparenLoc;
+    ast->initializer = initializer;
+    ast->colonLoc = colonLoc;
 
-  return true;
-}
+    parse_for_range_initializer(ast->rangeInitializer);
 
-auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
-  if (parse_for_range_statement(yyast)) return true;
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  SourceLocation forLoc;
+    parse_statement(ast->statement);
 
-  if (!match(TokenKind::T_FOR, forLoc)) return false;
-
-  ScopeGuard scopeGuard{this};
-
-  auto blockSymbol = control_->newBlockSymbol(scope_, forLoc);
-  scope_->addSymbol(blockSymbol);
-  setScope(blockSymbol);
+    return true;
+  }
 
   auto ast = make_node<ForStatementAST>(pool_);
   yyast = ast;
 
   ast->forLoc = forLoc;
-
-  expect(TokenKind::T_LPAREN, ast->lparenLoc);
-
-  parse_init_statement(ast->initializer);
+  ast->lparenLoc = lparenLoc;
+  ast->initializer = initializer;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
     parse_condition(ast->condition, ExprContext{});
