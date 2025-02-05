@@ -30,7 +30,7 @@ namespace cxx {
 
 using ConstValue =
     std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, std::uint64_t,
-                 float, double, long double, const StringLiteral*>;
+                 const StringLiteral*, float, double, long double>;
 
 template <typename T>
 struct ArithmeticConversion {
