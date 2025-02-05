@@ -77,7 +77,6 @@ class Parser final {
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
-  struct ClassHead;
   struct GetDeclaratorType;
 
   enum struct BindingContext {
@@ -179,9 +178,6 @@ class Parser final {
 
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          IdExpressionContext ctx) -> bool;
-  [[nodiscard]] auto parse_maybe_template_id(
-      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced, bool inRequiresClause) -> bool;
   [[nodiscard]] auto parse_unqualified_id(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced, bool inRequiresClause) -> bool;
@@ -633,10 +629,6 @@ class Parser final {
       ClassSpecifierAST*& yyast, DeclSpecs& specs,
       const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   void parse_class_body(List<DeclarationAST*>*& yyast);
-  [[nodiscard]] auto parse_class_head(ClassHead& classHead) -> bool;
-  [[nodiscard]] auto parse_class_head_name(
-      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& yyast)
-      -> bool;
   [[nodiscard]] auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
   [[nodiscard]] auto parse_member_specification(DeclarationAST*& yyast) -> bool;
@@ -673,9 +665,8 @@ class Parser final {
       -> bool;
   void parse_mem_initializer_list(List<MemInitializerAST*>*& yyast);
   void parse_mem_initializer(MemInitializerAST*& yyast);
-  [[nodiscard]] auto parse_mem_initializer_id(
-      NestedNameSpecifierAST*& nestedNameSpecifier, UnqualifiedIdAST*& yyast)
-      -> bool;
+  void parse_mem_initializer_id(NestedNameSpecifierAST*& nestedNameSpecifier,
+                                UnqualifiedIdAST*& yyast);
   [[nodiscard]] auto parse_operator_function_id(OperatorFunctionIdAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_operator(TokenKind& op, SourceLocation& opLoc,
@@ -706,9 +697,8 @@ class Parser final {
   [[nodiscard]] auto parse_type_constraint(TypeConstraintAST*& yyast,
                                            bool parsingPlaceholderTypeSpec)
       -> bool;
-  [[nodiscard]] auto parse_simple_template_or_name_id(
-      UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced) -> bool;
+  [[nodiscard]] auto parse_simple_template_id(SimpleTemplateIdAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_simple_template_id(
       SimpleTemplateIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced = false) -> bool;
