@@ -2919,6 +2919,21 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
   ast->op = unit->tokenKind(opLoc);
   ast->expression = expression;
 
+  switch (ast->op) {
+    case TokenKind::T_STAR: {
+      auto pointerType = type_cast<PointerType>(expression->type);
+      if (pointerType) {
+        ensure_prvalue(ast->expression);
+        ast->type = pointerType->elementType();
+        ast->valueCategory = ValueCategory::kLValue;
+      }
+      break;
+    }
+
+    default:
+      break;
+  }  // switch
+
   return true;
 }
 
@@ -6363,6 +6378,23 @@ auto Parser::temporary_materialization_conversion(ExpressionAST*& expr)
 auto Parser::qualification_conversion(ExpressionAST*& expr,
                                       const Type* destinationType) -> bool {
   return false;
+}
+
+void Parser::ensure_prvalue(ExpressionAST*& expr) {
+  if (lvalue_to_rvalue_conversion(expr)) {
+    expr->valueCategory = ValueCategory::kPrValue;
+    return;
+  }
+
+  if (array_to_pointer_conversion(expr)) {
+    expr->valueCategory = ValueCategory::kPrValue;
+    return;
+  }
+
+  if (function_to_pointer_conversion(expr)) {
+    expr->valueCategory = ValueCategory::kPrValue;
+    return;
+  }
 }
 
 auto Parser::implicit_conversion(ExpressionAST*& expr,
