@@ -106,9 +106,11 @@ end:;
 // CHECK-NEXT:                    constraint-literal: "+rm"
 // CHECK-NEXT:                    expression: unary-expression
 // CHECK-NEXT:                      op: *
-// CHECK-NEXT:                      expression: id-expression
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: p
+// CHECK-NEXT:                      expression: implicit-cast-expression
+// CHECK-NEXT:                        cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                        expression: id-expression
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: p
 // CHECK-NEXT:    function-definition
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        void-type-specifier

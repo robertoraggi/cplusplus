@@ -858,6 +858,8 @@ class Parser final {
                                               const Type* destinationType)
       -> bool;
 
+  void ensure_prvalue(ExpressionAST*& expr);
+
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool;
 
