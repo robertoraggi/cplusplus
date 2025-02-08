@@ -2009,6 +2009,31 @@ auto Parser::parse_this_expression(ExpressionAST*& yyast) -> bool {
   auto ast = make_node<ThisExpressionAST>(pool_);
   yyast = ast;
   ast->thisLoc = thisLoc;
+  ast->valueCategory = ValueCategory::kPrValue;
+
+  for (auto current = scope_; current; current = current->parent()) {
+    if (auto classSymbol = symbol_cast<ClassSymbol>(current->owner())) {
+      // maybe a this expression in a field initializer
+      ast->type = control_->getPointerType(classSymbol->type());
+      break;
+    }
+
+    if (auto functionSymbol = symbol_cast<FunctionSymbol>(current->owner())) {
+      if (auto classSymbol =
+              symbol_cast<ClassSymbol>(functionSymbol->enclosingSymbol())) {
+        auto functionType = type_cast<FunctionType>(functionSymbol->type());
+        const auto cv = functionType->cvQualifiers();
+        if (cv != CvQualifiers::kNone) {
+          auto elementType = control_->getQualType(classSymbol->type(), cv);
+          ast->type = control_->getPointerType(elementType);
+        } else {
+          ast->type = control_->getPointerType(classSymbol->type());
+        }
+      }
+
+      break;
+    }
+  }
 
   return true;
 }
