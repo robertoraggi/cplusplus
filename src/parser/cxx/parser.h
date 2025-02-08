@@ -88,6 +88,11 @@ class Parser final {
     kCondition,
   };
 
+  enum struct NestedNameSpecifierContext {
+    kNonDeclarative,
+    kDeclarative,
+  };
+
   enum struct Prec {
     kLogicalOr,
     kLogicalAnd,
@@ -181,8 +186,17 @@ class Parser final {
   [[nodiscard]] auto parse_unqualified_id(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced, bool inRequiresClause) -> bool;
-  void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast);
-  [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast)
+  void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast,
+                                            NestedNameSpecifierContext ctx);
+  [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
+                                                 NestedNameSpecifierContext ctx)
+      -> bool;
+  [[nodiscard]] auto parse_decltype_nested_name_specifier(
+      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool;
+  [[nodiscard]] auto parse_type_nested_name_specifier(
+      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool;
+  [[nodiscard]] auto parse_template_nested_name_specifier(
+      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx, int depth)
       -> bool;
   [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_specifier_seq(
