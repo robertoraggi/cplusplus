@@ -729,6 +729,10 @@ auto FloatLiteral::Components::from(std::string_view text,
   const auto firstChar = literalText.data();
   components.value = strtod(firstChar, nullptr);
 
+  components.isFloat = components.suffix == FloatingPointSuffix::kF;
+  components.isLongDouble = components.suffix == FloatingPointSuffix::kL;
+  components.isDouble = !components.isFloat && !components.isLongDouble;
+
   return components;
 }
 

@@ -2930,6 +2930,22 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
       break;
     }
 
+    case cxx::TokenKind::T_PLUS: {
+      ExpressionAST* expr = ast->expression;
+      ensure_prvalue(expr);
+      auto ty = control_->remove_cvref(expr->type);
+      if (control_->is_arithmetic_or_unscoped_enum(ty) ||
+          control_->is_pointer(ty)) {
+        if (control_->is_integral_or_unscoped_enum(ty)) {
+          (void)integral_promotion(expr);
+        }
+        ast->expression = expr;
+        ast->type = expr->type;
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+      break;
+    }
+
     default:
       break;
   }  // switch
