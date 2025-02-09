@@ -49,11 +49,11 @@ class Lookup {
   [[nodiscard]] auto lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
                                 const Identifier* id) const -> Symbol*;
 
- private:
-  [[nodiscard]] auto unqualifiedLookup(const Name* name) const -> Symbol*;
-
   [[nodiscard]] auto qualifiedLookup(Scope* scope, const Name* name) const
       -> Symbol*;
+
+ private:
+  [[nodiscard]] auto unqualifiedLookup(const Name* name) const -> Symbol*;
 
   [[nodiscard]] auto qualifiedLookup(Symbol* scopedSymbol,
                                      const Name* name) const -> Symbol*;

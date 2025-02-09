@@ -242,8 +242,13 @@ struct SizeOf {
 struct AlignmentOf {
   const MemoryLayout& memoryLayout;
 
+  auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
+    return type->symbol()->alignment();
+  }
+
   auto operator()(auto type) const -> std::optional<std::size_t> {
     // ### TODO
+    if (!type) return std::nullopt;
     return memoryLayout.sizeOf(type);
   }
 };
@@ -297,11 +302,13 @@ void MemoryLayout::setSizeOfLongDouble(std::size_t sizeOfLongDouble) {
 
 auto MemoryLayout::sizeOf(const Type* type) const
     -> std::optional<std::size_t> {
+  if (!type) return std::nullopt;
   return visit(SizeOf{*this}, type);
 }
 
 auto MemoryLayout::alignmentOf(const Type* type) const
     -> std::optional<std::size_t> {
+  if (!type) return std::nullopt;
   return visit(AlignmentOf{*this}, type);
 }
 
