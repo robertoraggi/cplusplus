@@ -2963,6 +2963,13 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
       break;
     }
 
+    case TokenKind::T_EXCLAIM: {
+      (void)implicit_conversion(ast->expression, control_->getBoolType());
+      ast->type = control_->getBoolType();
+      ast->valueCategory = ValueCategory::kPrValue;
+      break;
+    }
+
     default:
       break;
   }  // switch
