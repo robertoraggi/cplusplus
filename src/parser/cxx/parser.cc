@@ -1562,6 +1562,7 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   return true;
 }
 
+namespace {
 struct IsReferencingTemplateParameter {
   Parser& p;
   int depth = 0;
@@ -1592,6 +1593,7 @@ struct IsReferencingTemplateParameter {
     return false;
   }
 };
+}  // namespace
 
 auto Parser::parse_template_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx, int depth)
@@ -2930,12 +2932,27 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
       break;
     }
 
-    case cxx::TokenKind::T_PLUS: {
+    case TokenKind::T_PLUS: {
       ExpressionAST* expr = ast->expression;
       ensure_prvalue(expr);
       auto ty = control_->remove_cvref(expr->type);
       if (control_->is_arithmetic_or_unscoped_enum(ty) ||
           control_->is_pointer(ty)) {
+        if (control_->is_integral_or_unscoped_enum(ty)) {
+          (void)integral_promotion(expr);
+        }
+        ast->expression = expr;
+        ast->type = expr->type;
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+      break;
+    }
+
+    case TokenKind::T_MINUS: {
+      ExpressionAST* expr = ast->expression;
+      ensure_prvalue(expr);
+      auto ty = control_->remove_cvref(expr->type);
+      if (control_->is_arithmetic_or_unscoped_enum(ty)) {
         if (control_->is_integral_or_unscoped_enum(ty)) {
           (void)integral_promotion(expr);
         }
