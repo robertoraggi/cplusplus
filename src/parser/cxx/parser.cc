@@ -25,6 +25,7 @@
 #include <cxx/const_expression_evaluator.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/name_printer.h>
 #include <cxx/names.h>
@@ -34,6 +35,7 @@
 #include <cxx/token.h>
 #include <cxx/type_printer.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
 #include <cxx/views/symbol_chain.h>
 
 #include <algorithm>
@@ -41,12 +43,6 @@
 #include <format>
 #include <ranges>
 #include <unordered_set>
-
-#include "cxx/cxx_fwd.h"
-#include "cxx/parser_fwd.h"
-#include "cxx/source_location.h"
-#include "cxx/symbols_fwd.h"
-#include "cxx/token_fwd.h"
 
 namespace cxx {
 
@@ -2651,6 +2647,19 @@ auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
   expect(TokenKind::T_COMMA, ast->commaLoc);
   parse_expression(ast->expression, ctx);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  auto classType = type_cast<ClassType>(ast->typeId->type);
+  auto id = ast_cast<IdExpressionAST>(ast->expression);
+
+  if (classType && id && !id->nestedNameSpecifier) {
+    auto symbol = classType->symbol();
+    auto name = convertName(id->unqualifiedId);
+    auto member = Lookup{scope_}.qualifiedLookup(symbol->scope(), name);
+    auto field = symbol_cast<FieldSymbol>(member);
+    ast->symbol = field;
+  }
+
+  ast->type = control_->getSizeType();
 
   return true;
 }
@@ -5631,7 +5640,10 @@ auto Parser::parse_defining_type_specifier(
     if (parse_enum_specifier(yyast, specs)) {
       lookahead.commit();
 
+      auto enumSpec = ast_cast<EnumSpecifierAST>(yyast);
+
       specs.setTypeSpecifier(yyast);
+      specs.type = enumSpec->symbol->type();
 
       return true;
     }
@@ -5641,6 +5653,7 @@ auto Parser::parse_defining_type_specifier(
       lookahead.commit();
 
       specs.setTypeSpecifier(classSpecifier);
+      specs.type = classSpecifier->symbol->type();
       yyast = classSpecifier;
 
       return true;
@@ -6867,6 +6880,7 @@ auto Parser::parse_elaborated_type_specifier(
   }
 
   ast->symbol = classSymbol;
+  specs.type = classSymbol->type();
 
   return true;
 }
@@ -7971,6 +7985,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->colonLoc = colonLoc;
   ast->typeSpecifierList = typeSpecifierList;
   ast->lbraceLoc = lbraceLoc;
+  ast->symbol = symbol;
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     parse_enumerator_list(ast->enumeratorList, symbol->type());
@@ -9416,7 +9431,69 @@ auto Parser::parse_class_specifier(
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  ast->symbol->setComplete(true);
+  if (!is_template(classSymbol)) {
+    int offset = 0;
+    int alignment = 1;
+
+    for (auto base : classSymbol->baseClasses()) {
+      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+
+      if (!baseClassSymbol) {
+        if (config_.checkTypes) {
+          parse_error(base->location(), std::format("base class '{}' not found",
+                                                    to_string(base->name())));
+        }
+        continue;
+      }
+
+      offset = align_to(offset, baseClassSymbol->alignment());
+      offset += baseClassSymbol->sizeInBytes();
+      alignment = std::max(alignment, baseClassSymbol->alignment());
+    }
+
+    for (auto member : classSymbol->scope()->symbols()) {
+      auto field = symbol_cast<FieldSymbol>(member);
+      if (!field) continue;
+      if (field->isStatic()) continue;
+
+      if (!field->alignment()) {
+        if (config_.checkTypes) {
+          parse_error(field->location(),
+                      std::format("alignment of incomplete type '{}'",
+                                  to_string(field->type(), field->name())));
+        }
+        continue;
+      }
+
+      auto size = control_->memoryLayout()->sizeOf(field->type());
+
+      if (!size.has_value()) {
+        if (config_.checkTypes) {
+          parse_error(field->location(),
+                      std::format("size of incomplete type '{}'",
+                                  to_string(field->type(), field->name())));
+        }
+        continue;
+      }
+
+      if (classSymbol->isUnion()) {
+        offset = std::max(offset, int(size.value()));
+      } else {
+        offset = align_to(offset, field->alignment());
+        field->setOffset(offset);
+        offset += size.value();
+      }
+
+      alignment = std::max(alignment, field->alignment());
+    }
+
+    offset = align_to(offset, alignment);
+
+    classSymbol->setAlignment(alignment);
+    classSymbol->setSizeInBytes(offset);
+  }
+
+  classSymbol->setComplete(true);
 
   return true;
 }
@@ -9798,6 +9875,9 @@ auto Parser::declareField(DeclaratorAST* declarator, const Decl& decl)
   applySpecifiers(fieldSymbol, decl.specs);
   fieldSymbol->setName(name);
   fieldSymbol->setType(type);
+  if (auto alignment = control_->memoryLayout()->alignmentOf(type)) {
+    fieldSymbol->setAlignment(alignment.value());
+  }
   scope_->addSymbol(fieldSymbol);
   return fieldSymbol;
 }

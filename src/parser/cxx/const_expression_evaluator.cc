@@ -32,6 +32,7 @@
 #include <cxx/types.h>
 
 #include <format>
+#include <optional>
 
 namespace cxx {
 
@@ -214,6 +215,7 @@ auto ConstExpressionEvaluator::operator()(BuiltinBitCastExpressionAST* ast)
 
 auto ConstExpressionEvaluator::operator()(BuiltinOffsetofExpressionAST* ast)
     -> std::optional<ConstValue> {
+  if (ast->symbol) return ast->symbol->offset();
   return std::nullopt;
 }
 

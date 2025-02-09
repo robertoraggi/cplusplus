@@ -178,7 +178,15 @@ auto ClassSymbol::isComplete() const -> bool { return isComplete_; }
 
 void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
 
-auto ClassSymbol::sizeInBytes() const -> std::size_t { return sizeInBytes_; }
+auto ClassSymbol::sizeInBytes() const -> int { return sizeInBytes_; }
+
+void ClassSymbol::setSizeInBytes(int sizeInBytes) {
+  sizeInBytes_ = sizeInBytes;
+}
+
+auto ClassSymbol::alignment() const -> int { return alignment_; }
+
+void ClassSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
 auto ClassSymbol::hasBaseClass(Symbol* symbol) const -> bool {
   std::unordered_set<const ClassSymbol*> processed;
@@ -492,6 +500,14 @@ void FieldSymbol::setConstinit(bool isConstinit) { isConstinit_ = isConstinit; }
 auto FieldSymbol::isInline() const -> bool { return isInline_; }
 
 void FieldSymbol::setInline(bool isInline) { isInline_ = isInline; }
+
+auto FieldSymbol::offset() const -> int { return offset_; }
+
+void FieldSymbol::setOffset(int offset) { offset_ = offset; }
+
+auto FieldSymbol::alignment() const -> int { return alignment_; }
+
+void FieldSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
 ParameterSymbol::ParameterSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}

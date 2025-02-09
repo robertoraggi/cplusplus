@@ -251,7 +251,11 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto isComplete() const -> bool;
   void setComplete(bool isComplete);
 
-  [[nodiscard]] auto sizeInBytes() const -> std::size_t;
+  [[nodiscard]] auto sizeInBytes() const -> int;
+  void setSizeInBytes(int sizeInBytes);
+
+  [[nodiscard]] auto alignment() const -> int;
+  void setAlignment(int alignment);
 
   [[nodiscard]] auto hasBaseClass(Symbol* symbol) const -> bool;
 
@@ -305,7 +309,8 @@ class ClassSymbol final : public ScopedSymbol {
   std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
   ClassSymbol* templateClass_ = nullptr;
   std::size_t templateSepcializationIndex_ = 0;
-  std::size_t sizeInBytes_ = 0;
+  int sizeInBytes_ = 0;
+  int alignment_ = 0;
   union {
     std::uint32_t flags_{};
     struct {
@@ -566,6 +571,12 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto isInline() const -> bool;
   void setInline(bool isInline);
 
+  [[nodiscard]] auto offset() const -> int;
+  void setOffset(int offset);
+
+  [[nodiscard]] auto alignment() const -> int;
+  void setAlignment(int alignment);
+
  private:
   union {
     std::uint32_t flags_{};
@@ -577,6 +588,8 @@ class FieldSymbol final : public Symbol {
       std::uint32_t isInline_ : 1;
     };
   };
+  int offset_{};
+  int alignment_{};
 };
 
 class ParameterSymbol final : public Symbol {

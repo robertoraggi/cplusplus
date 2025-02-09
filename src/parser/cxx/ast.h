@@ -1640,6 +1640,7 @@ class BuiltinOffsetofExpressionAST final : public ExpressionAST {
   SourceLocation commaLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+  FieldSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3156,6 +3157,7 @@ class EnumSpecifierAST final : public SpecifierAST {
   SourceLocation commaLoc;
   List<EnumeratorAST*>* enumeratorList = nullptr;
   SourceLocation rbraceLoc;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
