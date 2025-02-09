@@ -307,7 +307,29 @@ struct Parser::GetDeclaratorType {
     }
   }
 
-  void operator()(PtrToMemberOperatorAST* ast) {}
+  void operator()(PtrToMemberOperatorAST* ast) {
+    if (!type_) return;
+
+    auto symbol = ast->nestedNameSpecifier->symbol;
+    if (!symbol) return;
+
+    auto classType = type_cast<ClassType>(symbol->type());
+    if (!classType) return;
+
+    if (auto functionType = type_cast<FunctionType>(type_)) {
+      type_ = control()->getMemberFunctionPointerType(classType, functionType);
+    } else {
+      type_ = control()->getMemberObjectPointerType(classType, type_);
+    }
+
+    for (auto it = ast->cvQualifierList; it; it = it->next) {
+      if (ast_cast<ConstQualifierAST>(it->value)) {
+        type_ = control()->getConstType(type_);
+      } else if (ast_cast<VolatileQualifierAST>(it->value)) {
+        type_ = control()->getVolatileType(type_);
+      }
+    }
+  }
 
   void operator()(BitfieldDeclaratorAST* ast) {}
 
@@ -2929,6 +2951,53 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
         ast->type = pointerType->elementType();
         ast->valueCategory = ValueCategory::kLValue;
       }
+      break;
+    }
+
+    case TokenKind::T_AMP: {
+      if (!ast->expression->type) {
+        break;
+      }
+
+      if (!is_glvalue(ast->expression)) {
+        break;
+      }
+
+      // TODO xvalue to lvalue
+
+      if (auto idExpr = ast_cast<IdExpressionAST>(ast->expression);
+          idExpr && idExpr->nestedNameSpecifier) {
+        auto symbol = idExpr->symbol;
+        if (auto field = symbol_cast<FieldSymbol>(symbol);
+            field && !field->isStatic()) {
+          auto parentClass = field->enclosingSymbol();
+          auto classType = type_cast<ClassType>(parentClass->type());
+
+          ast->type =
+              control_->getMemberObjectPointerType(classType, field->type());
+
+          ast->valueCategory = ValueCategory::kPrValue;
+
+          break;
+        }
+
+        if (auto function = symbol_cast<FunctionSymbol>(symbol);
+            function && !function->isStatic()) {
+          auto functionType = type_cast<FunctionType>(function->type());
+          auto parentClass = function->enclosingSymbol();
+          auto classType = type_cast<ClassType>(parentClass->type());
+
+          ast->type =
+              control_->getMemberFunctionPointerType(classType, functionType);
+
+          ast->valueCategory = ValueCategory::kPrValue;
+
+          break;
+        }
+      }  // id expression
+
+      ast->type = control_->getPointerType(ast->expression->type);
+      ast->valueCategory = ValueCategory::kPrValue;
       break;
     }
 
@@ -5983,6 +6052,13 @@ void Parser::check_type_traits() {
 #endif
 
   rewind(typeTraitLoc);
+}
+
+auto Parser::strip_parentheses(ExpressionAST* ast) -> ExpressionAST* {
+  while (auto paren = ast_cast<NestedExpressionAST>(ast)) {
+    ast = paren->expression;
+  }
+  return ast;
 }
 
 auto Parser::lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool {

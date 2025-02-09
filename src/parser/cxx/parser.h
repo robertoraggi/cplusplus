@@ -827,6 +827,8 @@ class Parser final {
 
   void check_type_traits();
 
+  [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
+
   // standard conversions
   [[nodiscard]] auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;
   [[nodiscard]] auto array_to_pointer_conversion(ExpressionAST*& expr) -> bool;
