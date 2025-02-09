@@ -2970,6 +2970,19 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
       break;
     }
 
+    case TokenKind::T_TILDE: {
+      ExpressionAST* expr = ast->expression;
+      ensure_prvalue(expr);
+      auto ty = control_->remove_cvref(expr->type);
+      if (control_->is_integral_or_unscoped_enum(ty)) {
+        (void)integral_promotion(expr);
+        ast->expression = expr;
+        ast->type = expr->type;
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+      break;
+    }
+
     default:
       break;
   }  // switch
