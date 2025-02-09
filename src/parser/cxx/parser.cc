@@ -2902,26 +2902,16 @@ auto Parser::parse_expression_list(List<ExpressionAST*>*& yyast,
 
 auto Parser::parse_unary_expression(ExpressionAST*& yyast,
                                     const ExprContext& ctx) -> bool {
-  if (parse_unop_expression(yyast, ctx))
-    return true;
-  else if (parse_complex_expression(yyast, ctx))
-    return true;
-  else if (parse_await_expression(yyast, ctx))
-    return true;
-  else if (parse_sizeof_expression(yyast, ctx))
-    return true;
-  else if (parse_alignof_expression(yyast, ctx))
-    return true;
-  else if (parse_noexcept_expression(yyast, ctx))
-    return true;
-  else if (parse_new_expression(yyast, ctx))
-    return true;
-  else if (parse_delete_expression(yyast, ctx))
-    return true;
-  else if (parse_reflect_expression(yyast, ctx))
-    return true;
-  else
-    return parse_postfix_expression(yyast, ctx);
+  if (parse_unop_expression(yyast, ctx)) return true;
+  if (parse_complex_expression(yyast, ctx)) return true;
+  if (parse_await_expression(yyast, ctx)) return true;
+  if (parse_sizeof_expression(yyast, ctx)) return true;
+  if (parse_alignof_expression(yyast, ctx)) return true;
+  if (parse_noexcept_expression(yyast, ctx)) return true;
+  if (parse_new_expression(yyast, ctx)) return true;
+  if (parse_delete_expression(yyast, ctx)) return true;
+  if (parse_reflect_expression(yyast, ctx)) return true;
+  return parse_postfix_expression(yyast, ctx);
 }
 
 auto Parser::parse_unop_expression(ExpressionAST*& yyast,
@@ -3049,6 +3039,52 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
         ast->type = expr->type;
         ast->valueCategory = ValueCategory::kPrValue;
       }
+      break;
+    }
+
+    case TokenKind::T_PLUS_PLUS: {
+      if (!is_glvalue(ast->expression)) {
+        break;
+      }
+
+      auto ty = ast->expression->type;
+
+      if (control_->is_arithmetic(ty) && !control_->is_const(ty)) {
+        ast->type = ty;
+        ast->valueCategory = ValueCategory::kLValue;
+        break;
+      }
+
+      if (auto ptrTy = type_cast<PointerType>(ty)) {
+        if (ptrTy && !control_->is_void(ptrTy->elementType())) {
+          ast->type = ptrTy;
+          ast->valueCategory = ValueCategory::kLValue;
+        }
+      }
+
+      break;
+    }
+
+    case TokenKind::T_MINUS_MINUS: {
+      if (!is_glvalue(ast->expression)) {
+        break;
+      }
+
+      auto ty = ast->expression->type;
+
+      if (control_->is_arithmetic(ty) && !control_->is_const(ty)) {
+        ast->type = ty;
+        ast->valueCategory = ValueCategory::kLValue;
+        break;
+      }
+
+      if (auto ptrTy = type_cast<PointerType>(ty)) {
+        if (ptrTy && !control_->is_void(ptrTy->elementType())) {
+          ast->type = ptrTy;
+          ast->valueCategory = ValueCategory::kLValue;
+        }
+      }
+
       break;
     }
 
