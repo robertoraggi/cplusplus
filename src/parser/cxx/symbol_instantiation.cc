@@ -23,9 +23,12 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/memory_layout.h>
+#include <cxx/name_printer.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 #include <format>
@@ -185,9 +188,19 @@ auto SymbolInstantiation::findOrCreateReplacement(Symbol* symbol) -> Symbol* {
   replacements_[symbol] = newSymbol;
 
   auto enclosingSymbol = replacement(symbol->enclosingSymbol());
+
   newSymbol->setEnclosingScope(enclosingSymbol->scope());
+
   if (symbol->type()) {
     newSymbol->setType(visit(VisitType{*this}, symbol->type()));
+
+    auto field = symbol_cast<FieldSymbol>(newSymbol);
+
+    if (field) {
+      auto memoryLayout = control()->memoryLayout();
+      auto alignment = memoryLayout->alignmentOf(newSymbol->type());
+      field->setAlignment(alignment.value_or(0));
+    }
   }
 
   newSymbol->setName(symbol->name());
@@ -217,6 +230,10 @@ auto SymbolInstantiation::VisitSymbol::operator()(ClassSymbol* symbol)
   auto newSymbol = self.replacement(symbol);
   newSymbol->setFlags(symbol->flags());
 
+  if (symbol->isComplete()) {
+    newSymbol->setComplete(true);
+  }
+
   if (symbol != self.current_) {
     newSymbol->setTemplateParameters(
         self.instantiate(symbol->templateParameters()));
@@ -226,14 +243,19 @@ auto SymbolInstantiation::VisitSymbol::operator()(ClassSymbol* symbol)
     auto newBaseClass = self.instantiate(baseClass);
     newSymbol->addBaseClass(newBaseClass);
   }
+
   for (auto ctor : symbol->constructors()) {
     auto newCtor = self.instantiate(ctor);
     newSymbol->addConstructor(newCtor);
   }
+
   for (auto member : views::members(symbol)) {
     auto newMember = self.instantiate(member);
     newSymbol->addMember(newMember);
   }
+
+  auto status = newSymbol->buildClassLayout(self.control());
+
   return newSymbol;
 }
 

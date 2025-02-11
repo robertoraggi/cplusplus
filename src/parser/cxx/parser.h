@@ -911,6 +911,7 @@ class Parser final {
   int templateParameterCount_ = 0;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
+  bool inTemplate_ = false;
 
   template <typename T>
   class CachedAST {

@@ -27,6 +27,7 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <expected>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -297,6 +298,9 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto templateSepcializationIndex() const -> std::size_t {
     return templateSepcializationIndex_;
   }
+
+  [[nodiscard]] auto buildClassLayout(Control* control)
+      -> std::expected<bool, std::string>;
 
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,

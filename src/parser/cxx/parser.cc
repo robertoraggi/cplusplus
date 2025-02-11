@@ -5272,29 +5272,33 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
-  bool value = false;
+  if (!inTemplate_) {
+    // not in a template context
 
-  if (constValue.has_value()) {
-    value = visit(to_bool, *constValue);
-  }
+    bool value = false;
 
-  if (!value && config_.staticAssert) {
-    SourceLocation loc = ast->firstSourceLocation();
+    if (constValue.has_value()) {
+      value = visit(to_bool, *constValue);
+    }
 
-    if (!ast->expression || !constValue.has_value()) {
-      parse_error(
-          loc,
-          "static assertion expression is not an integral constant expression");
-    } else {
-      if (ast->literalLoc)
-        loc = ast->literalLoc;
-      else if (ast->expression)
-        ast->expression->firstSourceLocation();
+    if (!value && config_.staticAssert) {
+      SourceLocation loc = ast->firstSourceLocation();
 
-      std::string message =
-          ast->literal ? ast->literal->value() : "static assert failed";
+      if (!ast->expression || !constValue.has_value()) {
+        parse_error(loc,
+                    "static assertion expression is not an integral constant "
+                    "expression");
+      } else {
+        if (ast->literalLoc)
+          loc = ast->literalLoc;
+        else if (ast->expression)
+          ast->expression->firstSourceLocation();
 
-      unit->error(loc, std::move(message));
+        std::string message =
+            ast->literal ? ast->literal->value() : "static assert failed";
+
+        unit->error(loc, std::move(message));
+      }
     }
   }
 
@@ -9431,66 +9435,11 @@ auto Parser::parse_class_specifier(
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  if (!is_template(classSymbol)) {
-    int offset = 0;
-    int alignment = 1;
-
-    for (auto base : classSymbol->baseClasses()) {
-      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-
-      if (!baseClassSymbol) {
-        if (config_.checkTypes) {
-          parse_error(base->location(), std::format("base class '{}' not found",
-                                                    to_string(base->name())));
-        }
-        continue;
-      }
-
-      offset = align_to(offset, baseClassSymbol->alignment());
-      offset += baseClassSymbol->sizeInBytes();
-      alignment = std::max(alignment, baseClassSymbol->alignment());
+  if (!inTemplate_) {
+    auto status = classSymbol->buildClassLayout(control_);
+    if (!status.has_value() && config_.checkTypes) {
+      parse_error(classSymbol->location(), status.error());
     }
-
-    for (auto member : classSymbol->scope()->symbols()) {
-      auto field = symbol_cast<FieldSymbol>(member);
-      if (!field) continue;
-      if (field->isStatic()) continue;
-
-      if (!field->alignment()) {
-        if (config_.checkTypes) {
-          parse_error(field->location(),
-                      std::format("alignment of incomplete type '{}'",
-                                  to_string(field->type(), field->name())));
-        }
-        continue;
-      }
-
-      auto size = control_->memoryLayout()->sizeOf(field->type());
-
-      if (!size.has_value()) {
-        if (config_.checkTypes) {
-          parse_error(field->location(),
-                      std::format("size of incomplete type '{}'",
-                                  to_string(field->type(), field->name())));
-        }
-        continue;
-      }
-
-      if (classSymbol->isUnion()) {
-        offset = std::max(offset, int(size.value()));
-      } else {
-        offset = align_to(offset, field->alignment());
-        field->setOffset(offset);
-        offset += size.value();
-      }
-
-      alignment = std::max(alignment, field->alignment());
-    }
-
-    offset = align_to(offset, alignment);
-
-    classSymbol->setAlignment(alignment);
-    classSymbol->setSizeInBytes(offset);
   }
 
   classSymbol->setComplete(true);
@@ -11506,7 +11455,18 @@ void Parser::completePendingFunctionDefinitions() {
   }
 }
 
-void Parser::setScope(Scope* scope) { scope_ = scope; }
+void Parser::setScope(Scope* scope) {
+  scope_ = scope;
+
+  inTemplate_ = false;
+
+  for (auto current = scope_; current; current = current->parent()) {
+    if (current->isTemplateParametersScope()) {
+      inTemplate_ = true;
+      break;
+    }
+  }
+}
 
 void Parser::setScope(ScopedSymbol* symbol) { setScope(symbol->scope()); }
 

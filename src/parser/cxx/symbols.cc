@@ -22,8 +22,15 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/control.h>
+#include <cxx/memory_layout.h>
+#include <cxx/name_printer.h>
 #include <cxx/scope.h>
+#include <cxx/type_printer.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -184,7 +191,7 @@ void ClassSymbol::setSizeInBytes(int sizeInBytes) {
   sizeInBytes_ = sizeInBytes;
 }
 
-auto ClassSymbol::alignment() const -> int { return alignment_; }
+auto ClassSymbol::alignment() const -> int { return std::max(alignment_, 1); }
 
 void ClassSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
@@ -239,6 +246,64 @@ void ClassSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
   auto index = templateInfo_->specializations().size();
   specialization->setSpecializationInfo(this, index);
   templateInfo_->addSpecialization(std::move(arguments), specialization);
+}
+
+auto ClassSymbol::buildClassLayout(Control* control)
+    -> std::expected<bool, std::string> {
+  int offset = 0;
+  int alignment = 1;
+
+  auto memoryLayout = control->memoryLayout();
+
+  for (auto base : baseClasses()) {
+    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+
+    if (!baseClassSymbol) {
+      return std::unexpected(
+          std::format("base class '{}' not found", to_string(base->name())));
+    }
+
+    offset = align_to(offset, baseClassSymbol->alignment());
+    offset += baseClassSymbol->sizeInBytes();
+    alignment = std::max(alignment, baseClassSymbol->alignment());
+  }
+
+  for (auto member : scope()->symbols()) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field) continue;
+    if (field->isStatic()) continue;
+
+    if (!field->alignment()) {
+      return std::unexpected(
+          std::format("alignment of incomplete type '{}'",
+                      to_string(field->type(), field->name())));
+    }
+
+    auto size = memoryLayout->sizeOf(field->type());
+
+    if (!size.has_value()) {
+      return std::unexpected(
+          std::format("size of incomplete type '{}'",
+                      to_string(field->type(), field->name())));
+    }
+
+    if (isUnion()) {
+      offset = std::max(offset, int(size.value()));
+    } else {
+      offset = align_to(offset, field->alignment());
+      field->setOffset(offset);
+      offset += size.value();
+    }
+
+    alignment = std::max(alignment, field->alignment());
+  }
+
+  offset = align_to(offset, alignment);
+
+  setAlignment(alignment);
+  setSizeInBytes(offset);
+
+  return true;
 }
 
 EnumSymbol::EnumSymbol(Scope* enclosingScope)
