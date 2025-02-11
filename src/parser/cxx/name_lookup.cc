@@ -53,15 +53,40 @@ auto Lookup::qualifiedLookup(Symbol* scopedSymbol, const Name* name) const
     case SymbolKind::kNamespace:
       return qualifiedLookup(
           symbol_cast<NamespaceSymbol>(scopedSymbol)->scope(), name);
+
     case SymbolKind::kClass:
       return qualifiedLookup(symbol_cast<ClassSymbol>(scopedSymbol)->scope(),
                              name);
+
     case SymbolKind::kEnum:
       return qualifiedLookup(symbol_cast<EnumSymbol>(scopedSymbol)->scope(),
                              name);
+
     case SymbolKind::kScopedEnum:
       return qualifiedLookup(
           symbol_cast<ScopedEnumSymbol>(scopedSymbol)->scope(), name);
+
+    case SymbolKind::kTypeAlias: {
+      auto alias = symbol_cast<TypeAliasSymbol>(scopedSymbol);
+
+      if (auto classType = type_cast<ClassType>(alias->type())) {
+        auto classSymbol = classType->symbol();
+        return qualifiedLookup(classSymbol->scope(), name);
+      }
+
+      if (auto enumType = type_cast<EnumType>(alias->type())) {
+        auto enumSymbol = enumType->symbol();
+        return qualifiedLookup(enumSymbol->scope(), name);
+      }
+
+      if (auto scopedEnumType = type_cast<ScopedEnumType>(alias->type())) {
+        auto scopedEnumSymbol = scopedEnumType->symbol();
+        return qualifiedLookup(scopedEnumSymbol->scope(), name);
+      }
+
+      return nullptr;
+    }
+
     default:
       return nullptr;
   }  // switch
