@@ -252,6 +252,11 @@ auto Lookup::lookupTypeHelper(Scope* scope, const Identifier* id,
   }
 
   for (auto candidate : scope->find(id)) {
+    if (auto u = symbol_cast<UsingDeclarationSymbol>(candidate);
+        u && u->target()) {
+      candidate = u->target();
+    }
+
     if (is_type(candidate) || candidate->isNamespace()) {
       return candidate;
     }
