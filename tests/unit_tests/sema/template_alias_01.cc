@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -ftemplates -dump-symbols %s | %filecheck %s
+// RUN: %cxx -fcheck -dump-symbols %s | %filecheck %s
 
 template <typename T>
 using Pointer = T*;

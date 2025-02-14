@@ -149,8 +149,6 @@ std::vector<CLIOptionDescr> options{
     {"-fstatic-assert", "Enable static asserts", &CLI::opt_fstatic_assert,
      CLIOptionVisibility::kExperimental},
 
-    {"-ftemplates", "Enable templates (WIP)", &CLI::opt_ftemplates},
-
     {"-freport-missing-types", "Report missing types",
      &CLI::opt_freport_missing_types},
 

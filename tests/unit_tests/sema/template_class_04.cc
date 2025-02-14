@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ftemplates -fcheck %s
+// RUN: %cxx -verify -fcheck %s
 
 template <typename Key, typename Value>
 struct X {

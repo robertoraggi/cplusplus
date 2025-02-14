@@ -49,7 +49,6 @@ struct ParserConfiguration {
   bool fuzzyTemplateResolution = false;
   bool staticAssert = false;
   bool reflect = true;
-  bool templates = false;
   std::function<bool()> stopParsingPredicate;
   std::function<void(const CodeCompletionContext&)> complete;
 };

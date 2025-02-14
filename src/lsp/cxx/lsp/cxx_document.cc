@@ -273,7 +273,6 @@ void CxxDocument::parse(std::string source) {
       .fuzzyTemplateResolution = true,
       .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
       .reflect = !cli.opt_fno_reflect,
-      .templates = cli.opt_ftemplates,
       .stopParsingPredicate = stopParsingPredicate,
       .complete = complete,
   });

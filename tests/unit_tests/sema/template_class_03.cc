@@ -1,4 +1,4 @@
-// RUN: %cxx -ftemplates -fcheck -dump-symbols %s | %filecheck %s
+// RUN: %cxx -fcheck -dump-symbols %s | %filecheck %s
 
 template <typename T>
 struct X {
