@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -ftemplates -dump-symbols %s | %filecheck %s
+// RUN: %cxx -verify -fcheck -dump-symbols %s | %filecheck %s
 
 namespace std {
 

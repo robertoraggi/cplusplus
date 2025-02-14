@@ -5807,7 +5807,7 @@ auto Parser::parse_complex_type_specifier(SpecifierAST*& yyast,
 }
 
 auto Parser::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
-  if (!config_.templates) return nullptr;
+  if (!config_.checkTypes) return nullptr;
 
   std::vector<TemplateArgument> args;
   for (auto it = templateId->templateArgumentList; it; it = it->next) {

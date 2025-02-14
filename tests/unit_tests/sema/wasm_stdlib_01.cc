@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain wasm32 -ftemplates -fcheck %s
+// RUN: %cxx -toolchain wasm32 -fcheck %s
 
 #include <cctype>
 #include <cstdio>
