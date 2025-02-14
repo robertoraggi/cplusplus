@@ -271,7 +271,6 @@ void CxxDocument::parse(std::string source) {
   unit.parse(ParserConfiguration{
       .checkTypes = cli.opt_fcheck,
       .fuzzyTemplateResolution = true,
-      .staticAssert = cli.opt_fstatic_assert || cli.opt_fcheck,
       .reflect = !cli.opt_fno_reflect,
       .stopParsingPredicate = stopParsingPredicate,
       .complete = complete,
