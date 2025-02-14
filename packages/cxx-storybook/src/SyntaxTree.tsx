@@ -20,7 +20,13 @@
 
 import { FixedSizeList } from "react-window";
 import { AST, ASTKind, ASTSlot, Parser, TokenKind } from "cxx-frontend";
-import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  CSSProperties,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
 import clsx from "clsx";
 
@@ -33,7 +39,7 @@ function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
 }
 
 function hasAccessSpecifier(
-  node: any,
+  node: any
 ): node is AST & { getAccessSpecifier(): TokenKind } {
   return (
     typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()
@@ -65,7 +71,11 @@ interface SyntaxTreeNode {
   slot?: ASTSlot;
 }
 
-export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTreeProps) {
+export function SyntaxTree({
+  parser,
+  cursorPosition,
+  onNodeSelected,
+}: SyntaxTreeProps) {
   const listRef = useRef<FixedSizeList>(null);
   const [selectedNodeHandle, setSelectedNodeHandle] = useState(0);
   const [nodes, setNodes] = useState<SyntaxTreeNode[]>([]);
@@ -89,7 +99,7 @@ export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTre
 
           ++count;
 
-          if ((count % 1000) === 0) {
+          if (count % 1000 === 0) {
             await new Promise((resolve) => setTimeout(resolve, 0));
           }
 
@@ -100,7 +110,8 @@ export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTre
           if (hasLiteral(node)) extra += ` (${node.getLiteral()})`;
           if (hasOp(node)) extra += ` (${TokenKind[node.getOp()]})`;
           if (hasAccessOp(node)) extra += ` (${TokenKind[node.getAccessOp()]})`;
-          if (hasSpecifier(node)) extra += ` (${TokenKind[node.getSpecifier()]})`;
+          if (hasSpecifier(node))
+            extra += ` (${TokenKind[node.getSpecifier()]})`;
           if (hasAccessSpecifier(node))
             extra += ` (${TokenKind[node.getAccessSpecifier()]})`;
 
@@ -114,7 +125,7 @@ export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTre
       }
 
       setNodes(nodes);
-    }
+    };
 
     update();
   }, [parser]);
@@ -129,7 +140,7 @@ export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTre
       setSelectedNodeHandle(selectedNodeHandle);
 
       const index = nodes.findIndex(
-        (node) => node.handle === selectedNodeHandle,
+        (node) => node.handle === selectedNodeHandle
       );
 
       if (index != -1) {
@@ -145,8 +156,14 @@ export function SyntaxTree({ parser, cursorPosition, onNodeSelected }: SyntaxTre
 
     return (
       <div className="whitespace-pre" style={style}>
-        {indent}- <a
-          className={clsx("cursor-default p-0.5 font-[monospace] text-xs", { "bg-sky-500 text-white": isSelected })}>{description}</a>
+        {indent}-{" "}
+        <a
+          className={clsx("cursor-default p-0.5 font-[monospace] text-xs", {
+            "bg-sky-500 text-white": isSelected,
+          })}
+        >
+          {description}
+        </a>
       </div>
     );
   }
