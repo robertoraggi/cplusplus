@@ -146,9 +146,6 @@ std::vector<CLIOptionDescr> options{
 
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
-    {"-fstatic-assert", "Enable static asserts", &CLI::opt_fstatic_assert,
-     CLIOptionVisibility::kExperimental},
-
     {"-freport-missing-types", "Report missing types",
      &CLI::opt_freport_missing_types},
 

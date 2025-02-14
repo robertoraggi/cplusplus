@@ -52,7 +52,6 @@ struct Source {
     unit.parse({
         .checkTypes = true,
         .fuzzyTemplateResolution = false,
-        .staticAssert = true,
         .reflect = true,
     });
   }

@@ -5281,7 +5281,7 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
       value = visit(to_bool, *constValue);
     }
 
-    if (!value && config_.staticAssert) {
+    if (!value && config_.checkTypes) {
       SourceLocation loc = ast->firstSourceLocation();
 
       if (!ast->expression || !constValue.has_value()) {
