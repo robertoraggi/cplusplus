@@ -100,6 +100,13 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     });
   });
 
+  emit(`
+template <typename T>
+[[nodiscard]] auto ast_cast(AST* ast) -> T* {
+  return ast && ast->kind() == T::Kind ? static_cast<T*>(ast) : nullptr;
+}
+`);
+
   by_bases.forEach((nodes, base) => {
     if (base === "AST") return;
     if (!Array.isArray(nodes)) throw new Error("not an array");
@@ -116,15 +123,17 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     emit(`    default: cxx_runtime_error("unexpected ${variantName}");`);
     emit(`  } // switch`);
     emit(`}`);
+
     emit();
-    emit(`[[nodiscard]] inline auto is${variantName}(AST* ast) -> bool {`);
-    emit(`  if (!ast) return false;`);
+    emit(`template <>`);
+    emit(`[[nodiscard]] inline auto ast_cast<${base}>(AST* ast) -> ${base}* {`);
+    emit(`  if (!ast) return nullptr;`);
     emit(`  switch (ast->kind()) {`);
     nodes.forEach(({ name }) => {
       emit(`  case ${name}::Kind: `);
     });
-    emit(`  return true;`);
-    emit(`    default: return false;`);
+    emit(`    return static_cast<${base}*>(ast);`);
+    emit(`    default: return nullptr;`);
     emit(`  } // switch`);
     emit(`}`);
   });
@@ -252,11 +261,6 @@ template <typename T>
 }
 
 ${code.join("\n")}
-
-template <typename T>
-[[nodiscard]] auto ast_cast(AST* ast) -> T* {
-  return ast && ast->kind() == T::Kind ? static_cast<T*>(ast) : nullptr;
-}
 
 } // namespace cxx
 `;

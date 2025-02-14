@@ -65,7 +65,7 @@ struct CLIOptionDescr {
   std::string arg;
   std::string help;
   CLIOptionDescrKind kind;
-  bool CLI::* flag = nullptr;
+  bool CLI::*flag = nullptr;
   CLIOptionVisibility visibility{CLIOptionVisibility::kDefault};
 
   CLIOptionDescr(std::string option, std::string arg, std::string help,
@@ -85,7 +85,7 @@ struct CLIOptionDescr {
         kind(kind),
         visibility(visibility) {}
 
-  CLIOptionDescr(std::string option, std::string help, bool CLI::* flag,
+  CLIOptionDescr(std::string option, std::string help, bool CLI::*flag,
                  CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
       : option(std::move(option)),
         help(std::move(help)),
@@ -150,6 +150,9 @@ std::vector<CLIOptionDescr> options{
      CLIOptionVisibility::kExperimental},
 
     {"-ftemplates", "Enable templates (WIP)", &CLI::opt_ftemplates},
+
+    {"-freport-missing-types", "Report missing types",
+     &CLI::opt_freport_missing_types},
 
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_cursor.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/cli.h>
 #include <cxx/control.h>
@@ -43,7 +44,6 @@
 #include <cxx/mlir/cxx_dialect.h>
 #endif
 
-#include <cassert>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -55,7 +55,44 @@
 #include "verify_diagnostics_client.h"
 
 namespace {
+
 using namespace cxx;
+
+struct CheckExpressionTypes {
+  [[nodiscard]] auto operator()(TranslationUnit* unit) {
+    std::size_t missingTypes = 0;
+
+    // iterate over all expressions and check if they have a type
+    for (auto cursor = ASTCursor{unit->ast(), "unit"}; cursor;
+         cursor = ++cursor) {
+      const auto& current = *cursor;
+
+      if (!std::holds_alternative<AST*>(current.node)) {
+        // skip non-AST nodes
+        continue;
+      }
+
+      auto ast = std::get<AST*>(current.node);
+      auto expression = ast_cast<ExpressionAST>(ast);
+      if (!expression) {
+        // skip non-expression nodes
+        continue;
+      }
+
+      auto type = expression->type;
+      if (type) {
+        // the expression has a type
+        continue;
+      }
+
+      auto loc = expression->firstSourceLocation();
+      unit->warning(loc, std::format("missing type for expression"));
+      ++missingTypes;
+    }
+
+    return missingTypes == 0;
+  }
+};
 
 auto readAll(const std::string& fileName, std::istream& in)
     -> std::optional<std::string> {
@@ -281,6 +318,11 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
         .reflect = !cli.opt_fno_reflect,
         .templates = cli.opt_ftemplates,
     });
+
+    if (cli.opt_freport_missing_types) {
+      CheckExpressionTypes checkExpressionTypes;
+      const auto missingTypes = checkExpressionTypes(&unit);
+    }
 
     if (cli.opt_dump_symbols && unit.globalScope()) {
       dump(std::cout, unit.globalScope()->owner());
