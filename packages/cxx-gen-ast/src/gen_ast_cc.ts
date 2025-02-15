@@ -19,12 +19,20 @@
 // SOFTWARE.
 
 import { cpy_header } from "./cpy_header.js";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
 import { AST } from "./parseAST.js";
 import * as fs from "fs";
 
 export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
+
+  const by_bases = groupNodesByBaseType(ast);
+
+  const toKebapName = (name: string) =>
+    name.replace(/([A-Z]+)/g, "-$1").toLocaleLowerCase();
+
+  const astName = (name: string) => toKebapName(name.slice(0, -3)).slice(1);
 
   ast.nodes.forEach(({ name, members }) => {
     emit();
@@ -45,6 +53,23 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
     emit(`  return {};`);
     emit(`}`);
   });
+
+  emit();
+  emit(`namespace {`);
+  emit(`std::string_view kASTKindNames[] = {`);
+  by_bases.forEach((nodes, base) => {
+    emit();
+    emit(`    // ${base}`);
+    nodes.forEach(({ name }) => {
+      emit(`    "${astName(name)}",`);
+    });
+  });
+  emit(`};`);
+  emit(`} // namespace`);
+
+  emit(`auto to_string(ASTKind kind) -> std::string_view {`);
+  emit(`  return kASTKindNames[int(kind)];`);
+  emit(`}`);
 
   const out = `${cpy_header}
 #include <cxx/ast.h>

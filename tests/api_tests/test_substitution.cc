@@ -20,14 +20,11 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_instantiation.h>
-#include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 

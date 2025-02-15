@@ -24,9 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
-#include <cxx/name_printer.h>
 #include <cxx/scope.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 

@@ -88,6 +88,8 @@ enum class ImplicitCastKind {
 
 ${code.join("\n")}
 
+enum class ASTKind;
+auto to_string(ASTKind kind) -> std::string_view;
 auto to_string(ValueCategory valueCategory) -> std::string_view;
 auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view;
 

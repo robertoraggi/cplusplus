@@ -278,7 +278,7 @@ std::string_view kMemberSlotNames[] = {
     "yieldLoc",
 };
 }  // namespace
-std::string_view to_string(SlotNameIndex index) {
+auto to_string(SlotNameIndex index) -> std::string_view {
   return kMemberSlotNames[int(index)];
 }
 

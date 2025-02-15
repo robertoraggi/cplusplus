@@ -43,7 +43,7 @@ class Literal {
 
 class IntegerLiteral final : public Literal {
  public:
-  enum struct Radix {
+  enum class Radix {
     kDecimal,
     kHexadecimal,
     kOctal,

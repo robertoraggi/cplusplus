@@ -22,6 +22,8 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <iosfwd>
+
 namespace cxx {
 
 #define CXX_FOR_EACH_SYMBOL(V) \
@@ -66,10 +68,14 @@ CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 enum class SymbolKind { CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL) };
 #undef PROCESS_SYMBOL
 
-enum struct AccessSpecifier {
+enum class AccessSpecifier {
   kPublic,
   kProtected,
   kPrivate,
 };
+
+void dump(std::ostream& out, Symbol* symbol, int depth = 0);
+
+auto operator<<(std::ostream& out, Symbol* symbol) -> std::ostream&;
 
 }  // namespace cxx

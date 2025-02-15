@@ -18,14 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/symbol_printer.h>
-
 // cxx
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 #include <algorithm>

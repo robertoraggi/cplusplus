@@ -31,7 +31,7 @@ export function gen_ast_kind_h({ ast, output }: { ast: AST; output: string }) {
 
   const enumName = (name: string) => name.slice(0, -3);
 
-  emit(`enum struct ASTKind {`);
+  emit(`enum class ASTKind {`);
 
   by_bases.forEach((nodes, base) => {
     emit();

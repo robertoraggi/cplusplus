@@ -22,7 +22,11 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <string>
+
 namespace cxx {
+
+class Name;
 
 #define CXX_FOR_EACH_TYPE_KIND(V) \
   V(Void)                         \
@@ -91,5 +95,8 @@ enum class RefQualifier {
   kLvalue,
   kRvalue,
 };
+
+auto to_string(const Type* type, const std::string& id = "") -> std::string;
+auto to_string(const Type* type, const Name* name) -> std::string;
 
 }  // namespace cxx

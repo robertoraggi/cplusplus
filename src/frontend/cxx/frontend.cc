@@ -27,14 +27,11 @@
 #include <cxx/lexer.h>
 #include <cxx/lsp/lsp_server.h>
 #include <cxx/macos_toolchain.h>
-#include <cxx/name_printer.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/scope.h>
-#include <cxx/symbol_printer.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
@@ -85,8 +82,11 @@ struct CheckExpressionTypes {
         continue;
       }
 
-      auto loc = expression->firstSourceLocation();
-      unit->warning(loc, std::format("missing type for expression"));
+      const auto loc = expression->firstSourceLocation();
+
+      unit->warning(loc, std::format("untyped expression of kind '{}'",
+                                     to_string(expression->kind())));
+
       ++missingTypes;
     }
 

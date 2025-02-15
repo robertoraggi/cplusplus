@@ -31,7 +31,7 @@ namespace cxx {
 
 inline namespace {
 
-enum struct EncodingPrefix { kNone, kWide, kUtf8, kUtf16, kUtf32 };
+enum class EncodingPrefix { kNone, kWide, kUtf8, kUtf16, kUtf32 };
 
 const std::unordered_map<std::string_view, std::tuple<EncodingPrefix, bool>>
     kStringLiteralPrefixes{

@@ -27,13 +27,11 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbol_chain.h>
@@ -139,7 +137,7 @@ class RecordingDiagnosticsClient : public DiagnosticsClient {
 };
 
 class FunctionPrototype {
-  enum struct Kind { Direct, Ptr, Function, Array };
+  enum class Kind { Direct, Ptr, Function, Array };
 
   FunctionDeclaratorChunkAST* prototype_ = nullptr;
   Kind kind_ = Kind::Direct;
@@ -2549,17 +2547,6 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast,
 
     argumentTypes.push_back(argumentType);
   }
-
-#if false
-  if (auto ovlType = type_cast<OverloadSetType>(ast->baseExpression->type)) {
-    parse_warn(lparenLoc, "overload set call");
-  }
-
-  if (auto functionType = type_cast<FunctionType>(ast->baseExpression->type)) {
-    parse_warn(lparenLoc,
-               std::format("call function {}", to_string(functionType)));
-  }
-#endif
 
   return true;
 }
