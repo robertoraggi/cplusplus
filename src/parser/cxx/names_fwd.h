@@ -56,4 +56,6 @@ enum class IdentifierInfoKind {
 class IdentifierInfo;
 class TypeTraitIdentifierInfo;
 
+auto to_string(const Name* name) -> std::string;
+
 }  // namespace cxx

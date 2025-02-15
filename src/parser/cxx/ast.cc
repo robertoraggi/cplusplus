@@ -3408,6 +3408,285 @@ auto SimpleAttributeTokenAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+namespace {
+std::string_view kASTKindNames[] = {
+
+    // UnitAST
+    "translation-unit",
+    "module-unit",
+
+    // DeclarationAST
+    "simple-declaration",
+    "asm-declaration",
+    "namespace-alias-definition",
+    "using-declaration",
+    "using-enum-declaration",
+    "using-directive",
+    "static-assert-declaration",
+    "alias-declaration",
+    "opaque-enum-declaration",
+    "function-definition",
+    "template-declaration",
+    "concept-definition",
+    "deduction-guide",
+    "explicit-instantiation",
+    "export-declaration",
+    "export-compound-declaration",
+    "linkage-specification",
+    "namespace-definition",
+    "empty-declaration",
+    "attribute-declaration",
+    "module-import-declaration",
+    "parameter-declaration",
+    "access-declaration",
+    "for-range-declaration",
+    "structured-binding-declaration",
+    "asm-operand",
+    "asm-qualifier",
+    "asm-clobber",
+    "asm-goto-label",
+
+    // StatementAST
+    "labeled-statement",
+    "case-statement",
+    "default-statement",
+    "expression-statement",
+    "compound-statement",
+    "if-statement",
+    "consteval-if-statement",
+    "switch-statement",
+    "while-statement",
+    "do-statement",
+    "for-range-statement",
+    "for-statement",
+    "break-statement",
+    "continue-statement",
+    "return-statement",
+    "coroutine-return-statement",
+    "goto-statement",
+    "declaration-statement",
+    "try-block-statement",
+
+    // ExpressionAST
+    "generated-literal-expression",
+    "char-literal-expression",
+    "bool-literal-expression",
+    "int-literal-expression",
+    "float-literal-expression",
+    "nullptr-literal-expression",
+    "string-literal-expression",
+    "user-defined-string-literal-expression",
+    "this-expression",
+    "nested-statement-expression",
+    "nested-expression",
+    "id-expression",
+    "lambda-expression",
+    "fold-expression",
+    "right-fold-expression",
+    "left-fold-expression",
+    "requires-expression",
+    "va-arg-expression",
+    "subscript-expression",
+    "call-expression",
+    "type-construction",
+    "braced-type-construction",
+    "splice-member-expression",
+    "member-expression",
+    "post-incr-expression",
+    "cpp-cast-expression",
+    "builtin-bit-cast-expression",
+    "builtin-offsetof-expression",
+    "typeid-expression",
+    "typeid-of-type-expression",
+    "splice-expression",
+    "global-scope-reflect-expression",
+    "namespace-reflect-expression",
+    "type-id-reflect-expression",
+    "reflect-expression",
+    "unary-expression",
+    "await-expression",
+    "sizeof-expression",
+    "sizeof-type-expression",
+    "sizeof-pack-expression",
+    "alignof-type-expression",
+    "alignof-expression",
+    "noexcept-expression",
+    "new-expression",
+    "delete-expression",
+    "cast-expression",
+    "implicit-cast-expression",
+    "binary-expression",
+    "conditional-expression",
+    "yield-expression",
+    "throw-expression",
+    "assignment-expression",
+    "pack-expansion-expression",
+    "designated-initializer-clause",
+    "type-trait-expression",
+    "condition-expression",
+    "equal-initializer",
+    "braced-init-list",
+    "paren-initializer",
+
+    // AST
+    "splicer",
+    "global-module-fragment",
+    "private-module-fragment",
+    "module-declaration",
+    "module-name",
+    "module-qualifier",
+    "module-partition",
+    "import-name",
+    "init-declarator",
+    "declarator",
+    "using-declarator",
+    "enumerator",
+    "type-id",
+    "handler",
+    "base-specifier",
+    "requires-clause",
+    "parameter-declaration-clause",
+    "trailing-return-type",
+    "lambda-specifier",
+    "type-constraint",
+    "attribute-argument-clause",
+    "attribute",
+    "attribute-using-prefix",
+    "new-placement",
+    "nested-namespace-specifier",
+
+    // TemplateParameterAST
+    "template-type-parameter",
+    "non-type-template-parameter",
+    "typename-type-parameter",
+    "constraint-type-parameter",
+
+    // SpecifierAST
+    "generated-type-specifier",
+    "typedef-specifier",
+    "friend-specifier",
+    "consteval-specifier",
+    "constinit-specifier",
+    "constexpr-specifier",
+    "inline-specifier",
+    "static-specifier",
+    "extern-specifier",
+    "thread-local-specifier",
+    "thread-specifier",
+    "mutable-specifier",
+    "virtual-specifier",
+    "explicit-specifier",
+    "auto-type-specifier",
+    "void-type-specifier",
+    "size-type-specifier",
+    "sign-type-specifier",
+    "va-list-type-specifier",
+    "integral-type-specifier",
+    "floating-point-type-specifier",
+    "complex-type-specifier",
+    "named-type-specifier",
+    "atomic-type-specifier",
+    "underlying-type-specifier",
+    "elaborated-type-specifier",
+    "decltype-auto-specifier",
+    "decltype-specifier",
+    "placeholder-type-specifier",
+    "const-qualifier",
+    "volatile-qualifier",
+    "restrict-qualifier",
+    "enum-specifier",
+    "class-specifier",
+    "typename-specifier",
+    "splicer-type-specifier",
+
+    // PtrOperatorAST
+    "pointer-operator",
+    "reference-operator",
+    "ptr-to-member-operator",
+
+    // CoreDeclaratorAST
+    "bitfield-declarator",
+    "parameter-pack",
+    "id-declarator",
+    "nested-declarator",
+
+    // DeclaratorChunkAST
+    "function-declarator-chunk",
+    "array-declarator-chunk",
+
+    // UnqualifiedIdAST
+    "name-id",
+    "destructor-id",
+    "decltype-id",
+    "operator-function-id",
+    "literal-operator-id",
+    "conversion-function-id",
+    "simple-template-id",
+    "literal-operator-template-id",
+    "operator-function-template-id",
+
+    // NestedNameSpecifierAST
+    "global-nested-name-specifier",
+    "simple-nested-name-specifier",
+    "decltype-nested-name-specifier",
+    "template-nested-name-specifier",
+
+    // FunctionBodyAST
+    "default-function-body",
+    "compound-statement-function-body",
+    "try-statement-function-body",
+    "delete-function-body",
+
+    // TemplateArgumentAST
+    "type-template-argument",
+    "expression-template-argument",
+
+    // ExceptionSpecifierAST
+    "throw-exception-specifier",
+    "noexcept-specifier",
+
+    // RequirementAST
+    "simple-requirement",
+    "compound-requirement",
+    "type-requirement",
+    "nested-requirement",
+
+    // NewInitializerAST
+    "new-paren-initializer",
+    "new-braced-initializer",
+
+    // MemInitializerAST
+    "paren-mem-initializer",
+    "braced-mem-initializer",
+
+    // LambdaCaptureAST
+    "this-lambda-capture",
+    "deref-this-lambda-capture",
+    "simple-lambda-capture",
+    "ref-lambda-capture",
+    "ref-init-lambda-capture",
+    "init-lambda-capture",
+
+    // ExceptionDeclarationAST
+    "ellipsis-exception-declaration",
+    "type-exception-declaration",
+
+    // AttributeSpecifierAST
+    "cxx-attribute",
+    "gcc-attribute",
+    "alignas-attribute",
+    "alignas-type-attribute",
+    "asm-attribute",
+
+    // AttributeTokenAST
+    "scoped-attribute-token",
+    "simple-attribute-token",
+};
+}  // namespace
+auto to_string(ASTKind kind) -> std::string_view {
+  return kASTKindNames[int(kind)];
+}
+
 auto to_string(ValueCategory valueCategory) -> std::string_view {
   switch (valueCategory) {
     case ValueCategory::kNone:

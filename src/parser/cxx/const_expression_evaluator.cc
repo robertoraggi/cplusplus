@@ -28,7 +28,6 @@
 #include <cxx/parser.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 #include <format>

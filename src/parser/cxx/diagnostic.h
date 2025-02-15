@@ -26,7 +26,7 @@
 
 namespace cxx {
 
-enum struct Severity { Message, Warning, Error, Fatal };
+enum class Severity { Message, Warning, Error, Fatal };
 
 class Diagnostic {
   std::string message_;

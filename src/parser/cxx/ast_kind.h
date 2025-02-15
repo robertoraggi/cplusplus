@@ -22,7 +22,7 @@
 
 namespace cxx {
 
-enum struct ASTKind {
+enum class ASTKind {
 
   // UnitAST
   TranslationUnit,

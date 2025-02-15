@@ -79,7 +79,7 @@ class Parser final {
   struct LoopParser;
   struct GetDeclaratorType;
 
-  enum struct BindingContext {
+  enum class BindingContext {
     kNamespace,
     kClass,
     kTemplate,
@@ -88,12 +88,12 @@ class Parser final {
     kCondition,
   };
 
-  enum struct NestedNameSpecifierContext {
+  enum class NestedNameSpecifierContext {
     kNonDeclarative,
     kDeclarative,
   };
 
-  enum struct Prec {
+  enum class Prec {
     kLogicalOr,
     kLogicalAnd,
     kInclusiveOr,
@@ -175,7 +175,7 @@ class Parser final {
   [[nodiscard]] auto parse_reflect_expression(ExpressionAST*& yyast,
                                               const ExprContext& ctx) -> bool;
 
-  enum struct IdExpressionContext {
+  enum class IdExpressionContext {
     kExpression,
     kTemplateParameter,
     kRequiresClause,
@@ -487,7 +487,7 @@ class Parser final {
   void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyast,
                                                         Decl& decl);
 
-  enum struct DeclaratorKind {
+  enum class DeclaratorKind {
     kDeclarator,
     kAbstractDeclarator,
     kNewDeclarator,
@@ -585,7 +585,7 @@ class Parser final {
   [[nodiscard]] auto parse_linkage_specification(DeclarationAST*& yyast)
       -> bool;
 
-  enum struct AllowedAttributes {
+  enum class AllowedAttributes {
     kCxxAttribute = 1 << 0,
     kGnuAttribute = 1 << 1,
     kAsmSpecifier = 1 << 2,

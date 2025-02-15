@@ -18,70 +18,72 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/token.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 
 #include <format>
 
 namespace cxx {
 
-struct {
-  auto operator()(const Type* type) const -> std::string {
-    return to_string(type);
+namespace {
+
+struct NamePrinter {
+  struct {
+    auto operator()(const Type* type) const -> std::string {
+      return to_string(type);
+    }
+
+    auto operator()(const ConstValue& value) const -> std::string { return {}; }
+
+    auto operator()(ExpressionAST* value) const -> std::string { return {}; }
+
+  } template_argument_to_string;
+
+  auto operator()(const Identifier* name) const -> std::string {
+    return name->value();
   }
 
-  auto operator()(const ConstValue& value) const -> std::string { return {}; }
-
-  auto operator()(ExpressionAST* value) const -> std::string { return {}; }
-
-} template_argument_to_string;
-
-auto NamePrinter::operator()(const Identifier* name) const -> std::string {
-  return name->value();
-}
-
-auto NamePrinter::operator()(const OperatorId* name) const -> std::string {
-  switch (name->op()) {
-    case TokenKind::T_LPAREN:
-      return "operator ()";
-    case TokenKind::T_LBRACKET:
-      return "operator []";
-    case TokenKind::T_NEW_ARRAY:
-      return "operator new[]";
-    case TokenKind::T_DELETE_ARRAY:
-      return "operator delete[]";
-    default:
-      return std::format("operator {}", Token::spell(name->op()));
-  }  // switch
-}
-
-auto NamePrinter::operator()(const DestructorId* name) const -> std::string {
-  return "~" + visit(*this, name->name());
-}
-
-auto NamePrinter::operator()(const LiteralOperatorId* name) const
-    -> std::string {
-  return std::format("operator \"\"{}", name->name());
-}
-
-auto NamePrinter::operator()(const ConversionFunctionId* name) const
-    -> std::string {
-  return std::format("operator {}", to_string(name->type()));
-}
-
-auto NamePrinter::operator()(const TemplateId* name) const -> std::string {
-  std::string s = visit(*this, name->name());
-  s += " <";
-  for (auto&& arg : name->arguments()) {
-    if (&arg != &name->arguments().front()) s += ", ";
-    s += std::visit(template_argument_to_string, arg);
+  auto operator()(const OperatorId* name) const -> std::string {
+    switch (name->op()) {
+      case TokenKind::T_LPAREN:
+        return "operator ()";
+      case TokenKind::T_LBRACKET:
+        return "operator []";
+      case TokenKind::T_NEW_ARRAY:
+        return "operator new[]";
+      case TokenKind::T_DELETE_ARRAY:
+        return "operator delete[]";
+      default:
+        return std::format("operator {}", Token::spell(name->op()));
+    }  // switch
   }
-  s += '>';
-  return s;
-}
+
+  auto operator()(const DestructorId* name) const -> std::string {
+    return "~" + visit(*this, name->name());
+  }
+
+  auto operator()(const LiteralOperatorId* name) const -> std::string {
+    return std::format("operator \"\"{}", name->name());
+  }
+
+  auto operator()(const ConversionFunctionId* name) const -> std::string {
+    return std::format("operator {}", to_string(name->type()));
+  }
+
+  auto operator()(const TemplateId* name) const -> std::string {
+    std::string s = visit(*this, name->name());
+    s += " <";
+    for (auto&& arg : name->arguments()) {
+      if (&arg != &name->arguments().front()) s += ", ";
+      s += std::visit(template_argument_to_string, arg);
+    }
+    s += '>';
+    return s;
+  }
+};
+
+}  // namespace
 
 auto to_string(const Name* name) -> std::string {
   if (!name) return {};

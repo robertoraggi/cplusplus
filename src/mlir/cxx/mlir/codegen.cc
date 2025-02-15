@@ -26,11 +26,9 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/mlir/cxx_dialect.h>
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>

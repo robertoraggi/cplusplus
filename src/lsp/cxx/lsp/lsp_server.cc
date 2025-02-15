@@ -24,10 +24,8 @@
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/requests.h>
 #include <cxx/lsp/types.h>
-#include <cxx/name_printer.h>
 #include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
-#include <cxx/type_printer.h>
 #include <utf8/unchecked.h>
 
 #include <format>

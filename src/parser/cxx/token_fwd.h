@@ -291,12 +291,12 @@ class Token;
 // clang-format off
 #define TOKEN_ENUM(tk, _) T_##tk,
 #define TOKEN_ALIAS_ENUM(tk, other) T_##tk = T_##other,
-enum struct TokenKind : std::uint8_t {
+enum class TokenKind : std::uint8_t {
   FOR_EACH_TOKEN(TOKEN_ENUM)
   FOR_EACH_TOKEN_ALIAS(TOKEN_ALIAS_ENUM)
 };
 
-enum struct BuiltinTypeTraitKind {
+enum class BuiltinTypeTraitKind {
   T_NONE,
   FOR_EACH_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
 };

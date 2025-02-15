@@ -20,7 +20,6 @@
 
 #include <cxx/control.h>
 #include <cxx/literals.h>
-#include <cxx/name_printer.h>
 #include <cxx/names.h>
 #include <gtest/gtest.h>
 

@@ -30,13 +30,13 @@ export function gen_token_fwd_h({ output }: { output: string }) {
 
   emit("#define FOR_EACH_BASE_TOKEN(V) \\");
   tokens.BASE_TOKENS.forEach((tk) =>
-    emit(`  V(${tk}, "${baseTokenId(tk)}") \\`),
+    emit(`  V(${tk}, "${baseTokenId(tk)}") \\`)
   );
 
   emit();
   emit("#define FOR_EACH_OPERATOR(V) \\");
   tokens.OPERATORS.forEach(([tk, spelling]) =>
-    emit(`  V(${tk}, "${spelling}") \\`),
+    emit(`  V(${tk}, "${spelling}") \\`)
   );
 
   emit();
@@ -46,13 +46,13 @@ export function gen_token_fwd_h({ output }: { output: string }) {
   emit();
   emit("#define FOR_EACH_BUILTIN_TYPE_TRAIT(V) \\");
   tokens.BUILTIN_TYPE_TRAITS.forEach((tk) =>
-    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`)
   );
 
   emit();
   emit("#define FOR_EACH_TOKEN_ALIAS(V) \\");
   tokens.TOKEN_ALIASES.forEach(([tk, other]) =>
-    emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
+    emit(`  V(${tk.toUpperCase()}, ${other}) \\`)
   );
 
   const out = `${cpy_header}
@@ -76,12 +76,12 @@ ${code.join("\n")}
 // clang-format off
 #define TOKEN_ENUM(tk, _) T_##tk,
 #define TOKEN_ALIAS_ENUM(tk, other) T_##tk = T_##other,
-enum struct TokenKind : std::uint8_t {
+enum class TokenKind : std::uint8_t {
   FOR_EACH_TOKEN(TOKEN_ENUM)
   FOR_EACH_TOKEN_ALIAS(TOKEN_ALIAS_ENUM)
 };
 
-enum struct BuiltinTypeTraitKind {
+enum class BuiltinTypeTraitKind {
   T_NONE,
   FOR_EACH_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
 };

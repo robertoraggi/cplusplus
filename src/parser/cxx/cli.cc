@@ -49,13 +49,13 @@ auto to_string(const CLIMatch& match) -> std::string {
 
 namespace {
 
-enum struct CLIOptionDescrKind {
+enum class CLIOptionDescrKind {
   kFlag,
   kJoined,
   kSeparated,
 };
 
-enum struct CLIOptionVisibility : bool {
+enum class CLIOptionVisibility : bool {
   kDefault,
   kExperimental,
 };
@@ -65,7 +65,7 @@ struct CLIOptionDescr {
   std::string arg;
   std::string help;
   CLIOptionDescrKind kind;
-  bool CLI::*flag = nullptr;
+  bool CLI::* flag = nullptr;
   CLIOptionVisibility visibility{CLIOptionVisibility::kDefault};
 
   CLIOptionDescr(std::string option, std::string arg, std::string help,
@@ -85,7 +85,7 @@ struct CLIOptionDescr {
         kind(kind),
         visibility(visibility) {}
 
-  CLIOptionDescr(std::string option, std::string help, bool CLI::*flag,
+  CLIOptionDescr(std::string option, std::string help, bool CLI::* flag,
                  CLIOptionVisibility visibility = CLIOptionVisibility::kDefault)
       : option(std::move(option)),
         help(std::move(help)),

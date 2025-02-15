@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
-#include <cxx/type_printer.h>
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 

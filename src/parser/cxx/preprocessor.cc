@@ -46,7 +46,6 @@
 #include <unordered_set>
 #include <variant>
 
-#include "cxx/preprocessor_fwd.h"
 #include "pp_keywords-priv.h"
 
 namespace {
