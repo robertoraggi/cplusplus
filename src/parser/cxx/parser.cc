@@ -2601,7 +2601,107 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+  check_cpp_cast_expression(ast);
+
+  switch (unit->tokenKind(ast->castLoc)) {
+    case TokenKind::T_STATIC_CAST:
+      if (check_static_cast(ast)) break;
+      if (config_.checkTypes) {
+        parse_error(ast->firstSourceLocation(), "invalid static_cast");
+      }
+      break;
+
+    default:
+      break;
+  }  // switch
+
   return true;
+}
+
+void Parser::check_cpp_cast_expression(CppCastExpressionAST* ast) {
+  if (!ast->typeId) {
+    return;
+  }
+
+  ast->type = ast->typeId->type;
+
+  if (auto refType = type_cast<LvalueReferenceType>(ast->type)) {
+    ast->type = refType->elementType();
+    ast->valueCategory = ValueCategory::kLValue;
+    return;
+  }
+
+  if (auto rvalueRefType = type_cast<RvalueReferenceType>(ast->type)) {
+    ast->type = rvalueRefType->elementType();
+
+    if (type_cast<FunctionType>(ast->type)) {
+      ast->valueCategory = ValueCategory::kLValue;
+    } else {
+      ast->valueCategory = ValueCategory::kXValue;
+    }
+  }
+}
+
+auto Parser::check_static_cast(CppCastExpressionAST* ast) -> bool {
+  if (!ast->typeId) return false;
+  auto targetType = ast->typeId->type;
+
+  if (control_->is_void(targetType)) return true;
+
+  if (check_cast_to_derived(targetType, ast->expression)) return true;
+
+  const auto cv1 = get_cv_qualifiers(ast->expression->type);
+  const auto cv2 = get_cv_qualifiers(targetType);
+  if (!check_cv_qualifiers(cv2, cv1)) return false;
+
+  if (implicit_conversion(ast->expression, ast->type)) return true;
+
+  return false;
+};
+
+auto Parser::check_cv_qualifiers(CvQualifiers target, CvQualifiers source) const
+    -> bool {
+  if (source == target) return true;
+  if (source == CvQualifiers::kNone) return true;
+  if (target == CvQualifiers::kConstVolatile) return true;
+  return false;
+}
+
+auto Parser::check_cast_to_derived(const Type* targetType,
+                                   ExpressionAST* expression) -> bool {
+  if (!is_lvalue(expression)) return false;
+
+  auto sourceType = expression->type;
+
+  CvQualifiers cv1 = CvQualifiers::kNone;
+  if (auto qualType = type_cast<QualType>(sourceType)) {
+    cv1 = qualType->cvQualifiers();
+    sourceType = qualType->elementType();
+  }
+
+  auto targetRefType = type_cast<LvalueReferenceType>(targetType);
+  if (!targetRefType) return false;
+
+  targetType = targetRefType->elementType();
+
+  CvQualifiers cv2 = CvQualifiers::kNone;
+  if (auto qualType = type_cast<QualType>(targetType)) {
+    cv2 = qualType->cvQualifiers();
+    targetType = qualType->elementType();
+  }
+
+  if (!check_cv_qualifiers(cv2, cv1)) return false;
+
+  if (!control_->is_base_of(sourceType, targetType)) return false;
+
+  return true;
+}
+
+auto Parser::get_cv_qualifiers(const Type* type) const -> CvQualifiers {
+  if (auto qualType = type_cast<QualType>(type)) {
+    return qualType->cvQualifiers();
+  }
+  return CvQualifiers::kNone;
 }
 
 auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
