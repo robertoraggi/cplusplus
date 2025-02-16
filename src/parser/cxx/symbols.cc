@@ -564,6 +564,10 @@ auto FieldSymbol::isInline() const -> bool { return isInline_; }
 
 void FieldSymbol::setInline(bool isInline) { isInline_ = isInline; }
 
+auto FieldSymbol::isMutable() const -> bool { return isMutable_; }
+
+void FieldSymbol::setMutable(bool isMutable) { isMutable_ = isMutable; }
+
 auto FieldSymbol::offset() const -> int { return offset_; }
 
 void FieldSymbol::setOffset(int offset) { offset_ = offset; }

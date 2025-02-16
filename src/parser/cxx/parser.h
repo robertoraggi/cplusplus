@@ -837,6 +837,10 @@ class Parser final {
 
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
+  [[nodiscard]] auto merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
+      -> CvQualifiers;
+  [[nodiscard]] auto is_const(CvQualifiers cv) const -> bool;
+  [[nodiscard]] auto is_volatile(CvQualifiers cv) const -> bool;
 
   // standard conversions
   [[nodiscard]] auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;

@@ -6,6 +6,16 @@ struct X {
   static int s_value;
 };
 
+struct W {
+  int& r;
+  const int& cr;
+
+  const int const_k = 0;
+  int k = 0;
+
+  mutable int m = 0;
+};
+
 auto main() -> int {
   X x;
   static_assert(__is_reference(decltype(x.kValue)) == false);
@@ -26,6 +36,26 @@ auto main() -> int {
 
   static_assert(__is_reference(decltype(px->s_value)) == false);
   static_assert(__is_same(decltype(px->s_value), int));
+
+  int i;
+  W w{i, i};
+
+  static_assert(__is_lvalue_reference(decltype(w.r)));
+  static_assert(__is_same(decltype(w.r), int&));
+
+  static_assert(__is_lvalue_reference(decltype(w.cr)));
+  static_assert(__is_same(decltype(w.cr), const int&));
+
+  static_assert(__is_same(decltype((w.const_k)), const int&));
+  static_assert(__is_same(decltype((w.k)), int&));
+
+  const W cw{i, i};
+  static_assert(__is_same(decltype(cw.const_k), const int));
+  static_assert(__is_same(decltype(cw.k), int));
+
+  static_assert(__is_same(decltype((cw.const_k)), const int&));
+  static_assert(__is_same(decltype((cw.k)), const int&));
+  static_assert(__is_same(decltype((cw.m)), int&));
 
   return 0;
 }

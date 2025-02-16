@@ -575,6 +575,9 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto isInline() const -> bool;
   void setInline(bool isInline);
 
+  [[nodiscard]] auto isMutable() const -> bool;
+  void setMutable(bool isMutable);
+
   [[nodiscard]] auto offset() const -> int;
   void setOffset(int offset);
 
@@ -590,6 +593,7 @@ class FieldSymbol final : public Symbol {
       std::uint32_t isConstexpr_ : 1;
       std::uint32_t isConstinit_ : 1;
       std::uint32_t isInline_ : 1;
+      std::uint32_t isMutable_ : 1;
     };
   };
   int offset_{};
