@@ -114,8 +114,8 @@ class TypeTraits {
   }
 
   auto is_scalar(const Type* type) const -> bool {
-    return is_enum(type) || is_pointer(type) || is_member_pointer(type) ||
-           is_null_pointer(type);
+    return is_arithmetic(type) || is_enum(type) || is_pointer(type) ||
+           is_member_pointer(type) || is_null_pointer(type);
   }
 
   auto is_object(const Type* type) const -> bool {

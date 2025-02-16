@@ -1458,6 +1458,7 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
 
       auto ast = make_node<DestructorIdAST>(pool_);
       yyast = ast;
+      ast->tildeLoc = tildeLoc;
       ast->id = decltypeName;
 
       return true;
@@ -1469,6 +1470,7 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
 
     auto ast = make_node<DestructorIdAST>(pool_);
     yyast = ast;
+    ast->tildeLoc = tildeLoc;
     ast->id = name;
 
     return true;
@@ -2474,20 +2476,17 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
 
   ast->isTemplateIntroduced = match(TokenKind::T_TEMPLATE, ast->templateLoc);
 
-  const Type* objectType = nullptr;
+  if (SourceLocation completionLoc; parse_completion(completionLoc)) {
+    if (ast->baseExpression) {
+      // test if the base expression has a type
+      auto objectType = ast->baseExpression->type;
 
-  if (ast->baseExpression) {
-    // test if the base expression has a type
-    objectType = ast->baseExpression->type;
-  }
-
-  if (SourceLocation completionLoc;
-      objectType && parse_completion(completionLoc)) {
-    // trigger the completion
-    config_.complete(MemberCompletionContext{
-        .objectType = objectType,
-        .accessOp = ast->accessOp,
-    });
+      // trigger the completion
+      config_.complete(MemberCompletionContext{
+          .objectType = objectType,
+          .accessOp = ast->accessOp,
+      });
+    }
   }
 
   if (!parse_unqualified_id(ast->unqualifiedId, ast->nestedNameSpecifier,
@@ -2495,7 +2494,50 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
                             /*inRequiresClause*/ false))
     parse_error("expected an unqualified id");
 
+  (void)check_psuedo_destructor_access(ast);
+
   yyast = ast;
+
+  return true;
+}
+
+auto Parser::check_psuedo_destructor_access(MemberExpressionAST* ast) -> bool {
+  auto objectType = ast->baseExpression->type;
+  auto cv = strip_cv(objectType);
+
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
+    auto pointerType = type_cast<PointerType>(objectType);
+    if (!pointerType) return false;
+    objectType = pointerType->elementType();
+    cv = strip_cv(objectType);
+  }
+
+  if (!control_->is_scalar(objectType)) {
+    // return false if the object type is not a scalar type
+    return false;
+  }
+
+  // from this point on we are going to assume that we want a pseudo destructor
+  // to be called on a scalar type.
+
+  auto dtor = ast_cast<DestructorIdAST>(ast->unqualifiedId);
+  if (!dtor) return true;
+
+  auto name = ast_cast<NameIdAST>(dtor->id);
+  if (!name) return true;
+
+  auto symbol =
+      Lookup{scope_}.lookupType(ast->nestedNameSpecifier, name->identifier);
+  if (!symbol) return true;
+
+  if (!control_->is_same(symbol->type(), objectType)) {
+    parse_error(ast->unqualifiedId->firstSourceLocation(),
+                "the type of object expression does not match the type "
+                "being destroyed");
+    return true;
+  }
+
+  ast->symbol = symbol;
 
   return true;
 }
@@ -2546,6 +2588,12 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast,
     if (it->value) argumentType = it->value->type;
 
     argumentTypes.push_back(argumentType);
+  }
+
+  if (auto access = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
+    if (ast_cast<DestructorIdAST>(access->unqualifiedId)) {
+      ast->type = control_->getVoidType();
+    }
   }
 
   return true;
@@ -6199,6 +6247,15 @@ auto Parser::strip_parentheses(ExpressionAST* ast) -> ExpressionAST* {
     ast = paren->expression;
   }
   return ast;
+}
+
+auto Parser::strip_cv(const Type*& type) -> CvQualifiers {
+  if (auto qualType = type_cast<QualType>(type)) {
+    auto cv = qualType->cvQualifiers();
+    type = qualType->elementType();
+    return cv;
+  }
+  return {};
 }
 
 auto Parser::lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool {
