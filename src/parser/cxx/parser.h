@@ -238,7 +238,11 @@ class Parser final {
   [[nodiscard]] auto parse_start_of_postfix_expression(ExpressionAST*& yyast,
                                                        const ExprContext& ctx)
       -> bool;
+
   [[nodiscard]] auto parse_member_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto check_psuedo_destructor_access(MemberExpressionAST* ast)
+      -> bool;
+
   [[nodiscard]] auto parse_subscript_expression(ExpressionAST*& yyast,
                                                 const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_call_expression(ExpressionAST*& yyast,
@@ -828,6 +832,7 @@ class Parser final {
   void check_type_traits();
 
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
+  [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
 
   // standard conversions
   [[nodiscard]] auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;
