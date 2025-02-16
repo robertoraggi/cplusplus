@@ -2508,14 +2508,14 @@ void Parser::check_member_expression(MemberExpressionAST* ast) {
 
 auto Parser::check_member_access(MemberExpressionAST* ast) -> bool {
   const Type* objectType = ast->baseExpression->type;
-  auto cv = strip_cv(objectType);
+  auto cv1 = strip_cv(objectType);
 
   if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
     auto pointerType = type_cast<PointerType>(objectType);
     if (!pointerType) return false;
 
     objectType = pointerType->elementType();
-    cv = strip_cv(objectType);
+    cv1 = strip_cv(objectType);
   }
 
   auto classType = type_cast<ClassType>(objectType);
@@ -2532,9 +2532,36 @@ auto Parser::check_member_access(MemberExpressionAST* ast) -> bool {
 
   if (symbol) {
     ast->type = symbol->type();
-  }
 
-  // TODO: value category
+    if (symbol->isEnumerator()) {
+      ast->valueCategory = ValueCategory::kPrValue;
+    } else {
+      if (is_lvalue(ast->baseExpression)) {
+        ast->valueCategory = ValueCategory::kLValue;
+      } else {
+        ast->valueCategory = ValueCategory::kXValue;
+      }
+
+      if (auto field = symbol_cast<FieldSymbol>(symbol);
+          field && !field->isStatic()) {
+        auto cv2 = strip_cv(ast->type);
+
+        auto vq = is_volatile(cv1) || is_volatile(cv2);
+        auto cq = is_const(cv1) || is_const(cv2);
+
+        CvQualifiers cv = CvQualifiers::kNone;
+        if (vq) cv = CvQualifiers::kVolatile;
+
+        if (!field->isMutable() && cq) {
+          cv = merge_cv(cv, CvQualifiers::kConst);
+        }
+
+        if (cv != CvQualifiers::kNone) {
+          ast->type = control_->getQualType(ast->type, cv);
+        }
+      }
+    }
+  }
 
   return true;
 }
@@ -6297,6 +6324,27 @@ auto Parser::strip_cv(const Type*& type) -> CvQualifiers {
   return {};
 }
 
+auto Parser::is_const(CvQualifiers cv) const -> bool {
+  return cv == CvQualifiers::kConst || cv == CvQualifiers::kConstVolatile;
+}
+
+auto Parser::is_volatile(CvQualifiers cv) const -> bool {
+  return cv == CvQualifiers::kVolatile || cv == CvQualifiers::kConstVolatile;
+}
+
+auto Parser::merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
+    -> CvQualifiers {
+  CvQualifiers cv = CvQualifiers::kNone;
+  if (is_const(cv1) || is_const(cv2)) cv = CvQualifiers::kConst;
+  if (is_volatile(cv1) || is_volatile(cv2)) {
+    if (cv == CvQualifiers::kConst)
+      cv = CvQualifiers::kConstVolatile;
+    else
+      cv = CvQualifiers::kVolatile;
+  }
+  return cv;
+}
+
 auto Parser::lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool {
   if (!is_glvalue(expr)) return false;
 
@@ -10007,6 +10055,7 @@ auto Parser::declareField(DeclaratorAST* declarator, const Decl& decl)
   applySpecifiers(fieldSymbol, decl.specs);
   fieldSymbol->setName(name);
   fieldSymbol->setType(type);
+  fieldSymbol->setMutable(decl.specs.isMutable);
   if (auto alignment = control_->memoryLayout()->alignmentOf(type)) {
     fieldSymbol->setAlignment(alignment.value());
   }
