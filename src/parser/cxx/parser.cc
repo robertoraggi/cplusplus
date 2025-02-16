@@ -2494,14 +2494,52 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
                             /*inRequiresClause*/ false))
     parse_error("expected an unqualified id");
 
-  (void)check_psuedo_destructor_access(ast);
+  check_member_expression(ast);
 
   yyast = ast;
 
   return true;
 }
 
-auto Parser::check_psuedo_destructor_access(MemberExpressionAST* ast) -> bool {
+void Parser::check_member_expression(MemberExpressionAST* ast) {
+  if (check_pseudo_destructor_access(ast)) return;
+  if (check_member_access(ast)) return;
+}
+
+auto Parser::check_member_access(MemberExpressionAST* ast) -> bool {
+  const Type* objectType = ast->baseExpression->type;
+  auto cv = strip_cv(objectType);
+
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
+    auto pointerType = type_cast<PointerType>(objectType);
+    if (!pointerType) return false;
+
+    objectType = pointerType->elementType();
+    cv = strip_cv(objectType);
+  }
+
+  auto classType = type_cast<ClassType>(objectType);
+  if (!classType) return false;
+
+  auto memberName = convertName(ast->unqualifiedId);
+
+  auto classSymbol = classType->symbol();
+
+  auto symbol =
+      Lookup{scope_}.qualifiedLookup(classSymbol->scope(), memberName);
+
+  ast->symbol = symbol;
+
+  if (symbol) {
+    ast->type = symbol->type();
+  }
+
+  // TODO: value category
+
+  return true;
+}
+
+auto Parser::check_pseudo_destructor_access(MemberExpressionAST* ast) -> bool {
   auto objectType = ast->baseExpression->type;
   auto cv = strip_cv(objectType);
 
@@ -2538,6 +2576,7 @@ auto Parser::check_psuedo_destructor_access(MemberExpressionAST* ast) -> bool {
   }
 
   ast->symbol = symbol;
+  ast->type = control_->getFunctionType(control_->getVoidType(), {});
 
   return true;
 }

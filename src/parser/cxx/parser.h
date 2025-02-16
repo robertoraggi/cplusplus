@@ -240,7 +240,11 @@ class Parser final {
       -> bool;
 
   [[nodiscard]] auto parse_member_expression(ExpressionAST*& yyast) -> bool;
-  [[nodiscard]] auto check_psuedo_destructor_access(MemberExpressionAST* ast)
+
+  void check_member_expression(MemberExpressionAST* ast);
+
+  [[nodiscard]] auto check_member_access(MemberExpressionAST* ast) -> bool;
+  [[nodiscard]] auto check_pseudo_destructor_access(MemberExpressionAST* ast)
       -> bool;
 
   [[nodiscard]] auto parse_subscript_expression(ExpressionAST*& yyast,
