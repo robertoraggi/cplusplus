@@ -85,15 +85,15 @@ auto main() -> int {
 // CHECK-NEXT:                                  integral-type-specifier
 // CHECK-NEXT:                                    specifier: int
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: assignment-expression
+// CHECK-NEXT:              expression: assignment-expression [prvalue void (*)(int, int)]
 // CHECK-NEXT:                op: =
-// CHECK-NEXT:                left-expression: id-expression
+// CHECK-NEXT:                left-expression: id-expression [lvalue void (*)(int, int)]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: p
-// CHECK-NEXT:                right-expression: implicit-cast-expression
+// CHECK-NEXT:                right-expression: implicit-cast-expression [prvalue void (*)(int, int)]
 // CHECK-NEXT:                  cast-kind: function-pointer-conversion
-// CHECK-NEXT:                  expression: implicit-cast-expression
+// CHECK-NEXT:                  expression: implicit-cast-expression [prvalue void (*)(int, int)]
 // CHECK-NEXT:                    cast-kind: function-to-pointer-conversion
-// CHECK-NEXT:                    expression: id-expression
+// CHECK-NEXT:                    expression: id-expression [lvalue void (int, int)]
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: f

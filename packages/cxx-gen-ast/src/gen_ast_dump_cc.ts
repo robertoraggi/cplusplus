@@ -105,7 +105,15 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
     nodes.forEach(({ name, base, members }) => {
       emit();
       emit(`void ASTPrinter::visit(${name}* ast) {`);
-      emit(`  out_ << std::format("{}\\n", "${astName(name)}");`);
+      if (base == "ExpressionAST") {
+        emit(`  out_ << "${astName(name)}";`);
+        emit(`  if (ast->type) {`);
+        emit(`    out_ << std::format(" [{} {}]", to_string(ast->valueCategory), to_string(ast->type));`);
+        emit(`  }`);
+        emit(`  out_ << "\\n";`);
+      } else {
+        emit(`  out_ << std::format("{}\\n", "${astName(name)}");`);
+      }
 
       const baseMembers = ast.baseMembers.get(base);
 

@@ -27,4 +27,4 @@ auto main() -> int {
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            if-statement
-// CHECK-NEXT:              condition: bool-literal-expression
+// CHECK-NEXT:              condition: bool-literal-expression [prvalue bool]

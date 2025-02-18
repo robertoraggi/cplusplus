@@ -59,7 +59,7 @@ struct Pair {
 // CHECK-NEXT:                    return-statement
 // CHECK-NEXT:                      expression: braced-init-list
 // CHECK-NEXT:                        expression-list
-// CHECK-NEXT:                          int-literal-expression
+// CHECK-NEXT:                          int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 0
-// CHECK-NEXT:                          int-literal-expression
+// CHECK-NEXT:                          int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 0

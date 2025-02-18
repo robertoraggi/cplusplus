@@ -36,16 +36,16 @@ int main() {
 // CHECK-NEXT:                      declarator-chunk-list
 // CHECK-NEXT:                        array-declarator-chunk
 // CHECK-NEXT:                        array-declarator-chunk
-// CHECK-NEXT:                          expression: int-literal-expression
+// CHECK-NEXT:                          expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 2
 // CHECK-NEXT:                    initializer: equal-initializer
 // CHECK-NEXT:                      expression: braced-init-list
 // CHECK-NEXT:                        expression-list
 // CHECK-NEXT:                          braced-init-list
 // CHECK-NEXT:                            expression-list
-// CHECK-NEXT:                              int-literal-expression
+// CHECK-NEXT:                              int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 1
-// CHECK-NEXT:                              int-literal-expression
+// CHECK-NEXT:                              int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 2
 // CHECK-NEXT:            for-range-statement
 // CHECK-NEXT:              range-declaration: structured-binding-declaration
@@ -57,7 +57,7 @@ int main() {
 // CHECK-NEXT:                    identifier: key
 // CHECK-NEXT:                  name-id
 // CHECK-NEXT:                    identifier: value
-// CHECK-NEXT:              range-initializer: id-expression
+// CHECK-NEXT:              range-initializer: id-expression [lvalue int [][2]]
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: map
 // CHECK-NEXT:              statement: compound-statement

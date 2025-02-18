@@ -82,15 +82,15 @@ auto main() -> int {
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: d
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: assignment-expression
+// CHECK-NEXT:              expression: assignment-expression [prvalue float]
 // CHECK-NEXT:                op: =
-// CHECK-NEXT:                left-expression: id-expression
+// CHECK-NEXT:                left-expression: id-expression [lvalue float]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: f
-// CHECK-NEXT:                right-expression: implicit-cast-expression
+// CHECK-NEXT:                right-expression: implicit-cast-expression [prvalue float]
 // CHECK-NEXT:                  cast-kind: floating-point-conversion
-// CHECK-NEXT:                  expression: implicit-cast-expression
+// CHECK-NEXT:                  expression: implicit-cast-expression [prvalue double]
 // CHECK-NEXT:                    cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                    expression: id-expression
+// CHECK-NEXT:                    expression: id-expression [lvalue double]
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: d

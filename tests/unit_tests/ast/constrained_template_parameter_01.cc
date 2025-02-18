@@ -21,7 +21,7 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:          identifier: T
 // CHECK-NEXT:      declaration: concept-definition
 // CHECK-NEXT:        identifier: Any
-// CHECK-NEXT:        expression: bool-literal-expression
+// CHECK-NEXT:        expression: bool-literal-expression [prvalue bool]
 // CHECK-NEXT:          is-true: true
 // CHECK-NEXT:    template-declaration
 // CHECK-NEXT:      template-parameter-list

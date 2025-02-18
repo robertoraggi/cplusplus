@@ -53,11 +53,11 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression
-// CHECK-NEXT:                base-expression: id-expression
+// CHECK-NEXT:                base-expression: id-expression [lvalue $overload-set]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: foo
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  pack-expansion-expression
-// CHECK-NEXT:                    expression: id-expression
+// CHECK-NEXT:                    expression: id-expression [lvalue auto]
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: xs

@@ -34,10 +34,10 @@ int main() {
 // CHECK-NEXT:                          identifier: i
 // CHECK-NEXT:              range-initializer: braced-init-list
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  int-literal-expression
+// CHECK-NEXT:                  int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 10
-// CHECK-NEXT:                  int-literal-expression
+// CHECK-NEXT:                  int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 20
-// CHECK-NEXT:                  int-literal-expression
+// CHECK-NEXT:                  int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 30
 // CHECK-NEXT:              statement: compound-statement
