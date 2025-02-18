@@ -56,12 +56,12 @@ auto main() -> int { return S{.x = 10}.[:^S::x:]; }
 // CHECK-NEXT:                    expression-list
 // CHECK-NEXT:                      designated-initializer-clause
 // CHECK-NEXT:                        identifier: x
-// CHECK-NEXT:                        initializer: equal-initializer
-// CHECK-NEXT:                          expression: int-literal-expression
+// CHECK-NEXT:                        initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:                          expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 10
 // CHECK-NEXT:                splicer: splicer
 // CHECK-NEXT:                  expression: reflect-expression
-// CHECK-NEXT:                    expression: id-expression
+// CHECK-NEXT:                    expression: id-expression [lvalue int]
 // CHECK-NEXT:                      nested-name-specifier: simple-nested-name-specifier
 // CHECK-NEXT:                        identifier: S
 // CHECK-NEXT:                      unqualified-id: name-id

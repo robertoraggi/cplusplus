@@ -18,8 +18,8 @@ int c = a + b * c;
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: a
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: int-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:              literal: 10
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -31,8 +31,8 @@ int c = a + b * c;
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: b
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: int-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:              literal: 20
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -44,8 +44,8 @@ int c = a + b * c;
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: c
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: int-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:              literal: 30
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -57,23 +57,23 @@ int c = a + b * c;
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: c
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: binary-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: binary-expression [prvalue int]
 // CHECK-NEXT:              op: +
-// CHECK-NEXT:              left-expression: implicit-cast-expression
+// CHECK-NEXT:              left-expression: implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                expression: id-expression
+// CHECK-NEXT:                expression: id-expression [lvalue int]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: a
-// CHECK-NEXT:              right-expression: binary-expression
+// CHECK-NEXT:              right-expression: binary-expression [prvalue int]
 // CHECK-NEXT:                op: *
-// CHECK-NEXT:                left-expression: implicit-cast-expression
+// CHECK-NEXT:                left-expression: implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                  cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                  expression: id-expression
+// CHECK-NEXT:                  expression: id-expression [lvalue int]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: b
-// CHECK-NEXT:                right-expression: implicit-cast-expression
+// CHECK-NEXT:                right-expression: implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                  cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                  expression: id-expression
+// CHECK-NEXT:                  expression: id-expression [lvalue int]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: c

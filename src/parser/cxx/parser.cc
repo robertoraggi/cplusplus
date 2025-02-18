@@ -3140,7 +3140,7 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
     case TokenKind::T_STAR: {
       auto pointerType = type_cast<PointerType>(expression->type);
       if (pointerType) {
-        ensure_prvalue(ast->expression);
+        (void)ensure_prvalue(ast->expression);
         ast->type = pointerType->elementType();
         ast->valueCategory = ValueCategory::kLValue;
       }
@@ -3196,7 +3196,7 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
 
     case TokenKind::T_PLUS: {
       ExpressionAST* expr = ast->expression;
-      ensure_prvalue(expr);
+      (void)ensure_prvalue(expr);
       auto ty = control_->remove_cvref(expr->type);
       if (control_->is_arithmetic_or_unscoped_enum(ty) ||
           control_->is_pointer(ty)) {
@@ -3212,7 +3212,7 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
 
     case TokenKind::T_MINUS: {
       ExpressionAST* expr = ast->expression;
-      ensure_prvalue(expr);
+      (void)ensure_prvalue(expr);
       auto ty = control_->remove_cvref(expr->type);
       if (control_->is_arithmetic_or_unscoped_enum(ty)) {
         if (control_->is_integral_or_unscoped_enum(ty)) {
@@ -3234,7 +3234,7 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
 
     case TokenKind::T_TILDE: {
       ExpressionAST* expr = ast->expression;
-      ensure_prvalue(expr);
+      (void)ensure_prvalue(expr);
       auto ty = control_->remove_cvref(expr->type);
       if (control_->is_integral_or_unscoped_enum(ty)) {
         (void)integral_promotion(expr);
@@ -6786,21 +6786,23 @@ auto Parser::qualification_conversion(ExpressionAST*& expr,
   return false;
 }
 
-void Parser::ensure_prvalue(ExpressionAST*& expr) {
+auto Parser::ensure_prvalue(ExpressionAST*& expr) -> bool {
   if (lvalue_to_rvalue_conversion(expr)) {
     expr->valueCategory = ValueCategory::kPrValue;
-    return;
+    return true;
   }
 
   if (array_to_pointer_conversion(expr)) {
     expr->valueCategory = ValueCategory::kPrValue;
-    return;
+    return true;
   }
 
   if (function_to_pointer_conversion(expr)) {
     expr->valueCategory = ValueCategory::kPrValue;
-    return;
+    return true;
   }
+
+  return false;
 }
 
 auto Parser::implicit_conversion(ExpressionAST*& expr,
@@ -6810,6 +6812,7 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
 
   if (control_->is_same(expr->type, destinationType)) return true;
 
+  auto savedValueCategory = expr->valueCategory;
   auto savedExpr = expr;
   auto didConvert = false;
 
@@ -6839,6 +6842,7 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
   if (didConvert) return true;
 
   expr = savedExpr;
+  expr->valueCategory = savedValueCategory;
 
   return false;
 }

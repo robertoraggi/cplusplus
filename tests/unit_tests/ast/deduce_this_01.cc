@@ -18,7 +18,7 @@ struct object {
 // CHECK-NEXT:          identifier: T
 // CHECK-NEXT:      declaration: concept-definition
 // CHECK-NEXT:        identifier: ok
-// CHECK-NEXT:        expression: bool-literal-expression
+// CHECK-NEXT:        expression: bool-literal-expression [prvalue bool]
 // CHECK-NEXT:          is-true: true
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -51,6 +51,6 @@ struct object {
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list
 // CHECK-NEXT:                    return-statement
-// CHECK-NEXT:                      expression: id-expression
+// CHECK-NEXT:                      expression: id-expression [lvalue auto]
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: self

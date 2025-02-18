@@ -45,7 +45,7 @@ auto main() -> int {
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
-// CHECK-NEXT:                              expression: int-literal-expression
+// CHECK-NEXT:                              expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 0
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: simple-declaration
@@ -65,7 +65,7 @@ auto main() -> int {
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
-// CHECK-NEXT:                              expression: int-literal-expression
+// CHECK-NEXT:                              expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 0
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: simple-declaration
@@ -85,7 +85,7 @@ auto main() -> int {
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
-// CHECK-NEXT:                              expression: int-literal-expression
+// CHECK-NEXT:                              expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 0
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: simple-declaration
@@ -105,6 +105,6 @@ auto main() -> int {
 // CHECK-NEXT:                        statement: compound-statement
 // CHECK-NEXT:                          statement-list
 // CHECK-NEXT:                            return-statement
-// CHECK-NEXT:                              expression: int-literal-expression
+// CHECK-NEXT:                              expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 0
 // CHECK-NEXT:    empty-declaration

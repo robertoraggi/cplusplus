@@ -53,7 +53,7 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                  statement: compound-statement
 // CHECK-NEXT:                    statement-list
 // CHECK-NEXT:                      return-statement
-// CHECK-NEXT:                        expression: nullptr-literal-expression
+// CHECK-NEXT:                        expression: nullptr-literal-expression [prvalue decltype(nullptr)]
 // CHECK-NEXT:                          literal: nullptr
 // CHECK-NEXT:    function-definition
 // CHECK-NEXT:      decl-specifier-list
@@ -94,7 +94,7 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                base-expression: member-expression
 // CHECK-NEXT:                  access-op: .
 // CHECK-NEXT:                  is-template-introduced: true
-// CHECK-NEXT:                  base-expression: id-expression
+// CHECK-NEXT:                  base-expression: id-expression [lvalue ::Allocator]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: A
 // CHECK-NEXT:                  unqualified-id: simple-template-id
@@ -106,5 +106,5 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:                            integral-type-specifier
 // CHECK-NEXT:                              specifier: char
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  int-literal-expression
+// CHECK-NEXT:                  int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 128

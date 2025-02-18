@@ -63,7 +63,7 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                        expression: new-expression
 // CHECK-NEXT:                          new-placement: new-placement
 // CHECK-NEXT:                            expression-list
-// CHECK-NEXT:                              id-expression
+// CHECK-NEXT:                              id-expression [lvalue void*]
 // CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: where
 // CHECK-NEXT:                          type-specifier-list
@@ -73,7 +73,7 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                          new-initalizer: new-braced-initializer
 // CHECK-NEXT:                            braced-init-list: braced-init-list
 // CHECK-NEXT:                              expression-list
-// CHECK-NEXT:                                id-expression
+// CHECK-NEXT:                                id-expression [lvalue T]
 // CHECK-NEXT:                                  unqualified-id: name-id
 // CHECK-NEXT:                                    identifier: init
 // CHECK-NEXT:              declaration-statement
@@ -90,7 +90,7 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                        expression: new-expression
 // CHECK-NEXT:                          new-placement: new-placement
 // CHECK-NEXT:                            expression-list
-// CHECK-NEXT:                              id-expression
+// CHECK-NEXT:                              id-expression [lvalue void*]
 // CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: where
 // CHECK-NEXT:                          type-specifier-list
@@ -99,6 +99,6 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                                identifier: T
 // CHECK-NEXT:                          new-initalizer: new-paren-initializer
 // CHECK-NEXT:                            expression-list
-// CHECK-NEXT:                              id-expression
+// CHECK-NEXT:                              id-expression [lvalue T]
 // CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: init

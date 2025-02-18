@@ -17,8 +17,8 @@ const bool ko = false;
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ok
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: bool-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue bool]
+// CHECK-NEXT:            expression: bool-literal-expression [prvalue bool]
 // CHECK-NEXT:              is-true: true
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -31,5 +31,5 @@ const bool ko = false;
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ko
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: bool-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue bool]
+// CHECK-NEXT:            expression: bool-literal-expression [prvalue bool]

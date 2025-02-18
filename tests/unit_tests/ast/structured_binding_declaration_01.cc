@@ -66,10 +66,10 @@ struct Pair {
 // CHECK-NEXT:                            identifier: a
 // CHECK-NEXT:                          name-id
 // CHECK-NEXT:                            identifier: b
-// CHECK-NEXT:                        initializer: equal-initializer
-// CHECK-NEXT:                          expression: unary-expression
+// CHECK-NEXT:                        initializer: equal-initializer [lvalue ::Pair]
+// CHECK-NEXT:                          expression: unary-expression [lvalue ::Pair]
 // CHECK-NEXT:                            op: *
-// CHECK-NEXT:                            expression: this-expression
+// CHECK-NEXT:                            expression: this-expression [prvalue ::Pair*]
 // CHECK-NEXT:                    return-statement
 // CHECK-NEXT:                      expression: binary-expression
 // CHECK-NEXT:                        op: +

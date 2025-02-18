@@ -53,10 +53,10 @@ void ff(int count, ...) {
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_start
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  id-expression
+// CHECK-NEXT:                  id-expression [lvalue __builtin_va_list]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: args
-// CHECK-NEXT:                  id-expression
+// CHECK-NEXT:                  id-expression [lvalue int]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: count
 // CHECK-NEXT:            for-statement
@@ -71,24 +71,24 @@ void ff(int count, ...) {
 // CHECK-NEXT:                        core-declarator: id-declarator
 // CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: i
-// CHECK-NEXT:                      initializer: equal-initializer
-// CHECK-NEXT:                        expression: int-literal-expression
+// CHECK-NEXT:                      initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:                        expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                          literal: 0
-// CHECK-NEXT:              condition: binary-expression
+// CHECK-NEXT:              condition: binary-expression [prvalue bool]
 // CHECK-NEXT:                op: <
-// CHECK-NEXT:                left-expression: implicit-cast-expression
+// CHECK-NEXT:                left-expression: implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                  cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                  expression: id-expression
+// CHECK-NEXT:                  expression: id-expression [lvalue int]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: i
-// CHECK-NEXT:                right-expression: implicit-cast-expression
+// CHECK-NEXT:                right-expression: implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                  cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                  expression: id-expression
+// CHECK-NEXT:                  expression: id-expression [lvalue int]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: count
-// CHECK-NEXT:              expression: unary-expression
+// CHECK-NEXT:              expression: unary-expression [lvalue int]
 // CHECK-NEXT:                op: ++
-// CHECK-NEXT:                expression: id-expression
+// CHECK-NEXT:                expression: id-expression [lvalue int]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: i
 // CHECK-NEXT:              statement: compound-statement
@@ -99,7 +99,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          void-type-specifier
 // CHECK-NEXT:                      expression: va-arg-expression
-// CHECK-NEXT:                        expression: id-expression
+// CHECK-NEXT:                        expression: id-expression [lvalue __builtin_va_list]
 // CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: args
 // CHECK-NEXT:                        type-id: type-id

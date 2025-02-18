@@ -24,5 +24,5 @@ struct Bits {
 // CHECK-NEXT:                    core-declarator: bitfield-declarator
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: value
-// CHECK-NEXT:                      size-expression: int-literal-expression
+// CHECK-NEXT:                      size-expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                        literal: 32

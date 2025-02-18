@@ -54,7 +54,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:        constexpr-specifier
 // CHECK-NEXT:        splicer-type-specifier
 // CHECK-NEXT:          splicer: splicer
-// CHECK-NEXT:            expression: id-expression
+// CHECK-NEXT:            expression: id-expression [lvalue auto]
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: int_ty
 // CHECK-NEXT:      init-declarator-list
@@ -63,15 +63,15 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: i
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: int-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:              literal: 0
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        constexpr-specifier
 // CHECK-NEXT:        splicer-type-specifier
 // CHECK-NEXT:          splicer: splicer
-// CHECK-NEXT:            expression: id-expression
+// CHECK-NEXT:            expression: id-expression [lvalue auto]
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ptr_ty
 // CHECK-NEXT:      init-declarator-list
@@ -80,8 +80,8 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ptr
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: nullptr-literal-expression
+// CHECK-NEXT:          initializer: equal-initializer [prvalue decltype(nullptr)]
+// CHECK-NEXT:            expression: nullptr-literal-expression [prvalue decltype(nullptr)]
 // CHECK-NEXT:              literal: nullptr
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -95,7 +95,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:                identifier: z
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: reflect-expression
-// CHECK-NEXT:              expression: int-literal-expression
+// CHECK-NEXT:              expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                literal: 123
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
@@ -110,6 +110,6 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:          initializer: equal-initializer
 // CHECK-NEXT:            expression: splice-expression
 // CHECK-NEXT:              splicer: splicer
-// CHECK-NEXT:                expression: id-expression
+// CHECK-NEXT:                expression: id-expression [lvalue auto]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: z

@@ -706,11 +706,21 @@ void ASTPrinter::visit(TryBlockStatementAST* ast) {
 }
 
 void ASTPrinter::visit(GeneratedLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "generated-literal-expression");
+  out_ << "generated-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
 }
 
 void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "char-literal-expression");
+  out_ << "char-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->literal) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -720,7 +730,12 @@ void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "bool-literal-expression");
+  out_ << "bool-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->isTrue) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -730,7 +745,12 @@ void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "int-literal-expression");
+  out_ << "int-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->literal) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -740,7 +760,12 @@ void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "float-literal-expression");
+  out_ << "float-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->literal) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -750,7 +775,12 @@ void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "nullptr-literal-expression");
+  out_ << "nullptr-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->literal != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -760,7 +790,12 @@ void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "string-literal-expression");
+  out_ << "string-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->literal) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -770,7 +805,12 @@ void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
-  out_ << std::format("{}\n", "user-defined-string-literal-expression");
+  out_ << "user-defined-string-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->literal) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -780,21 +820,41 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(ThisExpressionAST* ast) {
-  out_ << std::format("{}\n", "this-expression");
+  out_ << "this-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
 }
 
 void ASTPrinter::visit(NestedStatementExpressionAST* ast) {
-  out_ << std::format("{}\n", "nested-statement-expression");
+  out_ << "nested-statement-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(NestedExpressionAST* ast) {
-  out_ << std::format("{}\n", "nested-expression");
+  out_ << "nested-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(IdExpressionAST* ast) {
-  out_ << std::format("{}\n", "id-expression");
+  out_ << "id-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->isTemplateIntroduced) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -807,7 +867,12 @@ void ASTPrinter::visit(IdExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(LambdaExpressionAST* ast) {
-  out_ << std::format("{}\n", "lambda-expression");
+  out_ << "lambda-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->captureDefault != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -869,7 +934,12 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(FoldExpressionAST* ast) {
-  out_ << std::format("{}\n", "fold-expression");
+  out_ << "fold-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -887,7 +957,12 @@ void ASTPrinter::visit(FoldExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(RightFoldExpressionAST* ast) {
-  out_ << std::format("{}\n", "right-fold-expression");
+  out_ << "right-fold-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -898,7 +973,12 @@ void ASTPrinter::visit(RightFoldExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
-  out_ << std::format("{}\n", "left-fold-expression");
+  out_ << "left-fold-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -909,7 +989,12 @@ void ASTPrinter::visit(LeftFoldExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(RequiresExpressionAST* ast) {
-  out_ << std::format("{}\n", "requires-expression");
+  out_ << "requires-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
   if (ast->requirementList) {
     ++indent_;
@@ -923,19 +1008,34 @@ void ASTPrinter::visit(RequiresExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(VaArgExpressionAST* ast) {
-  out_ << std::format("{}\n", "va-arg-expression");
+  out_ << "va-arg-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
   accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(SubscriptExpressionAST* ast) {
-  out_ << std::format("{}\n", "subscript-expression");
+  out_ << "subscript-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->baseExpression, "base-expression");
   accept(ast->indexExpression, "index-expression");
 }
 
 void ASTPrinter::visit(CallExpressionAST* ast) {
-  out_ << std::format("{}\n", "call-expression");
+  out_ << "call-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->baseExpression, "base-expression");
   if (ast->expressionList) {
     ++indent_;
@@ -949,7 +1049,12 @@ void ASTPrinter::visit(CallExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(TypeConstructionAST* ast) {
-  out_ << std::format("{}\n", "type-construction");
+  out_ << "type-construction";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeSpecifier, "type-specifier");
   if (ast->expressionList) {
     ++indent_;
@@ -963,13 +1068,23 @@ void ASTPrinter::visit(TypeConstructionAST* ast) {
 }
 
 void ASTPrinter::visit(BracedTypeConstructionAST* ast) {
-  out_ << std::format("{}\n", "braced-type-construction");
+  out_ << "braced-type-construction";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeSpecifier, "type-specifier");
   accept(ast->bracedInitList, "braced-init-list");
 }
 
 void ASTPrinter::visit(SpliceMemberExpressionAST* ast) {
-  out_ << std::format("{}\n", "splice-member-expression");
+  out_ << "splice-member-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->accessOp != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -988,7 +1103,12 @@ void ASTPrinter::visit(SpliceMemberExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(MemberExpressionAST* ast) {
-  out_ << std::format("{}\n", "member-expression");
+  out_ << "member-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->accessOp != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1008,7 +1128,12 @@ void ASTPrinter::visit(MemberExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(PostIncrExpressionAST* ast) {
-  out_ << std::format("{}\n", "post-incr-expression");
+  out_ << "post-incr-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1019,59 +1144,114 @@ void ASTPrinter::visit(PostIncrExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(CppCastExpressionAST* ast) {
-  out_ << std::format("{}\n", "cpp-cast-expression");
+  out_ << "cpp-cast-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(BuiltinBitCastExpressionAST* ast) {
-  out_ << std::format("{}\n", "builtin-bit-cast-expression");
+  out_ << "builtin-bit-cast-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(BuiltinOffsetofExpressionAST* ast) {
-  out_ << std::format("{}\n", "builtin-offsetof-expression");
+  out_ << "builtin-offsetof-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(TypeidExpressionAST* ast) {
-  out_ << std::format("{}\n", "typeid-expression");
+  out_ << "typeid-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(TypeidOfTypeExpressionAST* ast) {
-  out_ << std::format("{}\n", "typeid-of-type-expression");
+  out_ << "typeid-of-type-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(SpliceExpressionAST* ast) {
-  out_ << std::format("{}\n", "splice-expression");
+  out_ << "splice-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->splicer, "splicer");
 }
 
 void ASTPrinter::visit(GlobalScopeReflectExpressionAST* ast) {
-  out_ << std::format("{}\n", "global-scope-reflect-expression");
+  out_ << "global-scope-reflect-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
 }
 
 void ASTPrinter::visit(NamespaceReflectExpressionAST* ast) {
-  out_ << std::format("{}\n", "namespace-reflect-expression");
+  out_ << "namespace-reflect-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(TypeIdReflectExpressionAST* ast) {
-  out_ << std::format("{}\n", "type-id-reflect-expression");
+  out_ << "type-id-reflect-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(ReflectExpressionAST* ast) {
-  out_ << std::format("{}\n", "reflect-expression");
+  out_ << "reflect-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(UnaryExpressionAST* ast) {
-  out_ << std::format("{}\n", "unary-expression");
+  out_ << "unary-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1082,42 +1262,82 @@ void ASTPrinter::visit(UnaryExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(AwaitExpressionAST* ast) {
-  out_ << std::format("{}\n", "await-expression");
+  out_ << "await-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(SizeofExpressionAST* ast) {
-  out_ << std::format("{}\n", "sizeof-expression");
+  out_ << "sizeof-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(SizeofTypeExpressionAST* ast) {
-  out_ << std::format("{}\n", "sizeof-type-expression");
+  out_ << "sizeof-type-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(SizeofPackExpressionAST* ast) {
-  out_ << std::format("{}\n", "sizeof-pack-expression");
+  out_ << "sizeof-pack-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(AlignofTypeExpressionAST* ast) {
-  out_ << std::format("{}\n", "alignof-type-expression");
+  out_ << "alignof-type-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(AlignofExpressionAST* ast) {
-  out_ << std::format("{}\n", "alignof-expression");
+  out_ << "alignof-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(NoexceptExpressionAST* ast) {
-  out_ << std::format("{}\n", "noexcept-expression");
+  out_ << "noexcept-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(NewExpressionAST* ast) {
-  out_ << std::format("{}\n", "new-expression");
+  out_ << "new-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->newPlacement, "new-placement");
   if (ast->typeSpecifierList) {
     ++indent_;
@@ -1133,18 +1353,33 @@ void ASTPrinter::visit(NewExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(DeleteExpressionAST* ast) {
-  out_ << std::format("{}\n", "delete-expression");
+  out_ << "delete-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(CastExpressionAST* ast) {
-  out_ << std::format("{}\n", "cast-expression");
+  out_ << "cast-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->typeId, "type-id");
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(ImplicitCastExpressionAST* ast) {
-  out_ << std::format("{}\n", "implicit-cast-expression");
+  out_ << "implicit-cast-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   ++indent_;
   out_ << std::format("{:{}}", "", indent_ * 2);
   out_ << std::format("cast-kind: {}\n", to_string(ast->castKind));
@@ -1153,7 +1388,12 @@ void ASTPrinter::visit(ImplicitCastExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(BinaryExpressionAST* ast) {
-  out_ << std::format("{}\n", "binary-expression");
+  out_ << "binary-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1165,24 +1405,44 @@ void ASTPrinter::visit(BinaryExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(ConditionalExpressionAST* ast) {
-  out_ << std::format("{}\n", "conditional-expression");
+  out_ << "conditional-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->condition, "condition");
   accept(ast->iftrueExpression, "iftrue-expression");
   accept(ast->iffalseExpression, "iffalse-expression");
 }
 
 void ASTPrinter::visit(YieldExpressionAST* ast) {
-  out_ << std::format("{}\n", "yield-expression");
+  out_ << "yield-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(ThrowExpressionAST* ast) {
-  out_ << std::format("{}\n", "throw-expression");
+  out_ << "throw-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(AssignmentExpressionAST* ast) {
-  out_ << std::format("{}\n", "assignment-expression");
+  out_ << "assignment-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1194,18 +1454,33 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(PackExpansionExpressionAST* ast) {
-  out_ << std::format("{}\n", "pack-expansion-expression");
+  out_ << "pack-expansion-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
-  out_ << std::format("{}\n", "designated-initializer-clause");
+  out_ << "designated-initializer-clause";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->identifier, "identifier");
   accept(ast->initializer, "initializer");
 }
 
 void ASTPrinter::visit(TypeTraitExpressionAST* ast) {
-  out_ << std::format("{}\n", "type-trait-expression");
+  out_ << "type-trait-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->typeIdList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1218,7 +1493,12 @@ void ASTPrinter::visit(TypeTraitExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(ConditionExpressionAST* ast) {
-  out_ << std::format("{}\n", "condition-expression");
+  out_ << "condition-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->attributeList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1242,12 +1522,22 @@ void ASTPrinter::visit(ConditionExpressionAST* ast) {
 }
 
 void ASTPrinter::visit(EqualInitializerAST* ast) {
-  out_ << std::format("{}\n", "equal-initializer");
+  out_ << "equal-initializer";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(BracedInitListAST* ast) {
-  out_ << std::format("{}\n", "braced-init-list");
+  out_ << "braced-init-list";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->expressionList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1260,7 +1550,12 @@ void ASTPrinter::visit(BracedInitListAST* ast) {
 }
 
 void ASTPrinter::visit(ParenInitializerAST* ast) {
-  out_ << std::format("{}\n", "paren-initializer");
+  out_ << "paren-initializer";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
   if (ast->expressionList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);

@@ -39,7 +39,7 @@ auto main() -> int {
 // CHECK-NEXT:                          identifier: a
 // CHECK-NEXT:                      declarator-chunk-list
 // CHECK-NEXT:                        array-declarator-chunk
-// CHECK-NEXT:                          expression: int-literal-expression
+// CHECK-NEXT:                          expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 10
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: simple-declaration
@@ -55,13 +55,13 @@ auto main() -> int {
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: p
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: assignment-expression
+// CHECK-NEXT:              expression: assignment-expression [prvalue int*]
 // CHECK-NEXT:                op: =
-// CHECK-NEXT:                left-expression: id-expression
+// CHECK-NEXT:                left-expression: id-expression [lvalue int*]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: p
-// CHECK-NEXT:                right-expression: implicit-cast-expression
+// CHECK-NEXT:                right-expression: implicit-cast-expression [prvalue int*]
 // CHECK-NEXT:                  cast-kind: array-to-pointer-conversion
-// CHECK-NEXT:                  expression: id-expression
+// CHECK-NEXT:                  expression: id-expression [lvalue int [10]]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: a

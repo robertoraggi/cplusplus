@@ -90,8 +90,8 @@ end:;
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: p
-// CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: nullptr-literal-expression
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue decltype(nullptr)]
+// CHECK-NEXT:                      expression: nullptr-literal-expression [prvalue decltype(nullptr)]
 // CHECK-NEXT:                        literal: nullptr
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: asm-declaration
@@ -99,16 +99,16 @@ end:;
 // CHECK-NEXT:                output-operand-list
 // CHECK-NEXT:                  asm-operand
 // CHECK-NEXT:                    constraint-literal: "=r"
-// CHECK-NEXT:                    expression: id-expression
+// CHECK-NEXT:                    expression: id-expression [lvalue int]
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: a
 // CHECK-NEXT:                  asm-operand
 // CHECK-NEXT:                    constraint-literal: "+rm"
-// CHECK-NEXT:                    expression: unary-expression
+// CHECK-NEXT:                    expression: unary-expression [lvalue char]
 // CHECK-NEXT:                      op: *
-// CHECK-NEXT:                      expression: implicit-cast-expression
+// CHECK-NEXT:                      expression: implicit-cast-expression [prvalue char*]
 // CHECK-NEXT:                        cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                        expression: id-expression
+// CHECK-NEXT:                        expression: id-expression [lvalue char*]
 // CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: p
 // CHECK-NEXT:    function-definition
