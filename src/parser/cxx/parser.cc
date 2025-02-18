@@ -2546,19 +2546,11 @@ auto Parser::check_member_access(MemberExpressionAST* ast) -> bool {
           field && !field->isStatic()) {
         auto cv2 = strip_cv(ast->type);
 
-        auto vq = is_volatile(cv1) || is_volatile(cv2);
-        auto cq = is_const(cv1) || is_const(cv2);
+        if (is_volatile(cv1) || is_volatile(cv2))
+          ast->type = control_->add_volatile(ast->type);
 
-        CvQualifiers cv = CvQualifiers::kNone;
-        if (vq) cv = CvQualifiers::kVolatile;
-
-        if (!field->isMutable() && cq) {
-          cv = merge_cv(cv, CvQualifiers::kConst);
-        }
-
-        if (cv != CvQualifiers::kNone) {
-          ast->type = control_->getQualType(ast->type, cv);
-        }
+        if (!field->isMutable() && (is_const(cv1) || is_const(cv2)))
+          ast->type = control_->add_const(ast->type);
       }
     }
   }
@@ -2766,6 +2758,7 @@ auto Parser::check_static_cast(CppCastExpressionAST* ast) -> bool {
 
   const auto cv1 = get_cv_qualifiers(ast->expression->type);
   const auto cv2 = get_cv_qualifiers(targetType);
+
   if (!check_cv_qualifiers(cv2, cv1)) return false;
 
   if (implicit_conversion(ast->expression, ast->type)) return true;
@@ -2812,10 +2805,10 @@ auto Parser::check_cast_to_derived(const Type* targetType,
 }
 
 auto Parser::get_cv_qualifiers(const Type* type) const -> CvQualifiers {
-  if (auto qualType = type_cast<QualType>(type)) {
-    return qualType->cvQualifiers();
-  }
-  return CvQualifiers::kNone;
+  CvQualifiers cv = CvQualifiers::kNone;
+  if (control_->is_const(type)) cv = merge_cv(cv, CvQualifiers::kConst);
+  if (control_->is_volatile(type)) cv = merge_cv(cv, CvQualifiers::kVolatile);
+  return cv;
 }
 
 auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
@@ -6815,6 +6808,8 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
   if (!expr || !expr->type) return false;
   if (!destinationType) return false;
 
+  if (control_->is_same(expr->type, destinationType)) return true;
+
   auto savedExpr = expr;
   auto didConvert = false;
 
@@ -6824,6 +6819,10 @@ auto Parser::implicit_conversion(ExpressionAST*& expr,
     didConvert = true;
   } else if (function_to_pointer_conversion(expr)) {
     didConvert = true;
+  }
+
+  if (control_->is_scalar(expr->type)) {
+    expr->type = control_->remove_cv(expr->type);
   }
 
   if (integral_promotion(expr)) return true;
@@ -7903,6 +7902,11 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
 
   if (!parse_initializer_clause(ast->expression, ExprContext{})) {
     parse_error("expected an intializer");
+  }
+
+  if (ast->expression) {
+    ast->type = ast->expression->type;
+    ast->valueCategory = ast->expression->valueCategory;
   }
 
   return true;
