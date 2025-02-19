@@ -85,7 +85,7 @@ auto main() -> int {
 // CHECK-NEXT:                                  integral-type-specifier
 // CHECK-NEXT:                                    specifier: int
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: assignment-expression [prvalue void (*)(int, int)]
+// CHECK-NEXT:              expression: assignment-expression [lvalue void (*)(int, int)]
 // CHECK-NEXT:                op: =
 // CHECK-NEXT:                left-expression: id-expression [lvalue void (*)(int, int)]
 // CHECK-NEXT:                  unqualified-id: name-id

@@ -3628,19 +3628,7 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
     ast->rightExpression = expression;
     ast->op = op;
 
-    if (ast->leftExpression && ast->rightExpression) {
-      ast->type = ast->leftExpression->type;
-
-      auto sourceType = ast->rightExpression->type;
-
-      (void)implicit_conversion(ast->rightExpression, ast->type);
-
-#if false
-      parse_warning(ast->opLoc,
-              std::format("did convert {} to {}", to_string(sourceType),
-                          to_string(ast->type)));
-#endif
-    }
+    check(ast);
 
     yyast = ast;
   }

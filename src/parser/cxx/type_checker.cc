@@ -665,7 +665,15 @@ void TypeChecker::Visitor::operator()(YieldExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(ThrowExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
+  if (!ast->leftExpression) return;
+  if (!ast->rightExpression) return;
+
+  ast->type = ast->leftExpression->type;
+  ast->valueCategory = ast->leftExpression->valueCategory;
+
+  (void)implicit_conversion(ast->rightExpression, ast->type);
+}
 
 void TypeChecker::Visitor::operator()(PackExpansionExpressionAST* ast) {}
 
