@@ -48,6 +48,11 @@ struct TypeChecker::Visitor {
     return check.unit_->control();
   }
 
+  void error(SourceLocation loc, std::string message) {
+    if (!check.reportErrors_) return;
+    check.unit_->error(loc, std::move(message));
+  }
+
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
   [[nodiscard]] auto merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
@@ -102,6 +107,13 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto is_lvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
+  [[nodiscard]] auto check_cv_qualifiers(CvQualifiers target,
+                                         CvQualifiers source) const -> bool;
+
+  void check_cpp_cast_expression(CppCastExpressionAST* ast);
+  [[nodiscard]] auto check_static_cast(CppCastExpressionAST* ast) -> bool;
+  [[nodiscard]] auto check_cast_to_derived(const Type* targetType,
+                                           ExpressionAST* expression) -> bool;
 
   void operator()(GeneratedLiteralExpressionAST* ast);
   void operator()(CharLiteralExpressionAST* ast);
@@ -245,7 +257,94 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
+  check_cpp_cast_expression(ast);
+
+  switch (check.unit_->tokenKind(ast->castLoc)) {
+    case TokenKind::T_STATIC_CAST:
+      if (check_static_cast(ast)) break;
+      error(ast->firstSourceLocation(), "invalid static_cast");
+      break;
+
+    default:
+      break;
+  }  // switch
+}
+
+void TypeChecker::Visitor::check_cpp_cast_expression(
+    CppCastExpressionAST* ast) {
+  if (!ast->typeId) {
+    return;
+  }
+
+  ast->type = ast->typeId->type;
+
+  if (auto refType = type_cast<LvalueReferenceType>(ast->type)) {
+    ast->type = refType->elementType();
+    ast->valueCategory = ValueCategory::kLValue;
+    return;
+  }
+
+  if (auto rvalueRefType = type_cast<RvalueReferenceType>(ast->type)) {
+    ast->type = rvalueRefType->elementType();
+
+    if (type_cast<FunctionType>(ast->type)) {
+      ast->valueCategory = ValueCategory::kLValue;
+    } else {
+      ast->valueCategory = ValueCategory::kXValue;
+    }
+  }
+}
+
+auto TypeChecker::Visitor::check_static_cast(CppCastExpressionAST* ast)
+    -> bool {
+  if (!ast->typeId) return false;
+  auto targetType = ast->typeId->type;
+
+  if (control()->is_void(targetType)) return true;
+
+  if (check_cast_to_derived(targetType, ast->expression)) return true;
+
+  const auto cv1 = control()->get_cv_qualifiers(ast->expression->type);
+  const auto cv2 = control()->get_cv_qualifiers(targetType);
+
+  if (!check_cv_qualifiers(cv2, cv1)) return false;
+
+  if (implicit_conversion(ast->expression, ast->type)) return true;
+
+  return false;
+}
+
+auto TypeChecker::Visitor::check_cast_to_derived(const Type* targetType,
+                                                 ExpressionAST* expression)
+    -> bool {
+  if (!is_lvalue(expression)) return false;
+
+  auto sourceType = expression->type;
+
+  CvQualifiers cv1 = CvQualifiers::kNone;
+  if (auto qualType = type_cast<QualType>(sourceType)) {
+    cv1 = qualType->cvQualifiers();
+    sourceType = qualType->elementType();
+  }
+
+  auto targetRefType = type_cast<LvalueReferenceType>(targetType);
+  if (!targetRefType) return false;
+
+  targetType = targetRefType->elementType();
+
+  CvQualifiers cv2 = CvQualifiers::kNone;
+  if (auto qualType = type_cast<QualType>(targetType)) {
+    cv2 = qualType->cvQualifiers();
+    targetType = qualType->elementType();
+  }
+
+  if (!check_cv_qualifiers(cv2, cv1)) return false;
+
+  if (!control()->is_base_of(sourceType, targetType)) return false;
+
+  return true;
+}
 
 void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {}
 
@@ -1280,6 +1379,15 @@ auto TypeChecker::Visitor::is_glvalue(ExpressionAST* expr) const -> bool {
   if (!expr) return false;
   return expr->valueCategory == ValueCategory::kLValue ||
          expr->valueCategory == ValueCategory::kXValue;
+}
+
+auto TypeChecker::Visitor::check_cv_qualifiers(CvQualifiers target,
+                                               CvQualifiers source) const
+    -> bool {
+  if (source == target) return true;
+  if (source == CvQualifiers::kNone) return true;
+  if (target == CvQualifiers::kConstVolatile) return true;
+  return false;
 }
 
 TypeChecker::TypeChecker(TranslationUnit* unit) : unit_(unit) {}

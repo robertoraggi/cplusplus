@@ -849,16 +849,6 @@ class Parser final {
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool;
 
-  void check_cpp_cast_expression(CppCastExpressionAST* ast);
-
-  [[nodiscard]] auto check_static_cast(CppCastExpressionAST* ast) -> bool;
-
-  [[nodiscard]] auto check_cv_qualifiers(CvQualifiers target,
-                                         CvQualifiers source) const -> bool;
-
-  [[nodiscard]] auto check_cast_to_derived(const Type* targetType,
-                                           ExpressionAST* expression) -> bool;
-
   [[nodiscard]] auto get_cv_qualifiers(const Type* type) const -> CvQualifiers;
 
   [[nodiscard]] auto is_prvalue(ExpressionAST* expr) const -> bool;

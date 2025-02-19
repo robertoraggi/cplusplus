@@ -34,6 +34,9 @@ class TypeChecker {
     return unit_;
   }
 
+  [[nodiscard]] auto reportErrors() const -> bool { return reportErrors_; }
+  void setReportErrors(bool reportErrors) { reportErrors_ = reportErrors; }
+
   void setScope(Scope* scope) { scope_ = scope; }
 
   void operator()(ExpressionAST* ast);
@@ -50,6 +53,7 @@ class TypeChecker {
 
   TranslationUnit* unit_;
   Scope* scope_ = nullptr;
+  bool reportErrors_ = false;
 };
 
 }  // namespace cxx
