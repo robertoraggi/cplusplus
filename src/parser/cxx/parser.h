@@ -797,6 +797,8 @@ class Parser final {
 
   [[nodiscard]] auto declaringScope() const -> Scope*;
 
+  void check(ExpressionAST* ast);
+
   // lookup
   [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
 
@@ -842,48 +844,12 @@ class Parser final {
   [[nodiscard]] auto is_const(CvQualifiers cv) const -> bool;
   [[nodiscard]] auto is_volatile(CvQualifiers cv) const -> bool;
 
-  // standard conversions
-  [[nodiscard]] auto lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool;
-  [[nodiscard]] auto array_to_pointer_conversion(ExpressionAST*& expr) -> bool;
-  [[nodiscard]] auto function_to_pointer_conversion(ExpressionAST*& expr)
-      -> bool;
-  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
-  [[nodiscard]] auto floating_point_promotion(ExpressionAST*& expr) -> bool;
-  [[nodiscard]] auto integral_conversion(ExpressionAST*& expr,
-                                         const Type* destinationType) -> bool;
-  [[nodiscard]] auto floating_point_conversion(ExpressionAST*& expr,
-                                               const Type* destinationType)
-      -> bool;
-  [[nodiscard]] auto floating_integral_conversion(ExpressionAST*& expr,
-                                                  const Type* destinationType)
-      -> bool;
-  [[nodiscard]] auto pointer_conversion(ExpressionAST*& expr,
-                                        const Type* destinationType) -> bool;
-  [[nodiscard]] auto pointer_to_member_conversion(ExpressionAST*& expr,
-                                                  const Type* destinationType)
-      -> bool;
-  [[nodiscard]] auto function_pointer_conversion(ExpressionAST*& expr,
-                                                 const Type* destinationType)
-      -> bool;
-  [[nodiscard]] auto boolean_conversion(ExpressionAST*& expr,
-                                        const Type* destinationType) -> bool;
-  [[nodiscard]] auto temporary_materialization_conversion(ExpressionAST*& expr)
-      -> bool;
-  [[nodiscard]] auto qualification_conversion(ExpressionAST*& expr,
-                                              const Type* destinationType)
-      -> bool;
-
   [[nodiscard]] auto ensure_prvalue(ExpressionAST*& expr) -> bool;
 
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool;
 
-  [[nodiscard]] auto usual_arithmetic_conversion(ExpressionAST*& expr,
-                                                 ExpressionAST*& other)
-      -> const Type*;
-
-  [[nodiscard]] auto is_null_pointer_constant(ExpressionAST* expr) const
-      -> bool;
+  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
 
   void check_cpp_cast_expression(CppCastExpressionAST* ast);
 

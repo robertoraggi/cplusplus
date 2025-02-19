@@ -32,6 +32,7 @@
 #include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
+#include <cxx/type_checker.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbol_chain.h>
@@ -45,18 +46,6 @@
 namespace cxx {
 
 namespace {
-
-template <typename T>
-auto make_node(Arena* arena) -> T* {
-  auto node = new (arena) T();
-  return node;
-}
-
-template <typename T>
-auto make_list_node(Arena* arena, T* element = nullptr) -> List<T*>* {
-  auto list = new (arena) List<T*>(element);
-  return list;
-}
 
 inline constexpr struct {
   auto operator()(const StringLiteral*) const -> bool { return true; }
@@ -2031,29 +2020,7 @@ auto Parser::parse_this_expression(ExpressionAST*& yyast) -> bool {
   ast->thisLoc = thisLoc;
   ast->valueCategory = ValueCategory::kPrValue;
 
-  for (auto current = scope_; current; current = current->parent()) {
-    if (auto classSymbol = symbol_cast<ClassSymbol>(current->owner())) {
-      // maybe a this expression in a field initializer
-      ast->type = control_->getPointerType(classSymbol->type());
-      break;
-    }
-
-    if (auto functionSymbol = symbol_cast<FunctionSymbol>(current->owner())) {
-      if (auto classSymbol =
-              symbol_cast<ClassSymbol>(functionSymbol->enclosingSymbol())) {
-        auto functionType = type_cast<FunctionType>(functionSymbol->type());
-        const auto cv = functionType->cvQualifiers();
-        if (cv != CvQualifiers::kNone) {
-          auto elementType = control_->getQualType(classSymbol->type(), cv);
-          ast->type = control_->getPointerType(elementType);
-        } else {
-          ast->type = control_->getPointerType(classSymbol->type());
-        }
-      }
-
-      break;
-    }
-  }
+  check(ast);
 
   return true;
 }
@@ -2087,10 +2054,7 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (ast->expression) {
-    ast->type = ast->expression->type;
-    ast->valueCategory = ast->expression->valueCategory;
-  }
+  check(ast);
 
   return true;
 }
@@ -3386,7 +3350,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
     parse_error("expected an expression");
   }
 
-  ast->type = control_->getSizeType();
+  check(ast);
 
   return true;
 }
@@ -3418,7 +3382,8 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
     ast->lparenLoc = lparenLoc;
     ast->typeId = typeId;
     ast->rparenLoc = rparenLoc;
-    ast->type = control_->getSizeType();
+
+    check(ast);
 
     return true;
   };
@@ -3434,7 +3399,7 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
     parse_error("expected an expression");
   }
 
-  ast->type = control_->getSizeType();
+  check(ast);
 
   return true;
 }
@@ -3801,100 +3766,7 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
     ast->rightExpression = rhs;
     ast->op = op;
 
-    if (ast->leftExpression && ast->rightExpression) {
-      switch (ast->op) {
-        case TokenKind::T_DOT_STAR:
-          break;
-
-        case TokenKind::T_MINUS_GREATER_STAR:
-          break;
-
-        case TokenKind::T_STAR:
-        case TokenKind::T_SLASH:
-        case TokenKind::T_PLUS:
-        case TokenKind::T_MINUS:
-          ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                  ast->rightExpression);
-          break;
-
-        case TokenKind::T_PERCENT:
-          if (!control_->is_integral_or_unscoped_enum(
-                  ast->leftExpression->type))
-            break;
-
-          if (!control_->is_integral_or_unscoped_enum(
-                  ast->rightExpression->type))
-            break;
-
-          ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                  ast->rightExpression);
-
-          break;
-
-        case TokenKind::T_LESS_LESS:
-        case TokenKind::T_GREATER_GREATER:
-          if (!control_->is_integral_or_unscoped_enum(
-                  ast->leftExpression->type))
-            break;
-
-          if (!control_->is_integral_or_unscoped_enum(
-                  ast->rightExpression->type))
-            break;
-
-          (void)usual_arithmetic_conversion(ast->leftExpression,
-                                            ast->rightExpression);
-
-          ast->type = ast->leftExpression->type;
-          break;
-
-        case TokenKind::T_LESS_EQUAL_GREATER:
-          (void)usual_arithmetic_conversion(ast->leftExpression,
-                                            ast->rightExpression);
-          ast->type = control_->getIntType();
-          break;
-
-        case TokenKind::T_LESS_EQUAL:
-        case TokenKind::T_GREATER_EQUAL:
-        case TokenKind::T_LESS:
-        case TokenKind::T_GREATER:
-        case TokenKind::T_EQUAL_EQUAL:
-        case TokenKind::T_EXCLAIM_EQUAL:
-          (void)usual_arithmetic_conversion(ast->leftExpression,
-                                            ast->rightExpression);
-          ast->type = control_->getBoolType();
-          break;
-
-        case TokenKind::T_AMP:
-        case TokenKind::T_CARET:
-        case TokenKind::T_BAR:
-          if (!control_->is_integral_or_unscoped_enum(
-                  ast->leftExpression->type))
-            break;
-
-          if (!control_->is_integral_or_unscoped_enum(
-                  ast->rightExpression->type))
-            break;
-
-          ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                  ast->rightExpression);
-
-          break;
-
-        case TokenKind::T_AMP_AMP:
-        case TokenKind::T_BAR_BAR:
-          (void)implicit_conversion(ast->leftExpression,
-                                    control_->getBoolType());
-
-          (void)implicit_conversion(ast->rightExpression,
-                                    control_->getBoolType());
-
-          ast->type = control_->getBoolType();
-          break;
-
-        default:
-          cxx_runtime_error("invalid operator");
-      }  // switch
-    }
+    check(ast);
 
     yyast = ast;
   }
@@ -4074,6 +3946,9 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
     if (ast->rightExpression) {
       ast->type = ast->rightExpression->type;
     }
+
+    check(ast);
+
     yyast = ast;
   }
 
@@ -6338,633 +6213,23 @@ auto Parser::merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
   return cv;
 }
 
-auto Parser::lvalue_to_rvalue_conversion(ExpressionAST*& expr) -> bool {
-  if (!is_glvalue(expr)) return false;
-
-  auto unref = control_->remove_cvref(expr->type);
-  if (control_->is_function(unref)) return false;
-  if (control_->is_array(unref)) return false;
-  if (!control_->is_complete(unref)) return false;
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
-  cast->expression = expr;
-  cast->type = control_->remove_reference(expr->type);
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-  return true;
-}
-
-auto Parser::array_to_pointer_conversion(ExpressionAST*& expr) -> bool {
-  auto unref = control_->remove_reference(expr->type);
-  if (!control_->is_array(unref)) return false;
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
-  cast->expression = expr;
-  cast->type = control_->add_pointer(control_->remove_extent(unref));
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-  return true;
-}
-
-auto Parser::function_to_pointer_conversion(ExpressionAST*& expr) -> bool {
-  auto unref = control_->remove_reference(expr->type);
-  if (!control_->is_function(unref)) return false;
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kFunctionToPointerConversion;
-  cast->expression = expr;
-  cast->type = control_->add_pointer(unref);
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-  return true;
-}
-
-auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto ty = control_->remove_cv(expr->type);
-
-  if (!control_->is_integral(ty) && !control_->is_enum(ty)) return false;
-
-  auto make_implicit_cast = [&](const Type* type) {
-    auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-    cast->castKind = ImplicitCastKind::kIntegralPromotion;
-    cast->expression = expr;
-    cast->type = type;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-  };
-
-  // TODO: bit-fields
-
-  switch (ty->kind()) {
-    case TypeKind::kChar:
-    case TypeKind::kSignedChar:
-    case TypeKind::kUnsignedChar:
-    case TypeKind::kShortInt:
-    case TypeKind::kUnsignedShortInt: {
-      make_implicit_cast(control_->getIntType());
-      return true;
-    }
-
-    case TypeKind::kChar8:
-    case TypeKind::kChar16:
-    case TypeKind::kChar32:
-    case TypeKind::kWideChar: {
-      make_implicit_cast(control_->getIntType());
-      return true;
-    }
-
-    case TypeKind::kBool: {
-      make_implicit_cast(control_->getIntType());
-      return true;
-    }
-
-    default:
-      break;
-  }  // switch
-
-  if (auto enumType = type_cast<EnumType>(ty)) {
-    auto type = enumType->underlyingType();
-
-    if (!type) {
-      // TODO: compute the from the value of the enumeration
-      type = control_->getIntType();
-    }
-
-    make_implicit_cast(type);
-
-    return true;
-  }
-
-  return false;
-}
-
-auto Parser::floating_point_promotion(ExpressionAST*& expr) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto ty = control_->remove_cv(expr->type);
-
-  if (!control_->is_floating_point(ty)) return false;
-
-  if (ty->kind() != TypeKind::kFloat) return false;
-
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kFloatingPointPromotion;
-  cast->expression = expr;
-  cast->type = control_->getDoubleType();
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-
-  return true;
-}
-
-auto Parser::integral_conversion(ExpressionAST*& expr,
-                                 const Type* destinationType) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  if (!control_->is_integral_or_unscoped_enum(expr->type)) return false;
-  if (!control_->is_integer(destinationType)) return false;
-
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kIntegralConversion;
-  cast->expression = expr;
-  cast->type = destinationType;
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-
-  return true;
-}
-
-auto Parser::floating_point_conversion(ExpressionAST*& expr,
-                                       const Type* destinationType) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  if (!control_->is_floating_point(expr->type)) return false;
-  if (!control_->is_floating_point(destinationType)) return false;
-
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kFloatingPointConversion;
-  cast->expression = expr;
-  cast->type = destinationType;
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-
-  return true;
-}
-
-auto Parser::floating_integral_conversion(ExpressionAST*& expr,
-                                          const Type* destinationType) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto make_integral_conversion = [&] {
-    auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-    cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
-    cast->expression = expr;
-    cast->type = destinationType;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-  };
-
-  if (control_->is_integral_or_unscoped_enum(expr->type) &&
-      control_->is_floating_point(destinationType)) {
-    make_integral_conversion();
-    return true;
-  }
-
-  if (!control_->is_floating_point(expr->type)) return false;
-  if (!control_->is_integer(destinationType)) return false;
-
-  make_integral_conversion();
-
-  return true;
-}
-
-auto Parser::pointer_to_member_conversion(ExpressionAST*& expr,
-                                          const Type* destinationType) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  if (!control_->is_member_pointer(destinationType)) return false;
-
-  auto make_implicit_cast = [&] {
-    auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-    cast->castKind = ImplicitCastKind::kPointerToMemberConversion;
-    cast->expression = expr;
-    cast->type = destinationType;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-  };
-
-  auto can_convert_null_pointer_constant = [&] {
-    if (!is_null_pointer_constant(expr)) return false;
-
-    make_implicit_cast();
-
-    return true;
-  };
-
-  auto can_convert_member_object_pointer = [&] {
-    auto memberObjectPointerType =
-        type_cast<MemberObjectPointerType>(expr->type);
-
-    if (!memberObjectPointerType) return false;
-
-    auto destinationMemberObjectPointerType =
-        type_cast<MemberObjectPointerType>(destinationType);
-
-    if (!destinationMemberObjectPointerType) return false;
-
-    if (control_->get_cv_qualifiers(memberObjectPointerType->elementType()) !=
-        control_->get_cv_qualifiers(
-            destinationMemberObjectPointerType->elementType()))
-      return false;
-
-    if (!control_->is_base_of(destinationMemberObjectPointerType->classType(),
-                              memberObjectPointerType->classType()))
-      return false;
-
-    make_implicit_cast();
-
-    return true;
-  };
-
-  auto can_convert_member_function_pointer = [&] {
-    auto memberFunctionPointerType =
-        type_cast<MemberFunctionPointerType>(expr->type);
-
-    if (!memberFunctionPointerType) return false;
-
-    auto destinationMemberFunctionPointerType =
-        type_cast<MemberFunctionPointerType>(destinationType);
-
-    if (!destinationMemberFunctionPointerType) return false;
-
-    if (control_->get_cv_qualifiers(
-            memberFunctionPointerType->functionType()) !=
-        control_->get_cv_qualifiers(
-            destinationMemberFunctionPointerType->functionType()))
-      return false;
-
-    if (!control_->is_base_of(destinationMemberFunctionPointerType->classType(),
-                              memberFunctionPointerType->classType()))
-      return false;
-
-    make_implicit_cast();
-
-    return true;
-  };
-
-  if (can_convert_null_pointer_constant()) return true;
-  if (can_convert_member_object_pointer()) return true;
-
-  return false;
-}
-
-auto Parser::pointer_conversion(ExpressionAST*& expr,
-                                const Type* destinationType) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto make_implicit_cast = [&] {
-    auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-    cast->castKind = ImplicitCastKind::kPointerConversion;
-    cast->expression = expr;
-    cast->type = destinationType;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-  };
-
-  auto can_convert_null_pointer_literal = [&] {
-    if (!is_null_pointer_constant(expr)) return false;
-
-    if (!control_->is_pointer(destinationType) &&
-        !control_->is_null_pointer(destinationType))
-      return false;
-
-    make_implicit_cast();
-
-    return true;
-  };
-
-  auto can_convert_to_void_pointer = [&] {
-    const auto pointerType = type_cast<PointerType>(expr->type);
-    if (!pointerType) return false;
-
-    const auto destinationPointerType = type_cast<PointerType>(destinationType);
-    if (!destinationPointerType) return false;
-
-    if (control_->get_cv_qualifiers(pointerType->elementType()) !=
-        control_->get_cv_qualifiers(destinationPointerType->elementType()))
-      return false;
-
-    if (!control_->is_void(
-            control_->remove_cv(destinationPointerType->elementType())))
-      return false;
-
-    make_implicit_cast();
-
-    return true;
-  };
-
-  auto can_convert_to_base_class_pointer = [&] {
-    const auto pointerType = type_cast<PointerType>(expr->type);
-    if (!pointerType) return false;
-
-    const auto destinationPointerType = type_cast<PointerType>(destinationType);
-    if (!destinationPointerType) return false;
-
-    if (control_->get_cv_qualifiers(pointerType->elementType()) !=
-        control_->get_cv_qualifiers(destinationPointerType->elementType()))
-      return false;
-
-    if (!control_->is_base_of(
-            control_->remove_cv(destinationPointerType->elementType()),
-            control_->remove_cv(pointerType->elementType())))
-      return false;
-
-    make_implicit_cast();
-
-    return true;
-  };
-
-  if (can_convert_null_pointer_literal()) return true;
-  if (can_convert_to_void_pointer()) return true;
-  if (can_convert_to_base_class_pointer()) return true;
-
-  return false;
-}
-
-auto Parser::function_pointer_conversion(ExpressionAST*& expr,
-                                         const Type* destinationType) -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto can_remove_noexcept_from_function = [&] {
-    const auto pointerType = type_cast<PointerType>(expr->type);
-    if (!pointerType) return false;
-
-    const auto functionType =
-        type_cast<FunctionType>(pointerType->elementType());
-
-    if (!functionType) return false;
-
-    if (functionType->isNoexcept()) return false;
-
-    const auto destinationPointerType = type_cast<PointerType>(destinationType);
-    if (!destinationPointerType) return false;
-
-    const auto destinationFunctionType =
-        type_cast<FunctionType>(destinationPointerType->elementType());
-
-    if (!destinationFunctionType) return false;
-
-    if (!control_->is_same(control_->remove_noexcept(functionType),
-                           destinationFunctionType))
-      return false;
-
-    auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-    cast->castKind = ImplicitCastKind::kFunctionPointerConversion;
-    cast->expression = expr;
-    cast->type = destinationType;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-
-    return true;
-  };
-
-  auto can_remove_noexcept_from_member_function__pointer = [&] {
-    const auto memberFunctionPointer =
-        type_cast<MemberFunctionPointerType>(expr->type);
-
-    if (!memberFunctionPointer) return false;
-
-    if (!memberFunctionPointer->functionType()->isNoexcept()) return false;
-
-    const auto destinationMemberFunctionPointer =
-        type_cast<MemberFunctionPointerType>(destinationType);
-
-    if (!destinationMemberFunctionPointer) return false;
-
-    if (destinationMemberFunctionPointer->functionType()->isNoexcept())
-      return false;
-
-    if (!control_->is_same(
-            control_->remove_noexcept(memberFunctionPointer->functionType()),
-            destinationMemberFunctionPointer->functionType()))
-      return false;
-
-    auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-    cast->castKind = ImplicitCastKind::kFunctionPointerConversion;
-    cast->expression = expr;
-    cast->type = destinationType;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-
-    return true;
-  };
-
-  if (can_remove_noexcept_from_function()) return true;
-  if (can_remove_noexcept_from_member_function__pointer()) return true;
-
-  return false;
-}
-
-auto Parser::boolean_conversion(ExpressionAST*& expr,
-                                const Type* destinationType) -> bool {
-  if (!type_cast<BoolType>(control_->remove_cv(destinationType))) return false;
-
-  if (!is_prvalue(expr)) return false;
-
-  if (!control_->is_arithmetic_or_unscoped_enum(expr->type) &&
-      !control_->is_pointer(expr->type) &&
-      !control_->is_member_pointer(expr->type))
-    return false;
-
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kBooleanConversion;
-  cast->expression = expr;
-  cast->type = control_->getBoolType();
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-
-  return true;
-}
-
-auto Parser::temporary_materialization_conversion(ExpressionAST*& expr)
-    -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto cast = make_node<ImplicitCastExpressionAST>(pool_);
-  cast->castKind = ImplicitCastKind::kTemporaryMaterializationConversion;
-  cast->expression = expr;
-  cast->type = control_->remove_reference(expr->type);
-  cast->valueCategory = ValueCategory::kXValue;
-  expr = cast;
-
-  return true;
-}
-
-auto Parser::qualification_conversion(ExpressionAST*& expr,
-                                      const Type* destinationType) -> bool {
-  return false;
-}
-
 auto Parser::ensure_prvalue(ExpressionAST*& expr) -> bool {
-  if (lvalue_to_rvalue_conversion(expr)) {
-    expr->valueCategory = ValueCategory::kPrValue;
-    return true;
-  }
-
-  if (array_to_pointer_conversion(expr)) {
-    expr->valueCategory = ValueCategory::kPrValue;
-    return true;
-  }
-
-  if (function_to_pointer_conversion(expr)) {
-    expr->valueCategory = ValueCategory::kPrValue;
-    return true;
-  }
-
-  return false;
+  TypeChecker checker{unit};
+  checker.setScope(scope_);
+  return checker.ensure_prvalue(expr);
 }
 
 auto Parser::implicit_conversion(ExpressionAST*& expr,
                                  const Type* destinationType) -> bool {
-  if (!expr || !expr->type) return false;
-  if (!destinationType) return false;
-
-  if (control_->is_same(expr->type, destinationType)) return true;
-
-  auto savedValueCategory = expr->valueCategory;
-  auto savedExpr = expr;
-  auto didConvert = false;
-
-  if (lvalue_to_rvalue_conversion(expr)) {
-    didConvert = true;
-  } else if (array_to_pointer_conversion(expr)) {
-    didConvert = true;
-  } else if (function_to_pointer_conversion(expr)) {
-    didConvert = true;
-  }
-
-  if (control_->is_scalar(expr->type)) {
-    expr->type = control_->remove_cv(expr->type);
-  }
-
-  if (integral_promotion(expr)) return true;
-  if (floating_point_promotion(expr)) return true;
-  if (integral_conversion(expr, destinationType)) return true;
-  if (floating_point_conversion(expr, destinationType)) return true;
-  if (floating_integral_conversion(expr, destinationType)) return true;
-  if (pointer_conversion(expr, destinationType)) return true;
-  if (pointer_to_member_conversion(expr, destinationType)) return true;
-  if (boolean_conversion(expr, destinationType)) return true;
-  if (function_pointer_conversion(expr, destinationType)) return true;
-  if (qualification_conversion(expr, destinationType)) return true;
-
-  if (didConvert) return true;
-
-  expr = savedExpr;
-  expr->valueCategory = savedValueCategory;
-
-  return false;
+  TypeChecker checker{unit};
+  checker.setScope(scope_);
+  return checker.implicit_conversion(expr, destinationType);
 }
 
-auto Parser::usual_arithmetic_conversion(ExpressionAST*& expr,
-                                         ExpressionAST*& other) -> const Type* {
-  if (!expr || !expr->type) return nullptr;
-  if (!other || !other->type) return nullptr;
-
-  ExpressionAST* savedExpr = expr;
-  ExpressionAST* savedOther = other;
-
-  auto unmodifiedExpressions = [&]() -> const Type* {
-    expr = savedExpr;
-    other = savedOther;
-    return nullptr;
-  };
-
-  if (!control_->is_arithmetic_or_unscoped_enum(expr->type) &&
-      !control_->is_arithmetic_or_unscoped_enum(other->type))
-    return unmodifiedExpressions();
-
-  (void)lvalue_to_rvalue_conversion(expr);
-  (void)lvalue_to_rvalue_conversion(other);
-
-  if (control_->is_scoped_enum(expr->type) ||
-      control_->is_scoped_enum(other->type))
-    return unmodifiedExpressions();
-
-  if (control_->is_floating_point(expr->type) ||
-      control_->is_floating_point(other->type)) {
-    auto leftType = control_->remove_cv(expr->type);
-    auto rightType = control_->remove_cv(other->type);
-
-    if (control_->is_same(leftType, rightType)) return leftType;
-
-    if (!control_->is_floating_point(leftType)) {
-      if (floating_integral_conversion(expr, rightType)) return rightType;
-      return unmodifiedExpressions();
-    } else if (!control_->is_floating_point(rightType)) {
-      if (floating_integral_conversion(other, leftType)) return leftType;
-      return unmodifiedExpressions();
-    } else if (leftType->kind() == TypeKind::kLongDouble ||
-               rightType->kind() == TypeKind::kLongDouble) {
-      (void)floating_point_conversion(expr, control_->getLongDoubleType());
-      return control_->getLongDoubleType();
-    } else if (leftType->kind() == TypeKind::kDouble ||
-               rightType->kind() == TypeKind::kDouble) {
-      (void)floating_point_conversion(expr, control_->getDoubleType());
-      return control_->getDoubleType();
-    }
-
-    return unmodifiedExpressions();
-  }
-
-  (void)integral_promotion(expr);
-  (void)integral_promotion(other);
-
-  const auto leftType = control_->remove_cv(expr->type);
-  const auto rightType = control_->remove_cv(other->type);
-
-  if (control_->is_same(leftType, rightType)) return leftType;
-
-  auto match_integral_type = [&](const Type* type) -> bool {
-    if (leftType->kind() == type->kind() || rightType->kind() == type->kind()) {
-      (void)integral_conversion(expr, type);
-      (void)integral_conversion(other, type);
-      return true;
-    }
-    return false;
-  };
-
-  if (control_->is_signed(leftType) && control_->is_signed(rightType)) {
-    if (match_integral_type(control_->getLongLongIntType())) {
-      return control_->getLongLongIntType();
-    } else if (match_integral_type(control_->getLongIntType())) {
-      return control_->getLongIntType();
-    } else {
-      (void)integral_conversion(expr, control_->getIntType());
-      (void)integral_conversion(other, control_->getIntType());
-      return control_->getIntType();
-    }
-  }
-
-  if (control_->is_unsigned(leftType) && control_->is_unsigned(rightType)) {
-    if (match_integral_type(control_->getUnsignedLongLongIntType())) {
-      return control_->getUnsignedLongLongIntType();
-    } else if (match_integral_type(control_->getUnsignedLongIntType())) {
-      return control_->getUnsignedLongIntType();
-    } else {
-      (void)integral_conversion(expr, control_->getUnsignedIntType());
-      return control_->getUnsignedIntType();
-    }
-  }
-
-  if (match_integral_type(control_->getUnsignedLongLongIntType())) {
-    return control_->getUnsignedLongLongIntType();
-  } else if (match_integral_type(control_->getUnsignedLongIntType())) {
-    return control_->getUnsignedLongIntType();
-  } else if (match_integral_type(control_->getUnsignedIntType())) {
-    return control_->getUnsignedIntType();
-  } else if (match_integral_type(control_->getUnsignedShortIntType())) {
-    return control_->getUnsignedShortIntType();
-  } else if (match_integral_type(control_->getUnsignedCharType())) {
-    return control_->getUnsignedCharType();
-  } else if (match_integral_type(control_->getLongLongIntType())) {
-    return control_->getLongLongIntType();
-  } else if (match_integral_type(control_->getLongIntType())) {
-    return control_->getLongIntType();
-  }
-
-  (void)integral_conversion(expr, control_->getIntType());
-  (void)integral_conversion(other, control_->getIntType());
-  return control_->getIntType();
-}
-
-auto Parser::is_null_pointer_constant(ExpressionAST* expr) const -> bool {
-  if (control_->is_null_pointer(expr->type)) return true;
-  if (auto integerLiteral = ast_cast<IntLiteralExpressionAST>(expr)) {
-    return integerLiteral->literal->value() == "0";
-  }
-  return false;
+auto Parser::integral_promotion(ExpressionAST*& expr) -> bool {
+  TypeChecker checker{unit};
+  checker.setScope(scope_);
+  return checker.integral_promotion(expr);
 }
 
 auto Parser::is_prvalue(ExpressionAST* expr) const -> bool {
@@ -10768,6 +10033,8 @@ auto Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast,
     ast->op = TokenKind::T_BAR_BAR;
     ast->rightExpression = expression;
     yyast = ast;
+
+    check(ast);
   }
 
   return true;
@@ -10793,6 +10060,8 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast,
     ast->op = TokenKind::T_AMP_AMP;
     ast->rightExpression = expression;
     yyast = ast;
+
+    check(ast);
   }
 
   return true;
@@ -11774,6 +11043,12 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   finish_compound_statement(functionBody->statement);
 
   rewind(saved);
+}
+
+void Parser::check(ExpressionAST* ast) {
+  TypeChecker check{unit};
+  check.setScope(scope_);
+  check(ast);
 }
 
 auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
