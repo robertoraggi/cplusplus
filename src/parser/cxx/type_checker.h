@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 #include <cxx/ast_fwd.h>
+#include <cxx/symbols_fwd.h>
+#include <cxx/types_fwd.h>
 
 namespace cxx {
 
@@ -32,13 +34,24 @@ class TypeChecker {
     return unit_;
   }
 
+  void setScope(Scope* scope) { scope_ = scope; }
+
   void operator()(ExpressionAST* ast);
+
   void check(ExpressionAST* ast);
+
+  [[nodiscard]] auto ensure_prvalue(ExpressionAST*& expr) -> bool;
+
+  [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
+                                         const Type* destinationType) -> bool;
+
+  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
 
  private:
   struct Visitor;
 
   TranslationUnit* unit_;
+  Scope* scope_ = nullptr;
 };
 
 }  // namespace cxx

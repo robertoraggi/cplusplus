@@ -108,6 +108,18 @@ class AST : public Managed {
   ASTKind kind_;
 };
 
+template <typename T>
+auto make_node(Arena* arena) -> T* {
+  auto node = new (arena) T();
+  return node;
+}
+
+template <typename T>
+auto make_list_node(Arena* arena, T* element = nullptr) -> List<T*>* {
+  auto list = new (arena) List<T*>(element);
+  return list;
+}
+
 [[nodiscard]] inline auto firstSourceLocation(SourceLocation loc)
     -> SourceLocation {
   return loc;
