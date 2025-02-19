@@ -265,7 +265,166 @@ void TypeChecker::Visitor::operator()(TypeIdReflectExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(ReflectExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
+  switch (ast->op) {
+    case TokenKind::T_STAR: {
+      auto pointerType = type_cast<PointerType>(ast->expression->type);
+      if (pointerType) {
+        (void)ensure_prvalue(ast->expression);
+        ast->type = pointerType->elementType();
+        ast->valueCategory = ValueCategory::kLValue;
+      }
+      break;
+    }
+
+    case TokenKind::T_AMP: {
+      if (!ast->expression->type) {
+        break;
+      }
+
+      if (!is_glvalue(ast->expression)) {
+        break;
+      }
+
+      // TODO xvalue to lvalue
+
+      if (auto idExpr = ast_cast<IdExpressionAST>(ast->expression);
+          idExpr && idExpr->nestedNameSpecifier) {
+        auto symbol = idExpr->symbol;
+        if (auto field = symbol_cast<FieldSymbol>(symbol);
+            field && !field->isStatic()) {
+          auto parentClass = field->enclosingSymbol();
+          auto classType = type_cast<ClassType>(parentClass->type());
+
+          ast->type =
+              control()->getMemberObjectPointerType(classType, field->type());
+
+          ast->valueCategory = ValueCategory::kPrValue;
+
+          break;
+        }
+
+        if (auto function = symbol_cast<FunctionSymbol>(symbol);
+            function && !function->isStatic()) {
+          auto functionType = type_cast<FunctionType>(function->type());
+          auto parentClass = function->enclosingSymbol();
+          auto classType = type_cast<ClassType>(parentClass->type());
+
+          ast->type =
+              control()->getMemberFunctionPointerType(classType, functionType);
+
+          ast->valueCategory = ValueCategory::kPrValue;
+
+          break;
+        }
+      }  // id expression
+
+      ast->type = control()->getPointerType(ast->expression->type);
+      ast->valueCategory = ValueCategory::kPrValue;
+      break;
+    }
+
+    case TokenKind::T_PLUS: {
+      ExpressionAST* expr = ast->expression;
+      (void)ensure_prvalue(expr);
+      auto ty = control()->remove_cvref(expr->type);
+      if (control()->is_arithmetic_or_unscoped_enum(ty) ||
+          control()->is_pointer(ty)) {
+        if (control()->is_integral_or_unscoped_enum(ty)) {
+          (void)integral_promotion(expr);
+        }
+        ast->expression = expr;
+        ast->type = expr->type;
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+      break;
+    }
+
+    case TokenKind::T_MINUS: {
+      ExpressionAST* expr = ast->expression;
+      (void)ensure_prvalue(expr);
+      auto ty = control()->remove_cvref(expr->type);
+      if (control()->is_arithmetic_or_unscoped_enum(ty)) {
+        if (control()->is_integral_or_unscoped_enum(ty)) {
+          (void)integral_promotion(expr);
+        }
+        ast->expression = expr;
+        ast->type = expr->type;
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+      break;
+    }
+
+    case TokenKind::T_EXCLAIM: {
+      (void)implicit_conversion(ast->expression, control()->getBoolType());
+      ast->type = control()->getBoolType();
+      ast->valueCategory = ValueCategory::kPrValue;
+      break;
+    }
+
+    case TokenKind::T_TILDE: {
+      ExpressionAST* expr = ast->expression;
+      (void)ensure_prvalue(expr);
+      auto ty = control()->remove_cvref(expr->type);
+      if (control()->is_integral_or_unscoped_enum(ty)) {
+        (void)integral_promotion(expr);
+        ast->expression = expr;
+        ast->type = expr->type;
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+      break;
+    }
+
+    case TokenKind::T_PLUS_PLUS: {
+      if (!is_glvalue(ast->expression)) {
+        break;
+      }
+
+      auto ty = ast->expression->type;
+
+      if (control()->is_arithmetic(ty) && !control()->is_const(ty)) {
+        ast->type = ty;
+        ast->valueCategory = ValueCategory::kLValue;
+        break;
+      }
+
+      if (auto ptrTy = type_cast<PointerType>(ty)) {
+        if (ptrTy && !control()->is_void(ptrTy->elementType())) {
+          ast->type = ptrTy;
+          ast->valueCategory = ValueCategory::kLValue;
+        }
+      }
+
+      break;
+    }
+
+    case TokenKind::T_MINUS_MINUS: {
+      if (!is_glvalue(ast->expression)) {
+        break;
+      }
+
+      auto ty = ast->expression->type;
+
+      if (control()->is_arithmetic(ty) && !control()->is_const(ty)) {
+        ast->type = ty;
+        ast->valueCategory = ValueCategory::kLValue;
+        break;
+      }
+
+      if (auto ptrTy = type_cast<PointerType>(ty)) {
+        if (ptrTy && !control()->is_void(ptrTy->elementType())) {
+          ast->type = ptrTy;
+          ast->valueCategory = ValueCategory::kLValue;
+        }
+      }
+
+      break;
+    }
+
+    default:
+      break;
+  }  // switch
+}
 
 void TypeChecker::Visitor::operator()(AwaitExpressionAST* ast) {}
 
@@ -1133,10 +1292,6 @@ void TypeChecker::operator()(ExpressionAST* ast) {
 void TypeChecker::check(ExpressionAST* ast) {
   if (!ast) return;
   visit(Visitor{*this}, ast);
-}
-
-auto TypeChecker::integral_promotion(ExpressionAST*& expr) -> bool {
-  return Visitor{*this}.integral_promotion(expr);
 }
 
 auto TypeChecker::ensure_prvalue(ExpressionAST*& expr) -> bool {
