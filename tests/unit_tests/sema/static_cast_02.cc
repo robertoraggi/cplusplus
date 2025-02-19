@@ -1,5 +1,7 @@
 // RUN: %cxx -verify -fcheck -freport-missing-types  %s
 
+// clang-format off
+
 struct B {};
 struct D : B {};
 
@@ -20,7 +22,9 @@ auto main() -> int {
   const D& cd2 = static_cast<const D&>(cb);
   const volatile D& cd3 = static_cast<const volatile D&>(cb);
 
-  D& d = static_cast<D&>(cb);  // expected-error {{invalid static_cast}}
+  D& d = static_cast<D&>(cb);  // expected-error {{invalid static_cast of 'const ::B' to '::D'}}
 
   return 0;
 }
+
+// clang-format on

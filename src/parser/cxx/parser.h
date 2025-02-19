@@ -839,17 +839,8 @@ class Parser final {
 
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
-  [[nodiscard]] auto merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
-      -> CvQualifiers;
   [[nodiscard]] auto is_const(CvQualifiers cv) const -> bool;
   [[nodiscard]] auto is_volatile(CvQualifiers cv) const -> bool;
-
-  [[nodiscard]] auto ensure_prvalue(ExpressionAST*& expr) -> bool;
-
-  [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
-                                         const Type* destinationType) -> bool;
-
-  [[nodiscard]] auto get_cv_qualifiers(const Type* type) const -> CvQualifiers;
 
   [[nodiscard]] auto is_prvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto is_lvalue(ExpressionAST* expr) const -> bool;
