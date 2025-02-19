@@ -19,10 +19,14 @@
 
 file(GLOB CXX_LSP_INCLUDE_HEADER_FILES cxx/lsp/*.h)
 
-aux_source_directory(cxx/lsp LSP_SOURCES)
-
 add_library(cxx-lsp
-    ${LSP_SOURCES}
+    cxx/lsp/cxx_document.cc
+    cxx/lsp/enums.cc
+    cxx/lsp/lsp.cc
+    cxx/lsp/lsp_server.cc
+    cxx/lsp/requests.cc
+    cxx/lsp/sync_queue.cc
+    cxx/lsp/types.cc
     ${CXX_LSP_INCLUDE_HEADER_FILES}
 )
 

@@ -24,16 +24,624 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 
 namespace cxx {
 
-ASTRewriter::ASTRewriter(TranslationUnit* unit) : unit_(unit) {}
+ASTRewriter::ASTRewriter(TypeChecker* typeChcker,
+                         const std::vector<TemplateArgument>& templateArguments)
+    : typeChecker_(typeChcker),
+      unit_(typeChcker->translationUnit()),
+      templateArguments_(templateArguments) {}
 
 ASTRewriter::~ASTRewriter() {}
 
 auto ASTRewriter::control() const -> Control* { return unit_->control(); }
 
 auto ASTRewriter::arena() const -> Arena* { return unit_->arena(); }
+
+struct ASTRewriter::UnitVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(TranslationUnitAST* ast) -> UnitAST*;
+
+  [[nodiscard]] auto operator()(ModuleUnitAST* ast) -> UnitAST*;
+};
+
+struct ASTRewriter::DeclarationVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(SimpleDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AsmDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(NamespaceAliasDefinitionAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(UsingDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(UsingEnumDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(UsingDirectiveAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(StaticAssertDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AliasDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(OpaqueEnumDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(FunctionDefinitionAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(TemplateDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ConceptDefinitionAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(DeductionGuideAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ExplicitInstantiationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ExportDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ExportCompoundDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(LinkageSpecificationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(NamespaceDefinitionAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(EmptyDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AttributeDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ModuleImportDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ParameterDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AccessDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ForRangeDeclarationAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(StructuredBindingDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AsmOperandAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AsmQualifierAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AsmClobberAST* ast) -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(AsmGotoLabelAST* ast) -> DeclarationAST*;
+};
+
+struct ASTRewriter::StatementVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(LabeledStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(CaseStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(DefaultStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(ExpressionStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(CompoundStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(IfStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(ConstevalIfStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(SwitchStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(WhileStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(DoStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(ForRangeStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(ForStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(BreakStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(ContinueStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(ReturnStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(CoroutineReturnStatementAST* ast)
+      -> StatementAST*;
+
+  [[nodiscard]] auto operator()(GotoStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(DeclarationStatementAST* ast) -> StatementAST*;
+
+  [[nodiscard]] auto operator()(TryBlockStatementAST* ast) -> StatementAST*;
+};
+
+struct ASTRewriter::ExpressionVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(BoolLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(IntLiteralExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(FloatLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(NullptrLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(StringLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(UserDefinedStringLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(NestedExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(IdExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(LambdaExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(FoldExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(RightFoldExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(LeftFoldExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(RequiresExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(VaArgExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(SubscriptExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(CallExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(TypeConstructionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(BracedTypeConstructionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(SpliceMemberExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(MemberExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(PostIncrExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(CppCastExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(TypeidExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(TypeidOfTypeExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(SpliceExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(GlobalScopeReflectExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(NamespaceReflectExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(TypeIdReflectExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ReflectExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(UnaryExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(AwaitExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(SizeofExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(SizeofTypeExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(SizeofPackExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(AlignofTypeExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(AlignofExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(NoexceptExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(NewExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(DeleteExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(CastExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(BinaryExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ConditionalExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(YieldExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ThrowExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(AssignmentExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(PackExpansionExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(DesignatedInitializerClauseAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(TypeTraitExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ConditionExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(EqualInitializerAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(BracedInitListAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(ParenInitializerAST* ast) -> ExpressionAST*;
+};
+
+struct ASTRewriter::TemplateParameterVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(TemplateTypeParameterAST* ast)
+      -> TemplateParameterAST*;
+
+  [[nodiscard]] auto operator()(NonTypeTemplateParameterAST* ast)
+      -> TemplateParameterAST*;
+
+  [[nodiscard]] auto operator()(TypenameTypeParameterAST* ast)
+      -> TemplateParameterAST*;
+
+  [[nodiscard]] auto operator()(ConstraintTypeParameterAST* ast)
+      -> TemplateParameterAST*;
+};
+
+struct ASTRewriter::SpecifierVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(GeneratedTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(TypedefSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(FriendSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ConstevalSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ConstinitSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ConstexprSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(InlineSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(StaticSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ThreadLocalSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ThreadSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(MutableSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(VirtualSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ExplicitSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(AutoTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(VoidTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(SizeTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(SignTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(VaListTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(IntegralTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(FloatingPointTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ComplexTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(NamedTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(AtomicTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(UnderlyingTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ElaboratedTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(DecltypeAutoSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(DecltypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(PlaceholderTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ConstQualifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(VolatileQualifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(EnumSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(ClassSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(TypenameSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(SplicerTypeSpecifierAST* ast) -> SpecifierAST*;
+};
+
+struct ASTRewriter::PtrOperatorVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(PointerOperatorAST* ast) -> PtrOperatorAST*;
+
+  [[nodiscard]] auto operator()(ReferenceOperatorAST* ast) -> PtrOperatorAST*;
+
+  [[nodiscard]] auto operator()(PtrToMemberOperatorAST* ast) -> PtrOperatorAST*;
+};
+
+struct ASTRewriter::CoreDeclaratorVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(BitfieldDeclaratorAST* ast)
+      -> CoreDeclaratorAST*;
+
+  [[nodiscard]] auto operator()(ParameterPackAST* ast) -> CoreDeclaratorAST*;
+
+  [[nodiscard]] auto operator()(IdDeclaratorAST* ast) -> CoreDeclaratorAST*;
+
+  [[nodiscard]] auto operator()(NestedDeclaratorAST* ast) -> CoreDeclaratorAST*;
+};
+
+struct ASTRewriter::DeclaratorChunkVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(FunctionDeclaratorChunkAST* ast)
+      -> DeclaratorChunkAST*;
+
+  [[nodiscard]] auto operator()(ArrayDeclaratorChunkAST* ast)
+      -> DeclaratorChunkAST*;
+};
+
+struct ASTRewriter::UnqualifiedIdVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(NameIdAST* ast) -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(DestructorIdAST* ast) -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(DecltypeIdAST* ast) -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(OperatorFunctionIdAST* ast)
+      -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(LiteralOperatorIdAST* ast) -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(ConversionFunctionIdAST* ast)
+      -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(SimpleTemplateIdAST* ast) -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(LiteralOperatorTemplateIdAST* ast)
+      -> UnqualifiedIdAST*;
+
+  [[nodiscard]] auto operator()(OperatorFunctionTemplateIdAST* ast)
+      -> UnqualifiedIdAST*;
+};
+
+struct ASTRewriter::NestedNameSpecifierVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(GlobalNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierAST*;
+
+  [[nodiscard]] auto operator()(SimpleNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierAST*;
+
+  [[nodiscard]] auto operator()(DecltypeNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierAST*;
+
+  [[nodiscard]] auto operator()(TemplateNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierAST*;
+};
+
+struct ASTRewriter::FunctionBodyVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(DefaultFunctionBodyAST* ast)
+      -> FunctionBodyAST*;
+
+  [[nodiscard]] auto operator()(CompoundStatementFunctionBodyAST* ast)
+      -> FunctionBodyAST*;
+
+  [[nodiscard]] auto operator()(TryStatementFunctionBodyAST* ast)
+      -> FunctionBodyAST*;
+
+  [[nodiscard]] auto operator()(DeleteFunctionBodyAST* ast) -> FunctionBodyAST*;
+};
+
+struct ASTRewriter::TemplateArgumentVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(TypeTemplateArgumentAST* ast)
+      -> TemplateArgumentAST*;
+
+  [[nodiscard]] auto operator()(ExpressionTemplateArgumentAST* ast)
+      -> TemplateArgumentAST*;
+};
+
+struct ASTRewriter::ExceptionSpecifierVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(ThrowExceptionSpecifierAST* ast)
+      -> ExceptionSpecifierAST*;
+
+  [[nodiscard]] auto operator()(NoexceptSpecifierAST* ast)
+      -> ExceptionSpecifierAST*;
+};
+
+struct ASTRewriter::RequirementVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(SimpleRequirementAST* ast) -> RequirementAST*;
+
+  [[nodiscard]] auto operator()(CompoundRequirementAST* ast) -> RequirementAST*;
+
+  [[nodiscard]] auto operator()(TypeRequirementAST* ast) -> RequirementAST*;
+
+  [[nodiscard]] auto operator()(NestedRequirementAST* ast) -> RequirementAST*;
+};
+
+struct ASTRewriter::NewInitializerVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(NewParenInitializerAST* ast)
+      -> NewInitializerAST*;
+
+  [[nodiscard]] auto operator()(NewBracedInitializerAST* ast)
+      -> NewInitializerAST*;
+};
+
+struct ASTRewriter::MemInitializerVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(ParenMemInitializerAST* ast)
+      -> MemInitializerAST*;
+
+  [[nodiscard]] auto operator()(BracedMemInitializerAST* ast)
+      -> MemInitializerAST*;
+};
+
+struct ASTRewriter::LambdaCaptureVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(ThisLambdaCaptureAST* ast) -> LambdaCaptureAST*;
+
+  [[nodiscard]] auto operator()(DerefThisLambdaCaptureAST* ast)
+      -> LambdaCaptureAST*;
+
+  [[nodiscard]] auto operator()(SimpleLambdaCaptureAST* ast)
+      -> LambdaCaptureAST*;
+
+  [[nodiscard]] auto operator()(RefLambdaCaptureAST* ast) -> LambdaCaptureAST*;
+
+  [[nodiscard]] auto operator()(RefInitLambdaCaptureAST* ast)
+      -> LambdaCaptureAST*;
+
+  [[nodiscard]] auto operator()(InitLambdaCaptureAST* ast) -> LambdaCaptureAST*;
+};
+
+struct ASTRewriter::ExceptionDeclarationVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(EllipsisExceptionDeclarationAST* ast)
+      -> ExceptionDeclarationAST*;
+
+  [[nodiscard]] auto operator()(TypeExceptionDeclarationAST* ast)
+      -> ExceptionDeclarationAST*;
+};
+
+struct ASTRewriter::AttributeSpecifierVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(CxxAttributeAST* ast) -> AttributeSpecifierAST*;
+
+  [[nodiscard]] auto operator()(GccAttributeAST* ast) -> AttributeSpecifierAST*;
+
+  [[nodiscard]] auto operator()(AlignasAttributeAST* ast)
+      -> AttributeSpecifierAST*;
+
+  [[nodiscard]] auto operator()(AlignasTypeAttributeAST* ast)
+      -> AttributeSpecifierAST*;
+
+  [[nodiscard]] auto operator()(AsmAttributeAST* ast) -> AttributeSpecifierAST*;
+};
+
+struct ASTRewriter::AttributeTokenVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+
+  [[nodiscard]] auto operator()(ScopedAttributeTokenAST* ast)
+      -> AttributeTokenAST*;
+
+  [[nodiscard]] auto operator()(SimpleAttributeTokenAST* ast)
+      -> AttributeTokenAST*;
+};
 
 auto ASTRewriter::operator()(UnitAST* ast) -> UnitAST* {
   if (ast) return visit(UnitVisitor{*this}, ast);
@@ -51,8 +659,10 @@ auto ASTRewriter::operator()(StatementAST* ast) -> StatementAST* {
 }
 
 auto ASTRewriter::operator()(ExpressionAST* ast) -> ExpressionAST* {
-  if (ast) return visit(ExpressionVisitor{*this}, ast);
-  return {};
+  if (!ast) return {};
+  auto expr = visit(ExpressionVisitor{*this}, ast);
+  if (expr) typeChecker_->check(expr);
+  return expr;
 }
 
 auto ASTRewriter::operator()(TemplateParameterAST* ast)
@@ -171,8 +781,8 @@ auto ASTRewriter::operator()(GlobalModuleFragmentAST* ast)
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -194,8 +804,8 @@ auto ASTRewriter::operator()(PrivateModuleFragmentAST* ast)
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -217,8 +827,8 @@ auto ASTRewriter::operator()(ModuleDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -285,6 +895,7 @@ auto ASTRewriter::operator()(InitDeclaratorAST* ast) -> InitDeclaratorAST* {
   copy->declarator = operator()(ast->declarator);
   copy->requiresClause = operator()(ast->requiresClause);
   copy->initializer = operator()(ast->initializer);
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -296,8 +907,8 @@ auto ASTRewriter::operator()(DeclaratorAST* ast) -> DeclaratorAST* {
 
   if (auto it = ast->ptrOpList) {
     auto out = &copy->ptrOpList;
-    for (auto it = ast->ptrOpList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->ptrOpList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -307,8 +918,8 @@ auto ASTRewriter::operator()(DeclaratorAST* ast) -> DeclaratorAST* {
 
   if (auto it = ast->declaratorChunkList) {
     auto out = &copy->declaratorChunkList;
-    for (auto it = ast->declaratorChunkList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->declaratorChunkList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -326,6 +937,7 @@ auto ASTRewriter::operator()(UsingDeclaratorAST* ast) -> UsingDeclaratorAST* {
   copy->nestedNameSpecifier = operator()(ast->nestedNameSpecifier);
   copy->unqualifiedId = operator()(ast->unqualifiedId);
   copy->ellipsisLoc = ast->ellipsisLoc;
+  copy->symbol = ast->symbol;
   copy->isPack = ast->isPack;
 
   return copy;
@@ -340,8 +952,8 @@ auto ASTRewriter::operator()(EnumeratorAST* ast) -> EnumeratorAST* {
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -361,8 +973,8 @@ auto ASTRewriter::operator()(TypeIdAST* ast) -> TypeIdAST* {
 
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -395,8 +1007,8 @@ auto ASTRewriter::operator()(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -432,8 +1044,8 @@ auto ASTRewriter::operator()(ParameterDeclarationClauseAST* ast)
 
   if (auto it = ast->parameterDeclarationList) {
     auto out = &copy->parameterDeclarationList;
-    for (auto it = ast->parameterDeclarationList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->parameterDeclarationList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(ast_cast<ParameterDeclarationAST>(value));
       out = &(*out)->next;
     }
@@ -481,8 +1093,8 @@ auto ASTRewriter::operator()(TypeConstraintAST* ast) -> TypeConstraintAST* {
 
   if (auto it = ast->templateArgumentList) {
     auto out = &copy->templateArgumentList;
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -540,8 +1152,8 @@ auto ASTRewriter::operator()(NewPlacementAST* ast) -> NewPlacementAST* {
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = operator()(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = operator()(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -572,8 +1184,8 @@ auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -590,8 +1202,8 @@ auto ASTRewriter::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitAST* {
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -608,8 +1220,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -617,8 +1229,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   if (auto it = ast->declSpecifierList) {
     auto out = &copy->declSpecifierList;
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -626,8 +1238,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   if (auto it = ast->initDeclaratorList) {
     auto out = &copy->initDeclaratorList;
-    for (auto it = ast->initDeclaratorList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->initDeclaratorList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -645,8 +1257,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -654,8 +1266,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
   if (auto it = ast->asmQualifierList) {
     auto out = &copy->asmQualifierList;
-    for (auto it = ast->asmQualifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->asmQualifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(ast_cast<AsmQualifierAST>(value));
       out = &(*out)->next;
     }
@@ -667,8 +1279,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
   if (auto it = ast->outputOperandList) {
     auto out = &copy->outputOperandList;
-    for (auto it = ast->outputOperandList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->outputOperandList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(ast_cast<AsmOperandAST>(value));
       out = &(*out)->next;
     }
@@ -676,8 +1288,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
   if (auto it = ast->inputOperandList) {
     auto out = &copy->inputOperandList;
-    for (auto it = ast->inputOperandList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->inputOperandList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(ast_cast<AsmOperandAST>(value));
       out = &(*out)->next;
     }
@@ -685,8 +1297,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
   if (auto it = ast->clobberList) {
     auto out = &copy->clobberList;
-    for (auto it = ast->clobberList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->clobberList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(ast_cast<AsmClobberAST>(value));
       out = &(*out)->next;
     }
@@ -694,8 +1306,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
   if (auto it = ast->gotoLabelList) {
     auto out = &copy->gotoLabelList;
-    for (auto it = ast->gotoLabelList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->gotoLabelList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(ast_cast<AsmGotoLabelAST>(value));
       out = &(*out)->next;
     }
@@ -731,8 +1343,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
 
   if (auto it = ast->usingDeclaratorList) {
     auto out = &copy->usingDeclaratorList;
-    for (auto it = ast->usingDeclaratorList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->usingDeclaratorList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -761,8 +1373,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDirectiveAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -802,17 +1414,28 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
   }
 
   copy->equalLoc = ast->equalLoc;
+
+  if (auto it = ast->gnuAttributeList) {
+    auto out = &copy->gnuAttributeList;
+    for (auto node : ListView{ast->gnuAttributeList}) {
+      auto value = rewrite(node);
+      *out = new (arena()) List(value);
+      out = &(*out)->next;
+    }
+  }
+
   copy->typeId = rewrite(ast->typeId);
   copy->semicolonLoc = ast->semicolonLoc;
   copy->identifier = ast->identifier;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -826,8 +1449,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -839,8 +1462,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -857,8 +1480,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -866,8 +1489,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (auto it = ast->declSpecifierList) {
     auto out = &copy->declSpecifierList;
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -890,8 +1513,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
 
   if (auto it = ast->templateParameterList) {
     auto out = &copy->templateParameterList;
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->templateParameterList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -967,8 +1590,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -989,8 +1612,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(LinkageSpecificationAST* ast)
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1011,8 +1634,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1020,8 +1643,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
 
   if (auto it = ast->nestedNamespaceSpecifierList) {
     auto out = &copy->nestedNamespaceSpecifierList;
-    for (auto it = ast->nestedNamespaceSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->nestedNamespaceSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1031,8 +1654,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
 
   if (auto it = ast->extraAttributeList) {
     auto out = &copy->extraAttributeList;
-    for (auto it = ast->extraAttributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->extraAttributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1042,8 +1665,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1071,8 +1694,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AttributeDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1092,8 +1715,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1110,8 +1733,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1121,8 +1744,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1163,8 +1786,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1172,8 +1795,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   if (auto it = ast->declSpecifierList) {
     auto out = &copy->declSpecifierList;
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1184,8 +1807,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   if (auto it = ast->bindingList) {
     auto out = &copy->bindingList;
-    for (auto it = ast->bindingList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->bindingList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(ast_cast<NameIdAST>(value));
       out = &(*out)->next;
     }
@@ -1295,8 +1918,8 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
 
   if (auto it = ast->statementList) {
     auto out = &copy->statementList;
-    for (auto it = ast->statementList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->statementList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1486,8 +2109,8 @@ auto ASTRewriter::StatementVisitor::operator()(TryBlockStatementAST* ast)
 
   if (auto it = ast->handlerList) {
     auto out = &copy->handlerList;
-    for (auto it = ast->handlerList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->handlerList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1603,6 +2226,19 @@ auto ASTRewriter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
   return copy;
 }
 
+auto ASTRewriter::ExpressionVisitor::operator()(
+    NestedStatementExpressionAST* ast) -> ExpressionAST* {
+  auto copy = new (arena()) NestedStatementExpressionAST{};
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->statement = ast_cast<CompoundStatementAST>(rewrite(ast->statement));
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
 auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
     -> ExpressionAST* {
   auto copy = new (arena()) NestedExpressionAST{};
@@ -1616,18 +2252,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
   return copy;
 }
 
-auto ASTRewriter::ExpressionVisitor::operator()(
-    NestedStatementExpressionAST* ast) -> ExpressionAST* {
-  auto copy = new (arena()) NestedStatementExpressionAST{};
-
-  copy->valueCategory = ast->valueCategory;
-  copy->type = ast->type;
-  copy->lparenLoc = ast->lparenLoc;
-  copy->statement = ast_cast<CompoundStatementAST>(rewrite(ast->statement));
-  copy->rparenLoc = ast->rparenLoc;
-
-  return copy;
-}
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
   auto copy = new (arena()) IdExpressionAST{};
@@ -1654,8 +2278,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   if (auto it = ast->captureList) {
     auto out = &copy->captureList;
-    for (auto it = ast->captureList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->captureList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1666,8 +2290,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   if (auto it = ast->templateParameterList) {
     auto out = &copy->templateParameterList;
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->templateParameterList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1681,8 +2305,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   if (auto it = ast->gnuAtributeList) {
     auto out = &copy->gnuAtributeList;
-    for (auto it = ast->gnuAtributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->gnuAtributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1690,8 +2314,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   if (auto it = ast->lambdaSpecifierList) {
     auto out = &copy->lambdaSpecifierList;
-    for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->lambdaSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1701,8 +2325,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1781,8 +2405,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
 
   if (auto it = ast->requirementList) {
     auto out = &copy->requirementList;
-    for (auto it = ast->requirementList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->requirementList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1834,8 +2458,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1857,8 +2481,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -1975,6 +2599,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->commaLoc = ast->commaLoc;
   copy->expression = rewrite(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -2188,8 +2813,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
 
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2347,8 +2972,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
   if (auto it = ast->typeIdList) {
     auto out = &copy->typeIdList;
-    for (auto it = ast->typeIdList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->typeIdList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2369,8 +2994,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2378,8 +3003,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
   if (auto it = ast->declSpecifierList) {
     auto out = &copy->declSpecifierList;
-    for (auto it = ast->declSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2413,8 +3038,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2436,8 +3061,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2460,8 +3085,8 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
 
   if (auto it = ast->templateParameterList) {
     auto out = &copy->templateParameterList;
-    for (auto it = ast->templateParameterList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->templateParameterList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2779,8 +3404,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2791,6 +3416,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
   copy->unqualifiedId = rewrite(ast->unqualifiedId);
   copy->classKey = ast->classKey;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -2866,8 +3492,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2879,8 +3505,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2891,14 +3517,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   if (auto it = ast->enumeratorList) {
     auto out = &copy->enumeratorList;
-    for (auto it = ast->enumeratorList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->enumeratorList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -2911,8 +3538,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2925,8 +3552,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   if (auto it = ast->baseSpecifierList) {
     auto out = &copy->baseSpecifierList;
-    for (auto it = ast->baseSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->baseSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2936,8 +3563,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   if (auto it = ast->declarationList) {
     auto out = &copy->declarationList;
-    for (auto it = ast->declarationList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->declarationList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2980,8 +3607,8 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -2989,8 +3616,8 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
 
   if (auto it = ast->cvQualifierList) {
     auto out = &copy->cvQualifierList;
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->cvQualifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3007,8 +3634,8 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(ReferenceOperatorAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3028,8 +3655,8 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3037,8 +3664,8 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
 
   if (auto it = ast->cvQualifierList) {
     auto out = &copy->cvQualifierList;
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->cvQualifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3078,8 +3705,8 @@ auto ASTRewriter::CoreDeclaratorVisitor::operator()(IdDeclaratorAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3111,8 +3738,8 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
 
   if (auto it = ast->cvQualifierList) {
     auto out = &copy->cvQualifierList;
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->cvQualifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3123,8 +3750,8 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3148,8 +3775,8 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3233,8 +3860,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
 
   if (auto it = ast->templateArgumentList) {
     auto out = &copy->templateArgumentList;
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3257,8 +3884,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(
 
   if (auto it = ast->templateArgumentList) {
     auto out = &copy->templateArgumentList;
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3279,8 +3906,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(
 
   if (auto it = ast->templateArgumentList) {
     auto out = &copy->templateArgumentList;
-    for (auto it = ast->templateArgumentList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->templateArgumentList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3359,8 +3986,8 @@ auto ASTRewriter::FunctionBodyVisitor::operator()(
 
   if (auto it = ast->memInitializerList) {
     auto out = &copy->memInitializerList;
-    for (auto it = ast->memInitializerList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->memInitializerList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3380,8 +4007,8 @@ auto ASTRewriter::FunctionBodyVisitor::operator()(
 
   if (auto it = ast->memInitializerList) {
     auto out = &copy->memInitializerList;
-    for (auto it = ast->memInitializerList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->memInitializerList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3391,8 +4018,8 @@ auto ASTRewriter::FunctionBodyVisitor::operator()(
 
   if (auto it = ast->handlerList) {
     auto out = &copy->handlerList;
-    for (auto it = ast->handlerList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->handlerList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3509,8 +4136,8 @@ auto ASTRewriter::NewInitializerVisitor::operator()(NewParenInitializerAST* ast)
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3541,8 +4168,8 @@ auto ASTRewriter::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
 
   if (auto it = ast->expressionList) {
     auto out = &copy->expressionList;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3649,8 +4276,8 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3658,8 +4285,8 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
 
   if (auto it = ast->typeSpecifierList) {
     auto out = &copy->typeSpecifierList;
-    for (auto it = ast->typeSpecifierList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->typeSpecifierList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
@@ -3680,8 +4307,8 @@ auto ASTRewriter::AttributeSpecifierVisitor::operator()(CxxAttributeAST* ast)
 
   if (auto it = ast->attributeList) {
     auto out = &copy->attributeList;
-    for (auto it = ast->attributeList; it; it = it->next) {
-      auto value = rewrite(it->value);
+    for (auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
       *out = new (arena()) List(value);
       out = &(*out)->next;
     }
