@@ -82,7 +82,7 @@ auto main() -> int {
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: d
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: assignment-expression [prvalue double]
+// CHECK-NEXT:              expression: assignment-expression [lvalue double]
 // CHECK-NEXT:                op: =
 // CHECK-NEXT:                left-expression: id-expression [lvalue double]
 // CHECK-NEXT:                  unqualified-id: name-id
