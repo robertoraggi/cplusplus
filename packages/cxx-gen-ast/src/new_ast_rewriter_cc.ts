@@ -55,6 +55,24 @@ export function new_ast_rewriter_cc({
     return name;
   };
 
+  by_base.forEach((nodes, base) => {
+    if (!Array.isArray(nodes)) throw new Error("not an array");
+    if (base === "AST") return;
+    const className = chopAST(base);
+    emit();
+    emit(`  struct ASTRewriter::${className}Visitor {`);
+    emit(`    ${opName}& rewrite;`);
+    emit();
+    emit(
+      `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+    );
+    nodes.forEach(({ name }) => {
+      emit();
+      emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${base}*;`);
+    });
+    emit(`  };`);
+  });
+
   const emitRewriterBody = (members: Member[], visitor: string = "rewrite") => {
     members.forEach((m) => {
       switch (m.kind) {
@@ -100,11 +118,20 @@ export function new_ast_rewriter_cc({
   by_base.forEach((nodes, base) => {
     if (base === "AST") return;
     emit();
-    emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
-    emit(`  if (ast)`);
-    emit(`    return visit(${chopAST(base)}Visitor{*this}, ast);`);
-    emit(`  return {};`);
-    emit(`}`);
+    if (base == "ExpressionAST") {
+      emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+      emit(`  if (!ast) return {};`);
+      emit(`  auto expr = visit(${chopAST(base)}Visitor{*this}, ast);`);
+      emit(`  if (expr) typeChecker_->check(expr);`);
+      emit(`  return expr;`);
+      emit(`}`);
+    } else {
+      emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+      emit(`  if (ast)`);
+      emit(`    return visit(${chopAST(base)}Visitor{*this}, ast);`);
+      emit(`  return {};`);
+      emit(`}`);
+    }
   });
   by_base.get("AST")?.forEach(({ name, members }) => {
     emit();
@@ -146,12 +173,17 @@ export function new_ast_rewriter_cc({
 
 // cxx
 #include <cxx/ast.h>
-#include <cxx/translation_unit.h>
 #include <cxx/control.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 
 namespace cxx {
 
-${opName}::${opName}(TranslationUnit* unit) : unit_(unit) {}
+${opName}::${opName}(TypeChecker* typeChcker,
+  const std::vector<TemplateArgument>& templateArguments)
+: typeChecker_(typeChcker)
+,  unit_(typeChcker->translationUnit())
+,  templateArguments_(templateArguments) {}
 
 ${opName}::~${opName}() {}
 

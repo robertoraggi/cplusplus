@@ -20,9 +20,49 @@
 file(GLOB CXX_INCLUDE_HEADER_FILES cxx/*.h)
 file(GLOB CXX_VIEWS_INCLUDE_HEADER_FILES cxx/views/*.h)
 
-aux_source_directory(cxx SOURCES)
+add_library(cxx-parser
+    cxx/ast.cc
+    cxx/ast_cursor.cc
+    cxx/ast_interpreter.cc
+    cxx/ast_rewriter.cc
+    cxx/ast_slot.cc
+    cxx/base_classes.cc
+    cxx/cli.cc
+    cxx/const_expression_evaluator.cc
+    cxx/const_value.cc
+    cxx/control.cc
+    cxx/cxx.cc
+    cxx/diagnostic.cc
+    cxx/diagnostics_client.cc
+    cxx/external_name_encoder.cc
+    cxx/gcc_linux_toolchain.cc
+    cxx/lexer.cc
+    cxx/literals.cc
+    cxx/macos_toolchain.cc
+    cxx/memory_layout.cc
+    cxx/name_lookup.cc
+    cxx/name_printer.cc
+    cxx/names.cc
+    cxx/parser.cc
+    cxx/path.cc
+    cxx/preprocessor.cc
+    cxx/scope.cc
+    cxx/source_location.cc
+    cxx/symbol_chain_view.cc
+    cxx/symbol_instantiation.cc
+    cxx/symbol_printer.cc
+    cxx/symbols.cc
+    cxx/token.cc
+    cxx/toolchain.cc
+    cxx/translation_unit.cc
+    cxx/type_checker.cc
+    cxx/type_printer.cc
+    cxx/type_traits.cc
+    cxx/types.cc
+    cxx/util.cc
+    cxx/wasm32_wasi_toolchain.cc
+    cxx/windows_toolchain.cc
 
-add_library(cxx-parser ${SOURCES}
     # generated files
     keywords-priv.h
     pp_keywords-priv.h
@@ -63,8 +103,10 @@ add_custom_command(OUTPUT pp_keywords-priv.h
     COMMENT "Generate pp_keywords-priv.h")
 
 if (CXX_ENABLE_FLATBUFFERS)
-    aux_source_directory(cxx/flatbuffers FLATBUFFERS_SOURCES)
-    target_sources(cxx-parser PRIVATE ${FLATBUFFERS_SOURCES})
+    target_sources(cxx-parser PRIVATE
+        cxx/flatbuffers/ast_decoder.cc
+        cxx/flatbuffers/ast_encoder.cc
+    )
 
     # generate flatbuffers decoder for ast.fbs
     flatbuffers_generate_headers(

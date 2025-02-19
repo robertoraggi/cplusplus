@@ -61,18 +61,7 @@ export function new_ast_rewriter_h({
     if (!Array.isArray(nodes)) throw new Error("not an array");
     if (base === "AST") return;
     const className = chopAST(base);
-    emit();
-    emit(`  struct ${className}Visitor {`);
-    emit(`    ${opName}& rewrite;`);
-    emit();
-    emit(
-      `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`,
-    );
-    nodes.forEach(({ name }) => {
-      emit();
-      emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${base}*;`);
-    });
-    emit(`  };`);
+    emit(`  struct ${className}Visitor;`);
   });
 
   const out = `${cpy_header}
@@ -80,16 +69,20 @@ export function new_ast_rewriter_h({
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/names_fwd.h>
+
+#include <vector>
 
 namespace cxx {
 
 class TranslationUnit;
+class TypeChecker;
 class Control;
 class Arena;
 
 class ${opName} {
 public:
-    explicit ${opName}(TranslationUnit* unit);
+    explicit ${opName}(TypeChecker* typeChecker, const std::vector<TemplateArgument>& templateArguments);
     ~${opName}();
 
     [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
@@ -99,6 +92,9 @@ public:
 
 ${code.join("\n")}
 
+private:
+    TypeChecker* typeChecker_ = nullptr;
+    const std::vector<TemplateArgument>& templateArguments_;
     TranslationUnit* unit_ = nullptr;
 };
 
