@@ -45,8 +45,6 @@ class TypeChecker {
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool;
 
-  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
-
  private:
   struct Visitor;
 

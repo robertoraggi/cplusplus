@@ -849,8 +849,6 @@ class Parser final {
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool;
 
-  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
-
   void check_cpp_cast_expression(CppCastExpressionAST* ast);
 
   [[nodiscard]] auto check_static_cast(CppCastExpressionAST* ast) -> bool;
