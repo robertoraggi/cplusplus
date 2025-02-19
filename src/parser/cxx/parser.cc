@@ -2603,20 +2603,7 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast,
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
-  std::vector<const Type*> argumentTypes;
-
-  for (auto it = ast->expressionList; it; it = it->next) {
-    const Type* argumentType = nullptr;
-    if (it->value) argumentType = it->value->type;
-
-    argumentTypes.push_back(argumentType);
-  }
-
-  if (auto access = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-    if (ast_cast<DestructorIdAST>(access->unqualifiedId)) {
-      ast->type = control_->getVoidType();
-    }
-  }
+  check(ast);
 
   return true;
 }
@@ -2674,13 +2661,6 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
   check(ast);
 
   return true;
-}
-
-auto Parser::get_cv_qualifiers(const Type* type) const -> CvQualifiers {
-  CvQualifiers cv = CvQualifiers::kNone;
-  if (control_->is_const(type)) cv = merge_cv(cv, CvQualifiers::kConst);
-  if (control_->is_volatile(type)) cv = merge_cv(cv, CvQualifiers::kVolatile);
-  return cv;
 }
 
 auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
@@ -5937,34 +5917,6 @@ auto Parser::is_const(CvQualifiers cv) const -> bool {
 
 auto Parser::is_volatile(CvQualifiers cv) const -> bool {
   return cv == CvQualifiers::kVolatile || cv == CvQualifiers::kConstVolatile;
-}
-
-auto Parser::merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
-    -> CvQualifiers {
-  CvQualifiers cv = CvQualifiers::kNone;
-  if (is_const(cv1) || is_const(cv2)) cv = CvQualifiers::kConst;
-  if (is_volatile(cv1) || is_volatile(cv2)) {
-    if (cv == CvQualifiers::kConst)
-      cv = CvQualifiers::kConstVolatile;
-    else
-      cv = CvQualifiers::kVolatile;
-  }
-  return cv;
-}
-
-auto Parser::ensure_prvalue(ExpressionAST*& expr) -> bool {
-  TypeChecker checker{unit};
-  checker.setScope(scope_);
-  checker.setReportErrors(config_.checkTypes);
-  return checker.ensure_prvalue(expr);
-}
-
-auto Parser::implicit_conversion(ExpressionAST*& expr,
-                                 const Type* destinationType) -> bool {
-  TypeChecker checker{unit};
-  checker.setScope(scope_);
-  checker.setReportErrors(config_.checkTypes);
-  return checker.implicit_conversion(expr, destinationType);
 }
 
 auto Parser::is_prvalue(ExpressionAST* expr) const -> bool {
