@@ -53,6 +53,11 @@ struct TypeChecker::Visitor {
     check.unit_->error(loc, std::move(message));
   }
 
+  void warning(SourceLocation loc, std::string message) {
+    if (!check.reportErrors_) return;
+    check.unit_->warning(loc, std::move(message));
+  }
+
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
   [[nodiscard]] auto merge_cv(CvQualifiers cv1, CvQualifiers cv2) const
@@ -114,6 +119,9 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto check_static_cast(CppCastExpressionAST* ast) -> bool;
   [[nodiscard]] auto check_cast_to_derived(const Type* targetType,
                                            ExpressionAST* expression) -> bool;
+
+  void check_addition(BinaryExpressionAST* ast);
+  void check_subtraction(BinaryExpressionAST* ast);
 
   void operator()(GeneratedLiteralExpressionAST* ast);
   void operator()(CharLiteralExpressionAST* ast);
@@ -245,7 +253,47 @@ void TypeChecker::Visitor::operator()(VaArgExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
+  if (!ast->baseExpression) return;
+
+  std::vector<const Type*> argumentTypes;
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    const Type* argumentType = nullptr;
+    if (it->value) argumentType = it->value->type;
+
+    argumentTypes.push_back(argumentType);
+  }
+
+  if (auto access = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
+    if (ast_cast<DestructorIdAST>(access->unqualifiedId)) {
+      ast->type = control()->getVoidType();
+      return;
+    }
+  }
+
+  if (auto ovl = type_cast<OverloadSetType>(ast->baseExpression->type)) {
+    // TODO: check overload set
+    return;
+  }
+
+  auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
+  if (!functionType) {
+    return;
+  }
+
+  ast->type = functionType->returnType();
+
+  if (control()->is_lvalue_reference(ast->type)) {
+    ast->type = control()->remove_reference(ast->type);
+    ast->valueCategory = ValueCategory::kLValue;
+  } else if (control()->is_rvalue_reference(ast->type)) {
+    ast->type = control()->remove_reference(ast->type);
+    ast->valueCategory = ValueCategory::kXValue;
+  } else {
+    ast->valueCategory = ValueCategory::kPrValue;
+  }
+}
 
 void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {}
 
@@ -263,7 +311,10 @@ void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
   switch (check.unit_->tokenKind(ast->castLoc)) {
     case TokenKind::T_STATIC_CAST:
       if (check_static_cast(ast)) break;
-      error(ast->firstSourceLocation(), "invalid static_cast");
+      error(
+          ast->firstSourceLocation(),
+          std::format("invalid static_cast of '{}' to '{}'",
+                      to_string(ast->expression->type), to_string(ast->type)));
       break;
 
     default:
@@ -312,7 +363,22 @@ auto TypeChecker::Visitor::check_static_cast(CppCastExpressionAST* ast)
 
   if (implicit_conversion(ast->expression, ast->type)) return true;
 
-  return false;
+  auto source = ast->expression;
+  (void)ensure_prvalue(source);
+
+  auto sourcePtr = type_cast<PointerType>(source->type);
+  if (!sourcePtr) return false;
+
+  if (!control()->is_void(sourcePtr->elementType())) return false;
+
+  auto targetPtr = type_cast<PointerType>(targetType);
+  if (!targetPtr) return false;
+
+  if (!control()->is_object(targetPtr->elementType())) return false;
+
+  ast->expression = source;
+
+  return true;
 }
 
 auto TypeChecker::Visitor::check_cast_to_derived(const Type* targetType,
@@ -558,105 +624,189 @@ void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {}
 void TypeChecker::Visitor::operator()(ImplicitCastExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
-  if (ast->leftExpression && ast->rightExpression) {
-    switch (ast->op) {
-      case TokenKind::T_DOT_STAR:
+  if (!ast->leftExpression) return;
+  if (!ast->rightExpression) return;
+
+  switch (ast->op) {
+    case TokenKind::T_DOT_STAR:
+      break;
+
+    case TokenKind::T_MINUS_GREATER_STAR:
+      break;
+
+    case TokenKind::T_STAR:
+      ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                              ast->rightExpression);
+      break;
+
+    case TokenKind::T_SLASH:
+      ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                              ast->rightExpression);
+      break;
+
+    case TokenKind::T_PLUS:
+      check_addition(ast);
+      break;
+
+    case TokenKind::T_MINUS:
+      check_subtraction(ast);
+      break;
+
+    case TokenKind::T_PERCENT:
+      if (!control()->is_integral_or_unscoped_enum(ast->leftExpression->type))
         break;
 
-      case TokenKind::T_MINUS_GREATER_STAR:
+      if (!control()->is_integral_or_unscoped_enum(ast->rightExpression->type))
         break;
 
-      case TokenKind::T_STAR:
-      case TokenKind::T_SLASH:
-      case TokenKind::T_PLUS:
-      case TokenKind::T_MINUS:
-        ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                ast->rightExpression);
+      ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                              ast->rightExpression);
+
+      break;
+
+    case TokenKind::T_LESS_LESS:
+    case TokenKind::T_GREATER_GREATER:
+      if (!control()->is_integral_or_unscoped_enum(ast->leftExpression->type))
         break;
 
-      case TokenKind::T_PERCENT:
-        if (!control()->is_integral_or_unscoped_enum(ast->leftExpression->type))
-          break;
-
-        if (!control()->is_integral_or_unscoped_enum(
-                ast->rightExpression->type))
-          break;
-
-        ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                ast->rightExpression);
-
+      if (!control()->is_integral_or_unscoped_enum(ast->rightExpression->type))
         break;
 
-      case TokenKind::T_LESS_LESS:
-      case TokenKind::T_GREATER_GREATER:
-        if (!control()->is_integral_or_unscoped_enum(ast->leftExpression->type))
-          break;
+      (void)usual_arithmetic_conversion(ast->leftExpression,
+                                        ast->rightExpression);
 
-        if (!control()->is_integral_or_unscoped_enum(
-                ast->rightExpression->type))
-          break;
+      ast->type = ast->leftExpression->type;
+      break;
 
-        (void)usual_arithmetic_conversion(ast->leftExpression,
-                                          ast->rightExpression);
+    case TokenKind::T_LESS_EQUAL_GREATER:
+      (void)usual_arithmetic_conversion(ast->leftExpression,
+                                        ast->rightExpression);
+      ast->type = control()->getIntType();
+      break;
 
-        ast->type = ast->leftExpression->type;
+    case TokenKind::T_LESS_EQUAL:
+    case TokenKind::T_GREATER_EQUAL:
+    case TokenKind::T_LESS:
+    case TokenKind::T_GREATER:
+    case TokenKind::T_EQUAL_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
+      (void)usual_arithmetic_conversion(ast->leftExpression,
+                                        ast->rightExpression);
+      ast->type = control()->getBoolType();
+      break;
+
+    case TokenKind::T_AMP:
+    case TokenKind::T_CARET:
+    case TokenKind::T_BAR:
+      if (!control()->is_integral_or_unscoped_enum(ast->leftExpression->type))
         break;
 
-      case TokenKind::T_LESS_EQUAL_GREATER:
-        (void)usual_arithmetic_conversion(ast->leftExpression,
-                                          ast->rightExpression);
-        ast->type = control()->getIntType();
+      if (!control()->is_integral_or_unscoped_enum(ast->rightExpression->type))
         break;
 
-      case TokenKind::T_LESS_EQUAL:
-      case TokenKind::T_GREATER_EQUAL:
-      case TokenKind::T_LESS:
-      case TokenKind::T_GREATER:
-      case TokenKind::T_EQUAL_EQUAL:
-      case TokenKind::T_EXCLAIM_EQUAL:
-        (void)usual_arithmetic_conversion(ast->leftExpression,
-                                          ast->rightExpression);
-        ast->type = control()->getBoolType();
-        break;
+      ast->type = usual_arithmetic_conversion(ast->leftExpression,
+                                              ast->rightExpression);
 
-      case TokenKind::T_AMP:
-      case TokenKind::T_CARET:
-      case TokenKind::T_BAR:
-        if (!control()->is_integral_or_unscoped_enum(ast->leftExpression->type))
-          break;
+      break;
 
-        if (!control()->is_integral_or_unscoped_enum(
-                ast->rightExpression->type))
-          break;
+    case TokenKind::T_AMP_AMP:
+    case TokenKind::T_BAR_BAR:
+      (void)implicit_conversion(ast->leftExpression, control()->getBoolType());
 
-        ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                                ast->rightExpression);
+      (void)implicit_conversion(ast->rightExpression, control()->getBoolType());
 
-        break;
+      ast->type = control()->getBoolType();
+      break;
 
-      case TokenKind::T_AMP_AMP:
-      case TokenKind::T_BAR_BAR:
-        (void)implicit_conversion(ast->leftExpression,
-                                  control()->getBoolType());
+    case TokenKind::T_COMMA:
+      if (ast->rightExpression) {
+        ast->type = ast->rightExpression->type;
+        ast->valueCategory = ast->rightExpression->valueCategory;
+      }
+      break;
 
-        (void)implicit_conversion(ast->rightExpression,
-                                  control()->getBoolType());
+    default:
+      cxx_runtime_error(
+          std::format("invalid operator '{}'", Token::spell(ast->op)));
+  }  // switch
+}
 
-        ast->type = control()->getBoolType();
-        break;
+void TypeChecker::Visitor::check_addition(BinaryExpressionAST* ast) {
+  (void)ensure_prvalue(ast->leftExpression);
+  (void)ensure_prvalue(ast->rightExpression);
 
-      case TokenKind::T_COMMA:
-        if (ast->rightExpression) {
-          ast->type = ast->rightExpression->type;
-          ast->valueCategory = ast->rightExpression->valueCategory;
-        }
-        break;
-
-      default:
-        cxx_runtime_error(
-            std::format("invalid operator '{}'", Token::spell(ast->op)));
-    }  // switch
+  if (auto ty = usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression)) {
+    ast->type = ty;
+    return;
   }
+
+  const auto left_is_pointer = control()->is_pointer(ast->leftExpression->type);
+
+  const auto right_is_pointer =
+      control()->is_pointer(ast->rightExpression->type);
+
+  const auto left_is_integral =
+      control()->is_integral_or_unscoped_enum(ast->leftExpression->type);
+
+  const auto right_is_integral =
+      control()->is_integral_or_unscoped_enum(ast->rightExpression->type);
+
+  if (left_is_pointer && right_is_integral) {
+    (void)integral_promotion(ast->rightExpression);
+    ast->type = ast->leftExpression->type;
+    return;
+  }
+
+  if (right_is_pointer && left_is_integral) {
+    (void)integral_promotion(ast->leftExpression);
+    ast->type = ast->rightExpression->type;
+    return;
+  }
+
+  error(ast->opLoc,
+        std::format(
+            "invalid operands of types '{}' and '{}' to binary operator '+'",
+            to_string(ast->leftExpression->type),
+            to_string(ast->rightExpression->type)));
+}
+
+void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
+  (void)ensure_prvalue(ast->leftExpression);
+  (void)ensure_prvalue(ast->rightExpression);
+
+  if (auto ty = usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression)) {
+    ast->type = ty;
+    return;
+  }
+
+  const auto left_is_pointer = control()->is_pointer(ast->leftExpression->type);
+
+  const auto right_is_pointer =
+      control()->is_pointer(ast->rightExpression->type);
+
+  if (left_is_pointer && right_is_pointer) {
+    auto lhs = control()->remove_cv(ast->leftExpression->type);
+    auto rhs = control()->remove_cv(ast->rightExpression->type);
+    if (control()->is_same(lhs, rhs)) {
+      ast->type = control()->getLongIntType();  // TODO: ptrdiff_t
+      return;
+    }
+  }
+
+  if (left_is_pointer &&
+      control()->is_integral_or_unscoped_enum(ast->rightExpression->type)) {
+    (void)integral_promotion(ast->rightExpression);
+    ast->type = ast->leftExpression->type;
+    return;
+  }
+
+  error(ast->opLoc,
+        std::format(
+            "invalid operands of types '{}' and '{}' to binary operator '-'",
+            to_string(ast->leftExpression->type),
+            to_string(ast->rightExpression->type)));
 }
 
 void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {}
@@ -1185,21 +1335,9 @@ auto TypeChecker::Visitor::qualification_conversion(ExpressionAST*& expr,
 }
 
 auto TypeChecker::Visitor::ensure_prvalue(ExpressionAST*& expr) -> bool {
-  if (lvalue_to_rvalue_conversion(expr)) {
-    expr->valueCategory = ValueCategory::kPrValue;
-    return true;
-  }
-
-  if (array_to_pointer_conversion(expr)) {
-    expr->valueCategory = ValueCategory::kPrValue;
-    return true;
-  }
-
-  if (function_to_pointer_conversion(expr)) {
-    expr->valueCategory = ValueCategory::kPrValue;
-    return true;
-  }
-
+  if (lvalue_to_rvalue_conversion(expr)) return true;
+  if (array_to_pointer_conversion(expr)) return true;
+  if (function_to_pointer_conversion(expr)) return true;
   return false;
 }
 
@@ -1213,15 +1351,7 @@ auto TypeChecker::Visitor::implicit_conversion(ExpressionAST*& expr,
 
   auto savedValueCategory = expr->valueCategory;
   auto savedExpr = expr;
-  auto didConvert = false;
-
-  if (lvalue_to_rvalue_conversion(expr)) {
-    didConvert = true;
-  } else if (array_to_pointer_conversion(expr)) {
-    didConvert = true;
-  } else if (function_to_pointer_conversion(expr)) {
-    didConvert = true;
-  }
+  auto didConvert = ensure_prvalue(expr);
 
   if (control()->is_scalar(expr->type)) {
     expr->type = control()->remove_cv(expr->type);
@@ -1261,7 +1391,7 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
     return nullptr;
   };
 
-  if (!control()->is_arithmetic_or_unscoped_enum(expr->type) &&
+  if (!control()->is_arithmetic_or_unscoped_enum(expr->type) ||
       !control()->is_arithmetic_or_unscoped_enum(other->type))
     return unmodifiedExpressions();
 
@@ -1282,15 +1412,21 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
     if (!control()->is_floating_point(leftType)) {
       if (floating_integral_conversion(expr, rightType)) return rightType;
       return unmodifiedExpressions();
-    } else if (!control()->is_floating_point(rightType)) {
+    }
+
+    if (!control()->is_floating_point(rightType)) {
       if (floating_integral_conversion(other, leftType)) return leftType;
       return unmodifiedExpressions();
-    } else if (leftType->kind() == TypeKind::kLongDouble ||
-               rightType->kind() == TypeKind::kLongDouble) {
+    }
+
+    if (leftType->kind() == TypeKind::kLongDouble ||
+        rightType->kind() == TypeKind::kLongDouble) {
       (void)floating_point_conversion(expr, control()->getLongDoubleType());
       return control()->getLongDoubleType();
-    } else if (leftType->kind() == TypeKind::kDouble ||
-               rightType->kind() == TypeKind::kDouble) {
+    }
+
+    if (leftType->kind() == TypeKind::kDouble ||
+        rightType->kind() == TypeKind::kDouble) {
       (void)floating_point_conversion(expr, control()->getDoubleType());
       return control()->getDoubleType();
     }
@@ -1318,39 +1454,55 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
   if (control()->is_signed(leftType) && control()->is_signed(rightType)) {
     if (match_integral_type(control()->getLongLongIntType())) {
       return control()->getLongLongIntType();
-    } else if (match_integral_type(control()->getLongIntType())) {
-      return control()->getLongIntType();
-    } else {
-      (void)integral_conversion(expr, control()->getIntType());
-      (void)integral_conversion(other, control()->getIntType());
-      return control()->getIntType();
     }
+
+    if (match_integral_type(control()->getLongIntType())) {
+      return control()->getLongIntType();
+    }
+
+    (void)integral_conversion(expr, control()->getIntType());
+    (void)integral_conversion(other, control()->getIntType());
+    return control()->getIntType();
   }
 
   if (control()->is_unsigned(leftType) && control()->is_unsigned(rightType)) {
     if (match_integral_type(control()->getUnsignedLongLongIntType())) {
       return control()->getUnsignedLongLongIntType();
-    } else if (match_integral_type(control()->getUnsignedLongIntType())) {
-      return control()->getUnsignedLongIntType();
-    } else {
-      (void)integral_conversion(expr, control()->getUnsignedIntType());
-      return control()->getUnsignedIntType();
     }
+
+    if (match_integral_type(control()->getUnsignedLongIntType())) {
+      return control()->getUnsignedLongIntType();
+    }
+
+    (void)integral_conversion(expr, control()->getUnsignedIntType());
+    return control()->getUnsignedIntType();
   }
 
   if (match_integral_type(control()->getUnsignedLongLongIntType())) {
     return control()->getUnsignedLongLongIntType();
-  } else if (match_integral_type(control()->getUnsignedLongIntType())) {
+  }
+
+  if (match_integral_type(control()->getUnsignedLongIntType())) {
     return control()->getUnsignedLongIntType();
-  } else if (match_integral_type(control()->getUnsignedIntType())) {
+  }
+
+  if (match_integral_type(control()->getUnsignedIntType())) {
     return control()->getUnsignedIntType();
-  } else if (match_integral_type(control()->getUnsignedShortIntType())) {
+  }
+
+  if (match_integral_type(control()->getUnsignedShortIntType())) {
     return control()->getUnsignedShortIntType();
-  } else if (match_integral_type(control()->getUnsignedCharType())) {
+  }
+
+  if (match_integral_type(control()->getUnsignedCharType())) {
     return control()->getUnsignedCharType();
-  } else if (match_integral_type(control()->getLongLongIntType())) {
+  }
+
+  if (match_integral_type(control()->getLongLongIntType())) {
     return control()->getLongLongIntType();
-  } else if (match_integral_type(control()->getLongIntType())) {
+  }
+
+  if (match_integral_type(control()->getLongIntType())) {
     return control()->getLongIntType();
   }
 
@@ -1408,15 +1560,6 @@ void TypeChecker::operator()(ExpressionAST* ast) {
 void TypeChecker::check(ExpressionAST* ast) {
   if (!ast) return;
   visit(Visitor{*this}, ast);
-}
-
-auto TypeChecker::ensure_prvalue(ExpressionAST*& expr) -> bool {
-  return Visitor{*this}.ensure_prvalue(expr);
-}
-
-auto TypeChecker::implicit_conversion(ExpressionAST*& expr,
-                                      const Type* destinationType) -> bool {
-  return Visitor{*this}.implicit_conversion(expr, destinationType);
 }
 
 }  // namespace cxx

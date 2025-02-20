@@ -43,11 +43,6 @@ class TypeChecker {
 
   void check(ExpressionAST* ast);
 
-  [[nodiscard]] auto ensure_prvalue(ExpressionAST*& expr) -> bool;
-
-  [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
-                                         const Type* destinationType) -> bool;
-
  private:
   struct Visitor;
 
