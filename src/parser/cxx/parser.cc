@@ -10733,6 +10733,7 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
 }
 
 void Parser::check(ExpressionAST* ast) {
+  if (inTemplate_) return;
   TypeChecker check{unit};
   check.setScope(scope_);
   check.setReportErrors(config_.checkTypes);

@@ -83,13 +83,9 @@ struct S {
 // CHECK-NEXT:                                      return-statement
 // CHECK-NEXT:                                        expression: binary-expression
 // CHECK-NEXT:                                          op: +
-// CHECK-NEXT:                                          left-expression: implicit-cast-expression [prvalue T1]
-// CHECK-NEXT:                                            cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                                            expression: id-expression [lvalue T1]
-// CHECK-NEXT:                                              unqualified-id: name-id
-// CHECK-NEXT:                                                identifier: a
-// CHECK-NEXT:                                          right-expression: implicit-cast-expression [prvalue T2]
-// CHECK-NEXT:                                            cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                                            expression: id-expression [lvalue T2]
-// CHECK-NEXT:                                              unqualified-id: name-id
-// CHECK-NEXT:                                                identifier: b
+// CHECK-NEXT:                                          left-expression: id-expression [lvalue T1]
+// CHECK-NEXT:                                            unqualified-id: name-id
+// CHECK-NEXT:                                              identifier: a
+// CHECK-NEXT:                                          right-expression: id-expression [lvalue T2]
+// CHECK-NEXT:                                            unqualified-id: name-id
+// CHECK-NEXT:                                              identifier: b

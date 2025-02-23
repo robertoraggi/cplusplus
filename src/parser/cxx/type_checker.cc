@@ -448,6 +448,9 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
       }
 
       if (!is_glvalue(ast->expression)) {
+        error(ast->opLoc,
+              std::format("cannot take the address of an rvalue of type '{}'",
+                          to_string(ast->expression->type)));
         break;
       }
 
@@ -542,6 +545,8 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
 
     case TokenKind::T_PLUS_PLUS: {
       if (!is_glvalue(ast->expression)) {
+        error(ast->opLoc, std::format("cannot increment an rvalue of type '{}'",
+                                      to_string(ast->expression->type)));
         break;
       }
 
@@ -554,18 +559,23 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
       }
 
       if (auto ptrTy = type_cast<PointerType>(ty)) {
-        if (ptrTy && !control()->is_void(ptrTy->elementType())) {
+        if (!control()->is_void(ptrTy->elementType())) {
           ast->type = ptrTy;
           ast->valueCategory = ValueCategory::kLValue;
+          break;
         }
       }
 
+      error(ast->opLoc, std::format("cannot increment a value of type '{}'",
+                                    to_string(ast->expression->type)));
       break;
     }
 
     case TokenKind::T_MINUS_MINUS: {
       if (!is_glvalue(ast->expression)) {
-        break;
+        error(ast->opLoc, std::format("cannot decrement an rvalue of type '{}'",
+                                      to_string(ast->expression->type)));
+         break;
       }
 
       auto ty = ast->expression->type;
@@ -580,9 +590,12 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         if (ptrTy && !control()->is_void(ptrTy->elementType())) {
           ast->type = ptrTy;
           ast->valueCategory = ValueCategory::kLValue;
+          break;
         }
       }
 
+      error(ast->opLoc, std::format("cannot decrement a value of type '{}'",
+                                    to_string(ast->expression->type)));
       break;
     }
 
