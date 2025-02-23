@@ -37,5 +37,18 @@ auto main() -> int {
   static_assert(__is_lvalue_reference(decltype(++pr)));
   static_assert(__is_lvalue_reference(decltype(--pr)));
 
+  // clang-format off
+
+  int a[10];
+
+  ++(+a); // expected-error {{cannot increment an rvalue of type 'int*'}}
+
+  ++a; // expected-error {{cannot increment a value of type 'int [10]'}}
+
+  --(+a); // expected-error {{cannot decrement an rvalue of type 'int*'}}
+
+  --a; // expected-error {{cannot decrement a value of type 'int [10]'}}
+
+  // clang-format on
   return 0;
 }
