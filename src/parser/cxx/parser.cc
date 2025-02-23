@@ -1417,17 +1417,25 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
 
   if (unqualifiedId) {
     auto name = convertName(unqualifiedId);
-    ast->symbol = Lookup{scope_}(nestedNameSpecifier, name);
+    const Name* componentName = name;
+    if (auto templateId = name_cast<TemplateId>(name))
+      componentName = templateId->name();
+    ast->symbol = Lookup{scope_}(nestedNameSpecifier, componentName);
   }
 
   if (ctx == IdExpressionContext::kExpression) {
     if (ast->symbol) {
-      ast->type = control_->remove_reference(ast->symbol->type());
-
-      if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
+      if (auto conceptSymbol = symbol_cast<ConceptSymbol>(ast->symbol)) {
+        ast->type = control_->getBoolType();
         ast->valueCategory = ValueCategory::kPrValue;
       } else {
-        ast->valueCategory = ValueCategory::kLValue;
+        ast->type = control_->remove_reference(ast->symbol->type());
+
+        if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
+          ast->valueCategory = ValueCategory::kPrValue;
+        } else {
+          ast->valueCategory = ValueCategory::kLValue;
+        }
       }
     }
   }
@@ -5650,6 +5658,11 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    if (auto conceptSymbol =
+            symbol_cast<ConceptSymbol>(templateId->primaryTemplateSymbol)) {
+      if (!lookat(TokenKind::T_AUTO)) return false;
+    }
+
     if (auto symbol = instantiate(templateId)) {
       specs.type = symbol->type();
     }
