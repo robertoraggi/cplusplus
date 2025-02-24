@@ -62,6 +62,9 @@ export function new_ast_rewriter_cc({
     emit();
     emit(`  struct ASTRewriter::${className}Visitor {`);
     emit(`    ${opName}& rewrite;`);
+    emit(
+      `    [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`
+    );
     emit();
     emit(
       `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
@@ -88,8 +91,20 @@ export function new_ast_rewriter_cc({
         }
         case "node-list": {
           emit();
+
+          // check the base type has a context that must be passed
+          switch (m.type) {
+            case "SpecifierAST":
+              emit(`  DeclSpecs ${m.name}Ctx{translationUnit()};`);
+              break;
+
+            default:
+              break;
+          } // switch
+
           emit(`  if (auto it = ast->${m.name}) {`);
           emit(`    auto out = &copy->${m.name};`);
+
           emit(`    for (auto node : ListView{ast->${m.name}}) {`);
           emit(`        auto value = ${visitor}(node);`);
           if (isBase(m.type)) {
@@ -98,6 +113,17 @@ export function new_ast_rewriter_cc({
             emit(`*out = new (arena()) List(ast_cast<${m.type}>(value));`);
           }
           emit(`        out = &(*out)->next;`);
+
+          // update the context if needed
+          switch (m.type) {
+            case "SpecifierAST":
+              emit(`${m.name}Ctx.accept(value);`);
+              break;
+
+            default:
+              break;
+          } // switch
+
           emit(`    }`);
           emit(`  }`);
           emit();
@@ -118,21 +144,34 @@ export function new_ast_rewriter_cc({
   by_base.forEach((nodes, base) => {
     if (base === "AST") return;
     emit();
-    if (base == "ExpressionAST") {
-      emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
-      emit(`  if (!ast) return {};`);
-      emit(`  auto expr = visit(${chopAST(base)}Visitor{*this}, ast);`);
-      emit(`  if (expr) typeChecker_->check(expr);`);
-      emit(`  return expr;`);
-      emit(`}`);
-    } else {
-      emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
-      emit(`  if (ast)`);
-      emit(`    return visit(${chopAST(base)}Visitor{*this}, ast);`);
-      emit(`  return {};`);
-      emit(`}`);
-    }
+
+    switch (base) {
+      case "ExpressionAST":
+        emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+        emit(`  if (!ast) return {};`);
+        emit(`  auto expr = visit(${chopAST(base)}Visitor{*this}, ast);`);
+        emit(`  if (expr) typeChecker_->check(expr);`);
+        emit(`  return expr;`);
+        emit(`}`);
+        break;
+
+      case "SpecifierAST":
+        emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+        emit(`  if (!ast) return {};`);
+        emit(`  auto specifier = visit(${chopAST(base)}Visitor{*this}, ast);`);
+        emit(`  return specifier;`);
+        emit(`}`);
+        break;
+
+      default:
+        emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+        emit(`  if (!ast) return {};`);
+        emit(`  return visit(${chopAST(base)}Visitor{*this}, ast);`);
+        emit(`}`);
+        break;
+    } // switch
   });
+
   by_base.get("AST")?.forEach(({ name, members }) => {
     emit();
     emit(`auto ${opName}::operator()(${name}* ast) -> ${name}* {`);
@@ -176,6 +215,7 @@ export function new_ast_rewriter_cc({
 #include <cxx/control.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
+#include <cxx/decl_specs.h>
 
 namespace cxx {
 

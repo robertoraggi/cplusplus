@@ -550,13 +550,13 @@ auto SymbolInstantiation::VisitType::operator()(const PointerType* type)
 auto SymbolInstantiation::VisitType::operator()(const LvalueReferenceType* type)
     -> const Type* {
   auto elementType = substitute(type->elementType());
-  return self.control()->getLvalueReferenceType(elementType);
+  return self.control()->add_lvalue_reference(elementType);
 }
 
 auto SymbolInstantiation::VisitType::operator()(const RvalueReferenceType* type)
     -> const Type* {
   auto elementType = substitute(type->elementType());
-  return self.control()->getRvalueReferenceType(elementType);
+  return self.control()->add_rvalue_reference(elementType);
 }
 
 auto SymbolInstantiation::VisitType::operator()(const FunctionType* type)

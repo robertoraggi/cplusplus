@@ -346,6 +346,14 @@ auto Control::getLongDoubleType() -> const LongDoubleType* {
 
 auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
     -> const QualType* {
+  if (auto qualType = type_cast<QualType>(elementType)) {
+    cvQualifiers = cvQualifiers | qualType->cvQualifiers();
+    return &*d->qualTypes
+                 .emplace(qualType->elementType(),
+                          cvQualifiers | qualType->cvQualifiers())
+                 .first;
+  }
+
   return &*d->qualTypes.emplace(elementType, cvQualifiers).first;
 }
 

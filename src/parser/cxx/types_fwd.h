@@ -23,6 +23,7 @@
 #include <cxx/cxx_fwd.h>
 
 #include <string>
+#include <utility>
 
 namespace cxx {
 
@@ -84,11 +85,29 @@ enum class TypeKind { CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE) };
 #undef PROCESS_TYPE
 
 enum class CvQualifiers {
-  kNone,
-  kConst,
-  kVolatile,
-  kConstVolatile,
+  kNone = 0,
+  kConst = 1,
+  kVolatile = 2,
+  kConstVolatile = kConst | kVolatile,
 };
+
+[[nodiscard]] inline auto operator|(CvQualifiers a, CvQualifiers b)
+    -> CvQualifiers {
+  return CvQualifiers(std::to_underlying(a) | std::to_underlying(b));
+}
+
+[[nodiscard]] inline auto operator&(CvQualifiers a, CvQualifiers b)
+    -> CvQualifiers {
+  return CvQualifiers(std::to_underlying(a) & std::to_underlying(b));
+}
+
+[[nodiscard]] inline auto is_const(CvQualifiers cv) -> bool {
+  return (cv & CvQualifiers::kConst) != CvQualifiers::kNone;
+}
+
+[[nodiscard]] inline auto is_volatile(CvQualifiers cv) -> bool {
+  return (cv & CvQualifiers::kVolatile) != CvQualifiers::kNone;
+}
 
 enum class RefQualifier {
   kNone,
