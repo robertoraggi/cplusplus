@@ -20,9 +20,76 @@
 
 #include <cxx/names.h>
 
+// cxx
+#include <cxx/ast.h>
+#include <cxx/control.h>
+#include <cxx/literals.h>
+
 #include <cstring>
 
 namespace cxx {
+
+namespace {
+
+struct ConvertToName {
+  Control* control_;
+
+  explicit ConvertToName(Control* control) : control_(control) {}
+
+  auto operator()(NameIdAST* ast) const -> const Name* {
+    return ast->identifier;
+  }
+
+  auto operator()(DestructorIdAST* ast) const -> const Name* {
+    return control_->getDestructorId(visit(*this, ast->id));
+  }
+
+  auto operator()(DecltypeIdAST* ast) const -> const Name* {
+    cxx_runtime_error("DecltypeIdAST not implemented");
+    return {};
+  }
+
+  auto operator()(OperatorFunctionIdAST* ast) const -> const Name* {
+    return control_->getOperatorId(ast->op);
+  }
+
+  auto operator()(LiteralOperatorIdAST* ast) const -> const Name* {
+    if (ast->identifier)
+      return control_->getLiteralOperatorId(ast->identifier->name());
+
+    auto value = ast->literal->value();
+    auto suffix = value.substr(value.find_last_of('"') + 1);
+    return control_->getLiteralOperatorId(suffix);
+  }
+
+  auto operator()(ConversionFunctionIdAST* ast) const -> const Name* {
+    return control_->getConversionFunctionId(ast->typeId->type);
+  }
+
+  auto operator()(SimpleTemplateIdAST* ast) const -> const Name* {
+    std::vector<TemplateArgument> arguments;
+    return control_->getTemplateId(ast->identifier, std::move(arguments));
+  }
+
+  auto operator()(LiteralOperatorTemplateIdAST* ast) const -> const Name* {
+    std::vector<TemplateArgument> arguments;
+    return control_->getTemplateId(operator()(ast->literalOperatorId),
+                                   std::move(arguments));
+  }
+
+  auto operator()(OperatorFunctionTemplateIdAST* ast) const -> const Name* {
+    std::vector<TemplateArgument> arguments;
+    return control_->getTemplateId(operator()(ast->operatorFunctionId),
+                                   std::move(arguments));
+  }
+};
+
+}  // namespace
+
+[[nodiscard]] auto get_name(Control* control, UnqualifiedIdAST* id)
+    -> const Name* {
+  return visit(ConvertToName{control}, id);
+}
 
 Name::~Name() = default;
 
