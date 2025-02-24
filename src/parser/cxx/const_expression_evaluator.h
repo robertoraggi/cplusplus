@@ -27,14 +27,12 @@
 
 namespace cxx {
 
-class Parser;
 class Control;
+class TranslationUnit;
 
 class ConstExpressionEvaluator {
-  Parser& parser;
-
  public:
-  explicit ConstExpressionEvaluator(Parser& parser) : parser(parser) {}
+  explicit ConstExpressionEvaluator(TranslationUnit* unit);
 
   auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
 
@@ -108,6 +106,9 @@ class ConstExpressionEvaluator {
   auto operator()(EqualInitializerAST* ast) -> std::optional<ConstValue>;
   auto operator()(BracedInitListAST* ast) -> std::optional<ConstValue>;
   auto operator()(ParenInitializerAST* ast) -> std::optional<ConstValue>;
+
+ private:
+  TranslationUnit* unit_;
 };
 
 }  // namespace cxx

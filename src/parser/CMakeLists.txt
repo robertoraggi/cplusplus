@@ -33,6 +33,7 @@ add_library(cxx-parser
     cxx/control.cc
     cxx/cxx.cc
     cxx/decl_specs.cc
+    cxx/decl.cc
     cxx/diagnostic.cc
     cxx/diagnostics_client.cc
     cxx/external_name_encoder.cc

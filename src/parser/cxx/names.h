@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/token_fwd.h>
 
@@ -175,5 +176,8 @@ auto name_cast(const Name* name) -> const T* {
   return name && name->kind() == T::Kind ? static_cast<const T*>(name)
                                          : nullptr;
 }
+
+[[nodiscard]] auto get_name(Control* control, UnqualifiedIdAST* id)
+    -> const Name*;
 
 }  // namespace cxx

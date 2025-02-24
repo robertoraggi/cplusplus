@@ -35,14 +35,17 @@
 
 namespace cxx {
 
+ConstExpressionEvaluator::ConstExpressionEvaluator(TranslationUnit* unit)
+    : unit_(unit) {}
+
+auto ConstExpressionEvaluator::control() const -> Control* {
+  return unit_->control();
+}
+
 auto ConstExpressionEvaluator::evaluate(ExpressionAST* ast)
     -> std::optional<ConstValue> {
   if (!ast) return std::nullopt;
   return visit(*this, ast);
-}
-
-auto ConstExpressionEvaluator::control() const -> Control* {
-  return parser.control();
 }
 
 auto ConstExpressionEvaluator::operator()(GeneratedLiteralExpressionAST* ast)
@@ -522,8 +525,7 @@ auto ConstExpressionEvaluator::operator()(BinaryExpressionAST* ast)
       return right;
 
     default:
-      parser.translationUnit()->warning(ast->opLoc,
-                                        "invalid binary expression");
+      unit_->warning(ast->opLoc, "invalid binary expression");
       break;
   }  // switch
 

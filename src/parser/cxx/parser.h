@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include <cxx/ast_fwd.h>
 #include <cxx/control.h>
 #include <cxx/parser_fwd.h>
 #include <cxx/source_location.h>
@@ -36,6 +35,7 @@
 
 namespace cxx {
 
+class Decl;
 class DeclSpecs;
 
 class Parser final {
@@ -71,14 +71,12 @@ class Parser final {
   void setConfig(ParserConfiguration config);
 
  private:
-  struct Decl;
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
   struct ScopeGuard;
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
-  struct GetDeclaratorType;
 
   enum class BindingContext {
     kNamespace,

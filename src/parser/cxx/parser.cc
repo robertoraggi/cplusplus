@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/const_expression_evaluator.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -53,59 +54,6 @@ inline constexpr struct {
   auto operator()(auto value) const -> bool { return !!value; }
 } to_bool;
 
-struct ConvertToName {
-  Control* control_;
-
-  explicit ConvertToName(Control* control) : control_(control) {}
-
-  auto operator()(NameIdAST* ast) const -> const Name* {
-    return ast->identifier;
-  }
-
-  auto operator()(DestructorIdAST* ast) const -> const Name* {
-    return control_->getDestructorId(visit(*this, ast->id));
-  }
-
-  auto operator()(DecltypeIdAST* ast) const -> const Name* {
-    cxx_runtime_error("DecltypeIdAST not implemented");
-    return {};
-  }
-
-  auto operator()(OperatorFunctionIdAST* ast) const -> const Name* {
-    return control_->getOperatorId(ast->op);
-  }
-
-  auto operator()(LiteralOperatorIdAST* ast) const -> const Name* {
-    if (ast->identifier)
-      return control_->getLiteralOperatorId(ast->identifier->name());
-
-    auto value = ast->literal->value();
-    auto suffix = value.substr(value.find_last_of('"') + 1);
-    return control_->getLiteralOperatorId(suffix);
-  }
-
-  auto operator()(ConversionFunctionIdAST* ast) const -> const Name* {
-    return control_->getConversionFunctionId(ast->typeId->type);
-  }
-
-  auto operator()(SimpleTemplateIdAST* ast) const -> const Name* {
-    std::vector<TemplateArgument> arguments;
-    return control_->getTemplateId(ast->identifier, std::move(arguments));
-  }
-
-  auto operator()(LiteralOperatorTemplateIdAST* ast) const -> const Name* {
-    std::vector<TemplateArgument> arguments;
-    return control_->getTemplateId(operator()(ast->literalOperatorId),
-                                   std::move(arguments));
-  }
-
-  auto operator()(OperatorFunctionTemplateIdAST* ast) const -> const Name* {
-    std::vector<TemplateArgument> arguments;
-    return control_->getTemplateId(operator()(ast->operatorFunctionId),
-                                   std::move(arguments));
-  }
-};
-
 class RecordingDiagnosticsClient : public DiagnosticsClient {
  public:
   void reset() { messages_.clear(); }
@@ -126,297 +74,7 @@ class RecordingDiagnosticsClient : public DiagnosticsClient {
   std::vector<Diagnostic> messages_;
 };
 
-class FunctionPrototype {
-  enum class Kind { Direct, Ptr, Function, Array };
-
-  FunctionDeclaratorChunkAST* prototype_ = nullptr;
-  Kind kind_ = Kind::Direct;
-
- public:
-  FunctionPrototype() = default;
-
-  FunctionDeclaratorChunkAST* operator()(DeclaratorAST* declarator) {
-    makeDirect();
-    process(declarator);
-    return prototype_;
-  }
-
- private:
-  void makeDirect() {
-    prototype_ = nullptr;
-    kind_ = Kind::Direct;
-  }
-
-  void makePtr() {
-    prototype_ = nullptr;
-    kind_ = Kind::Ptr;
-  }
-
-  void makeArray() {
-    prototype_ = nullptr;
-    kind_ = Kind::Array;
-  }
-
-  void makeFunction(FunctionDeclaratorChunkAST* prototype) {
-    prototype_ = prototype;
-    kind_ = Kind::Function;
-  }
-
-  void process(DeclaratorAST* declarator) {
-    if (!declarator) return;
-    if (declarator->ptrOpList) makePtr();
-    if (declarator->declaratorChunkList) {
-      auto prototype = ast_cast<FunctionDeclaratorChunkAST>(
-          declarator->declaratorChunkList->value);
-      if (prototype) makeFunction(prototype);
-    }
-    auto nested = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator);
-    if (nested) process(nested->declarator);
-  }
-};
-
-auto getFunctionPrototype(DeclaratorAST* declarator)
-    -> FunctionDeclaratorChunkAST* {
-  FunctionPrototype prototype;
-  return prototype(declarator);
-}
-
 }  // namespace
-
-struct Parser::GetDeclaratorType {
-  Parser* p;
-  const Type* type_ = nullptr;
-
-  struct {
-    auto operator()(float value) const -> std::optional<std::size_t> {
-      return std::nullopt;
-    }
-
-    auto operator()(double value) const -> std::optional<std::size_t> {
-      return std::nullopt;
-    }
-
-    auto operator()(const StringLiteral* value) const
-        -> std::optional<std::size_t> {
-      return std::nullopt;
-    }
-
-    template <typename T>
-    auto operator()(T value) const -> std::optional<std::size_t> {
-      return static_cast<std::size_t>(value);
-    }
-  } get_size_value;
-
-  explicit GetDeclaratorType(Parser* p) : p(p) {}
-
-  auto control() const -> Control* { return p->unit->control(); }
-
-  auto operator()(DeclaratorAST* ast, const Type* type) -> const Type* {
-    if (!ast) return type;
-
-    std::swap(type_, type);
-
-    std::invoke(*this, ast);
-
-    std::swap(type_, type);
-
-    return type;
-  }
-
-  void operator()(DeclaratorAST* ast) {
-    for (auto it = ast->ptrOpList; it; it = it->next) visit(*this, it->value);
-
-    auto nestedNameSpecifier = getNestedNameSpecifier(ast->coreDeclarator);
-
-    std::invoke(*this, ast->declaratorChunkList);
-
-    if (ast->coreDeclarator) visit(*this, ast->coreDeclarator);
-  }
-
-  auto getNestedNameSpecifier(CoreDeclaratorAST* ast) const
-      -> NestedNameSpecifierAST* {
-    struct {
-      auto operator()(DeclaratorAST* ast) const -> NestedNameSpecifierAST* {
-        if (ast->coreDeclarator) return visit(*this, ast->coreDeclarator);
-        return nullptr;
-      }
-
-      auto operator()(BitfieldDeclaratorAST* ast) const
-          -> NestedNameSpecifierAST* {
-        return nullptr;
-      }
-
-      auto operator()(ParameterPackAST* ast) const -> NestedNameSpecifierAST* {
-        return nullptr;
-      }
-
-      auto operator()(IdDeclaratorAST* ast) const -> NestedNameSpecifierAST* {
-        return ast->nestedNameSpecifier;
-      }
-
-      auto operator()(NestedDeclaratorAST* ast) const
-          -> NestedNameSpecifierAST* {
-        if (!ast->declarator) return nullptr;
-        return std::invoke(*this, ast->declarator);
-      }
-    } v;
-
-    if (!ast) return nullptr;
-    return visit(v, ast);
-  }
-
-  void operator()(List<DeclaratorChunkAST*>* chunks) {
-    if (!chunks) return;
-    std::invoke(*this, chunks->next);
-    visit(*this, chunks->value);
-  }
-
-  void operator()(PointerOperatorAST* ast) {
-    type_ = control()->getPointerType(type_);
-
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      if (ast_cast<ConstQualifierAST>(it->value)) {
-        type_ = control()->add_const(type_);
-      } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        type_ = control()->add_volatile(type_);
-      }
-    }
-  }
-
-  void operator()(ReferenceOperatorAST* ast) {
-    if (ast->refOp == TokenKind::T_AMP_AMP) {
-      type_ = control()->add_rvalue_reference(type_);
-    } else {
-      type_ = control()->add_lvalue_reference(type_);
-    }
-  }
-
-  void operator()(PtrToMemberOperatorAST* ast) {
-    if (!type_) return;
-
-    auto symbol = ast->nestedNameSpecifier->symbol;
-    if (!symbol) return;
-
-    auto classType = type_cast<ClassType>(symbol->type());
-    if (!classType) return;
-
-    if (auto functionType = type_cast<FunctionType>(type_)) {
-      type_ = control()->getMemberFunctionPointerType(classType, functionType);
-    } else {
-      type_ = control()->getMemberObjectPointerType(classType, type_);
-    }
-
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      if (ast_cast<ConstQualifierAST>(it->value)) {
-        type_ = control()->add_const(type_);
-      } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        type_ = control()->add_volatile(type_);
-      }
-    }
-  }
-
-  void operator()(BitfieldDeclaratorAST* ast) {}
-
-  void operator()(ParameterPackAST* ast) {
-    if (ast->coreDeclarator) visit(*this, ast->coreDeclarator);
-  }
-
-  void operator()(IdDeclaratorAST* ast) {}
-
-  void operator()(NestedDeclaratorAST* ast) {
-    std::invoke(*this, ast->declarator);
-  }
-
-  void operator()(FunctionDeclaratorChunkAST* ast) {
-    auto returnType = type_;
-    std::vector<const Type*> parameterTypes;
-    bool isVariadic = false;
-
-    if (auto params = ast->parameterDeclarationClause) {
-      for (auto it = params->parameterDeclarationList; it; it = it->next) {
-        auto paramType = it->value->type;
-        parameterTypes.push_back(paramType);
-      }
-
-      isVariadic = params->isVariadic;
-    }
-
-    CvQualifiers cvQualifiers = CvQualifiers::kNone;
-    for (auto it = ast->cvQualifierList; it; it = it->next) {
-      if (ast_cast<ConstQualifierAST>(it->value)) {
-        if (cvQualifiers == CvQualifiers::kVolatile)
-          cvQualifiers = CvQualifiers::kConstVolatile;
-        else
-          cvQualifiers = CvQualifiers::kConst;
-      } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        if (cvQualifiers == CvQualifiers::kConst)
-          cvQualifiers = CvQualifiers::kConstVolatile;
-        else
-          cvQualifiers = CvQualifiers::kVolatile;
-      }
-    }
-
-    RefQualifier refQualifier = RefQualifier::kNone;
-
-    if (ast->refLoc) {
-      if (p->unit->tokenKind(ast->refLoc) == TokenKind::T_AMP_AMP) {
-        refQualifier = RefQualifier::kRvalue;
-      } else {
-        refQualifier = RefQualifier::kLvalue;
-      }
-    }
-
-    bool isNoexcept = false;
-
-    if (ast->exceptionSpecifier)
-      isNoexcept = visit(*this, ast->exceptionSpecifier);
-
-    if (ast->trailingReturnType) {
-#if false
-      if (!type_cast<AutoType>(returnType)) {
-        p->parse_warn(ast->trailingReturnType->firstSourceLocation(),
-                      std::format("function with trailing return type must "
-                                  "be declared with 'auto', not '{}'",
-                                  to_string(returnType)));
-      }
-#endif
-
-      if (ast->trailingReturnType->typeId) {
-        returnType = ast->trailingReturnType->typeId->type;
-      }
-    }
-
-    type_ = control()->getFunctionType(returnType, std::move(parameterTypes),
-                                       isVariadic, cvQualifiers, refQualifier,
-                                       isNoexcept);
-  }
-
-  void operator()(ArrayDeclaratorChunkAST* ast) {
-    if (!ast->expression) {
-      type_ = control()->getUnboundedArrayType(type_);
-      return;
-    }
-
-    auto constValue = p->evaluate_constant_expression(ast->expression);
-
-    if (constValue) {
-      if (auto size = std::visit(get_size_value, *constValue)) {
-        type_ = control()->getBoundedArrayType(type_, *size);
-        return;
-      }
-    }
-
-    type_ = control()->getUnresolvedBoundedArrayType(p->unit, type_,
-                                                     ast->expression);
-  }
-
-  auto operator()(ThrowExceptionSpecifierAST* ast) -> bool { return false; }
-
-  auto operator()(NoexceptSpecifierAST* ast) -> bool {
-    if (!ast->expression) return true;
-    return false;
-  }
-};
 
 struct Parser::LookaheadParser {
   Parser* p;
@@ -471,53 +129,6 @@ struct Parser::LoopParser {
     }
 
     startLocation = loc;
-  }
-};
-
-struct Parser::Decl {
-  DeclSpecs specs;
-  IdDeclaratorAST* declaratorId = nullptr;
-  bool isPack = false;
-
-  explicit Decl(const DeclSpecs& specs) : specs{specs} {}
-
-  [[nodiscard]] auto location() const -> SourceLocation {
-    if (declaratorId) return declaratorId->firstSourceLocation();
-    return {};
-  }
-
-  [[nodiscard]] auto getName() const -> const Name* {
-    auto control = specs.control();
-    if (!declaratorId) return nullptr;
-    if (!declaratorId->unqualifiedId) return nullptr;
-    return visit(ConvertToName{control}, declaratorId->unqualifiedId);
-  }
-
-  [[nodiscard]] auto getNestedNameSpecifier() const -> NestedNameSpecifierAST* {
-    if (!declaratorId) return nullptr;
-    return declaratorId->nestedNameSpecifier;
-  }
-
-  [[nodiscard]] auto getScope() const -> Scope* {
-    auto nestedNameSpecifier = getNestedNameSpecifier();
-    if (!nestedNameSpecifier) return nullptr;
-
-    auto symbol = nestedNameSpecifier->symbol;
-    if (!symbol) return nullptr;
-
-    if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
-      if (auto classType = type_cast<ClassType>(alias->type())) {
-        symbol = classType->symbol();
-      }
-    }
-
-    if (auto classSymbol = symbol_cast<ClassSymbol>(symbol))
-      return classSymbol->scope();
-
-    if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
-      return namespaceSymbol->scope();
-
-    return nullptr;
   }
 };
 
@@ -4669,7 +4280,7 @@ auto Parser::parse_simple_declaration(
     auto _ = ScopeGuard{this};
 
     auto functionType =
-        GetDeclaratorType{this}(declarator, decl.specs.getType());
+        getDeclaratorType(unit, declarator, decl.specs.getType());
 
     auto q = decl.getNestedNameSpecifier();
 
@@ -4810,7 +4421,7 @@ auto Parser::parse_notypespec_function_definition(
 
   parse_optional_attribute_specifier_seq(functionDeclarator->attributeList);
 
-  auto functionType = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto functionType = getDeclaratorType(unit, declarator, decl.specs.getType());
 
   SourceLocation equalLoc;
   SourceLocation zeroLoc;
@@ -5766,7 +5377,7 @@ auto Parser::is_constructor(Symbol* symbol) const -> bool {
 
 auto Parser::evaluate_constant_expression(ExpressionAST* expr)
     -> std::optional<ConstValue> {
-  ConstExpressionEvaluator sem{*this};
+  ConstExpressionEvaluator sem{unit};
   return sem.evaluate(expr);
 }
 
@@ -6424,7 +6035,7 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   parse_optional_abstract_declarator(yyast->declarator, decl);
 
   yyast->type =
-      GetDeclaratorType{this}(yyast->declarator, decl.specs.getType());
+      getDeclaratorType(unit, yyast->declarator, decl.specs.getType());
 
   return true;
 }
@@ -6451,7 +6062,7 @@ auto Parser::parse_defining_type_id(
 
   ast->typeSpecifierList = typeSpecifierList;
   ast->declarator = declarator;
-  ast->type = GetDeclaratorType{this}(ast->declarator, decl.specs.getType());
+  ast->type = getDeclaratorType(unit, ast->declarator, decl.specs.getType());
 
   return true;
 }
@@ -6586,7 +6197,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   Decl decl{specs};
   parse_optional_declarator_or_abstract_declarator(ast->declarator, decl);
 
-  ast->type = GetDeclaratorType{this}(ast->declarator, decl.specs.getType());
+  ast->type = getDeclaratorType(unit, ast->declarator, decl.specs.getType());
   ast->isPack = decl.isPack;
 
   if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
@@ -8752,7 +8363,7 @@ auto Parser::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId)
 auto Parser::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     -> TypeAliasSymbol* {
   auto name = decl.getName();
-  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit, declarator, decl.specs.getType());
   auto symbol = control_->newTypeAliasSymbol(scope_, decl.location());
   symbol->setName(name);
   symbol->setType(type);
@@ -8763,7 +8374,7 @@ auto Parser::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
 auto Parser::declareFunction(DeclaratorAST* declarator, const Decl& decl)
     -> FunctionSymbol* {
   auto name = decl.getName();
-  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit, declarator, decl.specs.getType());
 
   auto parentScope = scope_;
 
@@ -8816,7 +8427,7 @@ auto Parser::declareFunction(DeclaratorAST* declarator, const Decl& decl)
 auto Parser::declareField(DeclaratorAST* declarator, const Decl& decl)
     -> FieldSymbol* {
   auto name = decl.getName();
-  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit, declarator, decl.specs.getType());
   auto fieldSymbol = control_->newFieldSymbol(scope_, decl.location());
   applySpecifiers(fieldSymbol, decl.specs);
   fieldSymbol->setName(name);
@@ -8833,7 +8444,7 @@ auto Parser::declareVariable(DeclaratorAST* declarator, const Decl& decl)
     -> VariableSymbol* {
   auto name = decl.getName();
   auto symbol = control_->newVariableSymbol(scope_, decl.location());
-  auto type = GetDeclaratorType{this}(declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit, declarator, decl.specs.getType());
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);
@@ -8951,7 +8562,7 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   auto typeId = make_node<TypeIdAST>(pool_);
   typeId->typeSpecifierList = typeSpecifierList;
   typeId->declarator = declarator;
-  typeId->type = GetDeclaratorType{this}(declarator, specs.getType());
+  typeId->type = getDeclaratorType(unit, declarator, specs.getType());
 
   auto ast = make_node<ConversionFunctionIdAST>(pool_);
   yyast = ast;
@@ -10548,7 +10159,7 @@ void Parser::check(ExpressionAST* ast) {
 
 auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
   if (!id) return nullptr;
-  return visit(ConvertToName{control_}, id);
+  return get_name(control_, id);
 }
 
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
