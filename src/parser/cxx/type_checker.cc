@@ -575,7 +575,7 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
       if (!is_glvalue(ast->expression)) {
         error(ast->opLoc, std::format("cannot decrement an rvalue of type '{}'",
                                       to_string(ast->expression->type)));
-         break;
+        break;
       }
 
       auto ty = ast->expression->type;

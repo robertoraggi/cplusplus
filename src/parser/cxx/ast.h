@@ -2998,6 +2998,7 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
   SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
   bool isTemplateIntroduced = false;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

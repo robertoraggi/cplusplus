@@ -21,17 +21,18 @@ file(GLOB CXX_INCLUDE_HEADER_FILES cxx/*.h)
 file(GLOB CXX_VIEWS_INCLUDE_HEADER_FILES cxx/views/*.h)
 
 add_library(cxx-parser
-    cxx/ast.cc
     cxx/ast_cursor.cc
     cxx/ast_interpreter.cc
     cxx/ast_rewriter.cc
     cxx/ast_slot.cc
+    cxx/ast.cc
     cxx/base_classes.cc
     cxx/cli.cc
     cxx/const_expression_evaluator.cc
     cxx/const_value.cc
     cxx/control.cc
     cxx/cxx.cc
+    cxx/decl_specs.cc
     cxx/diagnostic.cc
     cxx/diagnostics_client.cc
     cxx/external_name_encoder.cc

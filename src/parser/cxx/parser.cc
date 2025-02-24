@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/const_expression_evaluator.h>
 #include <cxx/control.h>
+#include <cxx/decl_specs.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
@@ -275,18 +276,18 @@ struct Parser::GetDeclaratorType {
 
     for (auto it = ast->cvQualifierList; it; it = it->next) {
       if (ast_cast<ConstQualifierAST>(it->value)) {
-        type_ = control()->getConstType(type_);
+        type_ = control()->add_const(type_);
       } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        type_ = control()->getVolatileType(type_);
+        type_ = control()->add_volatile(type_);
       }
     }
   }
 
   void operator()(ReferenceOperatorAST* ast) {
     if (ast->refOp == TokenKind::T_AMP_AMP) {
-      type_ = control()->getRvalueReferenceType(type_);
+      type_ = control()->add_rvalue_reference(type_);
     } else {
-      type_ = control()->getLvalueReferenceType(type_);
+      type_ = control()->add_lvalue_reference(type_);
     }
   }
 
@@ -307,9 +308,9 @@ struct Parser::GetDeclaratorType {
 
     for (auto it = ast->cvQualifierList; it; it = it->next) {
       if (ast_cast<ConstQualifierAST>(it->value)) {
-        type_ = control()->getConstType(type_);
+        type_ = control()->add_const(type_);
       } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        type_ = control()->getVolatileType(type_);
+        type_ = control()->add_volatile(type_);
       }
     }
   }
@@ -471,168 +472,6 @@ struct Parser::LoopParser {
 
     startLocation = loc;
   }
-};
-
-struct Parser::DeclSpecs {
-  Parser* parser = nullptr;
-
-  explicit DeclSpecs(Parser* parser) : parser(parser) {}
-
-  auto control() const -> Control* { return parser->control_; }
-
-  auto getType() const -> const Type* {
-    auto type = this->type;
-
-    if (!type || type == control()->getIntType()) {
-      if (isLongLong && isUnsigned)
-        type = control()->getUnsignedLongLongIntType();
-      else if (isLongLong)
-        type = control()->getLongLongIntType();
-      else if (isLong && isUnsigned)
-        type = control()->getUnsignedLongIntType();
-      else if (isLong)
-        type = control()->getLongIntType();
-      else if (isShort && isUnsigned)
-        type = control()->getUnsignedShortIntType();
-      else if (isShort)
-        type = control()->getShortIntType();
-      else if (isUnsigned)
-        type = control()->getUnsignedIntType();
-      else if (isSigned)
-        type = control()->getIntType();
-    }
-
-    if (!type) return nullptr;
-
-    if (type == control()->getDoubleType() && isLong)
-      type = control()->getLongDoubleType();
-
-    if (isSigned && type == control()->getCharType())
-      type = control()->getSignedCharType();
-
-    if (isUnsigned) {
-      switch (type->kind()) {
-        case TypeKind::kChar:
-          type = control()->getUnsignedCharType();
-          break;
-        case TypeKind::kShortInt:
-          type = control()->getUnsignedShortIntType();
-          break;
-        case TypeKind::kInt:
-          type = control()->getUnsignedIntType();
-          break;
-        case TypeKind::kLongInt:
-          type = control()->getUnsignedLongIntType();
-          break;
-        case TypeKind::kLongLongInt:
-          type = control()->getUnsignedLongLongIntType();
-          break;
-        case TypeKind::kChar8:
-          type = control()->getUnsignedCharType();
-          break;
-        case TypeKind::kChar16:
-          type = control()->getUnsignedShortIntType();
-          break;
-        case TypeKind::kChar32:
-          type = control()->getUnsignedIntType();
-          break;
-        case TypeKind::kWideChar:
-          type = control()->getUnsignedIntType();
-          break;
-        default:
-          break;
-      }  // switch
-    }
-
-    if (isConst && isVolatile) {
-      type = control()->getConstVolatileType(type);
-    } else if (isConst) {
-      type = control()->getConstType(type);
-    } else if (isVolatile) {
-      type = control()->getVolatileType(type);
-    }
-
-    return type;
-  }
-
-  [[nodiscard]] auto hasTypeSpecifier() const -> bool {
-    if (typeSpecifier) return true;
-    if (isShort || isLong) return true;
-    if (isSigned || isUnsigned) return true;
-    return false;
-  }
-
-  void setTypeSpecifier(SpecifierAST* specifier) { typeSpecifier = specifier; }
-
-  [[nodiscard]] auto hasClassOrEnumSpecifier() const -> bool {
-    if (!typeSpecifier) return false;
-    switch (typeSpecifier->kind()) {
-      case ASTKind::ClassSpecifier:
-      case ASTKind::EnumSpecifier:
-      case ASTKind::ElaboratedTypeSpecifier:
-      case ASTKind::TypenameSpecifier:
-        return true;
-      default:
-        return false;
-    }  // switch
-  }
-
-  [[nodiscard]] auto hasPlaceholderTypeSpecifier() const -> bool {
-    if (!typeSpecifier) return false;
-    switch (typeSpecifier->kind()) {
-      case ASTKind::AutoTypeSpecifier:
-      case ASTKind::DecltypeAutoSpecifier:
-      case ASTKind::PlaceholderTypeSpecifier:
-      case ASTKind::DecltypeSpecifier:
-        return true;
-      default:
-        return false;
-    }  // switch
-  }
-
-  const Type* type = nullptr;
-  SpecifierAST* typeSpecifier = nullptr;
-
-  bool isTypedef = false;
-  bool isFriend = false;
-  bool isConstexpr = false;
-  bool isConsteval = false;
-  bool isConstinit = false;
-  bool isInline = false;
-
-  // cv qualifiers
-  bool isConst = false;
-  bool isVolatile = false;
-  bool isRestrict = false;
-
-  // storage class specifiers
-  bool isStatic = false;
-  bool isThreadLocal = false;
-  bool isExtern = false;
-  bool isMutable = false;
-  bool isThread = false;
-
-  // function specifiers
-  bool isVirtual = false;
-  bool isExplicit = false;
-
-  // sign specifiers
-  bool isSigned = false;
-  bool isUnsigned = false;
-
-  // sized specifiers
-  bool isShort = false;
-  bool isLong = false;
-  bool isLongLong = false;
-
-  bool isComplex = false;
-
-  // placeholder type specifiers
-  bool isAuto = false;
-  bool isDecltypeAuto = false;
-
-  bool no_typespecs = false;
-  bool no_class_or_enum_specs = false;
 };
 
 struct Parser::Decl {
@@ -1113,7 +952,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       if (unit->tokenKind(literalLoc) == TokenKind::T_STRING_LITERAL) {
         ast->type = control_->getBoundedArrayType(
-            control_->getConstType(control_->getCharType()),
+            control_->add_const(control_->getCharType()),
             ast->literal->stringValue().size() + 1);
 
         ast->valueCategory = ValueCategory::kLValue;
@@ -2724,7 +2563,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
     LookaheadParser lookahead{this};
 
     SpecifierAST* typeSpecifier = nullptr;
-    DeclSpecs specs{this};
+    DeclSpecs specs{unit};
 
     if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
@@ -2740,7 +2579,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
     LookaheadParser lookahead{this};
 
     SpecifierAST* typeSpecifier = nullptr;
-    DeclSpecs specs{this};
+    DeclSpecs specs{unit};
 
     if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
@@ -2765,7 +2604,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
   LookaheadParser lookahead{this};
 
   SpecifierAST* typeSpecifier = nullptr;
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
 
   if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
 
@@ -2847,7 +2686,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
   LookaheadParser lookahead{this};
 
   SpecifierAST* typenameSpecifier = nullptr;
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   if (!parse_typename_specifier(typenameSpecifier, specs)) return false;
 
   if (BracedInitListAST* bracedInitList = nullptr;
@@ -3219,7 +3058,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
     List<SpecifierAST*>* typeSpecifierList = nullptr;
-    DeclSpecs specs{this};
+    DeclSpecs specs{unit};
     if (!parse_type_specifier_seq(typeSpecifierList, specs)) return false;
 
     DeclaratorAST* declarator = nullptr;
@@ -3244,7 +3083,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
 
   if (lookat_nested_type_id()) return true;
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   if (!parse_type_specifier_seq(ast->typeSpecifierList, specs))
     parse_error("expected a type specifier");
 
@@ -3816,7 +3655,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
 
     List<SpecifierAST*>* declSpecifierList = nullptr;
 
-    DeclSpecs specs{this};
+    DeclSpecs specs{unit};
 
     if (!parse_decl_specifier_seq(declSpecifierList, specs, {})) return false;
 
@@ -4241,7 +4080,7 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
 
   if (!parse_decl_specifier_seq(declSpecifierList, specs, {})) return false;
 
@@ -4631,13 +4470,13 @@ auto Parser::parse_notypespec_function_definition(
 
   LookaheadParser lookahead{this};
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
   auto parse_optional_decl_specifier_seq_no_typespecs = [&] {
     LookaheadParser lookahead{this};
     if (!parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs)) {
-      specs = DeclSpecs{this};
+      specs = DeclSpecs{unit};
       return;
     }
     lookahead.commit();
@@ -4776,7 +4615,7 @@ auto Parser::parse_simple_declaration(
                                            templateDeclarations, ctx))
     return true;
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
   auto lookat_decl_specifiers = [&] {
@@ -5657,6 +5496,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     return false;
   }
 
+  Symbol* typeSymbol = nullptr;
+
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
     if (auto conceptSymbol =
             symbol_cast<ConceptSymbol>(templateId->primaryTemplateSymbol)) {
@@ -5672,6 +5513,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
         Lookup{scope_}.lookupType(nestedNameSpecifier, name->identifier);
 
     if (is_type(symbol)) {
+      typeSymbol = symbol;
       specs.type = symbol->type();
     } else {
       if (config_.checkTypes) return false;
@@ -5692,6 +5534,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
+  ast->symbol = typeSymbol;
 
   return true;
 }
@@ -6090,7 +5933,7 @@ auto Parser::parse_elaborated_type_specifier(
 
 auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast)
     -> bool {
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   return parse_decl_specifier_seq_no_typespecs(yyast, specs);
 }
 
@@ -6414,7 +6257,7 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   ast->parameterDeclarationClause = parameterDeclarationClause;
   ast->rparenLoc = rparenLoc;
 
-  DeclSpecs cvQualifiers{this};
+  DeclSpecs cvQualifiers{unit};
 
   (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
@@ -6479,7 +6322,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
     parse_optional_attribute_specifier_seq(ast->attributeList);
 
-    DeclSpecs cvQualifiers{this};
+    DeclSpecs cvQualifiers{unit};
     (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
     return true;
@@ -6515,7 +6358,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  DeclSpecs cvQualifiers{this};
+  DeclSpecs cvQualifiers{unit};
   (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
 
   return true;
@@ -6621,7 +6464,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
 
 auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   List<SpecifierAST*>* specifierList = nullptr;
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   if (!parse_type_specifier_seq(specifierList, specs)) return false;
 
   yyast = make_node<TypeIdAST>(pool_);
@@ -6639,7 +6482,7 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
 auto Parser::parse_defining_type_id(
     TypeIdAST*& yyast,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
 
   if (!templateDeclarations.empty()) specs.no_class_or_enum_specs = true;
 
@@ -6781,7 +6624,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
 
   specs.no_class_or_enum_specs = true;
 
@@ -7144,7 +6987,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation colonLoc;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
-  DeclSpecs underlyingTypeSpecs{this};
+  DeclSpecs underlyingTypeSpecs{unit};
   (void)parse_enum_base(colonLoc, typeSpecifierList, underlyingTypeSpecs);
 
   SourceLocation lbraceLoc;
@@ -7231,7 +7074,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast) -> bool {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   NameIdAST* name = nullptr;
   SourceLocation colonLoc;
-  DeclSpecs underlyingTypeSpecs{this};
+  DeclSpecs underlyingTypeSpecs{unit};
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   SourceLocation semicolonLoc;
 
@@ -7360,7 +7203,7 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_USING, ast->usingLoc);
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
 
   SpecifierAST* typeSpecifier = nullptr;
   if (!parse_elaborated_type_specifier(typeSpecifier, specs, {})) {
@@ -8750,7 +8593,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   parse_optional_attribute_specifier_seq(attributes);
 
   List<SpecifierAST*>* declSpecifierList = nullptr;
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   (void)parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs);
 
   auto lookat_notypespec_function_definition = [&] {
@@ -9146,7 +8989,7 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   if (!parse_type_specifier_seq(typeSpecifierList, specs)) return false;
 
   lookahead.commit();
@@ -10281,7 +10124,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast) -> bool {
   auto lookat_deduction_guide = [&] {
     LookaheadParser lookahead{this};
 
-    DeclSpecs specs{this};
+    DeclSpecs specs{unit};
     (void)parse_explicit_specifier(explicitSpecifier, specs);
 
     if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
@@ -10579,7 +10422,7 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
 
-  DeclSpecs specs{this};
+  DeclSpecs specs{unit};
   if (!parse_type_specifier_seq(ast->typeSpecifierList, specs)) {
     parse_error("expected a type specifier");
   }

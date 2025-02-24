@@ -36,6 +36,8 @@
 
 namespace cxx {
 
+class DeclSpecs;
+
 class Parser final {
  public:
   Parser(const Parser&) = delete;
@@ -69,7 +71,6 @@ class Parser final {
   void setConfig(ParserConfiguration config);
 
  private:
-  struct DeclSpecs;
   struct Decl;
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
