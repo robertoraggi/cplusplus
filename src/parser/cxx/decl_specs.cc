@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
@@ -30,6 +31,8 @@ namespace cxx {
 
 struct DeclSpecs::Visitor {
   DeclSpecs& specs;
+
+  [[nodiscard]] auto control() const -> Control* { return specs.control(); }
 
   void operator()(GeneratedTypeSpecifierAST* ast);
   void operator()(TypedefSpecifierAST* ast);
@@ -71,75 +74,257 @@ struct DeclSpecs::Visitor {
 
 void DeclSpecs::Visitor::operator()(GeneratedTypeSpecifierAST* ast) {}
 
-void DeclSpecs::Visitor::operator()(TypedefSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(TypedefSpecifierAST* ast) {
+  specs.isTypedef = true;
+}
 
-void DeclSpecs::Visitor::operator()(FriendSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(FriendSpecifierAST* ast) {
+  specs.isFriend = true;
+}
 
-void DeclSpecs::Visitor::operator()(ConstevalSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ConstevalSpecifierAST* ast) {
+  specs.isConsteval = true;
+}
 
-void DeclSpecs::Visitor::operator()(ConstinitSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ConstinitSpecifierAST* ast) {
+  specs.isConstinit = true;
+}
 
-void DeclSpecs::Visitor::operator()(ConstexprSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ConstexprSpecifierAST* ast) {
+  specs.isConstexpr = true;
+}
 
-void DeclSpecs::Visitor::operator()(InlineSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(InlineSpecifierAST* ast) {
+  specs.isInline = true;
+}
 
-void DeclSpecs::Visitor::operator()(StaticSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(StaticSpecifierAST* ast) {
+  specs.isStatic = true;
+}
 
-void DeclSpecs::Visitor::operator()(ExternSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ExternSpecifierAST* ast) {
+  specs.isExtern = true;
+}
 
-void DeclSpecs::Visitor::operator()(ThreadLocalSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ThreadLocalSpecifierAST* ast) {
+  specs.isThreadLocal = true;
+}
 
-void DeclSpecs::Visitor::operator()(ThreadSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ThreadSpecifierAST* ast) {
+  specs.isThread = true;
+}
 
-void DeclSpecs::Visitor::operator()(MutableSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(MutableSpecifierAST* ast) {
+  specs.isMutable = true;
+}
 
-void DeclSpecs::Visitor::operator()(VirtualSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(VirtualSpecifierAST* ast) {
+  specs.isVirtual = true;
+}
 
-void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {
+  specs.isExplicit = true;
+}
 
-void DeclSpecs::Visitor::operator()(AutoTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(AutoTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  specs.type = control()->getAutoType();
+}
 
-void DeclSpecs::Visitor::operator()(VoidTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(VoidTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  specs.type = control()->getVoidType();
+}
 
-void DeclSpecs::Visitor::operator()(SizeTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(SizeTypeSpecifierAST* ast) {
+  switch (ast->specifier) {
+    case TokenKind::T_SHORT:
+      specs.isShort = true;
+      break;
 
-void DeclSpecs::Visitor::operator()(SignTypeSpecifierAST* ast) {}
+    case TokenKind::T_LONG:
+      if (specs.isLong)
+        specs.isLongLong = true;
+      else
+        specs.isLong = true;
+      break;
 
-void DeclSpecs::Visitor::operator()(VaListTypeSpecifierAST* ast) {}
+    default:
+      break;
+  }  // switch
+}
 
-void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(SignTypeSpecifierAST* ast) {
+  switch (ast->specifier) {
+    case TokenKind::T_SIGNED:
+      specs.isSigned = true;
+      break;
 
-void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {}
+    case TokenKind::T_UNSIGNED:
+      specs.isUnsigned = true;
+      break;
 
-void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {}
+    default:
+      break;
+  }  // switch
+}
 
-void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(VaListTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  specs.type = control()->getBuiltinVaListType();
+}
 
-void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  switch (ast->specifier) {
+    case TokenKind::T_CHAR:
+      specs.type = control()->getCharType();
+      break;
 
-void DeclSpecs::Visitor::operator()(UnderlyingTypeSpecifierAST* ast) {}
+    case TokenKind::T_CHAR8_T:
+      specs.type = control()->getChar8Type();
+      break;
 
-void DeclSpecs::Visitor::operator()(ElaboratedTypeSpecifierAST* ast) {}
+    case TokenKind::T_CHAR16_T:
+      specs.type = control()->getChar16Type();
+      break;
 
-void DeclSpecs::Visitor::operator()(DecltypeAutoSpecifierAST* ast) {}
+    case TokenKind::T_CHAR32_T:
+      specs.type = control()->getChar32Type();
+      break;
 
-void DeclSpecs::Visitor::operator()(DecltypeSpecifierAST* ast) {}
+    case TokenKind::T_WCHAR_T:
+      specs.type = control()->getWideCharType();
+      break;
+
+    case TokenKind::T_BOOL:
+      specs.type = control()->getBoolType();
+      break;
+
+    case TokenKind::T_INT:
+      specs.type = control()->getIntType();
+      break;
+
+    case TokenKind::T___INT64:
+      // ### todo
+      break;
+
+    case TokenKind::T___INT128:
+      // ### todo
+      break;
+
+    default:
+      break;
+  }  // switch
+}
+
+void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  switch (ast->specifier) {
+    case TokenKind::T_FLOAT:
+      specs.type = control()->getFloatType();
+      break;
+
+    case TokenKind::T_DOUBLE:
+      specs.type = control()->getDoubleType();
+      break;
+
+    case TokenKind::T_LONG:
+      specs.type = control()->getLongDoubleType();
+      break;
+
+    case TokenKind::T___FLOAT80:
+      // ### todo
+      break;
+
+    case TokenKind::T___FLOAT128:
+      // ### todo
+      break;
+
+    default:
+      break;
+  }  // switch
+}
+
+void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  specs.isComplex = true;
+}
+
+void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  if (ast->symbol) specs.type = ast->symbol->type();
+}
+
+void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  // ### todo
+}
+
+void DeclSpecs::Visitor::operator()(UnderlyingTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+
+  if (ast->typeId) {
+    if (auto enumType = type_cast<EnumType>(ast->typeId->type)) {
+      specs.type = enumType->underlyingType();
+    } else if (auto scopedEnumType =
+                   type_cast<ScopedEnumType>(ast->typeId->type)) {
+      specs.type = scopedEnumType->underlyingType();
+    } else {
+      specs.type =
+          control()->getUnresolvedUnderlyingType(specs.unit, ast->typeId);
+    }
+  }
+}
+
+void DeclSpecs::Visitor::operator()(ElaboratedTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  if (ast->symbol) specs.type = ast->symbol->type();
+}
+
+void DeclSpecs::Visitor::operator()(DecltypeAutoSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  specs.type = control()->getDecltypeAutoType();
+}
+
+void DeclSpecs::Visitor::operator()(DecltypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  specs.type = ast->type;
+}
 
 void DeclSpecs::Visitor::operator()(PlaceholderTypeSpecifierAST* ast) {}
 
-void DeclSpecs::Visitor::operator()(ConstQualifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ConstQualifierAST* ast) {
+  specs.isConst = true;
+}
 
-void DeclSpecs::Visitor::operator()(VolatileQualifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(VolatileQualifierAST* ast) {
+  specs.isVolatile = true;
+}
 
-void DeclSpecs::Visitor::operator()(RestrictQualifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(RestrictQualifierAST* ast) {
+  specs.isRestrict = true;
+}
 
-void DeclSpecs::Visitor::operator()(EnumSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(EnumSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  if (ast->symbol) specs.type = ast->symbol->type();
+}
 
-void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  if (ast->symbol) specs.type = ast->symbol->type();
+}
 
-void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  // ### todo
+}
 
-void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+  // ### todo
+}
 
 DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit(unit) {}
 

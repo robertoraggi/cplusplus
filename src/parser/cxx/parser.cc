@@ -5279,10 +5279,9 @@ auto Parser::parse_defining_type_specifier(
     if (parse_enum_specifier(yyast, specs)) {
       lookahead.commit();
 
-      auto enumSpec = ast_cast<EnumSpecifierAST>(yyast);
-
-      specs.setTypeSpecifier(yyast);
-      specs.type = enumSpec->symbol->type();
+      if (auto enumSpec = ast_cast<EnumSpecifierAST>(yyast)) {
+        specs.accept(enumSpec);
+      }
 
       return true;
     }
@@ -5291,8 +5290,8 @@ auto Parser::parse_defining_type_specifier(
         parse_class_specifier(classSpecifier, specs, templateDeclarations)) {
       lookahead.commit();
 
-      specs.setTypeSpecifier(classSpecifier);
-      specs.type = classSpecifier->symbol->type();
+      specs.accept(classSpecifier);
+
       yyast = classSpecifier;
 
       return true;
@@ -5548,7 +5547,7 @@ auto Parser::parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
 
   yyast = decltypeSpecifier;
 
-  specs.type = decltypeSpecifier->type;
+  specs.accept(decltypeSpecifier);
 
   return true;
 }
@@ -5569,16 +5568,7 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (ast->typeId) {
-    if (auto enumType = type_cast<EnumType>(ast->typeId->type)) {
-      specs.type = enumType->underlyingType();
-    } else if (auto scopedEnumType =
-                   type_cast<ScopedEnumType>(ast->typeId->type)) {
-      specs.type = scopedEnumType->underlyingType();
-    } else {
-      specs.type = control_->getUnresolvedUnderlyingType(unit, ast->typeId);
-    }
-  }
+  specs.accept(ast);
 
   return true;
 }
@@ -5624,77 +5614,37 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       yyast = ast;
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
+      specs.accept(ast);
       specs.type = control_->getBuiltinVaListType();
       return true;
     }
 
     case TokenKind::T_CHAR:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getCharType();
-      return true;
-
     case TokenKind::T_CHAR8_T:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getChar8Type();
-      return true;
-
     case TokenKind::T_CHAR16_T:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getChar16Type();
-      return true;
-
     case TokenKind::T_CHAR32_T:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getChar32Type();
-      return true;
-
     case TokenKind::T_WCHAR_T:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getWideCharType();
-      return true;
-
     case TokenKind::T_BOOL:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getBoolType();
-      return true;
-
     case TokenKind::T_INT:
-      makeIntegralTypeSpecifier();
-      specs.type = control_->getIntType();
-      return true;
-
     case TokenKind::T___INT64:
-      makeIntegralTypeSpecifier();
-      return true;
-
     case TokenKind::T___INT128:
       makeIntegralTypeSpecifier();
+      specs.accept(yyast);
       return true;
 
     case TokenKind::T_FLOAT:
-      makeFloatingPointTypeSpecifier();
-      specs.type = control_->getFloatType();
-      return true;
-
     case TokenKind::T_DOUBLE:
-      makeFloatingPointTypeSpecifier();
-      specs.type = control_->getDoubleType();
-      return true;
-
     case TokenKind::T___FLOAT80:
-      makeFloatingPointTypeSpecifier();
-      return true;
-
     case TokenKind::T___FLOAT128:
       makeFloatingPointTypeSpecifier();
+      specs.accept(yyast);
       return true;
 
     case TokenKind::T_VOID: {
       auto ast = make_node<VoidTypeSpecifierAST>(pool_);
       yyast = ast;
       ast->voidLoc = consumeToken();
-      specs.type = control_->getVoidType();
-
+      specs.accept(ast);
       return true;
     }
 
