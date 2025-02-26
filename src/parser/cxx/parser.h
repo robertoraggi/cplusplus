@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/parser_fwd.h>
 #include <cxx/source_location.h>
@@ -73,7 +74,6 @@ class Parser final {
  private:
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
-  struct ScopeGuard;
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
@@ -788,13 +788,9 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
+  [[nodiscard]] auto scope() const -> Scope*;
   void setScope(Scope* scope);
   void setScope(ScopedSymbol* symbol);
-
-  [[nodiscard]] auto currentTemplateParameters() const
-      -> TemplateParametersSymbol*;
-
-  [[nodiscard]] auto declaringScope() const -> Scope*;
 
   void check(ExpressionAST* ast);
 
@@ -809,24 +805,6 @@ class Parser final {
                                             bool isInline) -> NamespaceSymbol*;
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
-
-  [[nodiscard]] auto declareMemberSymbol(DeclaratorAST* declarator,
-                                         const Decl& decl) -> Symbol*;
-
-  [[nodiscard]] auto declareTypeAlias(SourceLocation identifierLoc,
-                                      TypeIdAST* typeId) -> TypeAliasSymbol*;
-
-  [[nodiscard]] auto declareTypedef(DeclaratorAST* declarator, const Decl& decl)
-      -> TypeAliasSymbol*;
-
-  [[nodiscard]] auto declareFunction(DeclaratorAST* declarator,
-                                     const Decl& decl) -> FunctionSymbol*;
-
-  [[nodiscard]] auto declareField(DeclaratorAST* declarator, const Decl& decl)
-      -> FieldSymbol*;
-
-  [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
-                                     const Decl& decl) -> VariableSymbol*;
 
   [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
 
@@ -864,7 +842,7 @@ class Parser final {
   Control* control_ = nullptr;
   DiagnosticsClient* diagnosticClient_ = nullptr;
   Scope* globalScope_ = nullptr;
-  Scope* scope_ = nullptr;
+  Binder binder_;
   ParserConfiguration config_{};
   bool skipFunctionBody_ = false;
   bool moduleUnit_ = false;
@@ -880,7 +858,6 @@ class Parser final {
   int templateParameterCount_ = 0;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
-  bool inTemplate_ = false;
 
   template <typename T>
   class CachedAST {
