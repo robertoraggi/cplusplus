@@ -88,6 +88,7 @@ struct ConvertToName {
 
 [[nodiscard]] auto get_name(Control* control, UnqualifiedIdAST* id)
     -> const Name* {
+  if (!id) return nullptr;
   return visit(ConvertToName{control}, id);
 }
 

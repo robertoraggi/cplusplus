@@ -27,6 +27,7 @@ add_library(cxx-parser
     cxx/ast_slot.cc
     cxx/ast.cc
     cxx/base_classes.cc
+    cxx/binder.cc
     cxx/cli.cc
     cxx/const_expression_evaluator.cc
     cxx/const_value.cc

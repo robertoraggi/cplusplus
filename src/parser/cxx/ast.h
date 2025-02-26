@@ -2114,6 +2114,7 @@ class ConditionExpressionAST final : public ExpressionAST {
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   ExpressionAST* initializer = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2368,6 +2369,7 @@ class EnumeratorAST final : public AST {
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
   const Identifier* identifier = nullptr;
+  EnumeratorSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
