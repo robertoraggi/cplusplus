@@ -22,7 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
-#include <cxx/const_expression_evaluator.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
@@ -297,7 +297,7 @@ struct GetDeclaratorType {
       return;
     }
 
-    ConstExpressionEvaluator sem{unit};
+    ASTInterpreter sem{unit};
     auto constValue = sem.evaluate(ast->expression);
 
     if (constValue) {

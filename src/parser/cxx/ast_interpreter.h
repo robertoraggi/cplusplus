@@ -21,6 +21,9 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/const_value.h>
+
+#include <optional>
 
 namespace cxx {
 
@@ -38,12 +41,15 @@ class ASTInterpreter {
 
   [[nodiscard]] auto control() const -> Control*;
 
+  [[nodiscard]] auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
+
  private:
+  using ExpressionResult = std::optional<ConstValue>;
+
   // base nodes
   struct UnitResult;
   struct DeclarationResult;
   struct StatementResult;
-  struct ExpressionResult;
   struct TemplateParameterResult;
   struct SpecifierResult;
   struct PtrOperatorResult;
