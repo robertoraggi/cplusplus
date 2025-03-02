@@ -24,7 +24,8 @@
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
-    "zx": "latest"
+    "zx": "latest",
+    "jsonc-cli": "latest"
   },
   "workspaces": [
     "packages/*"

@@ -1,7 +1,0 @@
-{
-    "C_Cpp.autoAddFileAssociations": false,
-    "editor.formatOnSave": true,
-    "files.trimTrailingWhitespace": true,
-    "cmake.configureOnOpen": false,
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
-}
