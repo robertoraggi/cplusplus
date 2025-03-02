@@ -27,11 +27,689 @@
 
 namespace cxx {
 
-ASTInterpreter::ASTInterpreter(TranslationUnit* unit) : unit_(unit) {}
+struct ASTInterpreter::UnitResult {};
 
-ASTInterpreter::~ASTInterpreter() {}
+struct ASTInterpreter::DeclarationResult {};
 
-auto ASTInterpreter::control() const -> Control* { return unit_->control(); }
+struct ASTInterpreter::StatementResult {};
+
+struct ASTInterpreter::ExpressionResult {};
+
+struct ASTInterpreter::TemplateParameterResult {};
+
+struct ASTInterpreter::SpecifierResult {};
+
+struct ASTInterpreter::PtrOperatorResult {};
+
+struct ASTInterpreter::CoreDeclaratorResult {};
+
+struct ASTInterpreter::DeclaratorChunkResult {};
+
+struct ASTInterpreter::UnqualifiedIdResult {};
+
+struct ASTInterpreter::NestedNameSpecifierResult {};
+
+struct ASTInterpreter::FunctionBodyResult {};
+
+struct ASTInterpreter::TemplateArgumentResult {};
+
+struct ASTInterpreter::ExceptionSpecifierResult {};
+
+struct ASTInterpreter::RequirementResult {};
+
+struct ASTInterpreter::NewInitializerResult {};
+
+struct ASTInterpreter::MemInitializerResult {};
+
+struct ASTInterpreter::LambdaCaptureResult {};
+
+struct ASTInterpreter::ExceptionDeclarationResult {};
+
+struct ASTInterpreter::AttributeSpecifierResult {};
+
+struct ASTInterpreter::AttributeTokenResult {};
+
+struct ASTInterpreter::SplicerResult {};
+
+struct ASTInterpreter::GlobalModuleFragmentResult {};
+
+struct ASTInterpreter::PrivateModuleFragmentResult {};
+
+struct ASTInterpreter::ModuleDeclarationResult {};
+
+struct ASTInterpreter::ModuleNameResult {};
+
+struct ASTInterpreter::ModuleQualifierResult {};
+
+struct ASTInterpreter::ModulePartitionResult {};
+
+struct ASTInterpreter::ImportNameResult {};
+
+struct ASTInterpreter::InitDeclaratorResult {};
+
+struct ASTInterpreter::DeclaratorResult {};
+
+struct ASTInterpreter::UsingDeclaratorResult {};
+
+struct ASTInterpreter::EnumeratorResult {};
+
+struct ASTInterpreter::TypeIdResult {};
+
+struct ASTInterpreter::HandlerResult {};
+
+struct ASTInterpreter::BaseSpecifierResult {};
+
+struct ASTInterpreter::RequiresClauseResult {};
+
+struct ASTInterpreter::ParameterDeclarationClauseResult {};
+
+struct ASTInterpreter::TrailingReturnTypeResult {};
+
+struct ASTInterpreter::LambdaSpecifierResult {};
+
+struct ASTInterpreter::TypeConstraintResult {};
+
+struct ASTInterpreter::AttributeArgumentClauseResult {};
+
+struct ASTInterpreter::AttributeResult {};
+
+struct ASTInterpreter::AttributeUsingPrefixResult {};
+
+struct ASTInterpreter::NewPlacementResult {};
+
+struct ASTInterpreter::NestedNamespaceSpecifierResult {};
+
+struct ASTInterpreter::UnitVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(TranslationUnitAST* ast) -> UnitResult;
+
+  [[nodiscard]] auto operator()(ModuleUnitAST* ast) -> UnitResult;
+};
+
+struct ASTInterpreter::DeclarationVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(SimpleDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AsmDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(NamespaceAliasDefinitionAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(UsingDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(UsingEnumDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(UsingDirectiveAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(StaticAssertDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AliasDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(OpaqueEnumDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(FunctionDefinitionAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(TemplateDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ConceptDefinitionAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(DeductionGuideAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ExplicitInstantiationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ExportDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ExportCompoundDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(LinkageSpecificationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(NamespaceDefinitionAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(EmptyDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AttributeDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ModuleImportDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ParameterDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AccessDeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(ForRangeDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(StructuredBindingDeclarationAST* ast)
+      -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AsmOperandAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AsmQualifierAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AsmClobberAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto operator()(AsmGotoLabelAST* ast) -> DeclarationResult;
+};
+
+struct ASTInterpreter::StatementVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(LabeledStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(CaseStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(DefaultStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(ExpressionStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(CompoundStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(IfStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(ConstevalIfStatementAST* ast)
+      -> StatementResult;
+
+  [[nodiscard]] auto operator()(SwitchStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(WhileStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(DoStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(ForRangeStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(ForStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(BreakStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(ContinueStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(ReturnStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(CoroutineReturnStatementAST* ast)
+      -> StatementResult;
+
+  [[nodiscard]] auto operator()(GotoStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto operator()(DeclarationStatementAST* ast)
+      -> StatementResult;
+
+  [[nodiscard]] auto operator()(TryBlockStatementAST* ast) -> StatementResult;
+};
+
+struct ASTInterpreter::ExpressionVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(BoolLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(IntLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(FloatLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(NullptrLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(StringLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(UserDefinedStringLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(NestedExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(IdExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(LambdaExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(FoldExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(RightFoldExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(LeftFoldExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(RequiresExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(VaArgExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(SubscriptExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(CallExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(TypeConstructionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(BracedTypeConstructionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(SpliceMemberExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(MemberExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(PostIncrExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(CppCastExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(TypeidExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(TypeidOfTypeExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(SpliceExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(GlobalScopeReflectExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(NamespaceReflectExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(TypeIdReflectExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ReflectExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(UnaryExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(AwaitExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(SizeofExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(SizeofTypeExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(SizeofPackExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(AlignofTypeExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(AlignofExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(NoexceptExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(NewExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(DeleteExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(CastExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(BinaryExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ConditionalExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(YieldExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ThrowExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(AssignmentExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(PackExpansionExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(DesignatedInitializerClauseAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(TypeTraitExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ConditionExpressionAST* ast)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(EqualInitializerAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(BracedInitListAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto operator()(ParenInitializerAST* ast) -> ExpressionResult;
+};
+
+struct ASTInterpreter::TemplateParameterVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(TemplateTypeParameterAST* ast)
+      -> TemplateParameterResult;
+
+  [[nodiscard]] auto operator()(NonTypeTemplateParameterAST* ast)
+      -> TemplateParameterResult;
+
+  [[nodiscard]] auto operator()(TypenameTypeParameterAST* ast)
+      -> TemplateParameterResult;
+
+  [[nodiscard]] auto operator()(ConstraintTypeParameterAST* ast)
+      -> TemplateParameterResult;
+};
+
+struct ASTInterpreter::SpecifierVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(GeneratedTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(TypedefSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(FriendSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ConstevalSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ConstinitSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ConstexprSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(InlineSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(StaticSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ThreadLocalSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ThreadSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(MutableSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(VirtualSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ExplicitSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(AutoTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(VoidTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(SizeTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(SignTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(VaListTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(IntegralTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(FloatingPointTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ComplexTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(NamedTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(AtomicTypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(UnderlyingTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ElaboratedTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(DecltypeAutoSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(DecltypeSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(PlaceholderTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ConstQualifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(VolatileQualifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(EnumSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(ClassSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(TypenameSpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(SplicerTypeSpecifierAST* ast)
+      -> SpecifierResult;
+};
+
+struct ASTInterpreter::PtrOperatorVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(PointerOperatorAST* ast) -> PtrOperatorResult;
+
+  [[nodiscard]] auto operator()(ReferenceOperatorAST* ast) -> PtrOperatorResult;
+
+  [[nodiscard]] auto operator()(PtrToMemberOperatorAST* ast)
+      -> PtrOperatorResult;
+};
+
+struct ASTInterpreter::CoreDeclaratorVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(BitfieldDeclaratorAST* ast)
+      -> CoreDeclaratorResult;
+
+  [[nodiscard]] auto operator()(ParameterPackAST* ast) -> CoreDeclaratorResult;
+
+  [[nodiscard]] auto operator()(IdDeclaratorAST* ast) -> CoreDeclaratorResult;
+
+  [[nodiscard]] auto operator()(NestedDeclaratorAST* ast)
+      -> CoreDeclaratorResult;
+};
+
+struct ASTInterpreter::DeclaratorChunkVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(FunctionDeclaratorChunkAST* ast)
+      -> DeclaratorChunkResult;
+
+  [[nodiscard]] auto operator()(ArrayDeclaratorChunkAST* ast)
+      -> DeclaratorChunkResult;
+};
+
+struct ASTInterpreter::UnqualifiedIdVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(NameIdAST* ast) -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(DestructorIdAST* ast) -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(DecltypeIdAST* ast) -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(OperatorFunctionIdAST* ast)
+      -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(LiteralOperatorIdAST* ast)
+      -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(ConversionFunctionIdAST* ast)
+      -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(SimpleTemplateIdAST* ast)
+      -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(LiteralOperatorTemplateIdAST* ast)
+      -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto operator()(OperatorFunctionTemplateIdAST* ast)
+      -> UnqualifiedIdResult;
+};
+
+struct ASTInterpreter::NestedNameSpecifierVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(GlobalNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierResult;
+
+  [[nodiscard]] auto operator()(SimpleNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierResult;
+
+  [[nodiscard]] auto operator()(DecltypeNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierResult;
+
+  [[nodiscard]] auto operator()(TemplateNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierResult;
+};
+
+struct ASTInterpreter::FunctionBodyVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(DefaultFunctionBodyAST* ast)
+      -> FunctionBodyResult;
+
+  [[nodiscard]] auto operator()(CompoundStatementFunctionBodyAST* ast)
+      -> FunctionBodyResult;
+
+  [[nodiscard]] auto operator()(TryStatementFunctionBodyAST* ast)
+      -> FunctionBodyResult;
+
+  [[nodiscard]] auto operator()(DeleteFunctionBodyAST* ast)
+      -> FunctionBodyResult;
+};
+
+struct ASTInterpreter::TemplateArgumentVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(TypeTemplateArgumentAST* ast)
+      -> TemplateArgumentResult;
+
+  [[nodiscard]] auto operator()(ExpressionTemplateArgumentAST* ast)
+      -> TemplateArgumentResult;
+};
+
+struct ASTInterpreter::ExceptionSpecifierVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(ThrowExceptionSpecifierAST* ast)
+      -> ExceptionSpecifierResult;
+
+  [[nodiscard]] auto operator()(NoexceptSpecifierAST* ast)
+      -> ExceptionSpecifierResult;
+};
+
+struct ASTInterpreter::RequirementVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(SimpleRequirementAST* ast) -> RequirementResult;
+
+  [[nodiscard]] auto operator()(CompoundRequirementAST* ast)
+      -> RequirementResult;
+
+  [[nodiscard]] auto operator()(TypeRequirementAST* ast) -> RequirementResult;
+
+  [[nodiscard]] auto operator()(NestedRequirementAST* ast) -> RequirementResult;
+};
+
+struct ASTInterpreter::NewInitializerVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(NewParenInitializerAST* ast)
+      -> NewInitializerResult;
+
+  [[nodiscard]] auto operator()(NewBracedInitializerAST* ast)
+      -> NewInitializerResult;
+};
+
+struct ASTInterpreter::MemInitializerVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(ParenMemInitializerAST* ast)
+      -> MemInitializerResult;
+
+  [[nodiscard]] auto operator()(BracedMemInitializerAST* ast)
+      -> MemInitializerResult;
+};
+
+struct ASTInterpreter::LambdaCaptureVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(ThisLambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+
+  [[nodiscard]] auto operator()(DerefThisLambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+
+  [[nodiscard]] auto operator()(SimpleLambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+
+  [[nodiscard]] auto operator()(RefLambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+
+  [[nodiscard]] auto operator()(RefInitLambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+
+  [[nodiscard]] auto operator()(InitLambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+};
+
+struct ASTInterpreter::ExceptionDeclarationVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(EllipsisExceptionDeclarationAST* ast)
+      -> ExceptionDeclarationResult;
+
+  [[nodiscard]] auto operator()(TypeExceptionDeclarationAST* ast)
+      -> ExceptionDeclarationResult;
+};
+
+struct ASTInterpreter::AttributeSpecifierVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(CxxAttributeAST* ast)
+      -> AttributeSpecifierResult;
+
+  [[nodiscard]] auto operator()(GccAttributeAST* ast)
+      -> AttributeSpecifierResult;
+
+  [[nodiscard]] auto operator()(AlignasAttributeAST* ast)
+      -> AttributeSpecifierResult;
+
+  [[nodiscard]] auto operator()(AlignasTypeAttributeAST* ast)
+      -> AttributeSpecifierResult;
+
+  [[nodiscard]] auto operator()(AsmAttributeAST* ast)
+      -> AttributeSpecifierResult;
+};
+
+struct ASTInterpreter::AttributeTokenVisitor {
+  ASTInterpreter& accept;
+
+  [[nodiscard]] auto operator()(ScopedAttributeTokenAST* ast)
+      -> AttributeTokenResult;
+
+  [[nodiscard]] auto operator()(SimpleAttributeTokenAST* ast)
+      -> AttributeTokenResult;
+};
 
 auto ASTInterpreter::operator()(UnitAST* ast) -> UnitResult {
   if (ast) return visit(UnitVisitor{*this}, ast);
@@ -161,8 +839,8 @@ auto ASTInterpreter::operator()(GlobalModuleFragmentAST* ast)
     -> GlobalModuleFragmentResult {
   if (!ast) return {};
 
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -172,8 +850,8 @@ auto ASTInterpreter::operator()(PrivateModuleFragmentAST* ast)
     -> PrivateModuleFragmentResult {
   if (!ast) return {};
 
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -186,8 +864,8 @@ auto ASTInterpreter::operator()(ModuleDeclarationAST* ast)
   auto moduleNameResult = operator()(ast->moduleName);
   auto modulePartitionResult = operator()(ast->modulePartition);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -242,14 +920,14 @@ auto ASTInterpreter::operator()(InitDeclaratorAST* ast)
 auto ASTInterpreter::operator()(DeclaratorAST* ast) -> DeclaratorResult {
   if (!ast) return {};
 
-  for (auto it = ast->ptrOpList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->ptrOpList}) {
+    auto value = operator()(node);
   }
 
   auto coreDeclaratorResult = operator()(ast->coreDeclarator);
 
-  for (auto it = ast->declaratorChunkList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->declaratorChunkList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -268,8 +946,8 @@ auto ASTInterpreter::operator()(UsingDeclaratorAST* ast)
 auto ASTInterpreter::operator()(EnumeratorAST* ast) -> EnumeratorResult {
   if (!ast) return {};
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = operator()(node);
   }
 
   auto expressionResult = operator()(ast->expression);
@@ -280,8 +958,8 @@ auto ASTInterpreter::operator()(EnumeratorAST* ast) -> EnumeratorResult {
 auto ASTInterpreter::operator()(TypeIdAST* ast) -> TypeIdResult {
   if (!ast) return {};
 
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    auto value = operator()(node);
   }
 
   auto declaratorResult = operator()(ast->declarator);
@@ -301,8 +979,8 @@ auto ASTInterpreter::operator()(HandlerAST* ast) -> HandlerResult {
 auto ASTInterpreter::operator()(BaseSpecifierAST* ast) -> BaseSpecifierResult {
   if (!ast) return {};
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = operator()(node);
   }
 
   auto nestedNameSpecifierResult = operator()(ast->nestedNameSpecifier);
@@ -324,8 +1002,8 @@ auto ASTInterpreter::operator()(ParameterDeclarationClauseAST* ast)
     -> ParameterDeclarationClauseResult {
   if (!ast) return {};
 
-  for (auto it = ast->parameterDeclarationList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->parameterDeclarationList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -353,8 +1031,8 @@ auto ASTInterpreter::operator()(TypeConstraintAST* ast)
 
   auto nestedNameSpecifierResult = operator()(ast->nestedNameSpecifier);
 
-  for (auto it = ast->templateArgumentList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->templateArgumentList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -386,8 +1064,8 @@ auto ASTInterpreter::operator()(AttributeUsingPrefixAST* ast)
 auto ASTInterpreter::operator()(NewPlacementAST* ast) -> NewPlacementResult {
   if (!ast) return {};
 
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = operator()(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = operator()(node);
   }
 
   return {};
@@ -402,8 +1080,8 @@ auto ASTInterpreter::operator()(NestedNamespaceSpecifierAST* ast)
 
 auto ASTInterpreter::UnitVisitor::operator()(TranslationUnitAST* ast)
     -> UnitResult {
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -413,8 +1091,8 @@ auto ASTInterpreter::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
   auto globalModuleFragmentResult = accept(ast->globalModuleFragment);
   auto moduleDeclarationResult = accept(ast->moduleDeclaration);
 
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = accept(node);
   }
 
   auto privateModuleFragmentResult = accept(ast->privateModuleFragment);
@@ -424,16 +1102,16 @@ auto ASTInterpreter::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
 
 auto ASTInterpreter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->declSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declSpecifierList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->initDeclaratorList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->initDeclaratorList}) {
+    auto value = accept(node);
   }
 
   auto requiresClauseResult = accept(ast->requiresClause);
@@ -443,28 +1121,28 @@ auto ASTInterpreter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->asmQualifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->asmQualifierList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->outputOperandList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->outputOperandList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->inputOperandList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->inputOperandList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->clobberList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->clobberList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->gotoLabelList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->gotoLabelList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -480,8 +1158,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->usingDeclaratorList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->usingDeclaratorList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -496,8 +1174,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(UsingDirectiveAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
@@ -515,8 +1193,12 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
+  }
+
+  for (auto node : ListView{ast->gnuAttributeList}) {
+    auto value = accept(node);
   }
 
   auto typeIdResult = accept(ast->typeId);
@@ -526,15 +1208,15 @@ auto ASTInterpreter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     OpaqueEnumDeclarationAST* ast) -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -542,12 +1224,12 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->declSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declSpecifierList}) {
+    auto value = accept(node);
   }
 
   auto declaratorResult = accept(ast->declarator);
@@ -559,8 +1241,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->templateParameterList}) {
+    auto value = accept(node);
   }
 
   auto requiresClauseResult = accept(ast->requiresClause);
@@ -602,8 +1284,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(ExportDeclarationAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     ExportCompoundDeclarationAST* ast) -> DeclarationResult {
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -611,8 +1293,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     LinkageSpecificationAST* ast) -> DeclarationResult {
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -620,20 +1302,20 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
     -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->nestedNamespaceSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->nestedNamespaceSpecifierList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->extraAttributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->extraAttributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -646,8 +1328,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(EmptyDeclarationAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     AttributeDeclarationAST* ast) -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -657,8 +1339,8 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
     ModuleImportDeclarationAST* ast) -> DeclarationResult {
   auto importNameResult = accept(ast->importName);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -666,12 +1348,12 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     ParameterDeclarationAST* ast) -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    auto value = accept(node);
   }
 
   auto declaratorResult = accept(ast->declarator);
@@ -692,16 +1374,16 @@ auto ASTInterpreter::DeclarationVisitor::operator()(ForRangeDeclarationAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     StructuredBindingDeclarationAST* ast) -> DeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->declSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declSpecifierList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->bindingList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->bindingList}) {
+    auto value = accept(node);
   }
 
   auto initializerResult = accept(ast->initializer);
@@ -757,8 +1439,8 @@ auto ASTInterpreter::StatementVisitor::operator()(ExpressionStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(CompoundStatementAST* ast)
     -> StatementResult {
-  for (auto it = ast->statementList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->statementList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -867,8 +1549,8 @@ auto ASTInterpreter::StatementVisitor::operator()(TryBlockStatementAST* ast)
     -> StatementResult {
   auto statementResult = accept(ast->statement);
 
-  for (auto it = ast->handlerList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->handlerList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -919,16 +1601,16 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
   return {};
 }
 
-auto ASTInterpreter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
-    -> ExpressionResult {
-  auto expressionResult = accept(ast->expression);
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    NestedStatementExpressionAST* ast) -> ExpressionResult {
+  auto statementResult = accept(ast->statement);
 
   return {};
 }
 
-auto ASTInterpreter::ExpressionVisitor::operator()(
-    NestedStatementExpressionAST* ast) -> ExpressionResult {
-  auto expressionResult = accept(ast->statement);
+auto ASTInterpreter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
+    -> ExpressionResult {
+  auto expressionResult = accept(ast->expression);
 
   return {};
 }
@@ -943,30 +1625,30 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     -> ExpressionResult {
-  for (auto it = ast->captureList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->captureList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->templateParameterList}) {
+    auto value = accept(node);
   }
 
   auto templateRequiresClauseResult = accept(ast->templateRequiresClause);
   auto parameterDeclarationClauseResult =
       accept(ast->parameterDeclarationClause);
 
-  for (auto it = ast->gnuAtributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->gnuAtributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->lambdaSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->lambdaSpecifierList}) {
+    auto value = accept(node);
   }
 
   auto exceptionSpecifierResult = accept(ast->exceptionSpecifier);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto trailingReturnTypeResult = accept(ast->trailingReturnType);
@@ -1003,8 +1685,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
   auto parameterDeclarationClauseResult =
       accept(ast->parameterDeclarationClause);
 
-  for (auto it = ast->requirementList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->requirementList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1030,8 +1712,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
   auto baseExpressionResult = accept(ast->baseExpression);
 
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1041,8 +1723,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     -> ExpressionResult {
   auto typeSpecifierResult = accept(ast->typeSpecifier);
 
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1207,8 +1889,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(NewExpressionAST* ast)
     -> ExpressionResult {
   auto newPlacementResult = accept(ast->newPlacement);
 
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    auto value = accept(node);
   }
 
   auto declaratorResult = accept(ast->declarator);
@@ -1294,8 +1976,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionResult {
-  for (auto it = ast->typeIdList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->typeIdList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1303,12 +1985,12 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     -> ExpressionResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->declSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declSpecifierList}) {
+    auto value = accept(node);
   }
 
   auto declaratorResult = accept(ast->declarator);
@@ -1326,8 +2008,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionResult {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1335,8 +2017,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
     -> ExpressionResult {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1344,8 +2026,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
 
 auto ASTInterpreter::TemplateParameterVisitor::operator()(
     TemplateTypeParameterAST* ast) -> TemplateParameterResult {
-  for (auto it = ast->templateParameterList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->templateParameterList}) {
+    auto value = accept(node);
   }
 
   auto requiresClauseResult = accept(ast->requiresClause);
@@ -1512,8 +2194,8 @@ auto ASTInterpreter::SpecifierVisitor::operator()(
 
 auto ASTInterpreter::SpecifierVisitor::operator()(
     ElaboratedTypeSpecifierAST* ast) -> SpecifierResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
@@ -1559,19 +2241,19 @@ auto ASTInterpreter::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
 
 auto ASTInterpreter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
     -> SpecifierResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->enumeratorList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->enumeratorList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1579,19 +2261,19 @@ auto ASTInterpreter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
 auto ASTInterpreter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
     -> SpecifierResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  for (auto it = ast->baseSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->baseSpecifierList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->declarationList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->declarationList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1614,12 +2296,12 @@ auto ASTInterpreter::SpecifierVisitor::operator()(SplicerTypeSpecifierAST* ast)
 
 auto ASTInterpreter::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
     -> PtrOperatorResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->cvQualifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->cvQualifierList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1627,8 +2309,8 @@ auto ASTInterpreter::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
 
 auto ASTInterpreter::PtrOperatorVisitor::operator()(ReferenceOperatorAST* ast)
     -> PtrOperatorResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1638,12 +2320,12 @@ auto ASTInterpreter::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
     -> PtrOperatorResult {
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->cvQualifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->cvQualifierList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1669,8 +2351,8 @@ auto ASTInterpreter::CoreDeclaratorVisitor::operator()(IdDeclaratorAST* ast)
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1688,14 +2370,14 @@ auto ASTInterpreter::DeclaratorChunkVisitor::operator()(
   auto parameterDeclarationClauseResult =
       accept(ast->parameterDeclarationClause);
 
-  for (auto it = ast->cvQualifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->cvQualifierList}) {
+    auto value = accept(node);
   }
 
   auto exceptionSpecifierResult = accept(ast->exceptionSpecifier);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   auto trailingReturnTypeResult = accept(ast->trailingReturnType);
@@ -1707,8 +2389,8 @@ auto ASTInterpreter::DeclaratorChunkVisitor::operator()(
     ArrayDeclaratorChunkAST* ast) -> DeclaratorChunkResult {
   auto expressionResult = accept(ast->expression);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1752,8 +2434,8 @@ auto ASTInterpreter::UnqualifiedIdVisitor::operator()(
 
 auto ASTInterpreter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
     -> UnqualifiedIdResult {
-  for (auto it = ast->templateArgumentList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->templateArgumentList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1763,8 +2445,8 @@ auto ASTInterpreter::UnqualifiedIdVisitor::operator()(
     LiteralOperatorTemplateIdAST* ast) -> UnqualifiedIdResult {
   auto literalOperatorIdResult = accept(ast->literalOperatorId);
 
-  for (auto it = ast->templateArgumentList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->templateArgumentList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1774,8 +2456,8 @@ auto ASTInterpreter::UnqualifiedIdVisitor::operator()(
     OperatorFunctionTemplateIdAST* ast) -> UnqualifiedIdResult {
   auto operatorFunctionIdResult = accept(ast->operatorFunctionId);
 
-  for (auto it = ast->templateArgumentList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->templateArgumentList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1815,8 +2497,8 @@ auto ASTInterpreter::FunctionBodyVisitor::operator()(
 
 auto ASTInterpreter::FunctionBodyVisitor::operator()(
     CompoundStatementFunctionBodyAST* ast) -> FunctionBodyResult {
-  for (auto it = ast->memInitializerList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->memInitializerList}) {
+    auto value = accept(node);
   }
 
   auto statementResult = accept(ast->statement);
@@ -1826,14 +2508,14 @@ auto ASTInterpreter::FunctionBodyVisitor::operator()(
 
 auto ASTInterpreter::FunctionBodyVisitor::operator()(
     TryStatementFunctionBodyAST* ast) -> FunctionBodyResult {
-  for (auto it = ast->memInitializerList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->memInitializerList}) {
+    auto value = accept(node);
   }
 
   auto statementResult = accept(ast->statement);
 
-  for (auto it = ast->handlerList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->handlerList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1902,8 +2584,8 @@ auto ASTInterpreter::RequirementVisitor::operator()(NestedRequirementAST* ast)
 
 auto ASTInterpreter::NewInitializerVisitor::operator()(
     NewParenInitializerAST* ast) -> NewInitializerResult {
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1921,8 +2603,8 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  for (auto it = ast->expressionList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -1978,12 +2660,12 @@ auto ASTInterpreter::ExceptionDeclarationVisitor::operator()(
 
 auto ASTInterpreter::ExceptionDeclarationVisitor::operator()(
     TypeExceptionDeclarationAST* ast) -> ExceptionDeclarationResult {
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
-  for (auto it = ast->typeSpecifierList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    auto value = accept(node);
   }
 
   auto declaratorResult = accept(ast->declarator);
@@ -1995,8 +2677,8 @@ auto ASTInterpreter::AttributeSpecifierVisitor::operator()(CxxAttributeAST* ast)
     -> AttributeSpecifierResult {
   auto attributeUsingPrefixResult = accept(ast->attributeUsingPrefix);
 
-  for (auto it = ast->attributeList; it; it = it->next) {
-    auto value = accept(it->value);
+  for (auto node : ListView{ast->attributeList}) {
+    auto value = accept(node);
   }
 
   return {};
@@ -2035,5 +2717,11 @@ auto ASTInterpreter::AttributeTokenVisitor::operator()(
     SimpleAttributeTokenAST* ast) -> AttributeTokenResult {
   return {};
 }
+
+ASTInterpreter::ASTInterpreter(TranslationUnit* unit) : unit_(unit) {}
+
+ASTInterpreter::~ASTInterpreter() {}
+
+auto ASTInterpreter::control() const -> Control* { return unit_->control(); }
 
 }  // namespace cxx
