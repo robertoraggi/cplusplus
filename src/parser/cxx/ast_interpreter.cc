@@ -23,7 +23,12 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/literals.h>
+#include <cxx/memory_layout.h>
+#include <cxx/parser.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -32,8 +37,6 @@ struct ASTInterpreter::UnitResult {};
 struct ASTInterpreter::DeclarationResult {};
 
 struct ASTInterpreter::StatementResult {};
-
-struct ASTInterpreter::ExpressionResult {};
 
 struct ASTInterpreter::TemplateParameterResult {};
 
@@ -251,6 +254,14 @@ struct ASTInterpreter::StatementVisitor {
 
 struct ASTInterpreter::ExpressionVisitor {
   ASTInterpreter& accept;
+
+  [[nodiscard]] auto unit() -> TranslationUnit* { return accept.unit_; }
+
+  [[nodiscard]] auto control() -> Control* { return accept.control(); }
+
+  [[nodiscard]] auto evaluate(ExpressionAST* ast) -> ExpressionResult {
+    return accept(ast);
+  }
 
   [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
       -> ExpressionResult;
@@ -728,7 +739,7 @@ auto ASTInterpreter::operator()(StatementAST* ast) -> StatementResult {
 
 auto ASTInterpreter::operator()(ExpressionAST* ast) -> ExpressionResult {
   if (ast) return visit(ExpressionVisitor{*this}, ast);
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::operator()(TemplateParameterAST* ast)
@@ -1558,61 +1569,60 @@ auto ASTInterpreter::StatementVisitor::operator()(TryBlockStatementAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     GeneratedLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ast->value;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     CharLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ConstValue(ast->literal->charValue());
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     BoolLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ConstValue(ast->isTrue);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
     -> ExpressionResult {
-  return {};
+  return ConstValue(ast->literal->integerValue());
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     FloatLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ConstValue(ast->literal->floatValue());
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     NullptrLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ConstValue(std::uint64_t(0));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     StringLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ConstValue(ast->literal);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     UserDefinedStringLiteralExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ConstValue(ast->literal);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionResult {
-  return {};
-}
-
-auto ASTInterpreter::ExpressionVisitor::operator()(
-    NestedStatementExpressionAST* ast) -> ExpressionResult {
-  auto statementResult = accept(ast->statement);
-
-  return {};
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
     -> ExpressionResult {
-  auto expressionResult = accept(ast->expression);
+  if (ast->expression) {
+    return evaluate(ast->expression);
+  }
+  return std::nullopt;
+}
 
-  return {};
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    NestedStatementExpressionAST* ast) -> ExpressionResult {
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
@@ -1620,7 +1630,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  return {};
+  if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
+    return enumerator->value();
+  }
+
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
@@ -1655,7 +1669,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   auto requiresClauseResult = accept(ast->requiresClause);
   auto statementResult = accept(ast->statement);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
@@ -1663,21 +1677,21 @@ auto ASTInterpreter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
   auto leftExpressionResult = accept(ast->leftExpression);
   auto rightExpressionResult = accept(ast->rightExpression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
@@ -1689,7 +1703,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
     auto value = accept(node);
   }
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
@@ -1697,7 +1711,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
   auto expressionResult = accept(ast->expression);
   auto typeIdResult = accept(ast->typeId);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
@@ -1705,7 +1719,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   auto baseExpressionResult = accept(ast->baseExpression);
   auto indexExpressionResult = accept(ast->indexExpression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
@@ -1716,7 +1730,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     auto value = accept(node);
   }
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
@@ -1727,7 +1741,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     auto value = accept(node);
   }
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1735,7 +1749,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto typeSpecifierResult = accept(ast->typeSpecifier);
   auto bracedInitListResult = accept(ast->bracedInitList);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1743,7 +1757,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto baseExpressionResult = accept(ast->baseExpression);
   auto splicerResult = accept(ast->splicer);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
@@ -1752,14 +1766,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
   auto nestedNameSpecifierResult = accept(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = accept(ast->unqualifiedId);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     -> ExpressionResult {
   auto baseExpressionResult = accept(ast->baseExpression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
@@ -1767,7 +1781,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
   auto typeIdResult = accept(ast->typeId);
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1775,7 +1789,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto typeIdResult = accept(ast->typeId);
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1783,106 +1797,118 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto typeIdResult = accept(ast->typeId);
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  if (ast->symbol) return ast->symbol->offset();
+
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     TypeidOfTypeExpressionAST* ast) -> ExpressionResult {
   auto typeIdResult = accept(ast->typeId);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SpliceExpressionAST* ast)
     -> ExpressionResult {
   auto splicerResult = accept(ast->splicer);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     GlobalScopeReflectExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     NamespaceReflectExpressionAST* ast) -> ExpressionResult {
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     TypeIdReflectExpressionAST* ast) -> ExpressionResult {
   auto typeIdResult = accept(ast->typeId);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionResult {
-  auto expressionResult = accept(ast->expression);
-
-  return {};
+  if (!ast->expression || !ast->expression->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->sizeOf(ast->expression->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionResult {
-  auto typeIdResult = accept(ast->typeId);
-
-  return {};
+  if (!ast->typeId || !ast->typeId->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->sizeOf(ast->typeId->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     -> ExpressionResult {
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     AlignofTypeExpressionAST* ast) -> ExpressionResult {
-  auto typeIdResult = accept(ast->typeId);
-
-  return {};
+  if (!ast->typeId || !ast->typeId->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->alignmentOf(ast->typeId->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  if (!ast->expression || !ast->expression->type) return std::nullopt;
+  if (!control()->memoryLayout()) return std::nullopt;
+  auto size = control()->memoryLayout()->alignmentOf(ast->expression->type);
+  if (!size.has_value()) return std::nullopt;
+  return std::uint64_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(NewExpressionAST* ast)
@@ -1896,14 +1922,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(NewExpressionAST* ast)
   auto declaratorResult = accept(ast->declarator);
   auto newInitalizerResult = accept(ast->newInitalizer);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CastExpressionAST* ast)
@@ -1911,22 +1937,237 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CastExpressionAST* ast)
   auto typeIdResult = accept(ast->typeId);
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
-  auto expressionResult = accept(ast->expression);
+  if (!ast->type) return std::nullopt;
 
-  return {};
+  auto value = evaluate(ast->expression);
+  if (!value.has_value()) return std::nullopt;
+
+  switch (ast->type->kind()) {
+    case TypeKind::kBool:
+      if (std::get_if<const StringLiteral*>(&*value)) return ConstValue(true);
+      return std::visit(ArithmeticConversion<bool>{}, *value);
+    case TypeKind::kFloat:
+      return std::visit(ArithmeticConversion<float>{}, *value);
+    case TypeKind::kDouble:
+      return std::visit(ArithmeticConversion<double>{}, *value);
+    case TypeKind::kLongDouble:
+      return std::visit(ArithmeticConversion<long double>{}, *value);
+    default:
+      if (control()->is_integral_or_unscoped_enum(ast->type)) {
+        if (control()->is_unsigned(ast->type))
+          return std::visit(ArithmeticCast<std::uint64_t>{}, *value);
+        else
+          return std::visit(ArithmeticCast<std::int64_t>{}, *value);
+      }
+      return value;
+  }  // switch
+
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     -> ExpressionResult {
-  auto leftExpressionResult = accept(ast->leftExpression);
-  auto rightExpressionResult = accept(ast->rightExpression);
+  if (!ast->type) return std::nullopt;
 
-  return {};
+  auto left = evaluate(ast->leftExpression);
+  if (!left.has_value()) return std::nullopt;
+
+  auto right = evaluate(ast->rightExpression);
+  if (!right.has_value()) return std::nullopt;
+
+  switch (ast->op) {
+    case TokenKind::T_DOT_STAR:
+      break;
+
+    case TokenKind::T_MINUS_GREATER_STAR:
+      break;
+
+    case TokenKind::T_STAR:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) +
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_SLASH:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) +
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_PERCENT:
+      if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) %
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) %
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_PLUS:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) +
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_MINUS:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) -
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) -
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) -
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_LESS_LESS:
+      if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left)
+               << std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left)
+               << std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_GREATER_GREATER:
+      if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >>
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >>
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_LESS_EQUAL_GREATER: {
+      auto convert = [](std::partial_ordering cmp) -> int {
+        if (cmp < 0) return -1;
+        if (cmp > 0) return 1;
+        return 0;
+      };
+
+      if (control()->is_floating_point(ast->type))
+        return convert(std::visit(ArithmeticCast<double>{}, *left) <=>
+                       std::visit(ArithmeticCast<double>{}, *right));
+      else if (control()->is_unsigned(ast->type))
+        return convert(std::visit(ArithmeticCast<std::uint64_t>{}, *left) <=>
+                       std::visit(ArithmeticCast<std::uint64_t>{}, *right));
+      else
+        return convert(std::visit(ArithmeticCast<std::int64_t>{}, *left) <=>
+                       std::visit(ArithmeticCast<std::int64_t>{}, *right));
+    }
+
+    case TokenKind::T_LESS_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) <=
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) <=
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) <=
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_GREATER_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) >=
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >=
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >=
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_LESS:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) <
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) <
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) <
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_GREATER:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) >
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_EQUAL_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) ==
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) ==
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) ==
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_EXCLAIM_EQUAL:
+      if (control()->is_floating_point(ast->type))
+        return std::visit(ArithmeticCast<double>{}, *left) !=
+               std::visit(ArithmeticCast<double>{}, *right);
+      else if (control()->is_unsigned(ast->type))
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) !=
+               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+      else
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) !=
+               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_AMP:
+      return std::visit(ArithmeticCast<std::int64_t>{}, *left) &
+             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_CARET:
+      return std::visit(ArithmeticCast<std::int64_t>{}, *left) ^
+             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_BAR:
+      return std::visit(ArithmeticCast<std::int64_t>{}, *left) |
+             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+
+    case TokenKind::T_AMP_AMP:
+      return std::visit(ArithmeticCast<bool>{}, *left) &&
+             std::visit(ArithmeticCast<bool>{}, *right);
+
+    case TokenKind::T_BAR_BAR:
+      return std::visit(ArithmeticCast<bool>{}, *left) ||
+             std::visit(ArithmeticCast<bool>{}, *right);
+
+    case TokenKind::T_COMMA:
+      return right;
+
+    default:
+      unit()->warning(ast->opLoc, "invalid binary expression");
+      break;
+  }  // switch
+
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1935,21 +2176,21 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto iftrueExpressionResult = accept(ast->iftrueExpression);
   auto iffalseExpressionResult = accept(ast->iffalseExpression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(YieldExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
@@ -1957,30 +2198,216 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
   auto leftExpressionResult = accept(ast->leftExpression);
   auto rightExpressionResult = accept(ast->rightExpression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     PackExpansionExpressionAST* ast) -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     DesignatedInitializerClauseAST* ast) -> ExpressionResult {
   auto initializerResult = accept(ast->initializer);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionResult {
+#if false
   for (auto node : ListView{ast->typeIdList}) {
     auto value = accept(node);
   }
+#endif
 
-  return {};
+  const Type* firstType = nullptr;
+  const Type* secondType = nullptr;
+
+  if (ast->typeIdList && ast->typeIdList->value) {
+    firstType = ast->typeIdList->value->type;
+
+    if (auto next = ast->typeIdList->next; next && next->value) {
+      secondType = next->value->type;
+    }
+  }
+
+  if (firstType) {
+    switch (ast->typeTrait) {
+      case BuiltinTypeTraitKind::T___IS_VOID:
+        return control()->is_void(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_NULL_POINTER:
+        return control()->is_null_pointer(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_INTEGRAL:
+        return control()->is_integral(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_FLOATING_POINT:
+        return control()->is_floating_point(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_ARRAY:
+        return control()->is_array(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_ENUM:
+        return control()->is_enum(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_SCOPED_ENUM:
+        return control()->is_scoped_enum(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_UNION:
+        return control()->is_union(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_CLASS:
+        return control()->is_class(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_FUNCTION:
+        return control()->is_function(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_POINTER:
+        return control()->is_pointer(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_MEMBER_OBJECT_POINTER:
+        return control()->is_member_object_pointer(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_MEMBER_FUNCTION_POINTER:
+        return control()->is_member_function_pointer(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_LVALUE_REFERENCE:
+        return control()->is_lvalue_reference(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_RVALUE_REFERENCE:
+        return control()->is_rvalue_reference(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_FUNDAMENTAL:
+        return control()->is_fundamental(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_ARITHMETIC:
+        return control()->is_arithmetic(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_SCALAR:
+        return control()->is_scalar(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_OBJECT:
+        return control()->is_object(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_COMPOUND:
+        return control()->is_compound(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_REFERENCE:
+        return control()->is_reference(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_MEMBER_POINTER:
+        return control()->is_member_pointer(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_BOUNDED_ARRAY:
+        return control()->is_bounded_array(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_UNBOUNDED_ARRAY:
+        return control()->is_unbounded_array(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_CONST:
+        return control()->is_const(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_VOLATILE:
+        return control()->is_volatile(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_SIGNED:
+        return control()->is_signed(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_UNSIGNED:
+        return control()->is_unsigned(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_SAME:
+      case BuiltinTypeTraitKind::T___IS_SAME_AS: {
+        if (!secondType) break;
+        return control()->is_same(firstType, secondType);
+      }
+
+      case BuiltinTypeTraitKind::T___IS_BASE_OF: {
+        if (!secondType) break;
+        return control()->is_base_of(firstType, secondType);
+      }
+
+      case BuiltinTypeTraitKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___HAS_VIRTUAL_DESTRUCTOR: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_ABSTRACT: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_AGGREGATE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_ASSIGNABLE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_EMPTY: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_FINAL: {
+        if (auto classType =
+                type_cast<ClassType>(control()->remove_cv(firstType))) {
+          return classType->symbol()->isFinal();
+        }
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_LAYOUT_COMPATIBLE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_LITERAL_TYPE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_POD: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_POLYMORPHIC: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_STANDARD_LAYOUT: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_SWAPPABLE_WITH: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_TRIVIAL: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_CONSTRUCTIBLE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_ASSIGNABLE: {
+        break;
+      }
+
+      case BuiltinTypeTraitKind::T_NONE: {
+        // not a builtin
+        break;
+      }
+
+    }  // switch
+  }
+
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
@@ -1996,14 +2423,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
   auto declaratorResult = accept(ast->declarator);
   auto initializerResult = accept(ast->initializer);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
@@ -2012,7 +2439,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     auto value = accept(node);
   }
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
@@ -2021,7 +2448,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
     auto value = accept(node);
   }
 
-  return {};
+  return ExpressionResult{std::nullopt};
 }
 
 auto ASTInterpreter::TemplateParameterVisitor::operator()(
@@ -2723,5 +3150,10 @@ ASTInterpreter::ASTInterpreter(TranslationUnit* unit) : unit_(unit) {}
 ASTInterpreter::~ASTInterpreter() {}
 
 auto ASTInterpreter::control() const -> Control* { return unit_->control(); }
+
+auto ASTInterpreter::evaluate(ExpressionAST* ast) -> std::optional<ConstValue> {
+  auto result = operator()(ast);
+  return result;
+}
 
 }  // namespace cxx

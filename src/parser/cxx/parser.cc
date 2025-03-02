@@ -22,7 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
-#include <cxx/const_expression_evaluator.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -5296,7 +5296,7 @@ auto Parser::is_template(Symbol* symbol) const -> bool {
 
 auto Parser::evaluate_constant_expression(ExpressionAST* expr)
     -> std::optional<ConstValue> {
-  ConstExpressionEvaluator sem{unit};
+  ASTInterpreter sem{unit};
   return sem.evaluate(expr);
 }
 

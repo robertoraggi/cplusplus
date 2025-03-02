@@ -29,7 +29,6 @@ add_library(cxx-parser
     cxx/base_classes.cc
     cxx/binder.cc
     cxx/cli.cc
-    cxx/const_expression_evaluator.cc
     cxx/const_value.cc
     cxx/control.cc
     cxx/cxx.cc
