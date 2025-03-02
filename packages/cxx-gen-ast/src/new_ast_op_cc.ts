@@ -47,6 +47,32 @@ export function new_ast_op_cc({
 
   by_base.forEach((nodes, base) => {
     if (base === "AST") return;
+    emit();
+    emit(`  struct ${opName}::${chopAST(base)}Result {};`);
+  });
+
+  by_base.get("AST")?.forEach(({ name }) => {
+    emit();
+    emit(`  struct ${opName}::${chopAST(name)}Result {};`);
+  });
+
+  by_base.forEach((nodes, base) => {
+    if (!Array.isArray(nodes)) throw new Error("not an array");
+    if (base === "AST") return;
+    const className = chopAST(base);
+    const resultTy = `${chopAST(base)}Result`;
+    emit();
+    emit(`  struct ${opName}::${className}Visitor {`);
+    emit(`    ${opName}& accept;`);
+    nodes.forEach(({ name }) => {
+      emit();
+      emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${resultTy};`);
+    });
+    emit(`  };`);
+  });
+
+  by_base.forEach((nodes, base) => {
+    if (base === "AST") return;
     const resultTy = `${chopAST(base)}Result`;
     emit();
     emit(`auto ${opName}::operator()(${base}* ast) -> ${resultTy} {`);
@@ -125,6 +151,8 @@ export function new_ast_op_cc({
 
 namespace cxx {
 
+${code.join("\n")}
+
 ${opName}::${opName}(TranslationUnit* unit) : unit_(unit) {}
 
 ${opName}::~${opName}() {}
@@ -132,8 +160,6 @@ ${opName}::~${opName}() {}
 auto ${opName}::control() const -> Control* {
     return unit_->control();
 }
-
-${code.join("\n")}
 
 } // namespace cxx
 `;

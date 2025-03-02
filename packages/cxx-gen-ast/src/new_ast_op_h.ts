@@ -43,13 +43,23 @@ export function new_ast_op_h({
     return name;
   };
 
+  emit(`  // base nodes`);
   by_base.forEach((nodes, base) => {
     if (base === "AST") return;
-    emit(`  struct ${chopAST(base)}Result {};`);
+    emit(`  struct ${chopAST(base)}Result;`);
   });
-  emit();
+
+  emit(`  // misc nodes`);
   by_base.get("AST")?.forEach(({ name }) => {
-    emit(`  struct ${chopAST(name)}Result {};`);
+    emit(`  struct ${chopAST(name)}Result;`);
+  });
+
+  emit(`  // visitors`);
+  by_base.forEach((nodes, base) => {
+    if (!Array.isArray(nodes)) throw new Error("not an array");
+    if (base === "AST") return;
+    const className = chopAST(base);
+    emit(`  struct ${className}Visitor;`);
   });
 
   emit();
@@ -63,24 +73,7 @@ export function new_ast_op_h({
   emit(`  // run on the misc nodes`);
   by_base.get("AST")?.forEach(({ name }) => {
     const resultTy = `${chopAST(name)}Result`;
-    emit(`  auto operator()(${name}* ast) -> ${resultTy};`);
-  });
-
-  emit();
-  emit(`private:`);
-  by_base.forEach((nodes, base) => {
-    if (!Array.isArray(nodes)) throw new Error("not an array");
-    if (base === "AST") return;
-    const className = chopAST(base);
-    const resultTy = `${chopAST(base)}Result`;
-    emit();
-    emit(`  struct ${className}Visitor {`);
-    emit(`    ${opName}& accept;`);
-    nodes.forEach(({ name }) => {
-      emit();
-      emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${resultTy};`);
-    });
-    emit(`  };`);
+    emit(`  [[nodiscard]] auto operator()(${name}* ast) -> ${resultTy};`);
   });
 
   const out = `${cpy_header}
@@ -96,16 +89,18 @@ class Control;
 
 class ${opName} {
 public:
-    explicit ${opName}(TranslationUnit* unit);
-    ~${opName}();
+  explicit ${opName}(TranslationUnit* unit);
+  ~${opName}();
 
-    [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
 
-    [[nodiscard]] auto control() const -> Control*;
+  [[nodiscard]] auto control() const -> Control*;
 
+private:
 ${code.join("\n")}
 
-    TranslationUnit* unit_ = nullptr;
+private:
+  TranslationUnit* unit_ = nullptr;
 };
 
 } // namespace cxx
