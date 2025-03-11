@@ -5363,39 +5363,7 @@ auto Parser::parse_elaborated_type_specifier(
     className = nameId->identifier;
   }
 
-  const auto location = ast->unqualifiedId->firstSourceLocation();
-
-  const auto _ = Binder::ScopeGuard{&binder_};
-
-  if (ast->nestedNameSpecifier) {
-    auto parent = ast->nestedNameSpecifier->symbol;
-
-    if (parent && parent->isClassOrNamespace()) {
-      setScope(static_cast<ScopedSymbol*>(parent));
-    }
-  }
-
-  ClassSymbol* classSymbol = nullptr;
-
-  if (scope()->isClassOrNamespaceScope()) {
-    for (auto candidate : scope()->find(className) | views::classes) {
-      classSymbol = candidate;
-      break;
-    }
-  }
-
-  if (!classSymbol) {
-    const auto isUnion = classKey == TokenKind::T_UNION;
-    classSymbol = control_->newClassSymbol(scope(), location);
-
-    classSymbol->setIsUnion(isUnion);
-    classSymbol->setName(className);
-    classSymbol->setTemplateParameters(binder_.currentTemplateParameters());
-    binder_.declaringScope()->addSymbol(classSymbol);
-  }
-
-  ast->symbol = classSymbol;
-  specs.type = classSymbol->type();
+  binder_.bind(ast, specs);
 
   return true;
 }
@@ -6014,35 +5982,22 @@ auto Parser::parse_parameter_declaration_clause(
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  bool parsed = false;
+  auto ast = make_node<ParameterDeclarationClauseAST>(pool_);
 
-  SourceLocation ellipsisLoc;
-  FunctionParametersSymbol* functionParametersSymbol = nullptr;
+  binder_.bind(ast);
 
-  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    parsed = true;
-
-    auto ast = make_node<ParameterDeclarationClauseAST>(pool_);
+  if (match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc)) {
     yyast = ast;
 
-    ast->ellipsisLoc = ellipsisLoc;
     ast->isVariadic = true;
-    ast->functionParametersSymbol =
-        control_->newFunctionParametersSymbol(scope(), {});
-  } else if (List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
-             parse_parameter_declaration_list(parameterDeclarationList,
-                                              functionParametersSymbol)) {
-    parsed = true;
-
-    auto ast = make_node<ParameterDeclarationClauseAST>(pool_);
+  } else if (parse_parameter_declaration_list(ast)) {
     yyast = ast;
-    ast->parameterDeclarationList = parameterDeclarationList;
+
     match(TokenKind::T_COMMA, ast->commaLoc);
     ast->isVariadic = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
-    ast->functionParametersSymbol = functionParametersSymbol;
-  } else {
-    parsed = false;
   }
+
+  const auto parsed = yyast != nullptr;
 
   parameter_declaration_clauses_.set(start, currentLocation(), yyast, parsed);
 
@@ -6050,15 +6005,12 @@ auto Parser::parse_parameter_declaration_clause(
 }
 
 auto Parser::parse_parameter_declaration_list(
-    List<ParameterDeclarationAST*>*& yyast,
-    FunctionParametersSymbol*& functionParametersSymbol) -> bool {
-  auto it = &yyast;
+    ParameterDeclarationClauseAST* ast) -> bool {
+  auto it = &ast->parameterDeclarationList;
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  functionParametersSymbol = control_->newFunctionParametersSymbol(scope(), {});
-
-  setScope(functionParametersSymbol);
+  setScope(ast->functionParametersSymbol);
 
   ParameterDeclarationAST* declaration = nullptr;
 
@@ -7794,72 +7746,13 @@ auto Parser::parse_class_specifier(
     ast->isFinal = true;
   }
 
-  auto _ = Binder::ScopeGuard{&binder_};
-
   if (scope()->isTemplateParametersScope()) {
     mark_maybe_template_name(unqualifiedId);
   }
 
-  auto templateParameters = binder_.currentTemplateParameters();
+  auto _ = Binder::ScopeGuard{&binder_};
 
-  if (nestedNameSpecifier) {
-    auto parent = nestedNameSpecifier->symbol;
-
-    if (parent && parent->isClassOrNamespace()) {
-      setScope(static_cast<ScopedSymbol*>(parent));
-    }
-  }
-
-  ClassSymbol* primaryTemplate = nullptr;
-
-  if (templateId && scope()->isTemplateParametersScope()) {
-    for (auto candidate :
-         binder_.declaringScope()->find(className) | views::classes) {
-      primaryTemplate = candidate;
-      break;
-    }
-
-    if (!primaryTemplate && config_.checkTypes) {
-      parse_error(location,
-                  std::format("specialization of undeclared template '{}'",
-                              className->name()));
-    }
-  }
-
-  ClassSymbol* classSymbol = nullptr;
-
-  if (className) {
-    for (auto candidate :
-         binder_.declaringScope()->find(className) | views::classes) {
-      classSymbol = candidate;
-      break;
-    }
-  }
-
-  if (classSymbol && classSymbol->isComplete()) {
-    classSymbol = nullptr;
-  }
-
-  if (!classSymbol) {
-    classSymbol = control_->newClassSymbol(scope(), location);
-    classSymbol->setIsUnion(isUnion);
-    classSymbol->setName(className);
-    classSymbol->setTemplateParameters(templateParameters);
-
-    if (!primaryTemplate) {
-      binder_.declaringScope()->addSymbol(classSymbol);
-    } else {
-      std::vector<TemplateArgument> arguments;
-      // TODO: parse template arguments
-      primaryTemplate->addSpecialization(arguments, classSymbol);
-    }
-  }
-
-  if (finalLoc) {
-    classSymbol->setFinal(true);
-  }
-
-  ast->symbol = classSymbol;
+  binder_.bind(ast, specs);
 
   setScope(ast->symbol);
 
@@ -7874,14 +7767,7 @@ auto Parser::parse_class_specifier(
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  if (!binder_.inTemplate()) {
-    auto status = classSymbol->buildClassLayout(control_);
-    if (!status.has_value() && config_.checkTypes) {
-      parse_error(classSymbol->location(), status.error());
-    }
-  }
-
-  classSymbol->setComplete(true);
+  binder_.complete(ast);
 
   return true;
 }

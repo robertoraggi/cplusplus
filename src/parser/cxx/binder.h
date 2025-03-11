@@ -87,6 +87,12 @@ class Binder {
 
   void bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpec);
 
+  void bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs);
+
+  void bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs);
+
+  void complete(ClassSpecifierAST* ast);
+
   void bind(EnumeratorAST* ast, const Type* type,
             std::optional<ConstValue> value);
 
@@ -110,6 +116,8 @@ class Binder {
   void bind(LambdaExpressionAST* ast);
 
   void complete(LambdaExpressionAST* ast);
+
+  void bind(ParameterDeclarationClauseAST* ast);
 
   class ScopeGuard {
    public:
