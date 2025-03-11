@@ -540,8 +540,7 @@ class Parser final {
   [[nodiscard]] auto parse_parameter_declaration_clause(
       ParameterDeclarationClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_list(
-      List<ParameterDeclarationAST*>*& yyast,
-      FunctionParametersSymbol*& functionParametersSymbol) -> bool;
+      ParameterDeclarationClauseAST* ast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration(
       ParameterDeclarationAST*& yyast, bool templParam) -> bool;
   [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast,

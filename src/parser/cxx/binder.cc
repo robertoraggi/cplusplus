@@ -131,6 +131,128 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
   }
 }
 
+void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs) {
+  auto className = get_name(control(), ast->unqualifiedId);
+  const auto location = ast->unqualifiedId->firstSourceLocation();
+
+  const auto _ = ScopeGuard{this};
+
+  if (ast->nestedNameSpecifier) {
+    auto parent = ast->nestedNameSpecifier->symbol;
+
+    if (parent && parent->isClassOrNamespace()) {
+      setScope(static_cast<ScopedSymbol*>(parent));
+    }
+  }
+
+  ClassSymbol* classSymbol = nullptr;
+
+  if (scope()->isClassOrNamespaceScope()) {
+    for (auto candidate : scope()->find(className) | views::classes) {
+      classSymbol = candidate;
+      break;
+    }
+  }
+
+  if (!classSymbol) {
+    const auto isUnion = ast->classKey == TokenKind::T_UNION;
+    classSymbol = control()->newClassSymbol(scope(), location);
+
+    classSymbol->setIsUnion(isUnion);
+    classSymbol->setName(className);
+    classSymbol->setTemplateParameters(currentTemplateParameters());
+    declaringScope()->addSymbol(classSymbol);
+  }
+
+  ast->symbol = classSymbol;
+
+  declSpecs.type = ast->symbol->type();
+  declSpecs.setTypeSpecifier(ast);
+}
+
+void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
+  auto templateParameters = currentTemplateParameters();
+
+  if (ast->nestedNameSpecifier) {
+    auto parent = ast->nestedNameSpecifier->symbol;
+
+    if (parent && parent->isClassOrNamespace()) {
+      setScope(static_cast<ScopedSymbol*>(parent));
+    }
+  }
+
+  auto className = get_name(control(), ast->unqualifiedId);
+  auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+
+  auto location = ast->classLoc;
+  if (templateId) {
+    location = templateId->identifierLoc;
+  } else if (ast->unqualifiedId) {
+    location = ast->unqualifiedId->firstSourceLocation();
+  }
+
+  ClassSymbol* primaryTemplate = nullptr;
+
+  if (templateId && scope()->isTemplateParametersScope()) {
+    for (auto candidate : declaringScope()->find(className) | views::classes) {
+      primaryTemplate = candidate;
+      break;
+    }
+
+    if (!primaryTemplate) {
+      error(location, std::format("specialization of undeclared template '{}'",
+                                  templateId->identifier->name()));
+    }
+  }
+
+  ClassSymbol* classSymbol = nullptr;
+
+  if (className) {
+    for (auto candidate : declaringScope()->find(className) | views::classes) {
+      classSymbol = candidate;
+      break;
+    }
+  }
+
+  if (classSymbol && classSymbol->isComplete()) {
+    classSymbol = nullptr;
+  }
+
+  if (!classSymbol) {
+    const auto isUnion = ast->classKey == TokenKind::T_UNION;
+    classSymbol = control()->newClassSymbol(scope(), location);
+    classSymbol->setIsUnion(isUnion);
+    classSymbol->setName(className);
+    classSymbol->setTemplateParameters(templateParameters);
+
+    if (!primaryTemplate) {
+      declaringScope()->addSymbol(classSymbol);
+    } else {
+      std::vector<TemplateArgument> arguments;
+      // TODO: parse template arguments
+      primaryTemplate->addSpecialization(arguments, classSymbol);
+    }
+  }
+
+  classSymbol->setFinal(ast->isFinal);
+
+  ast->symbol = classSymbol;
+
+  declSpecs.setTypeSpecifier(ast);
+  declSpecs.type = classSymbol->type();
+}
+
+void Binder::complete(ClassSpecifierAST* ast) {
+  if (!inTemplate()) {
+    auto status = ast->symbol->buildClassLayout(control());
+    if (!status.has_value()) {
+      error(ast->symbol->location(), status.error());
+    }
+  }
+
+  ast->symbol->setComplete(true);
+}
+
 void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
                   bool inTemplateParameters) {
   ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.getType());
@@ -332,6 +454,11 @@ void Binder::complete(LambdaExpressionAST* ast) {
 
   auto parentScope = ast->symbol->enclosingScope();
   parentScope->addSymbol(ast->symbol);
+}
+
+void Binder::bind(ParameterDeclarationClauseAST* ast) {
+  ast->functionParametersSymbol =
+      control()->newFunctionParametersSymbol(scope(), {});
 }
 
 auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
