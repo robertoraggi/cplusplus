@@ -26,6 +26,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
@@ -184,6 +185,153 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId)
   symbol->setTemplateParameters(currentTemplateParameters());
   declaringScope()->addSymbol(symbol);
   return symbol;
+}
+
+void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
+  if (auto u = symbol_cast<UsingDeclarationSymbol>(target)) {
+    target = u->target();
+  }
+
+  const auto name = get_name(control(), ast->unqualifiedId);
+
+  auto symbol = control()->newUsingDeclarationSymbol(
+      scope(), ast->unqualifiedId->firstSourceLocation());
+
+  ast->symbol = symbol;
+
+  symbol->setName(name);
+  symbol->setDeclarator(ast);
+  symbol->setTarget(target);
+
+  scope()->addSymbol(symbol);
+}
+
+void Binder::bind(BaseSpecifierAST* ast) {
+  Symbol* symbol = nullptr;
+
+  if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
+    if (auto classType = type_cast<ClassType>(
+            control()->remove_cv(decltypeId->decltypeSpecifier->type))) {
+      symbol = classType->symbol();
+    }
+  }
+
+  if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
+    symbol = Lookup{scope_}(ast->nestedNameSpecifier, nameId->identifier);
+  }
+
+  if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
+    if (auto classType =
+            type_cast<ClassType>(control()->remove_cv(typeAlias->type()))) {
+      symbol = classType->symbol();
+    }
+  }
+
+  if (symbol) {
+    auto location = ast->unqualifiedId->firstSourceLocation();
+    auto baseClassSymbol = control()->newBaseClassSymbol(scope(), location);
+    ast->symbol = baseClassSymbol;
+
+    baseClassSymbol->setVirtual(ast->isVirtual);
+    baseClassSymbol->setSymbol(symbol);
+
+    if (symbol) {
+      baseClassSymbol->setName(symbol->name());
+    }
+
+    switch (ast->accessSpecifier) {
+      case TokenKind::T_PRIVATE:
+        baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
+        break;
+      case TokenKind::T_PROTECTED:
+        baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
+        break;
+      case TokenKind::T_PUBLIC:
+        baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
+        break;
+      default:
+        break;
+    }  // switch
+  }
+}
+
+void Binder::bind(NonTypeTemplateParameterAST* ast, int index, int depth) {
+  auto symbol = control()->newNonTypeParameterSymbol(
+      scope(), ast->declaration->firstSourceLocation());
+  ast->symbol = symbol;
+
+  symbol->setIndex(index);
+  symbol->setDepth(depth);
+  symbol->setName(ast->declaration->identifier);
+  symbol->setParameterPack(ast->declaration->isPack);
+  symbol->setObjectType(ast->declaration->type);
+  scope()->addSymbol(symbol);
+}
+
+void Binder::bind(TypenameTypeParameterAST* ast, int index, int depth) {
+  auto location = ast->identifier ? ast->identifierLoc : ast->classKeyLoc;
+
+  auto symbol = control()->newTypeParameterSymbol(scope(), location);
+  ast->symbol = symbol;
+
+  symbol->setIndex(index);
+  symbol->setDepth(depth);
+  symbol->setParameterPack(ast->isPack);
+  symbol->setName(ast->identifier);
+  scope()->addSymbol(symbol);
+}
+
+void Binder::bind(ConstraintTypeParameterAST* ast, int index, int depth) {
+  auto symbol =
+      control()->newConstraintTypeParameterSymbol(scope(), ast->identifierLoc);
+  symbol->setIndex(index);
+  symbol->setDepth(depth);
+  symbol->setName(ast->identifier);
+  scope()->addSymbol(symbol);
+}
+
+void Binder::bind(TemplateTypeParameterAST* ast, int index, int depth) {
+  auto symbol =
+      control()->newTemplateTypeParameterSymbol(scope(), ast->templateLoc);
+
+  ast->symbol = symbol;
+
+  symbol->setIndex(index);
+  symbol->setDepth(depth);
+  symbol->setName(ast->identifier);
+  symbol->setParameterPack(ast->isPack);
+  scope()->addSymbol(symbol);
+}
+
+void Binder::bind(ConceptDefinitionAST* ast) {
+  auto templateParameters = currentTemplateParameters();
+
+  auto symbol = control()->newConceptSymbol(scope(), ast->identifierLoc);
+  symbol->setName(ast->identifier);
+  symbol->setTemplateParameters(templateParameters);
+
+  declaringScope()->addSymbol(symbol);
+}
+
+void Binder::bind(LambdaExpressionAST* ast) {
+  auto parentScope = declaringScope();
+  auto symbol = control()->newLambdaSymbol(parentScope, ast->lbracketLoc);
+  ast->symbol = symbol;
+
+  setScope(symbol);
+}
+
+void Binder::complete(LambdaExpressionAST* ast) {
+  if (auto params = ast->parameterDeclarationClause) {
+    auto lambdaScope = ast->symbol->scope();
+    lambdaScope->addSymbol(params->functionParametersSymbol);
+    setScope(params->functionParametersSymbol);
+  } else {
+    setScope(ast->symbol);
+  }
+
+  auto parentScope = ast->symbol->enclosingScope();
+  parentScope->addSymbol(ast->symbol);
 }
 
 auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)

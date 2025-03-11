@@ -93,6 +93,24 @@ class Binder {
   void bind(ParameterDeclarationAST* ast, const Decl& decl,
             bool inTemplateParameters);
 
+  void bind(UsingDeclaratorAST* ast, Symbol* target);
+
+  void bind(BaseSpecifierAST* ast);
+
+  void bind(NonTypeTemplateParameterAST* ast, int index, int depth);
+
+  void bind(TypenameTypeParameterAST* ast, int index, int depth);
+
+  void bind(ConstraintTypeParameterAST* ast, int index, int depth);
+
+  void bind(TemplateTypeParameterAST* ast, int index, int depth);
+
+  void bind(ConceptDefinitionAST* ast);
+
+  void bind(LambdaExpressionAST* ast);
+
+  void complete(LambdaExpressionAST* ast);
+
   class ScopeGuard {
    public:
     Binder* p = nullptr;

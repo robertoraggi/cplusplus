@@ -1131,17 +1131,14 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  auto parentScope = binder_.declaringScope();
-  auto symbol = control_->newLambdaSymbol(scope(), currentLocation());
-
-  setScope(symbol);
-
   TemplateHeadContext templateHeadContext{this};
 
   auto ast = make_node<LambdaExpressionAST>(pool_);
   yyast = ast;
 
   expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
+
+  binder_.bind(ast);
 
   if (!match(TokenKind::T_RBRACKET, ast->rbracketLoc)) {
     if (!parse_lambda_capture(ast->captureDefaultLoc, ast->captureList)) {
@@ -1177,7 +1174,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     parse_optional_attribute_specifier_seq(ast->gnuAtributeList,
                                            AllowedAttributes::kGnuAttribute);
 
-    (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList, symbol);
+    (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList, ast->symbol);
 
     (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
@@ -1189,17 +1186,9 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     (void)parse_requires_clause(ast->requiresClause);
   }
 
-  if (auto params = ast->parameterDeclarationClause) {
-    auto lambdaScope = symbol->scope();
-    lambdaScope->addSymbol(params->functionParametersSymbol);
-    setScope(params->functionParametersSymbol);
-  } else {
-    setScope(symbol);
-  }
-
   if (!lookat(TokenKind::T_LBRACE)) return false;
 
-  parentScope->addSymbol(symbol);
+  binder_.complete(ast);
 
   if (!parse_compound_statement(ast->statement)) {
     parse_error("expected a compound statement");
@@ -6928,6 +6917,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
     return false;
 
   auto name = convertName(unqualifiedId);
+  auto target = Lookup{scope()}.lookup(nestedNameSpecifier, name);
 
   SourceLocation ellipsisLoc;
   auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
@@ -6939,22 +6929,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
   yyast->ellipsisLoc = ellipsisLoc;
   yyast->isPack = isPack;
 
-  auto target = Lookup{scope()}.lookup(nestedNameSpecifier, name);
-
-  if (auto u = symbol_cast<UsingDeclarationSymbol>(target)) {
-    target = u->target();
-  }
-
-  auto symbol = control_->newUsingDeclarationSymbol(
-      scope(), unqualifiedId->firstSourceLocation());
-
-  yyast->symbol = symbol;
-
-  symbol->setName(name);
-  symbol->setDeclarator(yyast);
-  symbol->setTarget(target);
-
-  scope()->addSymbol(symbol);
+  binder_.bind(yyast, target);
 
   return true;
 }
@@ -7757,12 +7732,9 @@ auto Parser::parse_class_specifier(
   const Identifier* className = nullptr;
   ClassSymbol* symbol = nullptr;
   SourceLocation finalLoc;
-  SourceLocation colonLoc;
-  List<BaseSpecifierAST*>* baseSpecifierList = nullptr;
   bool isUnion = false;
   bool isTemplateSpecialization = false;
   SourceLocation location = classLoc;
-  ClassSymbol* classSymbol = nullptr;
 
   auto lookat_class_head = [&] {
     LookaheadParser lookahead{this};
@@ -7807,6 +7779,21 @@ auto Parser::parse_class_specifier(
 
   if (!lookat_class_head()) return false;
 
+  auto ast = make_node<ClassSpecifierAST>(pool_);
+  yyast = ast;
+
+  ast->classLoc = classLoc;
+  ast->attributeList = attributeList;
+  ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->unqualifiedId = unqualifiedId;
+  ast->finalLoc = finalLoc;
+
+  ast->classKey = unit->tokenKind(ast->classLoc);
+
+  if (finalLoc) {
+    ast->isFinal = true;
+  }
+
   auto _ = Binder::ScopeGuard{&binder_};
 
   if (scope()->isTemplateParametersScope()) {
@@ -7839,6 +7826,8 @@ auto Parser::parse_class_specifier(
     }
   }
 
+  ClassSymbol* classSymbol = nullptr;
+
   if (className) {
     for (auto candidate :
          binder_.declaringScope()->find(className) | views::classes) {
@@ -7870,33 +7859,15 @@ auto Parser::parse_class_specifier(
     classSymbol->setFinal(true);
   }
 
-  setScope(classSymbol);
+  ast->symbol = classSymbol;
 
-  (void)parse_base_clause(classSymbol, colonLoc, baseSpecifierList);
+  setScope(ast->symbol);
 
-  SourceLocation lbraceLoc;
-  expect(TokenKind::T_LBRACE, lbraceLoc);
+  (void)parse_base_clause(ast);
+
+  expect(TokenKind::T_LBRACE, ast->lbraceLoc);
 
   ClassSpecifierContext classContext(this);
-
-  auto ast = make_node<ClassSpecifierAST>(pool_);
-  yyast = ast;
-
-  ast->symbol = classSymbol;
-  ast->classLoc = classLoc;
-  ast->attributeList = attributeList;
-  ast->nestedNameSpecifier = nestedNameSpecifier;
-  ast->unqualifiedId = unqualifiedId;
-  ast->finalLoc = finalLoc;
-  ast->colonLoc = colonLoc;
-  ast->baseSpecifierList = baseSpecifierList;
-  ast->lbraceLoc = lbraceLoc;
-
-  ast->classKey = unit->tokenKind(ast->classLoc);
-
-  if (finalLoc) {
-    ast->isFinal = true;
-  }
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     parse_class_body(ast->declarationList);
@@ -8319,23 +8290,18 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   return true;
 }
 
-auto Parser::parse_base_clause(ClassSymbol* classSymbol,
-                               SourceLocation& colonLoc,
-                               List<BaseSpecifierAST*>*& baseSpecifierList)
-    -> bool {
-  if (!match(TokenKind::T_COLON, colonLoc)) return false;
+auto Parser::parse_base_clause(ClassSpecifierAST* ast) -> bool {
+  if (!match(TokenKind::T_COLON, ast->colonLoc)) return false;
 
-  if (!parse_base_specifier_list(classSymbol, baseSpecifierList)) {
+  if (!parse_base_specifier_list(ast)) {
     parse_error("expected a base class specifier");
   }
 
   return true;
 }
 
-auto Parser::parse_base_specifier_list(ClassSymbol* classSymbol,
-                                       List<BaseSpecifierAST*>*& yyast)
-    -> bool {
-  auto it = &yyast;
+auto Parser::parse_base_specifier_list(ClassSpecifierAST* ast) -> bool {
+  auto it = &ast->baseSpecifierList;
 
   BaseSpecifierAST* baseSpecifier = nullptr;
 
@@ -8346,7 +8312,7 @@ auto Parser::parse_base_specifier_list(ClassSymbol* classSymbol,
   match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
   if (baseSpecifier && baseSpecifier->symbol) {
-    classSymbol->addBaseClass(baseSpecifier->symbol);
+    ast->symbol->addBaseClass(baseSpecifier->symbol);
   }
 
   *it = make_list_node(pool_, baseSpecifier);
@@ -8364,7 +8330,7 @@ auto Parser::parse_base_specifier_list(ClassSymbol* classSymbol,
     match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     if (baseSpecifier && baseSpecifier->symbol) {
-      classSymbol->addBaseClass(baseSpecifier->symbol);
+      ast->symbol->addBaseClass(baseSpecifier->symbol);
     }
 
     *it = make_list_node(pool_, baseSpecifier);
@@ -8397,58 +8363,14 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   if (!parse_class_or_decltype(ast->nestedNameSpecifier, ast->templateLoc,
                                ast->unqualifiedId)) {
     parse_error("expected a class name");
-  } else {
-    Symbol* symbol = nullptr;
-
-    if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
-      if (auto classType = type_cast<ClassType>(
-              control_->remove_cv(decltypeId->decltypeSpecifier->type))) {
-        symbol = classType->symbol();
-      }
-    }
-
-    if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-      symbol = Lookup{scope()}(ast->nestedNameSpecifier, nameId->identifier);
-    }
-
-    if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
-      if (auto classType =
-              type_cast<ClassType>(control_->remove_cv(typeAlias->type()))) {
-        symbol = classType->symbol();
-      }
-    }
-
-    if (symbol) {
-      auto location = ast->unqualifiedId->firstSourceLocation();
-      auto baseClassSymbol = control_->newBaseClassSymbol(scope(), location);
-      ast->symbol = baseClassSymbol;
-
-      baseClassSymbol->setVirtual(ast->isVirtual);
-      baseClassSymbol->setSymbol(symbol);
-
-      if (symbol) {
-        baseClassSymbol->setName(symbol->name());
-      }
-
-      switch (ast->accessSpecifier) {
-        case TokenKind::T_PRIVATE:
-          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
-          break;
-        case TokenKind::T_PROTECTED:
-          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
-          break;
-        case TokenKind::T_PUBLIC:
-          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
-          break;
-        default:
-          break;
-      }  // switch
-    }
+    return;
   }
 
   if (ast->templateLoc) {
     ast->isTemplateIntroduced = true;
   }
+
+  binder_.bind(ast);
 }
 
 auto Parser::parse_class_or_decltype(
@@ -8949,22 +8871,14 @@ void Parser::parse_template_parameter(TemplateParameterAST*& yyast) {
 
   if (!parse_parameter_declaration(parameter, /*templParam*/ true)) return;
 
-  auto symbol = control_->newNonTypeParameterSymbol(
-      scope(), parameter->firstSourceLocation());
-  symbol->setIndex(templateParameterCount_);
-  symbol->setDepth(templateParameterDepth_);
-  symbol->setName(parameter->identifier);
-  symbol->setParameterPack(parameter->isPack);
-  symbol->setObjectType(parameter->type);
-  scope()->addSymbol(symbol);
+  lookahead.commit();
 
   auto ast = make_node<NonTypeTemplateParameterAST>(pool_);
   yyast = ast;
 
   ast->declaration = parameter;
-  ast->symbol = symbol;
 
-  lookahead.commit();
+  binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
 }
 
 auto Parser::parse_type_parameter(TemplateParameterAST*& yyast) -> bool {
@@ -9002,26 +8916,17 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
 
   const auto isPack = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
+  ast->isPack = isPack;
+
   match(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  auto location = ast->identifier ? ast->identifierLoc : classKeyLoc;
+  binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
 
-  auto symbol = control_->newTypeParameterSymbol(scope(), location);
-  symbol->setIndex(templateParameterCount_);
-  symbol->setDepth(templateParameterDepth_);
-  symbol->setParameterPack(isPack);
-  symbol->setName(ast->identifier);
-  scope()->addSymbol(symbol);
-
-  ast->symbol = symbol;
-
-  if (!match(TokenKind::T_EQUAL, ast->equalLoc)) return true;
-
-  if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
-
-  ast->isPack = isPack;
+  if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
+    if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+  }
 
   return true;
 }
@@ -9031,13 +8936,6 @@ void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
 
   auto ast = make_node<TemplateTypeParameterAST>(pool_);
   yyast = ast;
-
-  auto symbol =
-      control_->newTemplateTypeParameterSymbol(scope(), currentLocation());
-  ast->symbol = symbol;
-
-  symbol->setIndex(templateParameterCount_);
-  symbol->setDepth(templateParameterDepth_);
 
   expect(TokenKind::T_TEMPLATE, ast->templateLoc);
   expect(TokenKind::T_LESS, ast->lessLoc);
@@ -9065,16 +8963,13 @@ void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
 
   ast->isPack = match(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
 
-  symbol->setParameterPack(ast->isPack);
-
   if (match(TokenKind::T_IDENTIFIER, ast->identifierLoc)) {
     ast->identifier = unit->identifier(ast->identifierLoc);
-    symbol->setName(ast->identifier);
 
     mark_maybe_template_name(ast->identifier);
   }
 
-  scope()->addSymbol(symbol);
+  binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_id_expression(ast->idExpression,
@@ -9118,12 +9013,7 @@ auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
   ast->equalLoc = equalLoc;
   ast->typeId = typeId;
 
-  auto symbol =
-      control_->newConstraintTypeParameterSymbol(scope(), identifierLoc);
-  symbol->setIndex(templateParameterCount_);
-  symbol->setDepth(templateParameterDepth_);
-  symbol->setName(ast->identifier);
-  scope()->addSymbol(symbol);
+  binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
 
   return true;
 }
@@ -9504,13 +9394,7 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
   ast->identifier = unit->identifier(ast->identifierLoc);
 
-  auto templateParameters = binder_.currentTemplateParameters();
-
-  auto symbol = control_->newConceptSymbol(scope(), ast->identifierLoc);
-  symbol->setName(ast->identifier);
-  symbol->setTemplateParameters(templateParameters);
-
-  binder_.declaringScope()->addSymbol(symbol);
+  binder_.bind(ast);
 
   if (ast->identifierLoc) {
     concept_names_.insert(ast->identifier);
