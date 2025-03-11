@@ -670,12 +670,8 @@ class Parser final {
                                           SourceLocation& zeroLoc) -> bool;
   [[nodiscard]] auto parse_conversion_function_id(
       ConversionFunctionIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_base_clause(
-      ClassSymbol* classSymbol, SourceLocation& colonLoc,
-      List<BaseSpecifierAST*>*& baseSpecifierList) -> bool;
-  [[nodiscard]] auto parse_base_specifier_list(ClassSymbol* classSymbol,
-                                               List<BaseSpecifierAST*>*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_base_clause(ClassSpecifierAST* ast) -> bool;
+  [[nodiscard]] auto parse_base_specifier_list(ClassSpecifierAST* ast) -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);
   [[nodiscard]] auto parse_class_or_decltype(
       NestedNameSpecifierAST*& nestedNameSpecifier, SourceLocation& templateLoc,

@@ -1372,6 +1372,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   RequiresClauseAST* requiresClause = nullptr;
   CompoundStatementAST* statement = nullptr;
   TokenKind captureDefault = TokenKind::T_EOF_SYMBOL;
+  LambdaSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

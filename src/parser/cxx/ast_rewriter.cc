@@ -2413,6 +2413,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   copy->requiresClause = rewrite(ast->requiresClause);
   copy->statement = ast_cast<CompoundStatementAST>(rewrite(ast->statement));
   copy->captureDefault = ast->captureDefault;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
