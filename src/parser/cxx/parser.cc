@@ -3796,68 +3796,44 @@ auto Parser::parse_maybe_module() -> bool {
 auto Parser::parse_template_declaration_body(
     DeclarationAST*& yyast,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  if (parse_deduction_guide(yyast))
-    return true;
-  else if (parse_export_declaration(yyast))
-    return true;
-  else if (parse_opaque_enum_declaration(yyast))
-    return true;
-  else if (parse_alias_declaration(yyast, templateDeclarations))
-    return true;
-  else
-    return parse_simple_declaration(yyast, templateDeclarations,
-                                    BindingContext::kTemplate);
+  if (parse_deduction_guide(yyast)) return true;
+  if (parse_export_declaration(yyast)) return true;
+  if (parse_opaque_enum_declaration(yyast)) return true;
+  if (parse_alias_declaration(yyast, templateDeclarations)) return true;
+  return parse_simple_declaration(yyast, templateDeclarations,
+                                  BindingContext::kTemplate);
 }
 
 auto Parser::parse_declaration(DeclarationAST*& yyast, BindingContext ctx)
     -> bool {
-  if (lookat(TokenKind::T_RBRACE)) {
-    return false;
-  } else if (lookat(TokenKind::T_SEMICOLON)) {
-    return parse_empty_declaration(yyast);
-  } else if (parse_explicit_instantiation(yyast)) {
-    return true;
-  } else if (TemplateDeclarationAST* templateDeclaration = nullptr;
-             parse_template_declaration(templateDeclaration)) {
+  if (lookat(TokenKind::T_RBRACE)) return false;
+  if (lookat(TokenKind::T_SEMICOLON)) return parse_empty_declaration(yyast);
+  if (parse_explicit_instantiation(yyast)) return true;
+  if (TemplateDeclarationAST* templateDeclaration = nullptr;
+      parse_template_declaration(templateDeclaration)) {
     yyast = templateDeclaration;
     return true;
-  } else if (parse_linkage_specification(yyast)) {
-    return true;
-  } else if (parse_namespace_definition(yyast)) {
-    return true;
-  } else if (parse_deduction_guide(yyast)) {
-    return true;
-  } else if (parse_export_declaration(yyast)) {
-    return true;
-  } else if (parse_module_import_declaration(yyast)) {
-    return true;
-  } else if (parse_attribute_declaration(yyast)) {
-    return true;
-  } else {
-    return parse_block_declaration(yyast, ctx);
   }
+  if (parse_linkage_specification(yyast)) return true;
+  if (parse_namespace_definition(yyast)) return true;
+  if (parse_deduction_guide(yyast)) return true;
+  if (parse_export_declaration(yyast)) return true;
+  if (parse_module_import_declaration(yyast)) return true;
+  if (parse_attribute_declaration(yyast)) return true;
+  return parse_block_declaration(yyast, ctx);
 }
 
 auto Parser::parse_block_declaration(DeclarationAST*& yyast, BindingContext ctx)
     -> bool {
-  if (parse_asm_declaration(yyast))
-    return true;
-  else if (parse_namespace_alias_definition(yyast))
-    return true;
-  else if (parse_static_assert_declaration(yyast))
-    return true;
-  else if (parse_opaque_enum_declaration(yyast))
-    return true;
-  else if (parse_using_enum_declaration(yyast))
-    return true;
-  else if (parse_using_directive(yyast))
-    return true;
-  else if (parse_alias_declaration(yyast))
-    return true;
-  else if (parse_using_declaration(yyast))
-    return true;
-  else
-    return parse_simple_declaration(yyast, ctx);
+  if (parse_asm_declaration(yyast)) return true;
+  if (parse_namespace_alias_definition(yyast)) return true;
+  if (parse_static_assert_declaration(yyast)) return true;
+  if (parse_opaque_enum_declaration(yyast)) return true;
+  if (parse_using_enum_declaration(yyast)) return true;
+  if (parse_using_directive(yyast)) return true;
+  if (parse_alias_declaration(yyast)) return true;
+  if (parse_using_declaration(yyast)) return true;
+  return parse_simple_declaration(yyast, ctx);
 }
 
 auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
@@ -4746,23 +4722,13 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 auto Parser::parse_type_specifier(
     SpecifierAST*& yyast, DeclSpecs& specs,
     const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
-  if (parse_simple_type_specifier(yyast, specs)) {
+  if (parse_simple_type_specifier(yyast, specs)) return true;
+  if (parse_cv_qualifier(yyast, specs)) return true;
+  if (parse_elaborated_type_specifier(yyast, specs, templateDeclarations))
     return true;
-  } else if (parse_cv_qualifier(yyast, specs)) {
-    return true;
-  } else if (parse_elaborated_type_specifier(yyast, specs,
-                                             templateDeclarations)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_splicer_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_typename_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else {
-    return false;
-  }
+  if (parse_splicer_specifier(yyast, specs)) return true;
+  if (parse_typename_specifier(yyast, specs)) return true;
+  return false;
 }
 
 auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
@@ -4882,27 +4848,14 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (parse_sign_type_specifier(yyast, specs)) return true;
   if (parse_complex_type_specifier(yyast, specs)) return true;
 
-  if (specs.typeSpecifier) {
-    return false;
-  } else if (parse_primitive_type_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_placeholder_type_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_underlying_type_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_atomic_type_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_named_type_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  } else if (parse_decltype_specifier_type_specifier(yyast, specs)) {
-    specs.setTypeSpecifier(yyast);
-    return true;
-  }
+  if (specs.typeSpecifier) return false;
+
+  if (parse_primitive_type_specifier(yyast, specs)) return true;
+  if (parse_placeholder_type_specifier(yyast, specs)) return true;
+  if (parse_underlying_type_specifier(yyast, specs)) return true;
+  if (parse_atomic_type_specifier(yyast, specs)) return true;
+  if (parse_named_type_specifier(yyast, specs)) return true;
+  if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
 
   return false;
 }
@@ -5071,6 +5024,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->isTemplateIntroduced = isTemplateIntroduced;
   ast->symbol = typeSymbol;
 
+  specs.accept(ast);
+
   return true;
 }
 
@@ -5079,11 +5034,9 @@ auto Parser::parse_decltype_specifier_type_specifier(SpecifierAST*& yyast,
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
   if (!parse_decltype_specifier(decltypeSpecifier)) return false;
 
-  specs.setTypeSpecifier(decltypeSpecifier);
+  specs.accept(decltypeSpecifier);
 
   yyast = decltypeSpecifier;
-
-  specs.accept(decltypeSpecifier);
 
   return true;
 }
@@ -5125,6 +5078,8 @@ auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+  specs.accept(ast);
+
   return true;
 }
 
@@ -5151,7 +5106,6 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
       specs.accept(ast);
-      specs.type = control_->getBuiltinVaListType();
       return true;
     }
 
@@ -5441,8 +5395,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
     yyast = ast;
     ast->autoLoc = autoLoc;
 
-    specs.isAuto = true;
-    specs.type = control_->getAutoType();
+    specs.accept(ast);
   } else {
     auto ast = make_node<DecltypeAutoSpecifierAST>(pool_);
     yyast = ast;
@@ -5452,8 +5405,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
     expect(TokenKind::T_AUTO, ast->autoLoc);
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-    specs.isDecltypeAuto = true;
-    specs.type = control_->getDecltypeAutoType();
+    specs.accept(ast);
   }
 
   if (typeConstraint) {
@@ -5461,6 +5413,8 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
 
     ast->typeConstraint = typeConstraint;
     ast->specifier = yyast;
+
+    specs.accept(ast);
 
     yyast = ast;
   }
@@ -7826,27 +7780,21 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
     ast->accessSpecifier = unit->tokenKind(ast->accessLoc);
 
     return true;
-  } else if (parse_empty_declaration(yyast)) {
-    return true;
-  } else if (parse_using_enum_declaration(yyast)) {
-    return true;
-  } else if (parse_alias_declaration(yyast)) {
-    return true;
-  } else if (parse_using_declaration(yyast)) {
-    return true;
-  } else if (parse_static_assert_declaration(yyast)) {
-    return true;
-  } else if (parse_deduction_guide(yyast)) {
-    return true;
-  } else if (parse_opaque_enum_declaration(yyast)) {
-    return true;
-  } else if (TemplateDeclarationAST* templateDeclaration = nullptr;
-             parse_template_declaration(templateDeclaration)) {
+  }
+
+  if (parse_empty_declaration(yyast)) return true;
+  if (parse_using_enum_declaration(yyast)) return true;
+  if (parse_alias_declaration(yyast)) return true;
+  if (parse_using_declaration(yyast)) return true;
+  if (parse_static_assert_declaration(yyast)) return true;
+  if (parse_deduction_guide(yyast)) return true;
+  if (parse_opaque_enum_declaration(yyast)) return true;
+  if (TemplateDeclarationAST* templateDeclaration = nullptr;
+      parse_template_declaration(templateDeclaration)) {
     yyast = templateDeclaration;
     return true;
-  } else {
-    return parse_member_declaration_helper(yyast);
   }
+  return parse_member_declaration_helper(yyast);
 }
 
 auto Parser::parse_maybe_template_member() -> bool {
@@ -9305,7 +9253,7 @@ auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   yyast = ast;
   ast->typenameLoc = typenameLoc;
   ast->splicer = splicer;
-  specs.setTypeSpecifier(ast);
+  specs.accept(ast);
   return true;
 }
 
@@ -9357,6 +9305,8 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   specs.type =
       control_->getUnresolvedNameType(unit, nestedNameSpecifier, unqualifiedId);
+
+  specs.accept(ast);
 
   return true;
 }
