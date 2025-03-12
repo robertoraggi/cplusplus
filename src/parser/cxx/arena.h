@@ -22,57 +22,14 @@
 
 #include <cxx/cxx_fwd.h>
 
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
+#include <memory_resource>
 #include <new>
-#include <vector>
 
 namespace cxx {
 
-class Arena {
-  struct Block {
-    static const std::size_t SIZE = 16 * 1024;
-
-    char* data;
-    char* ptr;
-
-    Block(const Block&) = delete;
-    auto operator=(const Block&) -> Block& = delete;
-
-    Block() { ptr = data = static_cast<char*>(std::malloc(SIZE)); }
-
-    ~Block() {
-      if (data) std::free(data);
-    }
-  };
-
-  std::vector<Block*> blocks;
-
+class Arena : public std::pmr::monotonic_buffer_resource {
  public:
-  Arena(const Arena& other) = delete;
-  auto operator=(const Arena& other) -> Arena& = delete;
-  Arena() = default;
-  ~Arena() { reset(); }
-
-  void reset() {
-    for (auto&& block : blocks) delete block;
-    blocks.clear();
-  }
-
-  auto allocate(std::size_t size) noexcept -> void* {
-    if (!blocks.empty()) {
-      constexpr auto align = alignof(std::max_align_t) - 1;
-
-      auto block = blocks.back();
-      block->ptr = (char*)((std::intptr_t(block->ptr) + align) & ~align);
-      void* addr = block->ptr;
-      block->ptr += size;
-      if (block->ptr < block->data + Block::SIZE) return addr;
-    }
-    blocks.push_back(::new Block());
-    return allocate(size);
-  }
+  using monotonic_buffer_resource::monotonic_buffer_resource;
 };
 
 struct Managed {
