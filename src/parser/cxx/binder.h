@@ -119,6 +119,8 @@ class Binder {
 
   void bind(ParameterDeclarationClauseAST* ast);
 
+  void bind(UsingDirectiveAST* ast);
+
   class ScopeGuard {
    public:
     Binder* p = nullptr;
