@@ -129,6 +129,7 @@ void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(AutoTypeSpecifierAST* ast) {
   specs.typeSpecifier = ast;
   specs.type = control()->getAutoType();
+  specs.isAuto = true;
 }
 
 void DeclSpecs::Visitor::operator()(VoidTypeSpecifierAST* ast) {
@@ -285,6 +286,7 @@ void DeclSpecs::Visitor::operator()(ElaboratedTypeSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(DecltypeAutoSpecifierAST* ast) {
   specs.typeSpecifier = ast;
   specs.type = control()->getDecltypeAutoType();
+  specs.isDecltypeAuto = true;
 }
 
 void DeclSpecs::Visitor::operator()(DecltypeSpecifierAST* ast) {
@@ -292,7 +294,9 @@ void DeclSpecs::Visitor::operator()(DecltypeSpecifierAST* ast) {
   specs.type = ast->type;
 }
 
-void DeclSpecs::Visitor::operator()(PlaceholderTypeSpecifierAST* ast) {}
+void DeclSpecs::Visitor::operator()(PlaceholderTypeSpecifierAST* ast) {
+  specs.typeSpecifier = ast;
+}
 
 void DeclSpecs::Visitor::operator()(ConstQualifierAST* ast) {
   specs.isConst = true;
