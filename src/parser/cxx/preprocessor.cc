@@ -2966,7 +2966,7 @@ void Preprocessor::setOnWillIncludeHeader(
   d->willIncludeHeader_ = std::move(willIncludeHeader);
 }
 
-void Preprocessor::squeeze() { d->pool_.reset(); }
+void Preprocessor::squeeze() { d->pool_.release(); }
 
 auto Preprocessor::sourceFileName(uint32_t sourceFileId) const
     -> const std::string & {
