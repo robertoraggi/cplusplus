@@ -687,37 +687,25 @@ auto Parser::parse_completion(SourceLocation& loc) -> bool {
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
-  UnqualifiedIdAST* name = nullptr;
-
-  if (parse_builtin_call_expression(yyast, ctx)) {
-    return true;
-  } else if (parse_builtin_offsetof_expression(yyast, ctx)) {
-    return true;
-  } else if (parse_this_expression(yyast)) {
-    return true;
-  } else if (parse_literal(yyast)) {
-    return true;
-  } else if (parse_lambda_expression(yyast)) {
-    return true;
-  } else if (parse_requires_expression(yyast)) {
-    return true;
-  } else if (lookat(TokenKind::T_LPAREN, TokenKind::T_RPAREN)) {
-    return false;
-  } else if (parse_fold_expression(yyast, ctx)) {
-    return true;
-  } else if (parse_nested_expession(yyast, ctx)) {
-    return true;
-  } else if (IdExpressionAST* idExpression = nullptr; parse_id_expression(
-                 idExpression, ctx.inRequiresClause
-                                   ? IdExpressionContext::kRequiresClause
-                                   : IdExpressionContext::kExpression)) {
+  if (parse_builtin_call_expression(yyast, ctx)) return true;
+  if (parse_builtin_offsetof_expression(yyast, ctx)) return true;
+  if (parse_this_expression(yyast)) return true;
+  if (parse_literal(yyast)) return true;
+  if (parse_lambda_expression(yyast)) return true;
+  if (parse_requires_expression(yyast)) return true;
+  if (lookat(TokenKind::T_LPAREN, TokenKind::T_RPAREN)) return false;
+  if (parse_fold_expression(yyast, ctx)) return true;
+  if (parse_nested_expession(yyast, ctx)) return true;
+  if (IdExpressionAST* idExpression = nullptr; parse_id_expression(
+          idExpression, ctx.inRequiresClause
+                            ? IdExpressionContext::kRequiresClause
+                            : IdExpressionContext::kExpression)) {
     yyast = idExpression;
     return true;
-  } else if (parse_splicer_expression(yyast, ctx)) {
-    return true;
-  } else {
-    return false;
   }
+
+  if (parse_splicer_expression(yyast, ctx)) return true;
+  return false;
 }
 
 auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
@@ -1491,6 +1479,8 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
 auto Parser::parse_fold_expression(ExpressionAST*& yyast,
                                    const ExprContext& ctx) -> bool {
+  if (!lookat(TokenKind::T_LPAREN)) return false;
+
   if (parse_left_fold_expression(yyast, ctx)) return true;
 
   SourceLocation lparenLoc;
@@ -1498,18 +1488,34 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast,
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   SourceLocation ellipsisLoc;
+  bool isNestedExpression = false;
 
-  auto lookat_fold_expression = [&] {
+  auto lookat_fold_or_nested_expression = [&] {
     LookaheadParser lookahead{this};
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
     if (!parse_cast_expression(expression, ctx)) return false;
+    if (lookat(TokenKind::T_RPAREN)) {
+      isNestedExpression = true;
+      lookahead.commit();
+      return true;
+    }
     if (!parse_fold_operator(opLoc, op)) return false;
     if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
     lookahead.commit();
     return true;
   };
 
-  if (!lookat_fold_expression()) return false;
+  if (!lookat_fold_or_nested_expression()) return false;
+
+  if (isNestedExpression) {
+    auto ast = make_node<NestedExpressionAST>(pool_);
+    yyast = ast;
+    ast->lparenLoc = lparenLoc;
+    ast->expression = expression;
+    expect(TokenKind::T_RPAREN, ast->rparenLoc);
+    check(ast);
+    return true;
+  }
 
   if (SourceLocation rparenLoc; match(TokenKind::T_RPAREN, rparenLoc)) {
     auto ast = make_node<RightFoldExpressionAST>(pool_);
