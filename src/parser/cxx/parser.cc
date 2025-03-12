@@ -6789,22 +6789,10 @@ auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
   parse_optional_nested_name_specifier(
       ast->nestedNameSpecifier, NestedNameSpecifierContext::kDeclarative);
 
-  auto currentNamespace = scope()->owner();
-
   if (!parse_name_id(ast->unqualifiedId)) {
     parse_error("expected a namespace name");
   } else {
-    auto id = ast->unqualifiedId->identifier;
-
-    NamespaceSymbol* namespaceSymbol =
-        Lookup{scope()}.lookupNamespace(ast->nestedNameSpecifier, id);
-
-    if (namespaceSymbol) {
-      scope()->addUsingDirective(namespaceSymbol->scope());
-    } else {
-      parse_error(ast->unqualifiedId->firstSourceLocation(),
-                  std::format("'{}' is not a namespace name", id->name()));
-    }
+    binder_.bind(ast);
   }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);

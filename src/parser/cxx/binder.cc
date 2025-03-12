@@ -461,6 +461,20 @@ void Binder::bind(ParameterDeclarationClauseAST* ast) {
       control()->newFunctionParametersSymbol(scope(), {});
 }
 
+void Binder::bind(UsingDirectiveAST* ast) {
+  auto id = ast->unqualifiedId->identifier;
+
+  NamespaceSymbol* namespaceSymbol =
+      Lookup{scope()}.lookupNamespace(ast->nestedNameSpecifier, id);
+
+  if (namespaceSymbol) {
+    scope()->addUsingDirective(namespaceSymbol->scope());
+  } else {
+    error(ast->unqualifiedId->firstSourceLocation(),
+          std::format("'{}' is not a namespace name", id->name()));
+  }
+}
+
 auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     -> TypeAliasSymbol* {
   auto name = decl.getName();
