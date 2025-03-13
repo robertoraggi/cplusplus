@@ -491,6 +491,10 @@ void Binder::bind(UsingDirectiveAST* ast) {
   }
 }
 
+void Binder::bind(TypeIdAST* ast, const Decl& decl) {
+  ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.getType());
+}
+
 auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     -> TypeAliasSymbol* {
   auto name = decl.getName();

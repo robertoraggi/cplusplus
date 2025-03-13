@@ -123,6 +123,8 @@ class Binder {
 
   void bind(UsingDirectiveAST* ast);
 
+  void bind(TypeIdAST* ast, const Decl& decl);
+
   [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
 
   [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
