@@ -5698,8 +5698,7 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   Decl decl{specs};
   parse_optional_abstract_declarator(yyast->declarator, decl);
 
-  yyast->type =
-      getDeclaratorType(unit, yyast->declarator, decl.specs.getType());
+  binder_.bind(yyast, decl);
 
   return true;
 }
@@ -5726,7 +5725,8 @@ auto Parser::parse_defining_type_id(
 
   ast->typeSpecifierList = typeSpecifierList;
   ast->declarator = declarator;
-  ast->type = getDeclaratorType(unit, ast->declarator, decl.specs.getType());
+
+  binder_.bind(ast, decl);
 
   return true;
 }
@@ -7935,7 +7935,10 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
   auto typeId = make_node<TypeIdAST>(pool_);
   typeId->typeSpecifierList = typeSpecifierList;
   typeId->declarator = declarator;
-  typeId->type = getDeclaratorType(unit, declarator, specs.getType());
+
+  Decl decl{specs};
+
+  binder_.bind(typeId, decl);
 
   auto ast = make_node<ConversionFunctionIdAST>(pool_);
   yyast = ast;
