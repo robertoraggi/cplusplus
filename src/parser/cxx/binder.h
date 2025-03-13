@@ -93,6 +93,8 @@ class Binder {
 
   void complete(ClassSpecifierAST* ast);
 
+  void bind(DecltypeSpecifierAST* ast);
+
   void bind(EnumeratorAST* ast, const Type* type,
             std::optional<ConstValue> value);
 

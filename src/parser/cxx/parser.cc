@@ -5076,44 +5076,6 @@ void Parser::check_type_traits() {
   rewind(typeTraitLoc);
 }
 
-auto Parser::strip_cv(const Type*& type) -> CvQualifiers {
-  if (auto qualType = type_cast<QualType>(type)) {
-    auto cv = qualType->cvQualifiers();
-    type = qualType->elementType();
-    return cv;
-  }
-  return {};
-}
-
-auto Parser::is_const(CvQualifiers cv) const -> bool {
-  return cv == CvQualifiers::kConst || cv == CvQualifiers::kConstVolatile;
-}
-
-auto Parser::is_volatile(CvQualifiers cv) const -> bool {
-  return cv == CvQualifiers::kVolatile || cv == CvQualifiers::kConstVolatile;
-}
-
-auto Parser::is_prvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kPrValue;
-}
-
-auto Parser::is_lvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kLValue;
-}
-
-auto Parser::is_xvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kXValue;
-}
-
-auto Parser::is_glvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kLValue ||
-         expr->valueCategory == ValueCategory::kXValue;
-}
-
 auto Parser::is_template(Symbol* symbol) const -> bool {
   if (!symbol) return false;
   if (symbol->isTemplateTypeParameter()) return true;
@@ -5231,19 +5193,7 @@ auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (auto id = ast_cast<IdExpressionAST>(ast->expression)) {
-    if (id->symbol) ast->type = id->symbol->type();
-  } else if (auto member = ast_cast<MemberExpressionAST>(ast->expression)) {
-    if (member->symbol) ast->type = member->symbol->type();
-  } else if (ast->expression && ast->expression->type) {
-    if (is_lvalue(ast->expression)) {
-      ast->type = control_->add_lvalue_reference(ast->expression->type);
-    } else if (is_xvalue(ast->expression)) {
-      ast->type = control_->add_rvalue_reference(ast->expression->type);
-    } else {
-      ast->type = ast->expression->type;
-    }
-  }
+  binder_.bind(ast);
 
   return true;
 }
