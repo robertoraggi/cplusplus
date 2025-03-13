@@ -239,7 +239,23 @@ void TypeChecker::Visitor::operator()(NestedExpressionAST* ast) {
   ast->valueCategory = ast->expression->valueCategory;
 }
 
-void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
+  if (ast->symbol) {
+    if (auto conceptSymbol = symbol_cast<ConceptSymbol>(ast->symbol)) {
+      ast->type = control()->getBoolType();
+      ast->valueCategory = ValueCategory::kPrValue;
+    } else {
+      ast->type = control()->remove_reference(ast->symbol->type());
+
+      if (ast->symbol->isEnumOrScopedEnum() ||
+          ast->symbol->isNonTypeParameter()) {
+        ast->valueCategory = ValueCategory::kPrValue;
+      } else {
+        ast->valueCategory = ValueCategory::kLValue;
+      }
+    }
+  }
+}
 
 void TypeChecker::Visitor::operator()(LambdaExpressionAST* ast) {}
 

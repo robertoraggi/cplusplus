@@ -836,29 +836,10 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
-  if (unqualifiedId) {
-    auto name = get_name(control_, unqualifiedId);
-    const Name* componentName = name;
-    if (auto templateId = name_cast<TemplateId>(name))
-      componentName = templateId->name();
-    ast->symbol = Lookup{scope()}(nestedNameSpecifier, componentName);
-  }
+  binder_.bind(ast);
 
   if (ctx == IdExpressionContext::kExpression) {
-    if (ast->symbol) {
-      if (auto conceptSymbol = symbol_cast<ConceptSymbol>(ast->symbol)) {
-        ast->type = control_->getBoolType();
-        ast->valueCategory = ValueCategory::kPrValue;
-      } else {
-        ast->type = control_->remove_reference(ast->symbol->type());
-
-        if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
-          ast->valueCategory = ValueCategory::kPrValue;
-        } else {
-          ast->valueCategory = ValueCategory::kLValue;
-        }
-      }
-    }
+    check(ast);
   }
 
   return true;
