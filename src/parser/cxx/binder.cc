@@ -691,4 +691,14 @@ auto Binder::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
   return symbol;
 }
 
+void Binder::bind(IdExpressionAST* ast) {
+  if (ast->unqualifiedId) {
+    auto name = get_name(control(), ast->unqualifiedId);
+    const Name* componentName = name;
+    if (auto templateId = name_cast<TemplateId>(name))
+      componentName = templateId->name();
+    ast->symbol = Lookup{scope()}(ast->nestedNameSpecifier, componentName);
+  }
+}
+
 }  // namespace cxx

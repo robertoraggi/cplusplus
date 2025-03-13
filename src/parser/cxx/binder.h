@@ -125,6 +125,8 @@ class Binder {
 
   void bind(TypeIdAST* ast, const Decl& decl);
 
+  void bind(IdExpressionAST* ast);
+
   [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
 
   [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
