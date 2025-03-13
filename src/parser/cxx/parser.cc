@@ -837,7 +837,7 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
   if (unqualifiedId) {
-    auto name = convertName(unqualifiedId);
+    auto name = get_name(control_, unqualifiedId);
     const Name* componentName = name;
     if (auto templateId = name_cast<TemplateId>(name))
       componentName = templateId->name();
@@ -1073,8 +1073,8 @@ auto Parser::parse_template_nested_name_specifier(
     }
   }
 
-  if (!ast->symbol) {
-    ast->symbol = instantiate(templateId);
+  if (!ast->symbol && config_.checkTypes) {
+    ast->symbol = binder_.instantiate(templateId);
   }
 
   return true;
@@ -1921,7 +1921,7 @@ auto Parser::check_member_access(MemberExpressionAST* ast) -> bool {
   auto classType = type_cast<ClassType>(objectType);
   if (!classType) return false;
 
-  auto memberName = convertName(ast->unqualifiedId);
+  auto memberName = get_name(control_, ast->unqualifiedId);
 
   auto classSymbol = classType->symbol();
 
@@ -2135,7 +2135,7 @@ auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
 
   if (classType && id && !id->nestedNameSpecifier) {
     auto symbol = classType->symbol();
-    auto name = convertName(id->unqualifiedId);
+    auto name = get_name(control_, id->unqualifiedId);
     auto member = Lookup{scope()}.qualifiedLookup(symbol->scope(), name);
     auto field = symbol_cast<FieldSymbol>(member);
     ast->symbol = field;
@@ -4929,39 +4929,6 @@ auto Parser::parse_complex_type_specifier(SpecifierAST*& yyast,
   return true;
 }
 
-auto Parser::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
-  if (!config_.checkTypes) return nullptr;
-
-  std::vector<TemplateArgument> args;
-  for (auto it = templateId->templateArgumentList; it; it = it->next) {
-    if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
-      args.push_back(arg->typeId->type);
-    } else {
-      parse_error(it->value->firstSourceLocation(),
-                  std::format("only type template arguments are supported"));
-    }
-  }
-
-  auto needsInstantiation = [&]() -> bool {
-    if (args.empty()) return true;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-      auto typeArgument = std::get_if<const Type*>(&args[i]);
-      if (!typeArgument) return true;
-      auto ty = type_cast<TypeParameterType>(*typeArgument);
-      if (!ty) return true;
-      if (ty->symbol()->index() != i) return true;
-    }
-    return false;
-  };
-
-  if (!needsInstantiation()) return nullptr;
-
-  auto symbol = control_->instantiate(unit, templateId->primaryTemplateSymbol,
-                                      std::move(args));
-
-  return symbol;
-}
-
 auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   if (specs.isUnsigned || specs.isSigned || specs.isShort || specs.isLong)
@@ -4984,36 +4951,22 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     return false;
   }
 
-  Symbol* typeSymbol = nullptr;
-
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
-    if (auto conceptSymbol =
-            symbol_cast<ConceptSymbol>(templateId->primaryTemplateSymbol)) {
-      if (!lookat(TokenKind::T_AUTO)) return false;
-    }
+    auto primaryTemplateSymbol = templateId->primaryTemplateSymbol;
+    auto conceptSymbol = symbol_cast<ConceptSymbol>(primaryTemplateSymbol);
+    if (conceptSymbol && !lookat(TokenKind::T_AUTO)) return false;
+  }
 
-    if (auto symbol = instantiate(templateId)) {
-      specs.type = symbol->type();
-    }
-  } else {
-    auto name = ast_cast<NameIdAST>(unqualifiedId);
-    auto symbol =
-        Lookup{scope()}.lookupType(nestedNameSpecifier, name->identifier);
+  const auto canInstantiate = config_.checkTypes;
 
-    if (is_type(symbol)) {
-      typeSymbol = symbol;
-      specs.type = symbol->type();
-    } else {
-      if (config_.checkTypes) return false;
-    }
+  auto symbol =
+      binder_.resolve(nestedNameSpecifier, unqualifiedId, canInstantiate);
+
+  if (config_.checkTypes && !symbol && ast_cast<NameIdAST>(unqualifiedId)) {
+    return false;
   }
 
   lookahead.commit();
-
-  if (!specs.type) {
-    specs.type = control_->getUnresolvedNameType(unit, nestedNameSpecifier,
-                                                 unqualifiedId);
-  }
 
   auto ast = make_node<NamedTypeSpecifierAST>(pool_);
   yyast = ast;
@@ -5022,7 +4975,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
-  ast->symbol = typeSymbol;
+  ast->symbol = symbol;
 
   specs.accept(ast);
 
@@ -5189,13 +5142,6 @@ void Parser::check_type_traits() {
 #endif
 
   rewind(typeTraitLoc);
-}
-
-auto Parser::strip_parentheses(ExpressionAST* ast) -> ExpressionAST* {
-  while (auto paren = ast_cast<NestedExpressionAST>(ast)) {
-    ast = paren->expression;
-  }
-  return ast;
 }
 
 auto Parser::strip_cv(const Type*& type) -> CvQualifiers {
@@ -6816,7 +6762,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
                             /*inRequiresClause*/ false))
     return false;
 
-  auto name = convertName(unqualifiedId);
+  auto name = get_name(control_, unqualifiedId);
   auto target = Lookup{scope()}.lookup(nestedNameSpecifier, name);
 
   SourceLocation ellipsisLoc;
@@ -9303,9 +9249,6 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = unqualifiedId;
 
-  specs.type =
-      control_->getUnresolvedNameType(unit, nestedNameSpecifier, unqualifiedId);
-
   specs.accept(ast);
 
   return true;
@@ -9594,11 +9537,6 @@ void Parser::check(ExpressionAST* ast) {
   check.setScope(scope());
   check.setReportErrors(config_.checkTypes);
   check(ast);
-}
-
-auto Parser::convertName(UnqualifiedIdAST* id) -> const Name* {
-  if (!id) return nullptr;
-  return get_name(control_, id);
 }
 
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)

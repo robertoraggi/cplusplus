@@ -33,7 +33,8 @@ ASTRewriter::ASTRewriter(TypeChecker* typeChcker,
                          const std::vector<TemplateArgument>& templateArguments)
     : typeChecker_(typeChcker),
       unit_(typeChcker->translationUnit()),
-      templateArguments_(templateArguments) {}
+      templateArguments_(templateArguments),
+      binder_(typeChcker->translationUnit()) {}
 
 ASTRewriter::~ASTRewriter() {}
 
@@ -1027,6 +1028,7 @@ auto ASTRewriter::operator()(EnumeratorAST* ast) -> EnumeratorAST* {
   copy->equalLoc = ast->equalLoc;
   copy->expression = operator()(ast->expression);
   copy->identifier = ast->identifier;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -3094,6 +3096,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
   copy->declarator = rewrite(ast->declarator);
   copy->initializer = rewrite(ast->initializer);
+  copy->symbol = ast->symbol;
 
   return copy;
 }

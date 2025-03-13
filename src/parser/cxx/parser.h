@@ -790,7 +790,6 @@ class Parser final {
   void check(ExpressionAST* ast);
 
   // lookup
-  [[nodiscard]] auto convertName(UnqualifiedIdAST* id) -> const Name*;
 
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;
@@ -801,15 +800,8 @@ class Parser final {
 
   void enterFunctionScope(FunctionDeclaratorChunkAST* functionDeclarator);
 
-  [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
-
-  void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
-  void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
-  void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
-
   void check_type_traits();
 
-  [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
   [[nodiscard]] auto is_const(CvQualifiers cv) const -> bool;
   [[nodiscard]] auto is_volatile(CvQualifiers cv) const -> bool;
@@ -820,7 +812,6 @@ class Parser final {
   [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
 
   [[nodiscard]] auto is_template(Symbol* symbol) const -> bool;
-  [[nodiscard]] auto is_constructor(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto evaluate_constant_expression(ExpressionAST* expr)
       -> std::optional<ConstValue>;

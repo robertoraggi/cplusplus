@@ -254,7 +254,12 @@ void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
   specs.typeSpecifier = ast;
-  if (ast->symbol) specs.type = ast->symbol->type();
+
+  if (ast->symbol)
+    specs.type = ast->symbol->type();
+  else
+    specs.type = control()->getUnresolvedNameType(
+        specs.unit, ast->nestedNameSpecifier, ast->unqualifiedId);
 }
 
 void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
@@ -322,6 +327,9 @@ void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
   specs.typeSpecifier = ast;
+  specs.type = control()->getUnresolvedNameType(
+      specs.unit, ast->nestedNameSpecifier, ast->unqualifiedId);
+
   // ### todo
 }
 
