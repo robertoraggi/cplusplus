@@ -1894,108 +1894,9 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
                             /*inRequiresClause*/ false))
     parse_error("expected an unqualified id");
 
-  check_member_expression(ast);
+  check(ast);
 
   yyast = ast;
-
-  return true;
-}
-
-void Parser::check_member_expression(MemberExpressionAST* ast) {
-  if (check_pseudo_destructor_access(ast)) return;
-  if (check_member_access(ast)) return;
-}
-
-auto Parser::check_member_access(MemberExpressionAST* ast) -> bool {
-  const Type* objectType = ast->baseExpression->type;
-  auto cv1 = strip_cv(objectType);
-
-  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
-    auto pointerType = type_cast<PointerType>(objectType);
-    if (!pointerType) return false;
-
-    objectType = pointerType->elementType();
-    cv1 = strip_cv(objectType);
-  }
-
-  auto classType = type_cast<ClassType>(objectType);
-  if (!classType) return false;
-
-  auto memberName = get_name(control_, ast->unqualifiedId);
-
-  auto classSymbol = classType->symbol();
-
-  auto symbol =
-      Lookup{scope()}.qualifiedLookup(classSymbol->scope(), memberName);
-
-  ast->symbol = symbol;
-
-  if (symbol) {
-    ast->type = symbol->type();
-
-    if (symbol->isEnumerator()) {
-      ast->valueCategory = ValueCategory::kPrValue;
-    } else {
-      if (is_lvalue(ast->baseExpression)) {
-        ast->valueCategory = ValueCategory::kLValue;
-      } else {
-        ast->valueCategory = ValueCategory::kXValue;
-      }
-
-      if (auto field = symbol_cast<FieldSymbol>(symbol);
-          field && !field->isStatic()) {
-        auto cv2 = strip_cv(ast->type);
-
-        if (is_volatile(cv1) || is_volatile(cv2))
-          ast->type = control_->add_volatile(ast->type);
-
-        if (!field->isMutable() && (is_const(cv1) || is_const(cv2)))
-          ast->type = control_->add_const(ast->type);
-      }
-    }
-  }
-
-  return true;
-}
-
-auto Parser::check_pseudo_destructor_access(MemberExpressionAST* ast) -> bool {
-  auto objectType = ast->baseExpression->type;
-  auto cv = strip_cv(objectType);
-
-  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
-    auto pointerType = type_cast<PointerType>(objectType);
-    if (!pointerType) return false;
-    objectType = pointerType->elementType();
-    cv = strip_cv(objectType);
-  }
-
-  if (!control_->is_scalar(objectType)) {
-    // return false if the object type is not a scalar type
-    return false;
-  }
-
-  // from this point on we are going to assume that we want a pseudo destructor
-  // to be called on a scalar type.
-
-  auto dtor = ast_cast<DestructorIdAST>(ast->unqualifiedId);
-  if (!dtor) return true;
-
-  auto name = ast_cast<NameIdAST>(dtor->id);
-  if (!name) return true;
-
-  auto symbol =
-      Lookup{scope()}.lookupType(ast->nestedNameSpecifier, name->identifier);
-  if (!symbol) return true;
-
-  if (!control_->is_same(symbol->type(), objectType)) {
-    parse_error(ast->unqualifiedId->firstSourceLocation(),
-                "the type of object expression does not match the type "
-                "being destroyed");
-    return true;
-  }
-
-  ast->symbol = symbol;
-  ast->type = control_->getFunctionType(control_->getVoidType(), {});
 
   return true;
 }
@@ -2007,6 +1908,7 @@ auto Parser::parse_subscript_expression(ExpressionAST*& yyast,
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
   auto ast = make_node<SubscriptExpressionAST>(pool_);
+
   ast->baseExpression = yyast;
   ast->lbracketLoc = lbracketLoc;
 
@@ -2015,6 +1917,8 @@ auto Parser::parse_subscript_expression(ExpressionAST*& yyast,
   parse_expr_or_braced_init_list(ast->indexExpression, ctx);
 
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
+
+  check(ast);
 
   return true;
 }
@@ -2059,6 +1963,8 @@ auto Parser::parse_postincr_expression(ExpressionAST*& yyast,
   ast->op = unit->tokenKind(ast->opLoc);
   yyast = ast;
 
+  check(ast);
+
   return true;
 }
 
@@ -2101,47 +2007,44 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool {
-  if (!lookat(TokenKind::T___BUILTIN_BIT_CAST)) return false;
+  SourceLocation castLoc;
+  if (!match(TokenKind::T___BUILTIN_BIT_CAST, castLoc)) return false;
 
   auto ast = make_node<BuiltinBitCastExpressionAST>(pool_);
   yyast = ast;
 
-  ast->castLoc = consumeToken();
+  ast->castLoc = castLoc;
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+
   expect(TokenKind::T_COMMA, ast->commaLoc);
   parse_expression(ast->expression, ctx);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  check(ast);
 
   return true;
 }
 
 auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool {
-  if (!lookat(TokenKind::T___BUILTIN_OFFSETOF)) return false;
+  SourceLocation offsetofLoc;
+  if (!match(TokenKind::T___BUILTIN_OFFSETOF, offsetofLoc)) return false;
 
   auto ast = make_node<BuiltinOffsetofExpressionAST>(pool_);
   yyast = ast;
 
-  ast->offsetofLoc = consumeToken();
+  ast->offsetofLoc = offsetofLoc;
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
+
   expect(TokenKind::T_COMMA, ast->commaLoc);
   parse_expression(ast->expression, ctx);
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  auto classType = type_cast<ClassType>(ast->typeId->type);
-  auto id = ast_cast<IdExpressionAST>(ast->expression);
-
-  if (classType && id && !id->nestedNameSpecifier) {
-    auto symbol = classType->symbol();
-    auto name = get_name(control_, id->unqualifiedId);
-    auto member = Lookup{scope()}.qualifiedLookup(symbol->scope(), name);
-    auto field = symbol_cast<FieldSymbol>(member);
-    ast->symbol = field;
-  }
-
-  ast->type = control_->getSizeType();
+  check(ast);
 
   return true;
 }
@@ -2221,6 +2124,8 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
   ast->expressionList = expressionList;
   ast->rparenLoc = rparenLoc;
 
+  check(ast);
+
   return true;
 }
 
@@ -2252,6 +2157,8 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
     ast->typeId = typeId;
     ast->rparenLoc = rparenLoc;
 
+    check(ast);
+
     return true;
   };
 
@@ -2266,6 +2173,8 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
   parse_expression(ast->expression, ctx);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  check(ast);
 
   return true;
 }
@@ -2287,6 +2196,8 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
 
     ast->typeSpecifier = typenameSpecifier;
     ast->bracedInitList = bracedInitList;
+
+    check(ast);
 
     return true;
   }
@@ -2315,6 +2226,8 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
   ast->expressionList = expressionList;
   ast->rparenLoc = rparenLoc;
 
+  check(ast);
+
   return true;
 }
 
@@ -2339,9 +2252,9 @@ auto Parser::parse_va_arg_expression(ExpressionAST*& yyast,
   expect(TokenKind::T_COMMA, ast->commaLoc);
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
-  if (ast->type) {
-    ast->type = ast->typeId->type;
-  }
+
+  check(ast);
+
   return true;
 }
 
@@ -2381,7 +2294,7 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  ast->type = control_->getBoolType();
+  check(ast);
 
   return true;
 }
@@ -2603,6 +2516,8 @@ auto Parser::parse_await_expression(ExpressionAST*& yyast,
   if (!parse_cast_expression(ast->expression, ctx))
     parse_error("expected an expression");
 
+  check(ast);
+
   return true;
 }
 
@@ -2620,6 +2535,8 @@ auto Parser::parse_noexcept_expression(ExpressionAST*& yyast,
   parse_expression(ast->expression, ctx);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  check(ast);
 
   return true;
 }
@@ -2667,6 +2584,8 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
     ast->rparenLoc = rparenLoc;
     ast->newInitalizer = newInitializer;
 
+    check(ast);
+
     return true;
   };
 
@@ -2681,6 +2600,8 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
   (void)parse_declarator(ast->declarator, decl, DeclaratorKind::kNewDeclarator);
 
   parse_optional_new_initializer(ast->newInitalizer, ctx);
+
+  check(ast);
 
   return true;
 }
@@ -2761,6 +2682,8 @@ auto Parser::parse_delete_expression(ExpressionAST*& yyast,
     parse_error("expected an expression");
   }
 
+  check(ast);
+
   return true;
 }
 
@@ -2772,6 +2695,7 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast,
     LookaheadParser lookahead{this};
     if (!parse_cast_expression_helper(yyast, ctx)) return false;
     lookahead.commit();
+
     return true;
   };
 
@@ -2810,6 +2734,8 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
   ast->typeId = typeId;
   ast->rparenLoc = rparenLoc;
   ast->expression = expression;
+
+  check(ast);
 
   return true;
 }
@@ -2972,6 +2898,8 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
     } else {
       parse_assignment_expression(ast->iffalseExpression, exprContext);
     }
+
+    check(ast);
   }
 
   return true;
@@ -2988,6 +2916,8 @@ auto Parser::parse_yield_expression(ExpressionAST*& yyast,
 
   ast->yieldLoc = yieldLoc;
   parse_expr_or_braced_init_list(ast->expression, ctx);
+
+  check(ast);
 
   return true;
 }
@@ -3008,6 +2938,8 @@ auto Parser::parse_throw_expression(ExpressionAST*& yyast,
   if (parse_maybe_assignment_expression(ast->expression, ctx)) {
     lookahead.commit();
   }
+
+  check(ast);
 
   return true;
 }
