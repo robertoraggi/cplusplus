@@ -121,6 +121,12 @@ class Binder {
 
   void bind(UsingDirectiveAST* ast);
 
+  [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
+
+  [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
+                             UnqualifiedIdAST* unqualifiedId,
+                             bool canInstantiate) -> Symbol*;
+
   class ScopeGuard {
    public:
     Binder* p = nullptr;

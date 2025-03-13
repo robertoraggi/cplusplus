@@ -70,6 +70,7 @@ export function new_ast_rewriter_h({
 
 #include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
+#include <cxx/binder.h>
 
 #include <vector>
 
@@ -96,6 +97,7 @@ private:
     TypeChecker* typeChecker_ = nullptr;
     const std::vector<TemplateArgument>& templateArguments_;
     TranslationUnit* unit_ = nullptr;
+    Binder binder_;
 };
 
 } // namespace cxx

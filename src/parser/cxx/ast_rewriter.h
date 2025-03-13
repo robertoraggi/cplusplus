@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/binder.h>
 #include <cxx/names_fwd.h>
 
 #include <vector>
@@ -136,6 +137,7 @@ class ASTRewriter {
   TypeChecker* typeChecker_ = nullptr;
   const std::vector<TemplateArgument>& templateArguments_;
   TranslationUnit* unit_ = nullptr;
+  Binder binder_;
 };
 
 }  // namespace cxx

@@ -617,4 +617,58 @@ auto Binder::isConstructor(Symbol* symbol) const -> bool {
   return true;
 }
 
+auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
+                     UnqualifiedIdAST* unqualifiedId, bool canInstantiate)
+    -> Symbol* {
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    if (!canInstantiate) return nullptr;
+
+    auto instance = instantiate(templateId);
+
+    if (!is_type(instance)) return nullptr;
+
+    return instance;
+  }
+
+  auto name = ast_cast<NameIdAST>(unqualifiedId);
+
+  auto symbol =
+      Lookup{scope()}.lookupType(nestedNameSpecifier, name->identifier);
+
+  if (!is_type(symbol)) return nullptr;
+
+  return symbol;
+}
+
+auto Binder::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
+  std::vector<TemplateArgument> args;
+  for (auto it = templateId->templateArgumentList; it; it = it->next) {
+    if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
+      args.push_back(arg->typeId->type);
+    } else {
+      error(it->value->firstSourceLocation(),
+            std::format("only type template arguments are supported"));
+    }
+  }
+
+  auto needsInstantiation = [&]() -> bool {
+    if (args.empty()) return true;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+      auto typeArgument = std::get_if<const Type*>(&args[i]);
+      if (!typeArgument) return true;
+      auto ty = type_cast<TypeParameterType>(*typeArgument);
+      if (!ty) return true;
+      if (ty->symbol()->index() != i) return true;
+    }
+    return false;
+  };
+
+  if (!needsInstantiation()) return nullptr;
+
+  auto symbol = control()->instantiate(unit_, templateId->primaryTemplateSymbol,
+                                       std::move(args));
+
+  return symbol;
+}
+
 }  // namespace cxx

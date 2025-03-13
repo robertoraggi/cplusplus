@@ -222,8 +222,9 @@ namespace cxx {
 ${opName}::${opName}(TypeChecker* typeChcker,
   const std::vector<TemplateArgument>& templateArguments)
 : typeChecker_(typeChcker)
-,  unit_(typeChcker->translationUnit())
-,  templateArguments_(templateArguments) {}
+, unit_(typeChcker->translationUnit())
+, templateArguments_(templateArguments)
+, binder_(typeChcker->translationUnit()) {}
 
 ${opName}::~${opName}() {}
 
