@@ -98,7 +98,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          void-type-specifier
-// CHECK-NEXT:                      expression: va-arg-expression
+// CHECK-NEXT:                      expression: va-arg-expression [prvalue int]
 // CHECK-NEXT:                        expression: id-expression [lvalue __builtin_va_list]
 // CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: args

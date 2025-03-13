@@ -264,7 +264,9 @@ auto CLI::positionals() const -> std::vector<std::string> {
   std::vector<std::string> result;
   for (const auto& match : result_) {
     if (auto p = std::get_if<CLIPositional>(&match)) {
-      result.push_back(std::get<0>(*p));
+      auto arg = std::get<0>(*p);
+      if (arg.empty()) continue;
+      result.push_back(std::move(arg));
     }
   }
   return result;

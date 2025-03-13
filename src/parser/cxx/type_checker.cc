@@ -24,6 +24,8 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/name_lookup.h>
+#include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -122,6 +124,10 @@ struct TypeChecker::Visitor {
 
   void check_addition(BinaryExpressionAST* ast);
   void check_subtraction(BinaryExpressionAST* ast);
+
+  [[nodiscard]] auto check_member_access(MemberExpressionAST* ast) -> bool;
+  [[nodiscard]] auto check_pseudo_destructor_access(MemberExpressionAST* ast)
+      -> bool;
 
   void operator()(GeneratedLiteralExpressionAST* ast);
   void operator()(CharLiteralExpressionAST* ast);
@@ -249,7 +255,11 @@ void TypeChecker::Visitor::operator()(LeftFoldExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(RequiresExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(VaArgExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(VaArgExpressionAST* ast) {
+  if (ast->typeId) {
+    ast->type = ast->typeId->type;
+  }
+}
 
 void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {}
 
@@ -301,7 +311,10 @@ void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(SpliceMemberExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
+  if (check_pseudo_destructor_access(ast)) return;
+  if (check_member_access(ast)) return;
+}
 
 void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {}
 
@@ -414,7 +427,20 @@ auto TypeChecker::Visitor::check_cast_to_derived(const Type* targetType,
 
 void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
+  auto classType = type_cast<ClassType>(ast->typeId->type);
+  auto id = ast_cast<IdExpressionAST>(ast->expression);
+
+  if (classType && id && !id->nestedNameSpecifier) {
+    auto symbol = classType->symbol();
+    auto name = get_name(control(), id->unqualifiedId);
+    auto member = Lookup{scope()}.qualifiedLookup(symbol->scope(), name);
+    auto field = symbol_cast<FieldSymbol>(member);
+    ast->symbol = field;
+  }
+
+  ast->type = control()->getSizeType();
+}
 
 void TypeChecker::Visitor::operator()(TypeidExpressionAST* ast) {}
 
@@ -744,84 +770,6 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
   }  // switch
 }
 
-void TypeChecker::Visitor::check_addition(BinaryExpressionAST* ast) {
-  (void)ensure_prvalue(ast->leftExpression);
-  (void)ensure_prvalue(ast->rightExpression);
-
-  if (auto ty = usual_arithmetic_conversion(ast->leftExpression,
-                                            ast->rightExpression)) {
-    ast->type = ty;
-    return;
-  }
-
-  const auto left_is_pointer = control()->is_pointer(ast->leftExpression->type);
-
-  const auto right_is_pointer =
-      control()->is_pointer(ast->rightExpression->type);
-
-  const auto left_is_integral =
-      control()->is_integral_or_unscoped_enum(ast->leftExpression->type);
-
-  const auto right_is_integral =
-      control()->is_integral_or_unscoped_enum(ast->rightExpression->type);
-
-  if (left_is_pointer && right_is_integral) {
-    (void)integral_promotion(ast->rightExpression);
-    ast->type = ast->leftExpression->type;
-    return;
-  }
-
-  if (right_is_pointer && left_is_integral) {
-    (void)integral_promotion(ast->leftExpression);
-    ast->type = ast->rightExpression->type;
-    return;
-  }
-
-  error(ast->opLoc,
-        std::format(
-            "invalid operands of types '{}' and '{}' to binary operator '+'",
-            to_string(ast->leftExpression->type),
-            to_string(ast->rightExpression->type)));
-}
-
-void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
-  (void)ensure_prvalue(ast->leftExpression);
-  (void)ensure_prvalue(ast->rightExpression);
-
-  if (auto ty = usual_arithmetic_conversion(ast->leftExpression,
-                                            ast->rightExpression)) {
-    ast->type = ty;
-    return;
-  }
-
-  const auto left_is_pointer = control()->is_pointer(ast->leftExpression->type);
-
-  const auto right_is_pointer =
-      control()->is_pointer(ast->rightExpression->type);
-
-  if (left_is_pointer && right_is_pointer) {
-    auto lhs = control()->remove_cv(ast->leftExpression->type);
-    auto rhs = control()->remove_cv(ast->rightExpression->type);
-    if (control()->is_same(lhs, rhs)) {
-      ast->type = control()->getLongIntType();  // TODO: ptrdiff_t
-      return;
-    }
-  }
-
-  if (left_is_pointer &&
-      control()->is_integral_or_unscoped_enum(ast->rightExpression->type)) {
-    (void)integral_promotion(ast->rightExpression);
-    ast->type = ast->leftExpression->type;
-    return;
-  }
-
-  error(ast->opLoc,
-        std::format(
-            "invalid operands of types '{}' and '{}' to binary operator '-'",
-            to_string(ast->leftExpression->type),
-            to_string(ast->rightExpression->type)));
-}
-
 void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(YieldExpressionAST* ast) {}
@@ -842,7 +790,9 @@ void TypeChecker::Visitor::operator()(PackExpansionExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(DesignatedInitializerClauseAST* ast) {}
 
-void TypeChecker::Visitor::operator()(TypeTraitExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(TypeTraitExpressionAST* ast) {
+  ast->type = control()->getBoolType();
+}
 
 void TypeChecker::Visitor::operator()(ConditionExpressionAST* ast) {}
 
@@ -1573,6 +1523,180 @@ void TypeChecker::operator()(ExpressionAST* ast) {
 void TypeChecker::check(ExpressionAST* ast) {
   if (!ast) return;
   visit(Visitor{*this}, ast);
+}
+
+void TypeChecker::Visitor::check_addition(BinaryExpressionAST* ast) {
+  (void)ensure_prvalue(ast->leftExpression);
+  (void)ensure_prvalue(ast->rightExpression);
+
+  if (auto ty = usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression)) {
+    ast->type = ty;
+    return;
+  }
+
+  const auto left_is_pointer = control()->is_pointer(ast->leftExpression->type);
+
+  const auto right_is_pointer =
+      control()->is_pointer(ast->rightExpression->type);
+
+  const auto left_is_integral =
+      control()->is_integral_or_unscoped_enum(ast->leftExpression->type);
+
+  const auto right_is_integral =
+      control()->is_integral_or_unscoped_enum(ast->rightExpression->type);
+
+  if (left_is_pointer && right_is_integral) {
+    (void)integral_promotion(ast->rightExpression);
+    ast->type = ast->leftExpression->type;
+    return;
+  }
+
+  if (right_is_pointer && left_is_integral) {
+    (void)integral_promotion(ast->leftExpression);
+    ast->type = ast->rightExpression->type;
+    return;
+  }
+
+  error(ast->opLoc,
+        std::format(
+            "invalid operands of types '{}' and '{}' to binary operator '+'",
+            to_string(ast->leftExpression->type),
+            to_string(ast->rightExpression->type)));
+}
+
+void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
+  (void)ensure_prvalue(ast->leftExpression);
+  (void)ensure_prvalue(ast->rightExpression);
+
+  if (auto ty = usual_arithmetic_conversion(ast->leftExpression,
+                                            ast->rightExpression)) {
+    ast->type = ty;
+    return;
+  }
+
+  const auto left_is_pointer = control()->is_pointer(ast->leftExpression->type);
+
+  const auto right_is_pointer =
+      control()->is_pointer(ast->rightExpression->type);
+
+  if (left_is_pointer && right_is_pointer) {
+    auto lhs = control()->remove_cv(ast->leftExpression->type);
+    auto rhs = control()->remove_cv(ast->rightExpression->type);
+    if (control()->is_same(lhs, rhs)) {
+      ast->type = control()->getLongIntType();  // TODO: ptrdiff_t
+      return;
+    }
+  }
+
+  if (left_is_pointer &&
+      control()->is_integral_or_unscoped_enum(ast->rightExpression->type)) {
+    (void)integral_promotion(ast->rightExpression);
+    ast->type = ast->leftExpression->type;
+    return;
+  }
+
+  error(ast->opLoc,
+        std::format(
+            "invalid operands of types '{}' and '{}' to binary operator '-'",
+            to_string(ast->leftExpression->type),
+            to_string(ast->rightExpression->type)));
+}
+
+auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
+    -> bool {
+  const Type* objectType = ast->baseExpression->type;
+  auto cv1 = strip_cv(objectType);
+
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
+    auto pointerType = type_cast<PointerType>(objectType);
+    if (!pointerType) return false;
+
+    objectType = pointerType->elementType();
+    cv1 = strip_cv(objectType);
+  }
+
+  auto classType = type_cast<ClassType>(objectType);
+  if (!classType) return false;
+
+  auto memberName = get_name(control(), ast->unqualifiedId);
+
+  auto classSymbol = classType->symbol();
+
+  auto symbol =
+      Lookup{scope()}.qualifiedLookup(classSymbol->scope(), memberName);
+
+  ast->symbol = symbol;
+
+  if (symbol) {
+    ast->type = symbol->type();
+
+    if (symbol->isEnumerator()) {
+      ast->valueCategory = ValueCategory::kPrValue;
+    } else {
+      if (is_lvalue(ast->baseExpression)) {
+        ast->valueCategory = ValueCategory::kLValue;
+      } else {
+        ast->valueCategory = ValueCategory::kXValue;
+      }
+
+      if (auto field = symbol_cast<FieldSymbol>(symbol);
+          field && !field->isStatic()) {
+        auto cv2 = strip_cv(ast->type);
+
+        if (is_volatile(cv1) || is_volatile(cv2))
+          ast->type = control()->add_volatile(ast->type);
+
+        if (!field->isMutable() && (is_const(cv1) || is_const(cv2)))
+          ast->type = control()->add_const(ast->type);
+      }
+    }
+  }
+
+  return true;
+}
+
+auto TypeChecker::Visitor::check_pseudo_destructor_access(
+    MemberExpressionAST* ast) -> bool {
+  auto objectType = ast->baseExpression->type;
+  auto cv = strip_cv(objectType);
+
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
+    auto pointerType = type_cast<PointerType>(objectType);
+    if (!pointerType) return false;
+    objectType = pointerType->elementType();
+    cv = strip_cv(objectType);
+  }
+
+  if (!control()->is_scalar(objectType)) {
+    // return false if the object type is not a scalar type
+    return false;
+  }
+
+  // from this point on we are going to assume that we want a pseudo destructor
+  // to be called on a scalar type.
+
+  auto dtor = ast_cast<DestructorIdAST>(ast->unqualifiedId);
+  if (!dtor) return true;
+
+  auto name = ast_cast<NameIdAST>(dtor->id);
+  if (!name) return true;
+
+  auto symbol =
+      Lookup{scope()}.lookupType(ast->nestedNameSpecifier, name->identifier);
+  if (!symbol) return true;
+
+  if (!control()->is_same(symbol->type(), objectType)) {
+    error(ast->unqualifiedId->firstSourceLocation(),
+          "the type of object expression does not match the type "
+          "being destroyed");
+    return true;
+  }
+
+  ast->symbol = symbol;
+  ast->type = control()->getFunctionType(control()->getVoidType(), {});
+
+  return true;
 }
 
 }  // namespace cxx
