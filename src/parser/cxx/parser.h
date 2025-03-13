@@ -796,15 +796,6 @@ class Parser final {
 
   void check_type_traits();
 
-  [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
-  [[nodiscard]] auto is_const(CvQualifiers cv) const -> bool;
-  [[nodiscard]] auto is_volatile(CvQualifiers cv) const -> bool;
-
-  [[nodiscard]] auto is_prvalue(ExpressionAST* expr) const -> bool;
-  [[nodiscard]] auto is_lvalue(ExpressionAST* expr) const -> bool;
-  [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
-  [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
-
   [[nodiscard]] auto is_template(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto evaluate_constant_expression(ExpressionAST* expr)

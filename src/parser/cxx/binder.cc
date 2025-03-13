@@ -276,6 +276,22 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
   }
 }
 
+void Binder::bind(DecltypeSpecifierAST* ast) {
+  if (auto id = ast_cast<IdExpressionAST>(ast->expression)) {
+    if (id->symbol) ast->type = id->symbol->type();
+  } else if (auto member = ast_cast<MemberExpressionAST>(ast->expression)) {
+    if (member->symbol) ast->type = member->symbol->type();
+  } else if (ast->expression && ast->expression->type) {
+    if (is_lvalue(ast->expression)) {
+      ast->type = control()->add_lvalue_reference(ast->expression->type);
+    } else if (is_xvalue(ast->expression)) {
+      ast->type = control()->add_rvalue_reference(ast->expression->type);
+    } else {
+      ast->type = ast->expression->type;
+    }
+  }
+}
+
 void Binder::bind(EnumeratorAST* ast, const Type* type,
                   std::optional<ConstValue> value) {
   auto symbol = control()->newEnumeratorSymbol(scope(), ast->identifierLoc);

@@ -5328,4 +5328,25 @@ template <>
   }  // switch
 }
 
+[[nodiscard]] inline auto is_prvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kPrValue;
+}
+
+[[nodiscard]] inline auto is_lvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kLValue;
+}
+
+[[nodiscard]] inline auto is_xvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kXValue;
+}
+
+[[nodiscard]] inline auto is_glvalue(ExpressionAST* expr) -> bool {
+  if (!expr) return false;
+  return expr->valueCategory == ValueCategory::kLValue ||
+         expr->valueCategory == ValueCategory::kXValue;
+}
+
 }  // namespace cxx

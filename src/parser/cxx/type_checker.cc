@@ -110,10 +110,6 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto is_null_pointer_constant(ExpressionAST* expr) const
       -> bool;
 
-  [[nodiscard]] auto is_prvalue(ExpressionAST* expr) const -> bool;
-  [[nodiscard]] auto is_lvalue(ExpressionAST* expr) const -> bool;
-  [[nodiscard]] auto is_xvalue(ExpressionAST* expr) const -> bool;
-  [[nodiscard]] auto is_glvalue(ExpressionAST* expr) const -> bool;
   [[nodiscard]] auto check_cv_qualifiers(CvQualifiers target,
                                          CvQualifiers source) const -> bool;
 
@@ -1481,27 +1477,6 @@ auto TypeChecker::Visitor::is_null_pointer_constant(ExpressionAST* expr) const
     return integerLiteral->literal->value() == "0";
   }
   return false;
-}
-
-auto TypeChecker::Visitor::is_prvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kPrValue;
-}
-
-auto TypeChecker::Visitor::is_lvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kLValue;
-}
-
-auto TypeChecker::Visitor::is_xvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kXValue;
-}
-
-auto TypeChecker::Visitor::is_glvalue(ExpressionAST* expr) const -> bool {
-  if (!expr) return false;
-  return expr->valueCategory == ValueCategory::kLValue ||
-         expr->valueCategory == ValueCategory::kXValue;
 }
 
 auto TypeChecker::Visitor::check_cv_qualifiers(CvQualifiers target,
