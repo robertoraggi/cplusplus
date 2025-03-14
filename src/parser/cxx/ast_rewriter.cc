@@ -1091,7 +1091,10 @@ auto ASTRewriter::operator()(TypeIdAST* ast) -> TypeIdAST* {
   }
 
   copy->declarator = operator()(ast->declarator);
-  copy->type = ast->type;
+
+  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
+                                          typeSpecifierListCtx.getType());
+  copy->type = declaratorType;
 
   return copy;
 }
@@ -1570,6 +1573,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   copy->declarator = rewrite(ast->declarator);
+
+  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
+                                          declSpecifierListCtx.getType());
   copy->requiresClause = rewrite(ast->requiresClause);
   copy->functionBody = rewrite(ast->functionBody);
   copy->symbol = ast->symbol;
@@ -1805,9 +1811,12 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   }
 
   copy->declarator = rewrite(ast->declarator);
+
+  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
+                                          typeSpecifierListCtx.getType());
+  copy->type = declaratorType;
   copy->equalLoc = ast->equalLoc;
   copy->expression = rewrite(ast->expression);
-  copy->type = ast->type;
   copy->identifier = ast->identifier;
   copy->isThisIntroduced = ast->isThisIntroduced;
   copy->isPack = ast->isPack;
@@ -2886,6 +2895,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
   }
 
   copy->declarator = rewrite(ast->declarator);
+
+  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
+                                          typeSpecifierListCtx.getType());
   copy->rparenLoc = ast->rparenLoc;
   copy->newInitalizer = rewrite(ast->newInitalizer);
 
@@ -3072,6 +3084,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
   }
 
   copy->declarator = rewrite(ast->declarator);
+
+  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
+                                          declSpecifierListCtx.getType());
   copy->initializer = rewrite(ast->initializer);
   copy->symbol = ast->symbol;
 
@@ -4308,6 +4323,9 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
   }
 
   copy->declarator = rewrite(ast->declarator);
+
+  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
+                                          typeSpecifierListCtx.getType());
 
   return copy;
 }

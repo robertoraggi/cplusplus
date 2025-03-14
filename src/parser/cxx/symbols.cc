@@ -493,6 +493,14 @@ void TypeAliasSymbol::setTemplateParameters(
   templateParameters_ = templateParameters;
 }
 
+auto TypeAliasSymbol::declaration() const -> AliasDeclarationAST* {
+  return declaration_;
+}
+
+void TypeAliasSymbol::setDeclaration(AliasDeclarationAST* declaration) {
+  declaration_ = declaration;
+}
+
 VariableSymbol::VariableSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 

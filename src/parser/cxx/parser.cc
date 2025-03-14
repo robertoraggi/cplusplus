@@ -3813,6 +3813,8 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
   ast->semicolonLoc = semicolonLoc;
   ast->symbol = symbol;
 
+  ast->symbol->setDeclaration(ast);
+
   return true;
 }
 
