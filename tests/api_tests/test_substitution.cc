@@ -32,65 +32,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace cxx {
-
-auto dump_symbol(Symbol* symbol) -> std::string {
-  std::ostringstream out;
-  out << symbol;
-  return out.str();
-}
-
-struct Source {
-  DiagnosticsClient diagnosticsClient;
-  TranslationUnit unit{&diagnosticsClient};
-
-  explicit Source(std::string_view source) {
-    unit.setSource(std::string(source), "<test>");
-    unit.parse({
-        .checkTypes = true,
-        .fuzzyTemplateResolution = false,
-        .reflect = true,
-    });
-  }
-
-  auto control() -> Control* { return unit.control(); }
-  auto ast() -> UnitAST* { return unit.ast(); }
-  auto scope() -> Scope* { return unit.globalScope(); }
-
-  auto get(std::string_view name) -> Symbol* {
-    Symbol* symbol = nullptr;
-    auto id = unit.control()->getIdentifier(name);
-    for (auto candidate : scope()->find(id)) {
-      if (symbol) return nullptr;
-      symbol = candidate;
-    }
-    return symbol;
-  }
-
-  auto instantiate(std::string_view name,
-                   const std::vector<TemplateArgument>& arguments) -> Symbol* {
-    auto symbol = get(name);
-    return control()->instantiate(&unit, symbol, arguments);
-  }
-};
-
-auto operator""_cxx(const char* source, std::size_t size) -> Source {
-  return Source{std::string_view{source, size}};
-}
-
-struct LookupMember {
-  Source& source;
-
-  auto operator()(Scope* scope, std::string_view name) -> Symbol* {
-    auto id = source.control()->getIdentifier(name);
-    for (auto candidate : scope->find(id)) {
-      return candidate;
-    }
-    return nullptr;
-  }
-};
-
-}  // namespace cxx
+#include "test_utils.h"
 
 using namespace cxx;
 

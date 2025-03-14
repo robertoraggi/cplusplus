@@ -22,8 +22,13 @@ if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
     return()
 endif()
 
-aux_source_directory(. SOURCES)
-add_executable(test_api ${SOURCES})
+add_executable(test_api
+    test_control.cc
+    test_external_names.cc
+    test_rewriter.cc
+    test_substitution.cc
+    test_type_printer.cc
+)
 
 target_link_libraries(test_api
     GTest::gtest_main

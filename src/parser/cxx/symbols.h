@@ -505,8 +505,12 @@ class TypeAliasSymbol final : public Symbol {
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
   void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
+  [[nodiscard]] auto declaration() const -> AliasDeclarationAST*;
+  void setDeclaration(AliasDeclarationAST* declaration);
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  AliasDeclarationAST* declaration_ = nullptr;
 };
 
 class VariableSymbol final : public Symbol {

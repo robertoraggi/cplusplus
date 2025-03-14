@@ -17,9 +17,12 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-aux_source_directory(cxx SOURCES)
 
-add_executable(cxx ${SOURCES})
+add_executable(cxx
+    cxx/ast_printer.cc
+    cxx/frontend.cc
+    cxx/verify_diagnostics_client.cc
+)
 
 target_link_libraries(cxx PRIVATE cxx-lsp)
 

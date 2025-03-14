@@ -95,16 +95,43 @@ export function new_ast_rewriter_cc({
 `);
     }
 
+    let typeAttr: Member | undefined;
+
     members.forEach((m) => {
       if (m === blockSymbol) return;
+      if (m === typeAttr) return;
 
       switch (m.kind) {
         case "node": {
           if (isBase(m.type)) {
-            emit(`  copy->${m.name} = ${visitor}(ast->${m.name});`);
+            emit(`copy->${m.name} = ${visitor}(ast->${m.name});`);
+
+            switch (m.type) {
+              case "DeclaratorAST":
+                const specsAttr =
+                  members.find((m) => m.name == "typeSpecifierList")?.name ??
+                  members.find((m) => m.name == "declSpecifierList")?.name;
+                if (specsAttr) {
+                  emit();
+                  emit(
+                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`
+                  );
+
+                  typeAttr = members.find(
+                    (m) => m.kind === "attribute" && m.name === "type"
+                  );
+
+                  if (typeAttr) {
+                    emit(`copy->${typeAttr.name} = ${m.name}Type;`);
+                  }
+                }
+                break;
+              default:
+                break;
+            } // switch
           } else {
             emit(
-              `  copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`
+              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`
             );
           }
           break;
