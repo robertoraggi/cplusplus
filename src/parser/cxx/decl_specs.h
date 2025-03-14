@@ -27,12 +27,14 @@ namespace cxx {
 
 class Control;
 class TranslationUnit;
+class ASTRewriter;
 
 class DeclSpecs {
   struct Visitor;
 
  public:
   explicit DeclSpecs(TranslationUnit* unit = nullptr);
+  explicit DeclSpecs(ASTRewriter* rewriter);
 
   [[nodiscard]] auto control() const -> Control*;
   [[nodiscard]] auto getType() const -> const Type*;
@@ -45,10 +47,10 @@ class DeclSpecs {
 
   void accept(SpecifierAST* specifier);
 
+  ASTRewriter* rewriter = nullptr;
+  TranslationUnit* unit = nullptr;
   const Type* type = nullptr;
   SpecifierAST* typeSpecifier = nullptr;
-
-  TranslationUnit* unit;
 
   bool isTypedef = false;
   bool isFriend = false;

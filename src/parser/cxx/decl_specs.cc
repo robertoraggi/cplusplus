@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -339,6 +340,9 @@ void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
 }
 
 DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit(unit) {}
+
+DeclSpecs::DeclSpecs(ASTRewriter* rewriter)
+    : rewriter(rewriter), unit(rewriter->translationUnit()) {}
 
 auto DeclSpecs::control() const -> Control* { return unit->control(); }
 
