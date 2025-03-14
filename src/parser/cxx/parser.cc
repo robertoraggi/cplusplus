@@ -3141,7 +3141,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
 
     DeclSpecs specs{unit};
 
-    if (!parse_decl_specifier_seq(declSpecifierList, specs, {})) return false;
+    if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
     DeclaratorAST* declarator = nullptr;
     Decl decl{specs};
@@ -3558,7 +3558,7 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
 
   DeclSpecs specs{unit};
 
-  if (!parse_decl_specifier_seq(declSpecifierList, specs, {})) return false;
+  if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
   if (parse_structured_binding(yyast, attributeList, declSpecifierList, specs,
                                BindingContext::kCondition)) {
@@ -3705,15 +3705,12 @@ auto Parser::parse_maybe_module() -> bool {
   return is_module;
 }
 
-auto Parser::parse_template_declaration_body(
-    DeclarationAST*& yyast,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_template_declaration_body(DeclarationAST*& yyast) -> bool {
   if (parse_deduction_guide(yyast)) return true;
   if (parse_export_declaration(yyast)) return true;
   if (parse_opaque_enum_declaration(yyast)) return true;
-  if (parse_alias_declaration(yyast, templateDeclarations)) return true;
-  return parse_simple_declaration(yyast, templateDeclarations,
-                                  BindingContext::kTemplate);
+  if (parse_alias_declaration(yyast)) return true;
+  return parse_simple_declaration(yyast, BindingContext::kTemplate);
 }
 
 auto Parser::parse_declaration(DeclarationAST*& yyast, BindingContext ctx)
@@ -3749,13 +3746,6 @@ auto Parser::parse_block_declaration(DeclarationAST*& yyast, BindingContext ctx)
 }
 
 auto Parser::parse_alias_declaration(DeclarationAST*& yyast) -> bool {
-  std::vector<TemplateDeclarationAST*> templateDeclarations;
-  return parse_alias_declaration(yyast, templateDeclarations);
-}
-
-auto Parser::parse_alias_declaration(
-    DeclarationAST*& yyast,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   SourceLocation usingLoc;
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
@@ -3782,24 +3772,23 @@ auto Parser::parse_alias_declaration(
 
   if (!lookat_alias_declaration()) return false;
 
-  if (!templateDeclarations.empty()) {
-    mark_maybe_template_name(unit->identifier(identifierLoc));
-  }
-
   List<AttributeSpecifierAST*>* gnuAttributeList = nullptr;
   parse_optional_attribute_specifier_seq(gnuAttributeList,
                                          AllowedAttributes::kGnuAttribute);
 
   TypeIdAST* typeId = nullptr;
 
-  if (!parse_defining_type_id(typeId, templateDeclarations))
-    parse_error("expected a type id");
+  if (!parse_defining_type_id(typeId)) parse_error("expected a type id");
 
   SourceLocation semicolonLoc;
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
   auto symbol = binder_.declareTypeAlias(identifierLoc, typeId);
+
+  if (is_template(symbol)) {
+    mark_maybe_template_name(identifier);
+  }
 
   auto ast = make_node<AliasDeclarationAST>(pool_);
   yyast = ast;
@@ -3888,7 +3877,6 @@ auto Parser::parse_empty_or_attribute_declaration(
 
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
     BindingContext ctx) -> bool {
   if (!context_allows_function_definition(ctx)) return false;
 
@@ -3919,7 +3907,6 @@ auto Parser::parse_notypespec_function_definition(
 auto Parser::parse_type_or_forward_declaration(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
     List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
     BindingContext ctx) -> bool {
   if (ctx == BindingContext::kInitStatement) return false;
 
@@ -3936,15 +3923,6 @@ auto Parser::parse_type_or_forward_declaration(
   lookahead.commit();
 
   if (!declSpecifierList) cxx_runtime_error("no specs");
-
-  const auto is_template_declaration = !templateDeclarations.empty();
-
-  if (is_template_declaration) {
-    auto classSpec =
-        ast_cast<ElaboratedTypeSpecifierAST>(declSpecifierList->value);
-    if (classSpec && !classSpec->nestedNameSpecifier)
-      mark_maybe_template_name(classSpec->unqualifiedId);
-  }
 
   auto ast = make_node<SimpleDeclarationAST>(pool_);
   yyast = ast;
@@ -4006,14 +3984,6 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
 
 auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
                                       BindingContext ctx) -> bool {
-  std::vector<TemplateDeclarationAST*> templateDeclarations;
-  return parse_simple_declaration(yyast, templateDeclarations, ctx);
-}
-
-auto Parser::parse_simple_declaration(
-    DeclarationAST*& yyast,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
-    BindingContext ctx) -> bool {
   SourceLocation extensionLoc;
 
   match(TokenKind::T___EXTENSION__, extensionLoc);
@@ -4035,9 +4005,7 @@ auto Parser::parse_simple_declaration(
 
   if (parse_empty_or_attribute_declaration(yyast, attributes, ctx)) return true;
 
-  if (parse_notypespec_function_definition(yyast, attributes,
-                                           templateDeclarations, ctx))
-    return true;
+  if (parse_notypespec_function_definition(yyast, attributes, ctx)) return true;
 
   DeclSpecs specs{unit};
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -4045,9 +4013,7 @@ auto Parser::parse_simple_declaration(
   auto lookat_decl_specifiers = [&] {
     LookaheadParser lookahead{this};
 
-    if (!parse_decl_specifier_seq(declSpecifierList, specs,
-                                  templateDeclarations))
-      return false;
+    if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
     if (!specs.hasTypeSpecifier()) return false;
     lookahead.commit();
@@ -4057,7 +4023,7 @@ auto Parser::parse_simple_declaration(
   if (!lookat_decl_specifiers()) return false;
 
   if (parse_type_or_forward_declaration(yyast, attributes, declSpecifierList,
-                                        specs, templateDeclarations, ctx))
+                                        specs, ctx))
     return true;
 
   if (parse_structured_binding(yyast, attributes, declSpecifierList, specs,
@@ -4065,14 +4031,14 @@ auto Parser::parse_simple_declaration(
     return true;
 
   return parse_simple_declaration(yyast, attributes, declSpecifierList, specs,
-                                  templateDeclarations, ctx);
+                                  ctx);
 }
 
-auto Parser::parse_simple_declaration(
-    DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
-    List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations,
-    BindingContext ctx) -> bool {
+auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
+                                      List<AttributeSpecifierAST*>* attributes,
+                                      List<SpecifierAST*>* declSpecifierList,
+                                      const DeclSpecs& specs,
+                                      BindingContext ctx) -> bool {
   DeclaratorAST* declarator = nullptr;
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
@@ -4416,9 +4382,8 @@ auto Parser::parse_attribute_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_decl_specifier(
-    SpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   switch (TokenKind(LA())) {
     case TokenKind::T_TYPEDEF: {
       auto ast = make_node<TypedefSpecifierAST>(pool_);
@@ -4474,24 +4439,21 @@ auto Parser::parse_decl_specifier(
       if (parse_function_specifier(yyast, specs)) return true;
 
       if (!specs.no_typespecs) {
-        return parse_defining_type_specifier(yyast, specs,
-                                             templateDeclarations);
+        return parse_defining_type_specifier(yyast, specs);
       }
 
       return false;
   }  // switch
 }
 
-auto Parser::parse_decl_specifier_seq(
-    List<SpecifierAST*>*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
+                                      DeclSpecs& specs) -> bool {
   auto it = &yyast;
 
   specs.no_typespecs = false;
 
   SpecifierAST* specifier = nullptr;
-  if (!parse_decl_specifier(specifier, specs, templateDeclarations))
-    return false;
+  if (!parse_decl_specifier(specifier, specs)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_optional_attribute_specifier_seq(attributes);
@@ -4501,7 +4463,7 @@ auto Parser::parse_decl_specifier_seq(
 
   specifier = nullptr;
 
-  while (parse_decl_specifier(specifier, specs, templateDeclarations)) {
+  while (parse_decl_specifier(specifier, specs)) {
     List<AttributeSpecifierAST*>* attributes = nullptr;
     parse_optional_attribute_specifier_seq(attributes);
 
@@ -4522,7 +4484,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   SpecifierAST* specifier = nullptr;
 
-  if (!parse_decl_specifier(specifier, specs, {})) return false;
+  if (!parse_decl_specifier(specifier, specs)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
@@ -4533,7 +4495,7 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast,
 
   specifier = nullptr;
 
-  while (parse_decl_specifier(specifier, specs, {})) {
+  while (parse_decl_specifier(specifier, specs)) {
     List<AttributeSpecifierAST*>* attributes = nullptr;
 
     parse_optional_attribute_specifier_seq(attributes);
@@ -4631,13 +4593,11 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   return true;
 }
 
-auto Parser::parse_type_specifier(
-    SpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
   if (parse_simple_type_specifier(yyast, specs)) return true;
   if (parse_cv_qualifier(yyast, specs)) return true;
-  if (parse_elaborated_type_specifier(yyast, specs, templateDeclarations))
-    return true;
+  if (parse_elaborated_type_specifier(yyast, specs)) return true;
   if (parse_splicer_specifier(yyast, specs)) return true;
   if (parse_typename_specifier(yyast, specs)) return true;
   return false;
@@ -4650,7 +4610,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
   specs.no_class_or_enum_specs = true;
 
   SpecifierAST* typeSpecifier = nullptr;
-  if (!parse_type_specifier(typeSpecifier, specs, {})) return false;
+  if (!parse_type_specifier(typeSpecifier, specs)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_optional_attribute_specifier_seq(attributes);
@@ -4669,7 +4629,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
     typeSpecifier = nullptr;
 
-    if (!parse_type_specifier(typeSpecifier, specs, {})) {
+    if (!parse_type_specifier(typeSpecifier, specs)) {
       rewind(before_type_specifier);
       break;
     }
@@ -4684,9 +4644,8 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
   return true;
 }
 
-auto Parser::parse_defining_type_specifier(
-    SpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
+                                           DeclSpecs& specs) -> bool {
   if (!specs.no_class_or_enum_specs && !specs.typeSpecifier) {
     LookaheadParser lookahead{this};
 
@@ -4701,7 +4660,7 @@ auto Parser::parse_defining_type_specifier(
     }
 
     if (ClassSpecifierAST* classSpecifier = nullptr;
-        parse_class_specifier(classSpecifier, specs, templateDeclarations)) {
+        parse_class_specifier(classSpecifier, specs)) {
       lookahead.commit();
 
       specs.accept(classSpecifier);
@@ -4712,7 +4671,7 @@ auto Parser::parse_defining_type_specifier(
     }
   }
 
-  return parse_type_specifier(yyast, specs, templateDeclarations);
+  return parse_type_specifier(yyast, specs);
 }
 
 auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
@@ -4721,7 +4680,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
   SpecifierAST* typeSpecifier = nullptr;
 
-  if (!parse_defining_type_specifier(typeSpecifier, specs, {})) return false;
+  if (!parse_defining_type_specifier(typeSpecifier, specs)) return false;
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
@@ -4739,7 +4698,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
     typeSpecifier = nullptr;
 
-    if (!parse_defining_type_specifier(typeSpecifier, specs, {})) {
+    if (!parse_defining_type_specifier(typeSpecifier, specs)) {
       rewind(before_type_specifier);
       break;
     }
@@ -5017,7 +4976,8 @@ auto Parser::maybe_template_name(const Identifier* id) -> bool {
 
 void Parser::mark_maybe_template_name(const Identifier* id) {
   if (!config_.fuzzyTemplateResolution) return;
-  if (id) template_names_.insert(id);
+  if (!id) return;
+  template_names_.insert(id);
 }
 
 void Parser::mark_maybe_template_name(UnqualifiedIdAST* name) {
@@ -5094,9 +5054,8 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   return true;
 }
 
-auto Parser::parse_elaborated_type_specifier(
-    SpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
+                                             DeclSpecs& specs) -> bool {
   if (specs.typeSpecifier) return false;
 
   if (parse_elaborated_enum_specifier(yyast, specs)) return true;
@@ -5144,6 +5103,10 @@ auto Parser::parse_elaborated_type_specifier(
   }
 
   binder_.bind(ast, specs);
+
+  if (is_template(ast->symbol)) {
+    mark_maybe_template_name(className);
+  }
 
   return true;
 }
@@ -5683,12 +5646,12 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_defining_type_id(
-    TypeIdAST*& yyast,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
+auto Parser::parse_defining_type_id(TypeIdAST*& yyast) -> bool {
   DeclSpecs specs{unit};
 
-  if (!templateDeclarations.empty()) specs.no_class_or_enum_specs = true;
+  if (binder_.currentTemplateParameters()) {
+    specs.no_class_or_enum_specs = true;
+  }
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
 
@@ -5819,8 +5782,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   ast->isThisIntroduced = match(TokenKind::T_THIS, ast->thisLoc);
 
-  if (!parse_decl_specifier_seq(ast->typeSpecifierList, specs, {}))
-    return false;
+  if (!parse_decl_specifier_seq(ast->typeSpecifierList, specs)) return false;
 
   Decl decl{specs};
   parse_optional_declarator_or_abstract_declarator(ast->declarator, decl);
@@ -6334,7 +6296,7 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
   DeclSpecs specs{unit};
 
   SpecifierAST* typeSpecifier = nullptr;
-  if (!parse_elaborated_type_specifier(typeSpecifier, specs, {})) {
+  if (!parse_elaborated_type_specifier(typeSpecifier, specs)) {
     parse_error("expected an elaborated enum specifier");
   }
 
@@ -7423,13 +7385,6 @@ void Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) {
 
 auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  std::vector<TemplateDeclarationAST*> templateDeclarations;
-  return parse_class_specifier(yyast, specs, templateDeclarations);
-}
-
-auto Parser::parse_class_specifier(
-    ClassSpecifierAST*& yyast, DeclSpecs& specs,
-    const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   SourceLocation classLoc;
   if (!parse_class_key(classLoc)) return false;
 
@@ -7639,7 +7594,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     lastDeclSpecifier = &(*lastDeclSpecifier)->next;
   }
 
-  (void)parse_decl_specifier_seq(*lastDeclSpecifier, specs, {});
+  (void)parse_decl_specifier_seq(*lastDeclSpecifier, specs);
 
   if (!specs.hasTypeSpecifier()) return false;
 
@@ -8319,13 +8274,6 @@ auto Parser::parse_literal_operator_id(LiteralOperatorIdAST*& yyast) -> bool {
 
 auto Parser::parse_template_declaration(TemplateDeclarationAST*& yyast)
     -> bool {
-  std::vector<TemplateDeclarationAST*> templateDeclarations;
-  return parse_template_declaration(yyast, templateDeclarations);
-}
-
-auto Parser::parse_template_declaration(
-    TemplateDeclarationAST*& yyast,
-    std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool {
   if (!lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) return false;
 
   auto _ = Binder::ScopeGuard{&binder_};
@@ -8340,8 +8288,6 @@ auto Parser::parse_template_declaration(
 
   setScope(ast->symbol);
 
-  templateDeclarations.push_back(ast);
-
   expect(TokenKind::T_TEMPLATE, ast->templateLoc);
   expect(TokenKind::T_LESS, ast->lessLoc);
 
@@ -8354,7 +8300,7 @@ auto Parser::parse_template_declaration(
 
   if (lookat(TokenKind::T_TEMPLATE, TokenKind::T_LESS)) {
     TemplateDeclarationAST* templateDeclaration = nullptr;
-    (void)parse_template_declaration(templateDeclaration, templateDeclarations);
+    (void)parse_template_declaration(templateDeclaration);
     ast->declaration = templateDeclaration;
     return true;
   }
@@ -8363,7 +8309,7 @@ auto Parser::parse_template_declaration(
     return true;
   }
 
-  if (!parse_template_declaration_body(ast->declaration, templateDeclarations))
+  if (!parse_template_declaration_body(ast->declaration))
     parse_error("expected a declaration");
 
   return true;

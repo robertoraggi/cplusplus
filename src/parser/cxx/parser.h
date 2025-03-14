@@ -365,23 +365,15 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_declaration_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_maybe_module() -> bool;
-  [[nodiscard]] auto parse_template_declaration_body(
-      DeclarationAST*& yyast,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+  [[nodiscard]] auto parse_template_declaration_body(DeclarationAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_declaration(DeclarationAST*& yyast,
                                        BindingContext ctx) -> bool;
   [[nodiscard]] auto parse_block_declaration(DeclarationAST*& yyast,
                                              BindingContext ctx) -> bool;
   [[nodiscard]] auto parse_alias_declaration(DeclarationAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_alias_declaration(
-      DeclarationAST*& yyast,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   [[nodiscard]] auto parse_simple_declaration(DeclarationAST*& yyast,
                                               BindingContext ctx) -> bool;
-  [[nodiscard]] auto parse_simple_declaration(
-      DeclarationAST*& yyast,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations,
-      BindingContext ctx) -> bool;
 
   [[nodiscard]] auto parse_empty_or_attribute_declaration(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
@@ -389,7 +381,6 @@ class Parser final {
 
   [[nodiscard]] auto parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations,
       BindingContext ctx) -> bool;
 
   [[nodiscard]] auto parse_notypespec_function_definition(
@@ -399,7 +390,6 @@ class Parser final {
   [[nodiscard]] auto parse_type_or_forward_declaration(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
       List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations,
       BindingContext ctx) -> bool;
 
   [[nodiscard]] auto parse_structured_binding(
@@ -410,7 +400,6 @@ class Parser final {
   [[nodiscard]] auto parse_simple_declaration(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
       List<SpecifierAST*>* declSpecifierList, const DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations,
       BindingContext ctx) -> bool;
 
   [[nodiscard]] auto parse_static_assert_declaration(DeclarationAST*& yyast)
@@ -419,12 +408,10 @@ class Parser final {
   [[nodiscard]] auto parse_empty_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_attribute_declaration(DeclarationAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_decl_specifier(
-      SpecifierAST*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
-  [[nodiscard]] auto parse_decl_specifier_seq(
-      List<SpecifierAST*>*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+  [[nodiscard]] auto parse_decl_specifier(SpecifierAST*& yyast,
+                                          DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
+                                              DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
       List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
@@ -435,14 +422,12 @@ class Parser final {
                                               DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_explicit_specifier(SpecifierAST*& yyast,
                                               DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_type_specifier(
-      SpecifierAST*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+  [[nodiscard]] auto parse_type_specifier(SpecifierAST*& yyast,
+                                          DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
                                               DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_defining_type_specifier(
-      SpecifierAST*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+  [[nodiscard]] auto parse_defining_type_specifier(SpecifierAST*& yyast,
+                                                   DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_defining_type_specifier_seq(
       List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_simple_type_specifier(SpecifierAST*& yyast,
@@ -467,9 +452,8 @@ class Parser final {
   [[nodiscard]] auto parse_type_name(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced) -> bool;
-  [[nodiscard]] auto parse_elaborated_type_specifier(
-      SpecifierAST*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+  [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_elaborated_enum_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decltype_specifier(DecltypeSpecifierAST*& yyast)
@@ -528,9 +512,7 @@ class Parser final {
                                         DeclSpecs& declSpecs) -> bool;
   [[nodiscard]] auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
   [[nodiscard]] auto parse_type_id(TypeIdAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_defining_type_id(
-      TypeIdAST*& yyast,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
+  [[nodiscard]] auto parse_defining_type_id(TypeIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_clause(
       ParameterDeclarationClauseAST*& yyast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_list(
@@ -639,9 +621,6 @@ class Parser final {
   void parse_private_module_fragment(PrivateModuleFragmentAST*& yyast);
   [[nodiscard]] auto parse_class_specifier(ClassSpecifierAST*& yyast,
                                            DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_class_specifier(
-      ClassSpecifierAST*& yyast, DeclSpecs& specs,
-      const std::vector<TemplateDeclarationAST*>& templateDeclarations) -> bool;
   void parse_class_body(List<DeclarationAST*>*& yyast);
   [[nodiscard]] auto parse_class_virt_specifier(SourceLocation& loc) -> bool;
   [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
