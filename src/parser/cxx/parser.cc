@@ -1801,20 +1801,13 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool {
-  if (parse_va_arg_expression(yyast, ctx))
-    return true;
-  else if (parse_cpp_cast_expression(yyast, ctx))
-    return true;
-  else if (parse_typeid_expression(yyast, ctx))
-    return true;
-  else if (parse_typename_expression(yyast, ctx))
-    return true;
-  else if (parse_cpp_type_cast_expression(yyast, ctx))
-    return true;
-  else if (parse_builtin_bit_cast_expression(yyast, ctx))
-    return true;
-  else
-    return parse_primary_expression(yyast, ctx);
+  if (parse_va_arg_expression(yyast, ctx)) return true;
+  if (parse_cpp_cast_expression(yyast, ctx)) return true;
+  if (parse_typeid_expression(yyast, ctx)) return true;
+  if (parse_typename_expression(yyast, ctx)) return true;
+  if (parse_cpp_type_cast_expression(yyast, ctx)) return true;
+  if (parse_builtin_bit_cast_expression(yyast, ctx)) return true;
+  return parse_primary_expression(yyast, ctx);
 }
 
 auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
@@ -1841,6 +1834,8 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
     ast->isTemplateIntroduced = isTemplateIntroduced;
     ast->splicer = splicer;
     yyast = ast;
+
+    check(ast);
 
     return true;
   };
@@ -2067,6 +2062,8 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
 
     ast->typeSpecifier = typeSpecifier;
     ast->bracedInitList = bracedInitList;
+
+    check(ast);
 
     return true;
   };
@@ -2344,6 +2341,8 @@ auto Parser::parse_complex_expression(ExpressionAST*& yyast,
   ast->op = unit->tokenKind(opLoc);
   ast->expression = expression;
 
+  check(ast);
+
   return true;
 }
 
@@ -2353,9 +2352,8 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_SIZEOF, sizeofLoc)) return false;
 
-  SourceLocation ellipsisLoc;
-
-  if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+  if (SourceLocation ellipsisLoc;
+      match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
     auto ast = make_node<SizeofPackExpressionAST>(pool_);
     yyast = ast;
 
@@ -2369,7 +2367,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-    ast->type = control_->getSizeType();
+    check(ast);
 
     return true;
   }
@@ -2395,7 +2393,8 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
     ast->lparenLoc = lparenLoc;
     ast->typeId = typeId;
     ast->rparenLoc = rparenLoc;
-    ast->type = control_->getSizeType();
+
+    check(ast);
 
     return true;
   };
@@ -2860,28 +2859,27 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
   if (!parse_logical_or_expression(yyast, exprContext)) return false;
 
   SourceLocation questionLoc;
+  if (!match(TokenKind::T_QUESTION, questionLoc)) return true;
 
-  if (match(TokenKind::T_QUESTION, questionLoc)) {
-    auto ast = make_node<ConditionalExpressionAST>(pool_);
-    ast->condition = yyast;
-    ast->questionLoc = questionLoc;
+  auto ast = make_node<ConditionalExpressionAST>(pool_);
+  ast->condition = yyast;
+  ast->questionLoc = questionLoc;
 
-    yyast = ast;
+  yyast = ast;
 
-    parse_expression(ast->iftrueExpression, exprContext);
+  parse_expression(ast->iftrueExpression, exprContext);
 
-    expect(TokenKind::T_COLON, ast->colonLoc);
+  expect(TokenKind::T_COLON, ast->colonLoc);
 
-    if (exprContext.templArg || exprContext.templParam) {
-      if (!parse_conditional_expression(ast->iffalseExpression, exprContext)) {
-        parse_error("expected an expression");
-      }
-    } else {
-      parse_assignment_expression(ast->iffalseExpression, exprContext);
+  if (exprContext.templArg || exprContext.templParam) {
+    if (!parse_conditional_expression(ast->iffalseExpression, exprContext)) {
+      parse_error("expected an expression");
     }
-
-    check(ast);
+  } else {
+    parse_assignment_expression(ast->iffalseExpression, exprContext);
   }
+
+  check(ast);
 
   return true;
 }
@@ -3147,6 +3145,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
 
     DeclaratorAST* declarator = nullptr;
     Decl decl{specs};
+
     if (!parse_declarator(declarator, decl)) return false;
 
     auto symbol = binder_.declareVariable(declarator, decl);
