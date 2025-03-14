@@ -25,7 +25,6 @@ import * as fs from "fs";
 
 export function new_ast_rewriter_h({
   ast,
-  opName,
   output,
 }: {
   ast: AST;
@@ -90,23 +89,39 @@ class TypeChecker;
 class Control;
 class Arena;
 
-class ${opName} {
+class ASTRewriter {
 public:
-    explicit ${opName}(TypeChecker* typeChecker, const std::vector<TemplateArgument>& templateArguments);
-    ~${opName}();
+  explicit ASTRewriter(TypeChecker* typeChecker, const std::vector<TemplateArgument>& templateArguments);
+  ~ASTRewriter();
 
-    [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return unit_; }
 
-    [[nodiscard]] auto control() const -> Control*;
-    [[nodiscard]] auto arena() const -> Arena*;
+  [[nodiscard]] const std::vector<TemplateArgument>& templateArguments() const {
+    return templateArguments_;
+  }
+
+  [[nodiscard]] auto typeChecker() const -> TypeChecker* {
+    return typeChecker_;
+  }
+
+  [[nodiscard]] auto binder() -> Binder& { return binder_; }
+
+  [[nodiscard]] auto control() const -> Control*;
+  [[nodiscard]] auto arena() const -> Arena*;
+
+  [[nodiscard]] auto restrictedToDeclarations() const -> bool;
+  void setRestrictedToDeclarations(bool restrictedToDeclarations);
 
 ${code.join("\n")}
 
 private:
-    TypeChecker* typeChecker_ = nullptr;
-    const std::vector<TemplateArgument>& templateArguments_;
-    TranslationUnit* unit_ = nullptr;
-    Binder binder_;
+  [[nodiscard]] auto rewriter() -> ASTRewriter* { return this; }
+
+  TypeChecker* typeChecker_ = nullptr;
+  const std::vector<TemplateArgument>& templateArguments_;
+  TranslationUnit* unit_ = nullptr;
+  Binder binder_;
+  bool restrictedToDeclarations_ = false;
 };
 
 } // namespace cxx

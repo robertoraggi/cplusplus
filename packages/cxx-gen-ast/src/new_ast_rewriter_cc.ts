@@ -25,7 +25,6 @@ import * as fs from "fs";
 
 export function new_ast_rewriter_cc({
   ast,
-  opName,
   opHeader,
   output,
 }: {
@@ -61,16 +60,19 @@ export function new_ast_rewriter_cc({
     const className = chopAST(base);
     emit();
     emit(`  struct ASTRewriter::${className}Visitor {`);
-    emit(`    ${opName}& rewrite;`);
+    emit(`    ASTRewriter& rewrite;`);
     emit(
-      `    [[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`
+      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`
     );
     emit();
     emit(
-      `    [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`
+      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`
     );
     emit(
-      `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+    );
+    emit(
+      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`
     );
     nodes.forEach(({ name }) => {
       emit();
@@ -88,10 +90,7 @@ export function new_ast_rewriter_cc({
       emit(`auto _ = Binder::ScopeGuard(&rewrite.binder_);
 
   if (ast->${blockSymbol.name}) {
-    copy->${blockSymbol.name} = control()->newBlockSymbol(rewrite.binder_.scope(),
-                                             ast->${blockSymbol.name}->location());
-
-    rewrite.binder_.setScope(copy->${blockSymbol.name});
+    copy->${blockSymbol.name} = rewrite.binder_.enterBlock(ast->${blockSymbol.name}->location());
   }
 `);
     }
@@ -116,36 +115,35 @@ export function new_ast_rewriter_cc({
           // check the base type has a context that must be passed
           switch (m.type) {
             case "SpecifierAST":
-              emit(`  DeclSpecs ${m.name}Ctx{translationUnit()};`);
+              emit(`  auto ${m.name}Ctx = DeclSpecs{rewriter()};`);
               break;
 
             default:
               break;
           } // switch
 
-          emit(`  if (auto it = ast->${m.name}) {`);
-          emit(`    auto out = &copy->${m.name};`);
-
-          emit(`    for (auto node : ListView{ast->${m.name}}) {`);
+          emit(
+            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`
+          );
 
           switch (m.type) {
             case "InitDeclaratorAST":
-              emit(
-                `        auto value = ${visitor}(node, declSpecifierListCtx);`
-              );
+              emit(`auto value = ${visitor}(node, declSpecifierListCtx);`);
               break;
 
             default:
-              emit(`        auto value = ${visitor}(node);`);
+              emit(`auto value = ${visitor}(node);`);
               break;
           } // switch
 
           if (isBase(m.type)) {
-            emit(`*out = make_list_node(arena(), value);`);
+            emit(`*${m.name} = make_list_node(arena(), value);`);
           } else {
-            emit(`*out = make_list_node(arena(), ast_cast<${m.type}>(value));`);
+            emit(
+              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`
+            );
           }
-          emit(`        out = &(*out)->next;`);
+          emit(`${m.name} = &(*${m.name})->next;`);
 
           // update the context if needed
           switch (m.type) {
@@ -158,7 +156,6 @@ export function new_ast_rewriter_cc({
           } // switch
 
           emit(`    }`);
-          emit(`  }`);
           emit();
           break;
         }
@@ -180,7 +177,7 @@ export function new_ast_rewriter_cc({
 
     switch (base) {
       case "ExpressionAST":
-        emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+        emit(`auto ASTRewriter::operator()(${base}* ast) -> ${base}* {`);
         emit(`  if (!ast) return {};`);
         emit(`  auto expr = visit(${chopAST(base)}Visitor{*this}, ast);`);
         emit(`  if (expr) typeChecker_->check(expr);`);
@@ -189,7 +186,7 @@ export function new_ast_rewriter_cc({
         break;
 
       case "SpecifierAST":
-        emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+        emit(`auto ASTRewriter::operator()(${base}* ast) -> ${base}* {`);
         emit(`  if (!ast) return {};`);
         emit(`  auto specifier = visit(${chopAST(base)}Visitor{*this}, ast);`);
         emit(`  return specifier;`);
@@ -197,7 +194,7 @@ export function new_ast_rewriter_cc({
         break;
 
       default:
-        emit(`auto ${opName}::operator()(${base}* ast) -> ${base}* {`);
+        emit(`auto ASTRewriter::operator()(${base}* ast) -> ${base}* {`);
         emit(`  if (!ast) return {};`);
         emit(`  return visit(${chopAST(base)}Visitor{*this}, ast);`);
         emit(`}`);
@@ -210,11 +207,11 @@ export function new_ast_rewriter_cc({
     switch (name) {
       case "InitDeclaratorAST":
         emit(
-          `auto ${opName}::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`
+          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`
         );
         break;
       default:
-        emit(`auto ${opName}::operator()(${name}* ast) -> ${name}* {`);
+        emit(`auto ASTRewriter::operator()(${name}* ast) -> ${name}* {`);
         break;
     } // switch
 
@@ -235,7 +232,7 @@ export function new_ast_rewriter_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
+        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
       );
       emit(`  auto copy = make_node<${name}>(arena());`);
       emit();
@@ -266,21 +263,29 @@ export function new_ast_rewriter_cc({
 
 namespace cxx {
 
-${opName}::${opName}(TypeChecker* typeChcker,
+ASTRewriter::ASTRewriter(TypeChecker* typeChcker,
   const std::vector<TemplateArgument>& templateArguments)
 : typeChecker_(typeChcker)
 , unit_(typeChcker->translationUnit())
 , templateArguments_(templateArguments)
 , binder_(typeChcker->translationUnit()) {}
 
-${opName}::~${opName}() {}
+ASTRewriter::~ASTRewriter() {}
 
-auto ${opName}::control() const -> Control* {
-    return unit_->control();
+auto ASTRewriter::control() const -> Control* {
+  return unit_->control();
 }
 
-auto ${opName}::arena() const -> Arena* {
-    return unit_->arena();
+auto ASTRewriter::arena() const -> Arena* {
+  return unit_->arena();
+}
+
+auto ASTRewriter::restrictedToDeclarations() const -> bool {
+  return restrictedToDeclarations_;
+}
+
+void ASTRewriter::setRestrictedToDeclarations(bool restrictedToDeclarations) {
+  restrictedToDeclarations_ = restrictedToDeclarations;
 }
 
 ${code.join("\n")}

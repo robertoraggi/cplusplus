@@ -43,8 +43,21 @@ class ASTRewriter {
     return unit_;
   }
 
+  [[nodiscard]] const std::vector<TemplateArgument>& templateArguments() const {
+    return templateArguments_;
+  }
+
+  [[nodiscard]] auto typeChecker() const -> TypeChecker* {
+    return typeChecker_;
+  }
+
+  [[nodiscard]] auto binder() -> Binder& { return binder_; }
+
   [[nodiscard]] auto control() const -> Control*;
   [[nodiscard]] auto arena() const -> Arena*;
+
+  [[nodiscard]] auto restrictedToDeclarations() const -> bool;
+  void setRestrictedToDeclarations(bool restrictedToDeclarations);
 
   // run on the base nodes
   [[nodiscard]] auto operator()(UnitAST* ast) -> UnitAST*;
@@ -136,10 +149,13 @@ class ASTRewriter {
   struct AttributeTokenVisitor;
 
  private:
+  [[nodiscard]] auto rewriter() -> ASTRewriter* { return this; }
+
   TypeChecker* typeChecker_ = nullptr;
   const std::vector<TemplateArgument>& templateArguments_;
   TranslationUnit* unit_ = nullptr;
   Binder binder_;
+  bool restrictedToDeclarations_ = false;
 };
 
 }  // namespace cxx
