@@ -87,7 +87,9 @@ class ASTRewriter {
   [[nodiscard]] auto operator()(ModuleQualifierAST* ast) -> ModuleQualifierAST*;
   [[nodiscard]] auto operator()(ModulePartitionAST* ast) -> ModulePartitionAST*;
   [[nodiscard]] auto operator()(ImportNameAST* ast) -> ImportNameAST*;
-  [[nodiscard]] auto operator()(InitDeclaratorAST* ast) -> InitDeclaratorAST*;
+  [[nodiscard]] auto operator()(InitDeclaratorAST* ast,
+                                const DeclSpecs& declSpecs)
+      -> InitDeclaratorAST*;
   [[nodiscard]] auto operator()(DeclaratorAST* ast) -> DeclaratorAST*;
   [[nodiscard]] auto operator()(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
   [[nodiscard]] auto operator()(EnumeratorAST* ast) -> EnumeratorAST*;

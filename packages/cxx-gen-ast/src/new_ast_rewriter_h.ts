@@ -52,7 +52,16 @@ export function new_ast_rewriter_h({
   emit();
   emit(`  // run on the misc nodes`);
   by_base.get("AST")?.forEach(({ name }) => {
-    emit(`  [[nodiscard]] auto operator()(${name}* ast) -> ${name}*;`);
+    switch (name) {
+      case "InitDeclaratorAST":
+        emit(
+          `  [[nodiscard]] auto operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}*;`
+        );
+        break;
+      default:
+        emit(`  [[nodiscard]] auto operator()(${name}* ast) -> ${name}*;`);
+        break;
+    } // switch
   });
 
   emit();
