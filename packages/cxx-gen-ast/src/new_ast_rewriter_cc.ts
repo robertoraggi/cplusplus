@@ -67,6 +67,9 @@ export function new_ast_rewriter_cc({
     );
     emit();
     emit(
+      `    [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`
+    );
+    emit(
       `    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
     );
     nodes.forEach(({ name }) => {
@@ -106,11 +109,23 @@ export function new_ast_rewriter_cc({
           emit(`    auto out = &copy->${m.name};`);
 
           emit(`    for (auto node : ListView{ast->${m.name}}) {`);
-          emit(`        auto value = ${visitor}(node);`);
+
+          switch (m.type) {
+            case "InitDeclaratorAST":
+              emit(
+                `        auto value = ${visitor}(node, declSpecifierListCtx);`
+              );
+              break;
+
+            default:
+              emit(`        auto value = ${visitor}(node);`);
+              break;
+          } // switch
+
           if (isBase(m.type)) {
-            emit(`*out = new (arena()) List(value);`);
+            emit(`*out = make_list_node(arena(), value);`);
           } else {
-            emit(`*out = new (arena()) List(ast_cast<${m.type}>(value));`);
+            emit(`*out = make_list_node(arena(), ast_cast<${m.type}>(value));`);
           }
           emit(`        out = &(*out)->next;`);
 
@@ -174,10 +189,20 @@ export function new_ast_rewriter_cc({
 
   by_base.get("AST")?.forEach(({ name, members }) => {
     emit();
-    emit(`auto ${opName}::operator()(${name}* ast) -> ${name}* {`);
+    switch (name) {
+      case "InitDeclaratorAST":
+        emit(
+          `auto ${opName}::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`
+        );
+        break;
+      default:
+        emit(`auto ${opName}::operator()(${name}* ast) -> ${name}* {`);
+        break;
+    } // switch
+
     emit(`  if (!ast) return {};`);
     emit();
-    emit(`  auto copy = new (arena()) ${name}{};`);
+    emit(`  auto copy = make_node<${name}>(arena());`);
     emit();
     emitRewriterBody(members, "operator()");
     emit();
@@ -194,7 +219,7 @@ export function new_ast_rewriter_cc({
       emit(
         `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
       );
-      emit(`  auto copy = new (arena()) ${name}{};`);
+      emit(`  auto copy = make_node<${name}>(arena());`);
       emit();
       ast.baseMembers.get(base)?.forEach((m) => {
         emit(`  copy->${m.name} = ast->${m.name};`);
@@ -216,6 +241,7 @@ export function new_ast_rewriter_cc({
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/decl_specs.h>
+#include <cxx/decl.h>
 
 namespace cxx {
 
