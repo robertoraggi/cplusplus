@@ -80,7 +80,25 @@ export function new_ast_rewriter_cc({
   });
 
   const emitRewriterBody = (members: Member[], visitor: string = "rewrite") => {
+    const blockSymbol = members.find(
+      (m) => m.kind === "attribute" && m.type === "BlockSymbol"
+    );
+
+    if (blockSymbol) {
+      emit(`auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->${blockSymbol.name}) {
+    copy->${blockSymbol.name} = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->${blockSymbol.name}->location());
+
+    rewrite.binder_.setScope(copy->${blockSymbol.name});
+  }
+`);
+    }
+
     members.forEach((m) => {
+      if (m === blockSymbol) return;
+
       switch (m.kind) {
         case "node": {
           if (isBase(m.type)) {
@@ -242,6 +260,9 @@ export function new_ast_rewriter_cc({
 #include <cxx/type_checker.h>
 #include <cxx/decl_specs.h>
 #include <cxx/decl.h>
+#include <cxx/symbols.h>
+#include <cxx/types.h>
+#include <cxx/binder.h>
 
 namespace cxx {
 

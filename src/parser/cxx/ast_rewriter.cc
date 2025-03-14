@@ -22,11 +22,14 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -2016,6 +2019,15 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<CompoundStatementAST>(arena());
 
+  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->symbol) {
+    copy->symbol = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->symbol->location());
+
+    rewrite.binder_.setScope(copy->symbol);
+  }
+
   copy->lbraceLoc = ast->lbraceLoc;
 
   if (auto it = ast->statementList) {
@@ -2028,7 +2040,6 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
-  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -2036,6 +2047,15 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<IfStatementAST>(arena());
+
+  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->symbol) {
+    copy->symbol = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->symbol->location());
+
+    rewrite.binder_.setScope(copy->symbol);
+  }
 
   copy->ifLoc = ast->ifLoc;
   copy->constexprLoc = ast->constexprLoc;
@@ -2069,6 +2089,15 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<SwitchStatementAST>(arena());
 
+  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->symbol) {
+    copy->symbol = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->symbol->location());
+
+    rewrite.binder_.setScope(copy->symbol);
+  }
+
   copy->switchLoc = ast->switchLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite(ast->initializer);
@@ -2082,6 +2111,15 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<WhileStatementAST>(arena());
+
+  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->symbol) {
+    copy->symbol = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->symbol->location());
+
+    rewrite.binder_.setScope(copy->symbol);
+  }
 
   copy->whileLoc = ast->whileLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -2111,6 +2149,15 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<ForRangeStatementAST>(arena());
 
+  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->symbol) {
+    copy->symbol = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->symbol->location());
+
+    rewrite.binder_.setScope(copy->symbol);
+  }
+
   copy->forLoc = ast->forLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite(ast->initializer);
@@ -2126,6 +2173,15 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<ForStatementAST>(arena());
+
+  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+
+  if (ast->symbol) {
+    copy->symbol = control()->newBlockSymbol(rewrite.binder_.scope(),
+                                             ast->symbol->location());
+
+    rewrite.binder_.setScope(copy->symbol);
+  }
 
   copy->forLoc = ast->forLoc;
   copy->lparenLoc = ast->lparenLoc;
