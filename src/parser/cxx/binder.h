@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#pragma once
+
 #include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
 #include <cxx/source_location.h>

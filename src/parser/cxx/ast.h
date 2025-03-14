@@ -928,6 +928,7 @@ class IfStatementAST final : public StatementAST {
   StatementAST* statement = nullptr;
   SourceLocation elseLoc;
   StatementAST* elseStatement = nullptr;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -967,6 +968,7 @@ class SwitchStatementAST final : public StatementAST {
   ExpressionAST* condition = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -985,6 +987,7 @@ class WhileStatementAST final : public StatementAST {
   ExpressionAST* condition = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1026,6 +1029,7 @@ class ForRangeStatementAST final : public StatementAST {
   ExpressionAST* rangeInitializer = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1047,6 +1051,7 @@ class ForStatementAST final : public StatementAST {
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

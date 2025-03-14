@@ -3395,6 +3395,8 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
 
   parse_statement(ast->elseStatement);
 
+  ast->symbol = blockSymbol;
+
   return true;
 }
 
@@ -3422,6 +3424,8 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
 
   parse_statement(ast->statement);
 
+  ast->symbol = blockSymbol;
+
   return true;
 }
 
@@ -3446,6 +3450,8 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   parse_statement(ast->statement);
+
+  ast->symbol = blockSymbol;
 
   return true;
 }
@@ -3524,6 +3530,8 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
 
     parse_statement(ast->statement);
 
+    ast->symbol = blockSymbol;
+
     return true;
   }
 
@@ -3545,6 +3553,8 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   }
 
   parse_statement(ast->statement);
+
+  ast->symbol = blockSymbol;
 
   return true;
 }
