@@ -493,12 +493,13 @@ void TypeAliasSymbol::setTemplateParameters(
   templateParameters_ = templateParameters;
 }
 
-auto TypeAliasSymbol::declaration() const -> AliasDeclarationAST* {
-  return declaration_;
+auto TypeAliasSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
+  return templateDeclaration_;
 }
 
-void TypeAliasSymbol::setDeclaration(AliasDeclarationAST* declaration) {
-  declaration_ = declaration;
+void TypeAliasSymbol::setTemplateDeclaration(
+    TemplateDeclarationAST* declaration) {
+  templateDeclaration_ = declaration;
 }
 
 VariableSymbol::VariableSymbol(Scope* enclosingScope)
@@ -544,6 +545,23 @@ void VariableSymbol::setConstinit(bool isConstinit) {
 auto VariableSymbol::isInline() const -> bool { return isInline_; }
 
 void VariableSymbol::setInline(bool isInline) { isInline_ = isInline; }
+
+auto VariableSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
+  return templateDeclaration_;
+}
+
+void VariableSymbol::setTemplateDeclaration(
+    TemplateDeclarationAST* declaration) {
+  templateDeclaration_ = declaration;
+}
+
+auto VariableSymbol::initializer() const -> ExpressionAST* {
+  return initializer_;
+}
+
+void VariableSymbol::setInitializer(ExpressionAST* initializer) {
+  initializer_ = initializer;
+}
 
 FieldSymbol::FieldSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}

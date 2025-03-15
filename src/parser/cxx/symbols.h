@@ -505,12 +505,12 @@ class TypeAliasSymbol final : public Symbol {
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
   void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
-  [[nodiscard]] auto declaration() const -> AliasDeclarationAST*;
-  void setDeclaration(AliasDeclarationAST* declaration);
+  [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
+  void setTemplateDeclaration(TemplateDeclarationAST* declaration);
 
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
-  AliasDeclarationAST* declaration_ = nullptr;
+  TemplateDeclarationAST* templateDeclaration_ = nullptr;
 };
 
 class VariableSymbol final : public Symbol {
@@ -541,8 +541,16 @@ class VariableSymbol final : public Symbol {
   [[nodiscard]] auto isInline() const -> bool;
   void setInline(bool isInline);
 
+  [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
+  void setTemplateDeclaration(TemplateDeclarationAST* declaration);
+
+  [[nodiscard]] auto initializer() const -> ExpressionAST*;
+  void setInitializer(ExpressionAST*);
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  TemplateDeclarationAST* templateDeclaration_ = nullptr;
+  ExpressionAST* initializer_ = nullptr;
 
   union {
     std::uint32_t flags_{};

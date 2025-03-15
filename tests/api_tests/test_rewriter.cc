@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/names.h>
@@ -46,26 +47,81 @@ auto subst(Source& source, Node* ast, std::vector<TemplateArgument> args) {
   return ast_cast<Node>(rewrite(ast));
 };
 
+[[nodiscard]] auto getTemplateBody(TemplateDeclarationAST* ast)
+    -> DeclarationAST* {
+  if (auto nested = ast_cast<TemplateDeclarationAST>(ast->declaration))
+    return getTemplateBody(nested);
+  return ast->declaration;
+}
+
+template <typename Node>
+[[nodiscard]] auto getTemplateBodyAs(TemplateDeclarationAST* ast) -> Node* {
+  return ast_cast<Node>(getTemplateBody(ast));
+}
+
 TEST(Rewriter, TypeAlias) {
   auto source = R"(
-    template <typename T>
-    using Ptr = const T*;
+template <typename T>
+using Ptr = const T*;
 
-    template <typename T, typename U>
-    using Func = void(T, U);
+template <typename T, typename U>
+using Func = void(T, const U&);
   )"_cxx;
 
   auto control = source.control();
 
-  auto ptrTypeAlias =
-      subst(source, source.getAs<TypeAliasSymbol>("Ptr")->declaration(),
+  auto ptrInstance =
+      subst(source,
+            getTemplateBodyAs<AliasDeclarationAST>(
+                source.getAs<TypeAliasSymbol>("Ptr")->templateDeclaration()),
             {control->getIntType()});
 
-  ASSERT_EQ(to_string(ptrTypeAlias->typeId->type), "const int*");
+  ASSERT_EQ(to_string(ptrInstance->typeId->type), "const int*");
 
-  auto funcTypeAlias =
-      subst(source, source.getAs<TypeAliasSymbol>("Func")->declaration(),
+  auto funcInstance =
+      subst(source,
+            getTemplateBodyAs<AliasDeclarationAST>(
+                source.getAs<TypeAliasSymbol>("Func")->templateDeclaration()),
             {control->getIntType(), control->getFloatType()});
+  ASSERT_EQ(to_string(funcInstance->typeId->type), "void (int, const float&)");
+}
 
-  ASSERT_EQ(to_string(funcTypeAlias->typeId->type), "void (int, float)");
+TEST(Rewriter, Var) {
+  auto source = R"(
+template <int i>
+const int c = i + 321;
+
+constexpr int x = 123;
+
+)"_cxx;
+
+  auto control = source.control();
+
+  auto c = source.getAs<VariableSymbol>("c");
+  ASSERT_TRUE(c != nullptr);
+  auto templateDeclaration = c->templateDeclaration();
+  ASSERT_TRUE(templateDeclaration != nullptr);
+
+  auto x = source.getAs<VariableSymbol>("x");
+  ASSERT_TRUE(x != nullptr);
+  auto xinit = x->initializer();
+  ASSERT_TRUE(xinit != nullptr);
+
+  auto instance = subst(
+      source, getTemplateBodyAs<SimpleDeclarationAST>(templateDeclaration),
+      {xinit});
+
+  auto decl = instance->initDeclaratorList->value;
+  ASSERT_TRUE(decl != nullptr);
+
+  auto init = ast_cast<EqualInitializerAST>(decl->initializer);
+  ASSERT_TRUE(init);
+
+  ASTInterpreter interp{&source.unit};
+
+  auto value = interp.evaluate(init->expression);
+
+  ASSERT_TRUE(value.has_value());
+
+  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 123 + 321);
 }
