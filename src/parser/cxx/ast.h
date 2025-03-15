@@ -2120,7 +2120,7 @@ class ConditionExpressionAST final : public ExpressionAST {
   List<SpecifierAST*>* declSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   ExpressionAST* initializer = nullptr;
-  Symbol* symbol = nullptr;
+  VariableSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

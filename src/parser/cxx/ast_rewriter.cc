@@ -2343,6 +2343,27 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
+  if (auto x = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
+      x && x->depth() == 0 && x->index() < rewrite.templateArguments_.size()) {
+    auto initializerPtr =
+        std::get_if<ExpressionAST*>(&rewrite.templateArguments_[x->index()]);
+    if (!initializerPtr) {
+      cxx_runtime_error("expected initializer for non-type template parameter");
+    }
+
+    auto initializer = rewrite(*initializerPtr);
+
+    if (auto eq = ast_cast<EqualInitializerAST>(initializer)) {
+      return eq->expression;
+    }
+
+    if (auto bracedInit = ast_cast<BracedInitListAST>(initializer)) {
+      if (bracedInit->expressionList && !bracedInit->expressionList->next) {
+        return bracedInit->expressionList->value;
+      }
+    }
+  }
+
   auto copy = make_node<IdExpressionAST>(arena());
 
   copy->valueCategory = ast->valueCategory;
