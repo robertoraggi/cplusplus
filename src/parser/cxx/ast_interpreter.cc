@@ -1634,6 +1634,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return enumerator->value();
   }
 
+  if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+    return var->constValue();
+  }
+
   return std::nullopt;
 }
 
@@ -1989,33 +1993,49 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
     case TokenKind::T_STAR:
       if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) +
+        return std::visit(ArithmeticCast<double>{}, *left) *
                std::visit(ArithmeticCast<double>{}, *right);
       else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
+        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) *
                std::visit(ArithmeticCast<std::uint64_t>{}, *right);
       else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
+        return std::visit(ArithmeticCast<std::int64_t>{}, *left) *
                std::visit(ArithmeticCast<std::int64_t>{}, *right);
 
-    case TokenKind::T_SLASH:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) +
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+    case TokenKind::T_SLASH: {
+      if (control()->is_floating_point(ast->type)) {
+        auto l = std::visit(ArithmeticCast<double>{}, *left);
+        auto r = std::visit(ArithmeticCast<double>{}, *right);
+        if (r == 0.0) return std::nullopt;
+        return l / r;
+      }
 
-    case TokenKind::T_PERCENT:
-      if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) %
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) %
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      if (control()->is_unsigned(ast->type)) {
+        auto l = std::visit(ArithmeticCast<std::uint64_t>{}, *left);
+        auto r = std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+        if (r == 0) return std::nullopt;
+        return l / r;
+      }
+
+      auto l = std::visit(ArithmeticCast<std::int64_t>{}, *left);
+      auto r = std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      if (r == 0) return std::nullopt;
+      return l / r;
+    }
+
+    case TokenKind::T_PERCENT: {
+      if (control()->is_unsigned(ast->type)) {
+        auto l = std::visit(ArithmeticCast<std::uint64_t>{}, *left);
+        auto r = std::visit(ArithmeticCast<std::uint64_t>{}, *right);
+        if (r == 0) return std::nullopt;
+        return l % r;
+      }
+
+      auto l = std::visit(ArithmeticCast<std::int64_t>{}, *left);
+      auto r = std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      if (r == 0) return std::nullopt;
+      return l % r;
+    }
 
     case TokenKind::T_PLUS:
       if (control()->is_floating_point(ast->type))

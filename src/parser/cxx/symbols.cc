@@ -563,6 +563,14 @@ void VariableSymbol::setInitializer(ExpressionAST* initializer) {
   initializer_ = initializer;
 }
 
+auto VariableSymbol::constValue() const -> const std::optional<ConstValue>& {
+  return constValue_;
+}
+
+void VariableSymbol::setConstValue(std::optional<ConstValue> value) {
+  constValue_ = std::move(value);
+}
+
 FieldSymbol::FieldSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 

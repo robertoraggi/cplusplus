@@ -89,11 +89,14 @@ using Func = void(T, const U&);
 TEST(Rewriter, Var) {
   auto source = R"(
 template <int i>
-const int c = i + 321;
+const int c = i + 321 + i;
 
-constexpr int x = 123;
+constexpr int x = 123 * 2;
 
+constexpr int y = c<123 * 2>;
 )"_cxx;
+
+  auto interp = ASTInterpreter{&source.unit};
 
   auto control = source.control();
 
@@ -102,14 +105,24 @@ constexpr int x = 123;
   auto templateDeclaration = c->templateDeclaration();
   ASSERT_TRUE(templateDeclaration != nullptr);
 
+  // extract the expression 123 * 2 from the AST
   auto x = source.getAs<VariableSymbol>("x");
   ASSERT_TRUE(x != nullptr);
-  auto xinit = x->initializer();
+  auto xinit = ast_cast<EqualInitializerAST>(x->initializer())->expression;
   ASSERT_TRUE(xinit != nullptr);
+
+  // synthesize const auto i = 123 * 2;
+
+  // ### need to set scope and location
+  auto templArg = control->newVariableSymbol(nullptr, {});
+  templArg->setInitializer(xinit);
+  templArg->setType(control->add_const(x->type()));
+  templArg->setConstValue(interp.evaluate(xinit));
+  ASSERT_TRUE(templArg->constValue().has_value());
 
   auto instance = subst(
       source, getTemplateBodyAs<SimpleDeclarationAST>(templateDeclaration),
-      {xinit});
+      {templArg});
 
   auto decl = instance->initDeclaratorList->value;
   ASSERT_TRUE(decl != nullptr);
@@ -117,11 +130,69 @@ constexpr int x = 123;
   auto init = ast_cast<EqualInitializerAST>(decl->initializer);
   ASSERT_TRUE(init);
 
-  ASTInterpreter interp{&source.unit};
-
   auto value = interp.evaluate(init->expression);
 
   ASSERT_TRUE(value.has_value());
 
-  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 123 + 321);
+  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 123 * 2 + 321 + 123 * 2);
+}
+
+// simulate a template-id instantiation
+TEST(Rewriter, TemplateId) {
+  auto source = R"(
+template <int i>
+const int c = i + 321 + i;
+
+constexpr int y = c<123 * 2>;
+)"_cxx;
+
+  auto interp = ASTInterpreter{&source.unit};
+
+  auto control = source.control();
+
+  auto y = source.getAs<VariableSymbol>("y");
+  ASSERT_TRUE(y != nullptr);
+  auto yinit = ast_cast<EqualInitializerAST>(y->initializer())->expression;
+  ASSERT_TRUE(yinit != nullptr);
+
+  auto idExpr = ast_cast<IdExpressionAST>(yinit);
+  ASSERT_TRUE(idExpr != nullptr);
+
+  ASSERT_TRUE(idExpr->symbol);
+
+  auto templateId = ast_cast<SimpleTemplateIdAST>(idExpr->unqualifiedId);
+  ASSERT_TRUE(templateId != nullptr);
+
+  // get the primary template declaration
+  auto templateSym =
+      symbol_cast<VariableSymbol>(templateId->primaryTemplateSymbol);
+  ASSERT_TRUE(templateSym != nullptr);
+  auto templateDecl = getTemplateBodyAs<SimpleDeclarationAST>(
+      templateSym->templateDeclaration());
+  ASSERT_TRUE(templateDecl != nullptr);
+
+  std::vector<TemplateArgument> templateArguments;
+  for (auto arg : ListView{templateId->templateArgumentList}) {
+    if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+      auto expr = exprArg->expression;
+      // ### need to set scope and location
+      auto templArg = control->newVariableSymbol(nullptr, {});
+      templArg->setInitializer(expr);
+      templArg->setType(control->add_const(expr->type));
+      templArg->setConstValue(interp.evaluate(expr));
+      ASSERT_TRUE(templArg->constValue().has_value());
+      templateArguments.push_back(templArg);
+    }
+  }
+
+  auto instance = subst(source, templateDecl, templateArguments);
+  ASSERT_TRUE(instance != nullptr);
+
+  auto decl = instance->initDeclaratorList->value;
+  ASSERT_TRUE(decl != nullptr);
+  auto init = ast_cast<EqualInitializerAST>(decl->initializer);
+  ASSERT_TRUE(init != nullptr);
+  auto value = interp.evaluate(init->expression);
+  ASSERT_TRUE(value.has_value());
+  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 123 * 2 + 321 + 123 * 2);
 }
