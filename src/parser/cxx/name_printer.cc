@@ -36,6 +36,8 @@ struct NamePrinter {
 
     auto operator()(const ConstValue& value) const -> std::string { return {}; }
 
+    auto operator()(const Symbol* symbol) const -> std::string { return {}; }
+
     auto operator()(ExpressionAST* value) const -> std::string { return {}; }
 
   } template_argument_to_string;

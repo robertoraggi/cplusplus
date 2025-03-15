@@ -547,10 +547,14 @@ class VariableSymbol final : public Symbol {
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST*);
 
+  [[nodiscard]] auto constValue() const -> const std::optional<ConstValue>&;
+  void setConstValue(std::optional<ConstValue> value);
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
   ExpressionAST* initializer_ = nullptr;
+  std::optional<ConstValue> constValue_;
 
   union {
     std::uint32_t flags_{};

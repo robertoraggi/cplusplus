@@ -47,7 +47,10 @@ class Name;
 CXX_FOR_EACH_NAME(PROCESS_NAME)
 #undef PROCESS_NAME
 
-using TemplateArgument = std::variant<const Type*, ConstValue, ExpressionAST*>;
+class Symbol;
+
+using TemplateArgument =
+    std::variant<const Type*, Symbol*, ConstValue, ExpressionAST*>;
 
 enum class IdentifierInfoKind {
   kTypeTrait,
