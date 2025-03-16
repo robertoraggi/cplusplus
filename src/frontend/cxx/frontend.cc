@@ -41,6 +41,8 @@
 #include <cxx/mlir/cxx_dialect.h>
 #endif
 
+#include <cxx/ast_printer.h>
+
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -48,7 +50,6 @@
 #include <regex>
 #include <string>
 
-#include "ast_printer.h"
 #include "verify_diagnostics_client.h"
 
 namespace {

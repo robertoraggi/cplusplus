@@ -19,7 +19,6 @@
 
 
 add_executable(cxx
-    cxx/ast_printer.cc
     cxx/frontend.cc
     cxx/verify_diagnostics_client.cc
 )
