@@ -108,7 +108,9 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
       if (base == "ExpressionAST") {
         emit(`  out_ << "${astName(name)}";`);
         emit(`  if (ast->type) {`);
-        emit(`    out_ << std::format(" [{} {}]", to_string(ast->valueCategory), to_string(ast->type));`);
+        emit(
+          `    out_ << std::format(" [{} {}]", to_string(ast->valueCategory), to_string(ast->type));`
+        );
         emit(`  }`);
         emit(`  out_ << "\\n";`);
       } else {
@@ -137,8 +139,9 @@ export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
   });
 
   const out = `${cpy_header}
-#include "ast_printer.h"
+#include <cxx/ast_printer.h>
 
+// cxx
 #include <cxx/ast.h>
 #include <cxx/translation_unit.h>
 #include <cxx/names.h>

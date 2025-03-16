@@ -67,11 +67,11 @@ gen_ast_visitor_h({
 });
 gen_ast_dump_h({
   ast,
-  output: path.join(outdir, "src/frontend/cxx/ast_printer.h"),
+  output: path.join(outdir, "src/parser/cxx/ast_printer.h"),
 });
 gen_ast_dump_cc({
   ast,
-  output: path.join(outdir, "src/frontend/cxx/ast_printer.cc"),
+  output: path.join(outdir, "src/parser/cxx/ast_printer.cc"),
 });
 gen_ast_kind_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_kind.h") });
 gen_ast_slot_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_slot.h") });
