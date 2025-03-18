@@ -93,7 +93,6 @@ auto TranslationUnit::continuePreprocessing() -> PreprocessingState {
 
 void TranslationUnit::endPreprocessing() {
   preprocessor_->endPreprocessing(tokens_);
-  preprocessor_->squeeze();
 }
 
 auto TranslationUnit::fatalErrors() const -> bool {
@@ -168,7 +167,7 @@ void TranslationUnit::parse(ParserConfiguration config) {
   if (ast_) {
     cxx_runtime_error("translation unit already parsed");
   }
-
+  preprocessor_->squeeze();
   Parser parse(this);
   parse.setConfig(std::move(config));
   parse(ast_);

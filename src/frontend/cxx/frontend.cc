@@ -294,7 +294,6 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       shouldExit = true;
     } else {
       unit.setSource(std::move(*source), fileName);
-
       if (cli.opt_dM) {
         preprocessor->printMacros(output);
         shouldExit = true;
