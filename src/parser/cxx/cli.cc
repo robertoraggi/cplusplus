@@ -157,6 +157,8 @@ std::vector<CLIOptionDescr> options{
 
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
+    {"-ast-print", "Print the AST", &CLI::opt_ast_print},
+
     {"-dump-symbols", "Dump the symbol tables", &CLI::opt_dump_symbols},
 
     {"-dump-tokens", "Run preprocessor, dump internal rep of tokens",

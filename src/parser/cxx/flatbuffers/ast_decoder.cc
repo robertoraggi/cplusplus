@@ -3504,7 +3504,6 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
     }
   }
   ast->lbraceLoc = SourceLocation(node->lbrace_loc());
-  ast->commaLoc = SourceLocation(node->comma_loc());
   if (node->enumerator_list()) {
     auto* inserter = &ast->enumeratorList;
     for (std::uint32_t i = 0; i < node->enumerator_list()->size(); ++i) {
@@ -3513,6 +3512,7 @@ auto ASTDecoder::decodeEnumSpecifier(const io::EnumSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->commaLoc = SourceLocation(node->comma_loc());
   ast->rbraceLoc = SourceLocation(node->rbrace_loc());
   return ast;
 }
@@ -3569,6 +3569,7 @@ auto ASTDecoder::decodeTypenameSpecifier(const io::TypenameSpecifier* node)
   ast->typenameLoc = SourceLocation(node->typename_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   return ast;
@@ -4107,6 +4108,7 @@ auto ASTDecoder::decodeTypeRequirement(const io::TypeRequirement* node)
   ast->typenameLoc = SourceLocation(node->typename_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
+  ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
   ast->semicolonLoc = SourceLocation(node->semicolon_loc());

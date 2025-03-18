@@ -2569,16 +2569,16 @@ auto EnumSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(enumeratorList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
   return {};
 }
 
 auto EnumSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(enumeratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(enumeratorList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
@@ -2621,12 +2621,14 @@ auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
 auto TypenameSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   return {};
 }
 
 auto TypenameSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return {};
@@ -3105,6 +3107,7 @@ auto CompoundRequirementAST::lastSourceLocation() -> SourceLocation {
 auto TypeRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -3113,6 +3116,7 @@ auto TypeRequirementAST::firstSourceLocation() -> SourceLocation {
 auto TypeRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return {};

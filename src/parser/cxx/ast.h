@@ -3175,8 +3175,8 @@ class EnumSpecifierAST final : public SpecifierAST {
   SourceLocation colonLoc;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   SourceLocation lbraceLoc;
-  SourceLocation commaLoc;
   List<EnumeratorAST*>* enumeratorList = nullptr;
+  SourceLocation commaLoc;
   SourceLocation rbraceLoc;
   Symbol* symbol = nullptr;
 
@@ -3220,7 +3220,9 @@ class TypenameSpecifierAST final : public SpecifierAST {
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3780,8 +3782,10 @@ class TypeRequirementAST final : public RequirementAST {
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
+  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

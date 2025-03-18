@@ -2196,6 +2196,13 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
 
 void ASTPrinter::visit(TypenameSpecifierAST* ast) {
   out_ << std::format("{}\n", "typename-specifier");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-template-introduced: {}\n",
+                        ast->isTemplateIntroduced);
+    --indent_;
+  }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
 }
@@ -2552,6 +2559,13 @@ void ASTPrinter::visit(CompoundRequirementAST* ast) {
 
 void ASTPrinter::visit(TypeRequirementAST* ast) {
   out_ << std::format("{}\n", "type-requirement");
+  if (ast->isTemplateIntroduced) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-template-introduced: {}\n",
+                        ast->isTemplateIntroduced);
+    --indent_;
+  }
   accept(ast->nestedNameSpecifier, "nested-name-specifier");
   accept(ast->unqualifiedId, "unqualified-id");
 }

@@ -20,6 +20,8 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_cursor.h>
+#include <cxx/ast_pretty_printer.h>
+#include <cxx/ast_printer.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/cli.h>
 #include <cxx/control.h>
@@ -40,8 +42,6 @@
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
 #endif
-
-#include <cxx/ast_printer.h>
 
 #include <format>
 #include <fstream>
@@ -334,6 +334,11 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     if (cli.opt_ast_dump) {
       ASTPrinter printAST(&unit, std::cout);
       printAST(unit.ast());
+    }
+
+    if (cli.opt_ast_print) {
+      ASTPrettyPrinter prettyPrinter(&unit, std::cout);
+      prettyPrinter(unit.ast());
     }
 
 #ifdef CXX_WITH_MLIR
