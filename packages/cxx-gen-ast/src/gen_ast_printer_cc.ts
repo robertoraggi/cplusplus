@@ -23,7 +23,13 @@ import { AST, Member } from "./parseAST.js";
 import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
-export function gen_ast_dump_cc({ ast, output }: { ast: AST; output: string }) {
+export function gen_ast_printer_cc({
+  ast,
+  output,
+}: {
+  ast: AST;
+  output: string;
+}) {
   const code: string[] = [];
   const emit = (line = "") => code.push(line);
 

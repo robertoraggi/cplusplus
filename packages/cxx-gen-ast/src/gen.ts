@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 import { gen_ast_cc } from "./gen_ast_cc.js";
-import { gen_ast_dump_cc } from "./gen_ast_dump_cc.js";
-import { gen_ast_dump_h } from "./gen_ast_dump_h.js";
+import { gen_ast_printer_cc } from "./gen_ast_printer_cc.js";
+import { gen_ast_printer_h } from "./gen_ast_printer_h.js";
 import { gen_ast_fwd_h } from "./gen_ast_fwd_h.js";
 import { gen_ast_h } from "./gen_ast_h.js";
 import { gen_ast_kind_h } from "./gen_ast_kind_h.js";
@@ -40,14 +40,16 @@ import { gen_ast_encoder_cc } from "./gen_ast_encoder_cc.js";
 import { gen_ast_decoder_h } from "./gen_ast_decoder_h.js";
 import { gen_ast_decoder_cc } from "./gen_ast_decoder_cc.js";
 import { gen_ast_slot_ts } from "./gen_ast_slot_ts.js";
+import { gen_token_fwd_h } from "./gen_token_fwd_h.js";
+import { gen_tokenkind_ts } from "./gen_tokenkind_ts.js";
+import { gen_keywords_kwgen } from "./gen_keywords_kwgen.js";
+import { gen_ast_pretty_printer_h } from "./gen_ast_pretty_printer_h.js";
+import { gen_ast_pretty_printer_cc } from "./gen_ast_pretty_printer_cc.js";
 
 import * as fs from "fs";
 import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
-import { gen_token_fwd_h } from "./gen_token_fwd_h.js";
-import { gen_tokenkind_ts } from "./gen_tokenkind_ts.js";
-import { gen_keywords_kwgen } from "./gen_keywords_kwgen.js";
 
 const outdir = process.cwd();
 
@@ -65,13 +67,21 @@ gen_ast_visitor_h({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_visitor.h"),
 });
-gen_ast_dump_h({
+gen_ast_printer_h({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_printer.h"),
 });
-gen_ast_dump_cc({
+gen_ast_printer_cc({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_printer.cc"),
+});
+gen_ast_pretty_printer_h({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast_pretty_printer.h"),
+});
+gen_ast_pretty_printer_cc({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast_pretty_printer.cc"),
 });
 gen_ast_kind_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_kind.h") });
 gen_ast_slot_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_slot.h") });

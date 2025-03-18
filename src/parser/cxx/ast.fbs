@@ -1389,6 +1389,7 @@ table TypeRequirement /* RequirementAST */ {
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
   typename_loc: uint32;
+  template_loc: uint32;
   semicolon_loc: uint32;
 }
 
@@ -1586,6 +1587,7 @@ table TypenameSpecifier /* SpecifierAST */ {
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
   typename_loc: uint32;
+  template_loc: uint32;
 }
 
 table SplicerTypeSpecifier /* SpecifierAST */ {

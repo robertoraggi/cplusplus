@@ -52,6 +52,7 @@ class CLI {
 
   std::string app_name;
   bool opt_ast_dump = false;
+  bool opt_ast_print = false;
   bool opt_emit_ir = false;
   bool opt_dM = false;
   bool opt_dump_symbols = false;

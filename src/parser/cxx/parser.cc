@@ -183,12 +183,13 @@ Parser::Parser(TranslationUnit* unit) : unit(unit), binder_(unit) {
 
   // temporary workarounds to the gnu  until we have a proper
   // support for templates
-  mark_maybe_template_name(control_->getIdentifier("__make_integer_seq"));
   mark_maybe_template_name(control_->getIdentifier("__remove_reference_t"));
-  mark_maybe_template_name(control_->getIdentifier("__integer_pack"));
+  // mark_maybe_template_name(control_->getIdentifier("__integer_pack"));
 
   template_names_.insert(control_->getIdentifier("_S_invoke"));
   template_names_.insert(control_->getIdentifier("__type_pack_element"));
+  template_names_.insert(control_->getIdentifier("__make_integer_seq"));
+  template_names_.insert(control_->getIdentifier("_S_nothrow_construct"));
 }
 
 Parser::~Parser() = default;
@@ -1691,14 +1692,15 @@ auto Parser::parse_type_requirement(RequirementAST*& yyast) -> bool {
   auto ast = make_node<TypeRequirementAST>(pool_);
   yyast = ast;
 
+  ast->typenameLoc = typenameLoc;
+
   parse_optional_nested_name_specifier(
       ast->nestedNameSpecifier, NestedNameSpecifierContext::kNonDeclarative);
 
-  SourceLocation templateLoc;
-  const auto isTemplateIntroduced = match(TokenKind::T_TEMPLATE, templateLoc);
+  ast->isTemplateIntroduced = match(TokenKind::T_TEMPLATE, ast->templateLoc);
 
   if (!parse_type_name(ast->unqualifiedId, ast->nestedNameSpecifier,
-                       isTemplateIntroduced)) {
+                       ast->isTemplateIntroduced)) {
     parse_error("expected a type name");
   }
 
@@ -5721,7 +5723,7 @@ auto Parser::parse_nested_declarator(CoreDeclaratorAST*& yyast, Decl& decl,
 
   ast->lparenLoc = lparenLoc;
   ast->declarator = declarator;
-  ast->rparenLoc = lparenLoc;
+  ast->rparenLoc = rparenLoc;
 
   return true;
 }
@@ -6936,20 +6938,24 @@ auto Parser::parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool {
 }
 
 auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
-  SourceLocation attributeLoc;
+  if (!lookat(TokenKind::T___ATTRIBUTE__, TokenKind::T_LPAREN,
+              TokenKind::T_LPAREN))
+    return false;
 
-  if (!match(TokenKind::T___ATTRIBUTE__, attributeLoc)) return false;
+  SourceLocation attributeLoc;
 
   auto ast = make_node<GccAttributeAST>(pool_);
   yyast = ast;
 
-  ast->attributeLoc = attributeLoc;
+  ast->attributeLoc = consumeToken();
+  ast->lparenLoc = consumeToken();
+  ast->lparen2Loc = currentLocation();
 
-  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  if (parse_skip_balanced()) {
+    ast->rparenLoc = currentLocation().previous();
+  }
 
-  (void)parse_skip_balanced();
-
-  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+  expect(TokenKind::T_RPAREN, ast->rparen2Loc);
 
   return true;
 }
@@ -8836,10 +8842,6 @@ auto Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast)
 
   if (!parse_template_argument(templateArgument)) return false;
 
-  SourceLocation ellipsisLoc;
-
-  match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
-
   *it = make_list_node(pool_, templateArgument);
   it = &(*it)->next;
 
@@ -8852,10 +8854,6 @@ auto Parser::parse_template_argument_list(List<TemplateArgumentAST*>*& yyast)
       // parse_error("expected a template argument"); // ### FIXME
       return false;
     }
-
-    SourceLocation ellipsisLoc;
-
-    match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
     *it = make_list_node(pool_, templateArgument);
     it = &(*it)->next;
@@ -8908,6 +8906,14 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
     if (!check()) return false;
 
     lookahead.commit();
+
+    if (SourceLocation ellipsisLoc;
+        match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
+      auto pack = make_node<PackExpansionExpressionAST>(pool_);
+      pack->expression = expression;
+      pack->ellipsisLoc = ellipsisLoc;
+      expression = pack;
+    }
 
     auto ast = make_node<ExpressionTemplateArgumentAST>(pool_);
     yyast = ast;
@@ -9093,7 +9099,9 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   ast->typenameLoc = typenameLoc;
   ast->nestedNameSpecifier = nestedNameSpecifier;
+  ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
+  ast->isTemplateIntroduced = isTemplateIntroduced;
 
   specs.accept(ast);
 

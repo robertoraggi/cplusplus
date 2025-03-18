@@ -3944,8 +3944,8 @@ void ASTEncoder::visit(EnumSpecifierAST* ast) {
   builder.add_type_specifier_list(typeSpecifierListOffsetsVector);
   builder.add_type_specifier_list_type(typeSpecifierListTypesVector);
   builder.add_lbrace_loc(ast->lbraceLoc.index());
-  builder.add_comma_loc(ast->commaLoc.index());
   builder.add_enumerator_list(enumeratorListOffsetsVector);
+  builder.add_comma_loc(ast->commaLoc.index());
   builder.add_rbrace_loc(ast->rbraceLoc.index());
 
   offset_ = builder.Finish().Union();
@@ -4030,6 +4030,7 @@ void ASTEncoder::visit(TypenameSpecifierAST* ast) {
   builder.add_nested_name_specifier(nestedNameSpecifier);
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
+  builder.add_template_loc(ast->templateLoc.index());
   builder.add_unqualified_id(unqualifiedId);
   builder.add_unqualified_id_type(
       static_cast<io::UnqualifiedId>(unqualifiedIdType));
@@ -4751,6 +4752,7 @@ void ASTEncoder::visit(TypeRequirementAST* ast) {
   builder.add_nested_name_specifier(nestedNameSpecifier);
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));
+  builder.add_template_loc(ast->templateLoc.index());
   builder.add_unqualified_id(unqualifiedId);
   builder.add_unqualified_id_type(
       static_cast<io::UnqualifiedId>(unqualifiedIdType));

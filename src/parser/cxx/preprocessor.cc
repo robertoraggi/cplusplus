@@ -100,9 +100,10 @@ std::unordered_set<std::string_view> enabledBuiltins{
     "__is_void",
     "__is_volatile",
 
+    "__make_integer_seq",
     "__remove_reference_t",
-    "__integer_pack",
     "__type_pack_element",
+// "__integer_pack",
 
 #if false
       "__add_lvalue_reference", "__add_pointer", "__add_rvalue_reference",

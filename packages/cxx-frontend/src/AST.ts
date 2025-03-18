@@ -9624,13 +9624,6 @@ export class EnumSpecifierAST extends SpecifierAST {
   }
 
   /**
-   * Returns the location of the comma token in this node
-   */
-  getCommaToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
-  }
-
-  /**
    * Returns the enumeratorList of this node
    */
   getEnumeratorList(): Iterable<EnumeratorAST | undefined> {
@@ -9654,6 +9647,13 @@ export class EnumSpecifierAST extends SpecifierAST {
         return { next };
       },
     };
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
   }
 
   /**
@@ -9864,13 +9864,27 @@ export class TypenameSpecifierAST extends SpecifierAST {
   }
 
   /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
    * Returns the unqualifiedId of this node
    */
   getUnqualifiedId(): UnqualifiedIdAST | undefined {
     return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
   }
 }
 
@@ -11678,11 +11692,18 @@ export class TypeRequirementAST extends RequirementAST {
   }
 
   /**
+   * Returns the location of the template token in this node
+   */
+  getTemplateToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
    * Returns the unqualifiedId of this node
    */
   getUnqualifiedId(): UnqualifiedIdAST | undefined {
     return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -11691,7 +11712,14 @@ export class TypeRequirementAST extends RequirementAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the isTemplateIntroduced attribute of this node
+   */
+  getIsTemplateIntroduced(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
   }
 }
 
