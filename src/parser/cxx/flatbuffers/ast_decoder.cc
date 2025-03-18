@@ -2916,6 +2916,9 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->virtualOrAccessLoc = SourceLocation(node->virtual_or_access_loc());
+  ast->otherVirtualOrAccessLoc =
+      SourceLocation(node->other_virtual_or_access_loc());
   ast->nestedNameSpecifier = decodeNestedNameSpecifier(
       node->nested_name_specifier(), node->nested_name_specifier_type());
   ast->templateLoc = SourceLocation(node->template_loc());

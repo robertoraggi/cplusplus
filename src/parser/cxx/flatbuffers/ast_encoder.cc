@@ -3253,6 +3253,8 @@ void ASTEncoder::visit(BaseSpecifierAST* ast) {
   io::BaseSpecifier::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_virtual_or_access_loc(ast->virtualOrAccessLoc.index());
+  builder.add_other_virtual_or_access_loc(ast->otherVirtualOrAccessLoc.index());
   builder.add_nested_name_specifier(nestedNameSpecifier);
   builder.add_nested_name_specifier_type(
       static_cast<io::NestedNameSpecifier>(nestedNameSpecifierType));

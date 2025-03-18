@@ -419,6 +419,8 @@ table BaseSpecifier /* AST */ {
   nested_name_specifier: NestedNameSpecifier;
   unqualified_id: UnqualifiedId;
   access_specifier: uint32;
+  virtual_or_access_loc: uint32;
+  other_virtual_or_access_loc: uint32;
   template_loc: uint32;
 }
 

@@ -1032,6 +1032,12 @@ void ASTPrettyPrinter::operator()(BaseSpecifierAST* ast) {
     operator()(it->value);
   }
 
+  if (ast->virtualOrAccessLoc) {
+    writeToken(ast->virtualOrAccessLoc);
+  }
+  if (ast->otherVirtualOrAccessLoc) {
+    writeToken(ast->otherVirtualOrAccessLoc);
+  }
   operator()(ast->nestedNameSpecifier);
   if (ast->templateLoc) {
     writeToken(ast->templateLoc);

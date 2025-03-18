@@ -7627,11 +7627,25 @@ export class BaseSpecifierAST extends AST {
   }
 
   /**
+   * Returns the location of the virtualOrAccess token in this node
+   */
+  getVirtualOrAccessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the otherVirtualOrAccess token in this node
+   */
+  getOtherVirtualOrAccessToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
    * Returns the nestedNameSpecifier of this node
    */
   getNestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return AST.from<NestedNameSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -7640,7 +7654,7 @@ export class BaseSpecifierAST extends AST {
    * Returns the location of the template token in this node
    */
   getTemplateToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
@@ -7648,7 +7662,7 @@ export class BaseSpecifierAST extends AST {
    */
   getUnqualifiedId(): UnqualifiedIdAST | undefined {
     return AST.from<UnqualifiedIdAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
   }
@@ -7657,21 +7671,21 @@ export class BaseSpecifierAST extends AST {
    * Returns the isTemplateIntroduced attribute of this node
    */
   getIsTemplateIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
   }
 
   /**
    * Returns the isVirtual attribute of this node
    */
   getIsVirtual(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 7) !== 0;
   }
 
   /**
    * Returns the accessSpecifier attribute of this node
    */
   getAccessSpecifier(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 6);
+    return cxx.getASTSlot(this.getHandle(), 8);
   }
 }
 

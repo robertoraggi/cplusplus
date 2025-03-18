@@ -7990,6 +7990,9 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
     ast->accessSpecifier = unit->tokenKind(accessLoc);
   }
 
+  ast->virtualOrAccessLoc = std::min(virtualLoc, accessLoc);
+  ast->otherVirtualOrAccessLoc = std::max(virtualLoc, accessLoc);
+
   if (!parse_class_or_decltype(ast->nestedNameSpecifier, ast->templateLoc,
                                ast->unqualifiedId)) {
     parse_error("expected a class name");

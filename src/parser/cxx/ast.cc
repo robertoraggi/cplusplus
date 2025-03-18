@@ -1974,6 +1974,8 @@ auto HandlerAST::lastSourceLocation() -> SourceLocation {
 
 auto BaseSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(virtualOrAccessLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(otherVirtualOrAccessLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
@@ -1984,6 +1986,8 @@ auto BaseSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(otherVirtualOrAccessLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(virtualOrAccessLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
