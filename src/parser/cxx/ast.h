@@ -2424,6 +2424,8 @@ class BaseSpecifierAST final : public AST {
   BaseSpecifierAST() : AST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation virtualOrAccessLoc;
+  SourceLocation otherVirtualOrAccessLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;

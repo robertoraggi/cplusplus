@@ -1125,6 +1125,8 @@ auto ASTRewriter::operator()(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
     attributeList = &(*attributeList)->next;
   }
 
+  copy->virtualOrAccessLoc = ast->virtualOrAccessLoc;
+  copy->otherVirtualOrAccessLoc = ast->otherVirtualOrAccessLoc;
   copy->nestedNameSpecifier = operator()(ast->nestedNameSpecifier);
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = operator()(ast->unqualifiedId);
