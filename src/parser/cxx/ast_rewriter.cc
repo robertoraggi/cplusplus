@@ -3457,6 +3457,18 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
   copy->symbol = ast->symbol;
 
+  if (auto typeParameter = symbol_cast<TypeParameterSymbol>(copy->symbol)) {
+    const auto& args = rewrite.templateArguments_;
+    if (typeParameter && typeParameter->depth() == 0 &&
+        typeParameter->index() < args.size()) {
+      auto index = typeParameter->index();
+
+      if (auto sym = std::get_if<Symbol*>(&args[index])) {
+        copy->symbol = *sym;
+      }
+    }
+  }
+
   return copy;
 }
 

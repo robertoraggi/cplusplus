@@ -167,10 +167,16 @@ void TranslationUnit::parse(ParserConfiguration config) {
   if (ast_) {
     cxx_runtime_error("translation unit already parsed");
   }
+
+  config_ = std::move(config);
+
   preprocessor_->squeeze();
   Parser parse(this);
-  parse.setConfig(std::move(config));
   parse(ast_);
+}
+
+auto TranslationUnit::config() const -> const ParserConfiguration& {
+  return config_;
 }
 
 auto TranslationUnit::globalScope() const -> Scope* {
