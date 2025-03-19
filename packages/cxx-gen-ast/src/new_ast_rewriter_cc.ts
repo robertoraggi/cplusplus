@@ -62,17 +62,17 @@ export function new_ast_rewriter_cc({
     emit(`  struct ASTRewriter::${className}Visitor {`);
     emit(`    ASTRewriter& rewrite;`);
     emit(
-      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`
+      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`,
     );
     emit();
     emit(
-      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`
+      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`,
     );
     emit(
-      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`,
     );
     emit(
-      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`
+      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`,
     );
     nodes.forEach(({ name }) => {
       emit();
@@ -83,7 +83,7 @@ export function new_ast_rewriter_cc({
 
   const emitRewriterBody = (members: Member[], visitor: string = "rewrite") => {
     const blockSymbol = members.find(
-      (m) => m.kind === "attribute" && m.type === "BlockSymbol"
+      (m) => m.kind === "attribute" && m.type === "BlockSymbol",
     );
 
     if (blockSymbol) {
@@ -114,11 +114,11 @@ export function new_ast_rewriter_cc({
                 if (specsAttr) {
                   emit();
                   emit(
-                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`
+                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`,
                   );
 
                   typeAttr = members.find(
-                    (m) => m.kind === "attribute" && m.name === "type"
+                    (m) => m.kind === "attribute" && m.name === "type",
                   );
 
                   if (typeAttr) {
@@ -131,7 +131,7 @@ export function new_ast_rewriter_cc({
             } // switch
           } else {
             emit(
-              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`
+              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`,
             );
           }
           break;
@@ -150,7 +150,7 @@ export function new_ast_rewriter_cc({
           } // switch
 
           emit(
-            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`
+            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`,
           );
 
           switch (m.type) {
@@ -167,7 +167,7 @@ export function new_ast_rewriter_cc({
             emit(`*${m.name} = make_list_node(arena(), value);`);
           } else {
             emit(
-              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`
+              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`,
             );
           }
           emit(`${m.name} = &(*${m.name})->next;`);
@@ -234,7 +234,7 @@ export function new_ast_rewriter_cc({
     switch (name) {
       case "InitDeclaratorAST":
         emit(
-          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`
+          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`,
         );
         break;
       default:
@@ -259,7 +259,7 @@ export function new_ast_rewriter_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
+        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`,
       );
       if (name === "IdExpressionAST") {
         emit(`

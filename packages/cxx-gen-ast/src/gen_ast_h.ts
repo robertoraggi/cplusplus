@@ -90,7 +90,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
       }
 
       emit(
-        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`
+        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`,
       );
       emit();
       emit(`  auto firstSourceLocation() -> SourceLocation override;`);
@@ -117,7 +117,7 @@ template <typename T>
     emit(`  switch (ast->kind()) {`);
     nodes.forEach(({ name }) => {
       emit(
-        `  case ${name}::Kind: return std::invoke(std::forward<Visitor>(visitor), static_cast<${name}*>(ast));`
+        `  case ${name}::Kind: return std::invoke(std::forward<Visitor>(visitor), static_cast<${name}*>(ast));`,
       );
     });
     emit(`    default: cxx_runtime_error("unexpected ${variantName}");`);

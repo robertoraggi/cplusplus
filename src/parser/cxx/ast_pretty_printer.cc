@@ -815,6 +815,7 @@ void ASTPrettyPrinter::operator()(SplicerAST* ast) {
   if (ast->lbracketLoc) {
     nospace();
     writeToken(ast->lbracketLoc);
+    nospace();
   }
   if (ast->colonLoc) {
     nospace();
@@ -1066,6 +1067,7 @@ void ASTPrettyPrinter::operator()(ParameterDeclarationClauseAST* ast) {
   }
 
   if (ast->commaLoc) {
+    nospace();
     writeToken(ast->commaLoc);
   }
   if (ast->ellipsisLoc) {
@@ -1078,7 +1080,7 @@ void ASTPrettyPrinter::operator()(TrailingReturnTypeAST* ast) {
 
   if (ast->minusGreaterLoc) {
     writeToken(ast->minusGreaterLoc);
-    nospace();
+    space();
   }
   operator()(ast->typeId);
 }
@@ -1402,6 +1404,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
   }
   accept(ast->expression);
   if (ast->commaLoc) {
+    nospace();
     accept.writeToken(ast->commaLoc);
   }
   if (ast->literalLoc) {
@@ -1781,6 +1784,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
 
   for (auto it = ast->bindingList; it; it = it->next) {
@@ -1808,6 +1812,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(AsmOperandAST* ast) {
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
   if (ast->symbolicNameLoc) {
     accept.writeToken(ast->symbolicNameLoc);
@@ -2247,6 +2252,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(LambdaExpressionAST* ast) {
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
   if (ast->captureDefaultLoc) {
     accept.writeToken(ast->captureDefaultLoc);
@@ -2420,6 +2426,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(VaArgExpressionAST* ast) {
   }
   accept(ast->expression);
   if (ast->commaLoc) {
+    nospace();
     accept.writeToken(ast->commaLoc);
   }
   accept(ast->typeId);
@@ -2435,6 +2442,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
   accept(ast->indexExpression);
   if (ast->rbracketLoc) {
@@ -2567,6 +2575,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   }
   accept(ast->typeId);
   if (ast->commaLoc) {
+    nospace();
     accept.writeToken(ast->commaLoc);
   }
   accept(ast->expression);
@@ -2588,6 +2597,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   }
   accept(ast->typeId);
   if (ast->commaLoc) {
+    nospace();
     accept.writeToken(ast->commaLoc);
   }
   accept(ast->expression);
@@ -2814,6 +2824,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(DeleteExpressionAST* ast) {
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
   if (ast->rbracketLoc) {
     nospace();
@@ -2959,7 +2970,6 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(BracedInitListAST* ast) {
     space();
     accept.writeToken(ast->lbraceLoc);
     indent();
-    newline();
   }
 
   for (auto it = ast->expressionList; it; it = it->next) {
@@ -2971,13 +2981,12 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(BracedInitListAST* ast) {
   }
 
   if (ast->commaLoc) {
+    nospace();
     accept.writeToken(ast->commaLoc);
   }
   if (ast->rbraceLoc) {
     unindent();
-    newline();
     accept.writeToken(ast->rbraceLoc);
-    newline();
   }
 }
 
@@ -3385,10 +3394,12 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(EnumSpecifierAST* ast) {
     if (it->next) {
       nospace();
       accept.write(",");
+      newline();
     }
   }
 
   if (ast->commaLoc) {
+    nospace();
     accept.writeToken(ast->commaLoc);
   }
   if (ast->rbraceLoc) {
@@ -3583,6 +3594,7 @@ void ASTPrettyPrinter::DeclaratorChunkVisitor::operator()(
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
   accept(ast->expression);
   if (ast->rbracketLoc) {
@@ -3925,7 +3937,7 @@ void ASTPrettyPrinter::RequirementVisitor::operator()(
   }
   if (ast->minusGreaterLoc) {
     accept.writeToken(ast->minusGreaterLoc);
-    nospace();
+    space();
   }
   accept(ast->typeConstraint);
   if (ast->semicolonLoc) {
@@ -4121,9 +4133,12 @@ void ASTPrettyPrinter::AttributeSpecifierVisitor::operator()(
   if (ast->lbracketLoc) {
     nospace();
     accept.writeToken(ast->lbracketLoc);
+    nospace();
   }
   if (ast->lbracket2Loc) {
+    nospace();
     accept.writeToken(ast->lbracket2Loc);
+    nospace();
   }
   accept(ast->attributeUsingPrefix);
 
@@ -4140,6 +4155,7 @@ void ASTPrettyPrinter::AttributeSpecifierVisitor::operator()(
     accept.writeToken(ast->rbracketLoc);
   }
   if (ast->rbracket2Loc) {
+    nospace();
     accept.writeToken(ast->rbracket2Loc);
   }
 }
@@ -4158,6 +4174,7 @@ void ASTPrettyPrinter::AttributeSpecifierVisitor::operator()(
   if (ast->lparen2Loc) {
     nospace();
 
+    nospace();
     for (auto loc = ast->lparen2Loc; loc; loc = loc.next()) {
       if (loc == ast->rparenLoc) break;
       accept.writeToken(loc);
