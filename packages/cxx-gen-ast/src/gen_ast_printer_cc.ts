@@ -62,7 +62,7 @@ export function gen_ast_printer_cc({
       emit(`    ++indent_;`);
       emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << std::format("${fieldName}: {}\\n", ast->${member.name});`
+        `    out_ << std::format("${fieldName}: {}\\n", ast->${member.name});`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -70,7 +70,7 @@ export function gen_ast_printer_cc({
       emit(`  ++indent_;`);
       emit(`  out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `  out_ << std::format("${fieldName}: {}\\n", ast->${member.name});`
+        `  out_ << std::format("${fieldName}: {}\\n", ast->${member.name});`,
       );
       emit(`  --indent_;`);
     } else if (member.kind == "attribute" && member.type.endsWith("Literal")) {
@@ -78,7 +78,7 @@ export function gen_ast_printer_cc({
       emit(`    ++indent_;`);
       emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << std::format("${fieldName}: {}\\n", ast->${member.name}->value());`
+        `    out_ << std::format("${fieldName}: {}\\n", ast->${member.name}->value());`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -90,7 +90,7 @@ export function gen_ast_printer_cc({
       emit(`    ++indent_;`);
       emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << std::format("${fieldName}: {}\\n", Token::spell(ast->${member.name}));`
+        `    out_ << std::format("${fieldName}: {}\\n", Token::spell(ast->${member.name}));`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -101,7 +101,7 @@ export function gen_ast_printer_cc({
       emit(`  ++indent_;`);
       emit(`  out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(
-        `  out_ << std::format("${fieldName}: {}\\n", to_string(ast->${member.name}));`
+        `  out_ << std::format("${fieldName}: {}\\n", to_string(ast->${member.name}));`,
       );
       emit(`  --indent_;`);
     }
@@ -115,7 +115,7 @@ export function gen_ast_printer_cc({
         emit(`  out_ << "${astName(name)}";`);
         emit(`  if (ast->type) {`);
         emit(
-          `    out_ << std::format(" [{} {}]", to_string(ast->valueCategory), to_string(ast->type));`
+          `    out_ << std::format(" [{} {}]", to_string(ast->valueCategory), to_string(ast->type));`,
         );
         emit(`  }`);
         emit(`  out_ << "\\n";`);

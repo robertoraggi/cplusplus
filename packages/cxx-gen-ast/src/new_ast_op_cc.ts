@@ -116,7 +116,7 @@ export function new_ast_op_cc({
       const resultTy = `${chopAST(base)}Result`;
       emit();
       emit(
-        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${resultTy} {`
+        `auto ${opName}::${className}Visitor::operator()(${name}* ast) -> ${resultTy} {`,
       );
       members.forEach((m) => {
         switch (m.kind) {

@@ -30,13 +30,13 @@ export function gen_token_fwd_h({ output }: { output: string }) {
 
   emit("#define FOR_EACH_BASE_TOKEN(V) \\");
   tokens.BASE_TOKENS.forEach((tk) =>
-    emit(`  V(${tk}, "${baseTokenId(tk)}") \\`)
+    emit(`  V(${tk}, "${baseTokenId(tk)}") \\`),
   );
 
   emit();
   emit("#define FOR_EACH_OPERATOR(V) \\");
   tokens.OPERATORS.forEach(([tk, spelling]) =>
-    emit(`  V(${tk}, "${spelling}") \\`)
+    emit(`  V(${tk}, "${spelling}") \\`),
   );
 
   emit();
@@ -46,13 +46,13 @@ export function gen_token_fwd_h({ output }: { output: string }) {
   emit();
   emit("#define FOR_EACH_BUILTIN_TYPE_TRAIT(V) \\");
   tokens.BUILTIN_TYPE_TRAITS.forEach((tk) =>
-    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`)
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
   );
 
   emit();
   emit("#define FOR_EACH_TOKEN_ALIAS(V) \\");
   tokens.TOKEN_ALIASES.forEach(([tk, other]) =>
-    emit(`  V(${tk.toUpperCase()}, ${other}) \\`)
+    emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
   );
 
   const out = `${cpy_header}

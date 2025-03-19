@@ -104,14 +104,17 @@ export function gen_ast_pretty_printer_cc({
       case "dotLoc":
       case "accessLoc":
       case "lbracketLoc":
+      case "lbracket2Loc":
       case "lparen2Loc":
       case "lparenLoc":
       case "openLoc":
       case "rbracketLoc":
+      case "rbracket2Loc":
       case "rparen2Loc":
       case "rparenLoc":
       case "greaterLoc":
       case "scopeLoc":
+      case "commaLoc":
         emit(`nospace();`);
         break;
 
@@ -127,7 +130,9 @@ export function gen_ast_pretty_printer_cc({
 
       case "rbraceLoc":
         emit(`unindent();`);
-        emit(`newline();`);
+        if (!["BracedInitListAST"].includes(name)) {
+          emit(`newline();`);
+        }
         break;
 
       default:
@@ -139,14 +144,17 @@ export function gen_ast_pretty_printer_cc({
     switch (m.name) {
       case "lbraceLoc":
         emit(`indent();`);
-        emit(`newline();`);
+        if (!["BracedInitListAST"].includes(name)) {
+          emit(`newline();`);
+        }
         break;
 
       case "closeLoc":
+      case "lbracketLoc":
+      case "lbracket2Loc":
       case "dotLoc":
       case "lessLoc":
       case "lparenLoc":
-      case "minusGreaterLoc":
       case "openLoc":
       case "scopeLoc":
       case "accessLoc":
@@ -154,7 +162,9 @@ export function gen_ast_pretty_printer_cc({
         break;
 
       case "rbraceLoc":
-        emit(`newline();`);
+        if (!["BracedInitListAST"].includes(name)) {
+          emit(`newline();`);
+        }
         break;
 
       case "semicolonLoc":
@@ -165,6 +175,10 @@ export function gen_ast_pretty_printer_cc({
 
       case "greaterLoc":
         if (name === "TemplateDeclarationAST") emit(`newline();`);
+        break;
+
+      case "minusGreaterLoc":
+        emit(`space();`);
         break;
 
       case "colonLoc":
@@ -242,7 +256,7 @@ export function gen_ast_pretty_printer_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `void ASTPrettyPrinter::${className}Visitor::operator()(${name}* ast) {`
+        `void ASTPrettyPrinter::${className}Visitor::operator()(${name}* ast) {`,
       );
 
       members.forEach((m) => {
@@ -270,6 +284,7 @@ export function gen_ast_pretty_printer_cc({
 
             if (m.name === "lparen2Loc" && name === "GccAttributeAST") {
               emit(`
+nospace();
 for (auto loc = ast->lparen2Loc; loc; loc = loc.next()) {
   if (loc == ast->rparenLoc) break;
   accept.writeToken(loc);
@@ -314,7 +329,13 @@ if (ast->op == TokenKind::T_NEW_ARRAY) {
             emit(`for (auto it = ast->${m.name}; it; it = it->next) {`);
             emit(`accept(it->value);`);
             if (isCommaSeparated(m, name)) {
-              emit(`if (it->next) { nospace(); accept.write(","); }`);
+              if (["enumeratorList"].includes(m.name)) {
+                emit(
+                  `if (it->next) { nospace(); accept.write(","); newline(); }`,
+                );
+              } else {
+                emit(`if (it->next) { nospace(); accept.write(","); }`);
+              }
             }
             emit(`}`);
             emit();

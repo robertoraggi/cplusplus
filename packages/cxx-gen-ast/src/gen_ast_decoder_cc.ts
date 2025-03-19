@@ -48,14 +48,14 @@ export function gen_ast_decoder_cc({
     const className = makeClassName(base);
     emit();
     emit(
-      `  auto ASTDecoder::decode${className}(const void* ptr, io::${className} type) -> ${base}* {`
+      `  auto ASTDecoder::decode${className}(const void* ptr, io::${className} type) -> ${base}* {`,
     );
     emit(`  switch (type) {`);
     nodes.forEach(({ name }) => {
       const className = makeClassName(name);
       emit(`  case io::${baseClassName}_${className}:`);
       emit(
-        `    return decode${className}(reinterpret_cast<const io::${className}*>(ptr));`
+        `    return decode${className}(reinterpret_cast<const io::${className}*>(ptr));`,
       );
     });
     emit(`  default:`);
@@ -70,7 +70,7 @@ export function gen_ast_decoder_cc({
       const className = makeClassName(name);
       emit();
       emit(
-        `  auto ASTDecoder::decode${className}(const io::${className}* node) -> ${name}* {`
+        `  auto ASTDecoder::decode${className}(const io::${className}* node) -> ${name}* {`,
       );
       emit(`  if (!node) return nullptr;`);
       emit();
@@ -88,7 +88,9 @@ export function gen_ast_decoder_cc({
           const className = makeClassName(m.type);
           emit(`  if (node->${snakeName}()) {`);
           emit(`    auto* inserter = &ast->${m.name};`);
-          emit(`    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`);
+          emit(
+            `    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`,
+          );
           emit(`         ++i) {`);
           emit(`    *inserter = new (pool_) List(decode${className}(`);
           emit(`      node->${snakeName}()->Get(i),`);
@@ -100,7 +102,9 @@ export function gen_ast_decoder_cc({
           const className = makeClassName(m.type);
           emit(`  if (node->${snakeName}()) {`);
           emit(`    auto* inserter = &ast->${m.name};`);
-          emit(`    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`);
+          emit(
+            `    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`,
+          );
           emit(`         ++i) {`);
           emit(`    *inserter = new (pool_) List(decode${className}(`);
           emit(`      node->${snakeName}()->Get(i)));`);

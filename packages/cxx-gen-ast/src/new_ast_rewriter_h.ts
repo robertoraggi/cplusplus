@@ -54,7 +54,7 @@ export function new_ast_rewriter_h({
     switch (name) {
       case "InitDeclaratorAST":
         emit(
-          `  [[nodiscard]] auto operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}*;`
+          `  [[nodiscard]] auto operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}*;`,
         );
         break;
       default:
