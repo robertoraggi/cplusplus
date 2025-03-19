@@ -2256,6 +2256,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(LambdaExpressionAST* ast) {
   }
   if (ast->captureDefaultLoc) {
     accept.writeToken(ast->captureDefaultLoc);
+    if (ast->captureList) accept.write(",");
   }
 
   for (auto it = ast->captureList; it; it = it->next) {

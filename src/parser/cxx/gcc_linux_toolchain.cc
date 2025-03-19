@@ -29,7 +29,7 @@ namespace cxx {
 GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
                                      std::string arch)
     : Toolchain(preprocessor), arch_(std::move(arch)) {
-  for (int version : {14, 13, 12, 11, 10, 9}) {
+  for (int version : {15, 14, 13, 12, 11, 10, 9}) {
     const auto path = fs::path(
         std::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
 

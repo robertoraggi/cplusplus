@@ -181,15 +181,14 @@ Parser::Parser(TranslationUnit* unit) : unit(unit), binder_(unit) {
   globalScope_ = unit->globalScope();
   setScope(globalScope_);
 
-  // temporary workarounds to the gnu  until we have a proper
+  // temporary workarounds to GNU STL until we have a proper
   // support for templates
   mark_maybe_template_name(control_->getIdentifier("__remove_reference_t"));
-  // mark_maybe_template_name(control_->getIdentifier("__integer_pack"));
-
   template_names_.insert(control_->getIdentifier("_S_invoke"));
   template_names_.insert(control_->getIdentifier("__type_pack_element"));
   template_names_.insert(control_->getIdentifier("__make_integer_seq"));
   template_names_.insert(control_->getIdentifier("_S_nothrow_construct"));
+  template_names_.insert(control_->getIdentifier("_S_nothrow_destroy"));
 }
 
 Parser::~Parser() = default;
