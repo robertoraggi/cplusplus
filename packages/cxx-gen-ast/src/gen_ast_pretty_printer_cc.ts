@@ -256,7 +256,7 @@ export function gen_ast_pretty_printer_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `void ASTPrettyPrinter::${className}Visitor::operator()(${name}* ast) {`,
+        `void ASTPrettyPrinter::${className}Visitor::operator()(${name}* ast) {`
       );
 
       members.forEach((m) => {
@@ -303,6 +303,10 @@ if (ast->op == TokenKind::T_NEW_ARRAY) {
               emit(`accept.write("{}", Token::spell(ast->op));`);
             } else {
               emit(`accept.writeToken(ast->${m.name});`);
+
+              if (m.name == "captureDefaultLoc") {
+                emit(`if (ast->captureList) accept.write(",");`);
+              }
             }
 
             // post token
@@ -331,7 +335,7 @@ if (ast->op == TokenKind::T_NEW_ARRAY) {
             if (isCommaSeparated(m, name)) {
               if (["enumeratorList"].includes(m.name)) {
                 emit(
-                  `if (it->next) { nospace(); accept.write(","); newline(); }`,
+                  `if (it->next) { nospace(); accept.write(","); newline(); }`
                 );
               } else {
                 emit(`if (it->next) { nospace(); accept.write(","); }`);
