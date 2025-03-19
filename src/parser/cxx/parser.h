@@ -69,7 +69,6 @@ class Parser final {
   void operator()(UnitAST*& ast);
 
   [[nodiscard]] auto config() const -> const ParserConfiguration&;
-  void setConfig(ParserConfiguration config);
 
  private:
   struct TemplateHeadContext;
@@ -111,7 +110,7 @@ class Parser final {
 
   [[nodiscard]] auto shouldStopParsing() const -> bool {
     if (didAcceptCompletionToken_) return true;
-    if (config_.stopParsingPredicate) return config_.stopParsingPredicate();
+    if (config().stopParsingPredicate) return config().stopParsingPredicate();
     return false;
   }
 
@@ -804,7 +803,6 @@ class Parser final {
   DiagnosticsClient* diagnosticClient_ = nullptr;
   Scope* globalScope_ = nullptr;
   Binder binder_;
-  ParserConfiguration config_{};
   bool skipFunctionBody_ = false;
   bool moduleUnit_ = false;
   const Identifier* moduleId_ = nullptr;

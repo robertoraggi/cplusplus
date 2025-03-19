@@ -661,6 +661,8 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
 }
 
 auto Binder::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
+  if (!translationUnit()->config().templateInstantiation) return nullptr;
+
   std::vector<TemplateArgument> args;
   for (auto it = templateId->templateArgumentList; it; it = it->next) {
     if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {

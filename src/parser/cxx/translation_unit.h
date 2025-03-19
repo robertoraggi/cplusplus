@@ -68,6 +68,8 @@ class TranslationUnit {
 
   void parse(ParserConfiguration config = {});
 
+  [[nodiscard]] auto config() const -> const ParserConfiguration&;
+
   // set source and preprocess, deprecated.
   void setSource(std::string source, std::string fileName);
 
@@ -137,6 +139,7 @@ class TranslationUnit {
   const char* yyptr = nullptr;
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   NamespaceSymbol* globalNamespace_ = nullptr;
+  ParserConfiguration config_;
 };
 
 }  // namespace cxx

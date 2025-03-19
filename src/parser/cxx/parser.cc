@@ -268,10 +268,8 @@ auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
 
 void Parser::operator()(UnitAST*& ast) { parse(ast); }
 
-auto Parser::config() const -> const ParserConfiguration& { return config_; }
-
-void Parser::setConfig(ParserConfiguration config) {
-  config_ = std::move(config);
+auto Parser::config() const -> const ParserConfiguration& {
+  return unit->config();
 }
 
 void Parser::parse(UnitAST*& ast) { parse_translation_unit(ast); }
@@ -676,7 +674,7 @@ auto Parser::parse_completion(SourceLocation& loc) -> bool {
   if (didAcceptCompletionToken_) return false;
 
   // if there is no completer, return false
-  if (!config_.complete) return false;
+  if (!config().complete) return false;
 
   if (!match(TokenKind::T_CODE_COMPLETION, loc)) return false;
 
@@ -709,7 +707,7 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 }
 
 auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
-  if (!config_.reflect) return false;
+  if (!config().reflect) return false;
 
   if (!lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
 
@@ -729,7 +727,7 @@ auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
 
 auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
-  if (!config_.reflect) return false;
+  if (!config().reflect) return false;
 
   SplicerAST* splicer = nullptr;
   if (!parse_splicer(splicer)) return false;
@@ -741,7 +739,7 @@ auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
-  if (!config_.reflect) return false;
+  if (!config().reflect) return false;
 
   SourceLocation caretLoc;
 
@@ -1054,7 +1052,7 @@ auto Parser::parse_template_nested_name_specifier(
     }
   }
 
-  if (!ast->symbol && config_.checkTypes) {
+  if (!ast->symbol && config().checkTypes) {
     ast->symbol = binder_.instantiate(templateId);
   }
 
@@ -1859,7 +1857,7 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
       auto objectType = ast->baseExpression->type;
 
       // trigger the completion
-      config_.complete(MemberCompletionContext{
+      config().complete(MemberCompletionContext{
           .objectType = objectType,
           .accessOp = ast->accessOp,
       });
@@ -4082,7 +4080,7 @@ auto Parser::parse_simple_declaration(
 
     if (auto scope = decl.getScope()) {
       setScope(scope);
-    } else if (q && config_.checkTypes) {
+    } else if (q && config().checkTypes) {
       parse_error(q->firstSourceLocation(),
                   std::format("unresolved class or namespace"));
     }
@@ -4091,7 +4089,7 @@ auto Parser::parse_simple_declaration(
     auto functionSymbol = getFunction(scope(), functionName, functionType);
 
     if (!functionSymbol) {
-      if (q && config_.checkTypes) {
+      if (q && config().checkTypes) {
         parse_error(q->firstSourceLocation(),
                     std::format("class or namespace has no member named '{}'",
                                 to_string(functionName)));
@@ -4196,7 +4194,7 @@ auto Parser::parse_notypespec_function_definition(
   if (auto scope = decl.getScope()) {
     setScope(scope);
   } else if (auto q = decl.getNestedNameSpecifier()) {
-    if (config_.checkTypes) {
+    if (config().checkTypes) {
       parse_error(q->firstSourceLocation(),
                   std::format("unresolved class or namespace"));
     }
@@ -4325,7 +4323,7 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
       value = visit(to_bool, *constValue);
     }
 
-    if (!value && config_.checkTypes) {
+    if (!value && config().checkTypes) {
       SourceLocation loc = ast->firstSourceLocation();
 
       if (!ast->expression || !constValue.has_value()) {
@@ -4847,12 +4845,12 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     if (conceptSymbol && !lookat(TokenKind::T_AUTO)) return false;
   }
 
-  const auto canInstantiate = config_.checkTypes;
+  const auto canInstantiate = config().checkTypes;
 
   auto symbol =
       binder_.resolve(nestedNameSpecifier, unqualifiedId, canInstantiate);
 
-  if (config_.checkTypes && !symbol && ast_cast<NameIdAST>(unqualifiedId)) {
+  if (config().checkTypes && !symbol && ast_cast<NameIdAST>(unqualifiedId)) {
     return false;
   }
 
@@ -4987,14 +4985,14 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 }
 
 auto Parser::maybe_template_name(const Identifier* id) -> bool {
-  if (!config_.fuzzyTemplateResolution) return true;
+  if (!config().fuzzyTemplateResolution) return true;
   if (template_names_.contains(id)) return true;
   if (concept_names_.contains(id)) return true;
   return false;
 }
 
 void Parser::mark_maybe_template_name(const Identifier* id) {
-  if (!config_.fuzzyTemplateResolution) return;
+  if (!config().fuzzyTemplateResolution) return;
   if (!id) return;
   template_names_.insert(id);
 }
@@ -5314,7 +5312,7 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
 
   if (auto scope = decl.getScope()) {
     setScope(scope);
-  } else if (q && config_.checkTypes) {
+  } else if (q && config().checkTypes) {
     parse_error(q->firstSourceLocation(),
                 std::format("unresolved class or namespace"));
   }
@@ -9041,7 +9039,7 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (!config_.reflect) return false;
+  if (!config().reflect) return false;
   if (specs.typeSpecifier) return false;
   LookaheadParser lookahead{this};
   SourceLocation typenameLoc;
@@ -9391,7 +9389,7 @@ void Parser::check(ExpressionAST* ast) {
   if (binder_.inTemplate()) return;
   TypeChecker check{unit};
   check.setScope(scope());
-  check.setReportErrors(config_.checkTypes);
+  check.setReportErrors(config().checkTypes);
   check(ast);
 }
 

@@ -256,21 +256,6 @@ void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
   specs.typeSpecifier = ast;
 
-  if (specs.rewriter) {
-    auto typeParameter = symbol_cast<TypeParameterSymbol>(ast->symbol);
-    const auto& args = specs.rewriter->templateArguments();
-
-    if (typeParameter && typeParameter->depth() == 0 &&
-        typeParameter->index() < args.size()) {
-      auto index = typeParameter->index();
-
-      if (auto ty = std::get_if<const Type*>(&args[index])) {
-        specs.type = *ty;
-        return;
-      }
-    }
-  }
-
   if (ast->symbol)
     specs.type = ast->symbol->type();
   else
