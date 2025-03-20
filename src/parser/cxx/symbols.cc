@@ -615,6 +615,19 @@ ParameterSymbol::ParameterSymbol(Scope* enclosingScope)
 
 ParameterSymbol::~ParameterSymbol() {}
 
+ParameterPackSymbol::ParameterPackSymbol(Scope* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+ParameterPackSymbol::~ParameterPackSymbol() {}
+
+auto ParameterPackSymbol::elements() const -> const std::vector<Symbol*>& {
+  return elements_;
+}
+
+void ParameterPackSymbol::addElement(Symbol* element) {
+  elements_.push_back(element);
+}
+
 TypeParameterSymbol::TypeParameterSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 

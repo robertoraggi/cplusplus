@@ -62,6 +62,7 @@ struct SymbolInstantiation::VisitSymbol {
   [[nodiscard]] auto operator()(VariableSymbol* symbol) -> Symbol*;
   [[nodiscard]] auto operator()(FieldSymbol* symbol) -> Symbol*;
   [[nodiscard]] auto operator()(ParameterSymbol* symbol) -> Symbol*;
+  [[nodiscard]] auto operator()(ParameterPackSymbol* symbol) -> Symbol*;
   [[nodiscard]] auto operator()(EnumeratorSymbol* symbol) -> Symbol*;
   [[nodiscard]] auto operator()(FunctionParametersSymbol* symbol) -> Symbol*;
   [[nodiscard]] auto operator()(TemplateParametersSymbol* symbol) -> Symbol*;
@@ -307,6 +308,12 @@ auto SymbolInstantiation::VisitSymbol::operator()(FieldSymbol* symbol)
 }
 
 auto SymbolInstantiation::VisitSymbol::operator()(ParameterSymbol* symbol)
+    -> Symbol* {
+  auto newSymbol = self.replacement(symbol);
+  return newSymbol;
+}
+
+auto SymbolInstantiation::VisitSymbol::operator()(ParameterPackSymbol* symbol)
     -> Symbol* {
   auto newSymbol = self.replacement(symbol);
   return newSymbol;

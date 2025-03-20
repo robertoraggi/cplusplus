@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_pretty_printer.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/names.h>
@@ -109,13 +110,12 @@ using Func1 = Func<int, float>;
   auto func1 = source.getAs<TypeAliasSymbol>("Func1");
   ASSERT_TRUE(func1 != nullptr);
 
-  std::cout << "Func1: " << to_string(func1->type()) << "\n";
-
   auto func1Type = type_cast<UnresolvedNameType>(func1->type());
   ASSERT_TRUE(func1Type != nullptr);
 
   auto templateId = ast_cast<SimpleTemplateIdAST>(func1Type->unqualifiedId());
   ASSERT_TRUE(templateId != nullptr);
+
   auto templateSym =
       symbol_cast<TypeAliasSymbol>(templateId->primaryTemplateSymbol);
   ASSERT_TRUE(templateSym != nullptr);
@@ -128,6 +128,7 @@ using Func1 = Func<int, float>;
                                  getTemplateBodyAs<AliasDeclarationAST>(
                                      templateSym->templateDeclaration()),
                                  templateArguments);
+
   ASSERT_EQ(to_string(funcInstance->typeId->type), "void (int, const float&)");
 }
 
@@ -145,6 +146,7 @@ constexpr int y = c<123 * 2>;
 
   auto y = source.getAs<VariableSymbol>("y");
   ASSERT_TRUE(y != nullptr);
+
   auto yinit = ast_cast<EqualInitializerAST>(y->initializer())->expression;
   ASSERT_TRUE(yinit != nullptr);
 
@@ -160,6 +162,7 @@ constexpr int y = c<123 * 2>;
   auto templateSym =
       symbol_cast<VariableSymbol>(templateId->primaryTemplateSymbol);
   ASSERT_TRUE(templateSym != nullptr);
+
   auto templateDecl = getTemplateBodyAs<SimpleDeclarationAST>(
       templateSym->templateDeclaration());
   ASSERT_TRUE(templateDecl != nullptr);
@@ -173,9 +176,83 @@ constexpr int y = c<123 * 2>;
 
   auto decl = instance->initDeclaratorList->value;
   ASSERT_TRUE(decl != nullptr);
+
   auto init = ast_cast<EqualInitializerAST>(decl->initializer);
   ASSERT_TRUE(init != nullptr);
+
   auto value = interp.evaluate(init->expression);
   ASSERT_TRUE(value.has_value());
+
   ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 123 * 2 + 321 + 123 * 2);
+}
+
+TEST(Rewriter, Pack) {
+  auto source = R"(
+template <int... xs>
+const auto S = (... + (xs * xs));
+
+const auto N = S<0, 1, 2>;
+)"_cxx_no_templates;
+
+  ASTInterpreter interp{&source.unit};
+
+  auto control = source.control();
+
+  auto S = source.getAs<VariableSymbol>("S");
+  ASSERT_TRUE(S != nullptr);
+
+  auto N = source.getAs<VariableSymbol>("N");
+  ASSERT_TRUE(N != nullptr);
+  auto Ninit = ast_cast<EqualInitializerAST>(N->initializer())->expression;
+  ASSERT_TRUE(Ninit != nullptr);
+
+  auto idExpr = ast_cast<IdExpressionAST>(Ninit);
+  ASSERT_TRUE(idExpr != nullptr);
+
+  auto templateId = ast_cast<SimpleTemplateIdAST>(idExpr->unqualifiedId);
+  ASSERT_TRUE(templateId != nullptr);
+  ASSERT_EQ(templateId->primaryTemplateSymbol, S);
+
+  auto parameterPack = control->newParameterPackSymbol(nullptr, {});
+
+  for (auto arg : ListView{templateId->templateArgumentList}) {
+    auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg);
+    ASSERT_TRUE(exprArg != nullptr);
+
+    auto expr = exprArg->expression;
+    auto element = control->newVariableSymbol(nullptr, {});
+    element->setInitializer(expr);
+    element->setType(control->add_const(expr->type));
+    parameterPack->addElement(element);
+  }
+
+  ASSERT_EQ(parameterPack->elements().size(), 3);
+
+  std::vector<TemplateArgument> arguments;
+  arguments.push_back(parameterPack);
+
+  auto templateDecl =
+      getTemplateBodyAs<SimpleDeclarationAST>(S->templateDeclaration());
+  ASSERT_TRUE(templateDecl != nullptr);
+
+  auto instance = substitute(source, templateDecl, arguments);
+  ASSERT_TRUE(instance != nullptr);
+
+  auto decl_to_string = [&](DeclarationAST* ast) {
+    std::ostringstream os;
+    ASTPrettyPrinter printer{&source.unit, os};
+    printer(ast);
+    return os.str();
+  };
+
+  ASSERT_EQ(decl_to_string(instance),
+            "const auto S =(0 * 0) +(1 * 1) +(2 * 2);");
+
+  auto eq = ast_cast<EqualInitializerAST>(
+      instance->initDeclaratorList->value->initializer);
+  ASSERT_TRUE(eq != nullptr);
+
+  const auto value = interp.evaluate(eq->expression);
+  ASSERT_TRUE(value.has_value());
+  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 0 * 0 + 1 * 1 + 2 * 2);
 }

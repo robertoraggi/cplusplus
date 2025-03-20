@@ -37,6 +37,7 @@ namespace cxx {
   V(Variable)                  \
   V(Field)                     \
   V(Parameter)                 \
+  V(ParameterPack)             \
   V(Enumerator)                \
   V(FunctionParameters)        \
   V(TemplateParameters)        \
