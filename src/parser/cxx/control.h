@@ -202,6 +202,9 @@ class Control {
   [[nodiscard]] auto newParameterSymbol(Scope* enclosingScope,
                                         SourceLocation sourceLocation)
       -> ParameterSymbol*;
+  [[nodiscard]] auto newParameterPackSymbol(Scope* enclosingScope,
+                                            SourceLocation sourceLocation)
+      -> ParameterPackSymbol*;
   [[nodiscard]] auto newTypeParameterSymbol(Scope* enclosingScope,
                                             SourceLocation sourceLocation)
       -> TypeParameterSymbol*;

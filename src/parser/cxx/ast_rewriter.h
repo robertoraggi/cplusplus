@@ -151,8 +151,13 @@ class ASTRewriter {
  private:
   [[nodiscard]] auto rewriter() -> ASTRewriter* { return this; }
 
+  [[nodiscard]] auto getParameterPack(ExpressionAST* ast)
+      -> ParameterPackSymbol*;
+
   TypeChecker* typeChecker_ = nullptr;
   const std::vector<TemplateArgument>& templateArguments_;
+  ParameterPackSymbol* parameterPack_ = nullptr;
+  std::optional<int> elementIndex_;
   TranslationUnit* unit_ = nullptr;
   Binder binder_;
   bool restrictedToDeclarations_ = false;

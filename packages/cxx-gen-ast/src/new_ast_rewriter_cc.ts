@@ -62,17 +62,17 @@ export function new_ast_rewriter_cc({
     emit(`  struct ASTRewriter::${className}Visitor {`);
     emit(`    ASTRewriter& rewrite;`);
     emit(
-      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`,
+      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`
     );
     emit();
     emit(
-      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`,
+      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`
     );
     emit(
-      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`,
+      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
     );
     emit(
-      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`,
+      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`
     );
     nodes.forEach(({ name }) => {
       emit();
@@ -81,9 +81,17 @@ export function new_ast_rewriter_cc({
     emit(`  };`);
   });
 
-  const emitRewriterBody = (members: Member[], visitor: string = "rewrite") => {
+  const emitRewriterBody = ({
+    name,
+    members,
+    visitor = "rewrite",
+  }: {
+    name: string;
+    members: Member[];
+    visitor?: string;
+  }) => {
     const blockSymbol = members.find(
-      (m) => m.kind === "attribute" && m.type === "BlockSymbol",
+      (m) => m.kind === "attribute" && m.type === "BlockSymbol"
     );
 
     if (blockSymbol) {
@@ -114,11 +122,11 @@ export function new_ast_rewriter_cc({
                 if (specsAttr) {
                   emit();
                   emit(
-                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`,
+                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`
                   );
 
                   typeAttr = members.find(
-                    (m) => m.kind === "attribute" && m.name === "type",
+                    (m) => m.kind === "attribute" && m.name === "type"
                   );
 
                   if (typeAttr) {
@@ -131,7 +139,7 @@ export function new_ast_rewriter_cc({
             } // switch
           } else {
             emit(
-              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`,
+              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`
             );
           }
           break;
@@ -150,7 +158,7 @@ export function new_ast_rewriter_cc({
           } // switch
 
           emit(
-            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`,
+            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`
           );
 
           switch (m.type) {
@@ -167,7 +175,7 @@ export function new_ast_rewriter_cc({
             emit(`*${m.name} = make_list_node(arena(), value);`);
           } else {
             emit(
-              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`,
+              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`
             );
           }
           emit(`${m.name} = &(*${m.name})->next;`);
@@ -188,6 +196,39 @@ export function new_ast_rewriter_cc({
         }
         case "attribute": {
           emit(`    copy->${m.name} = ast->${m.name};`);
+
+          if (m.name == "symbol" && name == "NamedTypeSpecifierAST") {
+            emit(`
+  if (auto typeParameter = symbol_cast<TypeParameterSymbol>(copy->symbol)) {
+    const auto& args = rewrite.templateArguments_;
+    if (typeParameter && typeParameter->depth() == 0 &&
+        typeParameter->index() < args.size()) {
+      auto index = typeParameter->index();
+
+      if (auto sym = std::get_if<Symbol*>(&args[index])) {
+        copy->symbol = *sym;
+      }
+    }
+  }
+`);
+          }
+
+          if (m.name == "symbol" && name == "IdExpressionAST") {
+            emit(`
+  if (auto param = symbol_cast<NonTypeParameterSymbol>(copy->symbol);
+      param && param->depth() == 0 &&
+      param->index() < rewrite.templateArguments_.size()) {
+    auto symbolPtr =
+        std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
+
+    if (!symbolPtr) {
+      cxx_runtime_error("expected initializer for non-type template parameter");
+    }
+
+    copy->symbol = *symbolPtr;
+    copy->type = copy->symbol->type();
+  }`);
+          }
           break;
         }
         case "token": {
@@ -234,7 +275,7 @@ export function new_ast_rewriter_cc({
     switch (name) {
       case "InitDeclaratorAST":
         emit(
-          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`,
+          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`
         );
         break;
       default:
@@ -246,7 +287,7 @@ export function new_ast_rewriter_cc({
     emit();
     emit(`  auto copy = make_node<${name}>(arena());`);
     emit();
-    emitRewriterBody(members, "operator()");
+    emitRewriterBody({ name, members, visitor: "operator()" });
     emit();
     emit(`  return copy;`);
     emit(`}`);
@@ -259,38 +300,79 @@ export function new_ast_rewriter_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`,
+        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
       );
+
       if (name === "IdExpressionAST") {
         emit(`
-if (auto x = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
-    x && x->depth() == 0 && x->index() < rewrite.templateArguments_.size()) {
-  auto initializerPtr =
-      std::get_if<ExpressionAST*>(&rewrite.templateArguments_[x->index()]);
-  if (!initializerPtr) {
+if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
+    param && param->depth() == 0 &&
+    param->index() < rewrite.templateArguments_.size()) {
+  auto symbolPtr =
+      std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
+
+  if (!symbolPtr) {
     cxx_runtime_error("expected initializer for non-type template parameter");
   }
 
-  auto initializer = rewrite(*initializerPtr);
+  auto parameterPack = symbol_cast<ParameterPackSymbol>(*symbolPtr);
 
-  if (auto eq = ast_cast<EqualInitializerAST>(initializer)) {
-    return eq->expression;
-  }
-
-  if (auto bracedInit = ast_cast<BracedInitListAST>(initializer)) {
-    if (bracedInit->expressionList && !bracedInit->expressionList->next) {
-      return bracedInit->expressionList->value;
+  if (parameterPack && parameterPack == rewrite.parameterPack_ &&
+      rewrite.elementIndex_.has_value()) {
+    auto idx = rewrite.elementIndex_.value();
+    auto element = parameterPack->elements()[idx];
+    if (auto var = symbol_cast<VariableSymbol>(element)) {
+      return rewrite(var->initializer());
     }
   }
 }
 `);
       }
+      if (name === "LeftFoldExpressionAST") {
+        emit(`
+  if (auto parameterPack = rewrite.getParameterPack(ast->expression)) {
+    auto savedParameterPack = rewrite.parameterPack_;
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    std::vector<ExpressionAST*> instantiations;
+    ExpressionAST* current = nullptr;
+
+    int n = 0;
+    for (auto element : rewrite.parameterPack_->elements()) {
+      std::optional<int> index{n};
+      std::swap(rewrite.elementIndex_, index);
+
+      auto expression = rewrite(ast->expression);
+      if (!current) {
+        current = expression;
+      } else {
+        auto binop = make_node<BinaryExpressionAST>(arena());
+        binop->valueCategory = current->valueCategory;
+        binop->type = current->type;
+        binop->leftExpression = current;
+        binop->op = ast->op;
+        binop->opLoc = ast->opLoc;
+        binop->rightExpression = expression;
+        current = binop;
+      }
+
+      std::swap(rewrite.elementIndex_, index);
+      ++n;
+    }
+
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    return current;
+  }
+`);
+      }
+
       emit(`  auto copy = make_node<${name}>(arena());`);
       emit();
       ast.baseMembers.get(base)?.forEach((m) => {
         emit(`  copy->${m.name} = ast->${m.name};`);
       });
-      emitRewriterBody(members, "rewrite");
+      emitRewriterBody({ name, members, visitor: "rewrite" });
       emit();
       emit(`  return copy;`);
       emit(`}`);
@@ -311,6 +393,9 @@ if (auto x = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 #include <cxx/binder.h>
+#include <cxx/ast_cursor.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -337,6 +422,29 @@ auto ASTRewriter::restrictedToDeclarations() const -> bool {
 
 void ASTRewriter::setRestrictedToDeclarations(bool restrictedToDeclarations) {
   restrictedToDeclarations_ = restrictedToDeclarations;
+}
+
+auto ASTRewriter::getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol* {
+  for (auto cursor = ASTCursor{ast, {}}; cursor; ++cursor) {
+    const auto& current = *cursor;
+    if (!std::holds_alternative<AST*>(current.node)) continue;
+
+    auto id = ast_cast<IdExpressionAST>(std::get<AST*>(current.node));
+    if (!id) continue;
+
+    auto param = symbol_cast<NonTypeParameterSymbol>(id->symbol);
+    if (!param) continue;
+
+    if (param->depth() != 0) continue;
+
+    auto arg = templateArguments_[param->index()];
+    auto argSymbol = std::get<Symbol*>(arg);
+
+    auto parameterPack = symbol_cast<ParameterPackSymbol>(argSymbol);
+    if (parameterPack) return parameterPack;
+  }
+
+  return nullptr;
 }
 
 ${code.join("\n")}

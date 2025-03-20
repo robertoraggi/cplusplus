@@ -156,6 +156,8 @@ struct ExternalNameEncoder::SymbolVisitor {
 
   void operator()(ParameterSymbol* symbol) {}
 
+  void operator()(ParameterPackSymbol* symbol) {}
+
   void operator()(EnumeratorSymbol* symbol) {}
 
   void operator()(FunctionParametersSymbol* symbol) {}
