@@ -624,6 +624,20 @@ class ParameterSymbol final : public Symbol {
   ~ParameterSymbol() override;
 };
 
+class ParameterPackSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kParameterPack;
+
+  explicit ParameterPackSymbol(Scope* enclosingScope);
+  ~ParameterPackSymbol() override;
+
+  [[nodiscard]] auto elements() const -> const std::vector<Symbol*>&;
+  void addElement(Symbol* element);
+
+ private:
+  std::vector<Symbol*> elements_;
+};
+
 class TypeParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kTypeParameter;

@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_cursor.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -30,6 +31,8 @@
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -52,6 +55,29 @@ auto ASTRewriter::restrictedToDeclarations() const -> bool {
 
 void ASTRewriter::setRestrictedToDeclarations(bool restrictedToDeclarations) {
   restrictedToDeclarations_ = restrictedToDeclarations;
+}
+
+auto ASTRewriter::getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol* {
+  for (auto cursor = ASTCursor{ast, {}}; cursor; ++cursor) {
+    const auto& current = *cursor;
+    if (!std::holds_alternative<AST*>(current.node)) continue;
+
+    auto id = ast_cast<IdExpressionAST>(std::get<AST*>(current.node));
+    if (!id) continue;
+
+    auto param = symbol_cast<NonTypeParameterSymbol>(id->symbol);
+    if (!param) continue;
+
+    if (param->depth() != 0) continue;
+
+    auto arg = templateArguments_[param->index()];
+    auto argSymbol = std::get<Symbol*>(arg);
+
+    auto parameterPack = symbol_cast<ParameterPackSymbol>(argSymbol);
+    if (parameterPack) return parameterPack;
+  }
+
+  return nullptr;
 }
 
 struct ASTRewriter::UnitVisitor {
@@ -2345,6 +2371,28 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
+  if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
+      param && param->depth() == 0 &&
+      param->index() < rewrite.templateArguments_.size()) {
+    auto symbolPtr =
+        std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
+
+    if (!symbolPtr) {
+      cxx_runtime_error("expected initializer for non-type template parameter");
+    }
+
+    auto parameterPack = symbol_cast<ParameterPackSymbol>(*symbolPtr);
+
+    if (parameterPack && parameterPack == rewrite.parameterPack_ &&
+        rewrite.elementIndex_.has_value()) {
+      auto idx = rewrite.elementIndex_.value();
+      auto element = parameterPack->elements()[idx];
+      if (auto var = symbol_cast<VariableSymbol>(element)) {
+        return rewrite(var->initializer());
+      }
+    }
+  }
+
   auto copy = make_node<IdExpressionAST>(arena());
 
   copy->valueCategory = ast->valueCategory;
@@ -2355,15 +2403,17 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
   copy->symbol = ast->symbol;
 
-  if (auto x = symbol_cast<NonTypeParameterSymbol>(copy->symbol);
-      x && x->depth() == 0 && x->index() < rewrite.templateArguments_.size()) {
-    auto initializerPtr =
-        std::get_if<Symbol*>(&rewrite.templateArguments_[x->index()]);
-    if (!initializerPtr) {
+  if (auto param = symbol_cast<NonTypeParameterSymbol>(copy->symbol);
+      param && param->depth() == 0 &&
+      param->index() < rewrite.templateArguments_.size()) {
+    auto symbolPtr =
+        std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
+
+    if (!symbolPtr) {
       cxx_runtime_error("expected initializer for non-type template parameter");
     }
 
-    copy->symbol = *initializerPtr;
+    copy->symbol = *symbolPtr;
     copy->type = copy->symbol->type();
   }
 
@@ -2473,6 +2523,41 @@ auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     -> ExpressionAST* {
+  if (auto parameterPack = rewrite.getParameterPack(ast->expression)) {
+    auto savedParameterPack = rewrite.parameterPack_;
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    std::vector<ExpressionAST*> instantiations;
+    ExpressionAST* current = nullptr;
+
+    int n = 0;
+    for (auto element : rewrite.parameterPack_->elements()) {
+      std::optional<int> index{n};
+      std::swap(rewrite.elementIndex_, index);
+
+      auto expression = rewrite(ast->expression);
+      if (!current) {
+        current = expression;
+      } else {
+        auto binop = make_node<BinaryExpressionAST>(arena());
+        binop->valueCategory = current->valueCategory;
+        binop->type = current->type;
+        binop->leftExpression = current;
+        binop->op = ast->op;
+        binop->opLoc = ast->opLoc;
+        binop->rightExpression = expression;
+        current = binop;
+      }
+
+      std::swap(rewrite.elementIndex_, index);
+      ++n;
+    }
+
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    return current;
+  }
+
   auto copy = make_node<LeftFoldExpressionAST>(arena());
 
   copy->valueCategory = ast->valueCategory;
