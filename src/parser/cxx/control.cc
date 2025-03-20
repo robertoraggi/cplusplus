@@ -143,6 +143,7 @@ struct Control::Private {
   std::forward_list<VariableSymbol> variableSymbols;
   std::forward_list<FieldSymbol> fieldSymbols;
   std::forward_list<ParameterSymbol> parameterSymbols;
+  std::forward_list<ParameterPackSymbol> parameterPackSymbols;
   std::forward_list<TypeParameterSymbol> typeParameterSymbols;
   std::forward_list<NonTypeParameterSymbol> nonTypeParameterSymbols;
   std::forward_list<TemplateTypeParameterSymbol> templateTypeParameterSymbols;
@@ -588,6 +589,13 @@ auto Control::newFieldSymbol(Scope* enclosingScope, SourceLocation loc)
 auto Control::newParameterSymbol(Scope* enclosingScope, SourceLocation loc)
     -> ParameterSymbol* {
   auto symbol = &d->parameterSymbols.emplace_front(enclosingScope);
+  symbol->setLocation(loc);
+  return symbol;
+}
+
+auto Control::newParameterPackSymbol(Scope* enclosingScope, SourceLocation loc)
+    -> ParameterPackSymbol* {
+  auto symbol = &d->parameterPackSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }

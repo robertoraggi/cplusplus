@@ -269,6 +269,12 @@ struct DumpSymbols {
                        to_string(symbol->type(), symbol->name()));
   }
 
+  void operator()(ParameterPackSymbol* symbol) {
+    indent();
+    out << std::format("parameter pack {}\n",
+                       to_string(symbol->type(), symbol->name()));
+  }
+
   void operator()(TypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
     indent();
