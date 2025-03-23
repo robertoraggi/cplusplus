@@ -47,7 +47,7 @@ struct Source {
 
   explicit Source(std::string_view source, bool templateInstantiation = true) {
     // default to wasm32 memory layout
-    auto memoryLayout = std::make_unique<MemoryLayout>(32);
+    memoryLayout = std::make_unique<MemoryLayout>(32);
 
     unit.control()->setMemoryLayout(memoryLayout.get());
 

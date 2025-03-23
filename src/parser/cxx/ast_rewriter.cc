@@ -1199,6 +1199,8 @@ auto ASTRewriter::operator()(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   copy->accessSpecifier = ast->accessSpecifier;
   copy->symbol = ast->symbol;
 
+  binder_.bind(ast);
+
   return copy;
 }
 
@@ -3784,6 +3786,10 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
     auto value = rewrite(node);
     *baseSpecifierList = make_list_node(arena(), value);
     baseSpecifierList = &(*baseSpecifierList)->next;
+
+    if (value->symbol) {
+      classSymbol->addBaseClass(value->symbol);
+    }
   }
 
   copy->lbraceLoc = ast->lbraceLoc;
@@ -3799,6 +3805,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   copy->classKey = ast->classKey;
   // copy->symbol = ast->symbol; // TODO: remove done by the binder
   copy->isFinal = ast->isFinal;
+
+  binder()->complete(copy);
 
   return copy;
 }
