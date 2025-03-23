@@ -161,7 +161,10 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs) {
     classSymbol->setIsUnion(isUnion);
     classSymbol->setName(className);
     classSymbol->setTemplateParameters(currentTemplateParameters());
+    classSymbol->setTemplateDeclaration(declSpecs.templateHead);
     declaringScope()->addSymbol(classSymbol);
+
+    classSymbol->setDeclaration(ast);
   }
 
   ast->symbol = classSymbol;
@@ -232,6 +235,12 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
       // TODO: parse template arguments
       primaryTemplate->addSpecialization(arguments, classSymbol);
     }
+  }
+
+  classSymbol->setDeclaration(ast);
+
+  if (declSpecs.templateHead) {
+    classSymbol->setTemplateDeclaration(declSpecs.templateHead);
   }
 
   classSymbol->setFinal(ast->isFinal);

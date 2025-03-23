@@ -4024,6 +4024,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
   if (parse_notypespec_function_definition(yyast, attributes, ctx)) return true;
 
   DeclSpecs specs{unit};
+  specs.templateHead = templateHead;
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
   auto lookat_decl_specifiers = [&] {
