@@ -334,7 +334,24 @@ struct GetDeclaratorType {
   return getDeclaratorType(declarator, type);
 }
 
-Decl::Decl(const DeclSpecs& specs) : specs{specs} {}
+[[nodiscard]] auto getDeclaratorId(DeclaratorAST* declarator)
+    -> IdDeclaratorAST* {
+  if (!declarator) return nullptr;
+
+  if (auto id = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator)) {
+    return id;
+  }
+
+  if (auto nested = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator)) {
+    return getDeclaratorId(nested->declarator);
+  }
+
+  return nullptr;
+}
+
+Decl::Decl(const DeclSpecs& specs, DeclaratorAST* declarator) : specs{specs} {
+  declaratorId = getDeclaratorId(declarator);
+}
 
 auto Decl::location() const -> SourceLocation {
   if (declaratorId) return declaratorId->firstSourceLocation();

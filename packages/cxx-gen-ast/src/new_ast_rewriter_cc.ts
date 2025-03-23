@@ -74,6 +74,9 @@ export function new_ast_rewriter_cc({
     emit(
       `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`
     );
+    emit(
+      `[[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }`
+    );
     nodes.forEach(({ name }) => {
       emit();
       emit(`    [[nodiscard]] auto operator()(${name}* ast) -> ${base}*;`);
@@ -95,10 +98,10 @@ export function new_ast_rewriter_cc({
     );
 
     if (blockSymbol) {
-      emit(`auto _ = Binder::ScopeGuard(&rewrite.binder_);
+      emit(`auto _ = Binder::ScopeGuard(binder());
 
   if (ast->${blockSymbol.name}) {
-    copy->${blockSymbol.name} = rewrite.binder_.enterBlock(ast->${blockSymbol.name}->location());
+    copy->${blockSymbol.name} = binder()->enterBlock(ast->${blockSymbol.name}->location());
   }
 `);
     }
@@ -121,6 +124,9 @@ export function new_ast_rewriter_cc({
                   members.find((m) => m.name == "declSpecifierList")?.name;
                 if (specsAttr) {
                   emit();
+                  emit(
+                    `auto ${m.name}Decl = Decl{${specsAttr}Ctx, copy->${m.name}};`
+                  );
                   emit(
                     `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`
                   );
