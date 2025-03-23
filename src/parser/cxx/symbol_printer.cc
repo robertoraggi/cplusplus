@@ -100,6 +100,11 @@ struct DumpSymbols {
     } else {
       out << std::format("{} {}\n", classKey, to_string(symbol->name()));
     }
+    for (auto baseClass : symbol->baseClasses()) {
+      ++depth;
+      visit(*this, baseClass);
+      --depth;
+    }
     if (!symbol->constructors().empty()) {
       ++depth;
       for (auto constructor : symbol->constructors()) {

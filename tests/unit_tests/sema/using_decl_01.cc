@@ -36,9 +36,9 @@ auto main() -> int {
 // CHECK-NEXT:    function  operator bool() const
 // CHECK-NEXT:    function void f()
 // CHECK-NEXT:  class Derived
+// CHECK-NEXT:    base class Base
 // CHECK-NEXT:    using  operator bool() const
 // CHECK-NEXT:    using void f()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block
 // CHECK-NEXT:      using decltype(nullptr) nullptr_t
-

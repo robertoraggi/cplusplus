@@ -259,8 +259,12 @@ const auto N = S<0, 1, 2>;
 
 TEST(Rewriter, Class) {
   auto source = R"(
+struct Base {
+  int x;
+};
+
 template <typename T1, typename T2>
-struct Pair {
+struct Pair : Base {
   T1 first;
   T2 second;
   auto operator=(const Pair& other) -> Pair&;
@@ -309,8 +313,12 @@ using Pair1 = Pair<int, float*>;
   dump(os, classDeclInstance->symbol);
 
   ASSERT_EQ(os.str(), R"(class Pair
+  base class Base
   field int first
   field float* second
   function ::Pair& operator =(const ::Pair&)
 )");
+
+  ASSERT_EQ(classInstance->sizeInBytes(), 12);
+  ASSERT_EQ(classInstance->alignment(), 4);
 }
