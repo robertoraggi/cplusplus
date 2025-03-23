@@ -1044,6 +1044,9 @@ void ASTPrettyPrinter::operator()(BaseSpecifierAST* ast) {
     writeToken(ast->templateLoc);
   }
   operator()(ast->unqualifiedId);
+  if (ast->ellipsisLoc) {
+    writeToken(ast->ellipsisLoc);
+  }
 }
 
 void ASTPrettyPrinter::operator()(RequiresClauseAST* ast) {

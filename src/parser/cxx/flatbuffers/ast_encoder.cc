@@ -3262,6 +3262,7 @@ void ASTEncoder::visit(BaseSpecifierAST* ast) {
   builder.add_unqualified_id(unqualifiedId);
   builder.add_unqualified_id_type(
       static_cast<io::UnqualifiedId>(unqualifiedIdType));
+  builder.add_ellipsis_loc(ast->ellipsisLoc.index());
   builder.add_access_specifier(
       static_cast<std::uint32_t>(ast->accessSpecifier));
 

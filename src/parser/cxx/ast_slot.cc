@@ -3803,24 +3803,34 @@ void ASTSlot::visit(BaseSpecifierAST* ast) {
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{219};
       break;
-    case 6:  // isTemplateIntroduced
+    case 6:  // ellipsisLoc
+      value_ = ast->ellipsisLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{63};
+      break;
+    case 7:  // isTemplateIntroduced
       value_ = std::intptr_t(ast->isTemplateIntroduced != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{115};
       break;
-    case 7:  // isVirtual
+    case 8:  // isVirtual
       value_ = std::intptr_t(ast->isVirtual != 0);
       slotKind_ = ASTSlotKind::kBoolAttribute;
       slotNameIndex_ = SlotNameIndex{119};
       break;
-    case 8:  // accessSpecifier
+    case 9:  // isVariadic
+      value_ = std::intptr_t(ast->isVariadic != 0);
+      slotKind_ = ASTSlotKind::kBoolAttribute;
+      slotNameIndex_ = SlotNameIndex{118};
+      break;
+    case 10:  // accessSpecifier
       value_ = std::intptr_t(ast->accessSpecifier);
       slotKind_ = ASTSlotKind::kIntAttribute;
       slotNameIndex_ = SlotNameIndex{2};
       break;
   }  // switch
 
-  slotCount_ = 9;
+  slotCount_ = 11;
 }
 
 void ASTSlot::visit(RequiresClauseAST* ast) {

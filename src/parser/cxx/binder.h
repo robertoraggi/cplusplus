@@ -157,7 +157,7 @@ class Binder {
   TranslationUnit* unit_ = nullptr;
   Scope* scope_ = nullptr;
   bool inTemplate_ = false;
-  bool reportErrors_ = false;
+  bool reportErrors_ = true;
 };
 
 }  // namespace cxx

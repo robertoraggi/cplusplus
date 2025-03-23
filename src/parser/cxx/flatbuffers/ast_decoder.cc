@@ -2924,6 +2924,7 @@ auto ASTDecoder::decodeBaseSpecifier(const io::BaseSpecifier* node)
   ast->templateLoc = SourceLocation(node->template_loc());
   ast->unqualifiedId =
       decodeUnqualifiedId(node->unqualified_id(), node->unqualified_id_type());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
   ast->accessSpecifier = static_cast<TokenKind>(node->access_specifier());
   return ast;
 }
