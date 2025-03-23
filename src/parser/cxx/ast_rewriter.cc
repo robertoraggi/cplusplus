@@ -27,6 +27,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -1055,9 +1056,24 @@ auto ASTRewriter::operator()(InitDeclaratorAST* ast, const DeclSpecs& declSpecs)
   auto copy = make_node<InitDeclaratorAST>(arena());
 
   copy->declarator = operator()(ast->declarator);
+
+  auto decl = Decl{declSpecs, copy->declarator};
+
+  auto type = getDeclaratorType(translationUnit(), copy->declarator,
+                                declSpecs.getType());
+
+  // ### fix scope
+  if (binder_.scope() && binder_.scope()->isClassScope()) {
+    auto symbol = binder_.declareMemberSymbol(ast->declarator, decl);
+    copy->symbol = symbol;
+  } else {
+    // ### TODO
+    copy->symbol = ast->symbol;
+  }
+
   copy->requiresClause = operator()(ast->requiresClause);
   copy->initializer = operator()(ast->initializer);
-  copy->symbol = ast->symbol;
+  // copy->symbol = ast->symbol; // TODO remove, done above
 
   return copy;
 }
@@ -3751,6 +3767,18 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   copy->finalLoc = ast->finalLoc;
   copy->colonLoc = ast->colonLoc;
 
+  // ### TODO: use Binder::bind()
+  auto _ = Binder::ScopeGuard{binder()};
+  auto location = ast->symbol->location();
+  auto className = ast->symbol->name();
+  auto classSymbol = control()->newClassSymbol(binder()->scope(), location);
+  classSymbol->setName(className);
+  classSymbol->setIsUnion(ast->symbol->isUnion());
+  classSymbol->setFinal(ast->isFinal);
+  binder()->setScope(classSymbol);
+
+  copy->symbol = classSymbol;
+
   for (auto baseSpecifierList = &copy->baseSpecifierList;
        auto node : ListView{ast->baseSpecifierList}) {
     auto value = rewrite(node);
@@ -3769,7 +3797,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   copy->rbraceLoc = ast->rbraceLoc;
   copy->classKey = ast->classKey;
-  copy->symbol = ast->symbol;
+  // copy->symbol = ast->symbol; // TODO: remove done by the binder
   copy->isFinal = ast->isFinal;
 
   return copy;

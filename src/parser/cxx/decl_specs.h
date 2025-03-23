@@ -49,6 +49,7 @@ class DeclSpecs {
 
   ASTRewriter* rewriter = nullptr;
   TranslationUnit* unit = nullptr;
+  TemplateDeclarationAST* templateHead = nullptr;
   const Type* type = nullptr;
   SpecifierAST* typeSpecifier = nullptr;
 

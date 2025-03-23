@@ -256,3 +256,61 @@ const auto N = S<0, 1, 2>;
   ASSERT_TRUE(value.has_value());
   ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 0 * 0 + 1 * 1 + 2 * 2);
 }
+
+TEST(Rewriter, Class) {
+  auto source = R"(
+template <typename T1, typename T2>
+struct Pair {
+  T1 first;
+  T2 second;
+  auto operator=(const Pair& other) -> Pair&;
+};
+
+using Pair1 = Pair<int, float*>;
+
+)"_cxx_no_templates;
+
+  auto control = source.control();
+
+  auto pair = source.getAs<ClassSymbol>("Pair");
+  ASSERT_TRUE(pair != nullptr);
+
+  ASSERT_TRUE(pair->declaration() != nullptr);
+
+  auto classDecl = ast_cast<ClassSpecifierAST>(pair->declaration());
+  ASSERT_TRUE(classDecl != nullptr);
+
+  auto templateDecl = pair->templateDeclaration();
+  ASSERT_TRUE(templateDecl != nullptr);
+
+  auto pair1 = source.getAs<TypeAliasSymbol>("Pair1");
+  ASSERT_TRUE(pair1 != nullptr);
+
+  auto pair1Type = type_cast<UnresolvedNameType>(pair1->type());
+  ASSERT_TRUE(pair1Type != nullptr);
+
+  auto templateId = ast_cast<SimpleTemplateIdAST>(pair1Type->unqualifiedId());
+  ASSERT_TRUE(templateId != nullptr);
+
+  auto templateArguments = make_substitution(&source.unit, templateDecl,
+                                             templateId->templateArgumentList);
+
+  auto instance = substitute(source, classDecl, templateArguments);
+  ASSERT_TRUE(instance != nullptr);
+
+  auto classDeclInstance = ast_cast<ClassSpecifierAST>(instance);
+  ASSERT_TRUE(classDeclInstance != nullptr);
+
+  auto classInstance = classDeclInstance->symbol;
+
+  ASSERT_TRUE(classInstance != nullptr);
+
+  std::ostringstream os;
+  dump(os, classDeclInstance->symbol);
+
+  ASSERT_EQ(os.str(), R"(class Pair
+  field int first
+  field float* second
+  function ::Pair& operator =(const ::Pair&)
+)");
+}

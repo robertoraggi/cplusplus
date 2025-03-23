@@ -136,7 +136,7 @@ class Symbol {
   [[nodiscard]] auto next() const -> Symbol*;
 
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -263,6 +263,12 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto flags() const -> std::uint32_t;
   void setFlags(std::uint32_t flags);
 
+  [[nodiscard]] auto declaration() const -> SpecifierAST*;
+  void setDeclaration(SpecifierAST* ast);
+
+  [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
+  void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration);
+
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
   void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
@@ -311,6 +317,8 @@ class ClassSymbol final : public ScopedSymbol {
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
   std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
+  SpecifierAST* specifier_ = nullptr;
+  TemplateDeclarationAST* templateDeclaration_ = nullptr;
   ClassSymbol* templateClass_ = nullptr;
   std::size_t templateSepcializationIndex_ = 0;
   int sizeInBytes_ = 0;
@@ -784,7 +792,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
+  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

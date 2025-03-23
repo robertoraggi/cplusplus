@@ -215,6 +215,21 @@ auto ClassSymbol::hasBaseClass(
   return false;
 }
 
+auto ClassSymbol::declaration() const -> SpecifierAST* { return specifier_; }
+
+void ClassSymbol::setDeclaration(SpecifierAST* specifier) {
+  specifier_ = specifier;
+}
+
+auto ClassSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
+  return templateDeclaration_;
+}
+
+void ClassSymbol::setTemplateDeclaration(
+    TemplateDeclarationAST* templateDeclaration) {
+  templateDeclaration_ = templateDeclaration;
+}
+
 auto ClassSymbol::templateParameters() const -> TemplateParametersSymbol* {
   return templateInfo_ ? templateInfo_->templateParameters() : nullptr;
 }

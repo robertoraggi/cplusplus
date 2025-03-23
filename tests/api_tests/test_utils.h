@@ -22,6 +22,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
@@ -40,10 +41,16 @@ inline auto dump_symbol(Symbol* symbol) -> std::string {
 }
 
 struct Source {
+  std::unique_ptr<MemoryLayout> memoryLayout;
   DiagnosticsClient diagnosticsClient;
   TranslationUnit unit{&diagnosticsClient};
 
   explicit Source(std::string_view source, bool templateInstantiation = true) {
+    // default to wasm32 memory layout
+    auto memoryLayout = std::make_unique<MemoryLayout>(32);
+
+    unit.control()->setMemoryLayout(memoryLayout.get());
+
     unit.setSource(std::string(source), "<test>");
 
     unit.parse({
