@@ -1729,6 +1729,12 @@ void ASTPrinter::visit(BaseSpecifierAST* ast) {
     out_ << std::format("is-virtual: {}\n", ast->isVirtual);
     --indent_;
   }
+  if (ast->isVariadic) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-variadic: {}\n", ast->isVariadic);
+    --indent_;
+  }
   if (ast->accessSpecifier != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);

@@ -2429,8 +2429,10 @@ class BaseSpecifierAST final : public AST {
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
+  SourceLocation ellipsisLoc;
   bool isTemplateIntroduced = false;
   bool isVirtual = false;
+  bool isVariadic = false;
   TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
   BaseClassSymbol* symbol = nullptr;
 

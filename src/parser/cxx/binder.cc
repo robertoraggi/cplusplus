@@ -55,11 +55,13 @@ void Binder::setReportErrors(bool reportErrors) {
 
 void Binder::error(SourceLocation loc, std::string message) {
   if (!reportErrors_) return;
+  if (!unit_->config().checkTypes) return;
   unit_->error(loc, std::move(message));
 }
 
 void Binder::warning(SourceLocation loc, std::string message) {
   if (!reportErrors_) return;
+  if (!unit_->config().checkTypes) return;
   unit_->warning(loc, std::move(message));
 }
 

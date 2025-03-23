@@ -7668,24 +7668,38 @@ export class BaseSpecifierAST extends AST {
   }
 
   /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
    * Returns the isTemplateIntroduced attribute of this node
    */
   getIsTemplateIntroduced(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 7) !== 0;
   }
 
   /**
    * Returns the isVirtual attribute of this node
    */
   getIsVirtual(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 7) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 8) !== 0;
+  }
+
+  /**
+   * Returns the isVariadic attribute of this node
+   */
+  getIsVariadic(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 9) !== 0;
   }
 
   /**
    * Returns the accessSpecifier attribute of this node
    */
   getAccessSpecifier(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 8);
+    return cxx.getASTSlot(this.getHandle(), 10);
   }
 }
 

@@ -7939,6 +7939,11 @@ auto Parser::parse_base_specifier_list(ClassSpecifierAST* ast) -> bool {
 
   match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
+  if (baseSpecifier && ellipsisLoc) {
+    baseSpecifier->ellipsisLoc = ellipsisLoc;
+    baseSpecifier->isVariadic = true;
+  }
+
   if (baseSpecifier && baseSpecifier->symbol) {
     ast->symbol->addBaseClass(baseSpecifier->symbol);
   }
@@ -7956,6 +7961,11 @@ auto Parser::parse_base_specifier_list(ClassSpecifierAST* ast) -> bool {
     SourceLocation ellipsisLoc;
 
     match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
+
+    if (baseSpecifier && ellipsisLoc) {
+      baseSpecifier->ellipsisLoc = ellipsisLoc;
+      baseSpecifier->isVariadic = true;
+    }
 
     if (baseSpecifier && baseSpecifier->symbol) {
       ast->symbol->addBaseClass(baseSpecifier->symbol);

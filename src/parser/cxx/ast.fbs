@@ -422,6 +422,7 @@ table BaseSpecifier /* AST */ {
   virtual_or_access_loc: uint32;
   other_virtual_or_access_loc: uint32;
   template_loc: uint32;
+  ellipsis_loc: uint32;
 }
 
 table RequiresClause /* AST */ {
