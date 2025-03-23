@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/ast_cursor.h>
 #include <cxx/ast_pretty_printer.h>
 #include <cxx/ast_printer.h>
 #include <cxx/ast_visitor.h>
@@ -56,43 +55,48 @@ namespace {
 
 using namespace cxx;
 
-struct CheckExpressionTypes {
+class CheckExpressionTypes final : private ASTVisitor {
+ public:
   [[nodiscard]] auto operator()(TranslationUnit* unit) {
     std::size_t missingTypes = 0;
+    std::swap(unit_, unit);
+    std::swap(missingTypes_, missingTypes);
 
-    // iterate over all expressions and check if they have a type
-    for (auto cursor = ASTCursor{unit->ast(), "unit"}; cursor;
-         cursor = ++cursor) {
-      const auto& current = *cursor;
+    accept(unit_->ast());
 
-      if (!std::holds_alternative<AST*>(current.node)) {
-        // skip non-AST nodes
-        continue;
-      }
-
-      auto ast = std::get<AST*>(current.node);
-      auto expression = ast_cast<ExpressionAST>(ast);
-      if (!expression) {
-        // skip non-expression nodes
-        continue;
-      }
-
-      auto type = expression->type;
-      if (type) {
-        // the expression has a type
-        continue;
-      }
-
-      const auto loc = expression->firstSourceLocation();
-
-      unit->warning(loc, std::format("untyped expression of kind '{}'",
-                                     to_string(expression->kind())));
-
-      ++missingTypes;
-    }
+    std::swap(unit_, unit);
+    std::swap(missingTypes_, missingTypes);
 
     return missingTypes == 0;
   }
+
+ private:
+  using ASTVisitor::visit;
+
+  auto preVisit(AST* ast) -> bool override {
+    if (ast_cast<TemplateDeclarationAST>(ast)) {
+      // skip template declarations, as they are not instantiated yet
+      return false;
+    }
+
+    if (auto expression = ast_cast<ExpressionAST>(ast)) {
+      if (!expression->type) {
+        const auto loc = expression->firstSourceLocation();
+
+        unit_->warning(loc, std::format("untyped expression of kind '{}'",
+                                        to_string(expression->kind())));
+
+        ++missingTypes_;
+        return false;
+      }
+    }
+
+    return true;  // visit children
+  }
+
+ private:
+  TranslationUnit* unit_ = nullptr;
+  std::size_t missingTypes_ = 0;
 };
 
 auto readAll(const std::string& fileName, std::istream& in)
