@@ -38,7 +38,10 @@ auto main() -> int {
   static_assert(__is_same(decltype(px->s_value), int));
 
   int i;
-  W w{i, i};
+
+  // clang-format off
+  W w{i, i}; // expected-warning {{untyped expression of kind 'braced-init-list'}}
+  // clang-format on
 
   static_assert(__is_lvalue_reference(decltype(w.r)));
   static_assert(__is_same(decltype(w.r), int&));
@@ -49,7 +52,10 @@ auto main() -> int {
   static_assert(__is_same(decltype((w.const_k)), const int&));
   static_assert(__is_same(decltype((w.k)), int&));
 
-  const W cw{i, i};
+  // clang-format off
+  const W cw{i, i}; // expected-warning {{untyped expression of kind 'braced-init-list'}}
+  // clang-format on
+
   static_assert(__is_same(decltype(cw.const_k), const int));
   static_assert(__is_same(decltype(cw.k), int));
 

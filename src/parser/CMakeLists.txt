@@ -27,6 +27,7 @@ add_library(cxx-parser
     cxx/ast_printer.cc
     cxx/ast_rewriter.cc
     cxx/ast_slot.cc
+    cxx/ast_visitor.cc
     cxx/ast.cc
     cxx/base_classes.cc
     cxx/binder.cc

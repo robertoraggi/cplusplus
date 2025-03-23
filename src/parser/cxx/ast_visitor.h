@@ -28,276 +28,281 @@ class ASTVisitor {
  public:
   virtual ~ASTVisitor() = default;
 
+  void accept(AST* ast);
+
+  [[nodiscard]] virtual bool preVisit(AST* ast);
+  virtual void postVisit(AST* ast);
+
   // UnitAST
-  virtual void visit(TranslationUnitAST* ast) = 0;
-  virtual void visit(ModuleUnitAST* ast) = 0;
+  virtual void visit(TranslationUnitAST* ast);
+  virtual void visit(ModuleUnitAST* ast);
 
   // DeclarationAST
-  virtual void visit(SimpleDeclarationAST* ast) = 0;
-  virtual void visit(AsmDeclarationAST* ast) = 0;
-  virtual void visit(NamespaceAliasDefinitionAST* ast) = 0;
-  virtual void visit(UsingDeclarationAST* ast) = 0;
-  virtual void visit(UsingEnumDeclarationAST* ast) = 0;
-  virtual void visit(UsingDirectiveAST* ast) = 0;
-  virtual void visit(StaticAssertDeclarationAST* ast) = 0;
-  virtual void visit(AliasDeclarationAST* ast) = 0;
-  virtual void visit(OpaqueEnumDeclarationAST* ast) = 0;
-  virtual void visit(FunctionDefinitionAST* ast) = 0;
-  virtual void visit(TemplateDeclarationAST* ast) = 0;
-  virtual void visit(ConceptDefinitionAST* ast) = 0;
-  virtual void visit(DeductionGuideAST* ast) = 0;
-  virtual void visit(ExplicitInstantiationAST* ast) = 0;
-  virtual void visit(ExportDeclarationAST* ast) = 0;
-  virtual void visit(ExportCompoundDeclarationAST* ast) = 0;
-  virtual void visit(LinkageSpecificationAST* ast) = 0;
-  virtual void visit(NamespaceDefinitionAST* ast) = 0;
-  virtual void visit(EmptyDeclarationAST* ast) = 0;
-  virtual void visit(AttributeDeclarationAST* ast) = 0;
-  virtual void visit(ModuleImportDeclarationAST* ast) = 0;
-  virtual void visit(ParameterDeclarationAST* ast) = 0;
-  virtual void visit(AccessDeclarationAST* ast) = 0;
-  virtual void visit(ForRangeDeclarationAST* ast) = 0;
-  virtual void visit(StructuredBindingDeclarationAST* ast) = 0;
-  virtual void visit(AsmOperandAST* ast) = 0;
-  virtual void visit(AsmQualifierAST* ast) = 0;
-  virtual void visit(AsmClobberAST* ast) = 0;
-  virtual void visit(AsmGotoLabelAST* ast) = 0;
+  virtual void visit(SimpleDeclarationAST* ast);
+  virtual void visit(AsmDeclarationAST* ast);
+  virtual void visit(NamespaceAliasDefinitionAST* ast);
+  virtual void visit(UsingDeclarationAST* ast);
+  virtual void visit(UsingEnumDeclarationAST* ast);
+  virtual void visit(UsingDirectiveAST* ast);
+  virtual void visit(StaticAssertDeclarationAST* ast);
+  virtual void visit(AliasDeclarationAST* ast);
+  virtual void visit(OpaqueEnumDeclarationAST* ast);
+  virtual void visit(FunctionDefinitionAST* ast);
+  virtual void visit(TemplateDeclarationAST* ast);
+  virtual void visit(ConceptDefinitionAST* ast);
+  virtual void visit(DeductionGuideAST* ast);
+  virtual void visit(ExplicitInstantiationAST* ast);
+  virtual void visit(ExportDeclarationAST* ast);
+  virtual void visit(ExportCompoundDeclarationAST* ast);
+  virtual void visit(LinkageSpecificationAST* ast);
+  virtual void visit(NamespaceDefinitionAST* ast);
+  virtual void visit(EmptyDeclarationAST* ast);
+  virtual void visit(AttributeDeclarationAST* ast);
+  virtual void visit(ModuleImportDeclarationAST* ast);
+  virtual void visit(ParameterDeclarationAST* ast);
+  virtual void visit(AccessDeclarationAST* ast);
+  virtual void visit(ForRangeDeclarationAST* ast);
+  virtual void visit(StructuredBindingDeclarationAST* ast);
+  virtual void visit(AsmOperandAST* ast);
+  virtual void visit(AsmQualifierAST* ast);
+  virtual void visit(AsmClobberAST* ast);
+  virtual void visit(AsmGotoLabelAST* ast);
 
   // StatementAST
-  virtual void visit(LabeledStatementAST* ast) = 0;
-  virtual void visit(CaseStatementAST* ast) = 0;
-  virtual void visit(DefaultStatementAST* ast) = 0;
-  virtual void visit(ExpressionStatementAST* ast) = 0;
-  virtual void visit(CompoundStatementAST* ast) = 0;
-  virtual void visit(IfStatementAST* ast) = 0;
-  virtual void visit(ConstevalIfStatementAST* ast) = 0;
-  virtual void visit(SwitchStatementAST* ast) = 0;
-  virtual void visit(WhileStatementAST* ast) = 0;
-  virtual void visit(DoStatementAST* ast) = 0;
-  virtual void visit(ForRangeStatementAST* ast) = 0;
-  virtual void visit(ForStatementAST* ast) = 0;
-  virtual void visit(BreakStatementAST* ast) = 0;
-  virtual void visit(ContinueStatementAST* ast) = 0;
-  virtual void visit(ReturnStatementAST* ast) = 0;
-  virtual void visit(CoroutineReturnStatementAST* ast) = 0;
-  virtual void visit(GotoStatementAST* ast) = 0;
-  virtual void visit(DeclarationStatementAST* ast) = 0;
-  virtual void visit(TryBlockStatementAST* ast) = 0;
+  virtual void visit(LabeledStatementAST* ast);
+  virtual void visit(CaseStatementAST* ast);
+  virtual void visit(DefaultStatementAST* ast);
+  virtual void visit(ExpressionStatementAST* ast);
+  virtual void visit(CompoundStatementAST* ast);
+  virtual void visit(IfStatementAST* ast);
+  virtual void visit(ConstevalIfStatementAST* ast);
+  virtual void visit(SwitchStatementAST* ast);
+  virtual void visit(WhileStatementAST* ast);
+  virtual void visit(DoStatementAST* ast);
+  virtual void visit(ForRangeStatementAST* ast);
+  virtual void visit(ForStatementAST* ast);
+  virtual void visit(BreakStatementAST* ast);
+  virtual void visit(ContinueStatementAST* ast);
+  virtual void visit(ReturnStatementAST* ast);
+  virtual void visit(CoroutineReturnStatementAST* ast);
+  virtual void visit(GotoStatementAST* ast);
+  virtual void visit(DeclarationStatementAST* ast);
+  virtual void visit(TryBlockStatementAST* ast);
 
   // ExpressionAST
-  virtual void visit(GeneratedLiteralExpressionAST* ast) = 0;
-  virtual void visit(CharLiteralExpressionAST* ast) = 0;
-  virtual void visit(BoolLiteralExpressionAST* ast) = 0;
-  virtual void visit(IntLiteralExpressionAST* ast) = 0;
-  virtual void visit(FloatLiteralExpressionAST* ast) = 0;
-  virtual void visit(NullptrLiteralExpressionAST* ast) = 0;
-  virtual void visit(StringLiteralExpressionAST* ast) = 0;
-  virtual void visit(UserDefinedStringLiteralExpressionAST* ast) = 0;
-  virtual void visit(ThisExpressionAST* ast) = 0;
-  virtual void visit(NestedStatementExpressionAST* ast) = 0;
-  virtual void visit(NestedExpressionAST* ast) = 0;
-  virtual void visit(IdExpressionAST* ast) = 0;
-  virtual void visit(LambdaExpressionAST* ast) = 0;
-  virtual void visit(FoldExpressionAST* ast) = 0;
-  virtual void visit(RightFoldExpressionAST* ast) = 0;
-  virtual void visit(LeftFoldExpressionAST* ast) = 0;
-  virtual void visit(RequiresExpressionAST* ast) = 0;
-  virtual void visit(VaArgExpressionAST* ast) = 0;
-  virtual void visit(SubscriptExpressionAST* ast) = 0;
-  virtual void visit(CallExpressionAST* ast) = 0;
-  virtual void visit(TypeConstructionAST* ast) = 0;
-  virtual void visit(BracedTypeConstructionAST* ast) = 0;
-  virtual void visit(SpliceMemberExpressionAST* ast) = 0;
-  virtual void visit(MemberExpressionAST* ast) = 0;
-  virtual void visit(PostIncrExpressionAST* ast) = 0;
-  virtual void visit(CppCastExpressionAST* ast) = 0;
-  virtual void visit(BuiltinBitCastExpressionAST* ast) = 0;
-  virtual void visit(BuiltinOffsetofExpressionAST* ast) = 0;
-  virtual void visit(TypeidExpressionAST* ast) = 0;
-  virtual void visit(TypeidOfTypeExpressionAST* ast) = 0;
-  virtual void visit(SpliceExpressionAST* ast) = 0;
-  virtual void visit(GlobalScopeReflectExpressionAST* ast) = 0;
-  virtual void visit(NamespaceReflectExpressionAST* ast) = 0;
-  virtual void visit(TypeIdReflectExpressionAST* ast) = 0;
-  virtual void visit(ReflectExpressionAST* ast) = 0;
-  virtual void visit(UnaryExpressionAST* ast) = 0;
-  virtual void visit(AwaitExpressionAST* ast) = 0;
-  virtual void visit(SizeofExpressionAST* ast) = 0;
-  virtual void visit(SizeofTypeExpressionAST* ast) = 0;
-  virtual void visit(SizeofPackExpressionAST* ast) = 0;
-  virtual void visit(AlignofTypeExpressionAST* ast) = 0;
-  virtual void visit(AlignofExpressionAST* ast) = 0;
-  virtual void visit(NoexceptExpressionAST* ast) = 0;
-  virtual void visit(NewExpressionAST* ast) = 0;
-  virtual void visit(DeleteExpressionAST* ast) = 0;
-  virtual void visit(CastExpressionAST* ast) = 0;
-  virtual void visit(ImplicitCastExpressionAST* ast) = 0;
-  virtual void visit(BinaryExpressionAST* ast) = 0;
-  virtual void visit(ConditionalExpressionAST* ast) = 0;
-  virtual void visit(YieldExpressionAST* ast) = 0;
-  virtual void visit(ThrowExpressionAST* ast) = 0;
-  virtual void visit(AssignmentExpressionAST* ast) = 0;
-  virtual void visit(PackExpansionExpressionAST* ast) = 0;
-  virtual void visit(DesignatedInitializerClauseAST* ast) = 0;
-  virtual void visit(TypeTraitExpressionAST* ast) = 0;
-  virtual void visit(ConditionExpressionAST* ast) = 0;
-  virtual void visit(EqualInitializerAST* ast) = 0;
-  virtual void visit(BracedInitListAST* ast) = 0;
-  virtual void visit(ParenInitializerAST* ast) = 0;
+  virtual void visit(GeneratedLiteralExpressionAST* ast);
+  virtual void visit(CharLiteralExpressionAST* ast);
+  virtual void visit(BoolLiteralExpressionAST* ast);
+  virtual void visit(IntLiteralExpressionAST* ast);
+  virtual void visit(FloatLiteralExpressionAST* ast);
+  virtual void visit(NullptrLiteralExpressionAST* ast);
+  virtual void visit(StringLiteralExpressionAST* ast);
+  virtual void visit(UserDefinedStringLiteralExpressionAST* ast);
+  virtual void visit(ThisExpressionAST* ast);
+  virtual void visit(NestedStatementExpressionAST* ast);
+  virtual void visit(NestedExpressionAST* ast);
+  virtual void visit(IdExpressionAST* ast);
+  virtual void visit(LambdaExpressionAST* ast);
+  virtual void visit(FoldExpressionAST* ast);
+  virtual void visit(RightFoldExpressionAST* ast);
+  virtual void visit(LeftFoldExpressionAST* ast);
+  virtual void visit(RequiresExpressionAST* ast);
+  virtual void visit(VaArgExpressionAST* ast);
+  virtual void visit(SubscriptExpressionAST* ast);
+  virtual void visit(CallExpressionAST* ast);
+  virtual void visit(TypeConstructionAST* ast);
+  virtual void visit(BracedTypeConstructionAST* ast);
+  virtual void visit(SpliceMemberExpressionAST* ast);
+  virtual void visit(MemberExpressionAST* ast);
+  virtual void visit(PostIncrExpressionAST* ast);
+  virtual void visit(CppCastExpressionAST* ast);
+  virtual void visit(BuiltinBitCastExpressionAST* ast);
+  virtual void visit(BuiltinOffsetofExpressionAST* ast);
+  virtual void visit(TypeidExpressionAST* ast);
+  virtual void visit(TypeidOfTypeExpressionAST* ast);
+  virtual void visit(SpliceExpressionAST* ast);
+  virtual void visit(GlobalScopeReflectExpressionAST* ast);
+  virtual void visit(NamespaceReflectExpressionAST* ast);
+  virtual void visit(TypeIdReflectExpressionAST* ast);
+  virtual void visit(ReflectExpressionAST* ast);
+  virtual void visit(UnaryExpressionAST* ast);
+  virtual void visit(AwaitExpressionAST* ast);
+  virtual void visit(SizeofExpressionAST* ast);
+  virtual void visit(SizeofTypeExpressionAST* ast);
+  virtual void visit(SizeofPackExpressionAST* ast);
+  virtual void visit(AlignofTypeExpressionAST* ast);
+  virtual void visit(AlignofExpressionAST* ast);
+  virtual void visit(NoexceptExpressionAST* ast);
+  virtual void visit(NewExpressionAST* ast);
+  virtual void visit(DeleteExpressionAST* ast);
+  virtual void visit(CastExpressionAST* ast);
+  virtual void visit(ImplicitCastExpressionAST* ast);
+  virtual void visit(BinaryExpressionAST* ast);
+  virtual void visit(ConditionalExpressionAST* ast);
+  virtual void visit(YieldExpressionAST* ast);
+  virtual void visit(ThrowExpressionAST* ast);
+  virtual void visit(AssignmentExpressionAST* ast);
+  virtual void visit(PackExpansionExpressionAST* ast);
+  virtual void visit(DesignatedInitializerClauseAST* ast);
+  virtual void visit(TypeTraitExpressionAST* ast);
+  virtual void visit(ConditionExpressionAST* ast);
+  virtual void visit(EqualInitializerAST* ast);
+  virtual void visit(BracedInitListAST* ast);
+  virtual void visit(ParenInitializerAST* ast);
 
   // AST
-  virtual void visit(SplicerAST* ast) = 0;
-  virtual void visit(GlobalModuleFragmentAST* ast) = 0;
-  virtual void visit(PrivateModuleFragmentAST* ast) = 0;
-  virtual void visit(ModuleDeclarationAST* ast) = 0;
-  virtual void visit(ModuleNameAST* ast) = 0;
-  virtual void visit(ModuleQualifierAST* ast) = 0;
-  virtual void visit(ModulePartitionAST* ast) = 0;
-  virtual void visit(ImportNameAST* ast) = 0;
-  virtual void visit(InitDeclaratorAST* ast) = 0;
-  virtual void visit(DeclaratorAST* ast) = 0;
-  virtual void visit(UsingDeclaratorAST* ast) = 0;
-  virtual void visit(EnumeratorAST* ast) = 0;
-  virtual void visit(TypeIdAST* ast) = 0;
-  virtual void visit(HandlerAST* ast) = 0;
-  virtual void visit(BaseSpecifierAST* ast) = 0;
-  virtual void visit(RequiresClauseAST* ast) = 0;
-  virtual void visit(ParameterDeclarationClauseAST* ast) = 0;
-  virtual void visit(TrailingReturnTypeAST* ast) = 0;
-  virtual void visit(LambdaSpecifierAST* ast) = 0;
-  virtual void visit(TypeConstraintAST* ast) = 0;
-  virtual void visit(AttributeArgumentClauseAST* ast) = 0;
-  virtual void visit(AttributeAST* ast) = 0;
-  virtual void visit(AttributeUsingPrefixAST* ast) = 0;
-  virtual void visit(NewPlacementAST* ast) = 0;
-  virtual void visit(NestedNamespaceSpecifierAST* ast) = 0;
+  virtual void visit(SplicerAST* ast);
+  virtual void visit(GlobalModuleFragmentAST* ast);
+  virtual void visit(PrivateModuleFragmentAST* ast);
+  virtual void visit(ModuleDeclarationAST* ast);
+  virtual void visit(ModuleNameAST* ast);
+  virtual void visit(ModuleQualifierAST* ast);
+  virtual void visit(ModulePartitionAST* ast);
+  virtual void visit(ImportNameAST* ast);
+  virtual void visit(InitDeclaratorAST* ast);
+  virtual void visit(DeclaratorAST* ast);
+  virtual void visit(UsingDeclaratorAST* ast);
+  virtual void visit(EnumeratorAST* ast);
+  virtual void visit(TypeIdAST* ast);
+  virtual void visit(HandlerAST* ast);
+  virtual void visit(BaseSpecifierAST* ast);
+  virtual void visit(RequiresClauseAST* ast);
+  virtual void visit(ParameterDeclarationClauseAST* ast);
+  virtual void visit(TrailingReturnTypeAST* ast);
+  virtual void visit(LambdaSpecifierAST* ast);
+  virtual void visit(TypeConstraintAST* ast);
+  virtual void visit(AttributeArgumentClauseAST* ast);
+  virtual void visit(AttributeAST* ast);
+  virtual void visit(AttributeUsingPrefixAST* ast);
+  virtual void visit(NewPlacementAST* ast);
+  virtual void visit(NestedNamespaceSpecifierAST* ast);
 
   // TemplateParameterAST
-  virtual void visit(TemplateTypeParameterAST* ast) = 0;
-  virtual void visit(NonTypeTemplateParameterAST* ast) = 0;
-  virtual void visit(TypenameTypeParameterAST* ast) = 0;
-  virtual void visit(ConstraintTypeParameterAST* ast) = 0;
+  virtual void visit(TemplateTypeParameterAST* ast);
+  virtual void visit(NonTypeTemplateParameterAST* ast);
+  virtual void visit(TypenameTypeParameterAST* ast);
+  virtual void visit(ConstraintTypeParameterAST* ast);
 
   // SpecifierAST
-  virtual void visit(GeneratedTypeSpecifierAST* ast) = 0;
-  virtual void visit(TypedefSpecifierAST* ast) = 0;
-  virtual void visit(FriendSpecifierAST* ast) = 0;
-  virtual void visit(ConstevalSpecifierAST* ast) = 0;
-  virtual void visit(ConstinitSpecifierAST* ast) = 0;
-  virtual void visit(ConstexprSpecifierAST* ast) = 0;
-  virtual void visit(InlineSpecifierAST* ast) = 0;
-  virtual void visit(StaticSpecifierAST* ast) = 0;
-  virtual void visit(ExternSpecifierAST* ast) = 0;
-  virtual void visit(ThreadLocalSpecifierAST* ast) = 0;
-  virtual void visit(ThreadSpecifierAST* ast) = 0;
-  virtual void visit(MutableSpecifierAST* ast) = 0;
-  virtual void visit(VirtualSpecifierAST* ast) = 0;
-  virtual void visit(ExplicitSpecifierAST* ast) = 0;
-  virtual void visit(AutoTypeSpecifierAST* ast) = 0;
-  virtual void visit(VoidTypeSpecifierAST* ast) = 0;
-  virtual void visit(SizeTypeSpecifierAST* ast) = 0;
-  virtual void visit(SignTypeSpecifierAST* ast) = 0;
-  virtual void visit(VaListTypeSpecifierAST* ast) = 0;
-  virtual void visit(IntegralTypeSpecifierAST* ast) = 0;
-  virtual void visit(FloatingPointTypeSpecifierAST* ast) = 0;
-  virtual void visit(ComplexTypeSpecifierAST* ast) = 0;
-  virtual void visit(NamedTypeSpecifierAST* ast) = 0;
-  virtual void visit(AtomicTypeSpecifierAST* ast) = 0;
-  virtual void visit(UnderlyingTypeSpecifierAST* ast) = 0;
-  virtual void visit(ElaboratedTypeSpecifierAST* ast) = 0;
-  virtual void visit(DecltypeAutoSpecifierAST* ast) = 0;
-  virtual void visit(DecltypeSpecifierAST* ast) = 0;
-  virtual void visit(PlaceholderTypeSpecifierAST* ast) = 0;
-  virtual void visit(ConstQualifierAST* ast) = 0;
-  virtual void visit(VolatileQualifierAST* ast) = 0;
-  virtual void visit(RestrictQualifierAST* ast) = 0;
-  virtual void visit(EnumSpecifierAST* ast) = 0;
-  virtual void visit(ClassSpecifierAST* ast) = 0;
-  virtual void visit(TypenameSpecifierAST* ast) = 0;
-  virtual void visit(SplicerTypeSpecifierAST* ast) = 0;
+  virtual void visit(GeneratedTypeSpecifierAST* ast);
+  virtual void visit(TypedefSpecifierAST* ast);
+  virtual void visit(FriendSpecifierAST* ast);
+  virtual void visit(ConstevalSpecifierAST* ast);
+  virtual void visit(ConstinitSpecifierAST* ast);
+  virtual void visit(ConstexprSpecifierAST* ast);
+  virtual void visit(InlineSpecifierAST* ast);
+  virtual void visit(StaticSpecifierAST* ast);
+  virtual void visit(ExternSpecifierAST* ast);
+  virtual void visit(ThreadLocalSpecifierAST* ast);
+  virtual void visit(ThreadSpecifierAST* ast);
+  virtual void visit(MutableSpecifierAST* ast);
+  virtual void visit(VirtualSpecifierAST* ast);
+  virtual void visit(ExplicitSpecifierAST* ast);
+  virtual void visit(AutoTypeSpecifierAST* ast);
+  virtual void visit(VoidTypeSpecifierAST* ast);
+  virtual void visit(SizeTypeSpecifierAST* ast);
+  virtual void visit(SignTypeSpecifierAST* ast);
+  virtual void visit(VaListTypeSpecifierAST* ast);
+  virtual void visit(IntegralTypeSpecifierAST* ast);
+  virtual void visit(FloatingPointTypeSpecifierAST* ast);
+  virtual void visit(ComplexTypeSpecifierAST* ast);
+  virtual void visit(NamedTypeSpecifierAST* ast);
+  virtual void visit(AtomicTypeSpecifierAST* ast);
+  virtual void visit(UnderlyingTypeSpecifierAST* ast);
+  virtual void visit(ElaboratedTypeSpecifierAST* ast);
+  virtual void visit(DecltypeAutoSpecifierAST* ast);
+  virtual void visit(DecltypeSpecifierAST* ast);
+  virtual void visit(PlaceholderTypeSpecifierAST* ast);
+  virtual void visit(ConstQualifierAST* ast);
+  virtual void visit(VolatileQualifierAST* ast);
+  virtual void visit(RestrictQualifierAST* ast);
+  virtual void visit(EnumSpecifierAST* ast);
+  virtual void visit(ClassSpecifierAST* ast);
+  virtual void visit(TypenameSpecifierAST* ast);
+  virtual void visit(SplicerTypeSpecifierAST* ast);
 
   // PtrOperatorAST
-  virtual void visit(PointerOperatorAST* ast) = 0;
-  virtual void visit(ReferenceOperatorAST* ast) = 0;
-  virtual void visit(PtrToMemberOperatorAST* ast) = 0;
+  virtual void visit(PointerOperatorAST* ast);
+  virtual void visit(ReferenceOperatorAST* ast);
+  virtual void visit(PtrToMemberOperatorAST* ast);
 
   // CoreDeclaratorAST
-  virtual void visit(BitfieldDeclaratorAST* ast) = 0;
-  virtual void visit(ParameterPackAST* ast) = 0;
-  virtual void visit(IdDeclaratorAST* ast) = 0;
-  virtual void visit(NestedDeclaratorAST* ast) = 0;
+  virtual void visit(BitfieldDeclaratorAST* ast);
+  virtual void visit(ParameterPackAST* ast);
+  virtual void visit(IdDeclaratorAST* ast);
+  virtual void visit(NestedDeclaratorAST* ast);
 
   // DeclaratorChunkAST
-  virtual void visit(FunctionDeclaratorChunkAST* ast) = 0;
-  virtual void visit(ArrayDeclaratorChunkAST* ast) = 0;
+  virtual void visit(FunctionDeclaratorChunkAST* ast);
+  virtual void visit(ArrayDeclaratorChunkAST* ast);
 
   // UnqualifiedIdAST
-  virtual void visit(NameIdAST* ast) = 0;
-  virtual void visit(DestructorIdAST* ast) = 0;
-  virtual void visit(DecltypeIdAST* ast) = 0;
-  virtual void visit(OperatorFunctionIdAST* ast) = 0;
-  virtual void visit(LiteralOperatorIdAST* ast) = 0;
-  virtual void visit(ConversionFunctionIdAST* ast) = 0;
-  virtual void visit(SimpleTemplateIdAST* ast) = 0;
-  virtual void visit(LiteralOperatorTemplateIdAST* ast) = 0;
-  virtual void visit(OperatorFunctionTemplateIdAST* ast) = 0;
+  virtual void visit(NameIdAST* ast);
+  virtual void visit(DestructorIdAST* ast);
+  virtual void visit(DecltypeIdAST* ast);
+  virtual void visit(OperatorFunctionIdAST* ast);
+  virtual void visit(LiteralOperatorIdAST* ast);
+  virtual void visit(ConversionFunctionIdAST* ast);
+  virtual void visit(SimpleTemplateIdAST* ast);
+  virtual void visit(LiteralOperatorTemplateIdAST* ast);
+  virtual void visit(OperatorFunctionTemplateIdAST* ast);
 
   // NestedNameSpecifierAST
-  virtual void visit(GlobalNestedNameSpecifierAST* ast) = 0;
-  virtual void visit(SimpleNestedNameSpecifierAST* ast) = 0;
-  virtual void visit(DecltypeNestedNameSpecifierAST* ast) = 0;
-  virtual void visit(TemplateNestedNameSpecifierAST* ast) = 0;
+  virtual void visit(GlobalNestedNameSpecifierAST* ast);
+  virtual void visit(SimpleNestedNameSpecifierAST* ast);
+  virtual void visit(DecltypeNestedNameSpecifierAST* ast);
+  virtual void visit(TemplateNestedNameSpecifierAST* ast);
 
   // FunctionBodyAST
-  virtual void visit(DefaultFunctionBodyAST* ast) = 0;
-  virtual void visit(CompoundStatementFunctionBodyAST* ast) = 0;
-  virtual void visit(TryStatementFunctionBodyAST* ast) = 0;
-  virtual void visit(DeleteFunctionBodyAST* ast) = 0;
+  virtual void visit(DefaultFunctionBodyAST* ast);
+  virtual void visit(CompoundStatementFunctionBodyAST* ast);
+  virtual void visit(TryStatementFunctionBodyAST* ast);
+  virtual void visit(DeleteFunctionBodyAST* ast);
 
   // TemplateArgumentAST
-  virtual void visit(TypeTemplateArgumentAST* ast) = 0;
-  virtual void visit(ExpressionTemplateArgumentAST* ast) = 0;
+  virtual void visit(TypeTemplateArgumentAST* ast);
+  virtual void visit(ExpressionTemplateArgumentAST* ast);
 
   // ExceptionSpecifierAST
-  virtual void visit(ThrowExceptionSpecifierAST* ast) = 0;
-  virtual void visit(NoexceptSpecifierAST* ast) = 0;
+  virtual void visit(ThrowExceptionSpecifierAST* ast);
+  virtual void visit(NoexceptSpecifierAST* ast);
 
   // RequirementAST
-  virtual void visit(SimpleRequirementAST* ast) = 0;
-  virtual void visit(CompoundRequirementAST* ast) = 0;
-  virtual void visit(TypeRequirementAST* ast) = 0;
-  virtual void visit(NestedRequirementAST* ast) = 0;
+  virtual void visit(SimpleRequirementAST* ast);
+  virtual void visit(CompoundRequirementAST* ast);
+  virtual void visit(TypeRequirementAST* ast);
+  virtual void visit(NestedRequirementAST* ast);
 
   // NewInitializerAST
-  virtual void visit(NewParenInitializerAST* ast) = 0;
-  virtual void visit(NewBracedInitializerAST* ast) = 0;
+  virtual void visit(NewParenInitializerAST* ast);
+  virtual void visit(NewBracedInitializerAST* ast);
 
   // MemInitializerAST
-  virtual void visit(ParenMemInitializerAST* ast) = 0;
-  virtual void visit(BracedMemInitializerAST* ast) = 0;
+  virtual void visit(ParenMemInitializerAST* ast);
+  virtual void visit(BracedMemInitializerAST* ast);
 
   // LambdaCaptureAST
-  virtual void visit(ThisLambdaCaptureAST* ast) = 0;
-  virtual void visit(DerefThisLambdaCaptureAST* ast) = 0;
-  virtual void visit(SimpleLambdaCaptureAST* ast) = 0;
-  virtual void visit(RefLambdaCaptureAST* ast) = 0;
-  virtual void visit(RefInitLambdaCaptureAST* ast) = 0;
-  virtual void visit(InitLambdaCaptureAST* ast) = 0;
+  virtual void visit(ThisLambdaCaptureAST* ast);
+  virtual void visit(DerefThisLambdaCaptureAST* ast);
+  virtual void visit(SimpleLambdaCaptureAST* ast);
+  virtual void visit(RefLambdaCaptureAST* ast);
+  virtual void visit(RefInitLambdaCaptureAST* ast);
+  virtual void visit(InitLambdaCaptureAST* ast);
 
   // ExceptionDeclarationAST
-  virtual void visit(EllipsisExceptionDeclarationAST* ast) = 0;
-  virtual void visit(TypeExceptionDeclarationAST* ast) = 0;
+  virtual void visit(EllipsisExceptionDeclarationAST* ast);
+  virtual void visit(TypeExceptionDeclarationAST* ast);
 
   // AttributeSpecifierAST
-  virtual void visit(CxxAttributeAST* ast) = 0;
-  virtual void visit(GccAttributeAST* ast) = 0;
-  virtual void visit(AlignasAttributeAST* ast) = 0;
-  virtual void visit(AlignasTypeAttributeAST* ast) = 0;
-  virtual void visit(AsmAttributeAST* ast) = 0;
+  virtual void visit(CxxAttributeAST* ast);
+  virtual void visit(GccAttributeAST* ast);
+  virtual void visit(AlignasAttributeAST* ast);
+  virtual void visit(AlignasTypeAttributeAST* ast);
+  virtual void visit(AsmAttributeAST* ast);
 
   // AttributeTokenAST
-  virtual void visit(ScopedAttributeTokenAST* ast) = 0;
-  virtual void visit(SimpleAttributeTokenAST* ast) = 0;
+  virtual void visit(ScopedAttributeTokenAST* ast);
+  virtual void visit(SimpleAttributeTokenAST* ast);
 };
 
 }  // namespace cxx

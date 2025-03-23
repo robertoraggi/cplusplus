@@ -31,6 +31,7 @@ import { gen_ast_slot_cc } from "./gen_ast_slot_cc.js";
 import { gen_ast_slot_h } from "./get_ast_slot_h.js";
 import { gen_ast_ts } from "./gen_ast_ts.js";
 import { gen_ast_visitor_h } from "./gen_ast_visitor_h.js";
+import { gen_ast_visitor_cc } from "./gen_ast_visitor_cc.js";
 import { gen_ast_visitor_ts } from "./gen_ast_visitor_ts.js";
 import { parseAST } from "./parseAST.js";
 import { gen_ast_kind_ts } from "./gen_ast_kind_ts.js";
@@ -66,6 +67,10 @@ gen_ast_cc({ ast, output: path.join(outdir, "src/parser/cxx/ast.cc") });
 gen_ast_visitor_h({
   ast,
   output: path.join(outdir, "src/parser/cxx/ast_visitor.h"),
+});
+gen_ast_visitor_cc({
+  ast,
+  output: path.join(outdir, "src/parser/cxx/ast_visitor.cc"),
 });
 gen_ast_printer_h({
   ast,

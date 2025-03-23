@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2024 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,12 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST } from "./parseAST.js";
+import { AST, getASTNodes } from "./parseAST.js";
+import { cpy_header } from "./cpy_header.js";
 import * as fs from "fs";
 
-export function gen_ast_visitor_h({
+export function gen_ast_visitor_cc({
   ast,
   output,
 }: {
@@ -35,34 +35,54 @@ export function gen_ast_visitor_h({
 
   const by_base = groupNodesByBaseType(ast);
 
-  by_base.forEach((nodes, base) => {
-    if (!Array.isArray(nodes)) throw new Error("not an array");
-    emit();
-    emit(`  // ${base}`);
-    nodes.forEach(({ name }) => {
-      emit(`  virtual void visit(${name}* ast);`);
+  const types = new Set<string>();
+
+  ast.nodes.forEach((node) => {
+    node.members.forEach((m) => {
+      if (m.kind === "node" || m.kind === "node-list") types.add(m.type);
+    });
+  });
+
+  by_base.forEach((nodes) => {
+    nodes.forEach(({ name, members }) => {
+      members = getASTNodes(members);
+
+      emit();
+      emit(`void ASTVisitor::visit(${name}* ast) {`);
+      members.forEach((m) => {
+        if (m.kind === "node") {
+          emit(`accept(ast->${m.name});`);
+        } else if (m.kind === "node-list") {
+          emit(`for (auto node : ListView{ast->${m.name}}) {`);
+          emit(`accept(node);`);
+          emit(`}`);
+        }
+      });
+      emit(`}`);
     });
   });
 
   const out = `${cpy_header}
+#include <cxx/ast_visitor.h>
 
-#pragma once
-
-#include <cxx/ast_fwd.h>
+// cxx
+#include <cxx/ast.h>
 
 namespace cxx {
 
-class ASTVisitor {
-public:
-  virtual ~ASTVisitor() = default;
+auto ASTVisitor::preVisit(AST*) -> bool {
+  return true;
+}
 
-  void accept(AST* ast);
+void ASTVisitor::postVisit(AST*) {}
 
-  [[nodiscard]] virtual bool preVisit(AST* ast);
-  virtual void postVisit(AST* ast);
+void ASTVisitor::accept(AST* ast) {
+    if (!ast) return;
+    if (preVisit(ast)) ast->accept(this);
+    postVisit(ast);
+}
 
 ${code.join("\n")}
-};
 
 } // namespace cxx
 `;
