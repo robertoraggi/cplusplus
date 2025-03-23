@@ -89,6 +89,7 @@ struct ASTRewriter::UnitVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(TranslationUnitAST* ast) -> UnitAST*;
 
@@ -104,6 +105,7 @@ struct ASTRewriter::DeclarationVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(SimpleDeclarationAST* ast) -> DeclarationAST*;
 
@@ -184,6 +186,7 @@ struct ASTRewriter::StatementVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(LabeledStatementAST* ast) -> StatementAST*;
 
@@ -234,6 +237,7 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
       -> ExpressionAST*;
@@ -384,6 +388,7 @@ struct ASTRewriter::TemplateParameterVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(TemplateTypeParameterAST* ast)
       -> TemplateParameterAST*;
@@ -407,6 +412,7 @@ struct ASTRewriter::SpecifierVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(GeneratedTypeSpecifierAST* ast)
       -> SpecifierAST*;
@@ -495,6 +501,7 @@ struct ASTRewriter::PtrOperatorVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(PointerOperatorAST* ast) -> PtrOperatorAST*;
 
@@ -512,6 +519,7 @@ struct ASTRewriter::CoreDeclaratorVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(BitfieldDeclaratorAST* ast)
       -> CoreDeclaratorAST*;
@@ -532,6 +540,7 @@ struct ASTRewriter::DeclaratorChunkVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(FunctionDeclaratorChunkAST* ast)
       -> DeclaratorChunkAST*;
@@ -549,6 +558,7 @@ struct ASTRewriter::UnqualifiedIdVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(NameIdAST* ast) -> UnqualifiedIdAST*;
 
@@ -582,6 +592,7 @@ struct ASTRewriter::NestedNameSpecifierVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(GlobalNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
@@ -605,6 +616,7 @@ struct ASTRewriter::FunctionBodyVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(DefaultFunctionBodyAST* ast)
       -> FunctionBodyAST*;
@@ -627,6 +639,7 @@ struct ASTRewriter::TemplateArgumentVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(TypeTemplateArgumentAST* ast)
       -> TemplateArgumentAST*;
@@ -644,6 +657,7 @@ struct ASTRewriter::ExceptionSpecifierVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(ThrowExceptionSpecifierAST* ast)
       -> ExceptionSpecifierAST*;
@@ -661,6 +675,7 @@ struct ASTRewriter::RequirementVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(SimpleRequirementAST* ast) -> RequirementAST*;
 
@@ -680,6 +695,7 @@ struct ASTRewriter::NewInitializerVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(NewParenInitializerAST* ast)
       -> NewInitializerAST*;
@@ -697,6 +713,7 @@ struct ASTRewriter::MemInitializerVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(ParenMemInitializerAST* ast)
       -> MemInitializerAST*;
@@ -714,6 +731,7 @@ struct ASTRewriter::LambdaCaptureVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(ThisLambdaCaptureAST* ast) -> LambdaCaptureAST*;
 
@@ -740,6 +758,7 @@ struct ASTRewriter::ExceptionDeclarationVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(EllipsisExceptionDeclarationAST* ast)
       -> ExceptionDeclarationAST*;
@@ -757,6 +776,7 @@ struct ASTRewriter::AttributeSpecifierVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(CxxAttributeAST* ast) -> AttributeSpecifierAST*;
 
@@ -780,6 +800,7 @@ struct ASTRewriter::AttributeTokenVisitor {
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
   [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
   [[nodiscard]] auto operator()(ScopedAttributeTokenAST* ast)
       -> AttributeTokenAST*;
@@ -1118,6 +1139,7 @@ auto ASTRewriter::operator()(TypeIdAST* ast) -> TypeIdAST* {
 
   copy->declarator = operator()(ast->declarator);
 
+  auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           typeSpecifierListCtx.getType());
   copy->type = declaratorType;
@@ -1602,6 +1624,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   copy->declarator = rewrite(ast->declarator);
 
+  auto declaratorDecl = Decl{declSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           declSpecifierListCtx.getType());
   copy->requiresClause = rewrite(ast->requiresClause);
@@ -1840,6 +1863,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   copy->declarator = rewrite(ast->declarator);
 
+  auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           typeSpecifierListCtx.getType());
   copy->type = declaratorType;
@@ -2000,10 +2024,10 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<CompoundStatementAST>(arena());
 
-  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+  auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
-    copy->symbol = rewrite.binder_.enterBlock(ast->symbol->location());
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
 
   copy->lbraceLoc = ast->lbraceLoc;
@@ -2024,10 +2048,10 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<IfStatementAST>(arena());
 
-  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+  auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
-    copy->symbol = rewrite.binder_.enterBlock(ast->symbol->location());
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
 
   copy->ifLoc = ast->ifLoc;
@@ -2062,10 +2086,10 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<SwitchStatementAST>(arena());
 
-  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+  auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
-    copy->symbol = rewrite.binder_.enterBlock(ast->symbol->location());
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
 
   copy->switchLoc = ast->switchLoc;
@@ -2082,10 +2106,10 @@ auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<WhileStatementAST>(arena());
 
-  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+  auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
-    copy->symbol = rewrite.binder_.enterBlock(ast->symbol->location());
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
 
   copy->whileLoc = ast->whileLoc;
@@ -2116,10 +2140,10 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<ForRangeStatementAST>(arena());
 
-  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+  auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
-    copy->symbol = rewrite.binder_.enterBlock(ast->symbol->location());
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
 
   copy->forLoc = ast->forLoc;
@@ -2138,10 +2162,10 @@ auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
     -> StatementAST* {
   auto copy = make_node<ForStatementAST>(arena());
 
-  auto _ = Binder::ScopeGuard(&rewrite.binder_);
+  auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
-    copy->symbol = rewrite.binder_.enterBlock(ast->symbol->location());
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
 
   copy->forLoc = ast->forLoc;
@@ -2995,6 +3019,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
 
   copy->declarator = rewrite(ast->declarator);
 
+  auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           typeSpecifierListCtx.getType());
   copy->rparenLoc = ast->rparenLoc;
@@ -3184,6 +3209,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
   copy->declarator = rewrite(ast->declarator);
 
+  auto declaratorDecl = Decl{declSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           declSpecifierListCtx.getType());
   copy->initializer = rewrite(ast->initializer);
@@ -4439,6 +4465,7 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
 
   copy->declarator = rewrite(ast->declarator);
 
+  auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           typeSpecifierListCtx.getType());
 

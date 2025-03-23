@@ -33,13 +33,16 @@ class Decl {
   IdDeclaratorAST* declaratorId = nullptr;
   bool isPack = false;
 
-  explicit Decl(const DeclSpecs& specs);
+  explicit Decl(const DeclSpecs& specs, DeclaratorAST* declarator = nullptr);
 
   [[nodiscard]] auto location() const -> SourceLocation;
   [[nodiscard]] auto getName() const -> const Name*;
   [[nodiscard]] auto getNestedNameSpecifier() const -> NestedNameSpecifierAST*;
   [[nodiscard]] auto getScope() const -> Scope*;
 };
+
+[[nodiscard]] auto getDeclaratorId(DeclaratorAST* declarator)
+    -> IdDeclaratorAST*;
 
 [[nodiscard]] auto getFunctionPrototype(DeclaratorAST* declarator)
     -> FunctionDeclaratorChunkAST*;
