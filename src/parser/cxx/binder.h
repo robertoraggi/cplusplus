@@ -89,7 +89,8 @@ class Binder {
 
   void bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpec);
 
-  void bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs);
+  void bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
+            bool isDeclaration);
 
   void bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs);
 

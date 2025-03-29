@@ -128,14 +128,14 @@ void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(AutoTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  specs.type = control()->getAutoType();
+  specs.typeSpecifier_ = ast;
+  specs.type_ = control()->getAutoType();
   specs.isAuto = true;
 }
 
 void DeclSpecs::Visitor::operator()(VoidTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  specs.type = control()->getVoidType();
+  specs.typeSpecifier_ = ast;
+  specs.type_ = control()->getVoidType();
 }
 
 void DeclSpecs::Visitor::operator()(SizeTypeSpecifierAST* ast) {
@@ -172,39 +172,39 @@ void DeclSpecs::Visitor::operator()(SignTypeSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(VaListTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  specs.type = control()->getBuiltinVaListType();
+  specs.typeSpecifier_ = ast;
+  specs.type_ = control()->getBuiltinVaListType();
 }
 
 void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
   switch (ast->specifier) {
     case TokenKind::T_CHAR:
-      specs.type = control()->getCharType();
+      specs.type_ = control()->getCharType();
       break;
 
     case TokenKind::T_CHAR8_T:
-      specs.type = control()->getChar8Type();
+      specs.type_ = control()->getChar8Type();
       break;
 
     case TokenKind::T_CHAR16_T:
-      specs.type = control()->getChar16Type();
+      specs.type_ = control()->getChar16Type();
       break;
 
     case TokenKind::T_CHAR32_T:
-      specs.type = control()->getChar32Type();
+      specs.type_ = control()->getChar32Type();
       break;
 
     case TokenKind::T_WCHAR_T:
-      specs.type = control()->getWideCharType();
+      specs.type_ = control()->getWideCharType();
       break;
 
     case TokenKind::T_BOOL:
-      specs.type = control()->getBoolType();
+      specs.type_ = control()->getBoolType();
       break;
 
     case TokenKind::T_INT:
-      specs.type = control()->getIntType();
+      specs.type_ = control()->getIntType();
       break;
 
     case TokenKind::T___INT64:
@@ -221,18 +221,18 @@ void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
   switch (ast->specifier) {
     case TokenKind::T_FLOAT:
-      specs.type = control()->getFloatType();
+      specs.type_ = control()->getFloatType();
       break;
 
     case TokenKind::T_DOUBLE:
-      specs.type = control()->getDoubleType();
+      specs.type_ = control()->getDoubleType();
       break;
 
     case TokenKind::T_LONG:
-      specs.type = control()->getLongDoubleType();
+      specs.type_ = control()->getLongDoubleType();
       break;
 
     case TokenKind::T___FLOAT80:
@@ -249,59 +249,59 @@ void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
   specs.isComplex = true;
 }
 
 void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
 
   if (ast->symbol)
-    specs.type = ast->symbol->type();
+    specs.type_ = ast->symbol->type();
   else
-    specs.type = control()->getUnresolvedNameType(
-        specs.unit, ast->nestedNameSpecifier, ast->unqualifiedId);
+    specs.type_ = control()->getUnresolvedNameType(
+        specs.unit_, ast->nestedNameSpecifier, ast->unqualifiedId);
 }
 
 void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
   // ### todo
 }
 
 void DeclSpecs::Visitor::operator()(UnderlyingTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
 
   if (ast->typeId) {
     if (auto enumType = type_cast<EnumType>(ast->typeId->type)) {
-      specs.type = enumType->underlyingType();
+      specs.type_ = enumType->underlyingType();
     } else if (auto scopedEnumType =
                    type_cast<ScopedEnumType>(ast->typeId->type)) {
-      specs.type = scopedEnumType->underlyingType();
+      specs.type_ = scopedEnumType->underlyingType();
     } else {
-      specs.type =
-          control()->getUnresolvedUnderlyingType(specs.unit, ast->typeId);
+      specs.type_ =
+          control()->getUnresolvedUnderlyingType(specs.unit_, ast->typeId);
     }
   }
 }
 
 void DeclSpecs::Visitor::operator()(ElaboratedTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  if (ast->symbol) specs.type = ast->symbol->type();
+  specs.typeSpecifier_ = ast;
+  if (ast->symbol) specs.type_ = ast->symbol->type();
 }
 
 void DeclSpecs::Visitor::operator()(DecltypeAutoSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  specs.type = control()->getDecltypeAutoType();
+  specs.typeSpecifier_ = ast;
+  specs.type_ = control()->getDecltypeAutoType();
   specs.isDecltypeAuto = true;
 }
 
 void DeclSpecs::Visitor::operator()(DecltypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  specs.type = ast->type;
+  specs.typeSpecifier_ = ast;
+  specs.type_ = ast->type;
 }
 
 void DeclSpecs::Visitor::operator()(PlaceholderTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
 }
 
 void DeclSpecs::Visitor::operator()(ConstQualifierAST* ast) {
@@ -317,124 +317,146 @@ void DeclSpecs::Visitor::operator()(RestrictQualifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(EnumSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  if (ast->symbol) specs.type = ast->symbol->type();
+  specs.typeSpecifier_ = ast;
+  if (ast->symbol) specs.type_ = ast->symbol->type();
 }
 
 void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  if (ast->symbol) specs.type = ast->symbol->type();
+  specs.typeSpecifier_ = ast;
+  if (ast->symbol) specs.type_ = ast->symbol->type();
 }
 
 void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
-  specs.type = control()->getUnresolvedNameType(
-      specs.unit, ast->nestedNameSpecifier, ast->unqualifiedId);
+  specs.typeSpecifier_ = ast;
+  specs.type_ = control()->getUnresolvedNameType(
+      specs.unit_, ast->nestedNameSpecifier, ast->unqualifiedId);
 
   // ### todo
 }
 
 void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
-  specs.typeSpecifier = ast;
+  specs.typeSpecifier_ = ast;
   // ### todo
 }
 
-DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit(unit) {}
+DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit_(unit) {}
 
 DeclSpecs::DeclSpecs(ASTRewriter* rewriter)
-    : rewriter(rewriter), unit(rewriter->translationUnit()) {}
+    : rewriter_(rewriter), unit_(rewriter->translationUnit()) {}
 
-auto DeclSpecs::control() const -> Control* { return unit->control(); }
+auto DeclSpecs::control() const -> Control* { return unit_->control(); }
 
 void DeclSpecs::accept(SpecifierAST* specifier) {
   if (!specifier) return;
   visit(Visitor{*this}, specifier);
 }
 
-auto DeclSpecs::getType() const -> const Type* {
-  auto type = this->type;
-
-  if (!type || type == control()->getIntType()) {
-    if (isLongLong && isUnsigned)
-      type = control()->getUnsignedLongLongIntType();
-    else if (isLongLong)
-      type = control()->getLongLongIntType();
-    else if (isLong && isUnsigned)
-      type = control()->getUnsignedLongIntType();
-    else if (isLong)
-      type = control()->getLongIntType();
-    else if (isShort && isUnsigned)
-      type = control()->getUnsignedShortIntType();
-    else if (isShort)
-      type = control()->getShortIntType();
-    else if (isUnsigned)
-      type = control()->getUnsignedIntType();
-    else if (isSigned)
-      type = control()->getIntType();
+auto DeclSpecs::type() const -> const Type* {
+  if (!finished_) {
+    cxx_runtime_error("DeclSpecs::finish() not called");
   }
 
-  if (!type) return nullptr;
+  return type_;
+}
 
-  if (type == control()->getDoubleType() && isLong)
-    type = control()->getLongDoubleType();
+void DeclSpecs::setType(const Type* type) { type_ = type; }
 
-  if (isSigned && type == control()->getCharType())
-    type = control()->getSignedCharType();
+void DeclSpecs::finish() {
+  if (finished_) {
+    cxx_runtime_error("DeclSpecs::finish() called twice");
+  }
+
+  finished_ = true;
+  if (!type_ || type_ == control()->getIntType()) {
+    if (isLongLong && isUnsigned)
+      type_ = control()->getUnsignedLongLongIntType();
+    else if (isLongLong)
+      type_ = control()->getLongLongIntType();
+    else if (isLong && isUnsigned)
+      type_ = control()->getUnsignedLongIntType();
+    else if (isLong)
+      type_ = control()->getLongIntType();
+    else if (isShort && isUnsigned)
+      type_ = control()->getUnsignedShortIntType();
+    else if (isShort)
+      type_ = control()->getShortIntType();
+    else if (isUnsigned)
+      type_ = control()->getUnsignedIntType();
+    else if (isSigned)
+      type_ = control()->getIntType();
+  }
+
+  if (!type_) {
+    return;
+  }
+
+  if (type_ == control()->getDoubleType() && isLong)
+    type_ = control()->getLongDoubleType();
+
+  if (isSigned && type_ == control()->getCharType())
+    type_ = control()->getSignedCharType();
 
   if (isUnsigned) {
-    switch (type->kind()) {
+    switch (type_->kind()) {
       case TypeKind::kChar:
-        type = control()->getUnsignedCharType();
+        type_ = control()->getUnsignedCharType();
         break;
       case TypeKind::kShortInt:
-        type = control()->getUnsignedShortIntType();
+        type_ = control()->getUnsignedShortIntType();
         break;
       case TypeKind::kInt:
-        type = control()->getUnsignedIntType();
+        type_ = control()->getUnsignedIntType();
         break;
       case TypeKind::kLongInt:
-        type = control()->getUnsignedLongIntType();
+        type_ = control()->getUnsignedLongIntType();
         break;
       case TypeKind::kLongLongInt:
-        type = control()->getUnsignedLongLongIntType();
+        type_ = control()->getUnsignedLongLongIntType();
         break;
       case TypeKind::kChar8:
-        type = control()->getUnsignedCharType();
+        type_ = control()->getUnsignedCharType();
         break;
       case TypeKind::kChar16:
-        type = control()->getUnsignedShortIntType();
+        type_ = control()->getUnsignedShortIntType();
         break;
       case TypeKind::kChar32:
-        type = control()->getUnsignedIntType();
+        type_ = control()->getUnsignedIntType();
         break;
       case TypeKind::kWideChar:
-        type = control()->getUnsignedIntType();
+        type_ = control()->getUnsignedIntType();
         break;
       default:
         break;
     }  // switch
   }
 
-  if (isConst) type = control()->add_const(type);
-  if (isVolatile) type = control()->add_volatile(type);
-
-  return type;
+  if (isConst) type_ = control()->add_const(type_);
+  if (isVolatile) type_ = control()->add_volatile(type_);
 }
 
-auto DeclSpecs::hasTypeSpecifier() const -> bool {
-  if (typeSpecifier) return true;
+auto DeclSpecs::hasTypeOrSizeSpecifier() const -> bool {
+  if (hasTypeSpecifier()) return true;
   if (isShort || isLong) return true;
   if (isSigned || isUnsigned) return true;
   return false;
 }
 
-void DeclSpecs::setTypeSpecifier(SpecifierAST* specifier) {
-  typeSpecifier = specifier;
+auto DeclSpecs::hasTypeSpecifier() const -> bool {
+  if (typeSpecifier_) return true;
+  return false;
 }
 
-auto DeclSpecs::hasClassOrEnumSpecifier() const -> bool {
-  if (!typeSpecifier) return false;
-  switch (typeSpecifier->kind()) {
+auto DeclSpecs::typeSpecifier() const -> SpecifierAST* {
+  return typeSpecifier_;
+}
+
+void DeclSpecs::setTypeSpecifier(SpecifierAST* specifier) {
+  typeSpecifier_ = specifier;
+}
+
+auto DeclSpecs::hasClassOrElaboratedTypeSpecifier() const -> bool {
+  if (!typeSpecifier_) return false;
+  switch (typeSpecifier_->kind()) {
     case ASTKind::ClassSpecifier:
     case ASTKind::EnumSpecifier:
     case ASTKind::ElaboratedTypeSpecifier:
@@ -446,8 +468,8 @@ auto DeclSpecs::hasClassOrEnumSpecifier() const -> bool {
 }
 
 auto DeclSpecs::hasPlaceholderTypeSpecifier() const -> bool {
-  if (!typeSpecifier) return false;
-  switch (typeSpecifier->kind()) {
+  if (!typeSpecifier_) return false;
+  switch (typeSpecifier_->kind()) {
     case ASTKind::AutoTypeSpecifier:
     case ASTKind::DecltypeAutoSpecifier:
     case ASTKind::PlaceholderTypeSpecifier:

@@ -32,26 +32,35 @@ class ASTRewriter;
 class DeclSpecs {
   struct Visitor;
 
+  const Type* type_ = nullptr;
+  SpecifierAST* typeSpecifier_ = nullptr;
+  ASTRewriter* rewriter_ = nullptr;
+  TranslationUnit* unit_ = nullptr;
+  bool finished_ = false;
+
  public:
   explicit DeclSpecs(TranslationUnit* unit = nullptr);
   explicit DeclSpecs(ASTRewriter* rewriter);
 
   [[nodiscard]] auto control() const -> Control*;
-  [[nodiscard]] auto getType() const -> const Type*;
+
+  void finish();
+
+  [[nodiscard]] auto type() const -> const Type*;
+  void setType(const Type* type);
 
   [[nodiscard]] auto hasTypeSpecifier() const -> bool;
+
+  [[nodiscard]] auto typeSpecifier() const -> SpecifierAST*;
   void setTypeSpecifier(SpecifierAST* specifier);
 
-  [[nodiscard]] auto hasClassOrEnumSpecifier() const -> bool;
+  [[nodiscard]] auto hasTypeOrSizeSpecifier() const -> bool;
+  [[nodiscard]] auto hasClassOrElaboratedTypeSpecifier() const -> bool;
   [[nodiscard]] auto hasPlaceholderTypeSpecifier() const -> bool;
 
   void accept(SpecifierAST* specifier);
 
-  ASTRewriter* rewriter = nullptr;
-  TranslationUnit* unit = nullptr;
   TemplateDeclarationAST* templateHead = nullptr;
-  const Type* type = nullptr;
-  SpecifierAST* typeSpecifier = nullptr;
 
   bool isTypedef = false;
   bool isFriend = false;

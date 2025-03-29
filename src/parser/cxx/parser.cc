@@ -3910,6 +3910,8 @@ auto Parser::parse_notypespec_function_definition(
 
   parse_optional_decl_specifier_seq_no_typespecs();
 
+  specs.finish();
+
   if (!parse_notypespec_function_definition(yyast, declSpecifierList, specs))
     return false;
 
@@ -3929,7 +3931,7 @@ auto Parser::parse_type_or_forward_declaration(
   List<AttributeSpecifierAST*>* trailingAttributes = nullptr;
   (void)parse_attribute_specifier_seq(trailingAttributes);
 
-  if (!specs.hasClassOrEnumSpecifier()) return false;
+  if (!specs.hasClassOrElaboratedTypeSpecifier()) return false;
 
   SourceLocation semicolonLoc;
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
@@ -4032,7 +4034,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
     if (!parse_decl_specifier_seq(declSpecifierList, specs)) return false;
 
-    if (!specs.hasTypeSpecifier()) return false;
+    if (!specs.hasTypeOrSizeSpecifier()) return false;
     lookahead.commit();
     return true;
   };
@@ -4074,8 +4076,7 @@ auto Parser::parse_simple_declaration(
 
     auto _ = Binder::ScopeGuard{&binder_};
 
-    auto functionType =
-        getDeclaratorType(unit, declarator, decl.specs.getType());
+    auto functionType = getDeclaratorType(unit, declarator, decl.specs.type());
 
     auto q = decl.getNestedNameSpecifier();
 
@@ -4218,7 +4219,7 @@ auto Parser::parse_notypespec_function_definition(
 
   parse_optional_attribute_specifier_seq(functionDeclarator->attributeList);
 
-  auto functionType = getDeclaratorType(unit, declarator, decl.specs.getType());
+  auto functionType = getDeclaratorType(unit, declarator, decl.specs.type());
 
   SourceLocation equalLoc;
   SourceLocation zeroLoc;
@@ -4491,6 +4492,8 @@ auto Parser::parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
     specifier = nullptr;
   }
 
+  specs.finish();
+
   return true;
 }
 
@@ -4659,12 +4662,14 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
     it = &(*it)->next;
   }
 
+  specs.finish();
+
   return true;
 }
 
 auto Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
                                            DeclSpecs& specs) -> bool {
-  if (!specs.no_class_or_enum_specs && !specs.typeSpecifier) {
+  if (!specs.no_class_or_enum_specs && !specs.hasTypeSpecifier()) {
     LookaheadParser lookahead{this};
 
     if (parse_enum_specifier(yyast, specs)) {
@@ -4728,6 +4733,8 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
     it = &(*it)->next;
   }
 
+  specs.finish();
+
   return true;
 }
 
@@ -4737,7 +4744,7 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (parse_sign_type_specifier(yyast, specs)) return true;
   if (parse_complex_type_specifier(yyast, specs)) return true;
 
-  if (specs.typeSpecifier) return false;
+  if (specs.hasTypeSpecifier()) return false;
 
   if (parse_primitive_type_specifier(yyast, specs)) return true;
   if (parse_placeholder_type_specifier(yyast, specs)) return true;
@@ -5069,12 +5076,14 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   ast->unqualifiedId = name;
   ast->classKey = TokenKind::T_ENUM;
 
+  specs.setTypeSpecifier(ast);
+
   return true;
 }
 
 auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                              DeclSpecs& specs) -> bool {
-  if (specs.typeSpecifier) return false;
+  if (specs.hasTypeOrSizeSpecifier()) return false;
 
   if (parse_elaborated_enum_specifier(yyast, specs)) return true;
 
@@ -5105,26 +5114,22 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   ast->classKey = unit->tokenKind(classLoc);
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
-  const Identifier* className = nullptr;
-  SimpleTemplateIdAST* templateId = nullptr;
-
-  if (parse_simple_template_id(templateId)) {
+  if (SimpleTemplateIdAST* templateId = nullptr;
+      parse_simple_template_id(templateId)) {
     ast->unqualifiedId = templateId;
-    className = templateId->identifier;
+
+    mark_maybe_template_name(templateId->identifier);
   } else {
     // if we reach here, we have a name-id
     NameIdAST* nameId = nullptr;
     (void)parse_name_id(nameId);
 
     ast->unqualifiedId = nameId;
-    className = nameId->identifier;
   }
 
-  binder_.bind(ast, specs);
+  const auto isDeclaration = lookat(TokenKind::T_SEMICOLON);
 
-  if (is_template(ast->symbol)) {
-    mark_maybe_template_name(className);
-  }
+  binder_.bind(ast, specs, isDeclaration);
 
   return true;
 }
@@ -7614,10 +7619,17 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   (void)parse_decl_specifier_seq_no_typespecs(declSpecifierList, specs);
 
   auto lookat_notypespec_function_definition = [&] {
+    auto declSpecs = specs;
+    declSpecs.finish();
+
     LookaheadParser lookahead{this};
-    if (!parse_notypespec_function_definition(yyast, declSpecifierList, specs))
+
+    if (!parse_notypespec_function_definition(yyast, declSpecifierList,
+                                              declSpecs))
       return false;
+
     lookahead.commit();
+
     return true;
   };
 
@@ -7630,7 +7642,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   (void)parse_decl_specifier_seq(*lastDeclSpecifier, specs);
 
-  if (!specs.hasTypeSpecifier()) return false;
+  if (!specs.hasTypeOrSizeSpecifier()) return false;
 
   if (SourceLocation semicolonLoc;
       match(TokenKind::T_SEMICOLON, semicolonLoc)) {
@@ -9051,7 +9063,7 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   if (!config().reflect) return false;
-  if (specs.typeSpecifier) return false;
+  if (specs.hasTypeOrSizeSpecifier()) return false;
   LookaheadParser lookahead{this};
   SourceLocation typenameLoc;
   match(TokenKind::T_TYPENAME, typenameLoc);
@@ -9068,7 +9080,7 @@ auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
 auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (specs.typeSpecifier) return false;
+  if (specs.hasTypeOrSizeSpecifier()) return false;
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;

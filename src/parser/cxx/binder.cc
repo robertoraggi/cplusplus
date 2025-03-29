@@ -104,7 +104,10 @@ auto Binder::enterBlock(SourceLocation loc) -> BlockSymbol* {
 }
 
 void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
-  const auto underlyingType = underlyingTypeSpecs.getType();
+  const Type* underlyingType = control()->getIntType();
+
+  if (underlyingTypeSpecs.hasTypeOrSizeSpecifier())
+    underlyingType = underlyingTypeSpecs.type();
 
   const auto location = ast->unqualifiedId
                             ? ast->unqualifiedId->firstSourceLocation()
@@ -133,11 +136,12 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
   }
 }
 
-void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs) {
+void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
+                  bool isDeclaration) {
+  const auto _ = ScopeGuard{this};
+
   auto className = get_name(control(), ast->unqualifiedId);
   const auto location = ast->unqualifiedId->firstSourceLocation();
-
-  const auto _ = ScopeGuard{this};
 
   if (ast->nestedNameSpecifier) {
     auto parent = ast->nestedNameSpecifier->symbol;
@@ -171,8 +175,8 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs) {
 
   ast->symbol = classSymbol;
 
-  declSpecs.type = ast->symbol->type();
   declSpecs.setTypeSpecifier(ast);
+  declSpecs.setType(ast->symbol->type());
 }
 
 void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
@@ -250,7 +254,7 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
   ast->symbol = classSymbol;
 
   declSpecs.setTypeSpecifier(ast);
-  declSpecs.type = classSymbol->type();
+  declSpecs.setType(classSymbol->type());
 }
 
 void Binder::complete(ClassSpecifierAST* ast) {
@@ -266,7 +270,7 @@ void Binder::complete(ClassSpecifierAST* ast) {
 
 void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
                   bool inTemplateParameters) {
-  ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.getType());
+  ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 
   if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
     auto paramName = get_name(control(), declId->unqualifiedId);
@@ -503,13 +507,13 @@ void Binder::bind(UsingDirectiveAST* ast) {
 }
 
 void Binder::bind(TypeIdAST* ast, const Decl& decl) {
-  ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.getType());
+  ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 }
 
 auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     -> TypeAliasSymbol* {
   auto name = decl.getName();
-  auto type = getDeclaratorType(unit_, declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   auto symbol = control()->newTypeAliasSymbol(scope(), decl.location());
   symbol->setName(name);
   symbol->setType(type);
@@ -520,7 +524,7 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
 auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
     -> FunctionSymbol* {
   auto name = decl.getName();
-  auto type = getDeclaratorType(unit_, declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
 
   auto parentScope = scope();
 
@@ -573,7 +577,7 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
 auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
     -> FieldSymbol* {
   auto name = decl.getName();
-  auto type = getDeclaratorType(unit_, declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   auto fieldSymbol = control()->newFieldSymbol(scope(), decl.location());
   applySpecifiers(fieldSymbol, decl.specs);
   fieldSymbol->setName(name);
@@ -590,7 +594,7 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl)
     -> VariableSymbol* {
   auto name = decl.getName();
   auto symbol = control()->newVariableSymbol(scope(), decl.location());
-  auto type = getDeclaratorType(unit_, declarator, decl.specs.getType());
+  auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);

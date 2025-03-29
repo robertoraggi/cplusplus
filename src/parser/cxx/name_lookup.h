@@ -22,6 +22,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 
+#include <functional>
 #include <unordered_set>
 
 namespace cxx {
@@ -30,17 +31,21 @@ class Lookup {
  public:
   explicit Lookup(Scope* scope);
 
-  [[nodiscard]] auto operator()(const Name* name) const -> Symbol* {
-    return lookup(nullptr, name);
-  }
+  [[nodiscard]] auto operator()(
+      const Name* name, const std::function<bool(Symbol*)>& accept = {}) const
+      -> Symbol*;
 
-  [[nodiscard]] auto operator()(NestedNameSpecifierAST* nestedNameSpecifier,
-                                const Name* name) const -> Symbol* {
-    return lookup(nestedNameSpecifier, name);
-  }
+  [[nodiscard]] auto operator()(
+      NestedNameSpecifierAST* nestedNameSpecifier, const Name* name,
+      const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
 
-  [[nodiscard]] auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
-                            const Name* name) const -> Symbol*;
+  [[nodiscard]] auto lookup(
+      NestedNameSpecifierAST* nestedNameSpecifier, const Name* name,
+      const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
+
+  [[nodiscard]] auto qualifiedLookup(
+      Scope* scope, const Name* name,
+      const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
 
   [[nodiscard]] auto lookupNamespace(
       NestedNameSpecifierAST* nestedNameSpecifier, const Identifier* id) const
@@ -49,18 +54,18 @@ class Lookup {
   [[nodiscard]] auto lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
                                 const Identifier* id) const -> Symbol*;
 
-  [[nodiscard]] auto qualifiedLookup(Scope* scope, const Name* name) const
-      -> Symbol*;
-
  private:
-  [[nodiscard]] auto unqualifiedLookup(const Name* name) const -> Symbol*;
-
-  [[nodiscard]] auto qualifiedLookup(Symbol* scopedSymbol,
-                                     const Name* name) const -> Symbol*;
-
-  [[nodiscard]] auto lookupHelper(Scope* scope, const Name* name,
-                                  std::unordered_set<Scope*>& cache) const
+  [[nodiscard]] auto unqualifiedLookup(
+      const Name* name, const std::function<bool(Symbol*)>& accept) const
       -> Symbol*;
+
+  [[nodiscard]] auto qualifiedLookup(
+      Symbol* scopedSymbol, const Name* name,
+      const std::function<bool(Symbol*)>& accept) const -> Symbol*;
+
+  [[nodiscard]] auto lookupHelper(
+      Scope* scope, const Name* name, std::unordered_set<Scope*>& cache,
+      const std::function<bool(Symbol*)>& accept) const -> Symbol*;
 
   [[nodiscard]] auto lookupNamespaceHelper(
       Scope* scope, const Identifier* id, std::unordered_set<Scope*>& set) const

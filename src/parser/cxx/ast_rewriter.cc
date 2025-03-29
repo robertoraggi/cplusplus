@@ -1059,8 +1059,8 @@ auto ASTRewriter::operator()(InitDeclaratorAST* ast, const DeclSpecs& declSpecs)
 
   auto decl = Decl{declSpecs, copy->declarator};
 
-  auto type = getDeclaratorType(translationUnit(), copy->declarator,
-                                declSpecs.getType());
+  auto type =
+      getDeclaratorType(translationUnit(), copy->declarator, declSpecs.type());
 
   // ### fix scope
   if (binder_.scope() && binder_.scope()->isClassScope()) {
@@ -1152,12 +1152,13 @@ auto ASTRewriter::operator()(TypeIdAST* ast) -> TypeIdAST* {
     typeSpecifierList = &(*typeSpecifierList)->next;
     typeSpecifierListCtx.accept(value);
   }
+  typeSpecifierListCtx.finish();
 
   copy->declarator = operator()(ast->declarator);
 
   auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          typeSpecifierListCtx.getType());
+                                          typeSpecifierListCtx.type());
   copy->type = declaratorType;
 
   return copy;
@@ -1194,8 +1195,10 @@ auto ASTRewriter::operator()(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   copy->nestedNameSpecifier = operator()(ast->nestedNameSpecifier);
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = operator()(ast->unqualifiedId);
+  copy->ellipsisLoc = ast->ellipsisLoc;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
   copy->isVirtual = ast->isVirtual;
+  copy->isVariadic = ast->isVariadic;
   copy->accessSpecifier = ast->accessSpecifier;
   copy->symbol = ast->symbol;
 
@@ -1403,6 +1406,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     declSpecifierList = &(*declSpecifierList)->next;
     declSpecifierListCtx.accept(value);
   }
+  declSpecifierListCtx.finish();
 
   for (auto initDeclaratorList = &copy->initDeclaratorList;
        auto node : ListView{ast->initDeclaratorList}) {
@@ -1614,6 +1618,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
     typeSpecifierList = &(*typeSpecifierList)->next;
     typeSpecifierListCtx.accept(value);
   }
+  typeSpecifierListCtx.finish();
 
   copy->emicolonLoc = ast->emicolonLoc;
 
@@ -1639,12 +1644,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     declSpecifierList = &(*declSpecifierList)->next;
     declSpecifierListCtx.accept(value);
   }
+  declSpecifierListCtx.finish();
 
   copy->declarator = rewrite(ast->declarator);
 
   auto declaratorDecl = Decl{declSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          declSpecifierListCtx.getType());
+                                          declSpecifierListCtx.type());
   copy->requiresClause = rewrite(ast->requiresClause);
   copy->functionBody = rewrite(ast->functionBody);
   copy->symbol = ast->symbol;
@@ -1878,12 +1884,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
     typeSpecifierList = &(*typeSpecifierList)->next;
     typeSpecifierListCtx.accept(value);
   }
+  typeSpecifierListCtx.finish();
 
   copy->declarator = rewrite(ast->declarator);
 
   auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          typeSpecifierListCtx.getType());
+                                          typeSpecifierListCtx.type());
   copy->type = declaratorType;
   copy->equalLoc = ast->equalLoc;
   copy->expression = rewrite(ast->expression);
@@ -1931,6 +1938,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(
     declSpecifierList = &(*declSpecifierList)->next;
     declSpecifierListCtx.accept(value);
   }
+  declSpecifierListCtx.finish();
 
   copy->refQualifierLoc = ast->refQualifierLoc;
   copy->lbracketLoc = ast->lbracketLoc;
@@ -3034,12 +3042,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
     typeSpecifierList = &(*typeSpecifierList)->next;
     typeSpecifierListCtx.accept(value);
   }
+  typeSpecifierListCtx.finish();
 
   copy->declarator = rewrite(ast->declarator);
 
   auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          typeSpecifierListCtx.getType());
+                                          typeSpecifierListCtx.type());
   copy->rparenLoc = ast->rparenLoc;
   copy->newInitalizer = rewrite(ast->newInitalizer);
 
@@ -3224,12 +3233,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     declSpecifierList = &(*declSpecifierList)->next;
     declSpecifierListCtx.accept(value);
   }
+  declSpecifierListCtx.finish();
 
   copy->declarator = rewrite(ast->declarator);
 
   auto declaratorDecl = Decl{declSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          declSpecifierListCtx.getType());
+                                          declSpecifierListCtx.type());
   copy->initializer = rewrite(ast->initializer);
   copy->symbol = ast->symbol;
 
@@ -3734,6 +3744,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
     typeSpecifierList = &(*typeSpecifierList)->next;
     typeSpecifierListCtx.accept(value);
   }
+  typeSpecifierListCtx.finish();
 
   copy->lbraceLoc = ast->lbraceLoc;
 
@@ -4498,12 +4509,13 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
     typeSpecifierList = &(*typeSpecifierList)->next;
     typeSpecifierListCtx.accept(value);
   }
+  typeSpecifierListCtx.finish();
 
   copy->declarator = rewrite(ast->declarator);
 
   auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          typeSpecifierListCtx.getType());
+                                          typeSpecifierListCtx.type());
 
   return copy;
 }

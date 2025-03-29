@@ -128,7 +128,7 @@ export function new_ast_rewriter_cc({
                     `auto ${m.name}Decl = Decl{${specsAttr}Ctx, copy->${m.name}};`
                   );
                   emit(
-                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.getType());`
+                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.type());`
                   );
 
                   typeAttr = members.find(
@@ -197,6 +197,17 @@ export function new_ast_rewriter_cc({
           } // switch
 
           emit(`    }`);
+
+          // update the context if needed
+          switch (m.type) {
+            case "SpecifierAST":
+              emit(`${m.name}Ctx.finish();`);
+              break;
+
+            default:
+              break;
+          } // switch
+
           emit();
           break;
         }
