@@ -652,6 +652,32 @@ auto Binder::isConstructor(Symbol* symbol) const -> bool {
   return true;
 }
 
+auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopedSymbol* {
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) return classSymbol;
+
+  if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
+    return namespaceSymbol;
+
+  if (auto enumSymbol = symbol_cast<EnumSymbol>(symbol)) return enumSymbol;
+
+  if (auto scopedEnumSymbol = symbol_cast<ScopedEnumSymbol>(symbol))
+    return scopedEnumSymbol;
+
+  if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(symbol)) {
+    if (auto classType = type_cast<ClassType>(typeAliasSymbol->type()))
+      return classType->symbol();
+
+    if (auto enumType = type_cast<EnumType>(typeAliasSymbol->type()))
+      return enumType->symbol();
+
+    if (auto scopedEnumType =
+            type_cast<ScopedEnumType>(typeAliasSymbol->type()))
+      return scopedEnumType->symbol();
+  }
+
+  return nullptr;
+}
+
 auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
                      UnqualifiedIdAST* unqualifiedId, bool canInstantiate)
     -> Symbol* {

@@ -136,6 +136,9 @@ class Binder {
                              UnqualifiedIdAST* unqualifiedId,
                              bool canInstantiate) -> Symbol*;
 
+  [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol)
+      -> ScopedSymbol*;
+
   class ScopeGuard {
    public:
     Binder* p = nullptr;

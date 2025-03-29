@@ -217,7 +217,7 @@ class MemInitializerAST : public AST {
 class NestedNameSpecifierAST : public AST {
  public:
   using AST::AST;
-  Symbol* symbol = nullptr;
+  ScopedSymbol* symbol = nullptr;
 };
 
 class NewInitializerAST : public AST {
