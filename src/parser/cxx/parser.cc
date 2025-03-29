@@ -972,7 +972,7 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   ast->identifierLoc = identifierLoc;
   ast->identifier = identifier;
   ast->scopeLoc = scopeLoc;
-  ast->symbol = symbol;
+  ast->symbol = binder_.resolveNestedNameSpecifier(symbol);
 
   return true;
 }
@@ -1048,12 +1048,14 @@ auto Parser::parse_template_nested_name_specifier(
     }
 
     if (isReferencingPrimaryTemplate) {
-      ast->symbol = templateId->primaryTemplateSymbol;
+      ast->symbol =
+          binder_.resolveNestedNameSpecifier(templateId->primaryTemplateSymbol);
     }
   }
 
   if (!ast->symbol && config().checkTypes) {
-    ast->symbol = binder_.instantiate(templateId);
+    ast->symbol =
+        binder_.resolveNestedNameSpecifier(binder_.instantiate(templateId));
   }
 
   return true;
