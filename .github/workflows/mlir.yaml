@@ -1,0 +1,33 @@
+name: MLIR
+
+on: workflow_dispatch
+
+jobs:
+  build-mlir-emscripten:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup emscripten cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.emscripten-cache
+          key: ${{ runner.os }}-emscripten
+          restore-keys: |
+            ${{ runner.os }}-emscripten
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Build
+        run: |
+          npm run build:mlir
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlir
+          path: |
+            build.em/llvm-project/install/

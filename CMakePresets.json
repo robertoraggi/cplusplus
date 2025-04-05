@@ -44,6 +44,29 @@
       }
     },
     {
+      "name": "emscripten-mlir",
+      "displayName": "emscripten with MLIR",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build.em",
+      "toolchainFile": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_ENABLE_FLATBUFFERS": "NO",
+        "CXX_INSTALL_WASI_SYSROOT": "YES",
+        "CXX_ENABLE_MLIR": "YES",
+        "LLVM_DIR": "${sourceDir}/build.em/llvm-project/install/lib/cmake/llvm",
+        "MLIR_DIR": "${sourceDir}/build.em/llvm-project/install/lib/cmake/mlir"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{EMSCRIPTEN_ROOT}",
+        "rhs": ""
+      }
+    },
+    {
       "name": "wasi",
       "displayName": "wasi",
       "generator": "Ninja",
