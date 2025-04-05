@@ -1,4 +1,4 @@
-FROM emscripten/emsdk:4.0.1 as em
+FROM emscripten/emsdk:4.0.6 as em
 
 RUN apt-get update && apt-get install -y \
     ninja-build \
