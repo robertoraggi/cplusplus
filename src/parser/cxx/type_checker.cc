@@ -273,7 +273,26 @@ void TypeChecker::Visitor::operator()(VaArgExpressionAST* ast) {
   }
 }
 
-void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
+  if (auto pointerType = type_cast<PointerType>(ast->baseExpression->type)) {
+    ast->type = pointerType->elementType();
+    ast->valueCategory = ast->baseExpression->valueCategory;
+    return;
+  }
+
+  if (auto arrayType = type_cast<BoundedArrayType>(ast->baseExpression->type)) {
+    ast->type = arrayType->elementType();
+    ast->valueCategory = ast->baseExpression->valueCategory;
+    return;
+  }
+
+  if (auto arrayType =
+          type_cast<UnboundedArrayType>(ast->baseExpression->type)) {
+    ast->type = arrayType->elementType();
+    ast->valueCategory = ast->baseExpression->valueCategory;
+    return;
+  }
+}
 
 void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
   if (!ast->baseExpression) return;
