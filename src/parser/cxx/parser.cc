@@ -2558,12 +2558,14 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
     lookahead.commit();
 
     NewInitializerAST* newInitializer = nullptr;
-    parse_optional_new_initializer(newInitializer, ctx);
+    parse_optional_new_initializer(newInitializer, decl, ctx);
 
     ast->lparenLoc = lparenLoc;
     ast->typeSpecifierList = typeSpecifierList;
     ast->rparenLoc = rparenLoc;
     ast->newInitalizer = newInitializer;
+
+    ast->objectType = getDeclaratorType(unit, declarator, decl.specs.type());
 
     check(ast);
 
@@ -2580,7 +2582,9 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
 
   (void)parse_declarator(ast->declarator, decl, DeclaratorKind::kNewDeclarator);
 
-  parse_optional_new_initializer(ast->newInitalizer, ctx);
+  parse_optional_new_initializer(ast->newInitalizer, decl, ctx);
+
+  ast->objectType = getDeclaratorType(unit, ast->declarator, decl.specs.type());
 
   check(ast);
 
@@ -2611,6 +2615,7 @@ void Parser::parse_optional_new_placement(NewPlacementAST*& yyast,
 }
 
 void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast,
+                                            Decl& decl,
                                             const ExprContext& ctx) {
   if (BracedInitListAST* bracedInitList = nullptr;
       parse_braced_init_list(bracedInitList, ctx)) {

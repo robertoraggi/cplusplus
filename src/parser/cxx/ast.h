@@ -1921,6 +1921,7 @@ class NewExpressionAST final : public ExpressionAST {
   DeclaratorAST* declarator = nullptr;
   SourceLocation rparenLoc;
   NewInitializerAST* newInitalizer = nullptr;
+  const Type* objectType = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
