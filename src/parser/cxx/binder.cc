@@ -140,9 +140,6 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
                   bool isDeclaration) {
   const auto _ = ScopeGuard{this};
 
-  auto className = get_name(control(), ast->unqualifiedId);
-  const auto location = ast->unqualifiedId->firstSourceLocation();
-
   if (ast->nestedNameSpecifier) {
     auto parent = ast->nestedNameSpecifier->symbol;
 
@@ -151,32 +148,62 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
     }
   }
 
-  ClassSymbol* classSymbol = nullptr;
+  auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
 
-  if (scope()->isClassOrNamespaceScope()) {
-    for (auto candidate : scope()->find(className) | views::classes) {
-      classSymbol = candidate;
-      break;
+  const Identifier* name = nullptr;
+  if (templateId)
+    name = templateId->identifier;
+  else if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId))
+    name = nameId->identifier;
+
+  const auto location = ast->unqualifiedId->firstSourceLocation();
+
+  if (ast->classKey == TokenKind::T_CLASS ||
+      ast->classKey == TokenKind::T_STRUCT ||
+      ast->classKey == TokenKind::T_UNION) {
+    auto is_class = [](Symbol* symbol) {
+      if (symbol->isClass()) return true;
+      return false;
+    };
+
+    auto candidate =
+        Lookup{scope()}.lookup(ast->nestedNameSpecifier, name, is_class);
+
+    auto classSymbol = symbol_cast<ClassSymbol>(candidate);
+
+    if (classSymbol) {
+      // validate the resolved class symbol
+
+      if (isDeclaration) {
+        // if the class is already declared, we need to check if the
+        if (classSymbol->enclosingScope() != declaringScope()) {
+          // the class is declared in a different scope
+          classSymbol = nullptr;
+        }
+      }
     }
+
+    if (!classSymbol) {
+      const auto isUnion = ast->classKey == TokenKind::T_UNION;
+      classSymbol = control()->newClassSymbol(scope(), location);
+
+      classSymbol->setIsUnion(isUnion);
+      classSymbol->setName(name);
+      classSymbol->setTemplateParameters(currentTemplateParameters());
+      classSymbol->setTemplateDeclaration(declSpecs.templateHead);
+      declaringScope()->addSymbol(classSymbol);
+
+      classSymbol->setDeclaration(ast);
+    }
+
+    ast->symbol = classSymbol;
   }
-
-  if (!classSymbol) {
-    const auto isUnion = ast->classKey == TokenKind::T_UNION;
-    classSymbol = control()->newClassSymbol(scope(), location);
-
-    classSymbol->setIsUnion(isUnion);
-    classSymbol->setName(className);
-    classSymbol->setTemplateParameters(currentTemplateParameters());
-    classSymbol->setTemplateDeclaration(declSpecs.templateHead);
-    declaringScope()->addSymbol(classSymbol);
-
-    classSymbol->setDeclaration(ast);
-  }
-
-  ast->symbol = classSymbol;
 
   declSpecs.setTypeSpecifier(ast);
-  declSpecs.setType(ast->symbol->type());
+
+  if (ast->symbol) {
+    declSpecs.setType(ast->symbol->type());
+  }
 }
 
 void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
