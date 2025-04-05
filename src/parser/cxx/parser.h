@@ -290,7 +290,7 @@ class Parser final {
                                           const ExprContext& ctx) -> bool;
   void parse_optional_new_placement(NewPlacementAST*& yyast,
                                     const ExprContext& ctx);
-  void parse_optional_new_initializer(NewInitializerAST*& yyast,
+  void parse_optional_new_initializer(NewInitializerAST*& yyast, Decl& decl,
                                       const ExprContext& ctx);
   [[nodiscard]] auto parse_delete_expression(ExpressionAST*& yyast,
                                              const ExprContext& ctx) -> bool;

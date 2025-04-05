@@ -94,7 +94,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:              statement: compound-statement
 // CHECK-NEXT:                statement-list
 // CHECK-NEXT:                  expression-statement
-// CHECK-NEXT:                    expression: cast-expression
+// CHECK-NEXT:                    expression: cast-expression [prvalue void]
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          void-type-specifier

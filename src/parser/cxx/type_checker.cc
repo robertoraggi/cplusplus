@@ -666,11 +666,38 @@ void TypeChecker::Visitor::operator()(NoexceptExpressionAST* ast) {
   ast->type = control()->getBoolType();
 }
 
-void TypeChecker::Visitor::operator()(NewExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(NewExpressionAST* ast) {
+  // TODO: decay
+  auto objectType = control()->remove_reference(ast->objectType);
 
-void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {}
+  if (auto arrayType = type_cast<BoundedArrayType>(ast->objectType)) {
+    ast->type = control()->getPointerType(arrayType->elementType());
+  } else if (auto unboundedType =
+                 type_cast<UnboundedArrayType>(ast->objectType)) {
+    ast->type = control()->getPointerType(unboundedType->elementType());
+  } else {
+    ast->type = control()->getPointerType(ast->objectType);
+  }
 
-void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {}
+  ast->valueCategory = ValueCategory::kPrValue;
+}
+
+void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {
+  ast->type = control()->getVoidType();
+  ast->valueCategory = ValueCategory::kPrValue;
+}
+
+void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {
+  if (ast->typeId) {
+    ast->type = control()->remove_reference(ast->typeId->type);
+    if (control()->is_lvalue_reference(ast->typeId->type))
+      ast->valueCategory = ValueCategory::kLValue;
+    else if (control()->is_rvalue_reference(ast->typeId->type))
+      ast->valueCategory = ValueCategory::kXValue;
+    else
+      ast->valueCategory = ValueCategory::kPrValue;
+  }
+}
 
 void TypeChecker::Visitor::operator()(ImplicitCastExpressionAST* ast) {}
 
@@ -808,7 +835,11 @@ void TypeChecker::Visitor::operator()(TypeTraitExpressionAST* ast) {
 
 void TypeChecker::Visitor::operator()(ConditionExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(EqualInitializerAST* ast) {}
+void TypeChecker::Visitor::operator()(EqualInitializerAST* ast) {
+  if (!ast->expression) return;
+  ast->type = ast->expression->type;
+  ast->valueCategory = ast->expression->valueCategory;
+}
 
 void TypeChecker::Visitor::operator()(BracedInitListAST* ast) {}
 
