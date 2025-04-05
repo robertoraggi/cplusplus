@@ -9,13 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup emscripten cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.emscripten-cache
-          key: ${{ runner.os }}-emscripten
-          restore-keys: |
-            ${{ runner.os }}-emscripten
+      - name: Install emsdk
+        run: |
+          git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
+          /opt/emsdk/emsdk install latest
+          /opt/emsdk/emsdk activate latest
 
       - name: Install dependencies
         run: |
@@ -23,6 +21,7 @@ jobs:
 
       - name: Build
         run: |
+          source "/opt/emsdk/emsdk_env.sh"
           npm run build:mlir
 
       - name: Upload artifacts
