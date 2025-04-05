@@ -35,6 +35,7 @@
     "build:storybook": "npm run build-storybook -w @robertoraggi/cxx-storybook",
     "build:emscripten": "npm run build -w cxx-frontend",
     "build:wasi": "zx scripts/build-wasi.mjs",
+    "build:mlir": "zx scripts/build-mlir.mjs",
     "storybook": "npm run storybook -w @robertoraggi/cxx-storybook",
     "setup-venv": "zx scripts/setup-venv.mjs",
     "update-tests": "zx scripts/update-tests.mjs",
