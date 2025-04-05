@@ -28,6 +28,17 @@ $.verbose = true;
 // get the root directory of the project
 const projectRootSourcePath = path.join(__dirname, "../../..");
 
+const hasMLIR = fs.existsSync(
+  path.join(
+    projectRootSourcePath,
+    "build.em/llvm-project/install/bin/llvm-tblgen.js",
+  ),
+);
+
+if (hasMLIR) {
+  console.log("building with MLIR support");
+}
+
 // get the source path of the cxx-frontend package
 const cxxFrontendSourcePath = path.join(
   projectRootSourcePath,
@@ -108,6 +119,14 @@ async function dockerBuild() {
     );
   }
 
+  if (hasMLIR) {
+    cmakeOptions.push(
+      `-DCXX_ENABLE_MLIR=YES`,
+      `-DLLVM_DIR=/code/build.em/llvm-project/install/lib/cmake/llvm`,
+      `-DMLIR_DIR=/code/build.em/llvm-project/install/lib/cmake/mlir`,
+    );
+  }
+
   const user = await $`id -u`;
 
   await $`mkdir -p ${emscriptenCacheDir}`;
@@ -129,6 +148,14 @@ async function emsdkBuild({ cmake, emcmake, flatc, kwgen }) {
     `-B ${projectRootSourcePath}/build.em`,
   ];
 
+  if (hasMLIR) {
+    cmakeOptions.push(
+      `-DCXX_ENABLE_MLIR=YES`,
+      `-DLLVM_DIR=${projectRootSourcePath}/build.em/llvm-project/install/lib/cmake/llvm`,
+      `-DMLIR_DIR=${projectRootSourcePath}/build.em/llvm-project/install/lib/cmake/mlir`,
+    );
+  }
+
   if (argv.debug) {
     cmakeOptions.push(`-DCMAKE_BUILD_TYPE=Debug`);
   } else {
@@ -146,7 +173,9 @@ async function emsdkBuild({ cmake, emcmake, flatc, kwgen }) {
 async function emsdkBuildPresets() {
   const cmake = await which("cmake", { nothrow: true });
 
-  await $`${cmake} -S ${projectRootSourcePath} --preset emscripten`;
+  const preset = hasMLIR ? "emscripten-mlir" : "emscripten";
+
+  await $`${cmake} -S ${projectRootSourcePath} --preset ${preset}`;
 
   await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
 }
