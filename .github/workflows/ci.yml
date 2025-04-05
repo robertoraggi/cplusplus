@@ -135,13 +135,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.emscripten-cache
-          key: ${{ runner.os }}-emscripten
+          key: ${{ runner.os }}-emscripten-{{ hashFiles('/home/runner/.emscripten-cache/sanity.txt') }}
           restore-keys: |
-            ${{ runner.os }}-emscripten
+            ${{ runner.os }}-emscripten-
 
-      - name: Install dependenciesch
+      - name: Install dependencies
         run: |
           npm ci
+
+      - name: Download MLIR
+        run: |
+          npm run download-mlir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
 
       - name: Prettier
         run: |
