@@ -40,7 +40,7 @@ async function download({ pkg, version, outdir = "." }) {
   // unpack
   if (!(await zx.fs.exists(zx.path.join(outdir, pkg)))) {
     await zx.fs.mkdir(zx.path.join(outdir, pkg), { recursive: true });
-    await $`tar jxf ${outdir}/${fileName} -C ${outdir}/${pkg} --strip-components=1`.quiet();
+    await $`tar xf ${outdir}/${fileName} -C ${outdir}/${pkg} --strip-components=1`.quiet();
   }
 }
 
