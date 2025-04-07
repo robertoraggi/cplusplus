@@ -127,6 +127,7 @@ class ASTPrettyPrinter {
     }
     newline_ = false;
     space_ = false;
+    keepSpace_ = false;
     std::format_to(output_, fmt, std::forward<Args>(args)...);
     space();
   }
@@ -135,6 +136,7 @@ class ASTPrettyPrinter {
 
   void space();
   void nospace();
+  void keepSpace();
   void newline();
   void nonewline();
   void indent();
@@ -145,6 +147,7 @@ class ASTPrettyPrinter {
   std::ostream_iterator<char> output_;
   int depth_ = 0;
   bool space_ = false;
+  bool keepSpace_ = false;
   bool newline_ = false;
 };
 
