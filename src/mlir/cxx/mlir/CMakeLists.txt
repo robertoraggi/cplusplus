@@ -20,6 +20,9 @@ target_link_libraries(cxx-mlir PUBLIC
     MLIRControlFlowDialect
     MLIRSCFDialect
 )
+
+target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_MLIR)
+
 add_dependencies(cxx-mlir MLIRCxxOpsIncGen)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

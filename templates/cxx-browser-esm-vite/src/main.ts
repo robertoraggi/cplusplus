@@ -44,11 +44,9 @@ async function main() {
     source,
   });
 
-  parser.parse();
+  const ast = await parser.parse();
 
   const rows: string[] = [];
-
-  const ast = parser.getAST();
 
   for (const { node, depth } of ast?.walk().preVisit() ?? []) {
     if (!(node instanceof AST)) {

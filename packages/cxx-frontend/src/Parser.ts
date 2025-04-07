@@ -51,6 +51,7 @@ interface ParserParams {
 export class Parser {
   #unit: Unit | undefined;
   #ast: AST | undefined;
+  #pendingAST: Promise<AST> | undefined;
 
   static async init({
     wasm,
@@ -97,24 +98,54 @@ export class Parser {
     this.#unit = cxx.createUnit(source, path, { resolve, readFile });
   }
 
-  async parse() {
-    if (!this.#unit) {
-      return;
+  async parse(): Promise<AST> {
+    return await this.getASTAsync();
+  }
+
+  async emitIR(): Promise<string> {
+    const _ = await this.getASTAsync();
+    return this.#unit?.emitIR() ?? "";
+  }
+
+  async #parseHelper(): Promise<AST> {
+    if (this.#pendingAST) {
+      return await this.#pendingAST;
     }
+
+    if (!this.#unit) {
+      throw new Error("Parser has been disposed");
+    }
+
     await this.#unit.parse();
-    this.#ast = AST.from(this.#unit.getHandle(), this);
+
+    const ast = AST.from(this.#unit.getHandle(), this);
+
+    if (!ast) {
+      throw new Error("Failed to create AST");
+    }
+
+    this.#ast = ast;
+
+    return ast;
   }
 
   dispose() {
     this.#unit?.delete();
     this.#unit = undefined;
     this.#ast = undefined;
+    this.#pendingAST = undefined;
   }
 
   getUnitHandle(): number {
     return this.#unit?.getUnitHandle() ?? 0;
   }
 
+  async getASTAsync(): Promise<AST> {
+    this.#pendingAST ??= this.#parseHelper();
+    return await this.#pendingAST;
+  }
+
+  // internal
   getAST(): AST | undefined {
     return this.#ast;
   }

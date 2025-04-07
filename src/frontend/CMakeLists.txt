@@ -26,7 +26,6 @@ add_executable(cxx
 target_link_libraries(cxx PRIVATE cxx-lsp)
 
 if (CXX_ENABLE_MLIR)
-    target_compile_definitions(cxx PRIVATE CXX_WITH_MLIR)
     target_link_libraries(cxx PRIVATE cxx-mlir)
 endif()
 
