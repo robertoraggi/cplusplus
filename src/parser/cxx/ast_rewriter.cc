@@ -2516,17 +2516,27 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     lambdaSpecifierList = &(*lambdaSpecifierList)->next;
   }
 
-  copy->exceptionSpecifier = rewrite(ast->exceptionSpecifier);
+  {
+    auto _ = Binder::ScopeGuard(binder());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
+    if (copy->parameterDeclarationClause) {
+      binder()->setScope(
+          copy->parameterDeclarationClause->functionParametersSymbol);
+    }
+
+    copy->exceptionSpecifier = rewrite(ast->exceptionSpecifier);
+
+    for (auto attributeList = &copy->attributeList;
+         auto node : ListView{ast->attributeList}) {
+      auto value = rewrite(node);
+      *attributeList = make_list_node(arena(), value);
+      attributeList = &(*attributeList)->next;
+    }
+
+    copy->trailingReturnType = rewrite(ast->trailingReturnType);
+    copy->requiresClause = rewrite(ast->requiresClause);
   }
 
-  copy->trailingReturnType = rewrite(ast->trailingReturnType);
-  copy->requiresClause = rewrite(ast->requiresClause);
   copy->statement = ast_cast<CompoundStatementAST>(rewrite(ast->statement));
   copy->captureDefault = ast->captureDefault;
   copy->symbol = ast->symbol;
@@ -3973,6 +3983,13 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
   copy->lparenLoc = ast->lparenLoc;
   copy->parameterDeclarationClause = rewrite(ast->parameterDeclarationClause);
   copy->rparenLoc = ast->rparenLoc;
+
+  auto _ = Binder::ScopeGuard{binder()};
+
+  if (copy->parameterDeclarationClause) {
+    binder()->setScope(
+        copy->parameterDeclarationClause->functionParametersSymbol);
+  }
 
   auto cvQualifierListCtx = DeclSpecs{rewriter()};
   for (auto cvQualifierList = &copy->cvQualifierList;
