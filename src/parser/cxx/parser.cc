@@ -1138,6 +1138,8 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
       }
 
       expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+      setScope(ast->parameterDeclarationClause->functionParametersSymbol);
     }
 
     parse_optional_attribute_specifier_seq(ast->gnuAtributeList,
@@ -5452,6 +5454,8 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
     }
 
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
+
+    setScope(parameterDeclarationClause->functionParametersSymbol);
   }
 
   lookahead.commit();
