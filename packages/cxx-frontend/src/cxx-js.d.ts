@@ -101,6 +101,7 @@ export type CXX = {
   TranslationUnit: TranslationUnit;
 
   createUnit(source: string, path: string, api: Api): Unit;
+  emitIR(handle: number): string;
   getASTKind(handle: number): number;
   getASTSlot(handle: number, slot: number): number;
   getASTSlotKind(handle: number, slot: number): ASTSlotKind;

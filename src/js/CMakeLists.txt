@@ -27,6 +27,10 @@ add_executable(cxx-js ${SOURCES})
 
 target_link_libraries(cxx-js cxx-parser embind)
 
+if (CXX_ENABLE_MLIR)
+    target_link_libraries(cxx-js cxx-mlir)
+endif()
+
 target_link_options(cxx-js PUBLIC
     "SHELL:-s ENVIRONMENT=web"
     "SHELL:-s MINIMAL_RUNTIME"

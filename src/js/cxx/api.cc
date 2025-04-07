@@ -37,6 +37,13 @@
 #include <optional>
 #include <sstream>
 
+#ifdef CXX_WITH_MLIR
+#include <cxx/mlir/codegen.h>
+#include <cxx/mlir/cxx_dialect.h>
+#include <llvm/Support/raw_os_ostream.h>
+#include <mlir/IR/MLIRContext.h>
+#endif
+
 using namespace emscripten;
 
 namespace {
@@ -178,6 +185,31 @@ struct WrappedUnit {
     unit->parse();
 
     co_return val{true};
+  }
+
+  auto emitIR() -> std::string {
+#ifdef CXX_WITH_MLIR
+    mlir::MLIRContext context;
+    context.loadDialect<mlir::cxx::CxxDialect>();
+
+    cxx::Codegen codegen(context, unit.get());
+
+    auto ir = codegen(unit->ast());
+
+    mlir::OpPrintingFlags flags;
+    flags.enableDebugInfo(true, true);
+
+    std::ostringstream out;
+    llvm::raw_os_ostream os(out);
+    ir.module->print(os, flags);
+    os.flush();
+
+    auto code = out.str();
+
+    return code;
+#else
+    return {};
+#endif
   }
 };
 
@@ -381,7 +413,8 @@ EMSCRIPTEN_BINDINGS(cxx) {
       .function("parse", &WrappedUnit::parse)
       .function("getHandle", &WrappedUnit::getHandle)
       .function("getUnitHandle", &WrappedUnit::getUnitHandle)
-      .function("getDiagnostics", &WrappedUnit::getDiagnostics);
+      .function("getDiagnostics", &WrappedUnit::getDiagnostics)
+      .function("emitIR", &WrappedUnit::emitIR);
 
   function("createUnit", &createUnit, allow_raw_pointers());
   function("getASTKind", &getASTKind);

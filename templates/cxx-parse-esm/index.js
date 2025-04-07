@@ -51,7 +51,7 @@ async function main() {
 
   const parser = new Parser({ source, path: "source.cc" });
 
-  await parser.parse();
+  const ast = await parser.parse();
 
   const diagnostics = parser.getDiagnostics();
 
@@ -59,10 +59,8 @@ async function main() {
     console.log("diagnostics", diagnostics);
   }
 
-  const ast = parser.getAST();
-
   for (const { node, slot, depth } of ast?.walk().preVisit() ?? []) {
-    if (!node instanceof AST) continue;
+    if (!(node instanceof AST)) continue;
     const ind = " ".repeat(depth * 2);
     const kind = ASTKind[node.getKind()];
     const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
