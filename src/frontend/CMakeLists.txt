@@ -60,6 +60,14 @@ if (CXX_INSTALL_TOOLS)
         TARGETS cxx
         EXPORT cxxTargets
     )
+
+    if (EMSCRIPTEN)
+        install(
+            FILES $<TARGET_FILE_DIR:cxx>/cxx.wasm
+            DESTINATION bin
+        )
+    endif()
+
 endif()
 
 add_custom_target(link_cxx_include ALL
