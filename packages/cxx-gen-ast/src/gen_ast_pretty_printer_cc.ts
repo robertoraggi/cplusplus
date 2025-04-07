@@ -78,6 +78,7 @@ export function gen_ast_pretty_printer_cc({
     emit(`}`);
     emit(`void space() { accept.space(); }`);
     emit(`void nospace() { accept.nospace(); }`);
+    emit(`void keepSpace() { accept.keepSpace(); }`);
     emit(`void newline() { accept.newline(); }`);
     emit(`void nonewline() { accept.nonewline(); }`);
     emit(`void indent() { accept.indent(); }`);
@@ -97,6 +98,11 @@ export function gen_ast_pretty_printer_cc({
         if (["GccAttributeAST"].includes(name)) {
           emit(`newline();`);
         }
+        break;
+
+      case "opLoc":
+        emit(`space();`);
+        emit(`keepSpace();`);
         break;
 
       case "closeLoc":
@@ -147,6 +153,15 @@ export function gen_ast_pretty_printer_cc({
         if (!["BracedInitListAST"].includes(name)) {
           emit(`newline();`);
         }
+        break;
+
+      case "equalLoc":
+        emit(`keepSpace();`);
+        break;
+
+      case "opLoc":
+        emit(`space();`);
+        emit(`keepSpace();`);
         break;
 
       case "closeLoc":
@@ -379,11 +394,17 @@ void ASTPrettyPrinter::space() {
 }
 
 void ASTPrettyPrinter::nospace() {
+  if (keepSpace_) return;
   space_ = false;
+}
+
+void ASTPrettyPrinter::keepSpace() {
+  keepSpace_ = true;
 }
 
 void ASTPrettyPrinter::newline() {
   space_ = false;
+  keepSpace_ = false;
   newline_ = true;
 }
 

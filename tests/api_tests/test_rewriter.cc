@@ -246,7 +246,7 @@ const auto N = S<0, 1, 2>;
   };
 
   ASSERT_EQ(decl_to_string(instance),
-            "const auto S =(0 * 0) +(1 * 1) +(2 * 2);");
+            "const auto S = (0 * 0) + (1 * 1) + (2 * 2);");
 
   auto eq = ast_cast<EqualInitializerAST>(
       instance->initDeclaratorList->value->initializer);

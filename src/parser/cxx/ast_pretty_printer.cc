@@ -34,6 +34,7 @@ struct ASTPrettyPrinter::UnitVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -51,6 +52,7 @@ struct ASTPrettyPrinter::DeclarationVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -122,6 +124,7 @@ struct ASTPrettyPrinter::StatementVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -173,6 +176,7 @@ struct ASTPrettyPrinter::ExpressionVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -304,6 +308,7 @@ struct ASTPrettyPrinter::TemplateParameterVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -325,6 +330,7 @@ struct ASTPrettyPrinter::SpecifierVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -410,6 +416,7 @@ struct ASTPrettyPrinter::PtrOperatorVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -429,6 +436,7 @@ struct ASTPrettyPrinter::CoreDeclaratorVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -450,6 +458,7 @@ struct ASTPrettyPrinter::DeclaratorChunkVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -467,6 +476,7 @@ struct ASTPrettyPrinter::UnqualifiedIdVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -498,6 +508,7 @@ struct ASTPrettyPrinter::NestedNameSpecifierVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -519,6 +530,7 @@ struct ASTPrettyPrinter::FunctionBodyVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -540,6 +552,7 @@ struct ASTPrettyPrinter::TemplateArgumentVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -557,6 +570,7 @@ struct ASTPrettyPrinter::ExceptionSpecifierVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -574,6 +588,7 @@ struct ASTPrettyPrinter::RequirementVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -595,6 +610,7 @@ struct ASTPrettyPrinter::NewInitializerVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -612,6 +628,7 @@ struct ASTPrettyPrinter::MemInitializerVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -629,6 +646,7 @@ struct ASTPrettyPrinter::LambdaCaptureVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -654,6 +672,7 @@ struct ASTPrettyPrinter::ExceptionDeclarationVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -671,6 +690,7 @@ struct ASTPrettyPrinter::AttributeSpecifierVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -694,6 +714,7 @@ struct ASTPrettyPrinter::AttributeTokenVisitor {
   }
   void space() { accept.space(); }
   void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
   void newline() { accept.newline(); }
   void nonewline() { accept.nonewline(); }
   void indent() { accept.indent(); }
@@ -993,6 +1014,7 @@ void ASTPrettyPrinter::operator()(EnumeratorAST* ast) {
   if (ast->equalLoc) {
     space();
     writeToken(ast->equalLoc);
+    keepSpace();
   }
   operator()(ast->expression);
 }
@@ -1327,6 +1349,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->nestedNameSpecifier);
   accept(ast->unqualifiedId);
@@ -1441,6 +1464,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
 
   for (auto it = ast->gnuAttributeList; it; it = it->next) {
@@ -1538,6 +1562,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->expression);
   if (ast->semicolonLoc) {
@@ -1750,6 +1775,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->expression);
 }
@@ -2330,7 +2356,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(FoldExpressionAST* ast) {
   }
   accept(ast->leftExpression);
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
   if (ast->ellipsisLoc) {
     accept.writeToken(ast->ellipsisLoc);
@@ -2354,7 +2384,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   }
   accept(ast->expression);
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
   if (ast->ellipsisLoc) {
     accept.writeToken(ast->ellipsisLoc);
@@ -2376,7 +2410,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     accept.writeToken(ast->ellipsisLoc);
   }
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
   accept(ast->expression);
   if (ast->rparenLoc) {
@@ -2537,7 +2575,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     PostIncrExpressionAST* ast) {
   accept(ast->baseExpression);
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
 }
 
@@ -2688,7 +2730,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(UnaryExpressionAST* ast) {
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
   accept(ast->expression);
 }
@@ -2859,7 +2905,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 void ASTPrettyPrinter::ExpressionVisitor::operator()(BinaryExpressionAST* ast) {
   accept(ast->leftExpression);
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
   accept(ast->rightExpression);
 }
@@ -2896,7 +2946,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     AssignmentExpressionAST* ast) {
   accept(ast->leftExpression);
   if (ast->opLoc) {
+    space();
+    keepSpace();
     accept.write("{}", Token::spell(ast->op));
+    space();
+    keepSpace();
   }
   accept(ast->rightExpression);
 }
@@ -2965,6 +3019,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(EqualInitializerAST* ast) {
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->expression);
 }
@@ -3050,6 +3105,7 @@ void ASTPrettyPrinter::TemplateParameterVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->idExpression);
 }
@@ -3073,6 +3129,7 @@ void ASTPrettyPrinter::TemplateParameterVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->typeId);
 }
@@ -3089,6 +3146,7 @@ void ASTPrettyPrinter::TemplateParameterVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   accept(ast->typeId);
 }
@@ -3634,6 +3692,9 @@ void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(
     accept.writeToken(ast->operatorLoc);
   }
   if (ast->opLoc) {
+    space();
+    keepSpace();
+
     if (ast->op == TokenKind::T_NEW_ARRAY) {
       accept.write("new");
     } else if (ast->op == TokenKind::T_DELETE_ARRAY) {
@@ -3642,6 +3703,9 @@ void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(
                ast->op != TokenKind::T_LBRACKET) {
       accept.write("{}", Token::spell(ast->op));
     }
+
+    space();
+    keepSpace();
   }
   if (ast->openLoc) {
     nospace();
@@ -3795,6 +3859,7 @@ void ASTPrettyPrinter::FunctionBodyVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   if (ast->defaultLoc) {
     accept.writeToken(ast->defaultLoc);
@@ -3855,6 +3920,7 @@ void ASTPrettyPrinter::FunctionBodyVisitor::operator()(
   if (ast->equalLoc) {
     space();
     accept.writeToken(ast->equalLoc);
+    keepSpace();
   }
   if (ast->deleteLoc) {
     accept.writeToken(ast->deleteLoc);
@@ -4287,10 +4353,16 @@ void ASTPrettyPrinter::space() {
   space_ = true;
 }
 
-void ASTPrettyPrinter::nospace() { space_ = false; }
+void ASTPrettyPrinter::nospace() {
+  if (keepSpace_) return;
+  space_ = false;
+}
+
+void ASTPrettyPrinter::keepSpace() { keepSpace_ = true; }
 
 void ASTPrettyPrinter::newline() {
   space_ = false;
+  keepSpace_ = false;
   newline_ = true;
 }
 
