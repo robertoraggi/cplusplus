@@ -27,7 +27,6 @@
     "@tailwindcss/vite": "latest",
     "@tanstack/react-query": "latest",
     "@types/react-dom": "latest",
-    "@types/react-virtualized-auto-sizer": "latest",
     "@types/react-window": "latest",
     "@types/react": "latest",
     "@vitejs/plugin-react": "latest",
