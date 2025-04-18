@@ -49,6 +49,7 @@ void MacOSToolchain::addSystemIncludePaths() {
   addSystemIncludePath(std::format("{}/usr/include", platformPath_));
 
   std::vector<std::string_view> versions{
+      "17.0.0",
       "16.0.0",
       "15.0.0",
   };
