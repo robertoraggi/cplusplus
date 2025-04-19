@@ -220,7 +220,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      WASMTIME_VERSION: 25.0.2
+      WASMTIME_VERSION: 31.0.0
 
     steps:
       - uses: actions/checkout@v4
