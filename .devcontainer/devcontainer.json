@@ -1,5 +1,5 @@
 {
-  "name": "Ubuntu 24.10",
+  "name": "Ubuntu 25.04",
 
   "build": {
     "dockerfile": "Dockerfile"
