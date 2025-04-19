@@ -35,7 +35,6 @@
       "extensions": [
         "llvm-vs-code-extensions.vscode-clangd",
         "llvm-vs-code-extensions.lldb-dap",
-        "twxs.cmake",
         "ms-vscode.cmake-tools",
         "esbenp.prettier-vscode"
       ],
