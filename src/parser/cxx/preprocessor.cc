@@ -28,6 +28,7 @@
 #include <cxx/literals.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/util.h>
 #include <utf8/unchecked.h>
 
 #include <algorithm>
@@ -261,11 +262,6 @@ template <>
 struct std::hash<Hideset> {
   using is_transparent = void;
 
-  template <typename T>
-  void hash_combine(std::size_t &seed, const T &val) const {
-    seed ^= std::hash<T>()(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-  }
-
   auto operator()(const Hideset &hideset) const -> std::size_t {
     return operator()(hideset.names());
   }
@@ -273,13 +269,13 @@ struct std::hash<Hideset> {
   auto operator()(const std::set<std::string_view> &names) const
       -> std::size_t {
     std::size_t seed = 0;
-    for (const auto &name : names) hash_combine(seed, name);
+    for (const auto &name : names) cxx::hash_combine(seed, name);
     return seed;
   }
 
   auto operator()(const std::string_view &name) const -> std::size_t {
     std::size_t seed = 0;
-    hash_combine(seed, name);
+    cxx::hash_combine(seed, name);
     return seed;
   }
 };

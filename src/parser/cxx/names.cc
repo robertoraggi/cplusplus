@@ -24,12 +24,62 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/symbols.h>
+#include <cxx/util.h>
 
 #include <cstring>
 
 namespace cxx {
 
 namespace {
+
+struct ConstValueHash {
+  auto operator()(bool value) const -> std::size_t {
+    return std::hash<bool>{}(value);
+  }
+  auto operator()(std::int32_t value) const -> std::size_t {
+    return std::hash<std::int32_t>{}(value);
+  }
+  auto operator()(std::uint32_t value) const -> std::size_t {
+    return std::hash<std::uint32_t>{}(value);
+  }
+  auto operator()(std::int64_t value) const -> std::size_t {
+    return std::hash<std::int64_t>{}(value);
+  }
+  auto operator()(std::uint64_t value) const -> std::size_t {
+    return std::hash<std::uint64_t>{}(value);
+  }
+  auto operator()(float value) const -> std::size_t {
+    return std::hash<float>{}(value);
+  }
+  auto operator()(double value) const -> std::size_t {
+    return std::hash<double>{}(value);
+  }
+  auto operator()(long double value) const -> std::size_t {
+    return std::hash<long double>{}(value);
+  }
+  auto operator()(const StringLiteral* value) const -> std::size_t {
+    return value->hashCode();
+  }
+};
+
+struct TemplateArgumentHash {
+  auto operator()(const Type* arg) const -> std::size_t {
+    return std::hash<const void*>{}(arg);
+  }
+
+  auto operator()(Symbol* arg) const -> std::size_t {
+    return arg->name() ? arg->name()->hashValue() : 0;
+  }
+
+  auto operator()(ConstValue arg) const -> std::size_t {
+    return std::visit(ConstValueHash{}, arg);
+  }
+
+  auto operator()(ExpressionAST* arg) const -> std::size_t {
+    return std::hash<const void*>{}(arg);
+  }
+};
 
 struct ConvertToName {
   Control* control_;
@@ -105,6 +155,16 @@ auto Identifier::builtinTypeTrait() const -> BuiltinTypeTraitKind {
     return BuiltinTypeTraitKind::T_NONE;
 
   return static_cast<const TypeTraitIdentifierInfo*>(info_)->trait();
+}
+
+auto TemplateId::hash(const Name* name,
+                      const std::vector<TemplateArgument>& args)
+    -> std::size_t {
+  std::size_t hash = name->hashValue();
+  for (const auto& arg : args) {
+    hash_combine(hash, std::visit(TemplateArgumentHash{}, arg));
+  }
+  return hash;
 }
 
 }  // namespace cxx
