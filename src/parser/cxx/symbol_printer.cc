@@ -257,7 +257,10 @@ struct DumpSymbols {
   void operator()(FieldSymbol* symbol) {
     indent();
 
-    out << std::format("field");
+    if (symbol->isBitField())
+      out << std::format("bitfield");
+    else
+      out << std::format("field");
 
     if (symbol->isStatic()) out << " static";
     if (symbol->isThreadLocal()) out << " thread_local";

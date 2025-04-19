@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
+#include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>

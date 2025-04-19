@@ -351,17 +351,28 @@ struct GetDeclaratorType {
 
 Decl::Decl(const DeclSpecs& specs, DeclaratorAST* declarator) : specs{specs} {
   declaratorId = getDeclaratorId(declarator);
+
+  if (declarator) {
+    bitfieldDeclarator =
+        ast_cast<BitfieldDeclaratorAST>(declarator->coreDeclarator);
+  }
 }
 
 auto Decl::location() const -> SourceLocation {
+  if (bitfieldDeclarator) return bitfieldDeclarator->firstSourceLocation();
   if (declaratorId) return declaratorId->firstSourceLocation();
   return {};
 }
 
 auto Decl::getName() const -> const Name* {
   auto control = specs.control();
+
+  if (bitfieldDeclarator)
+    return get_name(control, bitfieldDeclarator->unqualifiedId);
+
   if (!declaratorId) return nullptr;
   if (!declaratorId->unqualifiedId) return nullptr;
+
   return get_name(control, declaratorId->unqualifiedId);
 }
 

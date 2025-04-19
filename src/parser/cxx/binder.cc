@@ -126,6 +126,11 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
     setScope(enumSymbol);
   } else {
     auto enumSymbol = control()->newEnumSymbol(scope(), location);
+
+    if (ast->typeSpecifierList) {
+      enumSymbol->setHasFixedUnderlyingType(true);
+    }
+
     ast->symbol = enumSymbol;
 
     enumSymbol->setName(enumName);
@@ -613,6 +618,11 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   if (auto alignment = control()->memoryLayout()->alignmentOf(type)) {
     fieldSymbol->setAlignment(alignment.value());
   }
+
+  if (decl.isBitField()) {
+    fieldSymbol->setBitField(true);
+  }
+
   scope()->addSymbol(fieldSymbol);
   return fieldSymbol;
 }
