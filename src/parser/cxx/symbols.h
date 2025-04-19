@@ -340,11 +340,15 @@ class EnumSymbol final : public ScopedSymbol {
   explicit EnumSymbol(Scope* enclosingScope);
   ~EnumSymbol() override;
 
+  [[nodiscard]] bool hasFixedUnderlyingType() const;
+  void setHasFixedUnderlyingType(bool hasFixedUnderlyingType);
+
   [[nodiscard]] auto underlyingType() const -> const Type*;
   void setUnderlyingType(const Type* underlyingType);
 
  private:
   const Type* underlyingType_ = nullptr;
+  bool hasFixedUnderlyingType_ = false;
 };
 
 class ScopedEnumSymbol final : public ScopedSymbol {
@@ -584,6 +588,17 @@ class FieldSymbol final : public Symbol {
   explicit FieldSymbol(Scope* enclosingScope);
   ~FieldSymbol() override;
 
+  [[nodiscard]] bool isBitField() const;
+  void setBitField(bool isBitField);
+
+  [[nodiscard]] auto bitFieldOffset() const -> int;
+  void setBitFieldOffset(int bitFieldOffset);
+
+  [[nodiscard]] auto bitFieldWidth() const -> const std::optional<ConstValue>&;
+  void setBitFieldWidth(std::optional<ConstValue> bitFieldWidth);
+
+  [[nodiscard]] auto isExtern() const -> bool;
+
   [[nodiscard]] auto isStatic() const -> bool;
   void setStatic(bool isStatic);
 
@@ -612,6 +627,7 @@ class FieldSymbol final : public Symbol {
   union {
     std::uint32_t flags_{};
     struct {
+      std::uint32_t isBitField_ : 1;
       std::uint32_t isStatic_ : 1;
       std::uint32_t isThreadLocal_ : 1;
       std::uint32_t isConstexpr_ : 1;
@@ -622,6 +638,8 @@ class FieldSymbol final : public Symbol {
   };
   int offset_{};
   int alignment_{};
+  int bitFieldOffset_{};
+  std::optional<ConstValue> bitFieldWidth_;
 };
 
 class ParameterSymbol final : public Symbol {

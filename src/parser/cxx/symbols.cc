@@ -324,6 +324,14 @@ EnumSymbol::EnumSymbol(Scope* enclosingScope)
 
 EnumSymbol::~EnumSymbol() {}
 
+auto EnumSymbol::hasFixedUnderlyingType() const -> bool {
+  return hasFixedUnderlyingType_;
+}
+
+void EnumSymbol::setHasFixedUnderlyingType(bool hasFixedUnderlyingType) {
+  hasFixedUnderlyingType_ = hasFixedUnderlyingType;
+}
+
 auto EnumSymbol::underlyingType() const -> const Type* {
   return underlyingType_;
 }
@@ -590,6 +598,24 @@ FieldSymbol::FieldSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 FieldSymbol::~FieldSymbol() {}
+
+auto FieldSymbol::isBitField() const -> bool { return isBitField_; }
+
+void FieldSymbol::setBitField(bool isBitField) { isBitField_ = isBitField; }
+
+auto FieldSymbol::bitFieldOffset() const -> int { return bitFieldOffset_; }
+
+void FieldSymbol::setBitFieldOffset(int bitFieldOffset) {
+  bitFieldOffset_ = bitFieldOffset;
+}
+
+auto FieldSymbol::bitFieldWidth() const -> const std::optional<ConstValue>& {
+  return bitFieldWidth_;
+}
+
+void FieldSymbol::setBitFieldWidth(std::optional<ConstValue> bitFieldWidth) {
+  bitFieldWidth_ = std::move(bitFieldWidth);
+}
 
 auto FieldSymbol::isStatic() const -> bool { return isStatic_; }
 

@@ -633,7 +633,8 @@ class Parser final {
   [[nodiscard]] auto parse_class_key(SourceLocation& classLoc) -> bool;
   [[nodiscard]] auto parse_member_specification(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_member_declaration(DeclarationAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_bitfield_declarator(InitDeclaratorAST*& yyast)
+  [[nodiscard]] auto parse_bitfield_declarator(InitDeclaratorAST*& yyast,
+                                               const DeclSpecs& declSpecs)
       -> bool;
   [[nodiscard]] auto parse_maybe_template_member() -> bool;
   [[nodiscard]] auto parse_member_declaration_helper(DeclarationAST*& yyast)

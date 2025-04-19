@@ -31,9 +31,14 @@ class Decl {
  public:
   DeclSpecs specs;
   IdDeclaratorAST* declaratorId = nullptr;
+  BitfieldDeclaratorAST* bitfieldDeclarator = nullptr;
   bool isPack = false;
 
   explicit Decl(const DeclSpecs& specs, DeclaratorAST* declarator = nullptr);
+
+  [[nodiscard]] auto isBitField() const {
+    return bitfieldDeclarator != nullptr;
+  }
 
   [[nodiscard]] auto location() const -> SourceLocation;
   [[nodiscard]] auto getName() const -> const Name*;

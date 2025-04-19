@@ -7669,7 +7669,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   DeclaratorAST* declarator = nullptr;
   InitDeclaratorAST* initDeclarator = nullptr;
-  if (!parse_bitfield_declarator(initDeclarator)) {
+  if (!parse_bitfield_declarator(initDeclarator, specs)) {
     (void)parse_declarator(declarator, decl);
   }
 
@@ -7762,33 +7762,33 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast) -> bool {
+auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast,
+                                       const DeclSpecs& declSpecs) -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation identifierLoc;
-
   match(TokenKind::T_IDENTIFIER, identifierLoc);
+
+  auto identifier = unit->identifier(identifierLoc);
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_optional_attribute_specifier_seq(attributes);
 
   SourceLocation colonLoc;
-
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
-
-  ExpressionAST* sizeExpression = nullptr;
-
-  std::optional<ConstValue> constValue;
-
-  if (!parse_constant_expression(sizeExpression, constValue)) {
-    parse_error("expected an expression");
-  }
 
   lookahead.commit();
 
+  ExpressionAST* sizeExpression = nullptr;
+  std::optional<ConstValue> bitfieldWidth;
+
+  if (!parse_constant_expression(sizeExpression, bitfieldWidth)) {
+    parse_error("expected an expression");
+  }
+
   auto nameId = make_node<NameIdAST>(pool_);
   nameId->identifierLoc = identifierLoc;
-  nameId->identifier = unit->identifier(identifierLoc);
+  nameId->identifier = identifier;
 
   auto bitfieldDeclarator = make_node<BitfieldDeclaratorAST>(pool_);
   bitfieldDeclarator->unqualifiedId = nameId;
@@ -7798,8 +7798,14 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast) -> bool {
   auto declarator = make_node<DeclaratorAST>(pool_);
   declarator->coreDeclarator = bitfieldDeclarator;
 
-  ExpressionAST* initializer = nullptr;
+  Decl decl{declSpecs, declarator};
 
+  // ### set the bitfield offse
+
+  auto symbol = binder_.declareField(declarator, decl);
+  symbol->setBitFieldWidth(std::move(bitfieldWidth));
+
+  ExpressionAST* initializer = nullptr;
   (void)parse_brace_or_equal_initializer(initializer);
 
   auto ast = make_node<InitDeclaratorAST>(pool_);
@@ -7807,13 +7813,14 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast) -> bool {
 
   ast->declarator = declarator;
   ast->initializer = initializer;
+  ast->symbol = symbol;
 
   return true;
 }
 
 auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
                                      const DeclSpecs& specs) -> bool {
-  if (parse_bitfield_declarator(yyast)) {
+  if (parse_bitfield_declarator(yyast, specs)) {
     return true;
   }
 
