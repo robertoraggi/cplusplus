@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
+#include <print>
 
 namespace cxx {
 
@@ -110,6 +111,14 @@ void Scope::addSymbol(Symbol* symbol) {
 
   symbol->setEnclosingScope(this);
   symbols_.push_back(symbol);
+
+  if (name_cast<ConversionFunctionId>(symbol->name())) {
+    if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(owner_)) {
+        classSymbol->addConversionFunction(functionSymbol);
+      }
+    }
+  }
 
   if (3 * symbols_.size() >= 2 * buckets_.size()) {
     rehash();
