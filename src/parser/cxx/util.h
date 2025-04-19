@@ -20,6 +20,15 @@
 
 #pragma once
 
+#include <functional>
+
 namespace cxx {
+
 auto align_to(int n, int align) -> int;
+
+template <typename T>
+void hash_combine(std::size_t &seed, const T &val) {
+  seed ^= std::hash<T>()(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
+
+}  // namespace cxx

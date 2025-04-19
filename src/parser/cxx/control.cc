@@ -54,9 +54,6 @@ template <typename Literal>
 using LiteralSet =
     std::unordered_set<Literal, LiteralHash<Literal>, LiteralEqualTo<Literal>>;
 
-template <typename Name>
-using NameSet = std::set<Name>;
-
 }  // namespace
 
 struct Control::Private {
@@ -75,12 +72,12 @@ struct Control::Private {
   LiteralSet<Utf32StringLiteral> utf32StringLiterals;
   LiteralSet<CommentLiteral> commentLiterals;
 
-  std::set<Identifier, std::less<>> identifiers;
-  std::set<OperatorId> operatorIds;
-  std::set<DestructorId> destructorIds;
-  std::set<LiteralOperatorId> literalOperatorIds;
-  std::set<ConversionFunctionId> conversionFunctionIds;
-  std::set<TemplateId> templateIds;
+  std::unordered_set<Identifier> identifiers;
+  std::unordered_set<OperatorId> operatorIds;
+  std::unordered_set<DestructorId> destructorIds;
+  std::unordered_set<LiteralOperatorId> literalOperatorIds;
+  std::unordered_set<ConversionFunctionId> conversionFunctionIds;
+  std::unordered_set<TemplateId> templateIds;
 
   BuiltinVaListType builtinVaListType;
   VoidType voidType;

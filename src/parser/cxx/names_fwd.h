@@ -25,6 +25,7 @@
 #include <cxx/cxx_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <functional>
 #include <variant>
 
 namespace cxx {

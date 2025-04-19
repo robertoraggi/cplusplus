@@ -26,8 +26,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <functional>
-#include <print>
 
 namespace cxx {
 
@@ -123,7 +121,8 @@ void Scope::addSymbol(Symbol* symbol) {
   if (3 * symbols_.size() >= 2 * buckets_.size()) {
     rehash();
   } else {
-    const auto h = std::hash<const void*>{}(symbol->name()) % buckets_.size();
+    auto h = symbol->name() ? symbol->name()->hashValue() : 0;
+    h = h % buckets_.size();
     symbol->link_ = buckets_[h];
     buckets_[h] = symbol;
   }
@@ -134,10 +133,9 @@ void Scope::rehash() {
 
   buckets_ = std::vector<Symbol*>(newSize);
 
-  std::hash<const void*> hash_value;
-
   for (auto symbol : symbols_) {
-    auto index = hash_value(symbol->name()) % newSize;
+    auto h = symbol->name() ? symbol->name()->hashValue() : 0;
+    auto index = h % newSize;
     symbol->link_ = buckets_[index];
     buckets_[index] = symbol;
   }
@@ -157,7 +155,9 @@ void Scope::replaceSymbol(Symbol* symbol, Symbol* newSymbol) {
 
   newSymbol->link_ = symbol->link_;
 
-  const auto h = std::hash<const void*>{}(newSymbol->name()) % buckets_.size();
+  auto h = newSymbol->name() ? newSymbol->name()->hashValue() : 0;
+  h = h % buckets_.size();
+
   if (buckets_[h] == symbol) {
     buckets_[h] = newSymbol;
   } else {
@@ -178,11 +178,34 @@ void Scope::addUsingDirective(Scope* scope) {
 
 auto Scope::find(const Name* name) const -> SymbolChainView {
   if (!symbols_.empty()) {
-    const auto h = std::hash<const void*>{}(name) % buckets_.size();
+    auto h = name ? name->hashValue() : 0;
+    h = h % buckets_.size();
     for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
       if (symbol->name() == name) {
         return SymbolChainView{symbol};
       }
+    }
+  }
+  return SymbolChainView{nullptr};
+}
+
+auto Scope::find(TokenKind op) const -> SymbolChainView {
+  if (!symbols_.empty()) {
+    const auto h = OperatorId::hash(op) % buckets_.size();
+    for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
+      auto id = name_cast<OperatorId>(symbol->name());
+      if (id && id->op() == op) return SymbolChainView{symbol};
+    }
+  }
+  return SymbolChainView{nullptr};
+}
+
+auto Scope::find(const std::string_view& name) const -> SymbolChainView {
+  if (!symbols_.empty()) {
+    const auto h = Identifier::hash(name) % buckets_.size();
+    for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
+      auto id = name_cast<Identifier>(symbol->name());
+      if (id && id->name() == name) return SymbolChainView{symbol};
     }
   }
   return SymbolChainView{nullptr};

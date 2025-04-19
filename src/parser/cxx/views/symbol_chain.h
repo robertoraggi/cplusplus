@@ -28,7 +28,7 @@ namespace cxx {
 
 class SymbolChainView : public std::ranges::view_interface<SymbolChainView> {
  public:
-  explicit SymbolChainView(Symbol* symbol) : symbol_{symbol} {}
+  explicit SymbolChainView(Symbol* symbol = nullptr) : symbol_{symbol} {}
 
   auto begin() const { return Generator{symbol_}; }
   auto end() const { return std::default_sentinel; }

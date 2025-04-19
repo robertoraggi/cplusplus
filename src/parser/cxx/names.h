@@ -24,7 +24,6 @@
 #include <cxx/names_fwd.h>
 #include <cxx/token_fwd.h>
 
-#include <cstdint>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -58,26 +57,33 @@ class TypeTraitIdentifierInfo final : public IdentifierInfo {
 
 class Name {
  public:
-  explicit Name(NameKind kind) : kind_(kind) {}
+  Name(NameKind kind, std::size_t hashValue)
+      : kind_(kind), hashValue_(hashValue) {}
+
   virtual ~Name();
 
   [[nodiscard]] auto kind() const -> NameKind { return kind_; }
+  [[nodiscard]] auto hashValue() const -> std::size_t { return hashValue_; }
 
  private:
   NameKind kind_;
+  std::size_t hashValue_;
 };
 
-class Identifier final : public Name, public std::tuple<std::string> {
+class Identifier final : public Name {
  public:
   static constexpr auto Kind = NameKind::kIdentifier;
 
-  explicit Identifier(std::string name) : Name(Kind), tuple(std::move(name)) {}
-
-  [[nodiscard]] auto isAnonymous() const -> bool { return name().at(0) == '$'; }
-
-  [[nodiscard]] auto name() const -> const std::string& {
-    return std::get<0>(*this);
+  static auto hash(std::string_view name) -> std::size_t {
+    return std::hash<std::string_view>{}(name);
   }
+
+  explicit Identifier(std::string name)
+      : Name(Kind, hash(name)), name_(std::move(name)) {}
+
+  [[nodiscard]] auto isAnonymous() const -> bool { return name_.at(0) == '$'; }
+
+  [[nodiscard]] auto name() const -> const std::string& { return name_; }
 
   [[nodiscard]] auto value() const -> const std::string& { return name(); }
 
@@ -88,72 +94,89 @@ class Identifier final : public Name, public std::tuple<std::string> {
   void setInfo(const IdentifierInfo* info) const { info_ = info; }
 
  private:
+  std::string name_;
   mutable const IdentifierInfo* info_ = nullptr;
 };
 
-inline auto operator<(const Identifier& identifier,
-                      const std::string_view& other) -> bool {
-  return identifier.name() < other;
-}
-
-inline auto operator<(const std::string_view& other,
-                      const Identifier& identifier) -> bool {
-  return other < identifier.name();
-}
-
-class OperatorId final : public Name, public std::tuple<TokenKind> {
+class OperatorId final : public Name {
  public:
   static constexpr auto Kind = NameKind::kOperatorId;
 
-  explicit OperatorId(TokenKind op) : Name(Kind), tuple(op) {}
+  static auto hash(TokenKind op) -> std::size_t {
+    return std::hash<int>{}(static_cast<int>(op));
+  }
 
-  [[nodiscard]] auto op() const -> TokenKind { return std::get<0>(*this); }
+  explicit OperatorId(TokenKind op) : Name(Kind, hash(op)), op_(op) {}
+
+  [[nodiscard]] auto op() const -> TokenKind { return op_; }
+
+ private:
+  TokenKind op_;
 };
 
 class DestructorId final : public Name, public std::tuple<const Name*> {
  public:
   static constexpr auto Kind = NameKind::kDestructorId;
 
-  explicit DestructorId(const Name* name) : Name(Kind), tuple(name) {}
+  explicit DestructorId(const Name* name)
+      : Name(Kind, name ? name->hashValue() : 0), tuple(name) {}
 
   [[nodiscard]] auto name() const -> const Name* { return std::get<0>(*this); }
 };
 
-class LiteralOperatorId final : public Name, public std::tuple<std::string> {
+class LiteralOperatorId final : public Name {
  public:
   static constexpr auto Kind = NameKind::kLiteralOperatorId;
 
-  explicit LiteralOperatorId(std::string name)
-      : Name(Kind), tuple(std::move(name)) {}
-
-  [[nodiscard]] auto name() const -> const std::string& {
-    return std::get<0>(*this);
+  static auto hash(std::string_view name) -> std::size_t {
+    return std::hash<std::string_view>{}(name);
   }
+
+  explicit LiteralOperatorId(std::string name)
+      : Name(Kind, hash(name)), name_(std::move(name)) {}
+
+  [[nodiscard]] auto name() const -> const std::string& { return name_; }
+
+ private:
+  std::string name_;
 };
 
-class ConversionFunctionId final : public Name, public std::tuple<const Type*> {
+class ConversionFunctionId final : public Name {
  public:
   static constexpr auto Kind = NameKind::kConversionFunctionId;
 
-  explicit ConversionFunctionId(const Type* type) : Name(Kind), tuple(type) {}
+  static auto hash(const Type* type) -> std::size_t {
+    return std::hash<const void*>{}(type);
+  }
 
-  [[nodiscard]] auto type() const -> const Type* { return std::get<0>(*this); }
+  explicit ConversionFunctionId(const Type* type)
+      : Name(Kind, hash(type)), type_(type) {}
+
+  [[nodiscard]] auto type() const -> const Type* { return type_; }
+
+ private:
+  const Type* type_;
 };
 
-class TemplateId final
-    : public Name,
-      public std::tuple<const Name*, std::vector<TemplateArgument>> {
+class TemplateId final : public Name {
  public:
   static constexpr auto Kind = NameKind::kTemplateId;
 
-  explicit TemplateId(const Name* name, std::vector<TemplateArgument> args)
-      : Name(Kind), tuple(name, std::move(args)) {}
+  static auto hash(const Name* name, const std::vector<TemplateArgument>& args)
+      -> std::size_t;
 
-  [[nodiscard]] auto name() const -> const Name* { return std::get<0>(*this); }
+  explicit TemplateId(const Name* name, std::vector<TemplateArgument> args)
+      : Name(Kind, hash(name, args)), name_(name), args_(std::move(args)) {}
+
+  [[nodiscard]] auto name() const -> const Name* { return name_; }
 
   [[nodiscard]] auto arguments() const -> const std::vector<TemplateArgument>& {
-    return std::get<1>(*this);
+    return args_;
   }
+
+ private:
+  const Name* name_;
+  std::vector<TemplateArgument> args_;
 };
 
 template <typename Visitor>
@@ -181,3 +204,187 @@ auto name_cast(const Name* name) -> const T* {
     -> const Name*;
 
 }  // namespace cxx
+
+template <>
+struct std::hash<cxx::Identifier> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::Identifier& id) const -> std::size_t {
+    return id.hashValue();
+  }
+
+  auto operator()(const std::string_view& name) const -> std::size_t {
+    return cxx::Identifier::hash(name);
+  }
+
+  auto operator()(const std::string& name) const -> std::size_t {
+    return cxx::Identifier::hash(name);
+  }
+};
+
+template <>
+struct std::hash<cxx::OperatorId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::OperatorId& id) const -> std::size_t {
+    return id.hashValue();
+  }
+
+  auto operator()(const cxx::TokenKind& op) const -> std::size_t {
+    return cxx::OperatorId::hash(op);
+  }
+};
+
+template <>
+struct std::hash<cxx::DestructorId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::DestructorId& id) const -> std::size_t {
+    return id.hashValue();
+  }
+
+  auto operator()(const cxx::Name* name) const -> std::size_t {
+    return name ? name->hashValue() : 0;
+  }
+};
+
+template <>
+struct std::hash<cxx::LiteralOperatorId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::LiteralOperatorId& id) const -> std::size_t {
+    return id.hashValue();
+  }
+
+  auto operator()(const std::string_view& name) const -> std::size_t {
+    return cxx::LiteralOperatorId::hash(name);
+  }
+};
+
+template <>
+struct std::hash<cxx::ConversionFunctionId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::ConversionFunctionId& id) const -> std::size_t {
+    return id.hashValue();
+  }
+
+  auto operator()(const cxx::Type* type) const -> std::size_t {
+    return cxx::ConversionFunctionId::hash(type);
+  }
+};
+
+template <>
+struct std::hash<cxx::TemplateId> {
+  auto operator()(const cxx::TemplateId& id) const -> std::size_t {
+    return id.hashValue();
+  }
+};
+
+template <>
+struct std::equal_to<cxx::Identifier> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::Identifier& id, const cxx::Identifier& other) const
+      -> bool {
+    return id.name() == other.name();
+  }
+
+  auto operator()(const cxx::Identifier& id, const std::string_view& name) const
+      -> bool {
+    return id.name() == name;
+  }
+
+  auto operator()(const std::string_view& name, const cxx::Identifier& id) const
+      -> bool {
+    return id.name() == name;
+  }
+};
+
+template <>
+struct std::equal_to<cxx::OperatorId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::OperatorId& id, const cxx::OperatorId& other) const
+      -> bool {
+    return id.op() == other.op();
+  }
+
+  auto operator()(const cxx::OperatorId& id, const cxx::TokenKind& op) const
+      -> bool {
+    return id.op() == op;
+  }
+
+  auto operator()(const cxx::TokenKind& op, const cxx::OperatorId& id) const
+      -> bool {
+    return id.op() == op;
+  }
+};
+
+template <>
+struct std::equal_to<cxx::DestructorId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::DestructorId& id,
+                  const cxx::DestructorId& other) const -> bool {
+    return id.name() == other.name();
+  }
+
+  auto operator()(const cxx::DestructorId& id, const cxx::Name* name) const
+      -> bool {
+    return id.name() == name;
+  }
+
+  auto operator()(const cxx::Name* name, const cxx::DestructorId& id) const
+      -> bool {
+    return id.name() == name;
+  }
+};
+
+template <>
+struct std::equal_to<cxx::LiteralOperatorId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::LiteralOperatorId& id,
+                  const cxx::LiteralOperatorId& other) const -> bool {
+    return id.name() == other.name();
+  }
+
+  auto operator()(const cxx::LiteralOperatorId& id,
+                  const std::string_view& name) const -> bool {
+    return id.name() == name;
+  }
+
+  auto operator()(const std::string_view& name,
+                  const cxx::LiteralOperatorId& id) const -> bool {
+    return id.name() == name;
+  }
+};
+
+template <>
+struct std::equal_to<cxx::ConversionFunctionId> {
+  using is_transparent = void;
+
+  auto operator()(const cxx::ConversionFunctionId& id,
+                  const cxx::ConversionFunctionId& other) const -> bool {
+    return id.type() == other.type();
+  }
+
+  auto operator()(const cxx::ConversionFunctionId& id,
+                  const cxx::Type* type) const -> bool {
+    return id.type() == type;
+  }
+
+  auto operator()(const cxx::Type* type,
+                  const cxx::ConversionFunctionId& id) const -> bool {
+    return id.type() == type;
+  }
+};
+
+template <>
+struct std::equal_to<cxx::TemplateId> {
+  auto operator()(const cxx::TemplateId& id, const cxx::TemplateId& other) const
+      -> bool {
+    return id.name() == other.name() && id.arguments() == other.arguments();
+  }
+};

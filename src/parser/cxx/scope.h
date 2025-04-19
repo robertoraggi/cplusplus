@@ -23,6 +23,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 #include <cxx/views/symbol_chain.h>
 
@@ -61,6 +62,11 @@ class Scope {
   }
 
   [[nodiscard]] auto find(const Name* name) const -> SymbolChainView;
+
+  [[nodiscard]] auto find(const std::string_view& name) const
+      -> SymbolChainView;
+
+  [[nodiscard]] auto find(TokenKind op) const -> SymbolChainView;
 
   void setParent(Scope* parent) { parent_ = parent; }
   void setOwner(ScopedSymbol* owner) { owner_ = owner; }
