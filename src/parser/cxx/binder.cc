@@ -224,6 +224,9 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
   auto className = get_name(control(), ast->unqualifiedId);
   auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+  if (templateId) {
+    className = templateId->identifier;
+  }
 
   auto location = ast->classLoc;
   if (templateId) {
