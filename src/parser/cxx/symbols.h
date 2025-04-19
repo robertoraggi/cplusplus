@@ -246,6 +246,11 @@ class ClassSymbol final : public ScopedSymbol {
 
   void addConstructor(FunctionSymbol* constructor);
 
+  [[nodiscard]] auto conversionFunctions() const
+      -> const std::vector<FunctionSymbol*>&;
+
+  void addConversionFunction(FunctionSymbol* conversionFunction);
+
   [[nodiscard]] auto isFinal() const -> bool;
   void setFinal(bool isFinal);
 
@@ -316,6 +321,7 @@ class ClassSymbol final : public ScopedSymbol {
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
+  std::vector<FunctionSymbol*> conversionFunctions_;
   std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
   SpecifierAST* specifier_ = nullptr;
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
