@@ -215,6 +215,15 @@ auto ClassSymbol::hasBaseClass(
   return false;
 }
 
+auto ClassSymbol::conversionFunctions() const
+    -> const std::vector<FunctionSymbol*>& {
+  return conversionFunctions_;
+}
+
+void ClassSymbol::addConversionFunction(FunctionSymbol* conversionFunction) {
+  conversionFunctions_.push_back(conversionFunction);
+}
+
 auto ClassSymbol::declaration() const -> SpecifierAST* { return specifier_; }
 
 void ClassSymbol::setDeclaration(SpecifierAST* specifier) {
