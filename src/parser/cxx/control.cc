@@ -794,6 +794,10 @@ auto Control::remove_extent(const Type* type) -> const Type* {
   return d->traits.remove_extent(type);
 }
 
+auto Control::get_element_type(const Type* type) -> const Type* {
+  return d->traits.get_element_type(type);
+}
+
 auto Control::remove_cv(const Type* type) -> const Type* {
   return d->traits.remove_cv(type);
 }

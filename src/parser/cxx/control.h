@@ -274,6 +274,7 @@ class Control {
 
   // arrays
   [[nodiscard]] auto remove_extent(const Type* type) -> const Type*;
+  [[nodiscard]] auto get_element_type(const Type* type) -> const Type*;
 
   // cv qualifiers
   [[nodiscard]] auto remove_cv(const Type* type) -> const Type*;

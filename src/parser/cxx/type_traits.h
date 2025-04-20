@@ -187,6 +187,11 @@ class TypeTraits {
     return visit(remove_extent_, type);
   }
 
+  auto get_element_type(const Type* type) const -> const Type* {
+    if (!type) return type;
+    return visit(get_element_type_, type);
+  }
+
   // cv qualifiers
 
   auto remove_cv(const Type* type) const -> const Type* {
@@ -740,6 +745,41 @@ class TypeTraits {
 
     auto operator()(auto type) const -> const Type* { return type; }
   } remove_extent_;
+
+  struct {
+    TypeTraits& traits;
+
+    auto operator()(const BoundedArrayType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const UnboundedArrayType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const UnresolvedBoundedArrayType* type) const
+        -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const PointerType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const RvalueReferenceType* type) const -> const Type* {
+      return type->elementType();
+    }
+
+    auto operator()(const QualType* type) const -> const Type* {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto type) const -> const Type* { return nullptr; }
+  } get_element_type_{*this};
 
   struct {
     auto operator()(const QualType* type) const -> const Type* {
