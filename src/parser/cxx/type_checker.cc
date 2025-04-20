@@ -384,7 +384,43 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
   if (check_member_access(ast)) return;
 }
 
-void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
+  if (control()->is_class(ast->baseExpression->type)) return;
+
+  const std::string_view op =
+      ast->op == TokenKind::T_PLUS_PLUS ? "increment" : "decrement";
+
+  // builtin postfix increment operator
+  if (!is_glvalue(ast->baseExpression)) {
+    error(ast->opLoc, std::format("cannot {} an rvalue of type '{}'", op,
+                                  to_string(ast->baseExpression->type)));
+    return;
+  }
+
+  auto incr_arithmetic = [&]() {
+    if (!control()->is_arithmetic(ast->baseExpression->type)) return false;
+    auto ty = control()->remove_cv(ast->baseExpression->type);
+    if (type_cast<BoolType>(ty)) return false;
+
+    ast->type = ty;
+    ast->valueCategory = ValueCategory::kPrValue;
+    return true;
+  };
+
+  auto incr_pointer = [&]() {
+    if (!control()->is_pointer(ast->baseExpression->type)) return false;
+    auto ty = control()->remove_cv(ast->baseExpression->type);
+    ast->type = ty;
+    ast->valueCategory = ValueCategory::kPrValue;
+    return true;
+  };
+
+  if (incr_arithmetic()) return;
+  if (incr_pointer()) return;
+
+  error(ast->opLoc, std::format("cannot {} a value of type '{}'", op,
+                                to_string(ast->baseExpression->type)));
+}
 
 void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
   check_cpp_cast_expression(ast);
