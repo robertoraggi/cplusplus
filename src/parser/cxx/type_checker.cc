@@ -276,24 +276,55 @@ void TypeChecker::Visitor::operator()(VaArgExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
-  if (auto pointerType = type_cast<PointerType>(ast->baseExpression->type)) {
-    ast->type = pointerType->elementType();
-    ast->valueCategory = ast->baseExpression->valueCategory;
+  if (!ast->baseExpression || control()->is_class(ast->baseExpression->type))
     return;
-  }
 
-  if (auto arrayType = type_cast<BoundedArrayType>(ast->baseExpression->type)) {
-    ast->type = arrayType->elementType();
-    ast->valueCategory = ast->baseExpression->valueCategory;
+  if (!ast->indexExpression || control()->is_class(ast->indexExpression->type))
     return;
-  }
 
-  if (auto arrayType =
-          type_cast<UnboundedArrayType>(ast->baseExpression->type)) {
-    ast->type = arrayType->elementType();
-    ast->valueCategory = ast->baseExpression->valueCategory;
-    return;
-  }
+  // builtin subscript operator
+
+  auto array_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
+                                ExpressionAST*& index) {
+    if (!control()->is_array(base->type)) return false;
+    if (!control()->is_arithmetic_or_unscoped_enum(index->type)) return false;
+
+    (void)temporary_materialization_conversion(base);
+    (void)ensure_prvalue(index);
+    adjust_cv(index);
+    (void)integral_promotion(base);
+
+    ast->type = control()->get_element_type(base->type);
+    ast->valueCategory = base->valueCategory;
+    return true;
+  };
+
+  auto pointer_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
+                                  ExpressionAST*& index) {
+    if (!control()->is_pointer(base->type)) return false;
+    if (!control()->is_arithmetic_or_unscoped_enum(index->type)) return false;
+
+    (void)ensure_prvalue(base);
+    adjust_cv(base);
+
+    (void)ensure_prvalue(index);
+    adjust_cv(index);
+    (void)integral_promotion(index);
+
+    ast->type = control()->get_element_type(base->type);
+    ast->valueCategory = ValueCategory::kLValue;
+    return true;
+  };
+
+  if (array_subscript(ast, ast->baseExpression, ast->indexExpression)) return;
+  if (array_subscript(ast, ast->indexExpression, ast->baseExpression)) return;
+  if (pointer_subscript(ast, ast->baseExpression, ast->indexExpression)) return;
+  if (pointer_subscript(ast, ast->indexExpression, ast->baseExpression)) return;
+
+  error(ast->firstSourceLocation(),
+        std::format("invalid subscript of type '{}' with index type '{}'",
+                    to_string(ast->baseExpression->type),
+                    to_string(ast->indexExpression->type)));
 }
 
 void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
