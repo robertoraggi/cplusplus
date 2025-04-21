@@ -3172,6 +3172,8 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
     ast->initializer = initializer;
     ast->symbol = symbol;
 
+    check(ast);
+
     return true;
   };
 
@@ -5892,10 +5894,7 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
     parse_error("expected an intializer");
   }
 
-  if (ast->expression) {
-    ast->type = ast->expression->type;
-    ast->valueCategory = ast->expression->valueCategory;
-  }
+  check(ast);
 
   return true;
 }
@@ -5956,22 +5955,18 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
 
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
-    return true;
-  }
-
-  if (match(TokenKind::T_COMMA, ast->commaLoc)) {
+  } else if (match(TokenKind::T_COMMA, ast->commaLoc)) {
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
-    return true;
-  }
-
-  if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
+  } else if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     if (!parse_initializer_list(ast->expressionList, ctx)) {
       parse_error("expected initializer list");
     }
 
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
+
+  check(ast);
 
   return true;
 }
@@ -6046,9 +6041,8 @@ auto Parser::parse_designated_initializer_clause(
 
 void Parser::parse_expr_or_braced_init_list(ExpressionAST*& yyast,
                                             const ExprContext& ctx) {
-  BracedInitListAST* bracedInitList = nullptr;
-
-  if (parse_braced_init_list(bracedInitList, ctx)) {
+  if (BracedInitListAST* bracedInitList = nullptr;
+      parse_braced_init_list(bracedInitList, ctx)) {
     yyast = bracedInitList;
   } else {
     parse_expression(yyast, ctx);
