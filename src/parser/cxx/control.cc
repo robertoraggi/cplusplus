@@ -818,6 +818,12 @@ auto Control::add_volatile(const Type* type) -> const Type* {
   return d->traits.add_volatile(type);
 }
 
+auto Control::add_cv(const Type* type, CvQualifiers cv) -> const Type* {
+  if (cxx::is_const(cv)) type = add_const(type);
+  if (cxx::is_volatile(cv)) type = add_volatile(type);
+  return type;
+}
+
 auto Control::get_cv_qualifiers(const Type* type) -> CvQualifiers {
   if (auto qualType = type_cast<QualType>(type))
     return qualType->cvQualifiers();

@@ -109,6 +109,10 @@ struct TypeChecker::Visitor {
                                                  ExpressionAST*& other)
       -> const Type*;
 
+  [[nodiscard]] auto composite_pointer_type(ExpressionAST*& expr,
+                                            ExpressionAST*& other)
+      -> const Type*;
+
   [[nodiscard]] auto is_null_pointer_constant(ExpressionAST* expr) const
       -> bool;
 
@@ -890,11 +894,135 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
   }  // switch
 }
 
-void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
+  auto check_void_type = [&] {
+    if (!control()->is_void(ast->iftrueExpression->type) &&
+        !control()->is_void(ast->iffalseExpression->type))
+      return false;
+
+    // one of the two expressions is void
+    if (ast_cast<ThrowExpressionAST>(
+            strip_parentheses(ast->iftrueExpression))) {
+      ast->type = ast->iffalseExpression->type;
+      ast->valueCategory = ast->iffalseExpression->valueCategory;
+      return true;
+    }
+
+    if (ast_cast<ThrowExpressionAST>(
+            strip_parentheses(ast->iffalseExpression))) {
+      ast->type = ast->iftrueExpression->type;
+      ast->valueCategory = ast->iftrueExpression->valueCategory;
+      return true;
+    }
+
+    if (!control()->is_same(ast->iftrueExpression->type,
+                            ast->iffalseExpression->type)) {
+      error(ast->questionLoc,
+            std::format(
+                "left operand to ? is '{}', but right operand is of type '{}'",
+                to_string(ast->iftrueExpression->type),
+                to_string(ast->iffalseExpression->type)));
+    }
+
+    ast->type = control()->getVoidType();
+    ast->valueCategory = ValueCategory::kPrValue;
+
+    return true;
+  };
+
+  auto check_same_type_and_value_category = [&] {
+    if (ast->iftrueExpression->valueCategory !=
+        ast->iffalseExpression->valueCategory) {
+      return false;
+    }
+
+    if (!control()->is_same(control()->remove_cv(ast->iftrueExpression->type),
+                            control()->remove_cv(ast->iffalseExpression->type)))
+      return false;
+
+    ast->valueCategory = ast->iftrueExpression->valueCategory;
+    ast->type = ast->iftrueExpression->type;
+
+    return true;
+  };
+
+  auto check_arith_types = [&] {
+    if (!control()->is_arithmetic_or_unscoped_enum(ast->iftrueExpression->type))
+      return false;
+    if (!control()->is_arithmetic_or_unscoped_enum(
+            ast->iffalseExpression->type))
+      return false;
+
+    ast->type = usual_arithmetic_conversion(ast->iftrueExpression,
+                                            ast->iffalseExpression);
+
+    if (!ast->type) return false;
+
+    ast->valueCategory = ValueCategory::kPrValue;
+
+    return true;
+  };
+
+  auto check_same_types = [&] {
+    if (!control()->is_same(ast->iftrueExpression->type,
+                            ast->iffalseExpression->type))
+      return false;
+
+    ast->type = ast->iftrueExpression->type;
+    ast->valueCategory = ValueCategory::kPrValue;
+    return true;
+  };
+
+  auto check_compatible_pointers = [&] {
+    if (!control()->is_pointer(ast->iftrueExpression->type) &&
+        !control()->is_pointer(ast->iffalseExpression->type))
+      return false;
+
+    ast->type =
+        composite_pointer_type(ast->iftrueExpression, ast->iffalseExpression);
+
+    ast->valueCategory = ValueCategory::kPrValue;
+
+    if (!ast->type) return false;
+
+    return true;
+  };
+
+  if (ast->iftrueExpression && ast->iffalseExpression) {
+    if (check_void_type()) return;
+    if (check_same_type_and_value_category()) return;
+
+    (void)array_to_pointer_conversion(ast->iftrueExpression);
+    (void)function_to_pointer_conversion(ast->iftrueExpression);
+
+    (void)array_to_pointer_conversion(ast->iffalseExpression);
+    (void)function_to_pointer_conversion(ast->iffalseExpression);
+
+    if (check_arith_types()) return;
+    if (check_same_types()) return;
+    if (check_compatible_pointers()) return;
+  }
+
+  if (!ast->type) {
+    auto iftrueType =
+        ast->iftrueExpression ? ast->iftrueExpression->type : nullptr;
+
+    auto iffalseType =
+        ast->iffalseExpression ? ast->iffalseExpression->type : nullptr;
+
+    error(ast->questionLoc,
+          std::format(
+              "left operand to ? is '{}', but right operand is of type '{}'",
+              to_string(iftrueType), to_string(iffalseType)));
+  }
+}
 
 void TypeChecker::Visitor::operator()(YieldExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(ThrowExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(ThrowExpressionAST* ast) {
+  ast->type = control()->getVoidType();
+  ast->valueCategory = ValueCategory::kPrValue;
+}
 
 void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   if (!ast->leftExpression) return;
@@ -914,7 +1042,10 @@ void TypeChecker::Visitor::operator()(TypeTraitExpressionAST* ast) {
   ast->type = control()->getBoolType();
 }
 
-void TypeChecker::Visitor::operator()(ConditionExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(ConditionExpressionAST* ast) {
+  ast->type = control()->getBoolType();
+  ast->valueCategory = ValueCategory::kPrValue;
+}
 
 void TypeChecker::Visitor::operator()(EqualInitializerAST* ast) {
   if (!ast->expression) return;
@@ -1603,6 +1734,45 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
   (void)integral_conversion(expr, control()->getIntType());
   (void)integral_conversion(other, control()->getIntType());
   return control()->getIntType();
+}
+
+auto TypeChecker::Visitor::composite_pointer_type(ExpressionAST*& expr,
+                                                  ExpressionAST*& other)
+    -> const Type* {
+  if (control()->is_null_pointer(expr->type) &&
+      control()->is_null_pointer(other->type))
+    return control()->getNullptrType();
+
+  if (is_null_pointer_constant(expr)) return other->type;
+  if (is_null_pointer_constant(other)) return expr->type;
+
+  auto is_pointer_to_cv_void = [this](const Type* type) {
+    if (!control()->is_pointer(type)) return false;
+    if (!control()->is_void(control()->get_element_type(type))) return false;
+    return true;
+  };
+
+  if (control()->is_pointer(expr->type) && control()->is_pointer(other->type)) {
+    auto t1 = control()->get_element_type(expr->type);
+    const auto cv1 = strip_cv(t1);
+
+    auto t2 = control()->get_element_type(other->type);
+    const auto cv2 = strip_cv(t2);
+
+    if (control()->is_void(t1)) {
+      return control()->getPointerType(control()->add_cv(t1, cv2));
+    }
+
+    if (control()->is_void(t2)) {
+      return control()->getPointerType(control()->add_cv(t2, cv1));
+    }
+
+    // TODO: check for noexcept function pointers
+
+    // TODO: check for reference related
+  }
+
+  return nullptr;
 }
 
 auto TypeChecker::Visitor::is_null_pointer_constant(ExpressionAST* expr) const

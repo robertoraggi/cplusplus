@@ -282,6 +282,7 @@ class Control {
   [[nodiscard]] auto add_const_ref(const Type* type) -> const Type*;
   [[nodiscard]] auto add_const(const Type* type) -> const Type*;
   [[nodiscard]] auto add_volatile(const Type* type) -> const Type*;
+  [[nodiscard]] auto add_cv(const Type* type, CvQualifiers cv) -> const Type*;
   [[nodiscard]] auto get_cv_qualifiers(const Type* type) -> CvQualifiers;
 
   // pointers
