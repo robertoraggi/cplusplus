@@ -2674,15 +2674,15 @@ auto Preprocessor::Private::primaryExpression(TokList *&ts) -> long {
   const auto tk = ts->tok;
 
   if (match(ts, TokenKind::T_INTEGER_LITERAL)) {
-    return IntegerLiteral::Components::from(tk->text.data()).value;
-  } else if (matchId(ts, "true")) {
-    return 1;
-  } else if (matchId(ts, "false")) {
-    return 0;
+    return IntegerLiteral::Components::from(tk->text).value;
   } else if (match(ts, TokenKind::T_LPAREN)) {
     auto result = conditionalExpression(ts);
     expect(ts, TokenKind::T_RPAREN);
     return result;
+  } else if (matchId(ts, "true")) {
+    return 1;
+  } else if (matchId(ts, "false")) {
+    return 0;
   } else if (tk->is(TokenKind::T_PP_INTERNAL_VARIABLE)) {
     for (const auto &dep : dependencies_) {
       if (dep.local == tk->text) {
