@@ -43,6 +43,8 @@ class ASTInterpreter {
 
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto toBool(const ConstValue& value) -> std::optional<bool>;
+
  private:
   using ExpressionResult = std::optional<ConstValue>;
 
@@ -115,6 +117,9 @@ class ASTInterpreter {
   struct ExceptionDeclarationVisitor;
   struct AttributeSpecifierVisitor;
   struct AttributeTokenVisitor;
+
+  // ops
+  struct ToBool;
 
   // run on the base nodes
   [[nodiscard]] auto operator()(UnitAST* ast) -> UnitResult;
