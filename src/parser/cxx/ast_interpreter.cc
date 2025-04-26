@@ -122,6 +122,18 @@ struct ASTInterpreter::NewPlacementResult {};
 
 struct ASTInterpreter::NestedNamespaceSpecifierResult {};
 
+struct ASTInterpreter::ToBool {
+  ASTInterpreter& interp;
+
+  auto operator()(const StringLiteral*) const -> std::optional<bool> {
+    return true;
+  }
+
+  auto operator()(const auto& value) const -> std::optional<bool> {
+    return bool(value);
+  }
+};
+
 struct ASTInterpreter::UnitVisitor {
   ASTInterpreter& accept;
 
@@ -2193,10 +2205,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(
     ConditionalExpressionAST* ast) -> ExpressionResult {
   auto conditionResult = accept(ast->condition);
-  auto iftrueExpressionResult = accept(ast->iftrueExpression);
-  auto iffalseExpressionResult = accept(ast->iffalseExpression);
 
-  return ExpressionResult{std::nullopt};
+  if (!conditionResult.has_value()) return std::nullopt;
+
+  if (accept.toBool(conditionResult.value())) {
+    auto result = accept(ast->iftrueExpression);
+    return result;
+  }
+
+  auto result = accept(ast->iffalseExpression);
+
+  return result;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(YieldExpressionAST* ast)
@@ -3174,6 +3193,10 @@ auto ASTInterpreter::control() const -> Control* { return unit_->control(); }
 auto ASTInterpreter::evaluate(ExpressionAST* ast) -> std::optional<ConstValue> {
   auto result = operator()(ast);
   return result;
+}
+
+auto ASTInterpreter::toBool(const ConstValue& value) -> std::optional<bool> {
+  return std::visit(ToBool{*this}, value);
 }
 
 }  // namespace cxx
