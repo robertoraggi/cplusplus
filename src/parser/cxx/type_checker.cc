@@ -109,6 +109,14 @@ struct TypeChecker::Visitor {
                                                  ExpressionAST*& other)
       -> const Type*;
 
+  [[nodiscard]] auto get_qualification_combined_type(const Type* left,
+                                                     const Type* right)
+      -> const Type*;
+
+  [[nodiscard]] auto get_qualification_combined_type(
+      const Type* left, const Type* right, bool& didChangeTypeOrQualifiers)
+      -> const Type*;
+
   [[nodiscard]] auto composite_pointer_type(ExpressionAST*& expr,
                                             ExpressionAST*& other)
       -> const Type*;
@@ -1736,6 +1744,98 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
   return control()->getIntType();
 }
 
+auto TypeChecker::Visitor::get_qualification_combined_type(const Type* left,
+                                                           const Type* right)
+    -> const Type* {
+  bool didChangeTypeOrQualifiers = false;
+
+  auto type =
+      get_qualification_combined_type(left, right, didChangeTypeOrQualifiers);
+
+  return type;
+}
+
+auto TypeChecker::Visitor::get_qualification_combined_type(
+    const Type* left, const Type* right, bool& didChangeTypeOrQualifiers)
+    -> const Type* {
+  auto check_inputs = [&] {
+    if (control()->is_pointer(left) && control()->is_pointer(right)) {
+      return true;
+    }
+
+    if (control()->is_array(left) && control()->is_array(right)) {
+      return true;
+    }
+
+    return false;
+  };
+
+  auto cv1 = strip_cv(left);
+  auto cv2 = strip_cv(right);
+
+  if (!check_inputs()) {
+    const auto cv3 = merge_cv(cv1, cv2);
+
+    if (control()->is_same(left, right)) {
+      return control()->add_cv(left, cv3);
+    }
+
+    if (control()->is_base_of(left, right)) {
+      return control()->add_cv(left, cv1);
+    }
+
+    if (control()->is_base_of(right, left)) {
+      return control()->add_cv(right, cv2);
+    }
+
+    return nullptr;
+  }
+
+  auto leftElementType = control()->get_element_type(left);
+  if (control()->is_array(leftElementType)) {
+    cv1 = merge_cv(cv1, control()->get_cv_qualifiers(leftElementType));
+  }
+
+  auto rightElementType = control()->get_element_type(right);
+  if (control()->is_array(rightElementType)) {
+    cv2 = merge_cv(cv2, control()->get_cv_qualifiers(rightElementType));
+  }
+
+  auto elementType = get_qualification_combined_type(
+      leftElementType, rightElementType, didChangeTypeOrQualifiers);
+
+  if (!elementType) {
+    return nullptr;
+  }
+
+  auto cv3 = merge_cv(cv1, cv2);
+
+  if (didChangeTypeOrQualifiers) cv3 = cv3 | CvQualifiers::kConst;
+
+  if (cv1 != cv3 || cv2 != cv3) didChangeTypeOrQualifiers = true;
+
+  elementType = control()->add_cv(elementType, cv3);
+
+  if (control()->is_array(left) && control()->is_array(right)) {
+    auto leftArrayType = type_cast<BoundedArrayType>(left);
+    auto rightArrayType = type_cast<BoundedArrayType>(right);
+
+    if (leftArrayType && rightArrayType) {
+      if (leftArrayType->size() != rightArrayType->size()) return nullptr;
+      return control()->getBoundedArrayType(elementType, leftArrayType->size());
+    }
+
+    if (leftArrayType || rightArrayType) {
+      // one of arrays is unbounded
+      didChangeTypeOrQualifiers = true;
+    }
+
+    return control()->getUnboundedArrayType(elementType);
+  }
+
+  return control()->getPointerType(elementType);
+}
+
 auto TypeChecker::Visitor::composite_pointer_type(ExpressionAST*& expr,
                                                   ExpressionAST*& other)
     -> const Type* {
@@ -1767,9 +1867,11 @@ auto TypeChecker::Visitor::composite_pointer_type(ExpressionAST*& expr,
       return control()->getPointerType(control()->add_cv(t2, cv1));
     }
 
-    // TODO: check for noexcept function pointers
+    if (auto type = get_qualification_combined_type(expr->type, other->type)) {
+      return type;
+    }
 
-    // TODO: check for reference related
+    // TODO: check for noexcept function pointers
   }
 
   return nullptr;
