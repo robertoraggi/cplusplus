@@ -1624,8 +1624,6 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
   (void)lvalue_to_rvalue_conversion(other);
   adjust_cv(other);
 
-  if (control()->is_same(expr->type, other->type)) return expr->type;
-
   ExpressionAST* savedExpr = expr;
   ExpressionAST* savedOther = other;
 
@@ -1991,8 +1989,15 @@ void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
   }
 
   if (control()->is_pointer(ast->rightExpression->type)) {
-    if (control()->is_same(ast->leftExpression->type,
-                           ast->rightExpression->type)) {
+    auto leftElementType =
+        control()->get_element_type(ast->leftExpression->type);
+    (void)strip_cv(leftElementType);
+
+    auto rightElementType =
+        control()->get_element_type(ast->rightExpression->type);
+    (void)strip_cv(rightElementType);
+
+    if (control()->is_same(leftElementType, rightElementType)) {
       ast->type = control()->getLongIntType();  // TODO: ptrdiff_t
     } else {
       error(ast->opLoc,
