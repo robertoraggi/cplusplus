@@ -27,8 +27,8 @@
 namespace cxx {
 
 GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
-                                     std::string arch)
-    : Toolchain(preprocessor), arch_(std::move(arch)) {
+                                     std::string arch, bool onlyC)
+    : Toolchain(preprocessor), arch_(std::move(arch)), onlyC_(onlyC) {
   for (int version : {15, 14, 13, 12, 11, 10, 9}) {
     const auto path = fs::path(
         std::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
@@ -54,6 +54,7 @@ void GCCLinuxToolchain::addSystemIncludePaths() {
 }
 
 void GCCLinuxToolchain::addSystemCppIncludePaths() {
+  if(onlyC_) return;
   auto addSystemIncludePathForGCCVersion = [this](int version) {
     addSystemIncludePath(std::format("/usr/include/c++/{}/backward", version));
 
@@ -68,7 +69,8 @@ void GCCLinuxToolchain::addSystemCppIncludePaths() {
 
 void GCCLinuxToolchain::addPredefinedMacros() {
   defineMacro("__extension__", "");
-  defineMacro("__null", "nullptr");
+  if(onlyC_) defineMacro("__null", "(void*)0");
+  else defineMacro("__null", "nullptr");
   defineMacro("__restrict__", "");
   defineMacro("__restrict", "");
   defineMacro("__signed__", "signed");
@@ -77,7 +79,7 @@ void GCCLinuxToolchain::addPredefinedMacros() {
   defineMacro("_Pragma(x)", "");
 
   // std=c++26
-  defineMacro("__cplusplus", "202400L");
+  //already defined bellow if(!onlyC_) defineMacro("__cplusplus", "202400L");
 
   addCommonMacros();
 
@@ -162,7 +164,7 @@ void GCCLinuxToolchain::addCommonMacros() {
   defineMacro("__DEC_EVAL_METHOD__", "2");
   defineMacro("__DEPRECATED", "1");
   defineMacro("__ELF__", "1");
-  defineMacro("__EXCEPTIONS", "1");
+  if(!onlyC_) defineMacro("__EXCEPTIONS", "1");
   defineMacro("__FINITE_MATH_ONLY__", "0");
   defineMacro("__FLOAT_WORD_ORDER__", "__ORDER_LITTLE_ENDIAN__");
   defineMacro("__FLT128_DECIMAL_DIG__", "36");
@@ -301,10 +303,12 @@ void GCCLinuxToolchain::addCommonMacros() {
   defineMacro("__GNUC_WIDE_EXECUTION_CHARSET_NAME", "\"UTF-32LE\"");
   defineMacro("__GNUC__", "14");
   defineMacro("__GNUG__", "14");
-  defineMacro("__GXX_ABI_VERSION", "1019");
-  defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
-  defineMacro("__GXX_RTTI", "1");
-  defineMacro("__GXX_WEAK__", "1");
+  if(!onlyC_) {
+    defineMacro("__GXX_ABI_VERSION", "1019");
+    defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
+    defineMacro("__GXX_RTTI", "1");
+    defineMacro("__GXX_WEAK__", "1");
+  }
   defineMacro("__HAVE_SPECULATION_SAFE_VALUE", "1");
   defineMacro("__INT16_C(c)", "c");
   defineMacro("__INT16_MAX__", "0x7fff");
@@ -455,81 +459,83 @@ void GCCLinuxToolchain::addCommonMacros() {
   defineMacro("__WINT_MIN__", "0U");
   defineMacro("__WINT_TYPE__", "unsigned int");
   defineMacro("__WINT_WIDTH__", "32");
-  defineMacro("__cplusplus", "202400L");
-  defineMacro("__cpp_aggregate_bases", "201603L");
-  defineMacro("__cpp_aggregate_nsdmi", "201304L");
-  defineMacro("__cpp_aggregate_paren_init", "201902L");
-  defineMacro("__cpp_alias_templates", "200704L");
-  defineMacro("__cpp_aligned_new", "201606L");
-  defineMacro("__cpp_attributes", "200809L");
-  defineMacro("__cpp_auto_cast", "202110L");
-  defineMacro("__cpp_binary_literals", "201304L");
-  defineMacro("__cpp_capture_star_this", "201603L");
-  defineMacro("__cpp_char8_t", "202207L");
-  defineMacro("__cpp_concepts", "202002L");
-  defineMacro("__cpp_conditional_explicit", "201806L");
-  defineMacro("__cpp_consteval", "202211L");
-  defineMacro("__cpp_constexpr", "202306L");
-  defineMacro("__cpp_constexpr_dynamic_alloc", "201907L");
-  defineMacro("__cpp_constexpr_in_decltype", "201711L");
-  defineMacro("__cpp_constinit", "201907L");
-  defineMacro("__cpp_decltype", "200707L");
-  defineMacro("__cpp_decltype_auto", "201304L");
-  defineMacro("__cpp_deduction_guides", "201907L");
-  defineMacro("__cpp_delegating_constructors", "200604L");
-  defineMacro("__cpp_designated_initializers", "201707L");
-  defineMacro("__cpp_digit_separators", "201309L");
-  defineMacro("__cpp_enumerator_attributes", "201411L");
-  defineMacro("__cpp_exceptions", "199711L");
-  defineMacro("__cpp_explicit_this_parameter", "202110L");
-  defineMacro("__cpp_fold_expressions", "201603L");
-  defineMacro("__cpp_generic_lambdas", "201707L");
-  defineMacro("__cpp_guaranteed_copy_elision", "201606L");
-  defineMacro("__cpp_hex_float", "201603L");
-  defineMacro("__cpp_if_consteval", "202106L");
-  defineMacro("__cpp_if_constexpr", "201606L");
-  defineMacro("__cpp_impl_coroutine", "201902L");
-  defineMacro("__cpp_impl_destroying_delete", "201806L");
-  defineMacro("__cpp_impl_three_way_comparison", "201907L");
-  defineMacro("__cpp_implicit_move", "202207L");
-  defineMacro("__cpp_inheriting_constructors", "201511L");
-  defineMacro("__cpp_init_captures", "201803L");
-  defineMacro("__cpp_initializer_lists", "200806L");
-  defineMacro("__cpp_inline_variables", "201606L");
-  defineMacro("__cpp_lambdas", "200907L");
-  defineMacro("__cpp_multidimensional_subscript", "202211L");
-  defineMacro("__cpp_named_character_escapes", "202207L");
-  defineMacro("__cpp_namespace_attributes", "201411L");
-  defineMacro("__cpp_nested_namespace_definitions", "201411L");
-  defineMacro("__cpp_noexcept_function_type", "201510L");
-  defineMacro("__cpp_nontype_template_args", "201911L");
-  defineMacro("__cpp_nontype_template_parameter_auto", "201606L");
-  defineMacro("__cpp_nontype_template_parameter_class", "201806L");
-  defineMacro("__cpp_nsdmi", "200809L");
-  defineMacro("__cpp_placeholder_variables", "202306L");
-  defineMacro("__cpp_range_based_for", "201603L");
-  defineMacro("__cpp_raw_strings", "200710L");
-  defineMacro("__cpp_ref_qualifiers", "200710L");
-  defineMacro("__cpp_return_type_deduction", "201304L");
-  defineMacro("__cpp_rtti", "199711L");
-  defineMacro("__cpp_runtime_arrays", "198712L");
-  defineMacro("__cpp_rvalue_reference", "200610L");
-  defineMacro("__cpp_rvalue_references", "200610L");
-  defineMacro("__cpp_size_t_suffix", "202011L");
-  defineMacro("__cpp_sized_deallocation", "201309L");
-  defineMacro("__cpp_static_assert", "202306L");
-  defineMacro("__cpp_static_call_operator", "202207L");
-  defineMacro("__cpp_structured_bindings", "201606L");
-  defineMacro("__cpp_template_auto", "201606L");
-  defineMacro("__cpp_template_template_args", "201611L");
-  defineMacro("__cpp_threadsafe_static_init", "200806L");
-  defineMacro("__cpp_unicode_characters", "201411L");
-  defineMacro("__cpp_unicode_literals", "200710L");
-  defineMacro("__cpp_user_defined_literals", "200809L");
-  defineMacro("__cpp_using_enum", "201907L");
-  defineMacro("__cpp_variable_templates", "201304L");
-  defineMacro("__cpp_variadic_templates", "200704L");
-  defineMacro("__cpp_variadic_using", "201611L");
+  if(!onlyC_) {  
+    defineMacro("__cplusplus", "202400L");
+    defineMacro("__cpp_aggregate_bases", "201603L");
+    defineMacro("__cpp_aggregate_nsdmi", "201304L");
+    defineMacro("__cpp_aggregate_paren_init", "201902L");
+    defineMacro("__cpp_alias_templates", "200704L");
+    defineMacro("__cpp_aligned_new", "201606L");
+    defineMacro("__cpp_attributes", "200809L");
+    defineMacro("__cpp_auto_cast", "202110L");
+    defineMacro("__cpp_binary_literals", "201304L");
+    defineMacro("__cpp_capture_star_this", "201603L");
+    defineMacro("__cpp_char8_t", "202207L");
+    defineMacro("__cpp_concepts", "202002L");
+    defineMacro("__cpp_conditional_explicit", "201806L");
+    defineMacro("__cpp_consteval", "202211L");
+    defineMacro("__cpp_constexpr", "202306L");
+    defineMacro("__cpp_constexpr_dynamic_alloc", "201907L");
+    defineMacro("__cpp_constexpr_in_decltype", "201711L");
+    defineMacro("__cpp_constinit", "201907L");
+    defineMacro("__cpp_decltype", "200707L");
+    defineMacro("__cpp_decltype_auto", "201304L");
+    defineMacro("__cpp_deduction_guides", "201907L");
+    defineMacro("__cpp_delegating_constructors", "200604L");
+    defineMacro("__cpp_designated_initializers", "201707L");
+    defineMacro("__cpp_digit_separators", "201309L");
+    defineMacro("__cpp_enumerator_attributes", "201411L");
+    defineMacro("__cpp_exceptions", "199711L");
+    defineMacro("__cpp_explicit_this_parameter", "202110L");
+    defineMacro("__cpp_fold_expressions", "201603L");
+    defineMacro("__cpp_generic_lambdas", "201707L");
+    defineMacro("__cpp_guaranteed_copy_elision", "201606L");
+    defineMacro("__cpp_hex_float", "201603L");
+    defineMacro("__cpp_if_consteval", "202106L");
+    defineMacro("__cpp_if_constexpr", "201606L");
+    defineMacro("__cpp_impl_coroutine", "201902L");
+    defineMacro("__cpp_impl_destroying_delete", "201806L");
+    defineMacro("__cpp_impl_three_way_comparison", "201907L");
+    defineMacro("__cpp_implicit_move", "202207L");
+    defineMacro("__cpp_inheriting_constructors", "201511L");
+    defineMacro("__cpp_init_captures", "201803L");
+    defineMacro("__cpp_initializer_lists", "200806L");
+    defineMacro("__cpp_inline_variables", "201606L");
+    defineMacro("__cpp_lambdas", "200907L");
+    defineMacro("__cpp_multidimensional_subscript", "202211L");
+    defineMacro("__cpp_named_character_escapes", "202207L");
+    defineMacro("__cpp_namespace_attributes", "201411L");
+    defineMacro("__cpp_nested_namespace_definitions", "201411L");
+    defineMacro("__cpp_noexcept_function_type", "201510L");
+    defineMacro("__cpp_nontype_template_args", "201911L");
+    defineMacro("__cpp_nontype_template_parameter_auto", "201606L");
+    defineMacro("__cpp_nontype_template_parameter_class", "201806L");
+    defineMacro("__cpp_nsdmi", "200809L");
+    defineMacro("__cpp_placeholder_variables", "202306L");
+    defineMacro("__cpp_range_based_for", "201603L");
+    defineMacro("__cpp_raw_strings", "200710L");
+    defineMacro("__cpp_ref_qualifiers", "200710L");
+    defineMacro("__cpp_return_type_deduction", "201304L");
+    defineMacro("__cpp_rtti", "199711L");
+    defineMacro("__cpp_runtime_arrays", "198712L");
+    defineMacro("__cpp_rvalue_reference", "200610L");
+    defineMacro("__cpp_rvalue_references", "200610L");
+    defineMacro("__cpp_size_t_suffix", "202011L");
+    defineMacro("__cpp_sized_deallocation", "201309L");
+    defineMacro("__cpp_static_assert", "202306L");
+    defineMacro("__cpp_static_call_operator", "202207L");
+    defineMacro("__cpp_structured_bindings", "201606L");
+    defineMacro("__cpp_template_auto", "201606L");
+    defineMacro("__cpp_template_template_args", "201611L");
+    defineMacro("__cpp_threadsafe_static_init", "200806L");
+    defineMacro("__cpp_unicode_characters", "201411L");
+    defineMacro("__cpp_unicode_literals", "200710L");
+    defineMacro("__cpp_user_defined_literals", "200809L");
+    defineMacro("__cpp_using_enum", "201907L");
+    defineMacro("__cpp_variable_templates", "201304L");
+    defineMacro("__cpp_variadic_templates", "200704L");
+    defineMacro("__cpp_variadic_using", "201611L");
+  }
   defineMacro("__gnu_linux__", "1");
   defineMacro("__linux", "1");
   defineMacro("__linux__", "1");

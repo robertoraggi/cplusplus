@@ -25,6 +25,7 @@
 #include <cxx/cli.h>
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
+#include <cxx/gcc_c_linux_toolchain.h>
 #include <cxx/lexer.h>
 #include <cxx/lsp/lsp_server.h>
 #include <cxx/macos_toolchain.h>
@@ -116,7 +117,8 @@ auto readAll(const std::string& fileName) -> std::optional<std::string> {
   return std::nullopt;
 }
 
-void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
+void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output,
+        bool onlyC=false) {
   std::string flags;
 
   for (SourceLocation loc(1);; loc = loc.next()) {
@@ -134,7 +136,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
 
     auto kind = tk.kind();
     if (kind == TokenKind::T_IDENTIFIER) {
-      kind = Lexer::classifyKeyword(tk.spell());
+      kind = Lexer::classifyKeyword(tk.spell(), onlyC);
     }
 
     output << std::format("{} '{}'{}", Token::name(kind), tk.spell(), flags);
@@ -203,7 +205,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     }
 
     toolchain = std::move(wasmToolchain);
-  } else if (toolchainId == "linux") {
+  } else if (toolchainId == "linux" || toolchainId == "linuxC") {
     std::string host;
 #ifdef __aarch64__
     host = "aarch64";
@@ -212,7 +214,10 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 #endif
 
     std::string arch = cli.getSingle("-arch").value_or(host);
-    toolchain = std::make_unique<GCCLinuxToolchain>(preprocessor, arch);
+    if (toolchainId == "linuxC")
+        toolchain = std::make_unique<GCC_C_LinuxToolchain>(preprocessor, arch);
+    else
+        toolchain = std::make_unique<GCCLinuxToolchain>(preprocessor, arch);
   } else if (toolchainId == "windows") {
     auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocessor);
 
