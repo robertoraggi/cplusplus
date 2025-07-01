@@ -1,5 +1,5 @@
 {
-  "name": "Ubuntu 25.04",
+  "name": "universal",
 
   "hostRequirements": {
     "cpus": 4
@@ -13,10 +13,7 @@
 
   "containerUser": "vscode",
 
-  "features": {
-    "./features/emscripten": {},
-    "./features/wasi-sdk": {}
-  },
+  "features": {},
 
   "customizations": {
     "vscode": {
