@@ -18,41 +18,57 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Editor } from "../Editor";
+import ASTContext from "./ast-context";
 import { Parser } from "cxx-frontend";
-import { useState } from "react";
-import { SyntaxTree } from "../SyntaxTree";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import * as monaco from "monaco-editor";
+import useDebouncedOnDidChangeContent from "./hooks/use-debounced-on-did-change-content";
 
-interface EditorWithSyntaxTreeProps {
-  /**
-   * The initial value of the editor.
-   */
-  initialValue: string;
-
-  /**
-   * The delay in milliseconds before parsing the document.
-   * @default 250
-   */
-  delay: number;
-}
-
-export function EditorWithSyntaxTree({
-  initialValue,
-  delay = 250,
-}: EditorWithSyntaxTreeProps) {
+export default function ASTProvider({
+  interval = 250,
+  model,
+  children,
+}: {
+  interval?: number;
+  model: monaco.editor.ITextModel;
+  children: ReactNode;
+}) {
   const [parser, setParser] = useState<Parser | null>(null);
-  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 0 });
+
+  const onDidChangeContent = useCallback((model: monaco.editor.ITextModel) => {
+    const source = model.getValue();
+
+    let parser: Parser | null = new Parser({
+      path: "main.cc",
+      source,
+    });
+
+    parser
+      .parse()
+      .catch((error) => {
+        console.error("Error parsing source code:", error);
+        parser?.dispose();
+        parser = null;
+      })
+      .then(() => {
+        setParser((previous) => {
+          previous?.dispose();
+          return parser;
+        });
+      });
+
+    return () => {
+      parser?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    onDidChangeContent(model);
+  }, [model, onDidChangeContent]);
+
+  useDebouncedOnDidChangeContent({ model, onDidChangeContent, interval });
 
   return (
-    <div style={{ display: "flex", height: "100svh", overflow: "hidden" }}>
-      <Editor
-        style={{ flex: 1, overflow: "auto" }}
-        initialValue={initialValue}
-        delay={delay}
-        onParserChanged={setParser}
-        onCursorPositionChanged={setCursorPosition}
-      />
-      <SyntaxTree parser={parser} cursorPosition={cursorPosition} />
-    </div>
+    <ASTContext.Provider value={{ parser }}>{children}</ASTContext.Provider>
   );
 }

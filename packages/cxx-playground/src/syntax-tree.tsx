@@ -18,10 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { FixedSizeList } from "react-window";
 import { AST, ASTKind, ASTSlot, Parser, TokenKind } from "cxx-frontend";
 import {
-  CSSProperties,
+  type CSSProperties,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -29,34 +31,6 @@ import {
 } from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
 import clsx from "clsx";
-
-function hasOp(node: any): node is AST & { getOp(): TokenKind } {
-  return typeof node.getOp === "function" && node.getOp();
-}
-
-function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
-  return typeof node.getAccessOp === "function" && node.getAccessOp();
-}
-
-function hasAccessSpecifier(
-  node: any
-): node is AST & { getAccessSpecifier(): TokenKind } {
-  return (
-    typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()
-  );
-}
-
-function hasSpecifier(node: any): node is AST & { getSpecifier(): TokenKind } {
-  return typeof node.getSpecifier === "function" && node.getSpecifier();
-}
-
-function hasIdentifier(node: any): node is AST & { getIdentifier(): string } {
-  return typeof node.getIdentifier === "function" && node.getIdentifier();
-}
-
-function hasLiteral(node: any): node is AST & { getLiteral(): string } {
-  return typeof node.getLiteral === "function" && node.getLiteral();
-}
 
 interface SyntaxTreeProps {
   parser: Parser | null;
@@ -81,6 +55,7 @@ export function SyntaxTree({
   const [nodes, setNodes] = useState<SyntaxTreeNode[]>([]);
 
   const onNodeSelectedRef = useRef(onNodeSelected);
+
   useLayoutEffect(() => {
     onNodeSelectedRef.current = onNodeSelected;
   }, [onNodeSelected]);
@@ -159,7 +134,8 @@ export function SyntaxTree({
         {indent}-{" "}
         <a
           className={clsx("cursor-default p-0.5 font-[monospace] text-xs", {
-            "bg-sky-500 text-white": isSelected,
+            "bg-primary text-primary-foreground dark:bg-[#264F78] dark:text-[#D4D4D4]":
+              isSelected,
           })}
         >
           {description}
@@ -169,7 +145,7 @@ export function SyntaxTree({
   }
 
   return (
-    <div style={{ flex: 1 }}>
+    <div className="w-full h-full bg-background text-foreground dark:bg-[#1E1E1E] dark:text-[#D4D4D4]">
       <AutoSizer>
         {({ height, width }) => (
           <FixedSizeList
@@ -227,4 +203,32 @@ function findNodeAt(root: AST, line: number, column: number): AST | null {
   } while (cursor.gotoNextSibling());
 
   return root;
+}
+
+function hasOp(node: any): node is AST & { getOp(): TokenKind } {
+  return typeof node.getOp === "function" && node.getOp();
+}
+
+function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
+  return typeof node.getAccessOp === "function" && node.getAccessOp();
+}
+
+function hasAccessSpecifier(
+  node: any
+): node is AST & { getAccessSpecifier(): TokenKind } {
+  return (
+    typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()
+  );
+}
+
+function hasSpecifier(node: any): node is AST & { getSpecifier(): TokenKind } {
+  return typeof node.getSpecifier === "function" && node.getSpecifier();
+}
+
+function hasIdentifier(node: any): node is AST & { getIdentifier(): string } {
+  return typeof node.getIdentifier === "function" && node.getIdentifier();
+}
+
+function hasLiteral(node: any): node is AST & { getLiteral(): string } {
+  return typeof node.getLiteral === "function" && node.getLiteral();
 }

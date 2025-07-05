@@ -18,51 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { Meta, StoryObj } from "@storybook/react";
+import { useContext, useState } from "react";
+import ASTContext from "./ast-context";
+import EditorContext from "./editor-context";
+import { SyntaxTree } from "./syntax-tree";
+import useDebouncedOnDidChangeCursorPosition from "./hooks/use-debounced-on-did-change-cursor-position";
 
-import { Editor } from "../Editor";
-import { CxxFrontendProvider } from "../CxxFrontendProvider";
-import { CxxFrontendClient } from "../CxxFrontendClient";
+export default function AbstractSyntaxTree() {
+  const { parser } = useContext(ASTContext);
+  const { editor } = useContext(EditorContext);
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
-const client = new CxxFrontendClient();
+  useDebouncedOnDidChangeCursorPosition({
+    editor,
+    onDidChangeCursorPosition: (editor, position) => {
+      const model = editor.getModel();
+      if (!model) return;
 
-const meta: Meta<typeof Editor> = {
-  title: "CxxFrontend/Editor",
-  component: Editor,
-  tags: ["autodocs"],
-  decorators: [
-    (Story) => (
-      <CxxFrontendProvider client={client}>
-        <Story />
-      </CxxFrontendProvider>
-    ),
-  ],
-};
+      const line = position.lineNumber;
+      const column = Math.max(0, position.column - 1);
+      setCursorPosition({ line, column });
+    },
+  });
 
-export default meta;
-
-type EditorStory = StoryObj<typeof Editor>;
-
-export const EditorWithSyntaxChecker: EditorStory = {
-  args: {
-    initialValue: `auto main() -> int {\n  return 0\n}`,
-    editable: true,
-    checkSyntax: true,
-  },
-};
-
-export const EditableEditor: EditorStory = {
-  args: {
-    initialValue: `auto main() -> int {\n  return 0;\n}`,
-    editable: true,
-    checkSyntax: false,
-  },
-};
-
-export const ReadonlyEditor: EditorStory = {
-  args: {
-    initialValue: `auto main() -> int {\n  return 0;\n}`,
-    editable: false,
-    checkSyntax: false,
-  },
-};
+  return <SyntaxTree parser={parser} cursorPosition={cursorPosition} />;
+}
