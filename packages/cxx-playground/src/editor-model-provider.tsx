@@ -18,49 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { EditorView } from "@codemirror/view";
-import { linter, Diagnostic } from "@codemirror/lint";
-import { Parser, Diagnostic as ParserDiagnostic } from "cxx-frontend";
+import type { ReactNode } from "react";
+import ModelContext from "./editor-model-context";
+import * as monaco from "monaco-editor";
 
-export function cppLinter({
-  onDocumentChanged,
-  delay,
+function ModelProvider({
+  model,
+  children,
 }: {
-  onDocumentChanged: (ast: Parser | null) => void;
-  delay?: number;
+  model: monaco.editor.ITextModel;
+  children: ReactNode;
 }) {
-  const checkSyntax = (view: EditorView) => {
-    function convertDiagnostic(diagnostic: ParserDiagnostic): Diagnostic {
-      const doc = view.state.doc;
-
-      const { startLine, startColumn, endLine, endColumn, message } =
-        diagnostic;
-
-      const from = doc.line(startLine).from + Math.max(startColumn - 1, 0);
-      const to = doc.line(endLine).from + Math.max(endColumn - 1, 0);
-
-      return {
-        severity: "error",
-        from,
-        to,
-        message,
-      };
-    }
-
-    const source = view.state.doc.toString();
-
-    const parser = new Parser({ source, path: "-" });
-
-    parser.parse();
-
-    onDocumentChanged(parser);
-
-    const diagnostics = parser
-      .getDiagnostics()
-      .map((diagnostic) => convertDiagnostic(diagnostic));
-
-    return diagnostics;
-  };
-
-  return linter(checkSyntax, { delay });
+  return (
+    <ModelContext.Provider value={{ model }}>{children}</ModelContext.Provider>
+  );
 }
+
+export default ModelProvider;
