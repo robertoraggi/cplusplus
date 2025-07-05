@@ -37,11 +37,11 @@
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "esbuild": "latest",
-    "prettier": "latest",
-    "typedoc": "latest",
-    "typescript": "latest",
-    "zx": "latest"
+    "@types/node": "^24.0.10",
+    "esbuild": "^0.25.5",
+    "prettier": "^3.6.2",
+    "typedoc": "^0.28.7",
+    "typescript": "^5.8.3",
+    "zx": "^8.6.1"
   }
 }
