@@ -33,7 +33,7 @@ export default function useDebouncedOnDidChangeContent({
 }) {
   const debouncedOnDidChangeContent = useDebouncedCallback(
     () => onDidChangeContent?.(model),
-    interval
+    interval,
   );
 
   useOnDidChangeContent({

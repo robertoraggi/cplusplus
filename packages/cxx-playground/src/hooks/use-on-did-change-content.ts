@@ -28,7 +28,7 @@ export default function useOnDidChangeContent({
   model: monaco.editor.ITextModel;
   onDidChangeContent?: (
     model: monaco.editor.ITextModel,
-    event: monaco.editor.IModelContentChangedEvent
+    event: monaco.editor.IModelContentChangedEvent,
   ) => void;
 }) {
   useEffect(() => {

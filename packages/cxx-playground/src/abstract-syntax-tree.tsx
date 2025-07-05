@@ -49,7 +49,7 @@ export default function AbstractSyntaxTree() {
           message: message,
           source: "C++",
         });
-      }
+      },
     );
 
     monaco.editor.setModelMarkers(model, "cxx", markers);

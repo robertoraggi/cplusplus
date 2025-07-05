@@ -115,7 +115,7 @@ export function SyntaxTree({
       setSelectedNodeHandle(selectedNodeHandle);
 
       const index = nodes.findIndex(
-        (node) => node.handle === selectedNodeHandle
+        (node) => node.handle === selectedNodeHandle,
       );
 
       if (index != -1) {
@@ -214,7 +214,7 @@ function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
 }
 
 function hasAccessSpecifier(
-  node: any
+  node: any,
 ): node is AST & { getAccessSpecifier(): TokenKind } {
   return (
     typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()
