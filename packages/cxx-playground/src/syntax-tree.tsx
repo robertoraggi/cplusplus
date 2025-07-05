@@ -115,7 +115,7 @@ export function SyntaxTree({
       setSelectedNodeHandle(selectedNodeHandle);
 
       const index = nodes.findIndex(
-        (node) => node.handle === selectedNodeHandle,
+        (node) => node.handle === selectedNodeHandle
       );
 
       if (index != -1) {
@@ -145,7 +145,7 @@ export function SyntaxTree({
   }
 
   return (
-    <div className="w-full h-full bg-background text-foreground dark:bg-[#1E1E1E] dark:text-[#D4D4D4]">
+    <div className="w-full h-full bg-background text-foreground ">
       <AutoSizer>
         {({ height, width }) => (
           <FixedSizeList
@@ -214,7 +214,7 @@ function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
 }
 
 function hasAccessSpecifier(
-  node: any,
+  node: any
 ): node is AST & { getAccessSpecifier(): TokenKind } {
   return (
     typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()

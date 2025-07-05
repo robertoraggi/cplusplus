@@ -21,6 +21,15 @@
 import { useEffect, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
 
+monaco.editor.defineTheme("cxx-dark", {
+  base: "vs-dark",
+  inherit: true,
+  rules: [],
+  colors: {
+    "editor.background": "#0a0a0a",
+  },
+});
+
 export default function useEditor({
   model,
 }: {
@@ -39,7 +48,7 @@ export default function useEditor({
 
     const editor = monaco.editor.create(domElement, {
       minimap: { enabled: false },
-      theme: "vs-dark",
+      theme: "cxx-dark",
       automaticLayout: true,
       model,
     });
