@@ -18,16 +18,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import ASTContext from "./ast-context";
 import EditorContext from "./editor-context";
 import { SyntaxTree } from "./syntax-tree";
 import useDebouncedOnDidChangeCursorPosition from "./hooks/use-debounced-on-did-change-cursor-position";
+import * as monaco from "monaco-editor";
+import ModelContext from "./editor-model-context";
 
 export default function AbstractSyntaxTree() {
   const { parser } = useContext(ASTContext);
   const { editor } = useContext(EditorContext);
+  const { model } = useContext(ModelContext);
+
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+
+  useEffect(() => {
+    const markers: monaco.editor.IMarkerData[] = [];
+
+    const diagnostics = parser?.getDiagnostics() ?? [];
+
+    diagnostics.forEach(
+      ({ startLine, startColumn, endLine, endColumn, message }) => {
+        markers.push({
+          severity: monaco.MarkerSeverity.Error,
+          startLineNumber: startLine,
+          startColumn: startColumn,
+          endLineNumber: endLine,
+          endColumn: endColumn,
+          message: message,
+          source: "C++",
+        });
+      }
+    );
+
+    monaco.editor.setModelMarkers(model, "cxx", markers);
+  }, [model, parser]);
 
   useDebouncedOnDidChangeCursorPosition({
     editor,
