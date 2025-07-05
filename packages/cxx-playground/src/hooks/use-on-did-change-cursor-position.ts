@@ -28,7 +28,7 @@ export default function useOnDidChangeCursorPosition({
   editor: monaco.editor.IStandaloneCodeEditor | null;
   onDidChangeCursorPosition?: (
     editor: monaco.editor.IStandaloneCodeEditor,
-    event: monaco.Position
+    event: monaco.Position,
   ) => void;
 }) {
   useEffect(() => {

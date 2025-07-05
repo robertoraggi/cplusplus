@@ -31,7 +31,7 @@ export default function useDebouncedOnDidChangeCursorPosition({
   interval?: number;
   onDidChangeCursorPosition?: (
     editor: monaco.editor.IStandaloneCodeEditor,
-    position: monaco.Position
+    position: monaco.Position,
   ) => void;
 }) {
   const debouncedOnDidChangeContent = useDebouncedCallback(() => {
