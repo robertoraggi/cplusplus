@@ -318,7 +318,7 @@ jobs:
       - name: Build
         run: |
           npm ci
-          npm run build:playground
+          npm run build -w @robertoraggi/cxx-playground -- --base /cplusplus
           mkdir -p packages/cxx-playground/dist/docs
           cp -a packages/cxx-frontend/docs/. packages/cxx-playground/dist/docs
 
