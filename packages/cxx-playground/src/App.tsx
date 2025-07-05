@@ -31,6 +31,9 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import AppSidebar from "./app-sidebar";
+
 import * as monaco from "monaco-editor";
 
 window.MonacoEnvironment = {
@@ -54,29 +57,32 @@ function App() {
   const model = monaco.editor.createModel(DEFAULT_VALUE, "cpp");
 
   return (
-    <div className="w-svw h-svh">
-      <QueryClientProvider client={queryClient}>
-        <CxxProvider fallback={<div />}>
-          <ModelProvider model={model}>
-            <EditorProvider model={model}>
-              <ASTProvider model={model} interval={interval}>
-                <ResizablePanelGroup
-                  direction="horizontal"
-                  className="w-full h-full"
-                >
-                  <ResizablePanel className="min-w-1/4">
-                    <Editor />
-                  </ResizablePanel>
-                  <ResizableHandle />
-                  <ResizablePanel className="min-w-1/4" defaultSize={35}>
-                    <AbstractSyntaxTree />
-                  </ResizablePanel>
-                </ResizablePanelGroup>
-              </ASTProvider>
-            </EditorProvider>
-          </ModelProvider>
-        </CxxProvider>
-      </QueryClientProvider>
+    <div className="w-svw h-svh flex">
+      <SidebarProvider>
+        <QueryClientProvider client={queryClient}>
+          <CxxProvider fallback={<div />}>
+            <ModelProvider model={model}>
+              <EditorProvider model={model}>
+                <ASTProvider model={model} interval={interval}>
+                  <AppSidebar />
+                  <ResizablePanelGroup
+                    direction="horizontal"
+                    className="w-full h-full"
+                  >
+                    <ResizablePanel className="min-w-1/5">
+                      <Editor />
+                    </ResizablePanel>
+                    <ResizableHandle />
+                    <ResizablePanel className="min-w-1/5" defaultSize={35}>
+                      <AbstractSyntaxTree />
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
+                </ASTProvider>
+              </EditorProvider>
+            </ModelProvider>
+          </CxxProvider>
+        </QueryClientProvider>
+      </SidebarProvider>
     </div>
   );
 }
