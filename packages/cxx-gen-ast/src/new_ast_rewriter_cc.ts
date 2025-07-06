@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
-import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST, Member } from "./parseAST.js";
+import { cpy_header } from "./cpy_header.ts";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
+import type { AST, Member } from "./parseAST.ts";
 import * as fs from "fs";
 
 export function new_ast_rewriter_cc({
@@ -62,20 +62,20 @@ export function new_ast_rewriter_cc({
     emit(`  struct ASTRewriter::${className}Visitor {`);
     emit(`    ASTRewriter& rewrite;`);
     emit(
-      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`
+      `[[nodiscard]] auto translationUnit() const -> TranslationUnit* { return rewrite.unit_; }`,
     );
     emit();
     emit(
-      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`
+      `[[nodiscard]] auto control() const -> Control* { return rewrite.control(); }`,
     );
     emit(
-      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`
+      `[[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }`,
     );
     emit(
-      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`
+      `[[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }`,
     );
     emit(
-      `[[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }`
+      `[[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }`,
     );
     nodes.forEach(({ name }) => {
       emit();
@@ -94,7 +94,7 @@ export function new_ast_rewriter_cc({
     visitor?: string;
   }) => {
     const blockSymbol = members.find(
-      (m) => m.kind === "attribute" && m.type === "BlockSymbol"
+      (m) => m.kind === "attribute" && m.type === "BlockSymbol",
     );
 
     if (blockSymbol) {
@@ -125,14 +125,14 @@ export function new_ast_rewriter_cc({
                 if (specsAttr) {
                   emit();
                   emit(
-                    `auto ${m.name}Decl = Decl{${specsAttr}Ctx, copy->${m.name}};`
+                    `auto ${m.name}Decl = Decl{${specsAttr}Ctx, copy->${m.name}};`,
                   );
                   emit(
-                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.type());`
+                    `auto ${m.name}Type = getDeclaratorType(translationUnit(), copy->${m.name}, ${specsAttr}Ctx.type());`,
                   );
 
                   typeAttr = members.find(
-                    (m) => m.kind === "attribute" && m.name === "type"
+                    (m) => m.kind === "attribute" && m.name === "type",
                   );
 
                   if (typeAttr) {
@@ -145,7 +145,7 @@ export function new_ast_rewriter_cc({
             } // switch
           } else {
             emit(
-              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`
+              `copy->${m.name} = ast_cast<${m.type}>(${visitor}(ast->${m.name}));`,
             );
           }
           break;
@@ -164,7 +164,7 @@ export function new_ast_rewriter_cc({
           } // switch
 
           emit(
-            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`
+            `for (auto ${m.name} = &copy->${m.name}; auto node : ListView{ast->${m.name}}) {`,
           );
 
           switch (m.type) {
@@ -181,7 +181,7 @@ export function new_ast_rewriter_cc({
             emit(`*${m.name} = make_list_node(arena(), value);`);
           } else {
             emit(
-              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`
+              `*${m.name} = make_list_node(arena(), ast_cast<${m.type}>(value));`,
             );
           }
           emit(`${m.name} = &(*${m.name})->next;`);
@@ -256,7 +256,7 @@ export function new_ast_rewriter_cc({
     });
   };
 
-  by_base.forEach((nodes, base) => {
+  by_base.forEach((_nodes, base) => {
     if (base === "AST") return;
     emit();
 
@@ -292,7 +292,7 @@ export function new_ast_rewriter_cc({
     switch (name) {
       case "InitDeclaratorAST":
         emit(
-          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`
+          `auto ASTRewriter::operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}* {`,
         );
         break;
       default:
@@ -317,7 +317,7 @@ export function new_ast_rewriter_cc({
     nodes.forEach(({ name, members }) => {
       emit();
       emit(
-        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`
+        `auto ASTRewriter::${className}Visitor::operator()(${name}* ast) -> ${base}* {`,
       );
 
       if (name === "IdExpressionAST") {

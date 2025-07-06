@@ -24,9 +24,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
-import { parseAST } from "./parseAST.js";
-import { new_ast_op_h } from "./new_ast_op_h.js";
-import { new_ast_op_cc } from "./new_ast_op_cc.js";
+import { parseAST } from "./parseAST.ts";
+import { new_ast_op_h } from "./new_ast_op_h.ts";
+import { new_ast_op_cc } from "./new_ast_op_cc.ts";
 
 import { hideBin } from "yargs/helpers";
 import yargs from "yargs";
@@ -77,7 +77,7 @@ function main(args: MainArgs) {
   );
 }
 
-const _ = yargs(hideBin(process.argv))
+yargs(hideBin(process.argv))
   .option("name", {
     alias: "n",
     type: "string",

@@ -24,13 +24,13 @@ import * as fs from "fs";
 import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
-import { parseAST } from "./parseAST.js";
+import { parseAST } from "./parseAST.ts";
 
 import { hideBin } from "yargs/helpers";
 import yargs from "yargs";
 
-import { new_ast_rewriter_h } from "./new_ast_rewriter_h.js";
-import { new_ast_rewriter_cc } from "./new_ast_rewriter_cc.js";
+import { new_ast_rewriter_h } from "./new_ast_rewriter_h.ts";
+import { new_ast_rewriter_cc } from "./new_ast_rewriter_cc.ts";
 
 const toSnakeName = (name: string) => {
   const r = name
@@ -78,7 +78,7 @@ function main(args: MainArgs) {
   );
 }
 
-const _ = yargs(hideBin(process.argv))
+yargs(hideBin(process.argv))
   .option("name", {
     alias: "n",
     type: "string",

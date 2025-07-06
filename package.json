@@ -39,7 +39,7 @@
     "playground": "npm run dev -w @robertoraggi/cxx-playground",
     "setup-venv": "zx scripts/setup-venv.mjs",
     "update-tests": "zx scripts/update-tests.mjs",
-    "cxx-gen-ast": "node packages/cxx-gen-ast",
+    "cxx-gen-ast": "node --no-warnings packages/cxx-gen-ast/src/gen.ts",
     "cxx-gen-lsp": "node packages/cxx-gen-lsp packages/cxx-gen-lsp/metaModel.json packages/cxx-gen-lsp -o src/lsp/cxx/lsp",
     "download-lsp-model": "zx scripts/download-lsp-model.mjs",
     "download-mlir": "gh run download -n mlir --dir build.em/llvm-project/install/"

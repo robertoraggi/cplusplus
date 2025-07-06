@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { AST, Class } from "./parseAST.js";
+import type { AST, Class } from "./parseAST.ts";
 
 export function groupNodesByBaseType({ nodes }: AST) {
   const by_base = new Map<string, Class[]>();

@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
-import { AST } from "./parseAST.js";
-import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
+import { cpy_header } from "./cpy_header.ts";
+import type { AST } from "./parseAST.ts";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
 import * as fs from "fs";
 
 export function gen_ast_kind_h({ ast, output }: { ast: AST; output: string }) {

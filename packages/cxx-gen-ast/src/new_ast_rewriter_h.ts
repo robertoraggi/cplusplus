@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
-import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST } from "./parseAST.js";
+import { cpy_header } from "./cpy_header.ts";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
+import type { AST } from "./parseAST.ts";
 import * as fs from "fs";
 
 export function new_ast_rewriter_h({
@@ -44,7 +44,7 @@ export function new_ast_rewriter_h({
 
   emit();
   emit(`  // run on the base nodes`);
-  by_base.forEach((nodes, base) => {
+  by_base.forEach((_nodes, base) => {
     if (base === "AST") return;
     emit(`  [[nodiscard]] auto operator()(${base}* ast) -> ${base}*;`);
   });
@@ -54,7 +54,7 @@ export function new_ast_rewriter_h({
     switch (name) {
       case "InitDeclaratorAST":
         emit(
-          `  [[nodiscard]] auto operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}*;`
+          `  [[nodiscard]] auto operator()(${name}* ast, const DeclSpecs& declSpecs) -> ${name}*;`,
         );
         break;
       default:

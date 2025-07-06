@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as fs from "fs";
-import * as tokens from "./tokens.js";
+import * as tokens from "./tokens.ts";
 
 export function gen_keywords_kwgen({ output }: { output: string }) {
   const code: string[] = [];

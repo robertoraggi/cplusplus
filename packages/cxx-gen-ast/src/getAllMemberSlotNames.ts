@@ -18,41 +18,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST, Member } from "./parseAST.js";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
+import type { AST, Member } from "./parseAST.ts";
 
-export enum MemberSlotClassification {
-  BoolAttribute,
-  IntAttribute,
-  TokenKindAttribute,
-  IdentifierAttribute,
-  LiteralAttribute,
-  Token,
-  Node,
-  NodeList,
-  TokenList,
-}
+export const MemberSlotClassification = [
+  "bool-attr",
+  "int-attr",
+  "token-kind-attr",
+  "identifier-attr",
+  "literal-attr",
+  "token",
+  "node",
+  "node-list",
+  "token-list",
+] as const;
+
+export type MemberSlotClassification =
+  (typeof MemberSlotClassification)[number];
+
 export function classifyMemberSlot(
   m: Member,
 ): MemberSlotClassification | undefined {
   if (m.kind === "attribute" && m.type === "bool") {
-    return MemberSlotClassification.BoolAttribute;
+    return "bool-attr";
   } else if (m.kind === "attribute" && m.type === "int") {
-    return MemberSlotClassification.IntAttribute;
+    return "int-attr";
   } else if (m.kind === "attribute" && m.type === "TokenKind") {
-    return MemberSlotClassification.TokenKindAttribute;
+    return "token-kind-attr";
   } else if (m.kind === "attribute" && m.type === "Identifier") {
-    return MemberSlotClassification.IdentifierAttribute;
+    return "identifier-attr";
   } else if (m.kind === "attribute" && m.type.endsWith("Literal")) {
-    return MemberSlotClassification.LiteralAttribute;
+    return "literal-attr";
   } else if (m.kind === "token") {
-    return MemberSlotClassification.Token;
+    return "token";
   } else if (m.kind === "node") {
-    return MemberSlotClassification.Node;
+    return "node";
   } else if (m.kind === "node-list") {
-    return MemberSlotClassification.NodeList;
+    return "node-list";
   } else if (m.kind === "token-list") {
-    return MemberSlotClassification.TokenList;
+    return "token-list";
   } else {
     return undefined;
   }
