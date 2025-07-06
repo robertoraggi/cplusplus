@@ -19,13 +19,13 @@
 // SOFTWARE.
 
 #include <cxx/lexer.h>
+#include <cxx/private/c_keywords-priv.h>
+#include <cxx/private/keywords-priv.h>
 #include <utf8/unchecked.h>
 
 #include <cctype>
 #include <unordered_map>
 #include <vector>
-
-#include "keywords-priv.h"
 
 namespace cxx {
 

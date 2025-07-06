@@ -104,7 +104,6 @@ async function dockerBuild() {
 
   const cmakeOptions = [
     "-DCMAKE_INSTALL_PREFIX=build.em/install/usr",
-    "-DKWGEN_EXECUTABLE=/usr/bin/kwgen",
     "-DFLATBUFFERS_FLATC_EXECUTABLE=/usr/bin/flatc",
     "-S .",
     "-B build.em",
@@ -136,13 +135,12 @@ async function dockerBuild() {
   await $`${docker} run -t --rm -u ${user} -v ${emscriptenCacheDir}:/emsdk/upstream/emscripten/cache/ -v ${projectRootSourcePath}:/code -w /code cxx-emsdk cmake --build build.em`;
 }
 
-async function emsdkBuild({ cmake, emcmake, flatc, kwgen }) {
+async function emsdkBuild({ cmake, emcmake, flatc }) {
   const CMAKE_INTERPROCEDURAL_OPTIMIZATION =
     $.env.CMAKE_INTERPROCEDURAL_OPTIMIZATION ?? "ON";
 
   const cmakeOptions = [
     `-DCMAKE_INSTALL_PREFIX=${projectRootSourcePath}/build.em/install/usr`,
-    `-DKWGEN_EXECUTABLE=${kwgen}`,
     `-DFLATBUFFERS_FLATC_EXECUTABLE=${flatc}`,
     `-S ${projectRootSourcePath}`,
     `-B ${projectRootSourcePath}/build.em`,
@@ -193,16 +191,9 @@ async function detectEmsdk() {
     (await which("flatc", { nothrow: true }));
   if (!flatc) return null;
 
-  const kwgen =
-    argv.kwgen ??
-    $.env.KWGEN_EXECUTABLE ??
-    (await which("kwgen", { nothrow: true }));
-  if (!kwgen) return null;
-
   return {
     cmake,
     emcmake,
     flatc,
-    kwgen,
   };
 }

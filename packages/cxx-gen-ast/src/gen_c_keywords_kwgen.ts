@@ -22,18 +22,12 @@ import * as tokens from "./tokens.ts";
 import kwgen from "./kwgen.ts";
 import { cpy_header } from "./cpy_header.ts";
 
-export function gen_keywords_kwgen({ output }: { output: string }) {
-  const isContextKeyword = (kw: string) => {
-    return ["final", "override", "import", "module"].includes(kw);
-  };
-
+export function gen_c_keywords_kwgen({ output }: { output: string }) {
   const keywords: string[] = [];
 
-  tokens.CXX_KEYWORDS.filter((kw) => !isContextKeyword(kw)).forEach((tk) =>
-    keywords.push(tk),
-  );
+  keywords.push(...tokens.C_KEYWORDS);
 
-  Object.entries(tokens.CXX_TOKEN_ALIASES).forEach(([tk]) => {
+  Object.entries(tokens.C_TOKEN_ALIASES).forEach(([tk]) => {
     keywords.push(tk);
   });
 
@@ -46,6 +40,6 @@ export function gen_keywords_kwgen({ output }: { output: string }) {
     toUpper: true,
     noEnums: true,
     defaultToken: "cxx::TokenKind::T_IDENTIFIER",
-    classifier: "classify",
+    classifier: "classifyC",
   });
 }

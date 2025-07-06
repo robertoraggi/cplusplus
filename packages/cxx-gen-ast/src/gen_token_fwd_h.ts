@@ -41,7 +41,9 @@ export function gen_token_fwd_h({ output }: { output: string }) {
 
   emit();
   emit("#define FOR_EACH_KEYWORD(V) \\");
-  tokens.KEYWORDS.forEach((tk) => emit(`  V(${tk.toUpperCase()}, "${tk}") \\`));
+  tokens.C_AND_CXX_KEYWORDS.forEach((tk) =>
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+  );
 
   emit();
   emit("#define FOR_EACH_BUILTIN_TYPE_TRAIT(V) \\");
@@ -51,7 +53,7 @@ export function gen_token_fwd_h({ output }: { output: string }) {
 
   emit();
   emit("#define FOR_EACH_TOKEN_ALIAS(V) \\");
-  tokens.TOKEN_ALIASES.forEach(([tk, other]) =>
+  Object.entries(tokens.C_AND_CXX_TOKEN_ALIASES).forEach(([tk, other]) =>
     emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
   );
 

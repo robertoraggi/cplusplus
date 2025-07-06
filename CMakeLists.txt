@@ -143,26 +143,6 @@ if (CXX_BUILD_TESTS)
 endif()
 
 
-if (NOT KWGEN_EXECUTABLE AND CMAKE_SYSTEM_NAME STREQUAL "WASI")
-
-    ExternalProject_Add(
-        kwgen_host
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tools/kwgen
-        INSTALL_COMMAND ""
-    )
-
-    ExternalProject_Get_property(kwgen_host BINARY_DIR)
-
-    add_executable(kwgen IMPORTED)
-    set_target_properties(kwgen PROPERTIES IMPORTED_LOCATION "${BINARY_DIR}/kwgen")
-    add_dependencies(kwgen kwgen_host)
-
-else()
-
-    add_subdirectory(tools/kwgen)
-
-endif()
-
 add_subdirectory(src)
 
 if (CXX_BUILD_TESTS)

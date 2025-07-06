@@ -29,7 +29,7 @@ export function gen_tokenkind_ts({ output }: { output: string }) {
   emit("export enum TokenKind {");
   tokens.BASE_TOKENS.forEach((tk) => emit(`  ${tk},`));
   tokens.OPERATORS.forEach(([tk]) => emit(`  ${tk},`));
-  tokens.KEYWORDS.forEach((tk) => emit(`  ${tk.toUpperCase()},`));
+  tokens.C_AND_CXX_KEYWORDS.forEach((tk) => emit(`  ${tk.toUpperCase()},`));
   emit("}");
 
   const out = `${cpy_header}
