@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { getEnumBaseType, getEnumeratorInitializer, getEnumeratorName, MetaModel } from "./MetaModel.js";
+import { getEnumBaseType, getEnumeratorInitializer, getEnumeratorName, type MetaModel } from "./MetaModel.ts";
 
 import path from "node:path";
 import { writeFileSync } from "node:fs";
-import { copyrightHeader } from "./copyrightHeader.js";
+import { copyrightHeader } from "./copyrightHeader.ts";
 
 export function gen_enums_h({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
   let out = "";

@@ -19,9 +19,10 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { getEnumBaseType, MetaModel, toCppType, Type, Request, Notification, isRequest } from "./MetaModel.js";
+import type { MetaModel, Type, Request, Notification } from "./MetaModel.ts";
+import { getEnumBaseType, toCppType, isRequest } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
-import { copyrightHeader } from "./copyrightHeader.js";
+import { copyrightHeader } from "./copyrightHeader.ts";
 
 const fragment = `
 

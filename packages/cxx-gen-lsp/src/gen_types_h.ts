@@ -19,9 +19,16 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { getStructureProperties, isStringLike, MetaModel, Property, toCppType, Type } from "./MetaModel.js";
+import {
+  getStructureProperties,
+  isStringLike,
+  toCppType,
+  type MetaModel,
+  type Property,
+  type Type,
+} from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
-import { copyrightHeader } from "./copyrightHeader.js";
+import { copyrightHeader } from "./copyrightHeader.ts";
 
 export function gen_types_h({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
   let out = "";

@@ -19,10 +19,11 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { isRequest, MetaModel, Structure, toCppType, Type } from "./MetaModel.js";
+import type { MetaModel, Structure, Type } from "./MetaModel.ts";
+import { isRequest, toCppType } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
-import { copyrightHeader } from "./copyrightHeader.js";
-import { TypeGenerator } from "./gen_types_cc.js";
+import { copyrightHeader } from "./copyrightHeader.ts";
+import { TypeGenerator } from "./gen_types_cc.ts";
 
 class RequestGenerator extends TypeGenerator {
   constructor({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
