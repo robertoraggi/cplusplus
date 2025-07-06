@@ -38,6 +38,8 @@ class Toolchain {
   explicit Toolchain(Preprocessor *preprocessor);
   virtual ~Toolchain();
 
+  [[nodiscard]] auto language() const -> LanguageKind;
+
   [[nodiscard]] auto memoryLayout() const -> MemoryLayout * {
     return memoryLayout_.get();
   }

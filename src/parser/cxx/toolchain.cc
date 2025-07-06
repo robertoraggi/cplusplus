@@ -32,6 +32,10 @@ Toolchain::Toolchain(Preprocessor* preprocessor) : preprocessor_(preprocessor) {
 
 Toolchain::~Toolchain() = default;
 
+auto Toolchain::language() const -> LanguageKind {
+  return preprocessor_->language();
+}
+
 void Toolchain::setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout) {
   memoryLayout_ = std::move(memoryLayout);
 }

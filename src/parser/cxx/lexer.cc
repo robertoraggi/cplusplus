@@ -107,17 +107,18 @@ inline auto skipBOM(It& it, It end) -> bool {
 }
 }  // namespace
 
-Lexer::Lexer(std::string_view source)
-    : source_(source), pos_(cbegin(source_)), end_(cend(source_)) {
+Lexer::Lexer(std::string_view source, LanguageKind lang)
+    : source_(source), pos_(cbegin(source_)), end_(cend(source_)), lang_(lang) {
   hasBOM_ = skipBOM(pos_, end_);
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
-Lexer::Lexer(std::string buffer)
+Lexer::Lexer(std::string buffer, LanguageKind lang)
     : buffer_(std::move(buffer)),
       source_(buffer_),
       pos_(cbegin(source_)),
-      end_(cend(source_)) {
+      end_(cend(source_)),
+      lang_(lang) {
   hasBOM_ = skipBOM(pos_, end_);
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
@@ -206,13 +207,7 @@ auto Lexer::readToken() -> TokenKind {
 
       if (preprocessing_) return TokenKind::T_IDENTIFIER;
 
-      if (auto keyword =
-              classify(text_.c_str(), static_cast<int>(text_.length()));
-          keyword != TokenKind::T_IDENTIFIER) {
-        return keyword;
-      }
-
-      return TokenKind::T_IDENTIFIER;
+      return classifyKeyword(text_, lang_);
     }
   }
 
@@ -258,15 +253,17 @@ auto Lexer::readToken() -> TokenKind {
       }
     }
 
-    bool ud = false;
-    if (std::isalpha(LA()) || LA() == '_') {
-      ud = true;
-      do {
-        consume();
-      } while (pos_ != end_ && is_idcont(LA()));
-    }
+    if (lang_ == LanguageKind::kCXX) {
+      bool ud = false;
+      if (std::isalpha(LA()) || LA() == '_') {
+        ud = true;
+        do {
+          consume();
+        } while (pos_ != end_ && is_idcont(LA()));
+      }
 
-    if (ud) return TokenKind::T_USER_DEFINED_STRING_LITERAL;
+      if (ud) return TokenKind::T_USER_DEFINED_STRING_LITERAL;
+    }
 
     switch (encodingPrefix) {
       case EncodingPrefix::kWide:
@@ -569,8 +566,12 @@ auto Lexer::skipSpaces() -> bool {
   return pos_ != end_;
 }
 
-auto Lexer::classifyKeyword(const std::string_view& text) -> TokenKind {
-  return classify(text.data(), static_cast<int>(text.size()));
+auto Lexer::classifyKeyword(const std::string_view& text, LanguageKind lang)
+    -> TokenKind {
+  if (lang == LanguageKind::kCXX) {
+    return classify(text.data(), static_cast<int>(text.size()));
+  }
+  return classifyC(text.data(), static_cast<int>(text.size()));
 }
 
 void Lexer::clearBuffer() { buffer_.clear(); }

@@ -278,6 +278,7 @@ export const CXX_TOKEN_ALIASES = {
 };
 
 export const C_KEYWORDS: string[] = [
+  "asm",
   "alignas",
   "alignof",
   "auto",
@@ -332,11 +333,35 @@ export const C_KEYWORDS: string[] = [
   "_Generic",
   "_Imaginary",
   "_Noreturn",
+
+  "__attribute__",
+  "__builtin_bit_cast",
+  "__builtin_offsetof",
+  "__builtin_va_arg",
+  "__builtin_va_list",
+  "__complex__",
+  "__extension__",
+  "__float128",
+  "__float80",
+  "__imag__",
+  "__int128",
+  "__int64",
+  "__real__",
+  "__restrict__",
+  "__thread",
+  "__underlying_type",
+  "_Atomic",
+  "_Complex",
 ];
 
 export const C_TOKEN_ALIASES = {
+  __asm__: "ASM",
+  __asm: "ASM",
+  __inline__: "INLINE",
+  __inline: "INLINE",
   _Alignas: "ALIGNAS",
   _Alignof: "ALIGNOF",
+  _asm: "ASM",
   _Bool: "BOOL",
   _Static_assert: "STATIC_ASSERT",
   _Thread_local: "THREAD_LOCAL",
