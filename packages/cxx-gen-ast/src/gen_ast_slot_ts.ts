@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
-import { AST } from "./parseAST.js";
-import { getAllMemberSlotNames } from "./getAllMemberSlotNames.js";
+import { cpy_header } from "./cpy_header.ts";
+import type { AST } from "./parseAST.ts";
+import { getAllMemberSlotNames } from "./getAllMemberSlotNames.ts";
 import { format } from "prettier";
 import * as fs from "fs";
 

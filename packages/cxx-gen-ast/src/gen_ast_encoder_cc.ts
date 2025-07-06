@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST, Attribute } from "./parseAST.js";
-import { cpy_header } from "./cpy_header.js";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
+import type { AST, Attribute } from "./parseAST.ts";
+import { cpy_header } from "./cpy_header.ts";
 import * as fs from "fs";
 
 export function gen_ast_encoder_cc({

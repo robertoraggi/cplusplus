@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
-import { groupNodesByBaseType } from "./groupNodesByBaseType.js";
-import { AST } from "./parseAST.js";
+import { cpy_header } from "./cpy_header.ts";
+import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
+import type { AST } from "./parseAST.ts";
 import * as fs from "fs";
 
 export function new_ast_op_cc({
@@ -45,7 +45,7 @@ export function new_ast_op_cc({
     return name;
   };
 
-  by_base.forEach((nodes, base) => {
+  by_base.forEach((_nodes, base) => {
     if (base === "AST") return;
     emit();
     emit(`  struct ${opName}::${chopAST(base)}Result {};`);
@@ -71,7 +71,7 @@ export function new_ast_op_cc({
     emit(`  };`);
   });
 
-  by_base.forEach((nodes, base) => {
+  by_base.forEach((_nodes, base) => {
     if (base === "AST") return;
     const resultTy = `${chopAST(base)}Result`;
     emit();

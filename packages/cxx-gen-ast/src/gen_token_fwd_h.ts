@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.js";
+import { cpy_header } from "./cpy_header.ts";
 import * as fs from "fs";
-import * as tokens from "./tokens.js";
+import * as tokens from "./tokens.ts";
 
 export function gen_token_fwd_h({ output }: { output: string }) {
   const code: string[] = [];
