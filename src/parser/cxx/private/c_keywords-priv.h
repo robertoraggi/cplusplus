@@ -32,7 +32,13 @@ static inline auto classifyC2(const char* s) -> cxx::TokenKind {
 }
 
 static inline auto classifyC3(const char* s) -> cxx::TokenKind {
-  if (s[0] == 'f') {
+  if (s[0] == 'a') {
+    if (s[1] == 's') {
+      if (s[2] == 'm') {
+        return cxx::TokenKind::T_ASM;
+      }
+    }
+  } else if (s[0] == 'f') {
     if (s[1] == 'o') {
       if (s[2] == 'r') {
         return cxx::TokenKind::T_FOR;
@@ -125,6 +131,14 @@ static inline auto classifyC4(const char* s) -> cxx::TokenKind {
         }
       }
     }
+  } else if (s[0] == '_') {
+    if (s[1] == 'a') {
+      if (s[2] == 's') {
+        if (s[3] == 'm') {
+          return cxx::TokenKind::T__ASM;
+        }
+      }
+    }
   }
   return cxx::TokenKind::T_IDENTIFIER;
 }
@@ -199,7 +213,15 @@ static inline auto classifyC5(const char* s) -> cxx::TokenKind {
       }
     }
   } else if (s[0] == '_') {
-    if (s[1] == 'B') {
+    if (s[1] == '_') {
+      if (s[2] == 'a') {
+        if (s[3] == 's') {
+          if (s[4] == 'm') {
+            return cxx::TokenKind::T___ASM;
+          }
+        }
+      }
+    } else if (s[1] == 'B') {
       if (s[2] == 'o') {
         if (s[3] == 'o') {
           if (s[4] == 'l') {
@@ -411,6 +433,28 @@ static inline auto classifyC7(const char* s) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == '_') {
+      if (s[2] == 'i') {
+        if (s[3] == 'n') {
+          if (s[4] == 't') {
+            if (s[5] == '6') {
+              if (s[6] == '4') {
+                return cxx::TokenKind::T___INT64;
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'a') {
+        if (s[3] == 's') {
+          if (s[4] == 'm') {
+            if (s[5] == '_') {
+              if (s[6] == '_') {
+                return cxx::TokenKind::T___ASM__;
+              }
+            }
+          }
+        }
+      }
     }
   }
   return cxx::TokenKind::T_IDENTIFIER;
@@ -522,6 +566,62 @@ static inline auto classifyC8(const char* s) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == '_') {
+      if (s[2] == 'i') {
+        if (s[3] == 'm') {
+          if (s[4] == 'a') {
+            if (s[5] == 'g') {
+              if (s[6] == '_') {
+                if (s[7] == '_') {
+                  return cxx::TokenKind::T___IMAG__;
+                }
+              }
+            }
+          }
+        } else if (s[3] == 'n') {
+          if (s[4] == 't') {
+            if (s[5] == '1') {
+              if (s[6] == '2') {
+                if (s[7] == '8') {
+                  return cxx::TokenKind::T___INT128;
+                }
+              }
+            }
+          } else if (s[4] == 'l') {
+            if (s[5] == 'i') {
+              if (s[6] == 'n') {
+                if (s[7] == 'e') {
+                  return cxx::TokenKind::T___INLINE;
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'r') {
+        if (s[3] == 'e') {
+          if (s[4] == 'a') {
+            if (s[5] == 'l') {
+              if (s[6] == '_') {
+                if (s[7] == '_') {
+                  return cxx::TokenKind::T___REAL__;
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 't') {
+        if (s[3] == 'h') {
+          if (s[4] == 'r') {
+            if (s[5] == 'e') {
+              if (s[6] == 'a') {
+                if (s[7] == 'd') {
+                  return cxx::TokenKind::T___THREAD;
+                }
+              }
+            }
+          }
+        }
+      }
     } else if (s[1] == 'A') {
       if (s[2] == 'l') {
         if (s[3] == 'i') {
@@ -581,6 +681,22 @@ static inline auto classifyC9(const char* s) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == '_') {
+      if (s[2] == 'f') {
+        if (s[3] == 'l') {
+          if (s[4] == 'o') {
+            if (s[5] == 'a') {
+              if (s[6] == 't') {
+                if (s[7] == '8') {
+                  if (s[8] == '0') {
+                    return cxx::TokenKind::T___FLOAT80;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
   return cxx::TokenKind::T_IDENTIFIER;
@@ -628,6 +744,40 @@ static inline auto classifyC10(const char* s) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == '_') {
+      if (s[2] == 'f') {
+        if (s[3] == 'l') {
+          if (s[4] == 'o') {
+            if (s[5] == 'a') {
+              if (s[6] == 't') {
+                if (s[7] == '1') {
+                  if (s[8] == '2') {
+                    if (s[9] == '8') {
+                      return cxx::TokenKind::T___FLOAT128;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'i') {
+        if (s[3] == 'n') {
+          if (s[4] == 'l') {
+            if (s[5] == 'i') {
+              if (s[6] == 'n') {
+                if (s[7] == 'e') {
+                  if (s[8] == '_') {
+                    if (s[9] == '_') {
+                      return cxx::TokenKind::T___INLINE__;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
   return cxx::TokenKind::T_IDENTIFIER;
@@ -646,6 +796,26 @@ static inline auto classifyC11(const char* s) -> cxx::TokenKind {
                     if (s[9] == '2') {
                       if (s[10] == '8') {
                         return cxx::TokenKind::T__DECIMAL128;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (s[1] == '_') {
+      if (s[2] == 'c') {
+        if (s[3] == 'o') {
+          if (s[4] == 'm') {
+            if (s[5] == 'p') {
+              if (s[6] == 'l') {
+                if (s[7] == 'e') {
+                  if (s[8] == 'x') {
+                    if (s[9] == '_') {
+                      if (s[10] == '_') {
+                        return cxx::TokenKind::T___COMPLEX__;
                       }
                     }
                   }
@@ -674,6 +844,30 @@ static inline auto classifyC12(const char* s) -> cxx::TokenKind {
                       if (s[10] == 'a') {
                         if (s[11] == 'l') {
                           return cxx::TokenKind::T_THREAD_LOCAL;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  } else if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'r') {
+        if (s[3] == 'e') {
+          if (s[4] == 's') {
+            if (s[5] == 't') {
+              if (s[6] == 'r') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'c') {
+                    if (s[9] == 't') {
+                      if (s[10] == '_') {
+                        if (s[11] == '_') {
+                          return cxx::TokenKind::T___RESTRICT__;
                         }
                       }
                     }
@@ -743,7 +937,53 @@ static inline auto classifyC13(const char* s) -> cxx::TokenKind {
       }
     }
   } else if (s[0] == '_') {
-    if (s[1] == 'T') {
+    if (s[1] == '_') {
+      if (s[2] == 'a') {
+        if (s[3] == 't') {
+          if (s[4] == 't') {
+            if (s[5] == 'r') {
+              if (s[6] == 'i') {
+                if (s[7] == 'b') {
+                  if (s[8] == 'u') {
+                    if (s[9] == 't') {
+                      if (s[10] == 'e') {
+                        if (s[11] == '_') {
+                          if (s[12] == '_') {
+                            return cxx::TokenKind::T___ATTRIBUTE__;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'e') {
+        if (s[3] == 'x') {
+          if (s[4] == 't') {
+            if (s[5] == 'e') {
+              if (s[6] == 'n') {
+                if (s[7] == 's') {
+                  if (s[8] == 'i') {
+                    if (s[9] == 'o') {
+                      if (s[10] == 'n') {
+                        if (s[11] == '_') {
+                          if (s[12] == '_') {
+                            return cxx::TokenKind::T___EXTENSION__;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (s[1] == 'T') {
       if (s[2] == 'h') {
         if (s[3] == 'r') {
           if (s[4] == 'e') {
@@ -805,6 +1045,171 @@ static inline auto classifyC14(const char* s) -> cxx::TokenKind {
   return cxx::TokenKind::T_IDENTIFIER;
 }
 
+static inline auto classifyC16(const char* s) -> cxx::TokenKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'v') {
+                        if (s[11] == 'a') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'a') {
+                              if (s[14] == 'r') {
+                                if (s[15] == 'g') {
+                                  return cxx::TokenKind::T___BUILTIN_VA_ARG;
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::TokenKind::T_IDENTIFIER;
+}
+
+static inline auto classifyC17(const char* s) -> cxx::TokenKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'v') {
+                        if (s[11] == 'a') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'l') {
+                              if (s[14] == 'i') {
+                                if (s[15] == 's') {
+                                  if (s[16] == 't') {
+                                    return cxx::TokenKind::T___BUILTIN_VA_LIST;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'u') {
+        if (s[3] == 'n') {
+          if (s[4] == 'd') {
+            if (s[5] == 'e') {
+              if (s[6] == 'r') {
+                if (s[7] == 'l') {
+                  if (s[8] == 'y') {
+                    if (s[9] == 'i') {
+                      if (s[10] == 'n') {
+                        if (s[11] == 'g') {
+                          if (s[12] == '_') {
+                            if (s[13] == 't') {
+                              if (s[14] == 'y') {
+                                if (s[15] == 'p') {
+                                  if (s[16] == 'e') {
+                                    return cxx::TokenKind::T___UNDERLYING_TYPE;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::TokenKind::T_IDENTIFIER;
+}
+
+static inline auto classifyC18(const char* s) -> cxx::TokenKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'b') {
+                        if (s[11] == 'i') {
+                          if (s[12] == 't') {
+                            if (s[13] == '_') {
+                              if (s[14] == 'c') {
+                                if (s[15] == 'a') {
+                                  if (s[16] == 's') {
+                                    if (s[17] == 't') {
+                                      return cxx::TokenKind::
+                                          T___BUILTIN_BIT_CAST;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 'o') {
+                        if (s[11] == 'f') {
+                          if (s[12] == 'f') {
+                            if (s[13] == 's') {
+                              if (s[14] == 'e') {
+                                if (s[15] == 't') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'f') {
+                                      return cxx::TokenKind::
+                                          T___BUILTIN_OFFSETOF;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::TokenKind::T_IDENTIFIER;
+}
+
 static auto classifyC(const char* s, int n) -> cxx::TokenKind {
   switch (n) {
     case 2:
@@ -833,6 +1238,12 @@ static auto classifyC(const char* s, int n) -> cxx::TokenKind {
       return classifyC13(s);
     case 14:
       return classifyC14(s);
+    case 16:
+      return classifyC16(s);
+    case 17:
+      return classifyC17(s);
+    case 18:
+      return classifyC18(s);
     default:
       return cxx::TokenKind::T_IDENTIFIER;
   }  // switch

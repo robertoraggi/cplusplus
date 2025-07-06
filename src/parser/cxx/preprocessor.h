@@ -58,6 +58,11 @@ class Preprocessor {
 
   [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient *;
 
+  [[nodiscard]] auto language() const -> LanguageKind;
+  void setLanguage(LanguageKind lang);
+
+  [[nodiscard]] auto preprocessorDelegate() const -> PreprocessorDelegate *;
+
   [[nodiscard]] auto commentHandler() const -> CommentHandler *;
   void setCommentHandler(CommentHandler *commentHandler);
 

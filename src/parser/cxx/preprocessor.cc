@@ -701,6 +701,7 @@ struct Preprocessor::Private {
   Control *control_ = nullptr;
   DiagnosticsClient *diagnosticsClient_ = nullptr;
   CommentHandler *commentHandler_ = nullptr;
+  LanguageKind language_ = LanguageKind::kCXX;
   bool canResolveFiles_ = true;
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
@@ -1621,7 +1622,7 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
 
   switch (tk->kind) {
     case TokenKind::T_IDENTIFIER: {
-      kind = Lexer::classifyKeyword(tk->text);
+      kind = Lexer::classifyKeyword(tk->text, language_);
 
       if (kind == TokenKind::T_IDENTIFIER) {
         value.idValue = control_->getIdentifier(tk->text);
@@ -1710,7 +1711,7 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
 
 auto Preprocessor::Private::tokenize(const std::string_view &source,
                                      int sourceFile, bool bol) -> TokList * {
-  cxx::Lexer lex(source);
+  cxx::Lexer lex(source, language_);
   lex.setKeepComments(true);
   lex.setPreprocessing(true);
   TokList *ts = nullptr;
@@ -2824,7 +2825,7 @@ auto Preprocessor::Private::merge(const Tok *left, const Tok *right)
   if (!right) return left;
   const auto hideset = makeIntersection(left->hideset, right->hideset);
   auto text = string(std::string(left->text) + std::string(right->text));
-  Lexer lex(text);
+  Lexer lex(text, language_);
   lex.setPreprocessing(true);
   lex.next();
   auto tok = gen(lex.tokenKind(), lex.tokenText(), hideset);
@@ -2924,6 +2925,10 @@ Preprocessor::~Preprocessor() = default;
 auto Preprocessor::diagnosticsClient() const -> DiagnosticsClient * {
   return d->diagnosticsClient_;
 }
+
+auto Preprocessor::language() const -> LanguageKind { return d->language_; }
+
+void Preprocessor::setLanguage(LanguageKind lang) { d->language_ = lang; }
 
 auto Preprocessor::commentHandler() const -> CommentHandler * {
   return d->commentHandler_;
@@ -3091,7 +3096,7 @@ void Preprocessor::getPreprocessedText(const std::vector<Token> &tokens,
       const auto &prevToken = tokens[index - 2];
       std::string s = prevToken.spell();
       s += token.spell();
-      Lexer lex(s);
+      Lexer lex(s, d->language_);
       // lex.setPreprocessing(true);
       lex.next();
       if (lex.tokenKind() != prevToken.kind()) {

@@ -117,6 +117,9 @@ auto readAll(const std::string& fileName) -> std::optional<std::string> {
 }
 
 void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
+  const auto lang =
+      cli.getSingle("-x") == "c" ? LanguageKind::kC : LanguageKind::kCXX;
+
   std::string flags;
 
   for (SourceLocation loc(1);; loc = loc.next()) {
@@ -134,7 +137,7 @@ void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
 
     auto kind = tk.kind();
     if (kind == TokenKind::T_IDENTIFIER) {
-      kind = Lexer::classifyKeyword(tk.spell());
+      kind = Lexer::classifyKeyword(tk.spell(), lang);
     }
 
     output << std::format("{} '{}'{}", Token::name(kind), tk.spell(), flags);
@@ -152,6 +155,13 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   TranslationUnit unit(&diagnosticsClient);
 
   auto preprocessor = unit.preprocessor();
+
+  const auto lang = cli.getSingle("-x");
+
+  if (lang == "c") {
+    // set the language to C
+    preprocessor->setLanguage(LanguageKind::kC);
+  }
 
   std::unique_ptr<Toolchain> toolchain;
 

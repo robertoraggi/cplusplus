@@ -266,8 +266,13 @@ class Token;
   V(__IS_VOLATILE, "__is_volatile")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
+  V(__ASM__, ASM)                  \
+  V(__ASM, ASM)                    \
+  V(__INLINE__, INLINE)            \
+  V(__INLINE, INLINE)              \
   V(_ALIGNAS, ALIGNAS)             \
   V(_ALIGNOF, ALIGNOF)             \
+  V(_ASM, ASM)                     \
   V(_BOOL, BOOL)                   \
   V(_STATIC_ASSERT, STATIC_ASSERT) \
   V(_THREAD_LOCAL, THREAD_LOCAL)   \
@@ -284,13 +289,9 @@ class Token;
   V(XOR, CARET)                    \
   V(__ALIGNOF__, ALIGNOF)          \
   V(__ALIGNOF, ALIGNOF)            \
-  V(__ASM__, ASM)                  \
-  V(__ASM, ASM)                    \
   V(__ATTRIBUTE, __ATTRIBUTE__)    \
   V(__DECLTYPE__, DECLTYPE)        \
   V(__DECLTYPE, DECLTYPE)          \
-  V(__INLINE__, INLINE)            \
-  V(__INLINE, INLINE)              \
   V(__RESTRICT, __RESTRICT__)      \
   V(__TYPEOF__, DECLTYPE)          \
   V(__TYPEOF, DECLTYPE)            \

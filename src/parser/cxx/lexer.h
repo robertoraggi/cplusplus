@@ -29,8 +29,10 @@ namespace cxx {
 
 class Lexer {
  public:
-  explicit Lexer(std::string_view source);
-  explicit Lexer(std::string buffer);
+  explicit Lexer(std::string_view source,
+                 LanguageKind lang = LanguageKind::kCXX);
+
+  explicit Lexer(std::string buffer, LanguageKind lang = LanguageKind::kCXX);
 
   [[nodiscard]] auto preprocessing() const -> bool { return preprocessing_; }
   void setPreprocessing(bool preprocessing) { preprocessing_ = preprocessing; }
@@ -77,7 +79,8 @@ class Lexer {
   [[nodiscard]] auto text() -> std::string& { return text_; }
   [[nodiscard]] auto text() const -> const std::string& { return text_; }
 
-  static auto classifyKeyword(const std::string_view& text) -> TokenKind;
+  static auto classifyKeyword(const std::string_view& text, LanguageKind lang)
+      -> TokenKind;
 
   struct State {
     std::string_view::const_iterator pos_;
@@ -114,6 +117,7 @@ class Lexer {
   std::string_view::const_iterator pos_;
   std::string_view::const_iterator end_;
   std::string text_;
+  LanguageKind lang_ = LanguageKind::kCXX;
   bool leadingSpace_ = false;
   bool startOfLine_ = true;
   bool keepComments_ = false;

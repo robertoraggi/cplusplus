@@ -28,6 +28,11 @@ class Arena;
 class Control;
 class TranslationUnit;
 
+enum struct LanguageKind {
+  kC,
+  kCXX,
+};
+
 [[noreturn]] void cxx_runtime_error(const std::string& msg);
 
 }  // namespace cxx
