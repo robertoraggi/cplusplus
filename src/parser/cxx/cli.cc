@@ -182,7 +182,7 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kSeparated},
 
     {"-toolchain", "<id>",
-     "Set the toolchain to 'linux', 'darwin', 'wasm32', or 'windows'. Defaults "
+     "Set the toolchain to 'linux', 'linuxC', darwin', 'wasm32', or 'windows'. Defaults "
      "to wasm32.",
      CLIOptionDescrKind::kSeparated},
 

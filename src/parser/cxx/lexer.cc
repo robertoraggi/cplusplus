@@ -107,17 +107,18 @@ inline auto skipBOM(It& it, It end) -> bool {
 }
 }  // namespace
 
-Lexer::Lexer(std::string_view source)
-    : source_(source), pos_(cbegin(source_)), end_(cend(source_)) {
+Lexer::Lexer(std::string_view source, bool onlyC)
+    : source_(source), pos_(cbegin(source_)),
+        end_(cend(source_)), onlyC_(onlyC) {
   hasBOM_ = skipBOM(pos_, end_);
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
 
-Lexer::Lexer(std::string buffer)
+Lexer::Lexer(std::string buffer, bool onlyC)
     : buffer_(std::move(buffer)),
       source_(buffer_),
       pos_(cbegin(source_)),
-      end_(cend(source_)) {
+      end_(cend(source_)), onlyC_(onlyC) {
   hasBOM_ = skipBOM(pos_, end_);
   currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
 }
@@ -206,13 +207,7 @@ auto Lexer::readToken() -> TokenKind {
 
       if (preprocessing_) return TokenKind::T_IDENTIFIER;
 
-      if (auto keyword =
-              classify(text_.c_str(), static_cast<int>(text_.length()));
-          keyword != TokenKind::T_IDENTIFIER) {
-        return keyword;
-      }
-
-      return TokenKind::T_IDENTIFIER;
+      return Lexer::classifyKeyword(text_, onlyC_);
     }
   }
 
@@ -259,7 +254,7 @@ auto Lexer::readToken() -> TokenKind {
     }
 
     bool ud = false;
-    if (std::isalpha(LA()) || LA() == '_') {
+    if (!onlyC_ && std::isalpha(LA()) || LA() == '_') {
       ud = true;
       do {
         consume();
@@ -569,8 +564,16 @@ auto Lexer::skipSpaces() -> bool {
   return pos_ != end_;
 }
 
-auto Lexer::classifyKeyword(const std::string_view& text) -> TokenKind {
-  return classify(text.data(), static_cast<int>(text.size()));
+auto Lexer::classifyKeyword(const std::string_view& text, bool onlyC) -> TokenKind {
+  cxx::TokenKind rc = classify(text.data(), static_cast<int>(text.size()));
+  if(onlyC) {
+    switch(rc) {
+      case cxx::TokenKind::T_WCHAR_T:
+      case cxx::TokenKind::T_NEW: return cxx::TokenKind::T_IDENTIFIER;
+      default: return rc;
+    }
+  }
+  return rc;
 }
 
 void Lexer::clearBuffer() { buffer_.clear(); }

@@ -41,6 +41,10 @@ void Toolchain::defineMacro(const std::string& name,
   preprocessor_->defineMacro(name, definition);
 }
 
+void Toolchain::undefMacro(const std::string& name) {
+  preprocessor_->undefMacro(name);
+}
+
 void Toolchain::addSystemIncludePath(std::string path) {
   preprocessor_->addSystemIncludePath(std::move(path));
 }

@@ -733,6 +733,7 @@ struct Preprocessor::Private {
   int counter_ = 0;
   int includeDepth_ = 0;
   bool omitLineMarkers_ = false;
+  bool onlyC_ = false;
   Arena pool_;
 
   Private();
@@ -1600,6 +1601,7 @@ void Preprocessor::Private::initialize() {
 
   adddBuiltinFunctionMacro("__has_include", hasInclude);
   adddBuiltinFunctionMacro("__has_include_next", hasInclude);
+  onlyC_ = !preprocessor_->definedMacro("__cplusplus");
 }
 
 void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
@@ -1622,8 +1624,8 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
 
   switch (tk->kind) {
     case TokenKind::T_IDENTIFIER: {
-      kind = Lexer::classifyKeyword(tk->text);
-
+      kind = Lexer::classifyKeyword(tk->text, onlyC_);
+      
       if (kind == TokenKind::T_IDENTIFIER) {
         value.idValue = control_->getIdentifier(tk->text);
       }
@@ -1711,7 +1713,7 @@ void Preprocessor::Private::finalizeToken(std::vector<Token> &tokens,
 
 auto Preprocessor::Private::tokenize(const std::string_view &source,
                                      int sourceFile, bool bol) -> TokList * {
-  cxx::Lexer lex(source);
+  cxx::Lexer lex(source, onlyC_);
   lex.setKeepComments(true);
   lex.setPreprocessing(true);
   TokList *ts = nullptr;
@@ -3138,6 +3140,11 @@ void Preprocessor::defineMacro(const std::string &name,
     const_cast<Tok *>(it->tok)->isFromMacroBody = true;
   }
   d->defineMacro(tokens);
+}
+
+bool Preprocessor::definedMacro(const std::string &name) {
+  auto it = d->macros_.find(name);
+  return it != d->macros_.end();
 }
 
 void Preprocessor::undefMacro(const std::string &name) {

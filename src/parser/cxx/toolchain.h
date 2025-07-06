@@ -53,6 +53,7 @@ class Toolchain {
   }
 
   void defineMacro(const std::string &name, const std::string &definition);
+  void undefMacro(const std::string &name);
 
   void addSystemIncludePath(std::string path);
 

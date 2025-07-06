@@ -99,6 +99,8 @@ class Preprocessor {
 
   void defineMacro(const std::string &name, const std::string &body);
 
+  bool definedMacro(const std::string &name);
+
   void undefMacro(const std::string &name);
 
   void printMacros(std::ostream &out) const;

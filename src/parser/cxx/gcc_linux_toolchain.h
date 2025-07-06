@@ -27,10 +27,10 @@
 
 namespace cxx {
 
-class GCCLinuxToolchain final : public Toolchain {
+class GCCLinuxToolchain : public Toolchain {
  public:
   explicit GCCLinuxToolchain(Preprocessor* preprocessor,
-                             std::string arch = "x86_64");
+                std::string arch = "x86_64", bool onlyC = false);
 
   [[nodiscard]] auto version() const -> std::optional<int> { return version_; }
 
@@ -45,6 +45,7 @@ class GCCLinuxToolchain final : public Toolchain {
  private:
   std::optional<int> version_;
   std::string arch_;
+  bool onlyC_;
 };
 
 }  // namespace cxx
