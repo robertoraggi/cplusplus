@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 interface Options {
   keywords: string[];
   output: string | ((code: string) => void);
+  copyright?: string;
   noEnums: boolean;
   tokenPrefix: string;
   tokenType: string;
@@ -12,15 +13,49 @@ interface Options {
 }
 
 export default function kwgen(options: Options) {
-  const { keywords, output, tokenType, defaultToken, classifier } = options;
+  const {
+    copyright,
+    keywords,
+    output,
+    classifier,
+    defaultToken,
+    noEnums,
+    tokenPrefix,
+    tokenType,
+  } = options;
 
   let out: string[] = [];
   const emit = (s: string) => out.push(s);
+
+  if (copyright !== undefined) {
+    emit(copyright);
+  }
 
   const keywordsByLength = Map.groupBy(keywords, (s) => s.length);
 
   const lengths = Array.from(keywordsByLength.keys());
   lengths.sort((a, b) => a - b);
+
+  const getTokenName = (s: string) => {
+    const x = options.toUpper ? s.toUpperCase() : s;
+    let name = `${tokenPrefix}${x}`;
+    const scopeIndex = name.lastIndexOf("::");
+    if (scopeIndex !== -1) {
+      name = `${name.slice(scopeIndex + 2)}`;
+    }
+    return name;
+  };
+
+  if (!noEnums) {
+    emit(`enum class ${tokenType} {`);
+    emit(`  ${getTokenName(defaultToken)},`);
+    keywords.forEach((kw) => {
+      const name = getTokenName(kw);
+      emit(`  ${name},`);
+    });
+    emit(`};`);
+    emit("");
+  }
 
   for (const length of lengths) {
     const items = keywordsByLength.get(length)!;
@@ -73,24 +108,27 @@ function gen({
 
   const ind = "  ".repeat(n + 1);
 
+  let sep = "";
+
   for (const [ch, next] of groups) {
     if (!ch) continue;
 
-    if (next.length == 1) {
-      const item = next[0];
-      const cond = Array.from(item.slice(n)).map(
-        (c, i) => `s[${n + i}] == '${c}'`,
-      );
-      emit(`${ind}if (${cond.join(" && ")}) {`);
-      const x = toUpper ? item.toUpperCase() : item;
-      emit(`${ind}  return ${tokenPrefix}${x};`);
-      emit(`${ind}}`);
-      continue;
-    }
+    // if (next.length == 1) {
+    //   const item = next[0];
+    //   const cond = Array.from(item.slice(n)).map(
+    //     (c, i) => `s[${n + i}] == '${c}'`,
+    //   );
+    //   emit(`${ind}if (${cond.join(" && ")}) {`);
+    //   const x = toUpper ? item.toUpperCase() : item;
+    //   emit(`${ind}  return ${tokenPrefix}${x};`);
+    //   emit(`${ind}}`);
+    //   continue;
+    // }
 
-    emit(`${ind}if (s[${n}] == '${ch}') {`);
+    emit(`${ind}${sep}if (s[${n}] == '${ch}') {`);
     gen({ items: next, n: n + 1, emit, options });
     emit(`${ind}}`);
+    sep = " else ";
   }
   if (groups.has("")) {
     const item = groups.get("")![0];

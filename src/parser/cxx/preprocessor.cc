@@ -28,6 +28,7 @@
 #include <cxx/literals.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/private/pp_directives-priv.h>
 #include <cxx/util.h>
 #include <utf8/unchecked.h>
 
@@ -46,8 +47,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
-
-#include "pp_keywords-priv.h"
 
 namespace {
 

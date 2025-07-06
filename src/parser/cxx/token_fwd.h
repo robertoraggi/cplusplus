@@ -103,6 +103,31 @@ class Token;
   V(TILDE, "~")
 
 #define FOR_EACH_KEYWORD(V)                   \
+  V(_ATOMIC, "_Atomic")                       \
+  V(_BITINT, "_BitInt")                       \
+  V(_COMPLEX, "_Complex")                     \
+  V(_DECIMAL128, "_Decimal128")               \
+  V(_DECIMAL32, "_Decimal32")                 \
+  V(_DECIMAL64, "_Decimal64")                 \
+  V(_GENERIC, "_Generic")                     \
+  V(_IMAGINARY, "_Imaginary")                 \
+  V(_NORETURN, "_Noreturn")                   \
+  V(__ATTRIBUTE__, "__attribute__")           \
+  V(__BUILTIN_BIT_CAST, "__builtin_bit_cast") \
+  V(__BUILTIN_OFFSETOF, "__builtin_offsetof") \
+  V(__BUILTIN_VA_ARG, "__builtin_va_arg")     \
+  V(__BUILTIN_VA_LIST, "__builtin_va_list")   \
+  V(__COMPLEX__, "__complex__")               \
+  V(__EXTENSION__, "__extension__")           \
+  V(__FLOAT128, "__float128")                 \
+  V(__FLOAT80, "__float80")                   \
+  V(__IMAG__, "__imag__")                     \
+  V(__INT128, "__int128")                     \
+  V(__INT64, "__int64")                       \
+  V(__REAL__, "__real__")                     \
+  V(__RESTRICT__, "__restrict__")             \
+  V(__THREAD, "__thread")                     \
+  V(__UNDERLYING_TYPE, "__underlying_type")   \
   V(ALIGNAS, "alignas")                       \
   V(ALIGNOF, "alignof")                       \
   V(ASM, "asm")                               \
@@ -120,8 +145,8 @@ class Token;
   V(CO_RETURN, "co_return")                   \
   V(CO_YIELD, "co_yield")                     \
   V(CONCEPT, "concept")                       \
-  V(CONST_CAST, "const_cast")                 \
   V(CONST, "const")                           \
+  V(CONST_CAST, "const_cast")                 \
   V(CONSTEVAL, "consteval")                   \
   V(CONSTEXPR, "constexpr")                   \
   V(CONSTINIT, "constinit")                   \
@@ -157,15 +182,17 @@ class Token;
   V(PRIVATE, "private")                       \
   V(PROTECTED, "protected")                   \
   V(PUBLIC, "public")                         \
+  V(REGISTER, "register")                     \
   V(REINTERPRET_CAST, "reinterpret_cast")     \
   V(REQUIRES, "requires")                     \
+  V(RESTRICT, "restrict")                     \
   V(RETURN, "return")                         \
   V(SHORT, "short")                           \
   V(SIGNED, "signed")                         \
   V(SIZEOF, "sizeof")                         \
+  V(STATIC, "static")                         \
   V(STATIC_ASSERT, "static_assert")           \
   V(STATIC_CAST, "static_cast")               \
-  V(STATIC, "static")                         \
   V(STRUCT, "struct")                         \
   V(SWITCH, "switch")                         \
   V(TEMPLATE, "template")                     \
@@ -177,6 +204,8 @@ class Token;
   V(TYPEDEF, "typedef")                       \
   V(TYPEID, "typeid")                         \
   V(TYPENAME, "typename")                     \
+  V(TYPEOF, "typeof")                         \
+  V(TYPEOF_UNQUAL, "typeof_unqual")           \
   V(UNION, "union")                           \
   V(UNSIGNED, "unsigned")                     \
   V(USING, "using")                           \
@@ -184,25 +213,7 @@ class Token;
   V(VOID, "void")                             \
   V(VOLATILE, "volatile")                     \
   V(WCHAR_T, "wchar_t")                       \
-  V(WHILE, "while")                           \
-  V(__ATTRIBUTE__, "__attribute__")           \
-  V(__BUILTIN_BIT_CAST, "__builtin_bit_cast") \
-  V(__BUILTIN_OFFSETOF, "__builtin_offsetof") \
-  V(__BUILTIN_VA_ARG, "__builtin_va_arg")     \
-  V(__BUILTIN_VA_LIST, "__builtin_va_list")   \
-  V(__COMPLEX__, "__complex__")               \
-  V(__EXTENSION__, "__extension__")           \
-  V(__FLOAT128, "__float128")                 \
-  V(__FLOAT80, "__float80")                   \
-  V(__IMAG__, "__imag__")                     \
-  V(__INT128, "__int128")                     \
-  V(__INT64, "__int64")                       \
-  V(__REAL__, "__real__")                     \
-  V(__RESTRICT__, "__restrict__")             \
-  V(__THREAD, "__thread")                     \
-  V(__UNDERLYING_TYPE, "__underlying_type")   \
-  V(_ATOMIC, "_Atomic")                       \
-  V(_COMPLEX, "_Complex")
+  V(WHILE, "while")
 
 #define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                            \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                          \
@@ -254,34 +265,37 @@ class Token;
   V(__IS_VOID, "__is_void")                                       \
   V(__IS_VOLATILE, "__is_volatile")
 
-#define FOR_EACH_TOKEN_ALIAS(V) \
-  V(AND_EQ, AMP_EQUAL)          \
-  V(AND, AMP_AMP)               \
-  V(BITAND, AMP)                \
-  V(BITOR, BAR)                 \
-  V(COMPL, TILDE)               \
-  V(NOT_EQ, EXCLAIM_EQUAL)      \
-  V(NOT, EXCLAIM)               \
-  V(OR_EQ, BAR_EQUAL)           \
-  V(OR, BAR_BAR)                \
-  V(XOR_EQ, CARET_EQUAL)        \
-  V(XOR, CARET)                 \
-  V(__ALIGNOF__, ALIGNOF)       \
-  V(__ALIGNOF, ALIGNOF)         \
-  V(__ASM__, ASM)               \
-  V(__ASM, ASM)                 \
-  V(__ATTRIBUTE, __ATTRIBUTE__) \
-  V(__DECLTYPE__, DECLTYPE)     \
-  V(__DECLTYPE, DECLTYPE)       \
-  V(__INLINE__, INLINE)         \
-  V(__INLINE, INLINE)           \
-  V(__RESTRICT, __RESTRICT__)   \
-  V(__TYPEOF__, DECLTYPE)       \
-  V(__TYPEOF, DECLTYPE)         \
-  V(__VOLATILE__, VOLATILE)     \
-  V(__VOLATILE, VOLATILE)       \
-  V(_ALIGNOF, ALIGNOF)          \
-  V(_STATIC_ASSERT, STATIC_ASSERT)
+#define FOR_EACH_TOKEN_ALIAS(V)    \
+  V(_ALIGNAS, ALIGNAS)             \
+  V(_ALIGNOF, ALIGNOF)             \
+  V(_BOOL, BOOL)                   \
+  V(_STATIC_ASSERT, STATIC_ASSERT) \
+  V(_THREAD_LOCAL, THREAD_LOCAL)   \
+  V(AND_EQ, AMP_EQUAL)             \
+  V(AND, AMP_AMP)                  \
+  V(BITAND, AMP)                   \
+  V(BITOR, BAR)                    \
+  V(COMPL, TILDE)                  \
+  V(NOT_EQ, EXCLAIM_EQUAL)         \
+  V(NOT, EXCLAIM)                  \
+  V(OR_EQ, BAR_EQUAL)              \
+  V(OR, BAR_BAR)                   \
+  V(XOR_EQ, CARET_EQUAL)           \
+  V(XOR, CARET)                    \
+  V(__ALIGNOF__, ALIGNOF)          \
+  V(__ALIGNOF, ALIGNOF)            \
+  V(__ASM__, ASM)                  \
+  V(__ASM, ASM)                    \
+  V(__ATTRIBUTE, __ATTRIBUTE__)    \
+  V(__DECLTYPE__, DECLTYPE)        \
+  V(__DECLTYPE, DECLTYPE)          \
+  V(__INLINE__, INLINE)            \
+  V(__INLINE, INLINE)              \
+  V(__RESTRICT, __RESTRICT__)      \
+  V(__TYPEOF__, DECLTYPE)          \
+  V(__TYPEOF, DECLTYPE)            \
+  V(__VOLATILE__, VOLATILE)        \
+  V(__VOLATILE, VOLATILE)
 
 #define FOR_EACH_TOKEN(V) \
   FOR_EACH_BASE_TOKEN(V)  \

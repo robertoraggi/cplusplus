@@ -18,34 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as tokens from "./tokens.ts";
 import kwgen from "./kwgen.ts";
 import { cpy_header } from "./cpy_header.ts";
 
-export function gen_keywords_kwgen({ output }: { output: string }) {
-  const isContextKeyword = (kw: string) => {
-    return ["final", "override", "import", "module"].includes(kw);
-  };
-
-  const keywords: string[] = [];
-
-  tokens.CXX_KEYWORDS.filter((kw) => !isContextKeyword(kw)).forEach((tk) =>
-    keywords.push(tk),
-  );
-
-  Object.entries(tokens.CXX_TOKEN_ALIASES).forEach(([tk]) => {
-    keywords.push(tk);
-  });
-
+export function gen_pp_keywords_kwgen({ output }: { output: string }) {
   kwgen({
     copyright: cpy_header,
     output,
-    keywords,
-    tokenPrefix: "cxx::TokenKind::T_",
-    tokenType: "cxx::TokenKind",
+    keywords: [
+      "define",
+      "elif",
+      "elifdef",
+      "elifndef",
+      "else",
+      "endif",
+      "error",
+      "if",
+      "ifdef",
+      "ifndef",
+      "include_next",
+      "include",
+      "line",
+      "pragma",
+      "undef",
+      "warning",
+    ],
+    tokenPrefix: "PreprocessorDirectiveKind::T_",
+    tokenType: "PreprocessorDirectiveKind",
     toUpper: true,
-    noEnums: true,
-    defaultToken: "cxx::TokenKind::T_IDENTIFIER",
-    classifier: "classify",
+    noEnums: false,
+    defaultToken: "PreprocessorDirectiveKind::T_IDENTIFIER",
+    classifier: "classifyDirective",
   });
 }

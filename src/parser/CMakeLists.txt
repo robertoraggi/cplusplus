@@ -68,9 +68,6 @@ add_library(cxx-parser
     cxx/wasm32_wasi_toolchain.cc
     cxx/windows_toolchain.cc
 
-    # generated files
-    keywords-priv.h
-    pp_keywords-priv.h
     # headers
     ${CXX_INCLUDE_HEADER_FILES}
     ${CXX_VIEWS_INCLUDE_HEADER_FILES}
@@ -96,16 +93,6 @@ endif()
 target_link_libraries(cxx-parser
     PUBLIC  $<BUILD_INTERFACE:utf8cpp>
 )
-
-add_custom_command(OUTPUT keywords-priv.h
-    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/keywords.kwgen > keywords-priv.h
-    DEPENDS cxx/keywords.kwgen
-    COMMENT "Generate keywords-priv.h")
-
-add_custom_command(OUTPUT pp_keywords-priv.h
-    COMMAND kwgen < ${CMAKE_CURRENT_SOURCE_DIR}/cxx/pp_keywords.kwgen > pp_keywords-priv.h
-    DEPENDS cxx/pp_keywords.kwgen
-    COMMENT "Generate pp_keywords-priv.h")
 
 if (CXX_ENABLE_FLATBUFFERS)
     target_sources(cxx-parser PRIVATE
