@@ -19,18 +19,10 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import {
-  Enumeration,
-  getStructureProperties,
-  MetaModel,
-  Property,
-  Structure,
-  toCppType,
-  Type,
-  TypeAlias,
-} from "./MetaModel.js";
+import type { Enumeration, MetaModel, Property, Structure, Type, TypeAlias } from "./MetaModel.ts";
+import { getStructureProperties, toCppType } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
-import { copyrightHeader } from "./copyrightHeader.js";
+import { copyrightHeader } from "./copyrightHeader.ts";
 
 export class TypeGenerator {
   readonly structByName: Map<string, Structure>;

@@ -19,9 +19,10 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import { MetaModel, toCppType, Request, Notification, isRequest, Property, Structure } from "./MetaModel.js";
+import type { MetaModel, Request, Notification, Structure } from "./MetaModel.ts";
+import { toCppType, isRequest } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
-import { copyrightHeader } from "./copyrightHeader.js";
+import { copyrightHeader } from "./copyrightHeader.ts";
 
 const beginHeaderFragment = `
 #pragma once

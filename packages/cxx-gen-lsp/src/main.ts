@@ -22,14 +22,14 @@ import * as process from "node:process";
 import * as child_process from "node:child_process";
 import { parseArgs } from "node:util";
 import { readFile, mkdir } from "node:fs/promises";
-import { MetaModel } from "./MetaModel.js";
-import { gen_enums_h } from "./gen_enums_h.js";
-import { gen_enums_cc } from "./gen_enums_cc.js";
-import { gen_fwd_h } from "./gen_fwd_h.js";
-import { gen_types_h } from "./gen_types_h.js";
-import { gen_types_cc } from "./gen_types_cc.js";
-import { gen_requests_h } from "./gen_requests_h.js";
-import { gen_requests_cc } from "./gen_requests_cc.js";
+import type { MetaModel } from "./MetaModel.ts";
+import { gen_enums_h } from "./gen_enums_h.ts";
+import { gen_enums_cc } from "./gen_enums_cc.ts";
+import { gen_fwd_h } from "./gen_fwd_h.ts";
+import { gen_types_h } from "./gen_types_h.ts";
+import { gen_types_cc } from "./gen_types_cc.ts";
+import { gen_requests_h } from "./gen_requests_h.ts";
+import { gen_requests_cc } from "./gen_requests_cc.ts";
 
 async function main() {
   try {
