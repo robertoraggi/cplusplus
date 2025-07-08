@@ -380,6 +380,22 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto operator()(ParenInitializerAST* ast) -> ExpressionAST*;
 };
 
+struct ASTRewriter::DesignatorVisitor {
+  ASTRewriter& rewrite;
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return rewrite.unit_;
+  }
+
+  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
+
+  [[nodiscard]] auto operator()(DotDesignatorAST* ast) -> DesignatorAST*;
+
+  [[nodiscard]] auto operator()(SubscriptDesignatorAST* ast) -> DesignatorAST*;
+};
+
 struct ASTRewriter::TemplateParameterVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -830,6 +846,11 @@ auto ASTRewriter::operator()(ExpressionAST* ast) -> ExpressionAST* {
   auto expr = visit(ExpressionVisitor{*this}, ast);
   if (expr) typeChecker_->check(expr);
   return expr;
+}
+
+auto ASTRewriter::operator()(DesignatorAST* ast) -> DesignatorAST* {
+  if (!ast) return {};
+  return visit(DesignatorVisitor{*this}, ast);
 }
 
 auto ASTRewriter::operator()(TemplateParameterAST* ast)
@@ -3191,9 +3212,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->dotLoc = ast->dotLoc;
-  copy->identifierLoc = ast->identifierLoc;
-  copy->identifier = ast->identifier;
+
+  for (auto designatorList = &copy->designatorList;
+       auto node : ListView{ast->designatorList}) {
+    auto value = rewrite(node);
+    *designatorList = make_list_node(arena(), value);
+    designatorList = &(*designatorList)->next;
+  }
+
   copy->initializer = rewrite(ast->initializer);
 
   return copy;
@@ -3305,6 +3331,28 @@ auto ASTRewriter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
   }
 
   copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::DesignatorVisitor::operator()(DotDesignatorAST* ast)
+    -> DesignatorAST* {
+  auto copy = make_node<DotDesignatorAST>(arena());
+
+  copy->dotLoc = ast->dotLoc;
+  copy->identifierLoc = ast->identifierLoc;
+  copy->identifier = ast->identifier;
+
+  return copy;
+}
+
+auto ASTRewriter::DesignatorVisitor::operator()(SubscriptDesignatorAST* ast)
+    -> DesignatorAST* {
+  auto copy = make_node<SubscriptDesignatorAST>(arena());
+
+  copy->lbracketLoc = ast->lbracketLoc;
+  copy->expression = rewrite(ast->expression);
+  copy->rbracketLoc = ast->rbracketLoc;
 
   return copy;
 }

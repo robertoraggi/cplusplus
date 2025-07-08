@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 // Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,12 +23,9 @@ import * as path from "path";
 import * as process from "process";
 import * as child_process from "child_process";
 import { parseAST } from "./parseAST.ts";
-
-import { hideBin } from "yargs/helpers";
-import yargs from "yargs";
-
 import { new_ast_rewriter_h } from "./new_ast_rewriter_h.ts";
 import { new_ast_rewriter_cc } from "./new_ast_rewriter_cc.ts";
+import { parseArgs } from "node:util";
 
 const toSnakeName = (name: string) => {
   const r = name
@@ -40,12 +35,7 @@ const toSnakeName = (name: string) => {
   return r.startsWith("_") ? r.slice(1) : r;
 };
 
-interface MainArgs {
-  name: string;
-}
-
-function main(args: MainArgs) {
-  const opName = args.name;
+function main({ opName }: { opName: string }) {
   const baseFileName = toSnakeName(opName);
 
   const outdir = process.cwd();
@@ -78,11 +68,15 @@ function main(args: MainArgs) {
   );
 }
 
-yargs(hideBin(process.argv))
-  .option("name", {
-    alias: "n",
-    type: "string",
-    default: "ASTRewriter",
-    description: "Name of the new rewriter",
-  })
-  .command("$0", "generate a new rewriter", () => {}, main).argv;
+const { values } = parseArgs({
+  options: {
+    name: {
+      short: "n",
+      type: "string",
+      default: "ASTRewriter",
+      description: "Name of the new rewriter",
+    },
+  },
+});
+
+main({ opName: values.name });

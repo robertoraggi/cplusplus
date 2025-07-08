@@ -535,6 +535,10 @@ class Parser final {
                                             const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_designated_initializer_clause(
       DesignatedInitializerClauseAST*& yyast) -> bool;
+  [[nodiscard]] auto lookat_designator() -> bool;
+  void parse_designator(DesignatorAST*& yyast);
+  void parse_dot_designator(DesignatorAST*& yyast);
+  void parse_subscript_designator(DesignatorAST*& yyast);
   void parse_expr_or_braced_init_list(ExpressionAST*& yyast,
                                       const ExprContext& ctx);
   void parse_virt_specifier_seq(FunctionDeclaratorChunkAST* functionDeclarator);

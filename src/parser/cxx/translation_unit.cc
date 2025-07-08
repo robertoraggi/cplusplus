@@ -175,6 +175,10 @@ void TranslationUnit::parse(ParserConfiguration config) {
   parse(ast_);
 }
 
+auto TranslationUnit::language() const -> LanguageKind {
+  return preprocessor_->language();
+}
+
 auto TranslationUnit::config() const -> const ParserConfiguration& {
   return config_;
 }

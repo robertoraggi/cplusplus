@@ -57,12 +57,16 @@ auto pair = Pair{
 // CHECK-NEXT:              braced-init-list: braced-init-list
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  designated-initializer-clause
-// CHECK-NEXT:                    identifier: first
+// CHECK-NEXT:                    designator-list
+// CHECK-NEXT:                      dot-designator
+// CHECK-NEXT:                        identifier: first
 // CHECK-NEXT:                    initializer: equal-initializer [prvalue int]
 // CHECK-NEXT:                      expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                        literal: 1
 // CHECK-NEXT:                  designated-initializer-clause
-// CHECK-NEXT:                    identifier: second
+// CHECK-NEXT:                    designator-list
+// CHECK-NEXT:                      dot-designator
+// CHECK-NEXT:                        identifier: second
 // CHECK-NEXT:                    initializer: equal-initializer [prvalue int]
 // CHECK-NEXT:                      expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                        literal: 2

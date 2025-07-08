@@ -66,6 +66,8 @@ class TranslationUnit {
     return preprocessor_.get();
   }
 
+  [[nodiscard]] auto language() const -> LanguageKind;
+
   void parse(ParserConfiguration config = {});
 
   [[nodiscard]] auto config() const -> const ParserConfiguration&;
