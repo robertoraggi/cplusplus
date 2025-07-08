@@ -396,6 +396,20 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
   }  // switch
 }
 
+auto ASTDecoder::decodeDesignator(const void* ptr, io::Designator type)
+    -> DesignatorAST* {
+  switch (type) {
+    case io::Designator_DotDesignator:
+      return decodeDotDesignator(
+          reinterpret_cast<const io::DotDesignator*>(ptr));
+    case io::Designator_SubscriptDesignator:
+      return decodeSubscriptDesignator(
+          reinterpret_cast<const io::SubscriptDesignator*>(ptr));
+    default:
+      return nullptr;
+  }  // switch
+}
+
 auto ASTDecoder::decodeTemplateParameter(const void* ptr,
                                          io::TemplateParameter type)
     -> TemplateParameterAST* {
@@ -2559,11 +2573,14 @@ auto ASTDecoder::decodeDesignatedInitializerClause(
   if (!node) return nullptr;
 
   auto ast = new (pool_) DesignatedInitializerClauseAST();
-  ast->dotLoc = SourceLocation(node->dot_loc());
-  ast->identifierLoc = SourceLocation(node->identifier_loc());
-  if (node->identifier()) {
-    ast->identifier =
-        unit_->control()->getIdentifier(node->identifier()->str());
+  if (node->designator_list()) {
+    auto* inserter = &ast->designatorList;
+    for (std::uint32_t i = 0; i < node->designator_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDesignator(
+          node->designator_list()->Get(i),
+          io::Designator(node->designator_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
   }
   ast->initializer =
       decodeExpression(node->initializer(), node->initializer_type());
@@ -2664,6 +2681,32 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
     }
   }
   ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeDotDesignator(const io::DotDesignator* node)
+    -> DotDesignatorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) DotDesignatorAST();
+  ast->dotLoc = SourceLocation(node->dot_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
+  return ast;
+}
+
+auto ASTDecoder::decodeSubscriptDesignator(const io::SubscriptDesignator* node)
+    -> SubscriptDesignatorAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) SubscriptDesignatorAST();
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   return ast;
 }
 

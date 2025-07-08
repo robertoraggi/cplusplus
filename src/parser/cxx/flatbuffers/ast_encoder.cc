@@ -151,6 +151,19 @@ auto ASTEncoder::acceptExpression(ExpressionAST* ast)
   return {offset, type};
 }
 
+auto ASTEncoder::acceptDesignator(DesignatorAST* ast)
+    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::uint32_t type = 0;
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  ast->accept(this);
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  return {offset, type};
+}
+
 auto ASTEncoder::acceptTemplateParameter(TemplateParameterAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
@@ -2746,25 +2759,25 @@ void ASTEncoder::visit(PackExpansionExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(DesignatedInitializerClauseAST* ast) {
-  flatbuffers::Offset<flatbuffers::String> identifier;
-  if (ast->identifier) {
-    if (identifiers_.contains(ast->identifier)) {
-      identifier = identifiers_.at(ast->identifier);
-    } else {
-      identifier = fbb_.CreateString(ast->identifier->value());
-      identifiers_.emplace(ast->identifier, identifier);
-    }
+  std::vector<flatbuffers::Offset<>> designatorListOffsets;
+  std::vector<std::underlying_type_t<io::Designator>> designatorListTypes;
+
+  for (auto node : ListView{ast->designatorList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptDesignator(node);
+    designatorListOffsets.push_back(offset);
+    designatorListTypes.push_back(type);
   }
+
+  auto designatorListOffsetsVector = fbb_.CreateVector(designatorListOffsets);
+  auto designatorListTypesVector = fbb_.CreateVector(designatorListTypes);
 
   const auto [initializer, initializerType] =
       acceptExpression(ast->initializer);
 
   io::DesignatedInitializerClause::Builder builder{fbb_};
-  builder.add_dot_loc(ast->dotLoc.index());
-  builder.add_identifier_loc(ast->identifierLoc.index());
-  if (ast->identifier) {
-    builder.add_identifier(identifier);
-  }
+  builder.add_designator_list(designatorListOffsetsVector);
+  builder.add_designator_list_type(designatorListTypesVector);
   builder.add_initializer(initializer);
   builder.add_initializer_type(static_cast<io::Expression>(initializerType));
 
@@ -2897,6 +2910,41 @@ void ASTEncoder::visit(ParenInitializerAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_ParenInitializer;
+}
+
+void ASTEncoder::visit(DotDesignatorAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::DotDesignator::Builder builder{fbb_};
+  builder.add_dot_loc(ast->dotLoc.index());
+  builder.add_identifier_loc(ast->identifierLoc.index());
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Designator_DotDesignator;
+}
+
+void ASTEncoder::visit(SubscriptDesignatorAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::SubscriptDesignator::Builder builder{fbb_};
+  builder.add_lbracket_loc(ast->lbracketLoc.index());
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_rbracket_loc(ast->rbracketLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Designator_SubscriptDesignator;
 }
 
 void ASTEncoder::visit(SplicerAST* ast) {

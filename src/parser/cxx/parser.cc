@@ -6020,17 +6020,43 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
 auto Parser::parse_designated_initializer_clause(
     DesignatedInitializerClauseAST*& yyast) -> bool {
-  SourceLocation dotLoc;
-  if (!match(TokenKind::T_DOT, dotLoc)) return false;
-
   auto ast = make_node<DesignatedInitializerClauseAST>(pool_);
   yyast = ast;
 
-  ast->dotLoc = dotLoc;
+  auto it = &ast->designatorList;
 
-  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  while (true) {
+    if (SourceLocation dotLoc; match(TokenKind::T_DOT, dotLoc)) {
+      auto designator = make_node<DotDesignatorAST>(pool_);
+      designator->dotLoc = dotLoc;
 
-  ast->identifier = unit->identifier(ast->identifierLoc);
+      if (lookat(TokenKind::T_IDENTIFIER)) {
+        expect(TokenKind::T_IDENTIFIER, designator->identifierLoc);
+        designator->identifier = unit->identifier(designator->identifierLoc);
+      } else {
+        parse_error("expected identifier after '.'");
+      }
+
+      *it = make_list_node<DesignatorAST>(pool_, designator);
+      it = &(*it)->next;
+    } else if (SourceLocation lbracketLoc;
+               match(TokenKind::T_LBRACKET, lbracketLoc)) {
+      auto designator = make_node<SubscriptDesignatorAST>(pool_);
+      designator->lbracketLoc = lbracketLoc;
+
+      std::optional<ConstValue> index;
+      if (!parse_constant_expression(designator->expression, index)) {
+        parse_error("expected expression after '['");
+      }
+
+      expect(TokenKind::T_RBRACKET, designator->rbracketLoc);
+
+      *it = make_list_node<DesignatorAST>(pool_, designator);
+      it = &(*it)->next;
+    } else {
+      break;
+    }
+  }
 
   if (!parse_brace_or_equal_initializer(ast->initializer)) {
     parse_error("expected an initializer");

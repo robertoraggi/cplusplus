@@ -1322,6 +1322,30 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit DotDesignator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitDotDesignator(
+    node: ast.DotDesignatorAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit SubscriptDesignator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitSubscriptDesignator(
+    node: ast.SubscriptDesignatorAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit Splicer node.
    *
    * @param node The node to visit.

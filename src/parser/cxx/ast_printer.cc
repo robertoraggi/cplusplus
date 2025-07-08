@@ -1471,7 +1471,15 @@ void ASTPrinter::visit(DesignatedInitializerClauseAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
-  accept(ast->identifier, "identifier");
+  if (ast->designatorList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "designator-list");
+    for (auto node : ListView{ast->designatorList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->initializer, "initializer");
 }
 
@@ -1566,6 +1574,16 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
     }
     --indent_;
   }
+}
+
+void ASTPrinter::visit(DotDesignatorAST* ast) {
+  out_ << std::format("{}\n", "dot-designator");
+  accept(ast->identifier, "identifier");
+}
+
+void ASTPrinter::visit(SubscriptDesignatorAST* ast) {
+  out_ << std::format("{}\n", "subscript-designator");
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(SplicerAST* ast) {

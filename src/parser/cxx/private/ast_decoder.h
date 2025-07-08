@@ -43,6 +43,7 @@ class ASTDecoder {
       -> DeclarationAST*;
   auto decodeStatement(const void* ptr, io::Statement type) -> StatementAST*;
   auto decodeExpression(const void* ptr, io::Expression type) -> ExpressionAST*;
+  auto decodeDesignator(const void* ptr, io::Designator type) -> DesignatorAST*;
   auto decodeTemplateParameter(const void* ptr, io::TemplateParameter type)
       -> TemplateParameterAST*;
   auto decodeSpecifier(const void* ptr, io::Specifier type) -> SpecifierAST*;
@@ -296,6 +297,10 @@ class ASTDecoder {
       -> BracedInitListAST*;
   auto decodeParenInitializer(const io::ParenInitializer* node)
       -> ParenInitializerAST*;
+
+  auto decodeDotDesignator(const io::DotDesignator* node) -> DotDesignatorAST*;
+  auto decodeSubscriptDesignator(const io::SubscriptDesignator* node)
+      -> SubscriptDesignatorAST*;
 
   auto decodeSplicer(const io::Splicer* node) -> SplicerAST*;
   auto decodeGlobalModuleFragment(const io::GlobalModuleFragment* node)

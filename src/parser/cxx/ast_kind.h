@@ -141,6 +141,10 @@ enum class ASTKind {
   BracedInitList,
   ParenInitializer,
 
+  // DesignatorAST
+  DotDesignator,
+  SubscriptDesignator,
+
   // AST
   Splicer,
   GlobalModuleFragment,

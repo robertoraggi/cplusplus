@@ -70,6 +70,9 @@ class ASTEncoder : ASTVisitor {
   auto acceptExpression(ExpressionAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
+  auto acceptDesignator(DesignatorAST* ast)
+      -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
+
   auto acceptTemplateParameter(TemplateParameterAST* ast)
       -> std::tuple<flatbuffers::Offset<>, std::uint32_t>;
 
@@ -233,6 +236,9 @@ class ASTEncoder : ASTVisitor {
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;
   void visit(ParenInitializerAST* ast) override;
+
+  void visit(DotDesignatorAST* ast) override;
+  void visit(SubscriptDesignatorAST* ast) override;
 
   void visit(SplicerAST* ast) override;
   void visit(GlobalModuleFragmentAST* ast) override;

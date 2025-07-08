@@ -301,6 +301,24 @@ struct ASTPrettyPrinter::ExpressionVisitor {
   void operator()(ParenInitializerAST* ast);
 };
 
+struct ASTPrettyPrinter::DesignatorVisitor {
+  ASTPrettyPrinter& accept;
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return accept.unit_;
+  }
+  void space() { accept.space(); }
+  void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
+  void newline() { accept.newline(); }
+  void nonewline() { accept.nonewline(); }
+  void indent() { accept.indent(); }
+  void unindent() { accept.unindent(); }
+
+  void operator()(DotDesignatorAST* ast);
+
+  void operator()(SubscriptDesignatorAST* ast);
+};
+
 struct ASTPrettyPrinter::TemplateParameterVisitor {
   ASTPrettyPrinter& accept;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -743,6 +761,11 @@ void ASTPrettyPrinter::operator()(StatementAST* ast) {
 void ASTPrettyPrinter::operator()(ExpressionAST* ast) {
   if (!ast) return;
   visit(ExpressionVisitor{*this}, ast);
+}
+
+void ASTPrettyPrinter::operator()(DesignatorAST* ast) {
+  if (!ast) return;
+  visit(DesignatorVisitor{*this}, ast);
 }
 
 void ASTPrettyPrinter::operator()(TemplateParameterAST* ast) {
@@ -2965,14 +2988,10 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     DesignatedInitializerClauseAST* ast) {
-  if (ast->dotLoc) {
-    nospace();
-    accept.writeToken(ast->dotLoc);
-    nospace();
+  for (auto it = ast->designatorList; it; it = it->next) {
+    accept(it->value);
   }
-  if (ast->identifierLoc) {
-    accept.writeToken(ast->identifierLoc);
-  }
+
   accept(ast->initializer);
 }
 
@@ -3067,6 +3086,31 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(ParenInitializerAST* ast) {
   if (ast->rparenLoc) {
     nospace();
     accept.writeToken(ast->rparenLoc);
+  }
+}
+
+void ASTPrettyPrinter::DesignatorVisitor::operator()(DotDesignatorAST* ast) {
+  if (ast->dotLoc) {
+    nospace();
+    accept.writeToken(ast->dotLoc);
+    nospace();
+  }
+  if (ast->identifierLoc) {
+    accept.writeToken(ast->identifierLoc);
+  }
+}
+
+void ASTPrettyPrinter::DesignatorVisitor::operator()(
+    SubscriptDesignatorAST* ast) {
+  if (ast->lbracketLoc) {
+    nospace();
+    accept.writeToken(ast->lbracketLoc);
+    nospace();
+  }
+  accept(ast->expression);
+  if (ast->rbracketLoc) {
+    nospace();
+    accept.writeToken(ast->rbracketLoc);
   }
 }
 
