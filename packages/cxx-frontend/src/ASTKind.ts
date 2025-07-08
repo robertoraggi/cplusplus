@@ -136,6 +136,10 @@ export enum ASTKind {
   BracedInitList,
   ParenInitializer,
 
+  // DesignatorAST
+  DotDesignator,
+  SubscriptDesignator,
+
   // AST
   Splicer,
   GlobalModuleFragment,

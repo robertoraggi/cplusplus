@@ -1399,6 +1399,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.DesignatedInitializerClauseAST,
     context: Context,
   ): void {
+    for (const element of node.getDesignatorList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getInitializer(), context);
   }
 
@@ -1469,6 +1472,27 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getExpressionList()) {
       this.accept(element, context);
     }
+  }
+
+  /**
+   * Visit a DotDesignator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitDotDesignator(node: ast.DotDesignatorAST, context: Context): void {}
+
+  /**
+   * Visit a SubscriptDesignator node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitSubscriptDesignator(
+    node: ast.SubscriptDesignatorAST,
+    context: Context,
+  ): void {
+    this.accept(node.getExpression(), context);
   }
 
   /**

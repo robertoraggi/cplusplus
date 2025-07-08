@@ -182,6 +182,11 @@ class DeclaratorChunkAST : public AST {
   using AST::AST;
 };
 
+class DesignatorAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class ExceptionDeclarationAST : public AST {
  public:
   using AST::AST;
@@ -2082,9 +2087,7 @@ class DesignatedInitializerClauseAST final : public ExpressionAST {
 
   DesignatedInitializerClauseAST() : ExpressionAST(Kind) {}
 
-  SourceLocation dotLoc;
-  SourceLocation identifierLoc;
-  const Identifier* identifier = nullptr;
+  List<DesignatorAST*>* designatorList = nullptr;
   ExpressionAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2170,6 +2173,38 @@ class ParenInitializerAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DotDesignatorAST final : public DesignatorAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::DotDesignator;
+
+  DotDesignatorAST() : DesignatorAST(Kind) {}
+
+  SourceLocation dotLoc;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SubscriptDesignatorAST final : public DesignatorAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::SubscriptDesignator;
+
+  SubscriptDesignatorAST() : DesignatorAST(Kind) {}
+
+  SourceLocation lbracketLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation rbracketLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4643,6 +4678,32 @@ template <>
     case BracedInitListAST::Kind:
     case ParenInitializerAST::Kind:
       return static_cast<ExpressionAST*>(ast);
+    default:
+      return nullptr;
+  }  // switch
+}
+
+template <typename Visitor>
+auto visit(Visitor&& visitor, DesignatorAST* ast) {
+  switch (ast->kind()) {
+    case DotDesignatorAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<DotDesignatorAST*>(ast));
+    case SubscriptDesignatorAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<SubscriptDesignatorAST*>(ast));
+    default:
+      cxx_runtime_error("unexpected Designator");
+  }  // switch
+}
+
+template <>
+[[nodiscard]] inline auto ast_cast<DesignatorAST>(AST* ast) -> DesignatorAST* {
+  if (!ast) return nullptr;
+  switch (ast->kind()) {
+    case DotDesignatorAST::Kind:
+    case SubscriptDesignatorAST::Kind:
+      return static_cast<DesignatorAST*>(ast);
     default:
       return nullptr;
   }  // switch

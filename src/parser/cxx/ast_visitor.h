@@ -150,6 +150,10 @@ class ASTVisitor {
   virtual void visit(BracedInitListAST* ast);
   virtual void visit(ParenInitializerAST* ast);
 
+  // DesignatorAST
+  virtual void visit(DotDesignatorAST* ast);
+  virtual void visit(SubscriptDesignatorAST* ast);
+
   // AST
   virtual void visit(SplicerAST* ast);
   virtual void visit(GlobalModuleFragmentAST* ast);

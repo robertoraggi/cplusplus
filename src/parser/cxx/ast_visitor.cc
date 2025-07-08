@@ -526,6 +526,9 @@ void ASTVisitor::visit(PackExpansionExpressionAST* ast) {
 }
 
 void ASTVisitor::visit(DesignatedInitializerClauseAST* ast) {
+  for (auto node : ListView{ast->designatorList}) {
+    accept(node);
+  }
   accept(ast->initializer);
 }
 
@@ -559,6 +562,10 @@ void ASTVisitor::visit(ParenInitializerAST* ast) {
     accept(node);
   }
 }
+
+void ASTVisitor::visit(DotDesignatorAST* ast) {}
+
+void ASTVisitor::visit(SubscriptDesignatorAST* ast) { accept(ast->expression); }
 
 void ASTVisitor::visit(SplicerAST* ast) { accept(ast->expression); }
 

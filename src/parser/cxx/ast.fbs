@@ -110,6 +110,11 @@ union DeclaratorChunk {
   ArrayDeclaratorChunk,
 }
 
+union Designator {
+  DotDesignator,
+  SubscriptDesignator,
+}
+
 union ExceptionDeclaration {
   EllipsisExceptionDeclaration,
   TypeExceptionDeclaration,
@@ -815,6 +820,18 @@ table ArrayDeclaratorChunk /* DeclaratorChunkAST */ {
   rbracket_loc: uint32;
 }
 
+table DotDesignator /* DesignatorAST */ {
+  identifier: string;
+  dot_loc: uint32;
+  identifier_loc: uint32;
+}
+
+table SubscriptDesignator /* DesignatorAST */ {
+  expression: Expression;
+  lbracket_loc: uint32;
+  rbracket_loc: uint32;
+}
+
 table EllipsisExceptionDeclaration /* ExceptionDeclarationAST */ {
   ellipsis_loc: uint32;
 }
@@ -1204,10 +1221,8 @@ table PackExpansionExpression /* ExpressionAST */ {
 }
 
 table DesignatedInitializerClause /* ExpressionAST */ {
-  identifier: string;
+  designator_list: [Designator];
   initializer: Expression;
-  dot_loc: uint32;
-  identifier_loc: uint32;
 }
 
 table TypeTraitExpression /* ExpressionAST */ {

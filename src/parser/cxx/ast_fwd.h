@@ -60,6 +60,7 @@ class AttributeTokenAST;
 class CoreDeclaratorAST;
 class DeclarationAST;
 class DeclaratorChunkAST;
+class DesignatorAST;
 class ExceptionDeclarationAST;
 class ExceptionSpecifierAST;
 class ExpressionAST;
@@ -193,6 +194,10 @@ class ConditionExpressionAST;
 class EqualInitializerAST;
 class BracedInitListAST;
 class ParenInitializerAST;
+
+// DesignatorAST
+class DotDesignatorAST;
+class SubscriptDesignatorAST;
 
 // AST
 class SplicerAST;

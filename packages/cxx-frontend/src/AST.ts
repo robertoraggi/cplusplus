@@ -152,6 +152,7 @@ export abstract class AttributeTokenAST extends AST {}
 export abstract class CoreDeclaratorAST extends AST {}
 export abstract class DeclarationAST extends AST {}
 export abstract class DeclaratorChunkAST extends AST {}
+export abstract class DesignatorAST extends AST {}
 export abstract class ExceptionDeclarationAST extends AST {}
 export abstract class ExceptionSpecifierAST extends AST {}
 export abstract class ExpressionAST extends AST {}
@@ -6411,25 +6412,29 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
   }
 
   /**
-   * Returns the location of the dot token in this node
+   * Returns the designatorList of this node
    */
-  getDotToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the identifier token in this node
-   */
-  getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the identifier attribute of this node
-   */
-  getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
-    return cxx.getIdentifierValue(slot);
+  getDesignatorList(): Iterable<DesignatorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DesignatorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DesignatorAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
@@ -6437,7 +6442,7 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
    */
   getInitializer(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
   }
@@ -6752,6 +6757,88 @@ export class ParenInitializerAST extends ExpressionAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * DotDesignatorAST node.
+ */
+export class DotDesignatorAST extends DesignatorAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDotDesignator(this, context);
+  }
+
+  /**
+   * Returns the location of the dot token in this node
+   */
+  getDotToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
+  }
+}
+
+/**
+ * SubscriptDesignatorAST node.
+ */
+export class SubscriptDesignatorAST extends DesignatorAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSubscriptDesignator(this, context);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
@@ -12890,6 +12977,8 @@ const AST_CONSTRUCTORS: Array<
   EqualInitializerAST,
   BracedInitListAST,
   ParenInitializerAST,
+  DotDesignatorAST,
+  SubscriptDesignatorAST,
   SplicerAST,
   GlobalModuleFragmentAST,
   PrivateModuleFragmentAST,

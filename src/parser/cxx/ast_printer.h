@@ -155,6 +155,9 @@ class ASTPrinter : ASTVisitor {
   void visit(BracedInitListAST* ast) override;
   void visit(ParenInitializerAST* ast) override;
 
+  void visit(DotDesignatorAST* ast) override;
+  void visit(SubscriptDesignatorAST* ast) override;
+
   void visit(SplicerAST* ast) override;
   void visit(GlobalModuleFragmentAST* ast) override;
   void visit(PrivateModuleFragmentAST* ast) override;

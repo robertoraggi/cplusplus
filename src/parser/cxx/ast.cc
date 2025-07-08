@@ -1671,16 +1671,14 @@ auto PackExpansionExpressionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto DesignatedInitializerClauseAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(dotLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(designatorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   return {};
 }
 
 auto DesignatedInitializerClauseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
-  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(designatorList)) return loc;
   return {};
 }
 
@@ -1755,6 +1753,32 @@ auto ParenInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
+auto DotDesignatorAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(dotLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto DotDesignatorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(dotLoc)) return loc;
+  return {};
+}
+
+auto SubscriptDesignatorAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  return {};
+}
+
+auto SubscriptDesignatorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   return {};
 }
 
@@ -3537,6 +3561,10 @@ std::string_view kASTKindNames[] = {
     "equal-initializer",
     "braced-init-list",
     "paren-initializer",
+
+    // DesignatorAST
+    "dot-designator",
+    "subscript-designator",
 
     // AST
     "splicer",
