@@ -365,6 +365,8 @@ export const C_TOKEN_ALIASES = {
   _Bool: "BOOL",
   _Static_assert: "STATIC_ASSERT",
   _Thread_local: "THREAD_LOCAL",
+  __typeof__: "typeof",
+  __typeof: "typeof",
 };
 
 export const C_AND_CXX_KEYWORDS = Array.from(

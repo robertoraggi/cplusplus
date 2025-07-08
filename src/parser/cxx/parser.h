@@ -739,6 +739,9 @@ class Parser final {
   [[nodiscard]] auto parse_identifier_list(List<NameIdAST*>*& yyast) -> bool;
 
  private:
+ [[nodiscard]] auto is_c() const -> bool;
+ [[nodiscard]] auto is_cxx() const -> bool;
+
   [[nodiscard]] auto lookat(auto... tokens) {
     return lookatHelper(0, tokens...);
   }

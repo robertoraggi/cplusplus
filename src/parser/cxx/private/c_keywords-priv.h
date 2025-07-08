@@ -620,6 +620,16 @@ static inline auto classifyC8(const char* s) -> cxx::TokenKind {
               }
             }
           }
+        } else if (s[3] == 'y') {
+          if (s[4] == 'p') {
+            if (s[5] == 'e') {
+              if (s[6] == 'o') {
+                if (s[7] == 'f') {
+                  return cxx::TokenKind::T___TYPEOF;
+                }
+              }
+            }
+          }
         }
       }
     } else if (s[1] == 'A') {
@@ -770,6 +780,22 @@ static inline auto classifyC10(const char* s) -> cxx::TokenKind {
                   if (s[8] == '_') {
                     if (s[9] == '_') {
                       return cxx::TokenKind::T___INLINE__;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 't') {
+        if (s[3] == 'y') {
+          if (s[4] == 'p') {
+            if (s[5] == 'e') {
+              if (s[6] == 'o') {
+                if (s[7] == 'f') {
+                  if (s[8] == '_') {
+                    if (s[9] == '_') {
+                      return cxx::TokenKind::T___TYPEOF__;
                     }
                   }
                 }

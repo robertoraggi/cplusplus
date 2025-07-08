@@ -246,6 +246,14 @@ auto Parser::prec(TokenKind tk) -> Parser::Prec {
   }  // switch
 }
 
+auto Parser::is_c() const -> bool {
+  return unit->language() == LanguageKind::kC;
+}
+
+auto Parser::is_cxx() const -> bool {
+  return unit->language() == LanguageKind::kCXX;
+}
+
 auto Parser::LA(int n) const -> const Token& {
   return unit->tokenAt(SourceLocation(cursor_ + n));
 }
@@ -1462,6 +1470,8 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
 auto Parser::parse_fold_expression(ExpressionAST*& yyast,
                                    const ExprContext& ctx) -> bool {
+  if (!is_cxx()) return false;
+
   if (!lookat(TokenKind::T_LPAREN)) return false;
 
   if (parse_left_fold_expression(yyast, ctx)) return true;
@@ -3513,6 +3523,8 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   SourceLocation colonLoc;
 
   auto lookat_for_range_declaration = [&] {
+    if (!is_cxx()) return false;
+
     LookaheadParser lookahead{this};
 
     if (!parse_for_range_declaration(rangeDeclaration)) return false;
@@ -6021,9 +6033,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 auto Parser::lookat_designator() -> bool {
   if (lookat(TokenKind::T_DOT)) return true;
 
-  if (unit->language() == LanguageKind::kCXX) return false;
-
-  if (lookat(TokenKind::T_LBRACKET)) return true;
+  if (is_c() && lookat(TokenKind::T_LBRACKET)) return true;
 
   return false;
 }
@@ -6072,7 +6082,7 @@ auto Parser::parse_designated_initializer_clause(
   *it = make_list_node(pool_, designator);
   it = &(*it)->next;
 
-  if (unit->language() == LanguageKind::kC) {
+  if (is_c()) {
     while (lookat_designator()) {
       DesignatorAST* designator = nullptr;
       parse_designator(designator);
