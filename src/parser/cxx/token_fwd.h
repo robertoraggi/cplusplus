@@ -276,6 +276,8 @@ class Token;
   V(_BOOL, BOOL)                   \
   V(_STATIC_ASSERT, STATIC_ASSERT) \
   V(_THREAD_LOCAL, THREAD_LOCAL)   \
+  V(__TYPEOF__, DECLTYPE)          \
+  V(__TYPEOF, DECLTYPE)            \
   V(AND_EQ, AMP_EQUAL)             \
   V(AND, AMP_AMP)                  \
   V(BITAND, AMP)                   \
@@ -293,8 +295,6 @@ class Token;
   V(__DECLTYPE__, DECLTYPE)        \
   V(__DECLTYPE, DECLTYPE)          \
   V(__RESTRICT, __RESTRICT__)      \
-  V(__TYPEOF__, DECLTYPE)          \
-  V(__TYPEOF, DECLTYPE)            \
   V(__VOLATILE__, VOLATILE)        \
   V(__VOLATILE, VOLATILE)
 
