@@ -2296,6 +2296,16 @@ auto InlineSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto NoreturnSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(noreturnLoc)) return loc;
+  return {};
+}
+
+auto NoreturnSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(noreturnLoc)) return loc;
+  return {};
+}
+
 auto StaticSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(staticLoc)) return loc;
   return {};
@@ -3607,6 +3617,7 @@ std::string_view kASTKindNames[] = {
     "constinit-specifier",
     "constexpr-specifier",
     "inline-specifier",
+    "noreturn-specifier",
     "static-specifier",
     "extern-specifier",
     "thread-local-specifier",

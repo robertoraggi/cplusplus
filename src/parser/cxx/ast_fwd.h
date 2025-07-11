@@ -240,6 +240,7 @@ class ConstevalSpecifierAST;
 class ConstinitSpecifierAST;
 class ConstexprSpecifierAST;
 class InlineSpecifierAST;
+class NoreturnSpecifierAST;
 class StaticSpecifierAST;
 class ExternSpecifierAST;
 class ThreadLocalSpecifierAST;

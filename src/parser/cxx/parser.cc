@@ -4475,6 +4475,14 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
       return true;
     }
 
+    case TokenKind::T__NORETURN: {
+      auto ast = make_node<NoreturnSpecifierAST>(pool_);
+      yyast = ast;
+      ast->noreturnLoc = consumeToken();
+      specs.isNoreturn = true;
+      return true;
+    }
+
     default:
       if (parse_storage_class_specifier(yyast, specs)) return true;
 

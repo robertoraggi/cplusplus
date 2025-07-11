@@ -455,6 +455,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_InlineSpecifier:
       return decodeInlineSpecifier(
           reinterpret_cast<const io::InlineSpecifier*>(ptr));
+    case io::Specifier_NoreturnSpecifier:
+      return decodeNoreturnSpecifier(
+          reinterpret_cast<const io::NoreturnSpecifier*>(ptr));
     case io::Specifier_StaticSpecifier:
       return decodeStaticSpecifier(
           reinterpret_cast<const io::StaticSpecifier*>(ptr));
@@ -3250,6 +3253,15 @@ auto ASTDecoder::decodeInlineSpecifier(const io::InlineSpecifier* node)
 
   auto ast = new (pool_) InlineSpecifierAST();
   ast->inlineLoc = SourceLocation(node->inline_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeNoreturnSpecifier(const io::NoreturnSpecifier* node)
+    -> NoreturnSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) NoreturnSpecifierAST();
+  ast->noreturnLoc = SourceLocation(node->noreturn_loc());
   return ast;
 }
 

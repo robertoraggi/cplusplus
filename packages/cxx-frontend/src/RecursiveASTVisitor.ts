@@ -1927,6 +1927,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitInlineSpecifier(node: ast.InlineSpecifierAST, context: Context): void {}
 
   /**
+   * Visit a NoreturnSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitNoreturnSpecifier(
+    node: ast.NoreturnSpecifierAST,
+    context: Context,
+  ): void {}
+
+  /**
    * Visit a StaticSpecifier node.
    *
    * @param node The node to visit.

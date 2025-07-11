@@ -1754,6 +1754,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit NoreturnSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitNoreturnSpecifier(
+    node: ast.NoreturnSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit StaticSpecifier node.
    *
    * @param node The node to visit.

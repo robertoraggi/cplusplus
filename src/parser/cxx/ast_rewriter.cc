@@ -446,6 +446,8 @@ struct ASTRewriter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(InlineSpecifierAST* ast) -> SpecifierAST*;
 
+  [[nodiscard]] auto operator()(NoreturnSpecifierAST* ast) -> SpecifierAST*;
+
   [[nodiscard]] auto operator()(StaticSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierAST*;
@@ -3495,6 +3497,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(InlineSpecifierAST* ast)
   auto copy = make_node<InlineSpecifierAST>(arena());
 
   copy->inlineLoc = ast->inlineLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::operator()(NoreturnSpecifierAST* ast)
+    -> SpecifierAST* {
+  auto copy = make_node<NoreturnSpecifierAST>(arena());
+
+  copy->noreturnLoc = ast->noreturnLoc;
 
   return copy;
 }

@@ -241,6 +241,7 @@ union Specifier {
   ConstinitSpecifier,
   ConstexprSpecifier,
   InlineSpecifier,
+  NoreturnSpecifier,
   StaticSpecifier,
   ExternSpecifier,
   ThreadLocalSpecifier,
@@ -1443,6 +1444,10 @@ table ConstexprSpecifier /* SpecifierAST */ {
 
 table InlineSpecifier /* SpecifierAST */ {
   inline_loc: uint32;
+}
+
+table NoreturnSpecifier /* SpecifierAST */ {
+  noreturn_loc: uint32;
 }
 
 table StaticSpecifier /* SpecifierAST */ {
