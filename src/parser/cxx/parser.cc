@@ -1098,6 +1098,8 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
 }
 
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
+  if (!is_parsing_cxx()) return false;
+
   if (lookat(TokenKind::T_LBRACKET, TokenKind::T_LBRACKET)) return false;
   if (lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
   if (!lookat(TokenKind::T_LBRACKET)) return false;
@@ -5984,7 +5986,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
 
   ast->lbraceLoc = lbraceLoc;
 
-  if (lookat_designator()) {
+  if (is_parsing_cxx() && lookat_designator()) {
     auto it = &ast->expressionList;
 
     DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
@@ -6039,7 +6041,17 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
   ExpressionAST* expression = nullptr;
 
-  if (!parse_initializer_clause(expression, ctx)) return false;
+  if (is_parsing_c() && lookat_designator()) {
+    DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
+
+    if (!parse_designated_initializer_clause(designatedInitializerClause)) {
+      parse_error("expected designated initializer clause");
+    }
+
+    expression = designatedInitializerClause;
+  } else if (!parse_initializer_clause(expression, ctx)) {
+    return false;
+  }
 
   SourceLocation ellipsisLoc;
 
@@ -6060,8 +6072,16 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
     ExpressionAST* expression = nullptr;
 
-    if (!parse_initializer_clause(expression, ctx)) {
-      parse_error("expected initializer clause");
+    if (is_parsing_c() && lookat_designator()) {
+      DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
+
+      if (!parse_designated_initializer_clause(designatedInitializerClause)) {
+        parse_error("expected designated initializer clause");
+      }
+
+      expression = designatedInitializerClause;
+    } else if (!parse_initializer_clause(expression, ctx)) {
+      return false;
     }
 
     SourceLocation ellipsisLoc;
