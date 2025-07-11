@@ -2355,6 +2355,22 @@ auto Preprocessor::Private::substitute(TokList *pointOfSubstitution,
       continue;
     }
 
+    if (lookat(ts, TokenKind::T_COMMA, TokenKind::T_HASH_HASH, "__VA_ARGS__")) {
+      auto comma = ts->tok;
+      ts = ts->next->next;
+
+      if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
+        auto [startArg, endArg] = *actual;
+        if (startArg != endArg) {
+          appendToken(comma);
+          for (auto it = startArg; it != endArg; ++it) {
+            appendToken(&*it);
+          }
+        }
+        continue;
+      }
+    }
+
     if (lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_HASH_HASH)) {
       if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
         auto [startArg, endArg] = *actual;
