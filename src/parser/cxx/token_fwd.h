@@ -185,7 +185,6 @@ class Token;
   V(REGISTER, "register")                     \
   V(REINTERPRET_CAST, "reinterpret_cast")     \
   V(REQUIRES, "requires")                     \
-  V(RESTRICT, "restrict")                     \
   V(RETURN, "return")                         \
   V(SHORT, "short")                           \
   V(SIGNED, "signed")                         \
@@ -266,18 +265,27 @@ class Token;
   V(__IS_VOLATILE, "__is_volatile")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
+  V(RESTRICT, __RESTRICT__)        \
+  V(__ALIGNOF__, ALIGNOF)          \
+  V(__ALIGNOF, ALIGNOF)            \
   V(__ASM__, ASM)                  \
   V(__ASM, ASM)                    \
+  V(__ATTRIBUTE, __ATTRIBUTE__)    \
+  V(__DECLTYPE__, DECLTYPE)        \
+  V(__DECLTYPE, DECLTYPE)          \
   V(__INLINE__, INLINE)            \
   V(__INLINE, INLINE)              \
+  V(__RESTRICT, __RESTRICT__)      \
+  V(__TYPEOF__, TYPEOF)            \
+  V(__TYPEOF, TYPEOF)              \
+  V(__VOLATILE__, VOLATILE)        \
+  V(__VOLATILE, VOLATILE)          \
   V(_ALIGNAS, ALIGNAS)             \
   V(_ALIGNOF, ALIGNOF)             \
   V(_ASM, ASM)                     \
   V(_BOOL, BOOL)                   \
   V(_STATIC_ASSERT, STATIC_ASSERT) \
   V(_THREAD_LOCAL, THREAD_LOCAL)   \
-  V(__TYPEOF__, DECLTYPE)          \
-  V(__TYPEOF, DECLTYPE)            \
   V(AND_EQ, AMP_EQUAL)             \
   V(AND, AMP_AMP)                  \
   V(BITAND, AMP)                   \
@@ -288,15 +296,7 @@ class Token;
   V(OR_EQ, BAR_EQUAL)              \
   V(OR, BAR_BAR)                   \
   V(XOR_EQ, CARET_EQUAL)           \
-  V(XOR, CARET)                    \
-  V(__ALIGNOF__, ALIGNOF)          \
-  V(__ALIGNOF, ALIGNOF)            \
-  V(__ATTRIBUTE, __ATTRIBUTE__)    \
-  V(__DECLTYPE__, DECLTYPE)        \
-  V(__DECLTYPE, DECLTYPE)          \
-  V(__RESTRICT, __RESTRICT__)      \
-  V(__VOLATILE__, VOLATILE)        \
-  V(__VOLATILE, VOLATILE)
+  V(XOR, CARET)
 
 #define FOR_EACH_TOKEN(V) \
   FOR_EACH_BASE_TOKEN(V)  \
