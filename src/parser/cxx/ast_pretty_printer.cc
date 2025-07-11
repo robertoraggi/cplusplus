@@ -374,6 +374,8 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(ExternSpecifierAST* ast);
 
+  void operator()(RegisterSpecifierAST* ast);
+
   void operator()(ThreadLocalSpecifierAST* ast);
 
   void operator()(ThreadSpecifierAST* ast);
@@ -3258,6 +3260,12 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(StaticSpecifierAST* ast) {
 void ASTPrettyPrinter::SpecifierVisitor::operator()(ExternSpecifierAST* ast) {
   if (ast->externLoc) {
     accept.writeToken(ast->externLoc);
+  }
+}
+
+void ASTPrettyPrinter::SpecifierVisitor::operator()(RegisterSpecifierAST* ast) {
+  if (ast->registerLoc) {
+    accept.writeToken(ast->registerLoc);
   }
 }
 

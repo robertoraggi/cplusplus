@@ -81,6 +81,7 @@ class DeclSpecs {
   bool isExtern = false;
   bool isMutable = false;
   bool isThread = false;
+  bool isRegister = false;
 
   // function specifiers
   bool isVirtual = false;

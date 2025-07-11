@@ -45,6 +45,7 @@ struct DeclSpecs::Visitor {
   void operator()(NoreturnSpecifierAST* ast);
   void operator()(StaticSpecifierAST* ast);
   void operator()(ExternSpecifierAST* ast);
+  void operator()(RegisterSpecifierAST* ast);
   void operator()(ThreadLocalSpecifierAST* ast);
   void operator()(ThreadSpecifierAST* ast);
   void operator()(MutableSpecifierAST* ast);
@@ -110,6 +111,10 @@ void DeclSpecs::Visitor::operator()(StaticSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(ExternSpecifierAST* ast) {
   specs.isExtern = true;
+}
+
+void DeclSpecs::Visitor::operator()(RegisterSpecifierAST* ast) {
+  specs.isRegister = true;
 }
 
 void DeclSpecs::Visitor::operator()(ThreadLocalSpecifierAST* ast) {

@@ -2326,6 +2326,16 @@ auto ExternSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto RegisterSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(registerLoc)) return loc;
+  return {};
+}
+
+auto RegisterSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(registerLoc)) return loc;
+  return {};
+}
+
 auto ThreadLocalSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(threadLocalLoc)) return loc;
   return {};
@@ -3620,6 +3630,7 @@ std::string_view kASTKindNames[] = {
     "noreturn-specifier",
     "static-specifier",
     "extern-specifier",
+    "register-specifier",
     "thread-local-specifier",
     "thread-specifier",
     "mutable-specifier",

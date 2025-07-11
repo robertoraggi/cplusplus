@@ -189,6 +189,7 @@ enum class ASTKind {
   NoreturnSpecifier,
   StaticSpecifier,
   ExternSpecifier,
+  RegisterSpecifier,
   ThreadLocalSpecifier,
   ThreadSpecifier,
   MutableSpecifier,

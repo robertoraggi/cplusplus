@@ -198,6 +198,7 @@ class ASTVisitor {
   virtual void visit(NoreturnSpecifierAST* ast);
   virtual void visit(StaticSpecifierAST* ast);
   virtual void visit(ExternSpecifierAST* ast);
+  virtual void visit(RegisterSpecifierAST* ast);
   virtual void visit(ThreadLocalSpecifierAST* ast);
   virtual void visit(ThreadSpecifierAST* ast);
   virtual void visit(MutableSpecifierAST* ast);

@@ -338,6 +338,8 @@ struct Codegen::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(RegisterSpecifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(ThreadLocalSpecifierAST* ast)
       -> SpecifierResult;
 
@@ -2260,6 +2262,11 @@ auto Codegen::SpecifierVisitor::operator()(StaticSpecifierAST* ast)
 }
 
 auto Codegen::SpecifierVisitor::operator()(ExternSpecifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto Codegen::SpecifierVisitor::operator()(RegisterSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

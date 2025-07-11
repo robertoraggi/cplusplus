@@ -281,6 +281,7 @@ class ASTEncoder : ASTVisitor {
   void visit(NoreturnSpecifierAST* ast) override;
   void visit(StaticSpecifierAST* ast) override;
   void visit(ExternSpecifierAST* ast) override;
+  void visit(RegisterSpecifierAST* ast) override;
   void visit(ThreadLocalSpecifierAST* ast) override;
   void visit(ThreadSpecifierAST* ast) override;
   void visit(MutableSpecifierAST* ast) override;

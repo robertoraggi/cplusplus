@@ -3686,6 +3686,14 @@ void ASTEncoder::visit(ExternSpecifierAST* ast) {
   type_ = io::Specifier_ExternSpecifier;
 }
 
+void ASTEncoder::visit(RegisterSpecifierAST* ast) {
+  io::RegisterSpecifier::Builder builder{fbb_};
+  builder.add_register_loc(ast->registerLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_RegisterSpecifier;
+}
+
 void ASTEncoder::visit(ThreadLocalSpecifierAST* ast) {
   io::ThreadLocalSpecifier::Builder builder{fbb_};
   builder.add_thread_local_loc(ast->threadLocalLoc.index());

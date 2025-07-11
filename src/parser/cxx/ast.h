@@ -2860,6 +2860,20 @@ class ExternSpecifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class RegisterSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::RegisterSpecifier;
+
+  RegisterSpecifierAST() : SpecifierAST(Kind) {}
+
+  SourceLocation registerLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class ThreadLocalSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThreadLocalSpecifier;
@@ -4791,6 +4805,9 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case ExternSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ExternSpecifierAST*>(ast));
+    case RegisterSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<RegisterSpecifierAST*>(ast));
     case ThreadLocalSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ThreadLocalSpecifierAST*>(ast));
@@ -4891,6 +4908,7 @@ template <>
     case NoreturnSpecifierAST::Kind:
     case StaticSpecifierAST::Kind:
     case ExternSpecifierAST::Kind:
+    case RegisterSpecifierAST::Kind:
     case ThreadLocalSpecifierAST::Kind:
     case ThreadSpecifierAST::Kind:
     case MutableSpecifierAST::Kind:

@@ -373,6 +373,8 @@ class ASTDecoder {
       -> StaticSpecifierAST*;
   auto decodeExternSpecifier(const io::ExternSpecifier* node)
       -> ExternSpecifierAST*;
+  auto decodeRegisterSpecifier(const io::RegisterSpecifier* node)
+      -> RegisterSpecifierAST*;
   auto decodeThreadLocalSpecifier(const io::ThreadLocalSpecifier* node)
       -> ThreadLocalSpecifierAST*;
   auto decodeThreadSpecifier(const io::ThreadSpecifier* node)

@@ -4586,6 +4586,13 @@ auto Parser::parse_storage_class_specifier(SpecifierAST*& yyast,
     specs.isExtern = true;
     return true;
   }
+  if (match(TokenKind::T_REGISTER, loc)) {
+    auto ast = make_node<RegisterSpecifierAST>(pool_);
+    yyast = ast;
+    ast->registerLoc = loc;
+    specs.isRegister = true;
+    return true;
+  }
   if (match(TokenKind::T_MUTABLE, loc)) {
     auto ast = make_node<MutableSpecifierAST>(pool_);
     yyast = ast;

@@ -243,6 +243,7 @@ class InlineSpecifierAST;
 class NoreturnSpecifierAST;
 class StaticSpecifierAST;
 class ExternSpecifierAST;
+class RegisterSpecifierAST;
 class ThreadLocalSpecifierAST;
 class ThreadSpecifierAST;
 class MutableSpecifierAST;

@@ -464,6 +464,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_ExternSpecifier:
       return decodeExternSpecifier(
           reinterpret_cast<const io::ExternSpecifier*>(ptr));
+    case io::Specifier_RegisterSpecifier:
+      return decodeRegisterSpecifier(
+          reinterpret_cast<const io::RegisterSpecifier*>(ptr));
     case io::Specifier_ThreadLocalSpecifier:
       return decodeThreadLocalSpecifier(
           reinterpret_cast<const io::ThreadLocalSpecifier*>(ptr));
@@ -3280,6 +3283,15 @@ auto ASTDecoder::decodeExternSpecifier(const io::ExternSpecifier* node)
 
   auto ast = new (pool_) ExternSpecifierAST();
   ast->externLoc = SourceLocation(node->extern_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeRegisterSpecifier(const io::RegisterSpecifier* node)
+    -> RegisterSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) RegisterSpecifierAST();
+  ast->registerLoc = SourceLocation(node->register_loc());
   return ast;
 }
 

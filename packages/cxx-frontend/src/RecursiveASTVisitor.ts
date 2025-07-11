@@ -1954,6 +1954,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitExternSpecifier(node: ast.ExternSpecifierAST, context: Context): void {}
 
   /**
+   * Visit a RegisterSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitRegisterSpecifier(
+    node: ast.RegisterSpecifierAST,
+    context: Context,
+  ): void {}
+
+  /**
    * Visit a ThreadLocalSpecifier node.
    *
    * @param node The node to visit.
