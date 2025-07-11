@@ -5165,7 +5165,10 @@ auto Parser::parse_decl_specifier_seq_no_typespecs(List<SpecifierAST*>*& yyast)
 
 auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
   SourceLocation decltypeLoc;
-  if (!match(TokenKind::T_DECLTYPE, decltypeLoc)) return false;
+  if (!match(TokenKind::T_DECLTYPE, decltypeLoc) &&
+      !match(TokenKind::T_TYPEOF, decltypeLoc) &&
+      !match(TokenKind::T_TYPEOF_UNQUAL, decltypeLoc))
+    return false;
 
   SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;

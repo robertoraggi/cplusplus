@@ -170,7 +170,6 @@ export enum TokenKind {
   REGISTER,
   REINTERPRET_CAST,
   REQUIRES,
-  RESTRICT,
   RETURN,
   SHORT,
   SIGNED,
