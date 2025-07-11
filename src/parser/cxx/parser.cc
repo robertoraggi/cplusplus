@@ -247,14 +247,6 @@ auto Parser::prec(TokenKind tk) -> Parser::Prec {
   }  // switch
 }
 
-auto Parser::is_c() const -> bool {
-  return unit->language() == LanguageKind::kC;
-}
-
-auto Parser::is_cxx() const -> bool {
-  return unit->language() == LanguageKind::kCXX;
-}
-
 auto Parser::LA(int n) const -> const Token& {
   return unit->tokenAt(SourceLocation(cursor_ + n));
 }
@@ -1073,6 +1065,8 @@ auto Parser::parse_template_nested_name_specifier(
 auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
                                          NestedNameSpecifierContext ctx)
     -> bool {
+  if (!is_parsing_cxx()) return false;
+
   if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
     auto ast = make_node<GlobalNestedNameSpecifierAST>(pool_);
     yyast = ast;
@@ -1471,7 +1465,7 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
 auto Parser::parse_fold_expression(ExpressionAST*& yyast,
                                    const ExprContext& ctx) -> bool {
-  if (!is_cxx()) return false;
+  if (!is_parsing_cxx()) return false;
 
   if (!lookat(TokenKind::T_LPAREN)) return false;
 
@@ -3524,7 +3518,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   SourceLocation colonLoc;
 
   auto lookat_for_range_declaration = [&] {
-    if (!is_cxx()) return false;
+    if (!is_parsing_cxx()) return false;
 
     LookaheadParser lookahead{this};
 
@@ -6070,7 +6064,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 auto Parser::lookat_designator() -> bool {
   if (lookat(TokenKind::T_DOT)) return true;
 
-  if (is_c() && lookat(TokenKind::T_LBRACKET)) return true;
+  if (is_parsing_c() && lookat(TokenKind::T_LBRACKET)) return true;
 
   return false;
 }
@@ -6119,7 +6113,7 @@ auto Parser::parse_designated_initializer_clause(
   *it = make_list_node(pool_, designator);
   it = &(*it)->next;
 
-  if (is_c()) {
+  if (is_parsing_c()) {
     while (lookat_designator()) {
       DesignatorAST* designator = nullptr;
       parse_designator(designator);
