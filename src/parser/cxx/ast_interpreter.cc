@@ -457,6 +457,8 @@ struct ASTInterpreter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(InlineSpecifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(NoreturnSpecifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(StaticSpecifierAST* ast) -> SpecifierResult;
 
   [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierResult;
@@ -2555,6 +2557,11 @@ auto ASTInterpreter::SpecifierVisitor::operator()(ConstexprSpecifierAST* ast)
 }
 
 auto ASTInterpreter::SpecifierVisitor::operator()(InlineSpecifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto ASTInterpreter::SpecifierVisitor::operator()(NoreturnSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

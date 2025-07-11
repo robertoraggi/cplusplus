@@ -207,6 +207,7 @@ class ASTSlot final : ASTVisitor {
   void visit(ConstinitSpecifierAST* ast) override;
   void visit(ConstexprSpecifierAST* ast) override;
   void visit(InlineSpecifierAST* ast) override;
+  void visit(NoreturnSpecifierAST* ast) override;
   void visit(StaticSpecifierAST* ast) override;
   void visit(ExternSpecifierAST* ast) override;
   void visit(ThreadLocalSpecifierAST* ast) override;

@@ -332,6 +332,8 @@ struct Codegen::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(InlineSpecifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(NoreturnSpecifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(StaticSpecifierAST* ast) -> SpecifierResult;
 
   [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierResult;
@@ -2243,6 +2245,11 @@ auto Codegen::SpecifierVisitor::operator()(ConstexprSpecifierAST* ast)
 }
 
 auto Codegen::SpecifierVisitor::operator()(InlineSpecifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto Codegen::SpecifierVisitor::operator()(NoreturnSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

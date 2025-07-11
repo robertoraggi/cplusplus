@@ -8738,6 +8738,31 @@ export class InlineSpecifierAST extends SpecifierAST {
 }
 
 /**
+ * NoreturnSpecifierAST node.
+ */
+export class NoreturnSpecifierAST extends SpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitNoreturnSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the noreturn token in this node
+   */
+  getNoreturnToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
  * StaticSpecifierAST node.
  */
 export class StaticSpecifierAST extends SpecifierAST {
@@ -13015,6 +13040,7 @@ const AST_CONSTRUCTORS: Array<
   ConstinitSpecifierAST,
   ConstexprSpecifierAST,
   InlineSpecifierAST,
+  NoreturnSpecifierAST,
   StaticSpecifierAST,
   ExternSpecifierAST,
   ThreadLocalSpecifierAST,

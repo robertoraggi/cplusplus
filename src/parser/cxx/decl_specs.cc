@@ -42,6 +42,7 @@ struct DeclSpecs::Visitor {
   void operator()(ConstinitSpecifierAST* ast);
   void operator()(ConstexprSpecifierAST* ast);
   void operator()(InlineSpecifierAST* ast);
+  void operator()(NoreturnSpecifierAST* ast);
   void operator()(StaticSpecifierAST* ast);
   void operator()(ExternSpecifierAST* ast);
   void operator()(ThreadLocalSpecifierAST* ast);
@@ -93,6 +94,10 @@ void DeclSpecs::Visitor::operator()(ConstinitSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(ConstexprSpecifierAST* ast) {
   specs.isConstexpr = true;
+}
+
+void DeclSpecs::Visitor::operator()(NoreturnSpecifierAST* ast) {
+  specs.isNoreturn = true;
 }
 
 void DeclSpecs::Visitor::operator()(InlineSpecifierAST* ast) {

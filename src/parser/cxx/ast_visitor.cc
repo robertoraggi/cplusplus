@@ -719,6 +719,8 @@ void ASTVisitor::visit(ConstexprSpecifierAST* ast) {}
 
 void ASTVisitor::visit(InlineSpecifierAST* ast) {}
 
+void ASTVisitor::visit(NoreturnSpecifierAST* ast) {}
+
 void ASTVisitor::visit(StaticSpecifierAST* ast) {}
 
 void ASTVisitor::visit(ExternSpecifierAST* ast) {}

@@ -1971,6 +1971,10 @@ void ASTPrinter::visit(InlineSpecifierAST* ast) {
   out_ << std::format("{}\n", "inline-specifier");
 }
 
+void ASTPrinter::visit(NoreturnSpecifierAST* ast) {
+  out_ << std::format("{}\n", "noreturn-specifier");
+}
+
 void ASTPrinter::visit(StaticSpecifierAST* ast) {
   out_ << std::format("{}\n", "static-specifier");
 }

@@ -2818,6 +2818,20 @@ class InlineSpecifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class NoreturnSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::NoreturnSpecifier;
+
+  NoreturnSpecifierAST() : SpecifierAST(Kind) {}
+
+  SourceLocation noreturnLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class StaticSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::StaticSpecifier;
@@ -4768,6 +4782,9 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case InlineSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<InlineSpecifierAST*>(ast));
+    case NoreturnSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<NoreturnSpecifierAST*>(ast));
     case StaticSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<StaticSpecifierAST*>(ast));
@@ -4871,6 +4888,7 @@ template <>
     case ConstinitSpecifierAST::Kind:
     case ConstexprSpecifierAST::Kind:
     case InlineSpecifierAST::Kind:
+    case NoreturnSpecifierAST::Kind:
     case StaticSpecifierAST::Kind:
     case ExternSpecifierAST::Kind:
     case ThreadLocalSpecifierAST::Kind:

@@ -186,6 +186,7 @@ enum class ASTKind {
   ConstinitSpecifier,
   ConstexprSpecifier,
   InlineSpecifier,
+  NoreturnSpecifier,
   StaticSpecifier,
   ExternSpecifier,
   ThreadLocalSpecifier,

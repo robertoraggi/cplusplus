@@ -3662,6 +3662,14 @@ void ASTEncoder::visit(InlineSpecifierAST* ast) {
   type_ = io::Specifier_InlineSpecifier;
 }
 
+void ASTEncoder::visit(NoreturnSpecifierAST* ast) {
+  io::NoreturnSpecifier::Builder builder{fbb_};
+  builder.add_noreturn_loc(ast->noreturnLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_NoreturnSpecifier;
+}
+
 void ASTEncoder::visit(StaticSpecifierAST* ast) {
   io::StaticSpecifier::Builder builder{fbb_};
   builder.add_static_loc(ast->staticLoc.index());

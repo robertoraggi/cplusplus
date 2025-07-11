@@ -368,6 +368,8 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(InlineSpecifierAST* ast);
 
+  void operator()(NoreturnSpecifierAST* ast);
+
   void operator()(StaticSpecifierAST* ast);
 
   void operator()(ExternSpecifierAST* ast);
@@ -3238,6 +3240,12 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(
 void ASTPrettyPrinter::SpecifierVisitor::operator()(InlineSpecifierAST* ast) {
   if (ast->inlineLoc) {
     accept.writeToken(ast->inlineLoc);
+  }
+}
+
+void ASTPrettyPrinter::SpecifierVisitor::operator()(NoreturnSpecifierAST* ast) {
+  if (ast->noreturnLoc) {
+    accept.writeToken(ast->noreturnLoc);
   }
 }
 

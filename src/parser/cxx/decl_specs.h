@@ -68,6 +68,7 @@ class DeclSpecs {
   bool isConsteval = false;
   bool isConstinit = false;
   bool isInline = false;
+  bool isNoreturn = false;
 
   // cv qualifiers
   bool isConst = false;

@@ -367,6 +367,8 @@ class ASTDecoder {
       -> ConstexprSpecifierAST*;
   auto decodeInlineSpecifier(const io::InlineSpecifier* node)
       -> InlineSpecifierAST*;
+  auto decodeNoreturnSpecifier(const io::NoreturnSpecifier* node)
+      -> NoreturnSpecifierAST*;
   auto decodeStaticSpecifier(const io::StaticSpecifier* node)
       -> StaticSpecifierAST*;
   auto decodeExternSpecifier(const io::ExternSpecifier* node)
