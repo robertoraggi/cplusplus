@@ -948,6 +948,22 @@ auto UserDefinedStringLiteralExpressionAST::lastSourceLocation()
   return {};
 }
 
+auto ObjectLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(bracedInitList)) return loc;
+  return {};
+}
+
+auto ObjectLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(bracedInitList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
 auto ThisExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
   return {};
@@ -3530,6 +3546,7 @@ std::string_view kASTKindNames[] = {
     "nullptr-literal-expression",
     "string-literal-expression",
     "user-defined-string-literal-expression",
+    "object-literal-expression",
     "this-expression",
     "nested-statement-expression",
     "nested-expression",

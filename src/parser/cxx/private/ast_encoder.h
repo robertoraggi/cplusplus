@@ -185,6 +185,7 @@ class ASTEncoder : ASTVisitor {
   void visit(NullptrLiteralExpressionAST* ast) override;
   void visit(StringLiteralExpressionAST* ast) override;
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
+  void visit(ObjectLiteralExpressionAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
   void visit(NestedStatementExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;

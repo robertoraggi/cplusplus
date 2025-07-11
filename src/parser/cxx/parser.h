@@ -237,6 +237,9 @@ class Parser final {
                                                        const ExprContext& ctx)
       -> bool;
 
+  void parse_rest_of_postfix_expression(ExpressionAST*& yyast,
+                                        const ExprContext& ctx);
+
   [[nodiscard]] auto parse_member_expression(ExpressionAST*& yyast) -> bool;
 
   [[nodiscard]] auto parse_subscript_expression(ExpressionAST*& yyast,

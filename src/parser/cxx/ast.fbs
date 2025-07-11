@@ -134,6 +134,7 @@ union Expression {
   NullptrLiteralExpression,
   StringLiteralExpression,
   UserDefinedStringLiteralExpression,
+  ObjectLiteralExpression,
   ThisExpression,
   NestedStatementExpression,
   NestedExpression,
@@ -893,6 +894,13 @@ table StringLiteralExpression /* ExpressionAST */ {
 table UserDefinedStringLiteralExpression /* ExpressionAST */ {
   literal: string;
   literal_loc: uint32;
+}
+
+table ObjectLiteralExpression /* ExpressionAST */ {
+  type_id: TypeId;
+  braced_init_list: BracedInitList;
+  lparen_loc: uint32;
+  rparen_loc: uint32;
 }
 
 table ThisExpression /* ExpressionAST */ {

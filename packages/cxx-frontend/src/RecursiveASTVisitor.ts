@@ -823,6 +823,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   ): void {}
 
   /**
+   * Visit a ObjectLiteralExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitObjectLiteralExpression(
+    node: ast.ObjectLiteralExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+    this.accept(node.getBracedInitList(), context);
+  }
+
+  /**
    * Visit a ThisExpression node.
    *
    * @param node The node to visit.

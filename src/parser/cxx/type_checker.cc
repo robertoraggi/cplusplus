@@ -147,6 +147,7 @@ struct TypeChecker::Visitor {
   void operator()(NullptrLiteralExpressionAST* ast);
   void operator()(StringLiteralExpressionAST* ast);
   void operator()(UserDefinedStringLiteralExpressionAST* ast);
+  void operator()(ObjectLiteralExpressionAST* ast);
   void operator()(ThisExpressionAST* ast);
   void operator()(NestedStatementExpressionAST* ast);
   void operator()(NestedExpressionAST* ast);
@@ -216,6 +217,13 @@ void TypeChecker::Visitor::operator()(StringLiteralExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(
     UserDefinedStringLiteralExpressionAST* ast) {}
+
+void TypeChecker::Visitor::operator()(ObjectLiteralExpressionAST* ast) {
+  if (ast->typeId) {
+    ast->type = ast->typeId->type;
+  }
+  ast->valueCategory = ValueCategory::kLValue;
+}
 
 void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {
   auto scope_ = check.scope_;

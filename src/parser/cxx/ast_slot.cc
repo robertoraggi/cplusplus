@@ -1964,6 +1964,33 @@ void ASTSlot::visit(UserDefinedStringLiteralExpressionAST* ast) {
   slotCount_ = 2;
 }
 
+void ASTSlot::visit(ObjectLiteralExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // lparenLoc
+      value_ = ast->lparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{131};
+      break;
+    case 1:  // typeId
+      value_ = reinterpret_cast<std::intptr_t>(ast->typeId);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{212};
+      break;
+    case 2:  // rparenLoc
+      value_ = ast->rparenLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{180};
+      break;
+    case 3:  // bracedInitList
+      value_ = reinterpret_cast<std::intptr_t>(ast->bracedInitList);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{22};
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
 void ASTSlot::visit(ThisExpressionAST* ast) {
   switch (slot_) {
     case 0:  // thisLoc

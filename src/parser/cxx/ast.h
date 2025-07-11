@@ -1293,6 +1293,23 @@ class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class ObjectLiteralExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ObjectLiteralExpression;
+
+  ObjectLiteralExpressionAST() : ExpressionAST(Kind) {}
+
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+  BracedInitListAST* bracedInitList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class ThisExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThisExpression;
@@ -4484,6 +4501,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
       return std::invoke(
           std::forward<Visitor>(visitor),
           static_cast<UserDefinedStringLiteralExpressionAST*>(ast));
+    case ObjectLiteralExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<ObjectLiteralExpressionAST*>(ast));
     case ThisExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ThisExpressionAST*>(ast));
@@ -4654,6 +4674,7 @@ template <>
     case NullptrLiteralExpressionAST::Kind:
     case StringLiteralExpressionAST::Kind:
     case UserDefinedStringLiteralExpressionAST::Kind:
+    case ObjectLiteralExpressionAST::Kind:
     case ThisExpressionAST::Kind:
     case NestedStatementExpressionAST::Kind:
     case NestedExpressionAST::Kind:
