@@ -8813,6 +8813,31 @@ export class ExternSpecifierAST extends SpecifierAST {
 }
 
 /**
+ * RegisterSpecifierAST node.
+ */
+export class RegisterSpecifierAST extends SpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRegisterSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the register token in this node
+   */
+  getRegisterToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
  * ThreadLocalSpecifierAST node.
  */
 export class ThreadLocalSpecifierAST extends SpecifierAST {
@@ -13043,6 +13068,7 @@ const AST_CONSTRUCTORS: Array<
   NoreturnSpecifierAST,
   StaticSpecifierAST,
   ExternSpecifierAST,
+  RegisterSpecifierAST,
   ThreadLocalSpecifierAST,
   ThreadSpecifierAST,
   MutableSpecifierAST,

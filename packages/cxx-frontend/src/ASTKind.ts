@@ -184,6 +184,7 @@ export enum ASTKind {
   NoreturnSpecifier,
   StaticSpecifier,
   ExternSpecifier,
+  RegisterSpecifier,
   ThreadLocalSpecifier,
   ThreadSpecifier,
   MutableSpecifier,

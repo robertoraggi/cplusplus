@@ -463,6 +463,8 @@ struct ASTInterpreter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(ExternSpecifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(RegisterSpecifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(ThreadLocalSpecifierAST* ast)
       -> SpecifierResult;
 
@@ -2572,6 +2574,11 @@ auto ASTInterpreter::SpecifierVisitor::operator()(StaticSpecifierAST* ast)
 }
 
 auto ASTInterpreter::SpecifierVisitor::operator()(ExternSpecifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto ASTInterpreter::SpecifierVisitor::operator()(RegisterSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

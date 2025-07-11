@@ -1983,6 +1983,10 @@ void ASTPrinter::visit(ExternSpecifierAST* ast) {
   out_ << std::format("{}\n", "extern-specifier");
 }
 
+void ASTPrinter::visit(RegisterSpecifierAST* ast) {
+  out_ << std::format("{}\n", "register-specifier");
+}
+
 void ASTPrinter::visit(ThreadLocalSpecifierAST* ast) {
   out_ << std::format("{}\n", "thread-local-specifier");
 }

@@ -244,6 +244,7 @@ union Specifier {
   NoreturnSpecifier,
   StaticSpecifier,
   ExternSpecifier,
+  RegisterSpecifier,
   ThreadLocalSpecifier,
   ThreadSpecifier,
   MutableSpecifier,
@@ -1456,6 +1457,10 @@ table StaticSpecifier /* SpecifierAST */ {
 
 table ExternSpecifier /* SpecifierAST */ {
   extern_loc: uint32;
+}
+
+table RegisterSpecifier /* SpecifierAST */ {
+  register_loc: uint32;
 }
 
 table ThreadLocalSpecifier /* SpecifierAST */ {

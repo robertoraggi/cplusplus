@@ -725,6 +725,8 @@ void ASTVisitor::visit(StaticSpecifierAST* ast) {}
 
 void ASTVisitor::visit(ExternSpecifierAST* ast) {}
 
+void ASTVisitor::visit(RegisterSpecifierAST* ast) {}
+
 void ASTVisitor::visit(ThreadLocalSpecifierAST* ast) {}
 
 void ASTVisitor::visit(ThreadSpecifierAST* ast) {}

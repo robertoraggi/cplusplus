@@ -804,6 +804,12 @@ class Parser final {
   void mark_maybe_template_name(UnqualifiedIdAST* name);
   void mark_maybe_template_name(DeclaratorAST* declarator);
 
+  [[nodiscard]] auto is_parsing_c() const { return lang_ == LanguageKind::kC; }
+
+  [[nodiscard]] auto is_parsing_cxx() const {
+    return lang_ == LanguageKind::kCXX;
+  }
+
  private:
   TranslationUnit* unit = nullptr;
   Arena* pool_ = nullptr;
@@ -811,6 +817,7 @@ class Parser final {
   DiagnosticsClient* diagnosticClient_ = nullptr;
   Scope* globalScope_ = nullptr;
   Binder binder_;
+  LanguageKind lang_ = LanguageKind::kCXX;
   bool skipFunctionBody_ = false;
   bool moduleUnit_ = false;
   const Identifier* moduleId_ = nullptr;
