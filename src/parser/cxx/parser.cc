@@ -170,6 +170,7 @@ Parser::Parser(TranslationUnit* unit) : unit(unit), binder_(unit) {
   control_ = unit->control();
   diagnosticClient_ = unit->diagnosticsClient();
   cursor_ = 1;
+  lang_ = unit->language();
 
   pool_ = unit->arena();
 
@@ -5097,6 +5098,11 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   SourceLocation enumLoc;
   if (!match(TokenKind::T_ENUM, enumLoc)) return false;
 
+  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+  if (is_parsing_c()) {
+    setScope(globalScope_);
+  }
+
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   parse_optional_nested_name_specifier(
       nestedNameSpecifier, NestedNameSpecifierContext::kDeclarative);
@@ -5106,6 +5112,13 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
     parse_error("expected a name");
   }
 
+  Symbol* symbol = nullptr;
+
+  if (name->identifier) {
+    symbol = Lookup(scope()).lookup(nestedNameSpecifier, name->identifier,
+                                    &Symbol::isEnum);
+  }
+
   auto ast = make_node<ElaboratedTypeSpecifierAST>(pool_);
   yyast = ast;
 
@@ -5113,6 +5126,7 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = name;
   ast->classKey = TokenKind::T_ENUM;
+  ast->symbol = symbol;
 
   specs.setTypeSpecifier(ast);
 
@@ -5127,6 +5141,11 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   SourceLocation classLoc;
   if (!parse_class_key(classLoc)) return false;
+
+  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+  if (is_parsing_c()) {
+    setScope(globalScope_);
+  }
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
   parse_optional_attribute_specifier_seq(attributes);
@@ -6222,6 +6241,11 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation classLoc;
 
   if (!parse_enum_key(enumLoc, classLoc)) return false;
+
+  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+  if (is_parsing_c()) {
+    setScope(globalScope_);
+  }
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
 
@@ -7510,6 +7534,11 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation classLoc;
   if (!parse_class_key(classLoc)) return false;
 
+  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+  if (is_parsing_c()) {
+    setScope(globalScope_);
+  }
+
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
@@ -7872,7 +7901,7 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast,
 
   Decl decl{declSpecs, declarator};
 
-  // ### set the bitfield offse
+  // ### set the bitfield offset
 
   auto symbol = binder_.declareField(declarator, decl);
   symbol->setBitFieldWidth(std::move(bitfieldWidth));
