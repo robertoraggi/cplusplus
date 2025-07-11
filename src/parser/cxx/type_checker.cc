@@ -557,7 +557,8 @@ auto TypeChecker::Visitor::check_cast_to_derived(const Type* targetType,
 void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
-  auto classType = type_cast<ClassType>(ast->typeId->type);
+  auto classType =
+      ast->typeId ? type_cast<ClassType>(ast->typeId->type) : nullptr;
   auto id = ast_cast<IdExpressionAST>(ast->expression);
 
   if (classType && id && !id->nestedNameSpecifier) {
