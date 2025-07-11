@@ -174,6 +174,9 @@ struct Codegen::ExpressionVisitor {
   [[nodiscard]] auto operator()(UserDefinedStringLiteralExpressionAST* ast)
       -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(ObjectLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionResult;
 
   [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
@@ -1616,6 +1619,13 @@ auto Codegen::ExpressionVisitor::operator()(
     UserDefinedStringLiteralExpressionAST* ast) -> ExpressionResult {
   auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
                              "UserDefinedStringLiteralExpressionAST");
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
+    -> ExpressionResult {
+  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
+                             "ObjectLiteralExpressionAST");
   return {op};
 }
 

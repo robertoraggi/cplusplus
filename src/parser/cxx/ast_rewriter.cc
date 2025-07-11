@@ -263,6 +263,9 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto operator()(UserDefinedStringLiteralExpressionAST* ast)
       -> ExpressionAST*;
 
+  [[nodiscard]] auto operator()(ObjectLiteralExpressionAST* ast)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionAST*;
 
   [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
@@ -2403,6 +2406,21 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->type = ast->type;
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
+
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
+    -> ExpressionAST* {
+  auto copy = make_node<ObjectLiteralExpressionAST>(arena());
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->typeId = rewrite(ast->typeId);
+  copy->rparenLoc = ast->rparenLoc;
+  copy->bracedInitList =
+      ast_cast<BracedInitListAST>(rewrite(ast->bracedInitList));
 
   return copy;
 }

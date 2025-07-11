@@ -339,6 +339,11 @@ void ASTVisitor::visit(StringLiteralExpressionAST* ast) {}
 
 void ASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {}
 
+void ASTVisitor::visit(ObjectLiteralExpressionAST* ast) {
+  accept(ast->typeId);
+  accept(ast->bracedInitList);
+}
+
 void ASTVisitor::visit(ThisExpressionAST* ast) {}
 
 void ASTVisitor::visit(NestedStatementExpressionAST* ast) {

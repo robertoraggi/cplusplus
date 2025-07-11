@@ -198,6 +198,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(UserDefinedStringLiteralExpressionAST* ast);
 
+  void operator()(ObjectLiteralExpressionAST* ast);
+
   void operator()(ThisExpressionAST* ast);
 
   void operator()(NestedStatementExpressionAST* ast);
@@ -2261,6 +2263,21 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
   }
+}
+
+void ASTPrettyPrinter::ExpressionVisitor::operator()(
+    ObjectLiteralExpressionAST* ast) {
+  if (ast->lparenLoc) {
+    nospace();
+    accept.writeToken(ast->lparenLoc);
+    nospace();
+  }
+  accept(ast->typeId);
+  if (ast->rparenLoc) {
+    nospace();
+    accept.writeToken(ast->rparenLoc);
+  }
+  accept(ast->bracedInitList);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(ThisExpressionAST* ast) {

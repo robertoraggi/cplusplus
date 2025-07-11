@@ -137,6 +137,7 @@ struct Parser::ExprContext {
   bool templArg = false;
   bool isConstantEvaluated = false;
   bool inRequiresClause = false;
+  mutable ObjectLiteralExpressionAST* pendingObjectLiteral = nullptr;
 };
 
 struct Parser::TemplateHeadContext {
@@ -1786,6 +1787,13 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
   if (!parse_start_of_postfix_expression(yyast, ctx)) return false;
 
+  parse_rest_of_postfix_expression(yyast, ctx);
+
+  return true;
+}
+
+void Parser::parse_rest_of_postfix_expression(ExpressionAST*& yyast,
+                                              const ExprContext& ctx) {
   while (true) {
     LookaheadParser lookahead{this};
 
@@ -1803,8 +1811,6 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast,
 
     lookahead.commit();
   }
-
-  return true;
 }
 
 auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast,
@@ -2711,12 +2717,25 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
 
-  ExpressionAST* expression = nullptr;
-
   if (BracedInitListAST* bracedInitList = nullptr;
       parse_braced_init_list(bracedInitList, ctx)) {
-    expression = bracedInitList;
-  } else if (!parse_cast_expression(expression, ctx)) {
+    // TODO: should be parsed as a primary expression
+    auto ast = make_node<ObjectLiteralExpressionAST>(pool_);
+    yyast = ast;
+
+    ast->lparenLoc = lparenLoc;
+    ast->typeId = typeId;
+    ast->rparenLoc = rparenLoc;
+    ast->bracedInitList = bracedInitList;
+    check(ast);
+
+    parse_rest_of_postfix_expression(yyast, ctx);
+
+    return true;
+  }
+
+  ExpressionAST* expression = nullptr;
+  if (!parse_cast_expression(expression, ctx)) {
     return false;
   }
 

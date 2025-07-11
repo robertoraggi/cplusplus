@@ -3855,6 +3855,58 @@ export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
 }
 
 /**
+ * ObjectLiteralExpressionAST node.
+ */
+export class ObjectLiteralExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitObjectLiteralExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the bracedInitList of this node
+   */
+  getBracedInitList(): BracedInitListAST | undefined {
+    return AST.from<BracedInitListAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+}
+
+/**
  * ThisExpressionAST node.
  */
 export class ThisExpressionAST extends ExpressionAST {
@@ -12976,6 +13028,7 @@ const AST_CONSTRUCTORS: Array<
   NullptrLiteralExpressionAST,
   StringLiteralExpressionAST,
   UserDefinedStringLiteralExpressionAST,
+  ObjectLiteralExpressionAST,
   ThisExpressionAST,
   NestedStatementExpressionAST,
   NestedExpressionAST,

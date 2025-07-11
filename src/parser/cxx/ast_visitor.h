@@ -98,6 +98,7 @@ class ASTVisitor {
   virtual void visit(NullptrLiteralExpressionAST* ast);
   virtual void visit(StringLiteralExpressionAST* ast);
   virtual void visit(UserDefinedStringLiteralExpressionAST* ast);
+  virtual void visit(ObjectLiteralExpressionAST* ast);
   virtual void visit(ThisExpressionAST* ast);
   virtual void visit(NestedStatementExpressionAST* ast);
   virtual void visit(NestedExpressionAST* ast);

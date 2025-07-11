@@ -1882,6 +1882,21 @@ void ASTEncoder::visit(UserDefinedStringLiteralExpressionAST* ast) {
   type_ = io::Expression_UserDefinedStringLiteralExpression;
 }
 
+void ASTEncoder::visit(ObjectLiteralExpressionAST* ast) {
+  const auto typeId = accept(ast->typeId);
+
+  const auto bracedInitList = accept(ast->bracedInitList);
+
+  io::ObjectLiteralExpression::Builder builder{fbb_};
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_type_id(typeId.o);
+  builder.add_rparen_loc(ast->rparenLoc.index());
+  builder.add_braced_init_list(bracedInitList.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_ObjectLiteralExpression;
+}
+
 void ASTEncoder::visit(ThisExpressionAST* ast) {
   io::ThisExpression::Builder builder{fbb_};
   builder.add_this_loc(ast->thisLoc.index());

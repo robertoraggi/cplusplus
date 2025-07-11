@@ -239,6 +239,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_UserDefinedStringLiteralExpression:
       return decodeUserDefinedStringLiteralExpression(
           reinterpret_cast<const io::UserDefinedStringLiteralExpression*>(ptr));
+    case io::Expression_ObjectLiteralExpression:
+      return decodeObjectLiteralExpression(
+          reinterpret_cast<const io::ObjectLiteralExpression*>(ptr));
     case io::Expression_ThisExpression:
       return decodeThisExpression(
           reinterpret_cast<const io::ThisExpression*>(ptr));
@@ -1890,6 +1893,18 @@ auto ASTDecoder::decodeUserDefinedStringLiteralExpression(
   if (node->literal()) {
     ast->literal = unit_->control()->stringLiteral(node->literal()->str());
   }
+  return ast;
+}
+
+auto ASTDecoder::decodeObjectLiteralExpression(
+    const io::ObjectLiteralExpression* node) -> ObjectLiteralExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ObjectLiteralExpressionAST();
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->bracedInitList = decodeBracedInitList(node->braced_init_list());
   return ast;
 }
 

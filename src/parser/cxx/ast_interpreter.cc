@@ -299,6 +299,9 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto operator()(UserDefinedStringLiteralExpressionAST* ast)
       -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(ObjectLiteralExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionResult;
 
   [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
@@ -1621,6 +1624,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 auto ASTInterpreter::ExpressionVisitor::operator()(
     UserDefinedStringLiteralExpressionAST* ast) -> ExpressionResult {
   return ConstValue(ast->literal);
+}
+
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    ObjectLiteralExpressionAST* ast) -> ExpressionResult {
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ThisExpressionAST* ast)

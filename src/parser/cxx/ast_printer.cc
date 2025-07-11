@@ -820,6 +820,17 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
   }
 }
 
+void ASTPrinter::visit(ObjectLiteralExpressionAST* ast) {
+  out_ << "object-literal-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->typeId, "type-id");
+  accept(ast->bracedInitList, "braced-init-list");
+}
+
 void ASTPrinter::visit(ThisExpressionAST* ast) {
   out_ << "this-expression";
   if (ast->type) {
