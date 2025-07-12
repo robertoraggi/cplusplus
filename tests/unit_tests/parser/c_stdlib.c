@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain wasm32 -verify -xc -U__cplusplus -D__STDC_VERSION__=202311L %s
+// RUN: %cxx -toolchain wasm32 -verify -xc %s
 
 #include <assert.h>
 #include <complex.h>
@@ -19,7 +19,10 @@
 
 #include <stdalign.h>
 #include <stdarg.h>
+
+#if __has_include(<stdatomic.h>)
 #include <stdatomic.h>
+#endif
 
 #if __has_include(<stdbit.h>)
 #include <stdbit.h>
