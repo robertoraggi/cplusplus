@@ -117,8 +117,13 @@ auto readAll(const std::string& fileName) -> std::optional<std::string> {
 }
 
 void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
-  const auto lang =
-      cli.getSingle("-x") == "c" ? LanguageKind::kC : LanguageKind::kCXX;
+  auto lang = LanguageKind::kCXX;
+
+  if (auto x = cli.getSingle("x")) {
+    if (x == "c") lang = LanguageKind::kC;
+  } else if (unit.fileName().ends_with(".c")) {
+    lang = LanguageKind::kC;
+  }
 
   std::string flags;
 
@@ -158,7 +163,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   const auto lang = cli.getSingle("-x");
 
-  if (lang == "c") {
+  if (lang == "c" || (!lang.has_value() && fileName.ends_with(".c"))) {
     // set the language to C
     preprocessor->setLanguage(LanguageKind::kC);
   }
