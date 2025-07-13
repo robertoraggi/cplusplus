@@ -350,7 +350,9 @@ void CLI::parse(int& argc, char**& argv) {
       continue;
     }
 
+#if false
     std::cerr << std::format("unsupported option '{}'\n", arg);
+#endif
   }
 }
 
