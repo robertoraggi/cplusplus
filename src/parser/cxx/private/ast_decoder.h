@@ -422,6 +422,8 @@ class ASTDecoder {
       -> ConstQualifierAST*;
   auto decodeVolatileQualifier(const io::VolatileQualifier* node)
       -> VolatileQualifierAST*;
+  auto decodeAtomicQualifier(const io::AtomicQualifier* node)
+      -> AtomicQualifierAST*;
   auto decodeRestrictQualifier(const io::RestrictQualifier* node)
       -> RestrictQualifierAST*;
   auto decodeEnumSpecifier(const io::EnumSpecifier* node) -> EnumSpecifierAST*;

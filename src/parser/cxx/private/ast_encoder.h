@@ -305,6 +305,7 @@ class ASTEncoder : ASTVisitor {
   void visit(PlaceholderTypeSpecifierAST* ast) override;
   void visit(ConstQualifierAST* ast) override;
   void visit(VolatileQualifierAST* ast) override;
+  void visit(AtomicQualifierAST* ast) override;
   void visit(RestrictQualifierAST* ast) override;
   void visit(EnumSpecifierAST* ast) override;
   void visit(ClassSpecifierAST* ast) override;

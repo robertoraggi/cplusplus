@@ -2616,6 +2616,16 @@ auto VolatileQualifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto AtomicQualifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(atomicLoc)) return loc;
+  return {};
+}
+
+auto AtomicQualifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(atomicLoc)) return loc;
+  return {};
+}
+
 auto RestrictQualifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(restrictLoc)) return loc;
   return {};
@@ -2838,6 +2848,7 @@ auto FunctionDeclaratorChunkAST::lastSourceLocation() -> SourceLocation {
 
 auto ArrayDeclaratorChunkAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeQualifierList)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -2848,6 +2859,7 @@ auto ArrayDeclaratorChunkAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeQualifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   return {};
 }
@@ -3670,6 +3682,7 @@ std::string_view kASTKindNames[] = {
     "placeholder-type-specifier",
     "const-qualifier",
     "volatile-qualifier",
+    "atomic-qualifier",
     "restrict-qualifier",
     "enum-specifier",
     "class-specifier",

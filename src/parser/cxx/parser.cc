@@ -4670,8 +4670,8 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
 auto Parser::parse_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (parse_simple_type_specifier(yyast, specs)) return true;
   if (parse_cv_qualifier(yyast, specs)) return true;
+  if (parse_simple_type_specifier(yyast, specs)) return true;
   if (parse_elaborated_type_specifier(yyast, specs)) return true;
   if (parse_splicer_specifier(yyast, specs)) return true;
   if (parse_typename_specifier(yyast, specs)) return true;
@@ -4719,6 +4719,31 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
   specs.finish();
 
   return true;
+}
+
+void Parser::parse_optional_type_qualifier_seq(List<SpecifierAST*>*& yyast,
+                                               DeclSpecs& specs) {
+  if (!is_parsing_c()) {
+    return;
+  }
+
+  auto it = &yyast;
+
+  while (true) {
+    if (SpecifierAST* cv = nullptr; parse_cv_qualifier(cv, specs)) {
+      *it = make_list_node(pool_, cv);
+      it = &(*it)->next;
+    } else if (SourceLocation staticLoc;
+               match(TokenKind::T_STATIC, staticLoc)) {
+      auto spec = make_node<StaticSpecifierAST>(pool_);
+      *it = make_list_node<SpecifierAST>(pool_, spec);
+      it = &(*it)->next;
+    } else {
+      break;
+    }
+  }
+
+  specs.finish();
 }
 
 auto Parser::parse_defining_type_specifier(SpecifierAST*& yyast,
@@ -5477,6 +5502,10 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
   SourceLocation lbracketLoc;
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
+  List<SpecifierAST*>* typeQualifierList = nullptr;
+  DeclSpecs specs{unit};
+  parse_optional_type_qualifier_seq(typeQualifierList, specs);
+
   SourceLocation rbracketLoc;
   ExpressionAST* expression = nullptr;
   std::optional<ConstValue> value;
@@ -5495,6 +5524,7 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
   yyast = modifier;
 
   modifier->lbracketLoc = lbracketLoc;
+  modifier->typeQualifierList = typeQualifierList;
   modifier->expression = expression;
   modifier->rbracketLoc = rbracketLoc;
   modifier->attributeList = attributes;
@@ -5665,6 +5695,15 @@ auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
     declSpecs.isRestrict = true;
     return true;
   }
+  if (is_parsing_c() && lookat(TokenKind::T__ATOMIC) &&
+      LA(1).isNot(TokenKind::T_LPAREN)) {
+    auto ast = make_node<AtomicQualifierAST>(pool_);
+    yyast = ast;
+    ast->atomicLoc = consumeToken();
+    declSpecs.isAtomic = true;
+    return true;
+  }
+
   return false;
 }
 

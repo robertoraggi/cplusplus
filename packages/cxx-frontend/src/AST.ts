@@ -9699,6 +9699,31 @@ export class VolatileQualifierAST extends SpecifierAST {
 }
 
 /**
+ * AtomicQualifierAST node.
+ */
+export class AtomicQualifierAST extends SpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitAtomicQualifier(this, context);
+  }
+
+  /**
+   * Returns the location of the atomic token in this node
+   */
+  getAtomicToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+}
+
+/**
  * RestrictQualifierAST node.
  */
 export class RestrictQualifierAST extends SpecifierAST {
@@ -10729,11 +10754,37 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
   }
 
   /**
+   * Returns the typeQualifierList of this node
+   */
+  getTypeQualifierList(): Iterable<SpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: SpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<SpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the expression of this node
    */
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -10742,7 +10793,7 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
    * Returns the location of the rbracket token in this node
    */
   getRbracketToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
@@ -13144,6 +13195,7 @@ const AST_CONSTRUCTORS: Array<
   PlaceholderTypeSpecifierAST,
   ConstQualifierAST,
   VolatileQualifierAST,
+  AtomicQualifierAST,
   RestrictQualifierAST,
   EnumSpecifierAST,
   ClassSpecifierAST,

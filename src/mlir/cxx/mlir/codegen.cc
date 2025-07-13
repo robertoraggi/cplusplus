@@ -397,6 +397,8 @@ struct Codegen::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(AtomicQualifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(EnumSpecifierAST* ast) -> SpecifierResult;
 
   [[nodiscard]] auto operator()(ClassSpecifierAST* ast) -> SpecifierResult;
@@ -2413,6 +2415,11 @@ auto Codegen::SpecifierVisitor::operator()(VolatileQualifierAST* ast)
 }
 
 auto Codegen::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto Codegen::SpecifierVisitor::operator()(AtomicQualifierAST* ast)
     -> SpecifierResult {
   return {};
 }

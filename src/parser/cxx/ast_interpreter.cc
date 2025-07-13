@@ -522,6 +522,8 @@ struct ASTInterpreter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(AtomicQualifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(EnumSpecifierAST* ast) -> SpecifierResult;
 
   [[nodiscard]] auto operator()(ClassSpecifierAST* ast) -> SpecifierResult;
@@ -2723,6 +2725,11 @@ auto ASTInterpreter::SpecifierVisitor::operator()(VolatileQualifierAST* ast)
 }
 
 auto ASTInterpreter::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto ASTInterpreter::SpecifierVisitor::operator()(AtomicQualifierAST* ast)
     -> SpecifierResult {
   return {};
 }

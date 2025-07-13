@@ -3963,6 +3963,14 @@ void ASTEncoder::visit(VolatileQualifierAST* ast) {
   type_ = io::Specifier_VolatileQualifier;
 }
 
+void ASTEncoder::visit(AtomicQualifierAST* ast) {
+  io::AtomicQualifier::Builder builder{fbb_};
+  builder.add_atomic_loc(ast->atomicLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_AtomicQualifier;
+}
+
 void ASTEncoder::visit(RestrictQualifierAST* ast) {
   io::RestrictQualifier::Builder builder{fbb_};
   builder.add_restrict_loc(ast->restrictLoc.index());
@@ -4375,6 +4383,20 @@ void ASTEncoder::visit(FunctionDeclaratorChunkAST* ast) {
 }
 
 void ASTEncoder::visit(ArrayDeclaratorChunkAST* ast) {
+  std::vector<flatbuffers::Offset<>> typeQualifierListOffsets;
+  std::vector<std::underlying_type_t<io::Specifier>> typeQualifierListTypes;
+
+  for (auto node : ListView{ast->typeQualifierList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptSpecifier(node);
+    typeQualifierListOffsets.push_back(offset);
+    typeQualifierListTypes.push_back(type);
+  }
+
+  auto typeQualifierListOffsetsVector =
+      fbb_.CreateVector(typeQualifierListOffsets);
+  auto typeQualifierListTypesVector = fbb_.CreateVector(typeQualifierListTypes);
+
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   std::vector<flatbuffers::Offset<>> attributeListOffsets;
@@ -4393,6 +4415,8 @@ void ASTEncoder::visit(ArrayDeclaratorChunkAST* ast) {
 
   io::ArrayDeclaratorChunk::Builder builder{fbb_};
   builder.add_lbracket_loc(ast->lbracketLoc.index());
+  builder.add_type_qualifier_list(typeQualifierListOffsetsVector);
+  builder.add_type_qualifier_list_type(typeQualifierListTypesVector);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_rbracket_loc(ast->rbracketLoc.index());

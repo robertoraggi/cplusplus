@@ -222,6 +222,7 @@ class ASTVisitor {
   virtual void visit(PlaceholderTypeSpecifierAST* ast);
   virtual void visit(ConstQualifierAST* ast);
   virtual void visit(VolatileQualifierAST* ast);
+  virtual void visit(AtomicQualifierAST* ast);
   virtual void visit(RestrictQualifierAST* ast);
   virtual void visit(EnumSpecifierAST* ast);
   virtual void visit(ClassSpecifierAST* ast);

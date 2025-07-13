@@ -2078,6 +2078,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit AtomicQualifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitAtomicQualifier(
+    node: ast.AtomicQualifierAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit RestrictQualifier node.
    *
    * @param node The node to visit.

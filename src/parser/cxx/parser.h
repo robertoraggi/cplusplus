@@ -433,6 +433,8 @@ class Parser final {
                                           DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
                                               DeclSpecs& specs) -> bool;
+  void parse_optional_type_qualifier_seq(List<SpecifierAST*>*& yyast,
+                                         DeclSpecs& specs);
   [[nodiscard]] auto parse_defining_type_specifier(SpecifierAST*& yyast,
                                                    DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_defining_type_specifier_seq(
