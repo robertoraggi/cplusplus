@@ -785,6 +785,34 @@ static inline auto classifyC10(const char* s) -> cxx::TokenKind {
             }
           }
         }
+      } else if (s[2] == 'i') {
+        if (s[3] == 'n') {
+          if (s[4] == 't') {
+            if (s[5] == '1') {
+              if (s[6] == '2') {
+                if (s[7] == '8') {
+                  if (s[8] == '_') {
+                    if (s[9] == 't') {
+                      return cxx::TokenKind::T___INT128_T;
+                    }
+                  }
+                }
+              }
+            }
+          } else if (s[4] == 'l') {
+            if (s[5] == 'i') {
+              if (s[6] == 'n') {
+                if (s[7] == 'e') {
+                  if (s[8] == '_') {
+                    if (s[9] == '_') {
+                      return cxx::TokenKind::T___INLINE__;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       } else if (s[2] == 'd') {
         if (s[3] == 'e') {
           if (s[4] == 'c') {
@@ -794,22 +822,6 @@ static inline auto classifyC10(const char* s) -> cxx::TokenKind {
                   if (s[8] == 'p') {
                     if (s[9] == 'e') {
                       return cxx::TokenKind::T___DECLTYPE;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      } else if (s[2] == 'i') {
-        if (s[3] == 'n') {
-          if (s[4] == 'l') {
-            if (s[5] == 'i') {
-              if (s[6] == 'n') {
-                if (s[7] == 'e') {
-                  if (s[8] == '_') {
-                    if (s[9] == '_') {
-                      return cxx::TokenKind::T___INLINE__;
                     }
                   }
                 }
@@ -904,6 +916,24 @@ static inline auto classifyC11(const char* s) -> cxx::TokenKind {
                     if (s[9] == '_') {
                       if (s[10] == '_') {
                         return cxx::TokenKind::T___COMPLEX__;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'u') {
+        if (s[3] == 'i') {
+          if (s[4] == 'n') {
+            if (s[5] == 't') {
+              if (s[6] == '1') {
+                if (s[7] == '2') {
+                  if (s[8] == '8') {
+                    if (s[9] == '_') {
+                      if (s[10] == 't') {
+                        return cxx::TokenKind::T___UINT128_T;
                       }
                     }
                   }

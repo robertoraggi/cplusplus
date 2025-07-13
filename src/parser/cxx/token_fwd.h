@@ -123,10 +123,12 @@ class Token;
   V(__FLOAT80, "__float80")                   \
   V(__IMAG__, "__imag__")                     \
   V(__INT128, "__int128")                     \
+  V(__INT128_T, "__int128_t")                 \
   V(__INT64, "__int64")                       \
   V(__REAL__, "__real__")                     \
   V(__RESTRICT__, "__restrict__")             \
   V(__THREAD, "__thread")                     \
+  V(__UINT128_T, "__uint128_t")               \
   V(__UNDERLYING_TYPE, "__underlying_type")   \
   V(ALIGNAS, "alignas")                       \
   V(ALIGNOF, "alignof")                       \

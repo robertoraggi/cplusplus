@@ -222,8 +222,13 @@ void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
       // ### todo
       break;
 
+    case TokenKind::T___INT128_T:
     case TokenKind::T___INT128:
-      // ### todo
+      specs.type_ = control()->getInt128Type();
+      break;
+
+    case TokenKind::T___UINT128_T:
+      specs.type_ = control()->getUnsignedInt128Type();
       break;
 
     default:
@@ -399,6 +404,10 @@ void DeclSpecs::finish() {
       type_ = control()->getUnsignedIntType();
     else if (isSigned)
       type_ = control()->getIntType();
+  }
+
+  if (type_ == control()->getInt128Type() && isUnsigned) {
+    type_ = control()->getUnsignedInt128Type();
   }
 
   if (!type_) {

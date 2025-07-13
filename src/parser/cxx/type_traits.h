@@ -864,6 +864,10 @@ class TypeTraits {
       return true;
     }
 
+    auto operator()(const Int128Type*, const Int128Type*) const -> bool {
+      return true;
+    }
+
     auto operator()(const UnsignedCharType*, const UnsignedCharType*) const
         -> bool {
       return true;
@@ -886,6 +890,11 @@ class TypeTraits {
 
     auto operator()(const UnsignedLongLongIntType*,
                     const UnsignedLongLongIntType*) const -> bool {
+      return true;
+    }
+
+    auto operator()(const UnsignedInt128Type*, const UnsignedInt128Type*) const
+        -> bool {
       return true;
     }
 

@@ -90,11 +90,13 @@ struct Control::Private {
   IntType intType;
   LongIntType longIntType;
   LongLongIntType longLongIntType;
+  Int128Type int128Type;
   UnsignedCharType unsignedCharType;
   UnsignedShortIntType unsignedShortIntType;
   UnsignedIntType unsignedIntType;
   UnsignedLongIntType unsignedLongIntType;
   UnsignedLongLongIntType unsignedLongLongIntType;
+  UnsignedInt128Type unsignedInt128Type;
   CharType charType;
   Char8Type char8Type;
   Char16Type char16Type;
@@ -302,6 +304,8 @@ auto Control::getLongLongIntType() -> const LongLongIntType* {
   return &d->longLongIntType;
 }
 
+auto Control::getInt128Type() -> const Int128Type* { return &d->int128Type; }
+
 auto Control::getUnsignedCharType() -> const UnsignedCharType* {
   return &d->unsignedCharType;
 }
@@ -320,6 +324,10 @@ auto Control::getUnsignedLongIntType() -> const UnsignedLongIntType* {
 
 auto Control::getUnsignedLongLongIntType() -> const UnsignedLongLongIntType* {
   return &d->unsignedLongLongIntType;
+}
+
+auto Control::getUnsignedInt128Type() -> const UnsignedInt128Type* {
+  return &d->unsignedInt128Type;
 }
 
 auto Control::getCharType() -> const CharType* { return &d->charType; }

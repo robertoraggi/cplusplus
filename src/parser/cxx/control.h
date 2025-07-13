@@ -88,12 +88,14 @@ class Control {
   [[nodiscard]] auto getIntType() -> const IntType*;
   [[nodiscard]] auto getLongIntType() -> const LongIntType*;
   [[nodiscard]] auto getLongLongIntType() -> const LongLongIntType*;
+  [[nodiscard]] auto getInt128Type() -> const Int128Type*;
   [[nodiscard]] auto getUnsignedCharType() -> const UnsignedCharType*;
   [[nodiscard]] auto getUnsignedShortIntType() -> const UnsignedShortIntType*;
   [[nodiscard]] auto getUnsignedIntType() -> const UnsignedIntType*;
   [[nodiscard]] auto getUnsignedLongIntType() -> const UnsignedLongIntType*;
   [[nodiscard]] auto getUnsignedLongLongIntType()
       -> const UnsignedLongLongIntType*;
+  [[nodiscard]] auto getUnsignedInt128Type() -> const UnsignedInt128Type*;
   [[nodiscard]] auto getCharType() -> const CharType*;
   [[nodiscard]] auto getChar8Type() -> const Char8Type*;
   [[nodiscard]] auto getChar16Type() -> const Char16Type*;

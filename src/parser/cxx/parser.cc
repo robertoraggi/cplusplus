@@ -5046,6 +5046,8 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T_INT:
     case TokenKind::T___INT64:
     case TokenKind::T___INT128:
+    case TokenKind::T___INT128_T:
+    case TokenKind::T___UINT128_T:
       makeIntegralTypeSpecifier();
       specs.accept(yyast);
       return true;
