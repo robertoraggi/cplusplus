@@ -39,13 +39,6 @@ class MacOSToolchain final : public Toolchain {
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
-  void addCommonMacros();
-  void addCxx20Macros();
-  void addCxx23Macros();
-  void addCxx26Macros();
-  void addArm64Macros();
-  void addAmd64Macros();
-
  private:
   std::string platformPath_;
   std::string toolchainPath_;

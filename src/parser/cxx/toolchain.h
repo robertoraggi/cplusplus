@@ -58,6 +58,29 @@ class Toolchain {
 
   void addSystemIncludePath(std::string path);
 
+  void addCommonMacros();
+  void addCommonC23Macros();
+  void addCommonCxx26Macros();
+  void addCommonLinuxMacros();
+  void addCommonMacOSMacros();
+  void addCommonWindowsMacros();
+  void addCommonWASIMacros();
+  void addLinuxAArch64Macros();
+  void addLinuxX86_64Macros();
+  void addMacOSAArch64Macros();
+  void addMacOSX86_64Macros();
+  void addWindowsAArch64Macros();
+  void addWindowsX86_64Macros();
+  void addWASIWasm32Macros();
+  void addLinuxC23Macros();
+  void addMacOSC23Macros();
+  void addWindowsC23Macros();
+  void addWASIC23Macros();
+  void addLinuxCxx26Macros();
+  void addMacOSCxx26Macros();
+  void addWindowsCxx26Macros();
+  void addWASICxx26Macros();
+
  private:
   Preprocessor *preprocessor_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
