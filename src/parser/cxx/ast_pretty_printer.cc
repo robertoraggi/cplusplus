@@ -422,6 +422,8 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(VolatileQualifierAST* ast);
 
+  void operator()(AtomicQualifierAST* ast);
+
   void operator()(RestrictQualifierAST* ast);
 
   void operator()(EnumSpecifierAST* ast);
@@ -3492,6 +3494,12 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(VolatileQualifierAST* ast) {
   }
 }
 
+void ASTPrettyPrinter::SpecifierVisitor::operator()(AtomicQualifierAST* ast) {
+  if (ast->atomicLoc) {
+    accept.writeToken(ast->atomicLoc);
+  }
+}
+
 void ASTPrettyPrinter::SpecifierVisitor::operator()(RestrictQualifierAST* ast) {
   if (ast->restrictLoc) {
     accept.writeToken(ast->restrictLoc);
@@ -3735,6 +3743,11 @@ void ASTPrettyPrinter::DeclaratorChunkVisitor::operator()(
     accept.writeToken(ast->lbracketLoc);
     nospace();
   }
+
+  for (auto it = ast->typeQualifierList; it; it = it->next) {
+    accept(it->value);
+  }
+
   accept(ast->expression);
   if (ast->rbracketLoc) {
     nospace();

@@ -788,6 +788,8 @@ void ASTVisitor::visit(ConstQualifierAST* ast) {}
 
 void ASTVisitor::visit(VolatileQualifierAST* ast) {}
 
+void ASTVisitor::visit(AtomicQualifierAST* ast) {}
+
 void ASTVisitor::visit(RestrictQualifierAST* ast) {}
 
 void ASTVisitor::visit(EnumSpecifierAST* ast) {
@@ -880,6 +882,9 @@ void ASTVisitor::visit(FunctionDeclaratorChunkAST* ast) {
 }
 
 void ASTVisitor::visit(ArrayDeclaratorChunkAST* ast) {
+  for (auto node : ListView{ast->typeQualifierList}) {
+    accept(node);
+  }
   accept(ast->expression);
   for (auto node : ListView{ast->attributeList}) {
     accept(node);

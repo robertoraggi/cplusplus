@@ -3232,6 +3232,20 @@ class VolatileQualifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class AtomicQualifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AtomicQualifier;
+
+  AtomicQualifierAST() : SpecifierAST(Kind) {}
+
+  SourceLocation atomicLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class RestrictQualifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RestrictQualifier;
@@ -3475,6 +3489,7 @@ class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
   ArrayDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 
   SourceLocation lbracketLoc;
+  List<SpecifierAST*>* typeQualifierList = nullptr;
   ExpressionAST* expression = nullptr;
   SourceLocation rbracketLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -4895,6 +4910,9 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case VolatileQualifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<VolatileQualifierAST*>(ast));
+    case AtomicQualifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<AtomicQualifierAST*>(ast));
     case RestrictQualifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<RestrictQualifierAST*>(ast));
@@ -4952,6 +4970,7 @@ template <>
     case PlaceholderTypeSpecifierAST::Kind:
     case ConstQualifierAST::Kind:
     case VolatileQualifierAST::Kind:
+    case AtomicQualifierAST::Kind:
     case RestrictQualifierAST::Kind:
     case EnumSpecifierAST::Kind:
     case ClassSpecifierAST::Kind:

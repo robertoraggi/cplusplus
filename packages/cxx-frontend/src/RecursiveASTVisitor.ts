@@ -2235,6 +2235,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   ): void {}
 
   /**
+   * Visit a AtomicQualifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitAtomicQualifier(node: ast.AtomicQualifierAST, context: Context): void {}
+
+  /**
    * Visit a RestrictQualifier node.
    *
    * @param node The node to visit.
@@ -2440,6 +2448,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.ArrayDeclaratorChunkAST,
     context: Context,
   ): void {
+    for (const element of node.getTypeQualifierList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getExpression(), context);
     for (const element of node.getAttributeList()) {
       this.accept(element, context);

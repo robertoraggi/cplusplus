@@ -74,6 +74,7 @@ class DeclSpecs {
   bool isConst = false;
   bool isVolatile = false;
   bool isRestrict = false;
+  bool isAtomic = true;
 
   // storage class specifiers
   bool isStatic = false;

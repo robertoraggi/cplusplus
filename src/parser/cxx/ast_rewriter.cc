@@ -507,6 +507,8 @@ struct ASTRewriter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierAST*;
 
+  [[nodiscard]] auto operator()(AtomicQualifierAST* ast) -> SpecifierAST*;
+
   [[nodiscard]] auto operator()(EnumSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(ClassSpecifierAST* ast) -> SpecifierAST*;
@@ -3816,6 +3818,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
   return copy;
 }
 
+auto ASTRewriter::SpecifierVisitor::operator()(AtomicQualifierAST* ast)
+    -> SpecifierAST* {
+  auto copy = make_node<AtomicQualifierAST>(arena());
+
+  copy->atomicLoc = ast->atomicLoc;
+
+  return copy;
+}
+
 auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
     -> SpecifierAST* {
   auto copy = make_node<EnumSpecifierAST>(arena());
@@ -4111,6 +4122,16 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
   auto copy = make_node<ArrayDeclaratorChunkAST>(arena());
 
   copy->lbracketLoc = ast->lbracketLoc;
+
+  auto typeQualifierListCtx = DeclSpecs{rewriter()};
+  for (auto typeQualifierList = &copy->typeQualifierList;
+       auto node : ListView{ast->typeQualifierList}) {
+    auto value = rewrite(node);
+    *typeQualifierList = make_list_node(arena(), value);
+    typeQualifierList = &(*typeQualifierList)->next;
+    typeQualifierListCtx.accept(value);
+  }
+
   copy->expression = rewrite(ast->expression);
   copy->rbracketLoc = ast->rbracketLoc;
 

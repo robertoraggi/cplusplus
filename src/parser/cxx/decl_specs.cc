@@ -69,6 +69,7 @@ struct DeclSpecs::Visitor {
   void operator()(ConstQualifierAST* ast);
   void operator()(VolatileQualifierAST* ast);
   void operator()(RestrictQualifierAST* ast);
+  void operator()(AtomicQualifierAST* ast);
   void operator()(EnumSpecifierAST* ast);
   void operator()(ClassSpecifierAST* ast);
   void operator()(TypenameSpecifierAST* ast);
@@ -324,6 +325,10 @@ void DeclSpecs::Visitor::operator()(VolatileQualifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(RestrictQualifierAST* ast) {
   specs.isRestrict = true;
+}
+
+void DeclSpecs::Visitor::operator()(AtomicQualifierAST* ast) {
+  specs.isAtomic = true;
 }
 
 void DeclSpecs::Visitor::operator()(EnumSpecifierAST* ast) {

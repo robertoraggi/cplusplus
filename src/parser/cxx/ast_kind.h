@@ -213,6 +213,7 @@ enum class ASTKind {
   PlaceholderTypeSpecifier,
   ConstQualifier,
   VolatileQualifier,
+  AtomicQualifier,
   RestrictQualifier,
   EnumSpecifier,
   ClassSpecifier,

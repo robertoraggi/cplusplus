@@ -267,6 +267,7 @@ class DecltypeSpecifierAST;
 class PlaceholderTypeSpecifierAST;
 class ConstQualifierAST;
 class VolatileQualifierAST;
+class AtomicQualifierAST;
 class RestrictQualifierAST;
 class EnumSpecifierAST;
 class ClassSpecifierAST;

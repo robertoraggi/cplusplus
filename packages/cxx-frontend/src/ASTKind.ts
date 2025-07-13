@@ -208,6 +208,7 @@ export enum ASTKind {
   PlaceholderTypeSpecifier,
   ConstQualifier,
   VolatileQualifier,
+  AtomicQualifier,
   RestrictQualifier,
   EnumSpecifier,
   ClassSpecifier,

@@ -2155,6 +2155,10 @@ void ASTPrinter::visit(VolatileQualifierAST* ast) {
   out_ << std::format("{}\n", "volatile-qualifier");
 }
 
+void ASTPrinter::visit(AtomicQualifierAST* ast) {
+  out_ << std::format("{}\n", "atomic-qualifier");
+}
+
 void ASTPrinter::visit(RestrictQualifierAST* ast) {
   out_ << std::format("{}\n", "restrict-qualifier");
 }
@@ -2402,6 +2406,15 @@ void ASTPrinter::visit(FunctionDeclaratorChunkAST* ast) {
 
 void ASTPrinter::visit(ArrayDeclaratorChunkAST* ast) {
   out_ << std::format("{}\n", "array-declarator-chunk");
+  if (ast->typeQualifierList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "type-qualifier-list");
+    for (auto node : ListView{ast->typeQualifierList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->expression, "expression");
   if (ast->attributeList) {
     ++indent_;

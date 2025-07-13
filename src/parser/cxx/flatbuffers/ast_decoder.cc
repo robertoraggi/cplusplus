@@ -536,6 +536,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_VolatileQualifier:
       return decodeVolatileQualifier(
           reinterpret_cast<const io::VolatileQualifier*>(ptr));
+    case io::Specifier_AtomicQualifier:
+      return decodeAtomicQualifier(
+          reinterpret_cast<const io::AtomicQualifier*>(ptr));
     case io::Specifier_RestrictQualifier:
       return decodeRestrictQualifier(
           reinterpret_cast<const io::RestrictQualifier*>(ptr));
@@ -3551,6 +3554,15 @@ auto ASTDecoder::decodeVolatileQualifier(const io::VolatileQualifier* node)
   return ast;
 }
 
+auto ASTDecoder::decodeAtomicQualifier(const io::AtomicQualifier* node)
+    -> AtomicQualifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) AtomicQualifierAST();
+  ast->atomicLoc = SourceLocation(node->atomic_loc());
+  return ast;
+}
+
 auto ASTDecoder::decodeRestrictQualifier(const io::RestrictQualifier* node)
     -> RestrictQualifierAST* {
   if (!node) return nullptr;
@@ -3843,6 +3855,15 @@ auto ASTDecoder::decodeArrayDeclaratorChunk(
 
   auto ast = new (pool_) ArrayDeclaratorChunkAST();
   ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  if (node->type_qualifier_list()) {
+    auto* inserter = &ast->typeQualifierList;
+    for (std::uint32_t i = 0; i < node->type_qualifier_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeSpecifier(
+          node->type_qualifier_list()->Get(i),
+          io::Specifier(node->type_qualifier_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   ast->rbracketLoc = SourceLocation(node->rbracket_loc());
