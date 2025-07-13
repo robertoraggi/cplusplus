@@ -5,6 +5,10 @@
     "dockerfile": "Dockerfile"
   },
 
+  "hostRequirements": {
+    "cpus": 4
+  },
+
   "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
 
   "postCreateCommand": "./scripts/devcontainer-post-create.sh",
@@ -26,8 +30,8 @@
     "ghcr.io/devcontainers/features/node:1": {
       "version": "latest"
     },
-    "./features/emscripten": {},
-    "./features/wasi-sdk": {}
+    "../features/emscripten": {},
+    "../features/wasi-sdk": {}
   },
 
   "customizations": {
