@@ -107,6 +107,12 @@ class LongLongIntType final : public Type {
   LongLongIntType() : Type(Kind) {}
 };
 
+class Int128Type final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kInt128;
+  Int128Type() : Type(Kind) {}
+};
+
 class UnsignedCharType final : public Type {
  public:
   static constexpr TypeKind Kind = TypeKind::kUnsignedChar;
@@ -135,6 +141,12 @@ class UnsignedLongLongIntType final : public Type {
  public:
   static constexpr TypeKind Kind = TypeKind::kUnsignedLongLongInt;
   UnsignedLongLongIntType() : Type(Kind) {}
+};
+
+class UnsignedInt128Type final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnsignedInt128;
+  UnsignedInt128Type() : Type(Kind) {}
 };
 
 class CharType final : public Type {

@@ -80,6 +80,10 @@ struct SizeOf {
     return memoryLayout.sizeOfLongLong();
   }
 
+  auto operator()(const Int128Type*) const -> std::optional<std::size_t> {
+    return 16;
+  }
+
   auto operator()(const UnsignedCharType* type) const
       -> std::optional<std::size_t> {
     return 1;
@@ -103,6 +107,11 @@ struct SizeOf {
   auto operator()(const UnsignedLongLongIntType* type) const
       -> std::optional<std::size_t> {
     return memoryLayout.sizeOfLongLong();
+  }
+
+  auto operator()(const UnsignedInt128Type*) const
+      -> std::optional<std::size_t> {
+    return 16;
   }
 
   auto operator()(const CharType* type) const -> std::optional<std::size_t> {

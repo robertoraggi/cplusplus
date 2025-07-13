@@ -40,11 +40,13 @@ class Name;
   V(Int)                          \
   V(LongInt)                      \
   V(LongLongInt)                  \
+  V(Int128)                       \
   V(UnsignedChar)                 \
   V(UnsignedShortInt)             \
   V(UnsignedInt)                  \
   V(UnsignedLongInt)              \
   V(UnsignedLongLongInt)          \
+  V(UnsignedInt128)               \
   V(Char)                         \
   V(Char8)                        \
   V(Char16)                       \

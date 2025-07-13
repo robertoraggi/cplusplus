@@ -66,6 +66,8 @@ struct ExternalNameEncoder::TypeVisitor {
 
   void operator()(const LongLongIntType* type) { encoder.out("x"); }
 
+  void operator()(const Int128Type* type) { encoder.out("n"); }
+
   void operator()(const UnsignedCharType* type) { encoder.out("h"); }
 
   void operator()(const UnsignedShortIntType* type) { encoder.out("t"); }
@@ -75,6 +77,8 @@ struct ExternalNameEncoder::TypeVisitor {
   void operator()(const UnsignedLongIntType* type) { encoder.out("m"); }
 
   void operator()(const UnsignedLongLongIntType* type) { encoder.out("y"); }
+
+  void operator()(const UnsignedInt128Type* type) { encoder.out("o"); }
 
   void operator()(const CharType* type) { encoder.out("c"); }
 

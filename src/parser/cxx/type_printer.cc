@@ -132,6 +132,12 @@ class TypePrinter {
     specifiers_.append("unsigned long long");
   }
 
+  void operator()(const Int128Type* type) { specifiers_.append("__int128_t"); }
+
+  void operator()(const UnsignedInt128Type* type) {
+    specifiers_.append("__uint128_t");
+  }
+
   void operator()(const FloatType* type) { specifiers_.append("float"); }
 
   void operator()(const DoubleType* type) { specifiers_.append("double"); }

@@ -97,6 +97,7 @@ struct SymbolInstantiation::VisitType {
   [[nodiscard]] auto operator()(const IntType* type) -> const Type*;
   [[nodiscard]] auto operator()(const LongIntType* type) -> const Type*;
   [[nodiscard]] auto operator()(const LongLongIntType* type) -> const Type*;
+  [[nodiscard]] auto operator()(const Int128Type* type) -> const Type*;
   [[nodiscard]] auto operator()(const UnsignedCharType* type) -> const Type*;
   [[nodiscard]] auto operator()(const UnsignedShortIntType* type)
       -> const Type*;
@@ -104,6 +105,7 @@ struct SymbolInstantiation::VisitType {
   [[nodiscard]] auto operator()(const UnsignedLongIntType* type) -> const Type*;
   [[nodiscard]] auto operator()(const UnsignedLongLongIntType* type)
       -> const Type*;
+  [[nodiscard]] auto operator()(const UnsignedInt128Type* type) -> const Type*;
   [[nodiscard]] auto operator()(const CharType* type) -> const Type*;
   [[nodiscard]] auto operator()(const Char8Type* type) -> const Type*;
   [[nodiscard]] auto operator()(const Char16Type* type) -> const Type*;
@@ -465,6 +467,11 @@ auto SymbolInstantiation::VisitType::operator()(const LongLongIntType* type)
   return type;
 }
 
+auto SymbolInstantiation::VisitType::operator()(const Int128Type* type)
+    -> const Type* {
+  return type;
+}
+
 auto SymbolInstantiation::VisitType::operator()(const UnsignedCharType* type)
     -> const Type* {
   return type;
@@ -481,6 +488,11 @@ auto SymbolInstantiation::VisitType::operator()(const UnsignedIntType* type)
 }
 
 auto SymbolInstantiation::VisitType::operator()(const UnsignedLongIntType* type)
+    -> const Type* {
+  return type;
+}
+
+auto SymbolInstantiation::VisitType::operator()(const UnsignedInt128Type* type)
     -> const Type* {
   return type;
 }
