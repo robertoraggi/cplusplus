@@ -22,3 +22,8 @@ static_assert(alignof(long) == 4);
 static_assert(alignof(unsigned long) == 4);
 static_assert(alignof(long double) == 16);
 #endif
+
+static_assert(alignof(char[]) == 1);
+static_assert(alignof(int[]) == 4);
+static_assert(alignof(double[]) == 8);
+static_assert(alignof(__int128_t) == 16);

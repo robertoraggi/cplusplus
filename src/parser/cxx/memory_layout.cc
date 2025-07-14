@@ -255,6 +255,11 @@ struct AlignmentOf {
     return type->symbol()->alignment();
   }
 
+  auto operator()(const UnboundedArrayType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.alignmentOf(type->elementType());
+  }
+
   auto operator()(auto type) const -> std::optional<std::size_t> {
     // ### TODO
     if (!type) return std::nullopt;
