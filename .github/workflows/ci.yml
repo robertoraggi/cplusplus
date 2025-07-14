@@ -22,11 +22,9 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          cmake . \
-            -Bbuild \
-            -DCMAKE_BUILD_TYPE=Release
+          cmake . -Bbuild -DCMAKE_BUILD_TYPE=Release
 
-          cmake --build build
+          cmake --build build --parallel
 
       - name: Test
         working-directory: build
@@ -40,11 +38,10 @@ jobs:
             ./build/src/frontend/cxx \
               -I src/parser \
               -I src/lsp \
-              -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \
-              -I build/_deps/flatbuffers-src/include \
               -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
+              -DCXX_NO_FLATBUFFERS \
               -DCXX_NO_FILESYSTEM \
               -DCXX_NO_THREADS \
               $i
@@ -58,11 +55,10 @@ jobs:
               -toolchain linux \
               -I src/parser \
               -I src/lsp \
-              -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \
-              -I build/_deps/flatbuffers-src/include \
               -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
+              -DCXX_NO_FLATBUFFERS \
               $i
           done
 
@@ -95,7 +91,7 @@ jobs:
             -DCXX_ENABLE_MLIR=ON \
             -DMLIR_DIR=/usr/lib/llvm-18/lib/cmake/mlir
 
-          cmake --build build
+          cmake --build build --parallel
 
       - name: Test
         working-directory: build
@@ -119,7 +115,7 @@ jobs:
 
           cmake . -Bbuild
 
-          cmake --build build --config Release
+          cmake --build build --parallel --config Release
 
       - name: Test
         working-directory: build
@@ -193,7 +189,7 @@ jobs:
             -Bbuild \
             -DCMAKE_BUILD_TYPE=Release
 
-          cmake --build build
+          cmake --build build --parallel
 
       - name: Test
         working-directory: build
@@ -208,11 +204,10 @@ jobs:
               -toolchain macos \
               -I src/parser \
               -I src/lsp \
-              -I build/_deps/fmt-src/include \
               -I build/_deps/utfcpp-src/source \
-              -I build/_deps/flatbuffers-src/include \
               -I build/_deps/nlohmann_json-src/include \
               -I build/src/parser \
+              -DCXX_NO_FLATBUFFERS \
               $i
           done
 
@@ -259,11 +254,10 @@ jobs:
                   build.wasi/install/usr/bin/cxx.wasm \
               -I src/parser \
               -I src/lsp \
-              -I build.wasi/_deps/fmt-src/include \
               -I build.wasi/_deps/utfcpp-src/source \
-              -I build.wasi/_deps/flatbuffers-src/include \
               -I build.wasi/_deps/nlohmann_json-src/include \
               -I build.wasi/src/parser \
+              -DCXX_NO_FLATBUFFERS \
               -DCXX_NO_FILESYSTEM \
               -DCXX_NO_THREADS \
               $i
