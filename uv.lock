@@ -1,0 +1,36 @@
+version = 1
+revision = 2
+requires-python = ">=3.11"
+
+[[package]]
+name = "cplusplus"
+version = "1.1.27"
+source = { virtual = "." }
+dependencies = [
+    { name = "filecheck" },
+    { name = "lit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "filecheck", specifier = ">=1.0.2" },
+    { name = "lit", specifier = ">=18.1.8" },
+]
+
+[[package]]
+name = "filecheck"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/c3/2c1c282331ccf4866043ac2a663ac38f0d8a867b76bb5ea8765104c9e971/filecheck-1.0.2.tar.gz", hash = "sha256:49d2a56e37a8ff9db62ecf33a37c5343fa2bf32e53321339687b0dceb3e09828", size = 19901, upload-time = "2025-05-07T09:00:46.765Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/54/b1370c4c4b9bbcae69c535b30c106d114e2b28cdf7e28842a315bbd9d19d/filecheck-1.0.2-py3-none-any.whl", hash = "sha256:af950e48a82c3923d945d8688b69ff4879c7ec0e9739b17b41a3326a980419ff", size = 23723, upload-time = "2025-05-07T09:00:45.458Z" },
+]
+
+[[package]]
+name = "lit"
+version = "18.1.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/b4/d7e210971494db7b9a9ac48ff37dfa59a8b14c773f9cf47e6bda58411c0d/lit-18.1.8.tar.gz", hash = "sha256:47c174a186941ae830f04ded76a3444600be67d5e5fb8282c3783fba671c4edb", size = 161127, upload-time = "2024-06-25T14:33:14.489Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/06/b36f150fa7c5bcc96a31a4d19a20fddbd1d965b6f02510b57a3bb8d4b930/lit-18.1.8-py3-none-any.whl", hash = "sha256:a873ff7acd76e746368da32eb7355625e2e55a2baaab884c9cc130f2ee0300f7", size = 96365, upload-time = "2024-06-25T14:33:12.101Z" },
+]
