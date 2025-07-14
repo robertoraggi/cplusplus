@@ -5170,7 +5170,7 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   ast->classKey = TokenKind::T_ENUM;
   ast->symbol = symbol;
 
-  specs.setTypeSpecifier(ast);
+  specs.accept(ast);
 
   return true;
 }
@@ -5227,6 +5227,8 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   }
 
   const auto isDeclaration = lookat(TokenKind::T_SEMICOLON);
+
+  specs.accept(ast);
 
   binder_.bind(ast, specs, isDeclaration);
 
