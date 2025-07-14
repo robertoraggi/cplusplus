@@ -57,7 +57,7 @@ int main() {
 // CHECK-NEXT:                    identifier: key
 // CHECK-NEXT:                  name-id
 // CHECK-NEXT:                    identifier: value
-// CHECK-NEXT:              range-initializer: id-expression [lvalue int [][2]]
+// CHECK-NEXT:              range-initializer: id-expression [lvalue int [1][2]]
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: map
 // CHECK-NEXT:              statement: compound-statement
