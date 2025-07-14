@@ -8,3 +8,5 @@ node_modules
 .cache
 .clangd
 *.pch
+__pycache__
+*.pyc
