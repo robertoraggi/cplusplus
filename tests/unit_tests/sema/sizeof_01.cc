@@ -22,3 +22,9 @@ static_assert(sizeof(long) == 4);
 static_assert(sizeof(unsigned long) == 4);
 static_assert(sizeof(long double) == 16);
 #endif
+
+int elements[] = {1, 2, 3, 4, 5};
+static_assert(sizeof(elements) == 5 * sizeof(int));
+
+double d[]{1.0, 2.0, 3.0};
+static_assert(sizeof(d) == 3 * sizeof(double));

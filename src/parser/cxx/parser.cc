@@ -5368,6 +5368,28 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
 
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
     var->setInitializer(initializer);
+
+    if (auto ty = type_cast<UnboundedArrayType>(ast->symbol->type())) {
+      BracedInitListAST* bracedInitList = nullptr;
+
+      if (auto init = ast_cast<BracedInitListAST>(ast->initializer)) {
+        bracedInitList = init;
+      } else if (auto init = ast_cast<EqualInitializerAST>(ast->initializer)) {
+        bracedInitList = ast_cast<BracedInitListAST>(init->expression);
+      }
+
+      if (bracedInitList) {
+        const auto count =
+            std::ranges::distance(ListView{bracedInitList->expressionList});
+
+        if (count > 0) {
+          const auto arrayType =
+              control()->getBoundedArrayType(ty->elementType(), count);
+
+          symbol->setType(arrayType);
+        }
+      }
+    }
   }
 
   return true;
