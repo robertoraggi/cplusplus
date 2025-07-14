@@ -115,6 +115,8 @@ jobs:
 
       - name: Build
         run: |
+          .\.venv\Scripts\activate
+
           cmake . -Bbuild
 
           cmake --build build --config Release
