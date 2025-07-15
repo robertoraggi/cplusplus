@@ -8215,6 +8215,8 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
 }
 
 auto Parser::parse_base_clause(ClassSpecifierAST* ast) -> bool {
+  if (!is_parsing_cxx()) return false;
+
   if (!match(TokenKind::T_COLON, ast->colonLoc)) return false;
 
   if (!parse_base_specifier_list(ast)) {
