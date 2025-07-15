@@ -290,10 +290,20 @@ auto ClassSymbol::buildClassLayout(Control* control)
     alignment = std::max(alignment, baseClassSymbol->alignment());
   }
 
+  FieldSymbol* lastField = nullptr;
+
   for (auto member : scope()->symbols()) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field) continue;
     if (field->isStatic()) continue;
+
+    if (lastField && control->is_unbounded_array(lastField->type())) {
+      // If the last field is an unbounded array, we cannot compute the offset
+      // of the next field, so we report an error.
+      return std::unexpected(
+          std::format("size of incomplete type '{}'",
+                      to_string(lastField->type(), lastField->name())));
+    }
 
     if (!field->alignment()) {
       return std::unexpected(
@@ -301,7 +311,13 @@ auto ClassSymbol::buildClassLayout(Control* control)
                       to_string(field->type(), field->name())));
     }
 
-    auto size = memoryLayout->sizeOf(field->type());
+    std::optional<std::size_t> size;
+
+    if (control->is_unbounded_array(field->type())) {
+      size = 0;
+    } else {
+      size = memoryLayout->sizeOf(field->type());
+    }
 
     if (!size.has_value()) {
       return std::unexpected(
@@ -318,6 +334,8 @@ auto ClassSymbol::buildClassLayout(Control* control)
     }
 
     alignment = std::max(alignment, field->alignment());
+
+    lastField = field;
   }
 
   offset = align_to(offset, alignment);

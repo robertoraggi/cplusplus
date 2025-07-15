@@ -28,3 +28,10 @@ static_assert(sizeof(elements) == 5 * sizeof(int));
 
 double d[]{1.0, 2.0, 3.0};
 static_assert(sizeof(d) == 3 * sizeof(double));
+
+struct X {
+  char i;
+  int dat[];
+};
+static_assert(sizeof(X) == 4);
+static_assert(alignof(X) == 4);
