@@ -324,6 +324,7 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
     out += `${s}\n`;
   };
 
+  emit("// Generated file by: gen_fwd_h.ts");
   emit(copyrightHeader);
   emit();
   emit(`#pragma once`);

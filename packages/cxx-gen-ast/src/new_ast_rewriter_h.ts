@@ -72,7 +72,8 @@ export function new_ast_rewriter_h({
     emit(`  struct ${className}Visitor;`);
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: new_ast_rewriter_h.ts
+${cpy_header}
 
 #pragma once
 

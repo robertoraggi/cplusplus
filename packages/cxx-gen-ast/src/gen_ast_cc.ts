@@ -71,7 +71,8 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
   emit(`  return kASTKindNames[int(kind)];`);
   emit(`}`);
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_cc.ts
+${cpy_header}
 #include <cxx/ast.h>
 
 namespace cxx {

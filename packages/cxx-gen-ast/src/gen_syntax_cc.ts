@@ -47,7 +47,8 @@ export function gen_syntax_cc({ ast, output }: { ast: AST; output: string }) {
     emit(`}`);
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_syntax_cc.ts
+${cpy_header}
 
 #include <cxx/syntax.h>
 #include <cxx/ast.h>

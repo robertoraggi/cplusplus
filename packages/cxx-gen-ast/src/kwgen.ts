@@ -28,6 +28,7 @@ export default function kwgen(options: Options) {
   const emit = (s: string) => out.push(s);
 
   if (copyright !== undefined) {
+    emit("// Generated file by: kwgen.ts");
     emit(copyright);
   }
 

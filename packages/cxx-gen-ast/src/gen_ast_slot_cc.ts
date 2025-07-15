@@ -145,7 +145,8 @@ export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_slot_cc.ts
+${cpy_header}
 #include <cxx/ast_slot.h>
 #include <cxx/ast.h>
 #include <algorithm>

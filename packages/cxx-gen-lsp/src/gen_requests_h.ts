@@ -40,6 +40,7 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
     out += `${s}\n`;
   };
 
+  emit("// Generated file by: gen_requests_h.ts");
   emit(copyrightHeader);
   emit(beginHeaderFragment);
 

@@ -191,7 +191,8 @@ export function gen_ast_encoder_cc({
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_encoder_cc.ts
+${cpy_header}
 #include <cxx/private/ast_encoder.h>
 
 // cxx

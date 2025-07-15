@@ -73,7 +73,8 @@ export async function gen_ast_visitor_ts({
   emit(`}`);
   emit();
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_visitor_ts.ts
+${cpy_header}
 import * as ast from "./AST";
 
 ${code.join("\n")}

@@ -366,7 +366,8 @@ if (ast->op == TokenKind::T_NEW_ARRAY) {
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_pretty_printer_cc.ts
+${cpy_header}
 
 #include <cxx/ast_pretty_printer.h>
 

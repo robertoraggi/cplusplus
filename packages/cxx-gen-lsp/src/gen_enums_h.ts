@@ -31,6 +31,7 @@ export function gen_enums_h({ model, outputDirectory }: { model: MetaModel; outp
     out += `${s}\n`;
   };
 
+  emit("// Generated file by: gen_enums_h.ts");
   emit(copyrightHeader);
   emit();
   emit(`#pragma once`);

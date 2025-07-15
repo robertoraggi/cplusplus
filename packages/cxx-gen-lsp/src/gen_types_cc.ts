@@ -69,6 +69,7 @@ export class TypeGenerator {
   }
 
   begin() {
+    this.emit("// Generated file by: gen_types_cc.ts");
     this.emit(copyrightHeader);
     this.emit();
     this.emit(`#include <cxx/lsp/types.h>`);

@@ -56,7 +56,8 @@ export function gen_ast_printer_h({
   emit(`  int indent_ = -1;`);
   emit(`};`);
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_printer_h.ts
+${cpy_header}
 #pragma once
 
 #include <cxx/ast_visitor.h>

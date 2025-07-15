@@ -76,7 +76,8 @@ export function new_ast_op_h({
     emit(`  [[nodiscard]] auto operator()(${name}* ast) -> ${resultTy};`);
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: new_ast_op_h.ts
+${cpy_header}
 
 #pragma once
 

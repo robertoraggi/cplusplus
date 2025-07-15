@@ -138,7 +138,8 @@ template <typename T>
     emit(`}`);
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_h.ts
+${cpy_header}
 #pragma once
 
 #include <cxx/arena.h>

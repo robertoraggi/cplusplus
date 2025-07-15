@@ -31,6 +31,7 @@ export function gen_enums_cc({ model, outputDirectory }: { model: MetaModel; out
     out += `${s}\n`;
   };
 
+  emit("// Generated file by: gen_enums_cc.ts");
   emit(copyrightHeader);
   emit();
   emit(`#include <cxx/lsp/enums.h>`);

@@ -203,7 +203,8 @@ export async function gen_ast_ts({
   });
   emit(`];`);
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_ts.ts
+${cpy_header}
 import { cxx } from "./cxx";
 import { SourceLocation } from "./SourceLocation";
 import { ASTCursor } from "./ASTCursor";

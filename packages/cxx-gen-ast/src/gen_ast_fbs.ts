@@ -112,7 +112,8 @@ export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
     });
   }
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_fbs.ts
+${cpy_header}
 namespace cxx.io;
 
 table Source {
