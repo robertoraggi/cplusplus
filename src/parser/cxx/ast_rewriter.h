@@ -64,6 +64,8 @@ class ASTRewriter {
   [[nodiscard]] auto operator()(DeclarationAST* ast) -> DeclarationAST*;
   [[nodiscard]] auto operator()(StatementAST* ast) -> StatementAST*;
   [[nodiscard]] auto operator()(ExpressionAST* ast) -> ExpressionAST*;
+  [[nodiscard]] auto operator()(GenericAssociationAST* ast)
+      -> GenericAssociationAST*;
   [[nodiscard]] auto operator()(DesignatorAST* ast) -> DesignatorAST*;
   [[nodiscard]] auto operator()(TemplateParameterAST* ast)
       -> TemplateParameterAST*;
@@ -131,6 +133,7 @@ class ASTRewriter {
   struct DeclarationVisitor;
   struct StatementVisitor;
   struct ExpressionVisitor;
+  struct GenericAssociationVisitor;
   struct DesignatorVisitor;
   struct TemplateParameterVisitor;
   struct SpecifierVisitor;

@@ -304,6 +304,9 @@ struct ASTInterpreter::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(GenericSelectionExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
       -> ExpressionResult;
 
@@ -1635,6 +1638,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionResult {
+  return std::nullopt;
+}
+
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    GenericSelectionExpressionAST* ast) -> ExpressionResult {
   return std::nullopt;
 }
 

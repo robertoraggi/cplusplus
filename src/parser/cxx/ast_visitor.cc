@@ -347,6 +347,13 @@ void ASTVisitor::visit(ObjectLiteralExpressionAST* ast) {
 
 void ASTVisitor::visit(ThisExpressionAST* ast) {}
 
+void ASTVisitor::visit(GenericSelectionExpressionAST* ast) {
+  accept(ast->expression);
+  for (auto node : ListView{ast->genericAssociationList}) {
+    accept(node);
+  }
+}
+
 void ASTVisitor::visit(NestedStatementExpressionAST* ast) {
   accept(ast->statement);
 }
@@ -567,6 +574,15 @@ void ASTVisitor::visit(ParenInitializerAST* ast) {
   for (auto node : ListView{ast->expressionList}) {
     accept(node);
   }
+}
+
+void ASTVisitor::visit(DefaultGenericAssociationAST* ast) {
+  accept(ast->expression);
+}
+
+void ASTVisitor::visit(TypeGenericAssociationAST* ast) {
+  accept(ast->typeId);
+  accept(ast->expression);
 }
 
 void ASTVisitor::visit(DotDesignatorAST* ast) {}

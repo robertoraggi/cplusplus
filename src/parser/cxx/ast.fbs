@@ -137,6 +137,7 @@ union Expression {
   UserDefinedStringLiteralExpression,
   ObjectLiteralExpression,
   ThisExpression,
+  GenericSelectionExpression,
   NestedStatementExpression,
   NestedExpression,
   IdExpression,
@@ -194,6 +195,11 @@ union FunctionBody {
   CompoundStatementFunctionBody,
   TryStatementFunctionBody,
   DeleteFunctionBody,
+}
+
+union GenericAssociation {
+  DefaultGenericAssociation,
+  TypeGenericAssociation,
 }
 
 union LambdaCapture {
@@ -910,6 +916,15 @@ table ThisExpression /* ExpressionAST */ {
   this_loc: uint32;
 }
 
+table GenericSelectionExpression /* ExpressionAST */ {
+  expression: Expression;
+  generic_association_list: [GenericAssociation];
+  generic_loc: uint32;
+  lparen_loc: uint32;
+  comma_loc: uint32;
+  rparen_loc: uint32;
+}
+
 table NestedStatementExpression /* ExpressionAST */ {
   statement: CompoundStatement;
   lparen_loc: uint32;
@@ -1294,6 +1309,18 @@ table DeleteFunctionBody /* FunctionBodyAST */ {
   equal_loc: uint32;
   delete_loc: uint32;
   semicolon_loc: uint32;
+}
+
+table DefaultGenericAssociation /* GenericAssociationAST */ {
+  expression: Expression;
+  default_loc: uint32;
+  colon_loc: uint32;
+}
+
+table TypeGenericAssociation /* GenericAssociationAST */ {
+  type_id: TypeId;
+  expression: Expression;
+  colon_loc: uint32;
 }
 
 table ThisLambdaCapture /* LambdaCaptureAST */ {

@@ -246,6 +246,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ThisExpression:
       return decodeThisExpression(
           reinterpret_cast<const io::ThisExpression*>(ptr));
+    case io::Expression_GenericSelectionExpression:
+      return decodeGenericSelectionExpression(
+          reinterpret_cast<const io::GenericSelectionExpression*>(ptr));
     case io::Expression_NestedStatementExpression:
       return decodeNestedStatementExpression(
           reinterpret_cast<const io::NestedStatementExpression*>(ptr));
@@ -395,6 +398,21 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ParenInitializer:
       return decodeParenInitializer(
           reinterpret_cast<const io::ParenInitializer*>(ptr));
+    default:
+      return nullptr;
+  }  // switch
+}
+
+auto ASTDecoder::decodeGenericAssociation(const void* ptr,
+                                          io::GenericAssociation type)
+    -> GenericAssociationAST* {
+  switch (type) {
+    case io::GenericAssociation_DefaultGenericAssociation:
+      return decodeDefaultGenericAssociation(
+          reinterpret_cast<const io::DefaultGenericAssociation*>(ptr));
+    case io::GenericAssociation_TypeGenericAssociation:
+      return decodeTypeGenericAssociation(
+          reinterpret_cast<const io::TypeGenericAssociation*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -1921,6 +1939,32 @@ auto ASTDecoder::decodeThisExpression(const io::ThisExpression* node)
   return ast;
 }
 
+auto ASTDecoder::decodeGenericSelectionExpression(
+    const io::GenericSelectionExpression* node)
+    -> GenericSelectionExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) GenericSelectionExpressionAST();
+  ast->genericLoc = SourceLocation(node->generic_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  ast->commaLoc = SourceLocation(node->comma_loc());
+  if (node->generic_association_list()) {
+    auto* inserter = &ast->genericAssociationList;
+    for (std::uint32_t i = 0; i < node->generic_association_list()->size();
+         ++i) {
+      *inserter = new (pool_) List(decodeGenericAssociation(
+          node->generic_association_list()->Get(i),
+          io::GenericAssociation(
+              node->generic_association_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
 auto ASTDecoder::decodeNestedStatementExpression(
     const io::NestedStatementExpression* node)
     -> NestedStatementExpressionAST* {
@@ -2706,6 +2750,31 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
     }
   }
   ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeDefaultGenericAssociation(
+    const io::DefaultGenericAssociation* node)
+    -> DefaultGenericAssociationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) DefaultGenericAssociationAST();
+  ast->defaultLoc = SourceLocation(node->default_loc());
+  ast->colonLoc = SourceLocation(node->colon_loc());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeTypeGenericAssociation(
+    const io::TypeGenericAssociation* node) -> TypeGenericAssociationAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) TypeGenericAssociationAST();
+  ast->typeId = decodeTypeId(node->type_id());
+  ast->colonLoc = SourceLocation(node->colon_loc());
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
   return ast;
 }
 

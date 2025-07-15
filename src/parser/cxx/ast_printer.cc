@@ -841,6 +841,25 @@ void ASTPrinter::visit(ThisExpressionAST* ast) {
   out_ << "\n";
 }
 
+void ASTPrinter::visit(GenericSelectionExpressionAST* ast) {
+  out_ << "generic-selection-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->expression, "expression");
+  if (ast->genericAssociationList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "generic-association-list");
+    for (auto node : ListView{ast->genericAssociationList}) {
+      accept(node);
+    }
+    --indent_;
+  }
+}
+
 void ASTPrinter::visit(NestedStatementExpressionAST* ast) {
   out_ << "nested-statement-expression";
   if (ast->type) {
@@ -1586,6 +1605,17 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
     }
     --indent_;
   }
+}
+
+void ASTPrinter::visit(DefaultGenericAssociationAST* ast) {
+  out_ << std::format("{}\n", "default-generic-association");
+  accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(TypeGenericAssociationAST* ast) {
+  out_ << std::format("{}\n", "type-generic-association");
+  accept(ast->typeId, "type-id");
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(DotDesignatorAST* ast) {

@@ -689,6 +689,7 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
   if (parse_builtin_call_expression(yyast, ctx)) return true;
   if (parse_builtin_offsetof_expression(yyast, ctx)) return true;
+  if (parse_generic_selection_expression(yyast, ctx)) return true;
   if (parse_this_expression(yyast)) return true;
   if (parse_literal(yyast)) return true;
   if (parse_lambda_expression(yyast)) return true;
@@ -1430,6 +1431,71 @@ auto Parser::parse_this_expression(ExpressionAST*& yyast) -> bool {
   check(ast);
 
   return true;
+}
+
+auto Parser::parse_generic_selection_expression(ExpressionAST*& yyast,
+                                                const ExprContext&) -> bool {
+  SourceLocation genericLoc;
+  if (!match(TokenKind::T__GENERIC, genericLoc)) return false;
+
+  auto ast = make_node<GenericSelectionExpressionAST>(pool_);
+  yyast = ast;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  ast->genericLoc = genericLoc;
+
+  parse_assignment_expression(ast->expression, ExprContext{});
+
+  expect(TokenKind::T_COMMA, ast->commaLoc);
+
+  auto it = &ast->genericAssociationList;
+
+  GenericAssociationAST* association = nullptr;
+  parse_generic_association(association);
+
+  if (association) {
+    *it = make_list_node(pool_, association);
+    it = &(*it)->next;
+  }
+
+  SourceLocation commaLoc;
+  while (match(TokenKind::T_COMMA, commaLoc)) {
+    GenericAssociationAST* association = nullptr;
+    parse_generic_association(association);
+
+    if (association) {
+      *it = make_list_node(pool_, association);
+      it = &(*it)->next;
+    }
+  }
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  return true;
+}
+
+void Parser::parse_generic_association(GenericAssociationAST*& yyast) {
+  if (SourceLocation defaultLoc; match(TokenKind::T_DEFAULT, defaultLoc)) {
+    auto ast = make_node<DefaultGenericAssociationAST>(pool_);
+    yyast = ast;
+
+    ast->defaultLoc = defaultLoc;
+    expect(TokenKind::T_COLON, ast->colonLoc);
+    parse_assignment_expression(ast->expression, ExprContext{});
+
+    return;
+  }
+
+  auto ast = make_node<TypeGenericAssociationAST>(pool_);
+  yyast = ast;
+
+  if (!parse_type_id(ast->typeId)) {
+    parse_error("expected a type id");
+  }
+
+  expect(TokenKind::T_COLON, ast->colonLoc);
+
+  parse_assignment_expression(ast->expression, ExprContext{});
 }
 
 auto Parser::parse_nested_expession(ExpressionAST*& yyast,

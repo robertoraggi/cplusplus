@@ -149,6 +149,7 @@ struct TypeChecker::Visitor {
   void operator()(UserDefinedStringLiteralExpressionAST* ast);
   void operator()(ObjectLiteralExpressionAST* ast);
   void operator()(ThisExpressionAST* ast);
+  void operator()(GenericSelectionExpressionAST* ast);
   void operator()(NestedStatementExpressionAST* ast);
   void operator()(NestedExpressionAST* ast);
   void operator()(IdExpressionAST* ast);
@@ -252,6 +253,8 @@ void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {
     }
   }
 }
+
+void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(NestedStatementExpressionAST* ast) {}
 

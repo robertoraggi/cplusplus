@@ -209,6 +209,10 @@ class Parser final {
   [[nodiscard]] auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
   [[nodiscard]] auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
   [[nodiscard]] auto parse_this_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_generic_selection_expression(ExpressionAST*& yyast,
+                                                        const ExprContext& ctx)
+      -> bool;
+  void parse_generic_association(GenericAssociationAST*& yyast);
   [[nodiscard]] auto parse_nested_expession(ExpressionAST*& yyast,
                                             const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_fold_expression(ExpressionAST*& yyast,

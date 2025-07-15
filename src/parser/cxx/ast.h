@@ -210,6 +210,11 @@ class FunctionBodyAST : public AST {
   using AST::AST;
 };
 
+class GenericAssociationAST : public AST {
+ public:
+  using AST::AST;
+};
+
 class LambdaCaptureAST : public AST {
  public:
   using AST::AST;
@@ -1325,6 +1330,25 @@ class ThisExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class GenericSelectionExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::GenericSelectionExpression;
+
+  GenericSelectionExpressionAST() : ExpressionAST(Kind) {}
+
+  SourceLocation genericLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation commaLoc;
+  List<GenericAssociationAST*>* genericAssociationList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class NestedStatementExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NestedStatementExpression;
@@ -2191,6 +2215,38 @@ class ParenInitializerAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DefaultGenericAssociationAST final : public GenericAssociationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::DefaultGenericAssociation;
+
+  DefaultGenericAssociationAST() : GenericAssociationAST(Kind) {}
+
+  SourceLocation defaultLoc;
+  SourceLocation colonLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypeGenericAssociationAST final : public GenericAssociationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TypeGenericAssociation;
+
+  TypeGenericAssociationAST() : GenericAssociationAST(Kind) {}
+
+  TypeIdAST* typeId = nullptr;
+  SourceLocation colonLoc;
+  ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4523,6 +4579,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case ThisExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ThisExpressionAST*>(ast));
+    case GenericSelectionExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<GenericSelectionExpressionAST*>(ast));
     case NestedStatementExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<NestedStatementExpressionAST*>(ast));
@@ -4692,6 +4751,7 @@ template <>
     case UserDefinedStringLiteralExpressionAST::Kind:
     case ObjectLiteralExpressionAST::Kind:
     case ThisExpressionAST::Kind:
+    case GenericSelectionExpressionAST::Kind:
     case NestedStatementExpressionAST::Kind:
     case NestedExpressionAST::Kind:
     case IdExpressionAST::Kind:
@@ -4743,6 +4803,33 @@ template <>
     case BracedInitListAST::Kind:
     case ParenInitializerAST::Kind:
       return static_cast<ExpressionAST*>(ast);
+    default:
+      return nullptr;
+  }  // switch
+}
+
+template <typename Visitor>
+auto visit(Visitor&& visitor, GenericAssociationAST* ast) {
+  switch (ast->kind()) {
+    case DefaultGenericAssociationAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<DefaultGenericAssociationAST*>(ast));
+    case TypeGenericAssociationAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<TypeGenericAssociationAST*>(ast));
+    default:
+      cxx_runtime_error("unexpected GenericAssociation");
+  }  // switch
+}
+
+template <>
+[[nodiscard]] inline auto ast_cast<GenericAssociationAST>(AST* ast)
+    -> GenericAssociationAST* {
+  if (!ast) return nullptr;
+  switch (ast->kind()) {
+    case DefaultGenericAssociationAST::Kind:
+    case TypeGenericAssociationAST::Kind:
+      return static_cast<GenericAssociationAST*>(ast);
     default:
       return nullptr;
   }  // switch

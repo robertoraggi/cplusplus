@@ -87,6 +87,7 @@ export enum ASTKind {
   UserDefinedStringLiteralExpression,
   ObjectLiteralExpression,
   ThisExpression,
+  GenericSelectionExpression,
   NestedStatementExpression,
   NestedExpression,
   IdExpression,
@@ -137,6 +138,10 @@ export enum ASTKind {
   EqualInitializer,
   BracedInitList,
   ParenInitializer,
+
+  // GenericAssociationAST
+  DefaultGenericAssociation,
+  TypeGenericAssociation,
 
   // DesignatorAST
   DotDesignator,

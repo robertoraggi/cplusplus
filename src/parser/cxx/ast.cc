@@ -975,6 +975,26 @@ auto ThisExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto GenericSelectionExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(genericLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(genericAssociationList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto GenericSelectionExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(genericAssociationList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(genericLoc)) return loc;
+  return {};
+}
+
 auto NestedStatementExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
@@ -1770,6 +1790,34 @@ auto ParenInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
+auto DefaultGenericAssociationAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(defaultLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto DefaultGenericAssociationAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(defaultLoc)) return loc;
+  return {};
+}
+
+auto TypeGenericAssociationAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto TypeGenericAssociationAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   return {};
 }
 
@@ -3561,6 +3609,7 @@ std::string_view kASTKindNames[] = {
     "user-defined-string-literal-expression",
     "object-literal-expression",
     "this-expression",
+    "generic-selection-expression",
     "nested-statement-expression",
     "nested-expression",
     "id-expression",
@@ -3611,6 +3660,10 @@ std::string_view kASTKindNames[] = {
     "equal-initializer",
     "braced-init-list",
     "paren-initializer",
+
+    // GenericAssociationAST
+    "default-generic-association",
+    "type-generic-association",
 
     // DesignatorAST
     "dot-designator",

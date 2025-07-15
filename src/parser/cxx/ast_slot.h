@@ -117,6 +117,7 @@ class ASTSlot final : ASTVisitor {
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
   void visit(ObjectLiteralExpressionAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
+  void visit(GenericSelectionExpressionAST* ast) override;
   void visit(NestedStatementExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
   void visit(IdExpressionAST* ast) override;
@@ -167,6 +168,9 @@ class ASTSlot final : ASTVisitor {
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;
   void visit(ParenInitializerAST* ast) override;
+
+  void visit(DefaultGenericAssociationAST* ast) override;
+  void visit(TypeGenericAssociationAST* ast) override;
 
   void visit(DotDesignatorAST* ast) override;
   void visit(SubscriptDesignatorAST* ast) override;

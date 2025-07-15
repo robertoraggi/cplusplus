@@ -268,6 +268,9 @@ struct ASTRewriter::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionAST*;
 
+  [[nodiscard]] auto operator()(GenericSelectionExpressionAST* ast)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -381,6 +384,24 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto operator()(BracedInitListAST* ast) -> ExpressionAST*;
 
   [[nodiscard]] auto operator()(ParenInitializerAST* ast) -> ExpressionAST*;
+};
+
+struct ASTRewriter::GenericAssociationVisitor {
+  ASTRewriter& rewrite;
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return rewrite.unit_;
+  }
+
+  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
+  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
+  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
+
+  [[nodiscard]] auto operator()(DefaultGenericAssociationAST* ast)
+      -> GenericAssociationAST*;
+
+  [[nodiscard]] auto operator()(TypeGenericAssociationAST* ast)
+      -> GenericAssociationAST*;
 };
 
 struct ASTRewriter::DesignatorVisitor {
@@ -505,9 +526,9 @@ struct ASTRewriter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(VolatileQualifierAST* ast) -> SpecifierAST*;
 
-  [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierAST*;
-
   [[nodiscard]] auto operator()(AtomicQualifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(RestrictQualifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(EnumSpecifierAST* ast) -> SpecifierAST*;
 
@@ -855,6 +876,12 @@ auto ASTRewriter::operator()(ExpressionAST* ast) -> ExpressionAST* {
   auto expr = visit(ExpressionVisitor{*this}, ast);
   if (expr) typeChecker_->check(expr);
   return expr;
+}
+
+auto ASTRewriter::operator()(GenericAssociationAST* ast)
+    -> GenericAssociationAST* {
+  if (!ast) return {};
+  return visit(GenericAssociationVisitor{*this}, ast);
 }
 
 auto ASTRewriter::operator()(DesignatorAST* ast) -> DesignatorAST* {
@@ -2439,6 +2466,29 @@ auto ASTRewriter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
 }
 
 auto ASTRewriter::ExpressionVisitor::operator()(
+    GenericSelectionExpressionAST* ast) -> ExpressionAST* {
+  auto copy = make_node<GenericSelectionExpressionAST>(arena());
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->genericLoc = ast->genericLoc;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->expression = rewrite(ast->expression);
+  copy->commaLoc = ast->commaLoc;
+
+  for (auto genericAssociationList = &copy->genericAssociationList;
+       auto node : ListView{ast->genericAssociationList}) {
+    auto value = rewrite(node);
+    *genericAssociationList = make_list_node(arena(), value);
+    genericAssociationList = &(*genericAssociationList)->next;
+  }
+
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(
     NestedStatementExpressionAST* ast) -> ExpressionAST* {
   auto copy = make_node<NestedStatementExpressionAST>(arena());
 
@@ -3359,6 +3409,28 @@ auto ASTRewriter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
   return copy;
 }
 
+auto ASTRewriter::GenericAssociationVisitor::operator()(
+    DefaultGenericAssociationAST* ast) -> GenericAssociationAST* {
+  auto copy = make_node<DefaultGenericAssociationAST>(arena());
+
+  copy->defaultLoc = ast->defaultLoc;
+  copy->colonLoc = ast->colonLoc;
+  copy->expression = rewrite(ast->expression);
+
+  return copy;
+}
+
+auto ASTRewriter::GenericAssociationVisitor::operator()(
+    TypeGenericAssociationAST* ast) -> GenericAssociationAST* {
+  auto copy = make_node<TypeGenericAssociationAST>(arena());
+
+  copy->typeId = rewrite(ast->typeId);
+  copy->colonLoc = ast->colonLoc;
+  copy->expression = rewrite(ast->expression);
+
+  return copy;
+}
+
 auto ASTRewriter::DesignatorVisitor::operator()(DotDesignatorAST* ast)
     -> DesignatorAST* {
   auto copy = make_node<DotDesignatorAST>(arena());
@@ -3809,20 +3881,20 @@ auto ASTRewriter::SpecifierVisitor::operator()(VolatileQualifierAST* ast)
   return copy;
 }
 
-auto ASTRewriter::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
-    -> SpecifierAST* {
-  auto copy = make_node<RestrictQualifierAST>(arena());
-
-  copy->restrictLoc = ast->restrictLoc;
-
-  return copy;
-}
-
 auto ASTRewriter::SpecifierVisitor::operator()(AtomicQualifierAST* ast)
     -> SpecifierAST* {
   auto copy = make_node<AtomicQualifierAST>(arena());
 
   copy->atomicLoc = ast->atomicLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
+    -> SpecifierAST* {
+  auto copy = make_node<RestrictQualifierAST>(arena());
+
+  copy->restrictLoc = ast->restrictLoc;
 
   return copy;
 }

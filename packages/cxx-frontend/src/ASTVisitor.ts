@@ -735,6 +735,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit GenericSelectionExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitGenericSelectionExpression(
+    node: ast.GenericSelectionExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit NestedStatementExpression node.
    *
    * @param node The node to visit.
@@ -1331,6 +1343,30 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitParenInitializer(
     node: ast.ParenInitializerAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit DefaultGenericAssociation node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitDefaultGenericAssociation(
+    node: ast.DefaultGenericAssociationAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit TypeGenericAssociation node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitTypeGenericAssociation(
+    node: ast.TypeGenericAssociationAST,
     context: Context,
   ): Result;
 
