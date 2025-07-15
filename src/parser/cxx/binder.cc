@@ -47,6 +47,14 @@ auto Binder::control() const -> Control* {
   return unit_ ? unit_->control() : nullptr;
 }
 
+auto Binder::is_parsing_c() const {
+  return unit_->language() == LanguageKind::kC;
+}
+
+auto Binder::is_parsing_cxx() const {
+  return unit_->language() == LanguageKind::kCXX;
+}
+
 auto Binder::reportErrors() const -> bool { return reportErrors_; }
 
 void Binder::setReportErrors(bool reportErrors) {
@@ -344,13 +352,15 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
 
 void Binder::bind(EnumeratorAST* ast, const Type* type,
                   std::optional<ConstValue> value) {
-  auto symbol = control()->newEnumeratorSymbol(scope(), ast->identifierLoc);
-  ast->symbol = symbol;
+  if (is_parsing_cxx()) {
+    auto symbol = control()->newEnumeratorSymbol(scope(), ast->identifierLoc);
+    ast->symbol = symbol;
 
-  symbol->setName(ast->identifier);
-  symbol->setType(type);
-  ast->symbol->setValue(value);
-  scope()->addSymbol(symbol);
+    symbol->setName(ast->identifier);
+    symbol->setType(type);
+    ast->symbol->setValue(value);
+    scope()->addSymbol(symbol);
+  }
 
   if (auto enumSymbol = symbol_cast<EnumSymbol>(scope()->owner())) {
     auto enumeratorSymbol =
@@ -361,6 +371,10 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
 
     auto parentScope = enumSymbol->enclosingScope();
     parentScope->addSymbol(enumeratorSymbol);
+
+    if (!is_parsing_cxx()) {
+      ast->symbol = enumeratorSymbol;
+    }
   }
 }
 
