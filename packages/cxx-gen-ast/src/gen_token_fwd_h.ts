@@ -57,7 +57,8 @@ export function gen_token_fwd_h({ output }: { output: string }) {
     emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
   );
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_token_fwd_h.ts
+${cpy_header}
 #pragma once
 
 #include <cxx/cxx_fwd.h>

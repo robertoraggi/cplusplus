@@ -36,7 +36,8 @@ export function gen_ast_slot_h({ ast, output }: { ast: AST; output: string }) {
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_slot_h.ts
+${cpy_header}
 #pragma once
 
 #include <cxx/ast_visitor.h>

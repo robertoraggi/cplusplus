@@ -45,6 +45,7 @@ export function gen_types_h({ model, outputDirectory }: { model: MetaModel; outp
     return propertyType;
   };
 
+  emit("// Generated file by: gen_types_h.ts");
   emit(copyrightHeader);
   emit();
   emit(`#pragma once`);

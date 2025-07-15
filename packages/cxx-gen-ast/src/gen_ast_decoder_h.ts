@@ -70,7 +70,8 @@ export function gen_ast_decoder_h({
   emit(`  Arena* pool_ = nullptr;`);
   emit(`};`);
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_decoder_h.ts
+${cpy_header}
 #pragma once
 
 #include <cxx/ast_fwd.h>

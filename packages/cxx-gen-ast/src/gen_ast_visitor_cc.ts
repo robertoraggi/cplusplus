@@ -62,7 +62,8 @@ export function gen_ast_visitor_cc({
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_visitor_cc.ts
+${cpy_header}
 #include <cxx/ast_visitor.h>
 
 // cxx

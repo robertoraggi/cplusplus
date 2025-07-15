@@ -142,6 +142,7 @@ class RequestGenerator extends TypeGenerator {
   }
 
   begin() {
+    this.emit("// Generated file by: gen_requests_cc.ts");
     this.emit(copyrightHeader);
     this.emit();
     this.emit(`#include <cxx/lsp/requests.h>`);

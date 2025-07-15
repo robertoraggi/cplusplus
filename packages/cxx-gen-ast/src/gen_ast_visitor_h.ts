@@ -44,7 +44,8 @@ export function gen_ast_visitor_h({
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_visitor_h.ts
+${cpy_header}
 
 #pragma once
 

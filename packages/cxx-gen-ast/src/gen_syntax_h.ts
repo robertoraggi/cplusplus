@@ -50,7 +50,8 @@ export function gen_syntax_h({ ast, output }: { ast: AST; output: string }) {
     emit(`auto from(${base}* ast) -> std::optional<${variantName}>;`);
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_syntax_h.ts
+${cpy_header}
 
 #pragma once
 

@@ -1,3 +1,4 @@
+// Generated file by: gen_ast_slot_h.ts
 // Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy

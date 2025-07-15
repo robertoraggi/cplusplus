@@ -140,7 +140,8 @@ export function new_ast_op_cc({
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: new_ast_op_cc.ts
+${cpy_header}
 
 #include <cxx/${opHeader}>
 

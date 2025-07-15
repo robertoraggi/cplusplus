@@ -396,7 +396,8 @@ if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
     });
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: new_ast_rewriter_cc.ts
+${cpy_header}
 
 #include <cxx/${opHeader}>
 

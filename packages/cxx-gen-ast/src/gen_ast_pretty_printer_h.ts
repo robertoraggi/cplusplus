@@ -62,7 +62,8 @@ export function gen_ast_pretty_printer_h({
     emit(`  struct ${className}Visitor;`);
   });
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_pretty_printer_h.ts
+${cpy_header}
 
 #pragma once
 

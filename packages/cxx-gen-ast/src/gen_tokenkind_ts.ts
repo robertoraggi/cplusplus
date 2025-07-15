@@ -32,7 +32,8 @@ export function gen_tokenkind_ts({ output }: { output: string }) {
   tokens.C_AND_CXX_KEYWORDS.forEach((tk) => emit(`  ${tk.toUpperCase()},`));
   emit("}");
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_tokenkind_ts.ts
+${cpy_header}
 ${code.join("\n")}
 `;
 

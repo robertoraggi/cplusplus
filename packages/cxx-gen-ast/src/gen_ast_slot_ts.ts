@@ -44,7 +44,8 @@ export async function gen_ast_slot_ts({
 
   emit(`}`);
 
-  const out = `${cpy_header}
+  const out = `// Generated file by: gen_ast_slot_ts.ts
+${cpy_header}
 ${code.join("\n")}
 `;
 
