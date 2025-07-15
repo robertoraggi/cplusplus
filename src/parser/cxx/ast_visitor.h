@@ -101,6 +101,7 @@ class ASTVisitor {
   virtual void visit(UserDefinedStringLiteralExpressionAST* ast);
   virtual void visit(ObjectLiteralExpressionAST* ast);
   virtual void visit(ThisExpressionAST* ast);
+  virtual void visit(GenericSelectionExpressionAST* ast);
   virtual void visit(NestedStatementExpressionAST* ast);
   virtual void visit(NestedExpressionAST* ast);
   virtual void visit(IdExpressionAST* ast);
@@ -151,6 +152,10 @@ class ASTVisitor {
   virtual void visit(EqualInitializerAST* ast);
   virtual void visit(BracedInitListAST* ast);
   virtual void visit(ParenInitializerAST* ast);
+
+  // GenericAssociationAST
+  virtual void visit(DefaultGenericAssociationAST* ast);
+  virtual void visit(TypeGenericAssociationAST* ast);
 
   // DesignatorAST
   virtual void visit(DotDesignatorAST* ast);

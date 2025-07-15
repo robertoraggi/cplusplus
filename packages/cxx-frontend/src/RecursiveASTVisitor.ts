@@ -846,6 +846,22 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitThisExpression(node: ast.ThisExpressionAST, context: Context): void {}
 
   /**
+   * Visit a GenericSelectionExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitGenericSelectionExpression(
+    node: ast.GenericSelectionExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getExpression(), context);
+    for (const element of node.getGenericAssociationList()) {
+      this.accept(element, context);
+    }
+  }
+
+  /**
    * Visit a NestedStatementExpression node.
    *
    * @param node The node to visit.
@@ -1487,6 +1503,33 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getExpressionList()) {
       this.accept(element, context);
     }
+  }
+
+  /**
+   * Visit a DefaultGenericAssociation node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitDefaultGenericAssociation(
+    node: ast.DefaultGenericAssociationAST,
+    context: Context,
+  ): void {
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
+   * Visit a TypeGenericAssociation node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitTypeGenericAssociation(
+    node: ast.TypeGenericAssociationAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+    this.accept(node.getExpression(), context);
   }
 
   /**

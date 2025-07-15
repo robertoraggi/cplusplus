@@ -26,7 +26,7 @@ const workspacePath = path.join(__dirname, "../");
 const unitTestsPath = path.join(workspacePath, "tests/unit_tests/ast");
 const cxx = path.join(workspacePath, "build/src/frontend/cxx");
 
-const unitTestFilePaths = await glob(`${unitTestsPath}/**/*.cc`);
+const unitTestFilePaths = await glob(`${unitTestsPath}/**/*.{cc,c}`);
 
 async function readLines(path) {
   const unitTestContent = await fs.readFile(path, "utf-8");
@@ -51,8 +51,10 @@ async function updateTest(unitTestPath) {
 
   const fcheck = sourceLines[index]?.includes("-fcheck") ? "-fcheck" : "";
 
+  const lang = unitTestPath.endsWith(".c") ? "-xc" : "";
+
   const ast =
-    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck}`.quiet();
+    await $`${cxx} -verify -ast-dump ${unitTestPath} ${fcheck} ${lang}`.quiet();
 
   const lines = ast.stdout.split("\n");
 

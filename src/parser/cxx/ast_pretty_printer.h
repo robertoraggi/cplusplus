@@ -49,6 +49,7 @@ class ASTPrettyPrinter {
   void operator()(DeclarationAST* ast);
   void operator()(StatementAST* ast);
   void operator()(ExpressionAST* ast);
+  void operator()(GenericAssociationAST* ast);
   void operator()(DesignatorAST* ast);
   void operator()(TemplateParameterAST* ast);
   void operator()(SpecifierAST* ast);
@@ -101,6 +102,7 @@ class ASTPrettyPrinter {
   struct DeclarationVisitor;
   struct StatementVisitor;
   struct ExpressionVisitor;
+  struct GenericAssociationVisitor;
   struct DesignatorVisitor;
   struct TemplateParameterVisitor;
   struct SpecifierVisitor;

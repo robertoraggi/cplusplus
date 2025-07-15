@@ -203,6 +203,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(ThisExpressionAST* ast);
 
+  void operator()(GenericSelectionExpressionAST* ast);
+
   void operator()(NestedStatementExpressionAST* ast);
 
   void operator()(NestedExpressionAST* ast);
@@ -302,6 +304,24 @@ struct ASTPrettyPrinter::ExpressionVisitor {
   void operator()(BracedInitListAST* ast);
 
   void operator()(ParenInitializerAST* ast);
+};
+
+struct ASTPrettyPrinter::GenericAssociationVisitor {
+  ASTPrettyPrinter& accept;
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return accept.unit_;
+  }
+  void space() { accept.space(); }
+  void nospace() { accept.nospace(); }
+  void keepSpace() { accept.keepSpace(); }
+  void newline() { accept.newline(); }
+  void nonewline() { accept.nonewline(); }
+  void indent() { accept.indent(); }
+  void unindent() { accept.unindent(); }
+
+  void operator()(DefaultGenericAssociationAST* ast);
+
+  void operator()(TypeGenericAssociationAST* ast);
 };
 
 struct ASTPrettyPrinter::DesignatorVisitor {
@@ -770,6 +790,11 @@ void ASTPrettyPrinter::operator()(StatementAST* ast) {
 void ASTPrettyPrinter::operator()(ExpressionAST* ast) {
   if (!ast) return;
   visit(ExpressionVisitor{*this}, ast);
+}
+
+void ASTPrettyPrinter::operator()(GenericAssociationAST* ast) {
+  if (!ast) return;
+  visit(GenericAssociationVisitor{*this}, ast);
 }
 
 void ASTPrettyPrinter::operator()(DesignatorAST* ast) {
@@ -2290,6 +2315,32 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(ThisExpressionAST* ast) {
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
+    GenericSelectionExpressionAST* ast) {
+  if (ast->genericLoc) {
+    accept.writeToken(ast->genericLoc);
+  }
+  if (ast->lparenLoc) {
+    nospace();
+    accept.writeToken(ast->lparenLoc);
+    nospace();
+  }
+  accept(ast->expression);
+  if (ast->commaLoc) {
+    nospace();
+    accept.writeToken(ast->commaLoc);
+  }
+
+  for (auto it = ast->genericAssociationList; it; it = it->next) {
+    accept(it->value);
+  }
+
+  if (ast->rparenLoc) {
+    nospace();
+    accept.writeToken(ast->rparenLoc);
+  }
+}
+
+void ASTPrettyPrinter::ExpressionVisitor::operator()(
     NestedStatementExpressionAST* ast) {
   if (ast->lparenLoc) {
     nospace();
@@ -3111,6 +3162,28 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(ParenInitializerAST* ast) {
     nospace();
     accept.writeToken(ast->rparenLoc);
   }
+}
+
+void ASTPrettyPrinter::GenericAssociationVisitor::operator()(
+    DefaultGenericAssociationAST* ast) {
+  if (ast->defaultLoc) {
+    accept.writeToken(ast->defaultLoc);
+  }
+  if (ast->colonLoc) {
+    nospace();
+    accept.writeToken(ast->colonLoc);
+  }
+  accept(ast->expression);
+}
+
+void ASTPrettyPrinter::GenericAssociationVisitor::operator()(
+    TypeGenericAssociationAST* ast) {
+  accept(ast->typeId);
+  if (ast->colonLoc) {
+    nospace();
+    accept.writeToken(ast->colonLoc);
+  }
+  accept(ast->expression);
 }
 
 void ASTPrettyPrinter::DesignatorVisitor::operator()(DotDesignatorAST* ast) {

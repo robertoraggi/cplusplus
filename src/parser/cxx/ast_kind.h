@@ -92,6 +92,7 @@ enum class ASTKind {
   UserDefinedStringLiteralExpression,
   ObjectLiteralExpression,
   ThisExpression,
+  GenericSelectionExpression,
   NestedStatementExpression,
   NestedExpression,
   IdExpression,
@@ -142,6 +143,10 @@ enum class ASTKind {
   EqualInitializer,
   BracedInitList,
   ParenInitializer,
+
+  // GenericAssociationAST
+  DefaultGenericAssociation,
+  TypeGenericAssociation,
 
   // DesignatorAST
   DotDesignator,

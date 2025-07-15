@@ -152,6 +152,19 @@ auto ASTEncoder::acceptExpression(ExpressionAST* ast)
   return {offset, type};
 }
 
+auto ASTEncoder::acceptGenericAssociation(GenericAssociationAST* ast)
+    -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
+  if (!ast) return {};
+  flatbuffers::Offset<> offset;
+  std::uint32_t type = 0;
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  ast->accept(this);
+  std::swap(offset, offset_);
+  std::swap(type, type_);
+  return {offset, type};
+}
+
 auto ASTEncoder::acceptDesignator(DesignatorAST* ast)
     -> std::tuple<flatbuffers::Offset<>, std::uint32_t> {
   if (!ast) return {};
@@ -1906,6 +1919,39 @@ void ASTEncoder::visit(ThisExpressionAST* ast) {
   type_ = io::Expression_ThisExpression;
 }
 
+void ASTEncoder::visit(GenericSelectionExpressionAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  std::vector<flatbuffers::Offset<>> genericAssociationListOffsets;
+  std::vector<std::underlying_type_t<io::GenericAssociation>>
+      genericAssociationListTypes;
+
+  for (auto node : ListView{ast->genericAssociationList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptGenericAssociation(node);
+    genericAssociationListOffsets.push_back(offset);
+    genericAssociationListTypes.push_back(type);
+  }
+
+  auto genericAssociationListOffsetsVector =
+      fbb_.CreateVector(genericAssociationListOffsets);
+  auto genericAssociationListTypesVector =
+      fbb_.CreateVector(genericAssociationListTypes);
+
+  io::GenericSelectionExpression::Builder builder{fbb_};
+  builder.add_generic_loc(ast->genericLoc.index());
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_comma_loc(ast->commaLoc.index());
+  builder.add_generic_association_list(genericAssociationListOffsetsVector);
+  builder.add_generic_association_list_type(genericAssociationListTypesVector);
+  builder.add_rparen_loc(ast->rparenLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_GenericSelectionExpression;
+}
+
 void ASTEncoder::visit(NestedStatementExpressionAST* ast) {
   const auto statement = accept(ast->statement);
 
@@ -2926,6 +2972,34 @@ void ASTEncoder::visit(ParenInitializerAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_ParenInitializer;
+}
+
+void ASTEncoder::visit(DefaultGenericAssociationAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::DefaultGenericAssociation::Builder builder{fbb_};
+  builder.add_default_loc(ast->defaultLoc.index());
+  builder.add_colon_loc(ast->colonLoc.index());
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::GenericAssociation_DefaultGenericAssociation;
+}
+
+void ASTEncoder::visit(TypeGenericAssociationAST* ast) {
+  const auto typeId = accept(ast->typeId);
+
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::TypeGenericAssociation::Builder builder{fbb_};
+  builder.add_type_id(typeId.o);
+  builder.add_colon_loc(ast->colonLoc.index());
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::GenericAssociation_TypeGenericAssociation;
 }
 
 void ASTEncoder::visit(DotDesignatorAST* ast) {

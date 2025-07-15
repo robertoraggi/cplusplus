@@ -158,6 +158,7 @@ export abstract class ExceptionDeclarationAST extends AST {}
 export abstract class ExceptionSpecifierAST extends AST {}
 export abstract class ExpressionAST extends AST {}
 export abstract class FunctionBodyAST extends AST {}
+export abstract class GenericAssociationAST extends AST {}
 export abstract class LambdaCaptureAST extends AST {}
 export abstract class MemInitializerAST extends AST {}
 export abstract class NestedNameSpecifierAST extends AST {}
@@ -3933,6 +3934,88 @@ export class ThisExpressionAST extends ExpressionAST {
 }
 
 /**
+ * GenericSelectionExpressionAST node.
+ */
+export class GenericSelectionExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitGenericSelectionExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the generic token in this node
+   */
+  getGenericToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the genericAssociationList of this node
+   */
+  getGenericAssociationList(): Iterable<GenericAssociationAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: GenericAssociationAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<GenericAssociationAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+}
+
+/**
  * NestedStatementExpressionAST node.
  */
 export class NestedStatementExpressionAST extends ExpressionAST {
@@ -6811,6 +6894,93 @@ export class ParenInitializerAST extends ExpressionAST {
    */
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * DefaultGenericAssociationAST node.
+ */
+export class DefaultGenericAssociationAST extends GenericAssociationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitDefaultGenericAssociation(this, context);
+  }
+
+  /**
+   * Returns the location of the default token in this node
+   */
+  getDefaultToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * TypeGenericAssociationAST node.
+ */
+export class TypeGenericAssociationAST extends GenericAssociationAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitTypeGenericAssociation(this, context);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the colon token in this node
+   */
+  getColonToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
   }
 }
 
@@ -13082,6 +13252,7 @@ const AST_CONSTRUCTORS: Array<
   UserDefinedStringLiteralExpressionAST,
   ObjectLiteralExpressionAST,
   ThisExpressionAST,
+  GenericSelectionExpressionAST,
   NestedStatementExpressionAST,
   NestedExpressionAST,
   IdExpressionAST,
@@ -13132,6 +13303,8 @@ const AST_CONSTRUCTORS: Array<
   EqualInitializerAST,
   BracedInitListAST,
   ParenInitializerAST,
+  DefaultGenericAssociationAST,
+  TypeGenericAssociationAST,
   DotDesignatorAST,
   SubscriptDesignatorAST,
   SplicerAST,

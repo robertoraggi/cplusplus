@@ -66,6 +66,7 @@ class ExceptionDeclarationAST;
 class ExceptionSpecifierAST;
 class ExpressionAST;
 class FunctionBodyAST;
+class GenericAssociationAST;
 class LambdaCaptureAST;
 class MemInitializerAST;
 class NestedNameSpecifierAST;
@@ -146,6 +147,7 @@ class StringLiteralExpressionAST;
 class UserDefinedStringLiteralExpressionAST;
 class ObjectLiteralExpressionAST;
 class ThisExpressionAST;
+class GenericSelectionExpressionAST;
 class NestedStatementExpressionAST;
 class NestedExpressionAST;
 class IdExpressionAST;
@@ -196,6 +198,10 @@ class ConditionExpressionAST;
 class EqualInitializerAST;
 class BracedInitListAST;
 class ParenInitializerAST;
+
+// GenericAssociationAST
+class DefaultGenericAssociationAST;
+class TypeGenericAssociationAST;
 
 // DesignatorAST
 class DotDesignatorAST;

@@ -44,6 +44,8 @@ class ASTDecoder {
       -> DeclarationAST*;
   auto decodeStatement(const void* ptr, io::Statement type) -> StatementAST*;
   auto decodeExpression(const void* ptr, io::Expression type) -> ExpressionAST*;
+  auto decodeGenericAssociation(const void* ptr, io::GenericAssociation type)
+      -> GenericAssociationAST*;
   auto decodeDesignator(const void* ptr, io::Designator type) -> DesignatorAST*;
   auto decodeTemplateParameter(const void* ptr, io::TemplateParameter type)
       -> TemplateParameterAST*;
@@ -197,6 +199,9 @@ class ASTDecoder {
       -> ObjectLiteralExpressionAST*;
   auto decodeThisExpression(const io::ThisExpression* node)
       -> ThisExpressionAST*;
+  auto decodeGenericSelectionExpression(
+      const io::GenericSelectionExpression* node)
+      -> GenericSelectionExpressionAST*;
   auto decodeNestedStatementExpression(
       const io::NestedStatementExpression* node)
       -> NestedStatementExpressionAST*;
@@ -300,6 +305,12 @@ class ASTDecoder {
       -> BracedInitListAST*;
   auto decodeParenInitializer(const io::ParenInitializer* node)
       -> ParenInitializerAST*;
+
+  auto decodeDefaultGenericAssociation(
+      const io::DefaultGenericAssociation* node)
+      -> DefaultGenericAssociationAST*;
+  auto decodeTypeGenericAssociation(const io::TypeGenericAssociation* node)
+      -> TypeGenericAssociationAST*;
 
   auto decodeDotDesignator(const io::DotDesignator* node) -> DotDesignatorAST*;
   auto decodeSubscriptDesignator(const io::SubscriptDesignator* node)
