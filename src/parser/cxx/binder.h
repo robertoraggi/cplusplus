@@ -158,6 +158,9 @@ class Binder {
     ~ScopeGuard() { p->setScope(savedScope); }
   };
 
+  [[nodiscard]] auto is_parsing_c() const;
+  [[nodiscard]] auto is_parsing_cxx() const;
+
  private:
   TranslationUnit* unit_ = nullptr;
   Scope* scope_ = nullptr;
