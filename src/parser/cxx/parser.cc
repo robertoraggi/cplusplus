@@ -5800,6 +5800,7 @@ auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
 }
 
 auto Parser::parse_ref_qualifier(SourceLocation& refLoc) -> bool {
+  if (!is_parsing_cxx()) return false;
   if (match(TokenKind::T_AMP, refLoc)) return true;
   if (match(TokenKind::T_AMP_AMP, refLoc)) return true;
   return false;
