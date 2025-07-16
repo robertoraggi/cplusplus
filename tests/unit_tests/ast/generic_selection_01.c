@@ -30,7 +30,8 @@ int main() {
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [8]]
+// CHECK-NEXT:                  matched-assoc-index: 0
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
 // CHECK-NEXT:                  generic-association-list
@@ -42,7 +43,8 @@ int main() {
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [4]]
+// CHECK-NEXT:                  matched-assoc-index: 1
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
 // CHECK-NEXT:                  generic-association-list
@@ -72,7 +74,8 @@ int main() {
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [4]]
+// CHECK-NEXT:                  matched-assoc-index: 0
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
 // CHECK-NEXT:                  generic-association-list
@@ -102,7 +105,8 @@ int main() {
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [4]]
+// CHECK-NEXT:                  matched-assoc-index: 0
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
 // CHECK-NEXT:                  generic-association-list

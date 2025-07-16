@@ -197,6 +197,7 @@ export const CXX_KEYWORDS: string[] = [
   "__underlying_type",
   "_Atomic",
   "_Complex",
+  "_Generic",
 ];
 
 export const BUILTIN_TYPE_TRAITS: string[] = [

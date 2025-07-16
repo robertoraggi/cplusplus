@@ -872,7 +872,7 @@ auto Control::is_same(const Type* a, const Type* b) -> bool {
 }
 
 auto Control::decay(const Type* type) -> const Type* {
-  return d->traits.add_pointer(type);
+  return d->traits.decay(type);
 }
 
 auto Control::instantiate(TranslationUnit* unit, Symbol* symbol,

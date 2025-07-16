@@ -854,6 +854,10 @@ void ASTPrinter::visit(GenericSelectionExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  ++indent_;
+  out_ << std::format("{:{}}", "", indent_ * 2);
+  out_ << std::format("matched-assoc-index: {}\n", ast->matchedAssocIndex);
+  --indent_;
   accept(ast->expression, "expression");
   if (ast->genericAssociationList) {
     ++indent_;

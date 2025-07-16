@@ -1344,6 +1344,7 @@ class GenericSelectionExpressionAST final : public ExpressionAST {
   SourceLocation commaLoc;
   List<GenericAssociationAST*>* genericAssociationList = nullptr;
   SourceLocation rparenLoc;
+  int matchedAssocIndex = -1;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
