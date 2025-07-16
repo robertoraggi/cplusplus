@@ -174,6 +174,7 @@ class GlobalScopeReflectExpressionAST;
 class NamespaceReflectExpressionAST;
 class TypeIdReflectExpressionAST;
 class ReflectExpressionAST;
+class LabelAddressExpressionAST;
 class UnaryExpressionAST;
 class AwaitExpressionAST;
 class SizeofExpressionAST;

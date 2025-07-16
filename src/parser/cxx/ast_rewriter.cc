@@ -332,6 +332,9 @@ struct ASTRewriter::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(ReflectExpressionAST* ast) -> ExpressionAST*;
 
+  [[nodiscard]] auto operator()(LabelAddressExpressionAST* ast)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(UnaryExpressionAST* ast) -> ExpressionAST*;
 
   [[nodiscard]] auto operator()(AwaitExpressionAST* ast) -> ExpressionAST*;
@@ -2310,9 +2313,11 @@ auto ASTRewriter::StatementVisitor::operator()(GotoStatementAST* ast)
   auto copy = make_node<GotoStatementAST>(arena());
 
   copy->gotoLoc = ast->gotoLoc;
+  copy->starLoc = ast->starLoc;
   copy->identifierLoc = ast->identifierLoc;
   copy->semicolonLoc = ast->semicolonLoc;
   copy->identifier = ast->identifier;
+  copy->isIndirect = ast->isIndirect;
 
   return copy;
 }
@@ -3017,6 +3022,19 @@ auto ASTRewriter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
   copy->type = ast->type;
   copy->caretLoc = ast->caretLoc;
   copy->expression = rewrite(ast->expression);
+
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
+    -> ExpressionAST* {
+  auto copy = make_node<LabelAddressExpressionAST>(arena());
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->ampAmpLoc = ast->ampAmpLoc;
+  copy->identifierLoc = ast->identifierLoc;
+  copy->identifier = ast->identifier;
 
   return copy;
 }

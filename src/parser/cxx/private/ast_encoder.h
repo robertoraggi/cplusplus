@@ -218,6 +218,7 @@ class ASTEncoder : ASTVisitor {
   void visit(NamespaceReflectExpressionAST* ast) override;
   void visit(TypeIdReflectExpressionAST* ast) override;
   void visit(ReflectExpressionAST* ast) override;
+  void visit(LabelAddressExpressionAST* ast) override;
   void visit(UnaryExpressionAST* ast) override;
   void visit(AwaitExpressionAST* ast) override;
   void visit(SizeofExpressionAST* ast) override;

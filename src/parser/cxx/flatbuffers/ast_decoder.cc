@@ -326,6 +326,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ReflectExpression:
       return decodeReflectExpression(
           reinterpret_cast<const io::ReflectExpression*>(ptr));
+    case io::Expression_LabelAddressExpression:
+      return decodeLabelAddressExpression(
+          reinterpret_cast<const io::LabelAddressExpression*>(ptr));
     case io::Expression_UnaryExpression:
       return decodeUnaryExpression(
           reinterpret_cast<const io::UnaryExpression*>(ptr));
@@ -1792,6 +1795,7 @@ auto ASTDecoder::decodeGotoStatement(const io::GotoStatement* node)
 
   auto ast = new (pool_) GotoStatementAST();
   ast->gotoLoc = SourceLocation(node->goto_loc());
+  ast->starLoc = SourceLocation(node->star_loc());
   ast->identifierLoc = SourceLocation(node->identifier_loc());
   ast->semicolonLoc = SourceLocation(node->semicolon_loc());
   if (node->identifier()) {
@@ -2396,6 +2400,20 @@ auto ASTDecoder::decodeReflectExpression(const io::ReflectExpression* node)
   ast->caretLoc = SourceLocation(node->caret_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
+auto ASTDecoder::decodeLabelAddressExpression(
+    const io::LabelAddressExpression* node) -> LabelAddressExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) LabelAddressExpressionAST();
+  ast->ampAmpLoc = SourceLocation(node->amp_amp_loc());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

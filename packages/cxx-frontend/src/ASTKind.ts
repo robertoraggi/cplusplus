@@ -114,6 +114,7 @@ export enum ASTKind {
   NamespaceReflectExpression,
   TypeIdReflectExpression,
   ReflectExpression,
+  LabelAddressExpression,
   UnaryExpression,
   AwaitExpression,
   SizeofExpression,

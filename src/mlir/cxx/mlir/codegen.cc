@@ -245,6 +245,9 @@ struct Codegen::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(ReflectExpressionAST* ast) -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(LabelAddressExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(UnaryExpressionAST* ast) -> ExpressionResult;
 
   [[nodiscard]] auto operator()(AwaitExpressionAST* ast) -> ExpressionResult;
@@ -1940,6 +1943,14 @@ auto Codegen::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
       gen.emitTodoExpr(ast->firstSourceLocation(), "ReflectExpressionAST");
 
   auto expressionResult = gen.expression(ast->expression);
+
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
+    -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), "LabelAddressExpressionAST");
 
   return {op};
 }

@@ -128,6 +128,7 @@ class ASTVisitor {
   virtual void visit(NamespaceReflectExpressionAST* ast);
   virtual void visit(TypeIdReflectExpressionAST* ast);
   virtual void visit(ReflectExpressionAST* ast);
+  virtual void visit(LabelAddressExpressionAST* ast);
   virtual void visit(UnaryExpressionAST* ast);
   virtual void visit(AwaitExpressionAST* ast);
   virtual void visit(SizeofExpressionAST* ast);

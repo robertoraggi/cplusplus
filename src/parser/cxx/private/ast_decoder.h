@@ -257,6 +257,8 @@ class ASTDecoder {
       -> TypeIdReflectExpressionAST*;
   auto decodeReflectExpression(const io::ReflectExpression* node)
       -> ReflectExpressionAST*;
+  auto decodeLabelAddressExpression(const io::LabelAddressExpression* node)
+      -> LabelAddressExpressionAST*;
   auto decodeUnaryExpression(const io::UnaryExpression* node)
       -> UnaryExpressionAST*;
   auto decodeAwaitExpression(const io::AwaitExpression* node)

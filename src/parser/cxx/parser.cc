@@ -2375,7 +2375,45 @@ auto Parser::parse_unary_expression(ExpressionAST*& yyast,
   if (parse_new_expression(yyast, ctx)) return true;
   if (parse_delete_expression(yyast, ctx)) return true;
   if (parse_reflect_expression(yyast, ctx)) return true;
+  if (parse_label_address(yyast, ctx)) return true;
   return parse_postfix_expression(yyast, ctx);
+}
+
+auto Parser::parse_label_address(ExpressionAST*& yyast, const ExprContext& ctx)
+    -> bool {
+  if (!is_parsing_c()) {
+    // enable only in C mode for now, until we devise a better strategy
+    // to disambiguate conflicts with unresolved C++ code.
+    return false;
+  }
+
+  LookaheadParser lookahead{this};
+
+  SourceLocation ampAmpLoc;
+  if (!match(TokenKind::T_AMP_AMP, ampAmpLoc)) return false;
+
+  SourceLocation identifierLoc;
+  if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
+
+  auto identifier = unit->identifier(identifierLoc);
+
+  auto symbol = Lookup{scope()}.lookup(nullptr, identifier);
+  if (symbol) {
+    // did resolve to a symbol, so this is not a label address
+    return false;
+  }
+
+  lookahead.commit();
+
+  auto ast = make_node<LabelAddressExpressionAST>(pool_);
+  yyast = ast;
+  ast->ampAmpLoc = ampAmpLoc;
+  ast->identifierLoc = identifierLoc;
+  ast->identifier = identifier;
+
+  check(ast);
+
+  return true;
 }
 
 auto Parser::parse_unop_expression(ExpressionAST*& yyast,
@@ -3758,6 +3796,8 @@ auto Parser::parse_goto_statement(StatementAST*& yyast) -> bool {
   yyast = ast;
 
   ast->gotoLoc = gotoLoc;
+
+  ast->isIndirect = match(TokenKind::T_STAR, ast->starLoc);
 
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
 

@@ -164,6 +164,7 @@ union Expression {
   NamespaceReflectExpression,
   TypeIdReflectExpression,
   ReflectExpression,
+  LabelAddressExpression,
   UnaryExpression,
   AwaitExpression,
   SizeofExpression,
@@ -1130,6 +1131,12 @@ table ReflectExpression /* ExpressionAST */ {
   caret_loc: uint32;
 }
 
+table LabelAddressExpression /* ExpressionAST */ {
+  identifier: string;
+  amp_amp_loc: uint32;
+  identifier_loc: uint32;
+}
+
 table UnaryExpression /* ExpressionAST */ {
   expression: Expression;
   op: uint32;
@@ -1788,6 +1795,7 @@ table CoroutineReturnStatement /* StatementAST */ {
 table GotoStatement /* StatementAST */ {
   identifier: string;
   goto_loc: uint32;
+  star_loc: uint32;
   identifier_loc: uint32;
   semicolon_loc: uint32;
 }
