@@ -780,6 +780,8 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
+  [[nodiscard]] auto getCurrentNonClassScope() const -> Scope*;
+
   [[nodiscard]] auto scope() const -> Scope*;
   void setScope(Scope* scope);
   void setScope(ScopedSymbol* symbol);
