@@ -850,33 +850,38 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                   NestedNameSpecifierAST* nestedNameSpecifier,
                                   bool isTemplateIntroduced,
                                   bool inRequiresClause) -> bool {
-  if (SourceLocation tildeLoc; match(TokenKind::T_TILDE, tildeLoc)) {
-    if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
-        parse_decltype_specifier(decltypeSpecifier)) {
-      auto decltypeName = make_node<DecltypeIdAST>(pool_);
-      decltypeName->decltypeSpecifier = decltypeSpecifier;
+  if (is_parsing_cxx()) {
+    // allow destructor only in C++ mode
+    if (SourceLocation tildeLoc; match(TokenKind::T_TILDE, tildeLoc)) {
+      if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
+          parse_decltype_specifier(decltypeSpecifier)) {
+        auto decltypeName = make_node<DecltypeIdAST>(pool_);
+        decltypeName->decltypeSpecifier = decltypeSpecifier;
+
+        auto ast = make_node<DestructorIdAST>(pool_);
+        yyast = ast;
+        ast->tildeLoc = tildeLoc;
+        ast->id = decltypeName;
+
+        return true;
+      }
+
+      UnqualifiedIdAST* name = nullptr;
+      if (!parse_type_name(name, nestedNameSpecifier, isTemplateIntroduced))
+        return false;
 
       auto ast = make_node<DestructorIdAST>(pool_);
       yyast = ast;
       ast->tildeLoc = tildeLoc;
-      ast->id = decltypeName;
+      ast->id = name;
 
       return true;
     }
-
-    UnqualifiedIdAST* name = nullptr;
-    if (!parse_type_name(name, nestedNameSpecifier, isTemplateIntroduced))
-      return false;
-
-    auto ast = make_node<DestructorIdAST>(pool_);
-    yyast = ast;
-    ast->tildeLoc = tildeLoc;
-    ast->id = name;
-
-    return true;
   }
 
   auto lookat_template_id = [&] {
+    if (!is_parsing_cxx()) return false;
+
     LookaheadParser lookahead{this};
     if (!parse_template_id(yyast, nestedNameSpecifier, isTemplateIntroduced))
       return false;
@@ -913,6 +918,8 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
 
 void Parser::parse_optional_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) {
+  if (!is_parsing_cxx()) return;
+
   LookaheadParser lookahead(this);
   if (!parse_nested_name_specifier(yyast, ctx)) return;
   lookahead.commit();
@@ -920,6 +927,8 @@ void Parser::parse_optional_nested_name_specifier(
 
 auto Parser::parse_decltype_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool {
+  if (!is_parsing_cxx()) return false;
+
   LookaheadParser lookahead{this};
 
   SourceLocation decltypeLoc;
@@ -7978,6 +7987,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   }
 
   auto lookat_function_definition = [&] {
+    if (!is_parsing_cxx()) return false;
+
     LookaheadParser lookahead{this};
 
     auto functionDeclarator = getFunctionPrototype(declarator);
@@ -8154,31 +8165,33 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   ast->declarator = declarator;
   ast->symbol = symbol;
 
-  if (auto functionDeclarator = getFunctionPrototype(declarator)) {
-    RequiresClauseAST* requiresClause = nullptr;
+  if (is_parsing_cxx()) {
+    if (auto functionDeclarator = getFunctionPrototype(declarator)) {
+      RequiresClauseAST* requiresClause = nullptr;
 
-    if (parse_requires_clause(requiresClause)) {
-      ast->requiresClause = requiresClause;
-    } else {
-      parse_virt_specifier_seq(functionDeclarator);
+      if (parse_requires_clause(requiresClause)) {
+        ast->requiresClause = requiresClause;
+      } else {
+        parse_virt_specifier_seq(functionDeclarator);
 
-      if (!functionDeclarator->attributeList) {
-        parse_optional_attribute_specifier_seq(
-            functionDeclarator->attributeList);
+        if (!functionDeclarator->attributeList) {
+          parse_optional_attribute_specifier_seq(
+              functionDeclarator->attributeList);
+        }
+
+        SourceLocation equalLoc;
+        SourceLocation zeroLoc;
+
+        const auto isPure = parse_pure_specifier(equalLoc, zeroLoc);
+
+        functionDeclarator->isPure = isPure;
       }
 
-      SourceLocation equalLoc;
-      SourceLocation zeroLoc;
-
-      const auto isPure = parse_pure_specifier(equalLoc, zeroLoc);
-
-      functionDeclarator->isPure = isPure;
+      return true;
     }
 
-    return true;
+    (void)parse_brace_or_equal_initializer(ast->initializer);
   }
-
-  (void)parse_brace_or_equal_initializer(ast->initializer);
 
   return true;
 }
@@ -9160,6 +9173,8 @@ auto Parser::parse_function_operator_template_id(
 auto Parser::parse_template_id(UnqualifiedIdAST*& yyast,
                                NestedNameSpecifierAST* nestedNameSpecifier,
                                bool isTemplateIntroduced) -> bool {
+  if (!is_parsing_cxx()) return false;
+
   if (LiteralOperatorTemplateIdAST* templateName = nullptr;
       parse_literal_operator_template_id(templateName, nestedNameSpecifier)) {
     yyast = templateName;
@@ -9287,6 +9302,8 @@ auto Parser::parse_constraint_expression(ExpressionAST*& yyast) -> bool {
 auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
                                    TemplateDeclarationAST* templateHead)
     -> bool {
+  if (!is_parsing_cxx()) return false;
+
   SpecifierAST* explicitSpecifier = nullptr;
   SourceLocation identifierLoc;
   SourceLocation lparenLoc;
