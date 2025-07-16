@@ -5206,11 +5206,6 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   SourceLocation enumLoc;
   if (!match(TokenKind::T_ENUM, enumLoc)) return false;
 
-  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
-  if (is_parsing_c()) {
-    setScope(globalScope_);
-  }
-
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   parse_optional_nested_name_specifier(
       nestedNameSpecifier, NestedNameSpecifierContext::kDeclarative);
@@ -5251,8 +5246,9 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
   if (!parse_class_key(classLoc)) return false;
 
   auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+
   if (is_parsing_c()) {
-    setScope(globalScope_);
+    setScope(getCurrentNonClassScope());
   }
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
@@ -6408,8 +6404,9 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (!parse_enum_key(enumLoc, classLoc)) return false;
 
   auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+
   if (is_parsing_c()) {
-    setScope(globalScope_);
+    setScope(getCurrentNonClassScope());
   }
 
   List<AttributeSpecifierAST*>* attributes = nullptr;
@@ -7700,8 +7697,9 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   if (!parse_class_key(classLoc)) return false;
 
   auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+
   if (is_parsing_c()) {
-    setScope(globalScope_);
+    setScope(getCurrentNonClassScope());
   }
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -9632,6 +9630,15 @@ void Parser::completePendingFunctionDefinitions() {
   for (const auto& function : functions) {
     completeFunctionDefinition(function);
   }
+}
+
+auto Parser::getCurrentNonClassScope() const -> Scope* {
+  for (auto current = scope(); current; current = current->parent()) {
+    if (current->isClassOrNamespaceScope()) continue;
+    return current;
+  }
+
+  return globalScope_;
 }
 
 auto Parser::scope() const -> Scope* { return binder_.scope(); }

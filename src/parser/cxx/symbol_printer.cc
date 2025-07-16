@@ -70,7 +70,10 @@ struct DumpSymbols {
 
   void operator()(NamespaceSymbol* symbol) {
     indent();
-    out << std::format("namespace {}\n", to_string(symbol->name()));
+    out << "namespace";
+    if (symbol->name())
+      out << std::format(" {}", to_string(symbol->name()));
+    out << "\n";
     dumpScope(symbol->scope());
   }
 

@@ -46,6 +46,7 @@ class Scope {
   [[nodiscard]] auto isBlockScope() const -> bool;
   [[nodiscard]] auto isEnumScope() const -> bool;
   [[nodiscard]] auto isTemplateParametersScope() const -> bool;
+  [[nodiscard]] auto isFunctionParametersScope() const -> bool;
 
   [[nodiscard]] auto enclosingNamespaceScope() const -> Scope*;
   [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;

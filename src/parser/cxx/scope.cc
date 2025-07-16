@@ -74,6 +74,10 @@ auto Scope::isTemplateParametersScope() const -> bool {
   return owner_ && owner_->isTemplateParameters();
 }
 
+auto Scope::isFunctionParametersScope() const -> bool {
+  return owner_ && owner_->isFunctionParameters();
+}
+
 auto Scope::enclosingNamespaceScope() const -> Scope* {
   for (auto scope = parent_; scope; scope = scope->parent()) {
     if (scope->isNamespaceScope()) {
