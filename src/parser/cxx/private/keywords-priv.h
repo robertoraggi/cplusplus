@@ -983,6 +983,20 @@ static inline auto classify8(const char* s) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == 'G') {
+      if (s[2] == 'e') {
+        if (s[3] == 'n') {
+          if (s[4] == 'e') {
+            if (s[5] == 'r') {
+              if (s[6] == 'i') {
+                if (s[7] == 'c') {
+                  return cxx::TokenKind::T__GENERIC;
+                }
+              }
+            }
+          }
+        }
+      }
     } else if (s[1] == 'A') {
       if (s[2] == 'l') {
         if (s[3] == 'i') {

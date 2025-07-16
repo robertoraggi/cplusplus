@@ -2489,6 +2489,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   }
 
   copy->rparenLoc = ast->rparenLoc;
+  copy->matchedAssocIndex = ast->matchedAssocIndex;
 
   return copy;
 }

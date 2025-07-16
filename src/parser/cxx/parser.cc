@@ -1480,6 +1480,8 @@ auto Parser::parse_generic_selection_expression(ExpressionAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
+  check(ast);
+
   return true;
 }
 

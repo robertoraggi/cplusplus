@@ -255,7 +255,83 @@ void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {
   }
 }
 
-void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {
+  struct {
+    Visitor& self;
+    GenericSelectionExpressionAST* ast;
+    DefaultGenericAssociationAST* defaultAssoc = nullptr;
+    const Type* selectorType = nullptr;
+    int index = 0;
+    int defaultAssocIndex = -1;
+
+    [[nodiscard]] auto control() -> Control* { return self.control(); }
+
+    void operator()(DefaultGenericAssociationAST* assoc) {
+      if (defaultAssoc) {
+        self.error(ast->firstSourceLocation(),
+                   "multiple default associations in _Generic selection");
+        return;
+      }
+
+      defaultAssoc = assoc;
+      defaultAssocIndex = index;
+    }
+
+    void operator()(TypeGenericAssociationAST* assoc) {
+      if (!self.control()->is_same(selectorType, assoc->typeId->type)) {
+        return;
+      }
+
+      if (ast->matchedAssocIndex != -1) {
+        self.error(ast->firstSourceLocation(),
+                   std::format("multiple matching types for _Generic selector "
+                               "of type '{}'",
+                               to_string(selectorType)));
+        return;
+      }
+
+      ast->type = assoc->expression->type;
+      ast->valueCategory = assoc->expression->valueCategory;
+      ast->matchedAssocIndex = index;
+    }
+
+    void check() {
+      if (!ast->expression) {
+        self.error(ast->firstSourceLocation(),
+                   "generic selection expression without selector");
+        return;
+      }
+
+      selectorType = control()->decay(ast->expression->type);
+
+      if (!selectorType) {
+        self.error(ast->firstSourceLocation(),
+                   "generic selection expression with invalid selector type");
+        return;
+      }
+
+      for (auto assoc : ListView{ast->genericAssociationList}) {
+        visit(*this, assoc);
+        ++index;
+      }
+
+      if (ast->matchedAssocIndex == -1 && defaultAssoc) {
+        ast->type = defaultAssoc->expression->type;
+        ast->valueCategory = defaultAssoc->expression->valueCategory;
+        ast->matchedAssocIndex = defaultAssocIndex;
+      }
+
+      if (ast->matchedAssocIndex == -1) {
+        self.error(
+            ast->firstSourceLocation(),
+            std::format("no matching type for _Generic selector of type '{}'",
+                        to_string(selectorType)));
+      }
+    }
+  } v{*this, ast};
+
+  v.check();
+}
 
 void TypeChecker::Visitor::operator()(NestedStatementExpressionAST* ast) {}
 

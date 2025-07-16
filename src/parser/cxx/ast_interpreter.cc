@@ -1646,6 +1646,26 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     GenericSelectionExpressionAST* ast) -> ExpressionResult {
+  if (ast->matchedAssocIndex == -1) return std::nullopt;
+
+  GenericAssociationAST* assoc = nullptr;
+  int index = 0;
+  for (auto assocNode : ListView{ast->genericAssociationList}) {
+    if (index == ast->matchedAssocIndex) {
+      assoc = assocNode;
+      break;
+    }
+    ++index;
+  }
+
+  if (auto def = ast_cast<DefaultGenericAssociationAST>(assoc)) {
+    return accept(def->expression);
+  }
+
+  if (auto entry = ast_cast<TypeGenericAssociationAST>(assoc)) {
+    return accept(entry->expression);
+  }
+
   return std::nullopt;
 }
 
