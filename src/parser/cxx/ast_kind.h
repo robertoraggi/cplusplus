@@ -119,6 +119,7 @@ enum class ASTKind {
   NamespaceReflectExpression,
   TypeIdReflectExpression,
   ReflectExpression,
+  LabelAddressExpression,
   UnaryExpression,
   AwaitExpression,
   SizeofExpression,

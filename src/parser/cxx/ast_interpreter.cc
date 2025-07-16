@@ -370,6 +370,9 @@ struct ASTInterpreter::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(ReflectExpressionAST* ast) -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(LabelAddressExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(UnaryExpressionAST* ast) -> ExpressionResult;
 
   [[nodiscard]] auto operator()(AwaitExpressionAST* ast) -> ExpressionResult;
@@ -1882,6 +1885,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
+  return ExpressionResult{std::nullopt};
+}
+
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    LabelAddressExpressionAST* ast) -> ExpressionResult {
   return ExpressionResult{std::nullopt};
 }
 

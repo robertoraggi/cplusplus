@@ -831,6 +831,7 @@ auto CoroutineReturnStatementAST::lastSourceLocation() -> SourceLocation {
 
 auto GotoStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(gotoLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -839,6 +840,7 @@ auto GotoStatementAST::firstSourceLocation() -> SourceLocation {
 auto GotoStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(gotoLoc)) return loc;
   return {};
 }
@@ -1440,6 +1442,18 @@ auto ReflectExpressionAST::firstSourceLocation() -> SourceLocation {
 auto ReflectExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(caretLoc)) return loc;
+  return {};
+}
+
+auto LabelAddressExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(ampAmpLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  return {};
+}
+
+auto LabelAddressExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ampAmpLoc)) return loc;
   return {};
 }
 
@@ -3636,6 +3650,7 @@ std::string_view kASTKindNames[] = {
     "namespace-reflect-expression",
     "type-id-reflect-expression",
     "reflect-expression",
+    "label-address-expression",
     "unary-expression",
     "await-expression",
     "sizeof-expression",

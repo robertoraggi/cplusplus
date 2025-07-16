@@ -3491,25 +3491,39 @@ export class GotoStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the location of the star token in this node
+   */
+  getStarToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
    * Returns the location of the identifier token in this node
    */
   getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 3);
+    const slot = cxx.getASTSlot(this.getHandle(), 4);
     return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the isIndirect attribute of this node
+   */
+  getIsIndirect(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
   }
 }
 
@@ -5663,6 +5677,46 @@ export class ReflectExpressionAST extends ExpressionAST {
       cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
+  }
+}
+
+/**
+ * LabelAddressExpressionAST node.
+ */
+export class LabelAddressExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitLabelAddressExpression(this, context);
+  }
+
+  /**
+   * Returns the location of the ampAmp token in this node
+   */
+  getAmpAmpToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the identifier token in this node
+   */
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    return cxx.getIdentifierValue(slot);
   }
 }
 
@@ -13279,6 +13333,7 @@ const AST_CONSTRUCTORS: Array<
   NamespaceReflectExpressionAST,
   TypeIdReflectExpressionAST,
   ReflectExpressionAST,
+  LabelAddressExpressionAST,
   UnaryExpressionAST,
   AwaitExpressionAST,
   SizeofExpressionAST,

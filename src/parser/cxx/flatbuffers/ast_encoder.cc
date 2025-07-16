@@ -1724,6 +1724,7 @@ void ASTEncoder::visit(GotoStatementAST* ast) {
 
   io::GotoStatement::Builder builder{fbb_};
   builder.add_goto_loc(ast->gotoLoc.index());
+  builder.add_star_loc(ast->starLoc.index());
   builder.add_identifier_loc(ast->identifierLoc.index());
   builder.add_semicolon_loc(ast->semicolonLoc.index());
   if (ast->identifier) {
@@ -2520,6 +2521,28 @@ void ASTEncoder::visit(ReflectExpressionAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_ReflectExpression;
+}
+
+void ASTEncoder::visit(LabelAddressExpressionAST* ast) {
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
+
+  io::LabelAddressExpression::Builder builder{fbb_};
+  builder.add_amp_amp_loc(ast->ampAmpLoc.index());
+  builder.add_identifier_loc(ast->identifierLoc.index());
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_LabelAddressExpression;
 }
 
 void ASTEncoder::visit(UnaryExpressionAST* ast) {

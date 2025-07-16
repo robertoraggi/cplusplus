@@ -1059,6 +1059,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit LabelAddressExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitLabelAddressExpression(
+    node: ast.LabelAddressExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit UnaryExpression node.
    *
    * @param node The node to visit.

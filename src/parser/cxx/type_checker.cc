@@ -176,6 +176,7 @@ struct TypeChecker::Visitor {
   void operator()(NamespaceReflectExpressionAST* ast);
   void operator()(TypeIdReflectExpressionAST* ast);
   void operator()(ReflectExpressionAST* ast);
+  void operator()(LabelAddressExpressionAST* ast);
   void operator()(UnaryExpressionAST* ast);
   void operator()(AwaitExpressionAST* ast);
   void operator()(SizeofExpressionAST* ast);
@@ -589,6 +590,10 @@ void TypeChecker::Visitor::operator()(TypeIdReflectExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(ReflectExpressionAST* ast) {}
 
+void TypeChecker::Visitor::operator()(LabelAddressExpressionAST* ast) {
+  ast->type = control()->getPointerType(control()->getVoidType());
+}
+
 void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
   switch (ast->op) {
     case TokenKind::T_STAR: {
@@ -599,6 +604,13 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         ast->type = pointerType->elementType();
         ast->valueCategory = ValueCategory::kLValue;
       }
+      break;
+    }
+
+    case TokenKind::T_AMP_AMP: {
+      cxx_runtime_error("address of label");
+      ast->type = control()->getPointerType(control()->getVoidType());
+      ast->valueCategory = ValueCategory::kPrValue;
       break;
     }
 

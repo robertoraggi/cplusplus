@@ -686,6 +686,12 @@ void ASTPrinter::visit(CoroutineReturnStatementAST* ast) {
 void ASTPrinter::visit(GotoStatementAST* ast) {
   out_ << std::format("{}\n", "goto-statement");
   accept(ast->identifier, "identifier");
+  if (ast->isIndirect) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-indirect: {}\n", ast->isIndirect);
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(DeclarationStatementAST* ast) {
@@ -1275,6 +1281,16 @@ void ASTPrinter::visit(ReflectExpressionAST* ast) {
   }
   out_ << "\n";
   accept(ast->expression, "expression");
+}
+
+void ASTPrinter::visit(LabelAddressExpressionAST* ast) {
+  out_ << "label-address-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->identifier, "identifier");
 }
 
 void ASTPrinter::visit(UnaryExpressionAST* ast) {

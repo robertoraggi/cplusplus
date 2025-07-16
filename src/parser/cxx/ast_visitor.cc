@@ -478,6 +478,8 @@ void ASTVisitor::visit(TypeIdReflectExpressionAST* ast) { accept(ast->typeId); }
 
 void ASTVisitor::visit(ReflectExpressionAST* ast) { accept(ast->expression); }
 
+void ASTVisitor::visit(LabelAddressExpressionAST* ast) {}
+
 void ASTVisitor::visit(UnaryExpressionAST* ast) { accept(ast->expression); }
 
 void ASTVisitor::visit(AwaitExpressionAST* ast) { accept(ast->expression); }

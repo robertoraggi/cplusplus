@@ -282,6 +282,8 @@ class Parser final {
                                             const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_unop_expression(ExpressionAST*& yyast,
                                            const ExprContext& ctx) -> bool;
+  [[nodiscard]] auto parse_label_address(ExpressionAST*& yyast,
+                                         const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_complex_expression(ExpressionAST*& yyast,
                                               const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_sizeof_expression(ExpressionAST*& yyast,

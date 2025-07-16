@@ -257,6 +257,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(ReflectExpressionAST* ast);
 
+  void operator()(LabelAddressExpressionAST* ast);
+
   void operator()(UnaryExpressionAST* ast);
 
   void operator()(AwaitExpressionAST* ast);
@@ -2210,6 +2212,9 @@ void ASTPrettyPrinter::StatementVisitor::operator()(GotoStatementAST* ast) {
   if (ast->gotoLoc) {
     accept.writeToken(ast->gotoLoc);
   }
+  if (ast->starLoc) {
+    accept.writeToken(ast->starLoc);
+  }
   if (ast->identifierLoc) {
     accept.writeToken(ast->identifierLoc);
   }
@@ -2824,6 +2829,16 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     accept.writeToken(ast->caretLoc);
   }
   accept(ast->expression);
+}
+
+void ASTPrettyPrinter::ExpressionVisitor::operator()(
+    LabelAddressExpressionAST* ast) {
+  if (ast->ampAmpLoc) {
+    accept.writeToken(ast->ampAmpLoc);
+  }
+  if (ast->identifierLoc) {
+    accept.writeToken(ast->identifierLoc);
+  }
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(UnaryExpressionAST* ast) {

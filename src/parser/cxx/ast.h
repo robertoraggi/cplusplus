@@ -1139,9 +1139,11 @@ class GotoStatementAST final : public StatementAST {
   GotoStatementAST() : StatementAST(Kind) {}
 
   SourceLocation gotoLoc;
+  SourceLocation starLoc;
   SourceLocation identifierLoc;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
+  bool isIndirect = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1816,6 +1818,22 @@ class ReflectExpressionAST final : public ExpressionAST {
 
   SourceLocation caretLoc;
   ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class LabelAddressExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::LabelAddressExpression;
+
+  LabelAddressExpressionAST() : ExpressionAST(Kind) {}
+
+  SourceLocation ampAmpLoc;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4660,6 +4678,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case ReflectExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ReflectExpressionAST*>(ast));
+    case LabelAddressExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<LabelAddressExpressionAST*>(ast));
     case UnaryExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<UnaryExpressionAST*>(ast));
@@ -4778,6 +4799,7 @@ template <>
     case NamespaceReflectExpressionAST::Kind:
     case TypeIdReflectExpressionAST::Kind:
     case ReflectExpressionAST::Kind:
+    case LabelAddressExpressionAST::Kind:
     case UnaryExpressionAST::Kind:
     case AwaitExpressionAST::Kind:
     case SizeofExpressionAST::Kind:

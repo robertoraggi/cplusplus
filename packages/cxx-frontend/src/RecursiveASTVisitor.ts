@@ -1206,6 +1206,17 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a LabelAddressExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitLabelAddressExpression(
+    node: ast.LabelAddressExpressionAST,
+    context: Context,
+  ): void {}
+
+  /**
    * Visit a UnaryExpression node.
    *
    * @param node The node to visit.
