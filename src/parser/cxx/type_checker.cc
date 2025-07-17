@@ -2119,6 +2119,13 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
   auto cv1 = strip_cv(objectType);
 
   if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
+    if (control()->is_class_or_union(ast->baseExpression->type)) {
+      // todo: lookup operator-> in the class
+    } else {
+      (void)ensure_prvalue(ast->baseExpression);
+      objectType = ast->baseExpression->type;
+    }
+
     auto pointerType = type_cast<PointerType>(objectType);
     if (!pointerType) return false;
 
