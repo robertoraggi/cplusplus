@@ -2124,6 +2124,7 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
     } else {
       (void)ensure_prvalue(ast->baseExpression);
       objectType = ast->baseExpression->type;
+      cv1 = strip_cv(objectType);
     }
 
     auto pointerType = type_cast<PointerType>(objectType);

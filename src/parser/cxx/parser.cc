@@ -7749,12 +7749,6 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation classLoc;
   if (!parse_class_key(classLoc)) return false;
 
-  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
-
-  if (is_parsing_c()) {
-    setScope(getCurrentNonClassScope());
-  }
-
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
@@ -7808,6 +7802,15 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   };
 
   if (!lookat_class_head()) return false;
+
+  auto globalScopeGuard = Binder::ScopeGuard{&binder_};
+
+  if (is_parsing_c()) {
+    if (unqualifiedId) {
+      // declared named structs in the enclosed non-class scope in C mode
+      setScope(getCurrentNonClassScope());
+    }
+  }
 
   auto ast = make_node<ClassSpecifierAST>(pool_);
   yyast = ast;
