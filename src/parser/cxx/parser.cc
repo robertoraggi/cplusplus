@@ -3246,8 +3246,10 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
       cxx_runtime_error("enclosing scope of init statement is not empty");
     }
 
-    if (!parse_simple_declaration(declaration,
-                                  BindingContext::kInitStatement)) {
+    if (parse_alias_declaration(declaration)) {
+      // did parse an alias declaration
+    } else if (!parse_simple_declaration(declaration,
+                                         BindingContext::kInitStatement)) {
       scope()->reset();
       return false;
     }
