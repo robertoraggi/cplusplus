@@ -6599,6 +6599,16 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
   *it = make_list_node(pool_, enumerator);
   it = &(*it)->next;
 
+  std::optional<ConstValue> lastValue;
+  ASTInterpreter interp{unit};
+
+  if (enumerator->expression) {
+    lastValue = enumerator->symbol->value();
+  } else {
+    lastValue = std::intmax_t{0};
+    enumerator->symbol->setValue(*lastValue);
+  }
+
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
@@ -6609,6 +6619,27 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
 
     EnumeratorAST* enumerator = nullptr;
     parse_enumerator(enumerator, type);
+
+    if (!enumerator->expression) {
+      if (lastValue.has_value()) {
+        if (control_->is_unsigned(type)) {
+          if (auto v = interp.toUInt(lastValue.value())) {
+            lastValue = v.value() + 1;
+          } else {
+            lastValue = std::nullopt;
+          }
+        } else {
+          if (auto v = interp.toInt(lastValue.value())) {
+            lastValue = v.value() + 1;
+          } else {
+            lastValue = std::nullopt;
+          }
+        }
+      }
+      enumerator->symbol->setValue(*lastValue);
+    } else {
+      lastValue = enumerator->symbol->value();
+    }
 
     *it = make_list_node(pool_, enumerator);
     it = &(*it)->next;
