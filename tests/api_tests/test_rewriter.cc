@@ -183,7 +183,7 @@ constexpr int y = c<123 * 2>;
   auto value = interp.evaluate(init->expression);
   ASSERT_TRUE(value.has_value());
 
-  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 123 * 2 + 321 + 123 * 2);
+  ASSERT_EQ(interp.toInt(*value).value(), 123 * 2 + 321 + 123 * 2);
 }
 
 TEST(Rewriter, Pack) {
@@ -254,7 +254,7 @@ const auto N = S<0, 1, 2>;
 
   const auto value = interp.evaluate(eq->expression);
   ASSERT_TRUE(value.has_value());
-  ASSERT_EQ(std::visit(ArithmeticCast<int>{}, *value), 0 * 0 + 1 * 1 + 2 * 2);
+  ASSERT_EQ(interp.toInt(*value).value(), 0 * 0 + 1 * 1 + 2 * 2);
 }
 
 TEST(Rewriter, Class) {

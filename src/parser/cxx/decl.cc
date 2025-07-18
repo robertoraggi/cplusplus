@@ -87,26 +87,6 @@ struct GetDeclaratorType {
   TranslationUnit* unit = nullptr;
   const Type* type_ = nullptr;
 
-  struct {
-    auto operator()(float value) const -> std::optional<std::size_t> {
-      return std::nullopt;
-    }
-
-    auto operator()(double value) const -> std::optional<std::size_t> {
-      return std::nullopt;
-    }
-
-    auto operator()(const StringLiteral* value) const
-        -> std::optional<std::size_t> {
-      return std::nullopt;
-    }
-
-    template <typename T>
-    auto operator()(T value) const -> std::optional<std::size_t> {
-      return static_cast<std::size_t>(value);
-    }
-  } get_size_value;
-
   explicit GetDeclaratorType(TranslationUnit* unit) : unit(unit) {}
 
   auto control() const -> Control* { return unit->control(); }
@@ -297,11 +277,11 @@ struct GetDeclaratorType {
       return;
     }
 
-    ASTInterpreter sem{unit};
-    auto constValue = sem.evaluate(ast->expression);
+    ASTInterpreter interp{unit};
+    const auto constValue = interp.evaluate(ast->expression);
 
     if (constValue) {
-      if (auto size = std::visit(get_size_value, *constValue)) {
+      if (auto size = interp.toUInt(constValue.value())) {
         type_ = control()->getBoundedArrayType(type_, *size);
         return;
       }

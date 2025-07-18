@@ -29,28 +29,7 @@
 namespace cxx {
 
 using ConstValue =
-    std::variant<bool, std::int32_t, std::uint32_t, std::int64_t, std::uint64_t,
-                 const StringLiteral*, float, double, long double>;
-
-template <typename T>
-struct ArithmeticConversion {
-  auto operator()(const StringLiteral* value) const -> ConstValue {
-    return ConstValue(value);
-  }
-
-  auto operator()(auto value) const -> ConstValue {
-    return ConstValue(static_cast<T>(value));
-  }
-};
-
-template <typename T>
-struct ArithmeticCast {
-  auto operator()(const StringLiteral*) const -> T {
-    cxx_runtime_error("invalid artihmetic cast");
-    return T{};
-  }
-
-  auto operator()(auto value) const -> T { return static_cast<T>(value); }
-};
+    std::variant<bool, std::intmax_t, std::uintmax_t, const StringLiteral*,
+                 float, double, long double>;
 
 }  // namespace cxx
