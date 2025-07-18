@@ -2,9 +2,15 @@
 
 enum X {
   A,
-  B,
-  C,
+  B = 1,
+  C = B,
+  D,
 };
+
+static_assert(A == 0);
+static_assert(B == 1);
+static_assert(C == 1);
+static_assert(D == 2);
 
 enum X x;
 
@@ -13,4 +19,5 @@ enum X x;
 // CHECK-NEXT:enumerator X A
 // CHECK-NEXT:enumerator X B
 // CHECK-NEXT:enumerator X C
+// CHECK-NEXT:enumerator X D
 // CHECK-NEXT:variable X x
