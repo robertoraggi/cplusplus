@@ -49,11 +49,6 @@ namespace cxx {
 
 namespace {
 
-inline constexpr struct {
-  auto operator()(const StringLiteral*) const -> bool { return true; }
-  auto operator()(auto value) const -> bool { return !!value; }
-} to_bool;
-
 class RecordingDiagnosticsClient : public DiagnosticsClient {
  public:
   void reset() { messages_.clear(); }
@@ -4480,7 +4475,8 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
     bool value = false;
 
     if (constValue.has_value()) {
-      value = visit(to_bool, *constValue);
+      ASTInterpreter interp{unit};
+      value = interp.toBool(constValue.value()).value_or(false);
     }
 
     if (!value && config().checkTypes) {

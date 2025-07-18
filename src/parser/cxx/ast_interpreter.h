@@ -45,6 +45,19 @@ class ASTInterpreter {
 
   [[nodiscard]] auto toBool(const ConstValue& value) -> std::optional<bool>;
 
+  [[nodiscard]] auto toInt(const ConstValue& value)
+      -> std::optional<std::intmax_t>;
+
+  [[nodiscard]] auto toUInt(const ConstValue& value)
+      -> std::optional<std::uintmax_t>;
+
+  [[nodiscard]] auto toFloat(const ConstValue& value) -> std::optional<float>;
+
+  [[nodiscard]] auto toDouble(const ConstValue& value) -> std::optional<double>;
+
+  [[nodiscard]] auto toLongDouble(const ConstValue& value)
+      -> std::optional<long double>;
+
  private:
   using ExpressionResult = std::optional<ConstValue>;
 

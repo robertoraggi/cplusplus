@@ -32,6 +32,20 @@
 
 namespace cxx {
 
+namespace {
+
+template <typename T>
+struct ArithmeticCast {
+  auto operator()(const StringLiteral*) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
+  auto operator()(auto value) const -> T { return static_cast<T>(value); }
+};
+
+}  // namespace
+
 struct ASTInterpreter::UnitResult {};
 
 struct ASTInterpreter::DeclarationResult {};
@@ -273,6 +287,238 @@ struct ASTInterpreter::ExpressionVisitor {
 
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> ExpressionResult {
     return accept(ast);
+  }
+
+  [[nodiscard]] auto toBool(const ConstValue& value) -> bool {
+    return accept.toBool(value).value_or(false);
+  }
+
+  [[nodiscard]] auto toInt(const ConstValue& value) -> std::intmax_t {
+    return accept.toInt(value).value_or(0);
+  }
+
+  [[nodiscard]] auto toUInt(const ConstValue& value) -> std::uintmax_t {
+    return accept.toUInt(value).value_or(0);
+  }
+
+  [[nodiscard]] auto toFloat(const ConstValue& value) -> float {
+    return accept.toFloat(value).value_or(0.0f);
+  }
+
+  [[nodiscard]] auto toDouble(const ConstValue& value) -> double {
+    return accept.toDouble(value).value_or(0.0);
+  }
+
+  auto star_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+               const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type)) {
+      return toDouble(*left) * toDouble(*right);
+    }
+
+    if (control()->is_unsigned(ast->type)) {
+      return toUInt(*left) * toUInt(*right);
+    }
+
+    return toInt(*left) * toInt(*right);
+  }
+
+  auto slash_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type)) {
+      auto l = toDouble(*left);
+      auto r = toDouble(*right);
+      if (r == 0.0) return std::nullopt;
+      return l / r;
+    }
+
+    if (control()->is_unsigned(ast->type)) {
+      auto l = toUInt(*left);
+      auto r = toUInt(*right);
+      if (r == 0) return std::nullopt;
+      return l / r;
+    }
+
+    auto l = toInt(*left);
+    auto r = toInt(*right);
+    if (r == 0) return std::nullopt;
+    return l / r;
+  }
+
+  auto percent_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                  const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_unsigned(ast->type)) {
+      auto l = toUInt(*left);
+      auto r = toUInt(*right);
+      if (r == 0) return std::nullopt;
+      return l % r;
+    }
+
+    auto l = toInt(*left);
+    auto r = toInt(*right);
+    if (r == 0) return std::nullopt;
+    return l % r;
+  }
+
+  auto plus_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+               const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type)) {
+      return toDouble(*left) + toDouble(*right);
+    }
+
+    if (control()->is_unsigned(ast->type)) {
+      return toUInt(*left) + toUInt(*right);
+    }
+
+    return toInt(*left) + toInt(*right);
+  }
+
+  auto minus_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type)) {
+      return toDouble(*left) - toDouble(*right);
+    }
+
+    if (control()->is_unsigned(ast->type)) {
+      return toUInt(*left) - toUInt(*right);
+    }
+
+    return toInt(*left) - toInt(*right);
+  }
+
+  auto less_less_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                    const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_unsigned(ast->type)) {
+      return toUInt(*left) << toUInt(*right);
+    }
+
+    return toInt(*left) << toInt(*right);
+  }
+
+  auto greater_greater_op(BinaryExpressionAST* ast,
+                          const ExpressionResult& left,
+                          const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_unsigned(ast->type)) {
+      return toUInt(*left) >> toUInt(*right);
+    }
+
+    return toInt(*left) >> toInt(*right);
+  }
+
+  auto less_equal_greater_op(BinaryExpressionAST* ast,
+                             const ExpressionResult& left,
+                             const ExpressionResult& right)
+      -> ExpressionResult {
+    auto convert = [](std::partial_ordering cmp) -> int {
+      if (cmp < 0) return -1;
+      if (cmp > 0) return 1;
+      return 0;
+    };
+
+    if (control()->is_floating_point(ast->type))
+      return convert(toDouble(*left) <=> toDouble(*right));
+
+    if (control()->is_unsigned(ast->type))
+      return convert(toUInt(*left) <=> toUInt(*right));
+
+    return convert(toInt(*left) <=> toInt(*right));
+  }
+
+  auto less_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                     const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type))
+      return toDouble(*left) <= toDouble(*right);
+
+    if (control()->is_unsigned(ast->type))
+      return toUInt(*left) <= toUInt(*right);
+
+    return toInt(*left) <= toInt(*right);
+  }
+
+  auto greater_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                        const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type))
+      return toDouble(*left) >= toDouble(*right);
+
+    if (control()->is_unsigned(ast->type))
+      return toUInt(*left) >= toUInt(*right);
+
+    else
+      return toInt(*left) >= toInt(*right);
+  }
+
+  auto less_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+               const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type))
+      return toDouble(*left) < toDouble(*right);
+
+    if (control()->is_unsigned(ast->type))
+      return toUInt(*left) < toUInt(*right);
+
+    return toInt(*left) < toInt(*right);
+  }
+
+  auto greater_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                  const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type))
+      return toDouble(*left) > toDouble(*right);
+
+    if (control()->is_unsigned(ast->type))
+      return toUInt(*left) > toUInt(*right);
+
+    return toInt(*left) > toInt(*right);
+  }
+
+  auto equal_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                      const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type))
+      return toDouble(*left) == toDouble(*right);
+
+    if (control()->is_unsigned(ast->type))
+      return toUInt(*left) == toUInt(*right);
+
+    return toInt(*left) == toInt(*right);
+  }
+
+  auto exclaim_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                        const ExpressionResult& right) -> ExpressionResult {
+    if (control()->is_floating_point(ast->type))
+      return toDouble(*left) != toDouble(*right);
+
+    if (control()->is_unsigned(ast->type))
+      return toUInt(*left) != toUInt(*right);
+
+    return toInt(*left) != toInt(*right);
+  }
+
+  auto amp_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+              const ExpressionResult& right) -> ExpressionResult {
+    return toInt(*left) & toInt(*right);
+  }
+
+  auto caret_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                const ExpressionResult& right) -> ExpressionResult {
+    return toInt(*left) ^ toInt(*right);
+  }
+
+  auto bar_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+              const ExpressionResult& right) -> ExpressionResult {
+    return toInt(*left) | toInt(*right);
+  }
+
+  auto amp_amp_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                  const ExpressionResult& right) -> ExpressionResult {
+    return toBool(*left) && toBool(*right);
+  }
+
+  auto bar_bar_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                  const ExpressionResult& right) -> ExpressionResult {
+    return toBool(*left) || toBool(*right);
+  }
+
+  auto comma_op(BinaryExpressionAST* ast, const ExpressionResult& left,
+                const ExpressionResult& right) -> ExpressionResult {
+    // Comma operator returns the right operand
+    return right;
   }
 
   [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
@@ -1621,7 +1867,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     NullptrLiteralExpressionAST* ast) -> ExpressionResult {
-  return ConstValue(std::uint64_t(0));
+  return ConstValue(std::uintmax_t(0));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1933,7 +2179,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
   if (!control()->memoryLayout()) return std::nullopt;
   auto size = control()->memoryLayout()->sizeOf(ast->expression->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uint64_t(*size);
+  return std::uintmax_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
@@ -1942,7 +2188,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
   if (!control()->memoryLayout()) return std::nullopt;
   auto size = control()->memoryLayout()->sizeOf(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uint64_t(*size);
+  return std::uintmax_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
@@ -1956,7 +2202,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   if (!control()->memoryLayout()) return std::nullopt;
   auto size = control()->memoryLayout()->alignmentOf(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uint64_t(*size);
+  return std::uintmax_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
@@ -1967,7 +2213,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
   if (!control()->memoryLayout()) return std::nullopt;
   auto size = control()->memoryLayout()->alignmentOf(ast->expression->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uint64_t(*size);
+  return std::uintmax_t(*size);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
@@ -2014,22 +2260,43 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   if (!value.has_value()) return std::nullopt;
 
   switch (ast->type->kind()) {
-    case TypeKind::kBool:
-      if (std::get_if<const StringLiteral*>(&*value)) return ConstValue(true);
-      return std::visit(ArithmeticConversion<bool>{}, *value);
-    case TypeKind::kFloat:
-      return std::visit(ArithmeticConversion<float>{}, *value);
-    case TypeKind::kDouble:
-      return std::visit(ArithmeticConversion<double>{}, *value);
-    case TypeKind::kLongDouble:
-      return std::visit(ArithmeticConversion<long double>{}, *value);
+    case TypeKind::kBool: {
+      auto result = accept.toBool(*value);
+      if (!result.has_value()) return std::nullopt;
+      return result.value();
+    }
+
+    case TypeKind::kFloat: {
+      auto result = accept.toFloat(*value);
+      if (!result.has_value()) return std::nullopt;
+      return result.value();
+    }
+
+    case TypeKind::kDouble: {
+      auto result = accept.toDouble(*value);
+      if (!result.has_value()) return std::nullopt;
+      return result.value();
+    }
+
+    case TypeKind::kLongDouble: {
+      auto result = accept.toLongDouble(*value);
+      if (!result.has_value()) return std::nullopt;
+      return result.value();
+    }
+
     default:
       if (control()->is_integral_or_unscoped_enum(ast->type)) {
-        if (control()->is_unsigned(ast->type))
-          return std::visit(ArithmeticCast<std::uint64_t>{}, *value);
-        else
-          return std::visit(ArithmeticCast<std::int64_t>{}, *value);
+        if (control()->is_unsigned(ast->type)) {
+          auto result = accept.toUInt(*value);
+          if (!result.has_value()) return std::nullopt;
+          return result.value();
+        }
+
+        auto result = accept.toInt(*value);
+        if (!result.has_value()) return std::nullopt;
+        return result.value();
       }
+
       return value;
   }  // switch
 
@@ -2054,195 +2321,64 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
       break;
 
     case TokenKind::T_STAR:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) *
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) *
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) *
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return star_op(ast, left, right);
 
-    case TokenKind::T_SLASH: {
-      if (control()->is_floating_point(ast->type)) {
-        auto l = std::visit(ArithmeticCast<double>{}, *left);
-        auto r = std::visit(ArithmeticCast<double>{}, *right);
-        if (r == 0.0) return std::nullopt;
-        return l / r;
-      }
+    case TokenKind::T_SLASH:
+      return slash_op(ast, left, right);
 
-      if (control()->is_unsigned(ast->type)) {
-        auto l = std::visit(ArithmeticCast<std::uint64_t>{}, *left);
-        auto r = std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-        if (r == 0) return std::nullopt;
-        return l / r;
-      }
-
-      auto l = std::visit(ArithmeticCast<std::int64_t>{}, *left);
-      auto r = std::visit(ArithmeticCast<std::int64_t>{}, *right);
-      if (r == 0) return std::nullopt;
-      return l / r;
-    }
-
-    case TokenKind::T_PERCENT: {
-      if (control()->is_unsigned(ast->type)) {
-        auto l = std::visit(ArithmeticCast<std::uint64_t>{}, *left);
-        auto r = std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-        if (r == 0) return std::nullopt;
-        return l % r;
-      }
-
-      auto l = std::visit(ArithmeticCast<std::int64_t>{}, *left);
-      auto r = std::visit(ArithmeticCast<std::int64_t>{}, *right);
-      if (r == 0) return std::nullopt;
-      return l % r;
-    }
+    case TokenKind::T_PERCENT:
+      return percent_op(ast, left, right);
 
     case TokenKind::T_PLUS:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) +
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) +
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) +
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return plus_op(ast, left, right);
 
     case TokenKind::T_MINUS:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) -
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) -
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) -
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return minus_op(ast, left, right);
 
     case TokenKind::T_LESS_LESS:
-      if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left)
-               << std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left)
-               << std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return less_less_op(ast, left, right);
 
     case TokenKind::T_GREATER_GREATER:
-      if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >>
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >>
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return greater_greater_op(ast, left, right);
 
-    case TokenKind::T_LESS_EQUAL_GREATER: {
-      auto convert = [](std::partial_ordering cmp) -> int {
-        if (cmp < 0) return -1;
-        if (cmp > 0) return 1;
-        return 0;
-      };
-
-      if (control()->is_floating_point(ast->type))
-        return convert(std::visit(ArithmeticCast<double>{}, *left) <=>
-                       std::visit(ArithmeticCast<double>{}, *right));
-      else if (control()->is_unsigned(ast->type))
-        return convert(std::visit(ArithmeticCast<std::uint64_t>{}, *left) <=>
-                       std::visit(ArithmeticCast<std::uint64_t>{}, *right));
-      else
-        return convert(std::visit(ArithmeticCast<std::int64_t>{}, *left) <=>
-                       std::visit(ArithmeticCast<std::int64_t>{}, *right));
-    }
+    case TokenKind::T_LESS_EQUAL_GREATER:
+      return less_equal_greater_op(ast, left, right);
 
     case TokenKind::T_LESS_EQUAL:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) <=
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) <=
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) <=
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return less_equal_op(ast, left, right);
 
     case TokenKind::T_GREATER_EQUAL:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) >=
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >=
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >=
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return greater_equal_op(ast, left, right);
 
     case TokenKind::T_LESS:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) <
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) <
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) <
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return less_op(ast, left, right);
 
     case TokenKind::T_GREATER:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) >
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) >
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) >
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return greater_op(ast, left, right);
 
     case TokenKind::T_EQUAL_EQUAL:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) ==
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) ==
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) ==
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return equal_equal_op(ast, left, right);
 
     case TokenKind::T_EXCLAIM_EQUAL:
-      if (control()->is_floating_point(ast->type))
-        return std::visit(ArithmeticCast<double>{}, *left) !=
-               std::visit(ArithmeticCast<double>{}, *right);
-      else if (control()->is_unsigned(ast->type))
-        return std::visit(ArithmeticCast<std::uint64_t>{}, *left) !=
-               std::visit(ArithmeticCast<std::uint64_t>{}, *right);
-      else
-        return std::visit(ArithmeticCast<std::int64_t>{}, *left) !=
-               std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return exclaim_equal_op(ast, left, right);
 
     case TokenKind::T_AMP:
-      return std::visit(ArithmeticCast<std::int64_t>{}, *left) &
-             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return amp_op(ast, left, right);
 
     case TokenKind::T_CARET:
-      return std::visit(ArithmeticCast<std::int64_t>{}, *left) ^
-             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return caret_op(ast, left, right);
 
     case TokenKind::T_BAR:
-      return std::visit(ArithmeticCast<std::int64_t>{}, *left) |
-             std::visit(ArithmeticCast<std::int64_t>{}, *right);
+      return bar_op(ast, left, right);
 
     case TokenKind::T_AMP_AMP:
-      return std::visit(ArithmeticCast<bool>{}, *left) &&
-             std::visit(ArithmeticCast<bool>{}, *right);
+      return amp_amp_op(ast, left, right);
 
     case TokenKind::T_BAR_BAR:
-      return std::visit(ArithmeticCast<bool>{}, *left) ||
-             std::visit(ArithmeticCast<bool>{}, *right);
+      return bar_bar_op(ast, left, right);
 
     case TokenKind::T_COMMA:
-      return right;
+      return comma_op(ast, left, right);
 
     default:
       unit()->warning(ast->opLoc, "invalid binary expression");
@@ -3262,6 +3398,30 @@ auto ASTInterpreter::evaluate(ExpressionAST* ast) -> std::optional<ConstValue> {
 
 auto ASTInterpreter::toBool(const ConstValue& value) -> std::optional<bool> {
   return std::visit(ToBool{*this}, value);
+}
+
+auto ASTInterpreter::toInt(const ConstValue& value)
+    -> std::optional<std::intmax_t> {
+  return std::visit(ArithmeticCast<std::intmax_t>{}, value);
+}
+
+auto ASTInterpreter::toUInt(const ConstValue& value)
+    -> std::optional<std::uintmax_t> {
+  return std::visit(ArithmeticCast<std::uintmax_t>{}, value);
+}
+
+auto ASTInterpreter::toFloat(const ConstValue& value) -> std::optional<float> {
+  return std::visit(ArithmeticCast<float>{}, value);
+}
+
+auto ASTInterpreter::toDouble(const ConstValue& value)
+    -> std::optional<double> {
+  return std::visit(ArithmeticCast<double>{}, value);
+}
+
+auto ASTInterpreter::toLongDouble(const ConstValue& value)
+    -> std::optional<long double> {
+  return std::visit(ArithmeticCast<long double>{}, value);
 }
 
 }  // namespace cxx
