@@ -50,6 +50,14 @@ struct TypeChecker::Visitor {
     return check.unit_->control();
   }
 
+  [[nodiscard]] auto is_parsing_c() const {
+    return check.unit_->language() == LanguageKind::kC;
+  }
+
+  [[nodiscard]] auto is_parsing_cxx() const {
+    return check.unit_->language() == LanguageKind::kCXX;
+  }
+
   void error(SourceLocation loc, std::string message) {
     if (!check.reportErrors_) return;
     check.unit_->error(loc, std::move(message));
@@ -498,7 +506,16 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   }
 
   auto incr_arithmetic = [&]() {
-    if (!control()->is_arithmetic(ast->baseExpression->type)) return false;
+    if (control()->is_const(ast->baseExpression->type)) return false;
+
+    if (is_parsing_cxx() &&
+        !control()->is_arithmetic(ast->baseExpression->type))
+      return false;
+
+    if (is_parsing_c() &&
+        !control()->is_arithmetic_or_unscoped_enum(ast->baseExpression->type))
+      return false;
+
     auto ty = control()->remove_cv(ast->baseExpression->type);
     if (type_cast<BoolType>(ty)) return false;
 
@@ -798,19 +815,22 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         break;
       }
 
-      auto ty = ast->expression->type;
+      if (!control()->is_const(ast->expression->type)) {
+        const auto ty = ast->expression->type;
 
-      if (control()->is_arithmetic(ty) && !control()->is_const(ty)) {
-        ast->type = ty;
-        ast->valueCategory = ValueCategory::kLValue;
-        break;
-      }
-
-      if (auto ptrTy = type_cast<PointerType>(ty)) {
-        if (!control()->is_void(ptrTy->elementType())) {
-          ast->type = ptrTy;
+        if (is_parsing_cxx() ? control()->is_arithmetic(ty)
+                             : control()->is_arithmetic_or_unscoped_enum(ty)) {
+          ast->type = ty;
           ast->valueCategory = ValueCategory::kLValue;
           break;
+        }
+
+        if (auto ptrTy = type_cast<PointerType>(ty)) {
+          if (!control()->is_void(ptrTy->elementType())) {
+            ast->type = ptrTy;
+            ast->valueCategory = ValueCategory::kLValue;
+            break;
+          }
         }
       }
 
@@ -826,19 +846,22 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         break;
       }
 
-      auto ty = ast->expression->type;
+      if (!control()->is_const(ast->expression->type)) {
+        auto ty = ast->expression->type;
 
-      if (control()->is_arithmetic(ty) && !control()->is_const(ty)) {
-        ast->type = ty;
-        ast->valueCategory = ValueCategory::kLValue;
-        break;
-      }
-
-      if (auto ptrTy = type_cast<PointerType>(ty)) {
-        if (ptrTy && !control()->is_void(ptrTy->elementType())) {
-          ast->type = ptrTy;
+        if (is_parsing_cxx() ? control()->is_arithmetic(ty)
+                             : control()->is_arithmetic_or_unscoped_enum(ty)) {
+          ast->type = ty;
           ast->valueCategory = ValueCategory::kLValue;
           break;
+        }
+
+        if (auto ptrTy = type_cast<PointerType>(ty)) {
+          if (ptrTy && !control()->is_void(ptrTy->elementType())) {
+            ast->type = ptrTy;
+            ast->valueCategory = ValueCategory::kLValue;
+            break;
+          }
         }
       }
 
