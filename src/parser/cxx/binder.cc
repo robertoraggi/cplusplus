@@ -123,7 +123,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
 
   auto enumName = get_name(control(), ast->unqualifiedId);
 
-  if (ast->classLoc) {
+  if (ast->classLoc && is_parsing_cxx()) {
     auto enumSymbol = control()->newScopedEnumSymbol(scope(), location);
     ast->symbol = enumSymbol;
 
@@ -133,6 +133,10 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
 
     setScope(enumSymbol);
   } else {
+    if (is_parsing_c() && ast->classLoc) {
+      error(ast->classLoc, "scoped enums are not allowed in C");
+    }
+
     auto enumSymbol = control()->newEnumSymbol(scope(), location);
 
     if (ast->typeSpecifierList) {
@@ -360,21 +364,34 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
     symbol->setType(type);
     ast->symbol->setValue(value);
     scope()->addSymbol(symbol);
+
+    if (auto enumSymbol = symbol_cast<EnumSymbol>(scope()->owner())) {
+      auto parentScope = enumSymbol->enclosingScope();
+
+      auto u =
+          control()->newUsingDeclarationSymbol(parentScope, ast->identifierLoc);
+      u->setName(ast->identifier);
+      u->setTarget(symbol);
+      parentScope->addSymbol(u);
+    }
+
+    return;
   }
 
+  // in C mode
+
   if (auto enumSymbol = symbol_cast<EnumSymbol>(scope()->owner())) {
+    auto parentScope = enumSymbol->enclosingScope();
+
     auto enumeratorSymbol =
-        control()->newEnumeratorSymbol(scope(), ast->identifierLoc);
+        control()->newEnumeratorSymbol(parentScope, ast->identifierLoc);
+    ast->symbol = enumeratorSymbol;
+
     enumeratorSymbol->setName(ast->identifier);
     enumeratorSymbol->setType(type);
     enumeratorSymbol->setValue(value);
 
-    auto parentScope = enumSymbol->enclosingScope();
     parentScope->addSymbol(enumeratorSymbol);
-
-    if (!is_parsing_cxx()) {
-      ast->symbol = enumeratorSymbol;
-    }
   }
 }
 

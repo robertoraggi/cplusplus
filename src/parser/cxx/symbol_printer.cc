@@ -33,6 +33,21 @@ namespace cxx {
 
 namespace {
 
+struct GetEnumeratorValue {
+  auto operator()(bool value) const -> std::string {
+    return value ? "true" : "false";
+  }
+  auto operator()(std::intmax_t value) const -> std::string {
+    return std::to_string(value);
+  }
+
+  auto operator()(std::uintmax_t value) const -> std::string {
+    return std::to_string(value);
+  }
+
+  auto operator()(auto x) const -> std::string { return {}; }
+};
+
 struct DumpSymbols {
   std::ostream& out;
   int depth = 0;
@@ -316,8 +331,21 @@ struct DumpSymbols {
 
   void operator()(EnumeratorSymbol* symbol) {
     indent();
-    out << std::format("enumerator {}\n",
+
+    auto get_value = [](auto value) {
+      return std::visit(GetEnumeratorValue{}, value);
+    };
+
+    const auto value = symbol->value().transform(get_value);
+
+    out << std::format("enumerator {}",
                        to_string(symbol->type(), symbol->name()));
+
+    if (value.has_value() && !value->empty()) {
+      out << std::format(" = {}", *value);
+    }
+
+    out << "\n";
   }
 
   void operator()(UsingDeclarationSymbol* symbol) {
