@@ -144,13 +144,12 @@ auto Lookup::lookupHelper(Scope* scope, const Name* name,
   }
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope->owner())) {
-    // iterate over the annonymous nested structs and unions
-    for (auto member : classSymbol->scope()->symbols()) {
-      if (member->name()) continue;      // skip named members
-      if (!member->isClass()) continue;  // skip non-class members
+    // iterate over the annonymous symbols
+    for (auto member : classSymbol->scope()->find(/*unnamed=*/nullptr)) {
       auto nestedClass = symbol_cast<ClassSymbol>(member);
-      auto symbol = lookupHelper(nestedClass->scope(), name, cache, accept);
+      if (!nestedClass) continue;
 
+      auto symbol = lookupHelper(nestedClass->scope(), name, cache, accept);
       if (symbol) {
         // found a match in an anonymous nested class
         return symbol;
