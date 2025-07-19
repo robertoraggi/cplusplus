@@ -6621,23 +6621,31 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
     parse_enumerator(enumerator, type);
 
     if (!enumerator->expression) {
+      // no explicit value given, so we need to increment the last value
+
       if (lastValue.has_value()) {
+        // we have a last value, so we can increment it
         if (control_->is_unsigned(type)) {
+          // increment the last value as unsigned
           if (auto v = interp.toUInt(lastValue.value())) {
             lastValue = v.value() + 1;
           } else {
             lastValue = std::nullopt;
           }
         } else {
+          // increment the last value as signed
           if (auto v = interp.toInt(lastValue.value())) {
             lastValue = v.value() + 1;
           } else {
             lastValue = std::nullopt;
           }
         }
+
+        // set the value of the enumerator symbol
+        enumerator->symbol->setValue(*lastValue);
       }
-      enumerator->symbol->setValue(*lastValue);
     } else {
+      // refresh the last value from the enumerator expression
       lastValue = enumerator->symbol->value();
     }
 
