@@ -98,7 +98,8 @@ struct DumpSymbols {
 
   void operator()(ClassSymbol* symbol) {
     indent();
-    std::string_view classKey = symbol->isUnion() ? "union" : "class";
+    std::string_view classKey = symbol->isUnion() ?
+        "union" : ( symbol->isStruct() ? "struct" : "class" );
 
     if (symbol->templateParameters()) {
       out << std::format("template {} {}\n", classKey,

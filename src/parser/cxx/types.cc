@@ -37,4 +37,6 @@ auto ClassType::isComplete() const -> bool { return symbol()->isComplete(); }
 
 auto ClassType::isUnion() const -> bool { return symbol()->isUnion(); }
 
+auto ClassType::isStruct() const -> bool { return symbol()->isStruct(); }
+
 }  // namespace cxx

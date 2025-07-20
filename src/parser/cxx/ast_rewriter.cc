@@ -3987,6 +3987,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   auto classSymbol = control()->newClassSymbol(binder()->scope(), location);
   classSymbol->setName(className);
   classSymbol->setIsUnion(ast->symbol->isUnion());
+  classSymbol->setIsStruct(ast->symbol->isStruct());
   classSymbol->setFinal(ast->isFinal);
   binder()->setScope(classSymbol);
 

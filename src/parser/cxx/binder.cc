@@ -153,6 +153,19 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
   }
 }
 
+static void checkIsUnionStruct(ClassSymbol *classSymbol, TokenKind kind) {
+  const auto isUnion = kind == TokenKind::T_UNION;
+
+  if(isUnion) {
+      classSymbol->setIsUnion(isUnion);
+  } else {
+      const auto isStruct = kind == TokenKind::T_STRUCT;
+      if(isStruct) {
+          classSymbol->setIsStruct(isStruct);
+      }
+  }
+}
+
 void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
                   bool isDeclaration) {
   const auto _ = ScopeGuard{this};
@@ -201,10 +214,9 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
     }
 
     if (!classSymbol) {
-      const auto isUnion = ast->classKey == TokenKind::T_UNION;
       classSymbol = control()->newClassSymbol(scope(), location);
 
-      classSymbol->setIsUnion(isUnion);
+      checkIsUnionStruct(classSymbol, ast->classKey);
       classSymbol->setName(name);
       classSymbol->setTemplateParameters(currentTemplateParameters());
       classSymbol->setTemplateDeclaration(declSpecs.templateHead);
@@ -275,9 +287,9 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
   }
 
   if (!classSymbol) {
-    const auto isUnion = ast->classKey == TokenKind::T_UNION;
     classSymbol = control()->newClassSymbol(scope(), location);
-    classSymbol->setIsUnion(isUnion);
+    
+    checkIsUnionStruct(classSymbol, ast->classKey);
     classSymbol->setName(className);
     classSymbol->setTemplateParameters(templateParameters);
 

@@ -65,6 +65,10 @@ class TypeTraits {
     return type && visit(is_union_, type);
   }
 
+  auto is_struct(const Type* type) const -> bool {
+    return type && visit(is_struct_, type);
+  }
+
   auto is_class(const Type* type) const -> bool {
     return type && visit(is_class_, type);
   }
@@ -120,7 +124,7 @@ class TypeTraits {
 
   auto is_object(const Type* type) const -> bool {
     return is_scalar(type) || is_array(type) || is_union(type) ||
-           is_class(type);
+           is_struct(type) || is_class(type);
   }
 
   auto is_compound(const Type* type) const -> bool {
@@ -445,6 +449,18 @@ class TypeTraits {
 
     auto operator()(auto) const -> bool { return false; }
   } is_union_;
+
+  struct {
+    auto operator()(const ClassType* classType) const -> bool {
+      return classType->isStruct();
+    }
+
+    auto operator()(const QualType* type) const -> bool {
+      return visit(*this, type->elementType());
+    }
+
+    auto operator()(auto) const -> bool { return false; }
+  } is_struct_;
 
   struct {
     auto operator()(const FunctionType*) const -> bool { return true; }

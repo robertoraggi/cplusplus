@@ -346,6 +346,7 @@ class ClassType final : public Type, public std::tuple<ClassSymbol*> {
 
   [[nodiscard]] auto isComplete() const -> bool;
   [[nodiscard]] auto isUnion() const -> bool;
+  [[nodiscard]] auto isStruct() const -> bool;
 };
 
 class EnumType final : public Type, public std::tuple<EnumSymbol*> {

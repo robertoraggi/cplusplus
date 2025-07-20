@@ -7791,14 +7791,11 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   const Identifier* className = nullptr;
   ClassSymbol* symbol = nullptr;
   SourceLocation finalLoc;
-  bool isUnion = false;
   bool isTemplateSpecialization = false;
   SourceLocation location = classLoc;
 
   auto lookat_class_head = [&] {
     LookaheadParser lookahead{this};
-
-    isUnion = unit->tokenKind(classLoc) == TokenKind::T_UNION;
 
     parse_optional_attribute_specifier_seq(attributeList);
 

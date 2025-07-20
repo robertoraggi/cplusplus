@@ -236,6 +236,9 @@ class ClassSymbol final : public ScopedSymbol {
   [[nodiscard]] auto isUnion() const -> bool;
   void setIsUnion(bool isUnion);
 
+  [[nodiscard]] auto isStruct() const -> bool;
+  void setIsStruct(bool isStruct);
+
   [[nodiscard]] auto baseClasses() const
       -> const std::vector<BaseClassSymbol*>&;
 
@@ -333,6 +336,7 @@ class ClassSymbol final : public ScopedSymbol {
     std::uint32_t flags_{};
     struct {
       std::uint32_t isUnion_ : 1;
+      std::uint32_t isStruct_ : 1;
       std::uint32_t isFinal_ : 1;
       std::uint32_t isComplete_ : 1;
     };
