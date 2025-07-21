@@ -34,6 +34,34 @@ namespace cxx {
 
 namespace {
 
+struct ToInt {
+  auto operator()(bool v) const -> std::optional<std::intmax_t> {
+    return v ? 1 : 0;
+  }
+
+  auto operator()(std::intmax_t v) const -> std::optional<std::intmax_t> {
+    return v;
+  }
+
+  auto operator()(auto x) const -> std::optional<std::intmax_t> {
+    return std::nullopt;  // Unsupported type for int conversion
+  }
+};
+
+struct ToUInt {
+  auto operator()(bool v) const -> std::optional<std::uintmax_t> {
+    return v ? 1 : 0;
+  }
+
+  auto operator()(std::intmax_t v) const -> std::optional<std::uintmax_t> {
+    return std::bit_cast<std::uintmax_t>(v);
+  }
+
+  auto operator()(auto x) const -> std::optional<std::uintmax_t> {
+    return std::nullopt;
+  }
+};
+
 template <typename T>
 struct ArithmeticCast {
   auto operator()(const StringLiteral*) const -> T {
@@ -285,6 +313,10 @@ struct ASTInterpreter::ExpressionVisitor {
 
   [[nodiscard]] auto control() -> Control* { return accept.control(); }
 
+  [[nodiscard]] auto memoryLayout() -> MemoryLayout* {
+    return control()->memoryLayout();
+  }
+
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> ExpressionResult {
     return accept(ast);
   }
@@ -297,8 +329,24 @@ struct ASTInterpreter::ExpressionVisitor {
     return accept.toInt(value).value_or(0);
   }
 
+  [[nodiscard]] auto toInt32(const ConstValue& value) -> std::int32_t {
+    return static_cast<std::int32_t>(toInt(value));
+  }
+
+  [[nodiscard]] auto toInt64(const ConstValue& value) -> std::int64_t {
+    return static_cast<std::int64_t>(toInt(value));
+  }
+
   [[nodiscard]] auto toUInt(const ConstValue& value) -> std::uintmax_t {
     return accept.toUInt(value).value_or(0);
+  }
+
+  [[nodiscard]] auto toUInt32(const ConstValue& value) -> std::uint32_t {
+    return static_cast<std::uint32_t>(toUInt(value));
+  }
+
+  [[nodiscard]] auto toUInt64(const ConstValue& value) -> std::uint64_t {
+    return static_cast<std::uint64_t>(toUInt(value));
   }
 
   [[nodiscard]] auto toFloat(const ConstValue& value) -> float {
@@ -309,99 +357,162 @@ struct ASTInterpreter::ExpressionVisitor {
     return accept.toDouble(value).value_or(0.0);
   }
 
+  [[nodiscard]] auto toValue(std::uintmax_t value) -> ConstValue {
+    return ConstValue(std::bit_cast<std::intmax_t>(value));
+  }
+
   auto star_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type)) {
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type)) {
       return toDouble(*left) * toDouble(*right);
     }
 
-    if (control()->is_unsigned(ast->type)) {
-      return toUInt(*left) * toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toValue(toUInt32(*left) * toUInt32(*right));
+      return toValue(toUInt64(*left) * toUInt64(*right));
     }
 
-    return toInt(*left) * toInt(*right);
+    if (sz <= 4) return toValue(toInt32(*left) * toInt32(*right));
+    return toValue(toInt64(*left) * toInt64(*right));
   }
 
   auto slash_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                 const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type)) {
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type)) {
       auto l = toDouble(*left);
       auto r = toDouble(*right);
       if (r == 0.0) return std::nullopt;
       return l / r;
     }
 
-    if (control()->is_unsigned(ast->type)) {
-      auto l = toUInt(*left);
-      auto r = toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) {
+        auto l = toUInt32(*left);
+        auto r = toUInt32(*right);
+        if (r == 0) return std::nullopt;
+        return toValue(l / r);
+      }
+
+      auto l = toUInt64(*left);
+      auto r = toUInt64(*right);
       if (r == 0) return std::nullopt;
-      return l / r;
+      return toValue(l / r);
     }
 
-    auto l = toInt(*left);
-    auto r = toInt(*right);
+    if (sz <= 4) {
+      auto l = toInt32(*left);
+      auto r = toInt32(*right);
+      if (r == 0) return std::nullopt;
+      return toValue(l / r);
+    }
+
+    auto l = toInt64(*left);
+    auto r = toInt64(*right);
     if (r == 0) return std::nullopt;
-    return l / r;
+    return toValue(l / r);
   }
 
   auto percent_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                   const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_unsigned(ast->type)) {
-      auto l = toUInt(*left);
-      auto r = toUInt(*right);
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) {
+        auto l = toUInt32(*left);
+        auto r = toUInt32(*right);
+        if (r == 0) return std::nullopt;
+        return toValue(l % r);
+      }
+
+      auto l = toUInt64(*left);
+      auto r = toUInt64(*right);
       if (r == 0) return std::nullopt;
-      return l % r;
+      return toValue(l % r);
     }
 
-    auto l = toInt(*left);
-    auto r = toInt(*right);
+    if (sz <= 4) {
+      auto l = toInt32(*left);
+      auto r = toInt32(*right);
+      if (r == 0) return std::nullopt;
+      return toValue(l % r);
+    }
+
+    auto l = toInt64(*left);
+    auto r = toInt64(*right);
     if (r == 0) return std::nullopt;
-    return l % r;
+    return toValue(l % r);
   }
 
   auto plus_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type)) {
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type)) {
       return toDouble(*left) + toDouble(*right);
     }
 
-    if (control()->is_unsigned(ast->type)) {
-      return toUInt(*left) + toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toValue(toUInt32(*left) + toUInt32(*right));
+      return toValue(toUInt64(*left) + toUInt64(*right));
     }
 
-    return toInt(*left) + toInt(*right);
+    if (sz <= 4) return toValue(toInt32(*left) + toInt32(*right));
+    return toValue(toInt64(*left) + toInt64(*right));
   }
 
   auto minus_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                 const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type)) {
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type)) {
       return toDouble(*left) - toDouble(*right);
     }
 
-    if (control()->is_unsigned(ast->type)) {
-      return toUInt(*left) - toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toValue(toUInt32(*left) - toUInt32(*right));
+      return toValue(toUInt64(*left) - toUInt64(*right));
     }
 
-    return toInt(*left) - toInt(*right);
+    if (sz <= 4) return toValue(toInt32(*left) - toInt32(*right));
+    return toValue(toInt64(*left) - toInt64(*right));
   }
 
   auto less_less_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                     const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_unsigned(ast->type)) {
-      return toUInt(*left) << toUInt(*right);
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toValue(toUInt32(*left) << toUInt32(*right));
+      return toValue(toUInt64(*left) << toUInt64(*right));
     }
 
-    return toInt(*left) << toInt(*right);
+    if (sz <= 4) return toValue(toInt32(*left) << toInt32(*right));
+    return toValue(toInt64(*left) << toInt64(*right));
   }
 
   auto greater_greater_op(BinaryExpressionAST* ast,
                           const ExpressionResult& left,
                           const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_unsigned(ast->type)) {
-      return toUInt(*left) >> toUInt(*right);
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toValue(toUInt32(*left) >> toUInt32(*right));
+      return toValue(toUInt64(*left) >> toUInt64(*right));
     }
 
-    return toInt(*left) >> toInt(*right);
+    if (sz <= 4) return toValue(toInt32(*left) >> toInt32(*right));
+    return toValue(toInt64(*left) >> toInt64(*right));
   }
 
   auto less_equal_greater_op(BinaryExpressionAST* ast,
@@ -414,80 +525,121 @@ struct ASTInterpreter::ExpressionVisitor {
       return 0;
     };
 
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return convert(toDouble(*left) <=> toDouble(*right));
 
-    if (control()->is_unsigned(ast->type))
-      return convert(toUInt(*left) <=> toUInt(*right));
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return convert(toUInt32(*left) <=> toUInt32(*right));
+      return convert(toUInt64(*left) <=> toUInt64(*right));
+    }
 
-    return convert(toInt(*left) <=> toInt(*right));
+    if (sz <= 4) return convert(toInt32(*left) <=> toInt32(*right));
+    return convert(toInt64(*left) <=> toInt64(*right));
   }
 
   auto less_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                      const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return toDouble(*left) <= toDouble(*right);
 
-    if (control()->is_unsigned(ast->type))
-      return toUInt(*left) <= toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toUInt(*left) <= toUInt(*right);
+      return toUInt64(*left) <= toUInt64(*right);
+    }
 
-    return toInt(*left) <= toInt(*right);
+    if (sz <= 4) return toInt(*left) <= toInt(*right);
+    return toInt64(*left) <= toInt64(*right);
   }
 
   auto greater_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                         const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return toDouble(*left) >= toDouble(*right);
 
-    if (control()->is_unsigned(ast->type))
-      return toUInt(*left) >= toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toUInt(*left) >= toUInt(*right);
+      return toUInt64(*left) >= toUInt64(*right);
+    }
 
-    else
-      return toInt(*left) >= toInt(*right);
+    if (sz <= 4) return toInt(*left) >= toInt(*right);
+    return toInt64(*left) >= toInt64(*right);
   }
 
   auto less_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return toDouble(*left) < toDouble(*right);
 
-    if (control()->is_unsigned(ast->type))
-      return toUInt(*left) < toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toUInt(*left) < toUInt(*right);
+      return toUInt64(*left) < toUInt64(*right);
+    }
 
-    return toInt(*left) < toInt(*right);
+    if (sz <= 4) return toInt(*left) < toInt(*right);
+    return toInt64(*left) < toInt64(*right);
   }
 
   auto greater_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                   const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return toDouble(*left) > toDouble(*right);
 
-    if (control()->is_unsigned(ast->type))
-      return toUInt(*left) > toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toUInt(*left) > toUInt(*right);
+      return toUInt64(*left) > toUInt64(*right);
+    }
 
-    return toInt(*left) > toInt(*right);
+    if (sz <= 4) return toInt(*left) > toInt(*right);
+    return toInt64(*left) > toInt64(*right);
   }
 
   auto equal_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                       const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return toDouble(*left) == toDouble(*right);
 
-    if (control()->is_unsigned(ast->type))
-      return toUInt(*left) == toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toUInt(*left) == toUInt(*right);
+      return toUInt64(*left) == toUInt64(*right);
+    }
 
-    return toInt(*left) == toInt(*right);
+    if (sz <= 4) return toInt(*left) == toInt(*right);
+    return toInt64(*left) == toInt64(*right);
   }
 
   auto exclaim_equal_op(BinaryExpressionAST* ast, const ExpressionResult& left,
                         const ExpressionResult& right) -> ExpressionResult {
-    if (control()->is_floating_point(ast->type))
+    const auto type = ast->leftExpression->type;
+    const auto sz = memoryLayout()->sizeOf(type);
+
+    if (control()->is_floating_point(type))
       return toDouble(*left) != toDouble(*right);
 
-    if (control()->is_unsigned(ast->type))
-      return toUInt(*left) != toUInt(*right);
+    if (control()->is_unsigned(type)) {
+      if (sz <= 4) return toUInt(*left) != toUInt(*right);
+      return toUInt64(*left) != toUInt64(*right);
+    }
 
-    return toInt(*left) != toInt(*right);
+    if (sz <= 4) return toInt(*left) != toInt(*right);
+    return toInt64(*left) != toInt64(*right);
   }
 
   auto amp_op(BinaryExpressionAST* ast, const ExpressionResult& left,
@@ -1857,7 +2009,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
     -> ExpressionResult {
-  return ConstValue(ast->literal->integerValue());
+  const auto value = static_cast<std::uintmax_t>(ast->literal->integerValue());
+  return ExpressionResult{std::bit_cast<std::intmax_t>(value)};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1867,7 +2020,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     NullptrLiteralExpressionAST* ast) -> ExpressionResult {
-  return ConstValue(std::uintmax_t(0));
+  return ConstValue{std::intmax_t(0)};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -2176,19 +2329,19 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->expression || !ast->expression->type) return std::nullopt;
-  if (!control()->memoryLayout()) return std::nullopt;
-  auto size = control()->memoryLayout()->sizeOf(ast->expression->type);
+  auto size = memoryLayout()->sizeOf(ast->expression->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uintmax_t(*size);
+  return ExpressionResult(
+      std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->typeId || !ast->typeId->type) return std::nullopt;
-  if (!control()->memoryLayout()) return std::nullopt;
-  auto size = control()->memoryLayout()->sizeOf(ast->typeId->type);
+  auto size = memoryLayout()->sizeOf(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uintmax_t(*size);
+  return ExpressionResult(
+      std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
@@ -2199,10 +2352,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(
     AlignofTypeExpressionAST* ast) -> ExpressionResult {
   if (!ast->typeId || !ast->typeId->type) return std::nullopt;
-  if (!control()->memoryLayout()) return std::nullopt;
-  auto size = control()->memoryLayout()->alignmentOf(ast->typeId->type);
+  auto size = memoryLayout()->alignmentOf(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uintmax_t(*size);
+  return ExpressionResult(
+      std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
@@ -2210,10 +2363,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
   auto expressionResult = accept(ast->expression);
 
   if (!ast->expression || !ast->expression->type) return std::nullopt;
-  if (!control()->memoryLayout()) return std::nullopt;
-  auto size = control()->memoryLayout()->alignmentOf(ast->expression->type);
+  auto size = memoryLayout()->alignmentOf(ast->expression->type);
   if (!size.has_value()) return std::nullopt;
-  return std::uintmax_t(*size);
+  return ExpressionResult(
+      std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
@@ -2289,7 +2442,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
         if (control()->is_unsigned(ast->type)) {
           auto result = accept.toUInt(*value);
           if (!result.has_value()) return std::nullopt;
-          return result.value();
+          return ConstValue{std::bit_cast<std::intmax_t>(result.value())};
         }
 
         auto result = accept.toInt(*value);
@@ -3402,12 +3555,12 @@ auto ASTInterpreter::toBool(const ConstValue& value) -> std::optional<bool> {
 
 auto ASTInterpreter::toInt(const ConstValue& value)
     -> std::optional<std::intmax_t> {
-  return std::visit(ArithmeticCast<std::intmax_t>{}, value);
+  return std::visit(ToInt{}, value);
 }
 
 auto ASTInterpreter::toUInt(const ConstValue& value)
     -> std::optional<std::uintmax_t> {
-  return std::visit(ArithmeticCast<std::uintmax_t>{}, value);
+  return std::visit(ToUInt{}, value);
 }
 
 auto ASTInterpreter::toFloat(const ConstValue& value) -> std::optional<float> {

@@ -41,10 +41,6 @@ struct GetEnumeratorValue {
     return std::to_string(value);
   }
 
-  auto operator()(std::uintmax_t value) const -> std::string {
-    return std::to_string(value);
-  }
-
   auto operator()(auto x) const -> std::string { return {}; }
 };
 

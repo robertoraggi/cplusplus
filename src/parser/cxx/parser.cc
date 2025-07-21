@@ -6628,7 +6628,7 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
         if (control_->is_unsigned(type)) {
           // increment the last value as unsigned
           if (auto v = interp.toUInt(lastValue.value())) {
-            lastValue = v.value() + 1;
+            lastValue = std::bit_cast<std::intmax_t>(v.value() + 1);
           } else {
             lastValue = std::nullopt;
           }
