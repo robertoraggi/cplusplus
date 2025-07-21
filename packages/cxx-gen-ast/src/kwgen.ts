@@ -25,12 +25,16 @@ export default function kwgen(options: Options) {
   } = options;
 
   let out: string[] = [];
-  const emit = (s: string) => out.push(s);
+  const emit = (s: string = "") => out.push(s);
 
   if (copyright !== undefined) {
     emit("// Generated file by: kwgen.ts");
     emit(copyright);
   }
+
+  emit();
+  emit("#pragma once");
+  emit();
 
   const keywordsByLength = Map.groupBy(keywords, (s) => s.length);
 

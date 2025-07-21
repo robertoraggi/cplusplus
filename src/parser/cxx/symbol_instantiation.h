@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#pragma once
+
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>

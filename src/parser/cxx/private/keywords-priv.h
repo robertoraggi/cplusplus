@@ -19,6 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#pragma once
+
 static inline auto classify2(const char* s) -> cxx::TokenKind {
   if (s[0] == 'd') {
     if (s[1] == 'o') {
