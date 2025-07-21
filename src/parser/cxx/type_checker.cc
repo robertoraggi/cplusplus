@@ -460,9 +460,31 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
   }
 
   auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
+
   if (!functionType) {
+    if (control()->is_pointer(ast->baseExpression->type)) {
+      // ressolve pointer to function type
+      functionType = type_cast<FunctionType>(
+          control()->get_element_type(ast->baseExpression->type));
+    }
+
+    if (functionType && is_parsing_c()) {
+      (void)ensure_prvalue(ast->baseExpression);
+    }
+  }
+
+  if (!functionType) {
+    // todo: enable when support for the __builtin_<op> functions is added
+
+#if false
+    error(ast->firstSourceLocation(),
+          std::format("invalid call of type '{}'",
+                      to_string(ast->baseExpression->type)));
+#endif
     return;
   }
+
+  // TODO: check the arguments
 
   ast->type = functionType->returnType();
 
