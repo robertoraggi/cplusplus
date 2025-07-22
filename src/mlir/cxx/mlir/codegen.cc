@@ -1468,11 +1468,7 @@ void Codegen::StatementVisitor::operator()(DefaultStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(ExpressionStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
   auto expressionResult = gen.expression(ast->expression);
-#endif
 }
 
 void Codegen::StatementVisitor::operator()(CompoundStatementAST* ast) {
@@ -1602,22 +1598,22 @@ void Codegen::StatementVisitor::operator()(TryBlockStatementAST* ast) {
 
 auto Codegen::ExpressionVisitor::operator()(GeneratedLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "GeneratedLiteralExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "CharLiteralExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BoolLiteralExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "BoolLiteralExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
@@ -1634,56 +1630,61 @@ auto Codegen::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "FloatLiteralExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(NullptrLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "NullptrLiteralExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "StringLiteralExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(
     UserDefinedStringLiteralExpressionAST* ast) -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "UserDefinedStringLiteralExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "ObjectLiteralExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "ThisExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(GenericSelectionExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "GenericSelectionExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(NestedStatementExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "NestedStatementExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   gen.statement(ast->statement);
+#endif
+
   return {op};
 }
 
@@ -1694,6 +1695,10 @@ auto Codegen::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = gen(ast->unqualifiedId);
 
@@ -1705,14 +1710,19 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return {op};
   }
 
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "IdExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+#endif
+
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "LambdaExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   for (auto node : ListView{ast->captureList}) {
     auto value = gen(node);
   }
@@ -1741,54 +1751,72 @@ auto Codegen::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   auto trailingReturnTypeResult = gen(ast->trailingReturnType);
   auto requiresClauseResult = gen(ast->requiresClause);
   gen.statement(ast->statement);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(FoldExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "FoldExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
+#endif
+
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "RightFoldExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "LeftFoldExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
+
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "RequiresExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto parameterDeclarationClauseResult = gen(ast->parameterDeclarationClause);
 
   for (auto node : ListView{ast->requirementList}) {
     auto value = gen(node);
   }
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "VaArgExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
   auto typeIdResult = gen(ast->typeId);
+#endif
 
   return {op};
 }
@@ -1796,16 +1824,22 @@ auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "SubscriptExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto baseExpressionResult = gen.expression(ast->baseExpression);
   auto indexExpressionResult = gen.expression(ast->indexExpression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto baseExpressionResult = gen.expression(ast->baseExpression);
 
   std::vector<mlir::Value> arguments;
@@ -1819,19 +1853,22 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   auto op = gen.builder_.create<mlir::cxx::CallOp>(
       loc, baseExpressionResult.value, arguments);
-
+#endif
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "TypeConstructionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeSpecifierResult = gen(ast->typeSpecifier);
 
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
   }
+#endif
 
   return {op};
 }
@@ -1839,10 +1876,12 @@ auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "BracedTypeConstructionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeSpecifierResult = gen(ast->typeSpecifier);
   auto bracedInitListResult = gen.expression(ast->bracedInitList);
+#endif
 
   return {op};
 }
@@ -1850,21 +1889,26 @@ auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "SpliceMemberExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto baseExpressionResult = gen.expression(ast->baseExpression);
   auto splicerResult = gen(ast->splicer);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "MemberExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto baseExpressionResult = gen.expression(ast->baseExpression);
   auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = gen(ast->unqualifiedId);
+#endif
 
   return {op};
 }
@@ -1872,9 +1916,11 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "PostIncrExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto baseExpressionResult = gen.expression(ast->baseExpression);
+#endif
 
   return {op};
 }
@@ -1882,41 +1928,50 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "CppCastExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BuiltinBitCastExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "BuiltinBitCastExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BuiltinOffsetofExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "BuiltinOffsetofExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "TypeidExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
@@ -1924,42 +1979,47 @@ auto Codegen::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(TypeidOfTypeExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "TypeidOfTypeExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(SpliceExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "SpliceExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto splicerResult = gen(ast->splicer);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(
     GlobalScopeReflectExpressionAST* ast) -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "GlobalScopeReflectExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(NamespaceReflectExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "NamespaceReflectExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(TypeIdReflectExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "TypeIdReflectExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
   auto typeIdResult = gen(ast->typeId);
 
@@ -1969,9 +2029,11 @@ auto Codegen::ExpressionVisitor::operator()(TypeIdReflectExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "ReflectExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
@@ -1979,34 +2041,43 @@ auto Codegen::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "LabelAddressExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "UnaryExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "AwaitExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "SizeofExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
@@ -2014,9 +2085,11 @@ auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "SizeofTypeExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
+#endif
 
   return {op};
 }
@@ -2024,7 +2097,7 @@ auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "SizeofPackExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
   return {op};
 }
@@ -2032,9 +2105,11 @@ auto Codegen::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "AlignofTypeExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
+#endif
 
   return {op};
 }
@@ -2042,9 +2117,11 @@ auto Codegen::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "AlignofExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
@@ -2052,17 +2129,21 @@ auto Codegen::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "NoexceptExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
-  auto expressionResult = gen.expression(ast->expression);
+#if false
+auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "NewExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto newPlacementResult = gen(ast->newPlacement);
 
   for (auto node : ListView{ast->typeSpecifierList}) {
@@ -2071,43 +2152,59 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
 
   auto declaratorResult = gen(ast->declarator);
   auto newInitalizerResult = gen(ast->newInitalizer);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "DeleteExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "CastExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto typeIdResult = gen(ast->typeId);
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto expressionResult = gen.expression(ast->expression);
 
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   auto op = gen.builder_.create<mlir::cxx::ImplicitCastOp>(
       loc, to_string(ast->castKind), expressionResult.value);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
 
@@ -2117,6 +2214,7 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
   auto op = gen.builder_.create<mlir::cxx::BinOp>(
       loc, operation, leftExpressionResult.value, rightExpressionResult.value);
+#endif
 
   return {op};
 }
@@ -2124,29 +2222,37 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "ConditionalExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto conditionResult = gen.expression(ast->condition);
   auto iftrueExpressionResult = gen.expression(ast->iftrueExpression);
   auto iffalseExpressionResult = gen.expression(ast->iffalseExpression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(YieldExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "YieldExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "ThrowExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
@@ -2154,30 +2260,36 @@ auto Codegen::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "AssignmentExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(PackExpansionExpressionAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "PackExpansionExpressionAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(DesignatedInitializerClauseAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                             "DesignatedInitializerClauseAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
-  auto initializerResult = gen.expression(ast->initializer);
+#if false
+auto initializerResult = gen.expression(ast->initializer);
+#endif
 
   return {op};
 }
@@ -2185,11 +2297,13 @@ auto Codegen::ExpressionVisitor::operator()(DesignatedInitializerClauseAST* ast)
 auto Codegen::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "TypeTraitExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   for (auto node : ListView{ast->typeIdList}) {
     auto value = gen(node);
   }
+#endif
 
   return {op};
 }
@@ -2197,8 +2311,9 @@ auto Codegen::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     -> ExpressionResult {
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), "ConditionExpressionAST");
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen(node);
   }
@@ -2209,37 +2324,47 @@ auto Codegen::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
   auto declaratorResult = gen(ast->declarator);
   auto initializerResult = gen.expression(ast->initializer);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(EqualInitializerAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "EqualInitializerAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "BracedInitListAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
   }
+#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ParenInitializerAST* ast)
     -> ExpressionResult {
-  auto op = gen.emitTodoExpr(ast->firstSourceLocation(), "ParenInitializerAST");
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
   }
+#endif
 
   return {op};
 }
