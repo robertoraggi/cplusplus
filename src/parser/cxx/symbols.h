@@ -416,6 +416,10 @@ class FunctionSymbol final : public ScopedSymbol {
 
   [[nodiscard]] auto isConstructor() const -> bool;
 
+  [[nodiscard]] auto hasCLinkage() const -> bool;
+  [[nodiscard]] auto hasCxxLinkage() const -> bool;
+  void setHasCxxLinkage(bool hasCLinkage);
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
 
@@ -433,6 +437,7 @@ class FunctionSymbol final : public ScopedSymbol {
       std::uint32_t isExplicit_ : 1;
       std::uint32_t isDeleted_ : 1;
       std::uint32_t isDefaulted_ : 1;
+      std::uint32_t isExternC_ : 1;
     };
   };
 };

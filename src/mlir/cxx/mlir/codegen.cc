@@ -670,7 +670,16 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
 }
 
 auto Codegen::operator()(DeclarationAST* ast) -> DeclarationResult {
-  if (ast) return visit(DeclarationVisitor{*this}, ast);
+  // if (ast) return visit(DeclarationVisitor{*this}, ast);
+
+  // restrict for now to declarations that are not definitions
+  if (ast_cast<FunctionDefinitionAST>(ast) ||
+      ast_cast<LinkageSpecificationAST>(ast) ||
+      ast_cast<SimpleDeclarationAST>(ast) ||
+      ast_cast<NamespaceDefinitionAST>(ast)) {
+    return visit(DeclarationVisitor{*this}, ast);
+  }
+
   return {};
 }
 
@@ -1024,21 +1033,9 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
-#if false
   for (auto node : ListView{ast->declarationList}) {
     auto value = gen(node);
   }
-#else
-  for (ASTCursor it(ast, "unit"); it; ++it) {
-    const auto& current = *it;
-    if (std::holds_alternative<AST*>(current.node)) {
-      auto ast = std::get<AST*>(current.node);
-      if (auto funDecl = ast_cast<FunctionDefinitionAST>(ast)) {
-        auto function = gen(funDecl);
-      }
-    }
-  }
-#endif
 
   std::swap(gen.module_, module);
 
@@ -1071,6 +1068,7 @@ auto Codegen::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
 
 auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen(node);
   }
@@ -1084,6 +1082,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   }
 
   auto requiresClauseResult = gen(ast->requiresClause);
+#endif
 
   return {};
 }
@@ -1193,8 +1192,22 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
+  auto functionSymbol = ast->symbol;
+  auto functionType = type_cast<FunctionType>(functionSymbol->type());
+
+  auto exprType = gen.builder_.getType<mlir::cxx::ExprType>();
+
   std::vector<mlir::Type> inputTypes;
   std::vector<mlir::Type> resultTypes;
+
+  for (auto paramTy : functionType->parameterTypes()) {
+    inputTypes.push_back(exprType);
+  }
+
+  if (!gen.control()->is_void(functionType->returnType())) {
+    resultTypes.push_back(exprType);
+  }
+
   auto funcType = gen.builder_.getFunctionType(inputTypes, resultTypes);
   auto loc = gen.builder_.getUnknownLoc();
 
@@ -1206,19 +1219,26 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   std::string name;
-  std::ranges::for_each(path | std::views::reverse, [&](auto& part) {
-    name += "::";
-    name += part;
-  });
 
-  // generate unique names until we have proper name mangling
-  name += std::format("_{}", ++gen.count_);
+  if (ast->symbol->hasCLinkage()) {
+    name = to_string(ast->symbol->name());
+  } else {
+    // todo: external name mangling
+
+    std::ranges::for_each(path | std::views::reverse, [&](auto& part) {
+      name += "::";
+      name += part;
+    });
+
+    // generate unique names until we have proper name mangling
+    name += std::format("_{}", ++gen.count_);
+  }
 
   auto savedInsertionPoint = gen.builder_.saveInsertionPoint();
 
-  auto func = gen.builder_.create<mlir::func::FuncOp>(loc, name, funcType);
+  auto func = gen.builder_.create<mlir::cxx::FuncOp>(loc, name, funcType);
 
-  auto entryBlock = gen.builder_.createBlock(&func.getBody());
+  auto entryBlock = &func.front();
 
   gen.builder_.setInsertionPointToEnd(entryBlock);
 
@@ -1241,7 +1261,17 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   std::swap(gen.function_, func);
 
-  gen.builder_.create<mlir::func::ReturnOp>(gen.builder_.getUnknownLoc());
+  auto endLoc = gen.getLocation(ast->lastSourceLocation());
+
+  if (gen.control()->is_void(functionType->returnType())) {
+    // If the function returns void, we don't need to return anything.
+    gen.builder_.create<mlir::cxx::ReturnOp>(endLoc);
+  } else {
+    // Otherwise, we need to return a value of the correct type.
+    auto r = gen.emitTodoExpr(ast->lastSourceLocation(), "result value");
+    auto result =
+        gen.builder_.create<mlir::cxx::ReturnOp>(endLoc, r->getResults());
+  }
 
   gen.builder_.restoreInsertionPoint(savedInsertionPoint);
 
@@ -1422,23 +1452,27 @@ auto Codegen::DeclarationVisitor::operator()(AsmGotoLabelAST* ast)
 }
 
 void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "LabeledStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 }
 
 void Codegen::StatementVisitor::operator()(CaseStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "CaseStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(DefaultStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "DefaultStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 }
 
 void Codegen::StatementVisitor::operator()(ExpressionStatementAST* ast) {
-  auto op =
-      gen.emitTodoStmt(ast->firstSourceLocation(), "ExpressionStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(CompoundStatementAST* ast) {
@@ -1448,127 +1482,122 @@ void Codegen::StatementVisitor::operator()(CompoundStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(IfStatementAST* ast) {
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   gen.statement(ast->initializer);
-
   auto conditionResult = gen.expression(ast->condition);
-
-  auto condition = gen.builder_.create<mlir::cxx::ToBoolOp>(
-      gen.getLocation(ast->ifLoc), gen.builder_.getI1Type(),
-      conditionResult.value);
-
-  auto ifOp = gen.builder_.create<mlir::scf::IfOp>(gen.getLocation(ast->ifLoc),
-                                                   condition,
-                                                   /*withElse=*/true);
-
-  auto ip = gen.builder_.saveInsertionPoint();
-
-  if (ast->statement) {
-    gen.builder_.setInsertionPointToStart(&ifOp.getThenRegion().front());
-    gen.statement(ast->statement);
-  }
-
-  if (ast->elseStatement) {
-    gen.builder_.setInsertionPointToStart(&ifOp.getElseRegion().front());
-    gen.statement(ast->elseStatement);
-  }
-
-  gen.builder_.restoreInsertionPoint(ip);
+  gen.statement(ast->statement);
+  gen.statement(ast->elseStatement);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(ConstevalIfStatementAST* ast) {
-  auto op =
-      gen.emitTodoStmt(ast->firstSourceLocation(), "ConstevalIfStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   gen.statement(ast->statement);
   gen.statement(ast->elseStatement);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "SwitchStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   gen.statement(ast->initializer);
   auto conditionResult = gen.expression(ast->condition);
   gen.statement(ast->statement);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(WhileStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "WhileStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto conditionResult = gen.expression(ast->condition);
   gen.statement(ast->statement);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "DoStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   gen.statement(ast->statement);
   auto expressionResult = gen.expression(ast->expression);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
-  auto op =
-      gen.emitTodoStmt(ast->firstSourceLocation(), "ForRangeStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   gen.statement(ast->initializer);
   auto rangeDeclarationResult = gen(ast->rangeDeclaration);
   auto rangeInitializerResult = gen.expression(ast->rangeInitializer);
   gen.statement(ast->statement);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "ForStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   gen.statement(ast->initializer);
   auto conditionResult = gen.expression(ast->condition);
   auto expressionResult = gen.expression(ast->expression);
   gen.statement(ast->statement);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(BreakStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "BreakStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 }
 
 void Codegen::StatementVisitor::operator()(ContinueStatementAST* ast) {
-  auto op =
-      gen.emitTodoStmt(ast->firstSourceLocation(), "ContinueStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 }
 
 void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto expressionResult = gen.expression(ast->expression);
-
-  auto loc = gen.getLocation(ast->firstSourceLocation());
-
-  auto op =
-      gen.builder_.create<mlir::cxx::ReturnOp>(loc, expressionResult.value);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(CoroutineReturnStatementAST* ast) {
   auto op = gen.emitTodoStmt(ast->firstSourceLocation(),
                              "CoroutineReturnStatementAST");
 
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
-  auto op = gen.emitTodoStmt(ast->firstSourceLocation(), "GotoStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 }
 
 void Codegen::StatementVisitor::operator()(DeclarationStatementAST* ast) {
-  auto op =
-      gen.emitTodoStmt(ast->firstSourceLocation(), "DeclarationStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   auto declarationResult = gen(ast->declaration);
+#endif
 }
 
 void Codegen::StatementVisitor::operator()(TryBlockStatementAST* ast) {
-  auto op =
-      gen.emitTodoStmt(ast->firstSourceLocation(), "TryBlockStatementAST");
+  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
 
+#if false
   gen.statement(ast->statement);
 
   for (auto node : ListView{ast->handlerList}) {
     auto value = gen(node);
   }
+#endif
 }
 
 auto Codegen::ExpressionVisitor::operator()(GeneratedLiteralExpressionAST* ast)

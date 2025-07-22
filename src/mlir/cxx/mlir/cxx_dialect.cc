@@ -27,6 +27,8 @@
 #include <mlir/Dialect/SCF/IR/SCF.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/OpImplementation.h>
+#include <mlir/Interfaces/FunctionImplementation.h>
 
 namespace mlir::cxx {
 
@@ -40,6 +42,32 @@ void CxxDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include <cxx/mlir/CxxOpsTypes.cpp.inc>
       >();
+}
+
+void FuncOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   llvm::StringRef name, mlir::FunctionType type,
+                   llvm::ArrayRef<mlir::NamedAttribute> attrs) {
+  buildWithEntryBlock(builder, state, name, type, attrs, type.getInputs());
+}
+
+void FuncOp::print(mlir::OpAsmPrinter &p) {
+  mlir::function_interface_impl::printFunctionOp(
+      p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),
+      getArgAttrsAttrName(), getResAttrsAttrName());
+}
+
+auto FuncOp::parse(mlir::OpAsmParser &parser, mlir::OperationState &result)
+    -> mlir::ParseResult {
+  auto funcTypeBuilder =
+      [](mlir::Builder &builder, llvm::ArrayRef<mlir::Type> argTypes,
+         llvm::ArrayRef<mlir::Type> results,
+         mlir::function_interface_impl::VariadicFlag,
+         std::string &) { return builder.getFunctionType(argTypes, results); };
+
+  return mlir::function_interface_impl::parseFunctionOp(
+      parser, result, false, getFunctionTypeAttrName(result.name),
+      funcTypeBuilder, getArgAttrsAttrName(result.name),
+      getResAttrsAttrName(result.name));
 }
 
 }  // namespace mlir::cxx

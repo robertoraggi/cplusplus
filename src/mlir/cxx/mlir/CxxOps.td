@@ -20,34 +20,85 @@
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/FunctionInterfaces.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 def Cxx_Dialect : Dialect {
   let name = "cxx";
   let cppNamespace = "mlir::cxx";
   let useDefaultTypePrinterParser = 1;
-  let dependentDialects = [
-    "mlir::func::FuncDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::scf::SCFDialect",
+  let dependentDialects = ["mlir::func::FuncDialect",
+                           "mlir::cf::ControlFlowDialect",
+                           "mlir::scf::SCFDialect",
   ];
 }
 
-class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []> : TypeDef<Cxx_Dialect, name, traits> {
-    let mnemonic = typeMnemonic;
+class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
+    : TypeDef<Cxx_Dialect, name, traits> {
+  let mnemonic = typeMnemonic;
 }
 
-class Cxx_Op<string mnemonic, list<Trait> traits = []> : Op<Cxx_Dialect, mnemonic, traits> {
-}
+class Cxx_Op<string mnemonic, list<Trait> traits = []>
+    : Op<Cxx_Dialect, mnemonic, traits> {}
 
 def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
+
+def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
+  let arguments = (ins SymbolNameAttr:$sym_name,
+      TypeAttrOf<FunctionType>:$function_type,
+      OptionalAttr<DictArrayAttr>:$arg_attrs,
+      OptionalAttr<DictArrayAttr>:$res_attrs);
+
+  let regions = (region AnyRegion:$body);
+
+  let builders = [OpBuilder<(ins "StringRef":$name, "FunctionType":$type,
+      CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs)>];
+
+  let extraClassDeclaration =
+      [{
+    auto getArgumentTypes() -> ArrayRef<Type> { return getFunctionType().getInputs(); }
+    auto getResultTypes() -> ArrayRef<Type> { return getFunctionType().getResults(); }
+    auto getCallableRegion() -> Region* { return &getBody(); }
+  }];
+
+  let hasCustomAssemblyFormat = 1;
+  let skipDefaultBuilders = 1;
+}
+
+def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
+  let arguments = (ins Variadic<Cxx_ExprType>:$input);
+
+  let builders = [OpBuilder<(ins), [{ build($_builder, $_state, {}); }]>];
+
+  let extraClassDeclaration = [{
+    bool hasOperand() { return getNumOperands() != 0; }
+  }];
+
+  let hasVerifier = 0;
+}
+
+def Cxx_CallOp : Cxx_Op<"call"> {
+  let arguments = (ins Cxx_ExprType:$callee, Variadic<AnyType>:$arguments);
+  let results = (outs Cxx_ExprType:$result);
+  let assemblyFormat =
+      "$callee `(` $arguments `:` type($arguments) `)` attr-dict `:` "
+      "type($result)";
+  let builders =
+      [OpBuilder<
+           (ins "mlir::Value":$callee, "mlir::ValueRange":$arguments),
+           [{ build($_builder, $_state, $_builder.getType<ExprType>(), callee, arguments); }]>,
+  ];
+}
 
 def TodoExprOp : Cxx_Op<"todo.expr"> {
   let arguments = (ins StrAttr:$message);
   let results = (outs Cxx_ExprType:$result);
   let assemblyFormat = "$message attr-dict `:` type($result)";
-  let builders = [
-    OpBuilder<(ins "::llvm::StringRef":$message),
-      [{ build($_builder, $_state, $_builder.getType<ExprType>(), message); }]>,
+  let builders =
+      [OpBuilder<
+           (ins "::llvm::StringRef":$message),
+           [{ build($_builder, $_state, $_builder.getType<ExprType>(), message); }]>,
   ];
 }
 
@@ -67,9 +118,10 @@ def ImplicitCastOp : Cxx_Op<"implicit.cast"> {
   let arguments = (ins StrAttr:$cast, Cxx_ExprType:$value);
   let results = (outs Cxx_ExprType:$result);
   let assemblyFormat = "$cast `(` $value `)` attr-dict `:` type($result)";
-  let builders = [
-    OpBuilder<(ins "llvm::StringRef":$cast, "mlir::Value":$value),
-      [{ build($_builder, $_state, $_builder.getType<ExprType>(), cast, value); }]>,
+  let builders =
+      [OpBuilder<
+           (ins "llvm::StringRef":$cast, "mlir::Value":$value),
+           [{ build($_builder, $_state, $_builder.getType<ExprType>(), cast, value); }]>,
   ];
 }
 
@@ -77,9 +129,10 @@ def IntLiteralOp : Cxx_Op<"int.literal"> {
   let arguments = (ins I64Attr:$value);
   let results = (outs Cxx_ExprType:$result);
   let assemblyFormat = "$value attr-dict `:` type($result)";
-  let builders = [
-    OpBuilder<(ins "int64_t":$value),
-      [{ build($_builder, $_state, $_builder.getType<ExprType>(), value); }]>,
+  let builders =
+      [OpBuilder<
+           (ins "int64_t":$value),
+           [{ build($_builder, $_state, $_builder.getType<ExprType>(), value); }]>,
   ];
 }
 
@@ -87,33 +140,21 @@ def IdOp : Cxx_Op<"id"> {
   let arguments = (ins StrAttr:$name);
   let results = (outs Cxx_ExprType:$result);
   let assemblyFormat = "$name attr-dict `:` type($result)";
-  let builders = [
-    OpBuilder<(ins "llvm::StringRef":$name),
-      [{ build($_builder, $_state, $_builder.getType<ExprType>(), name); }]>,
+  let builders =
+      [OpBuilder<
+           (ins "llvm::StringRef":$name),
+           [{ build($_builder, $_state, $_builder.getType<ExprType>(), name); }]>,
   ];
 }
 
 def BinOp : Cxx_Op<"binary"> {
   let arguments = (ins StrAttr:$op, Cxx_ExprType:$lhs, Cxx_ExprType:$rhs);
   let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat = "`op` $op `(` $lhs `,` $rhs `)` attr-dict `:` type($result)";
-  let builders = [
-    OpBuilder<(ins "llvm::StringRef":$op, "mlir::Value":$lhs, "mlir::Value":$rhs),
-      [{ build($_builder, $_state, $_builder.getType<ExprType>(), op, lhs, rhs); }]>,
+  let assemblyFormat =
+      "`op` $op `(` $lhs `,` $rhs `)` attr-dict `:` type($result)";
+  let builders =
+      [OpBuilder<
+           (ins "llvm::StringRef":$op, "mlir::Value":$lhs, "mlir::Value":$rhs),
+           [{ build($_builder, $_state, $_builder.getType<ExprType>(), op, lhs, rhs); }]>,
   ];
-}
-
-def CallOp : Cxx_Op<"call"> {
-  let arguments = (ins Cxx_ExprType:$callee, Variadic<AnyType>:$arguments);
-  let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat = "$callee `(` $arguments `:` type($arguments) `)` attr-dict `:` type($result)";
-  let builders = [
-    OpBuilder<(ins "mlir::Value":$callee, "mlir::ValueRange":$arguments),
-      [{ build($_builder, $_state, $_builder.getType<ExprType>(), callee, arguments); }]>,
-  ];
-}
-
-def ReturnOp : Cxx_Op<"return"> {
-  let arguments = (ins Optional<Cxx_ExprType>:$value);
-  let results = (outs);
 }
