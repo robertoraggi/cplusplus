@@ -26,9 +26,9 @@ target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_MLIR)
 add_dependencies(cxx-mlir MLIRCxxOpsIncGen)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+
     target_compile_options(cxx-mlir PRIVATE
-        -Wno-unused-variable
-        -Wno-covered-switch-default
-        -Wno-unused-but-set-variable
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-all -Wno-extra -Wno-covered-switch-default>
     )
+
 endif()
