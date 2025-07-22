@@ -599,6 +599,11 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   }
 
   auto functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
+
+  if (is_parsing_c()) {
+    functionSymbol->setHasCxxLinkage(false);
+  }
+
   applySpecifiers(functionSymbol, decl.specs);
   functionSymbol->setName(name);
   functionSymbol->setType(type);

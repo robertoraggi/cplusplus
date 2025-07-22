@@ -196,7 +196,7 @@ class Codegen {
 
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
-  mlir::func::FuncOp function_;
+  mlir::cxx::FuncOp function_;
   TranslationUnit* unit_ = nullptr;
   int count_ = 0;
 };

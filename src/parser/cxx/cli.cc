@@ -136,6 +136,9 @@ std::vector<CLIOptionDescr> options{
     {"-c", "Compile and assemble, but do not link", &CLI::opt_c,
      CLIOptionVisibility::kExperimental},
 
+    {"-g", "Generate debug information", &CLI::opt_g,
+     CLIOptionVisibility::kExperimental},
+
     {"-o", "<file>", "Place output into <file>",
      CLIOptionDescrKind::kSeparated},
 

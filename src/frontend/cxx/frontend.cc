@@ -369,7 +369,9 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       auto ir = codegen(unit.ast());
 
       mlir::OpPrintingFlags flags;
-      flags.enableDebugInfo(true, true);
+      if (cli.opt_g) {
+        flags.enableDebugInfo(true, true);
+      }
       ir.module->print(llvm::outs(), flags);
     }
 #endif

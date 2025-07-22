@@ -462,6 +462,14 @@ auto FunctionSymbol::isConstructor() const -> bool {
   return true;
 }
 
+auto FunctionSymbol::hasCLinkage() const -> bool { return isExternC_; }
+
+auto FunctionSymbol::hasCxxLinkage() const -> bool { return !isExternC_; }
+
+void FunctionSymbol::setHasCxxLinkage(bool hasCxxLinkage) {
+  isExternC_ = !hasCxxLinkage;
+}
+
 OverloadSetSymbol::OverloadSetSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
