@@ -2691,6 +2691,8 @@ auto Preprocessor::Private::primaryExpression(TokList *&ts) -> long {
 
   if (match(ts, TokenKind::T_INTEGER_LITERAL)) {
     return IntegerLiteral::Components::from(tk->text).value;
+  } else if (match(ts, TokenKind::T_CHARACTER_LITERAL)) {
+    return CharLiteral::Components::from(tk->text).value;
   } else if (match(ts, TokenKind::T_LPAREN)) {
     auto result = conditionalExpression(ts);
     expect(ts, TokenKind::T_RPAREN);
