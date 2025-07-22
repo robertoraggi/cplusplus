@@ -20,7 +20,16 @@
 
 #pragma once
 
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include <mlir/Bytecode/BytecodeOpInterface.h>
+
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #include <cxx/mlir/CxxOpsDialect.h.inc>
 

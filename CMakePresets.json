@@ -44,6 +44,22 @@
       }
     },
     {
+      "name": "default-mlir",
+      "displayName": "default with MLIR",
+      "inherits": "default",
+      "cacheVariables": {
+        "CXX_ENABLE_MLIR": "YES"
+      }
+    },
+    {
+      "name": "debug-mlir",
+      "displayName": "debug with MLIR",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CXX_ENABLE_MLIR": "YES"
+      }
+    },
+    {
       "name": "emscripten-mlir",
       "displayName": "emscripten with MLIR",
       "generator": "Ninja",
