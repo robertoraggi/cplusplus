@@ -28,7 +28,13 @@ add_dependencies(cxx-mlir MLIRCxxOpsIncGen)
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 
     target_compile_options(cxx-mlir PRIVATE
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-all -Wno-extra -Wno-covered-switch-default>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-all -Wno-extra>
     )
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(cxx-mlir PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-covered-switch-default>
+        )
+    endif()
 
 endif()

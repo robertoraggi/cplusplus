@@ -72,9 +72,9 @@ jobs:
         run: |
           sudo apt-get -y update
           sudo apt-get install -y \
-            llvm-18-dev \
-            libmlir-18-dev \
-            mlir-18-tools
+            llvm-19-dev \
+            libmlir-19-dev \
+            mlir-19-tools
 
       - name: Install unit tests requirements
         run: |
@@ -85,11 +85,9 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          cmake . \
-            -Bbuild \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCXX_ENABLE_MLIR=ON \
-            -DMLIR_DIR=/usr/lib/llvm-18/lib/cmake/mlir
+          PATH=/usr/lib/llvm-19/bin:$PATH
+
+          cmake --preset default-mlir
 
           cmake --build build --parallel
 
