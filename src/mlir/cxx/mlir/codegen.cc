@@ -25,11 +25,14 @@
 #include <cxx/ast_cursor.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+
+//
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
@@ -37,6 +40,197 @@
 #include <format>
 
 namespace cxx {
+
+struct Codegen::ConvertType {
+  Codegen& gen;
+
+  [[nodiscard]] auto control() const { return gen.control(); }
+  [[nodiscard]] auto memoryLayout() const { return control()->memoryLayout(); }
+
+  auto getExprType() const -> mlir::Type {
+    return gen.builder_.getType<mlir::cxx::ExprType>();
+  }
+
+  auto getIntType(const Type* type, bool isSigned) -> mlir::Type {
+    const auto width = memoryLayout()->sizeOf(type).value() * 8;
+    return gen.builder_.getIntegerType(width, isSigned);
+  }
+
+  auto operator()(const VoidType* type) -> mlir::Type {
+    return gen.builder_.getNoneType();
+  }
+
+  auto operator()(const NullptrType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const DecltypeAutoType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const AutoType* type) -> mlir::Type { return getExprType(); }
+
+  auto operator()(const BoolType* type) -> mlir::Type {
+    return gen.builder_.getI1Type();
+  }
+
+  auto operator()(const SignedCharType* type) -> mlir::Type {
+    return getIntType(type, true);
+  }
+
+  auto operator()(const ShortIntType* type) -> mlir::Type {
+    return getIntType(type, true);
+  }
+
+  auto operator()(const IntType* type) -> mlir::Type {
+    return getIntType(type, true);
+  }
+
+  auto operator()(const LongIntType* type) -> mlir::Type {
+    return getIntType(type, true);
+  }
+
+  auto operator()(const LongLongIntType* type) -> mlir::Type {
+    return getIntType(type, true);
+  }
+
+  auto operator()(const Int128Type* type) -> mlir::Type {
+    return getIntType(type, true);
+  }
+
+  auto operator()(const UnsignedCharType* type) -> mlir::Type {
+    return getIntType(type, false);
+  }
+
+  auto operator()(const UnsignedShortIntType* type) -> mlir::Type {
+    return getIntType(type, false);
+  }
+
+  auto operator()(const UnsignedIntType* type) -> mlir::Type {
+    return getIntType(type, false);
+  }
+
+  auto operator()(const UnsignedLongIntType* type) -> mlir::Type {
+    return getIntType(type, false);
+  }
+
+  auto operator()(const UnsignedLongLongIntType* type) -> mlir::Type {
+    return getIntType(type, false);
+  }
+
+  auto operator()(const UnsignedInt128Type* type) -> mlir::Type {
+    return getIntType(type, false);
+  }
+
+  auto operator()(const CharType* type) -> mlir::Type { return getExprType(); }
+
+  auto operator()(const Char8Type* type) -> mlir::Type { return getExprType(); }
+
+  auto operator()(const Char16Type* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const Char32Type* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const WideCharType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const FloatType* type) -> mlir::Type {
+    return gen.builder_.getF32Type();
+  }
+
+  auto operator()(const DoubleType* type) -> mlir::Type {
+    return gen.builder_.getF64Type();
+  }
+
+  auto operator()(const LongDoubleType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const QualType* type) -> mlir::Type {
+    return gen.convertType(type->elementType());
+  }
+
+  auto operator()(const BoundedArrayType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const UnboundedArrayType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const PointerType* type) -> mlir::Type {
+    auto elementType = gen.convertType(type->elementType());
+    return gen.builder_.getType<mlir::cxx::PointerType>(elementType);
+  }
+
+  auto operator()(const LvalueReferenceType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const RvalueReferenceType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const FunctionType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const ClassType* type) -> mlir::Type { return getExprType(); }
+
+  auto operator()(const EnumType* type) -> mlir::Type { return getExprType(); }
+
+  auto operator()(const ScopedEnumType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const MemberObjectPointerType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const NamespaceType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const TypeParameterType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const TemplateTypeParameterType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const UnresolvedNameType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const UnresolvedBoundedArrayType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const UnresolvedUnderlyingType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const OverloadSetType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const BuiltinVaListType* type) -> mlir::Type {
+    return getExprType();
+  }
+
+  auto operator()(const Type* type) -> mlir::Type {
+    return gen.builder_.getType<mlir::cxx::ExprType>();
+  }
+};
 
 struct Codegen::UnitVisitor {
   Codegen& gen;
@@ -664,6 +858,10 @@ auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
   return op;
 }
 
+auto Codegen::convertType(const Type* type) -> mlir::Type {
+  return visit(ConvertType{*this}, type);
+}
+
 auto Codegen::operator()(UnitAST* ast) -> UnitResult {
   if (ast) return visit(UnitVisitor{*this}, ast);
   return {};
@@ -1201,7 +1399,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::vector<mlir::Type> resultTypes;
 
   for (auto paramTy : functionType->parameterTypes()) {
-    inputTypes.push_back(exprType);
+    inputTypes.push_back(gen.convertType(paramTy));
   }
 
   if (!gen.control()->is_void(functionType->returnType())) {
@@ -1619,10 +1817,15 @@ auto Codegen::ExpressionVisitor::operator()(BoolLiteralExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
     -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
   auto loc = gen.getLocation(ast->literalLoc);
 
   auto op = gen.builder_.create<mlir::cxx::IntLiteralOp>(
       loc, ast->literal->integerValue());
+#endif
 
   return {op};
 }

@@ -42,7 +42,18 @@ class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
 class Cxx_Op<string mnemonic, list<Trait> traits = []>
     : Op<Cxx_Dialect, mnemonic, traits> {}
 
+
+// types
+
 def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
+
+def Cxx_PointerType : Cxx_Type<"Pointer", "ptr"> {
+  let parameters = (ins "Type":$elementType);
+
+  let assemblyFormat = "`<` $elementType `>`";
+}
+
+// ops
 
 def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   let arguments = (ins SymbolNameAttr:$sym_name,
@@ -67,7 +78,7 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
 }
 
 def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
-  let arguments = (ins Variadic<Cxx_ExprType>:$input);
+  let arguments = (ins Variadic<AnyType>:$input);
 
   let builders = [OpBuilder<(ins), [{ build($_builder, $_state, {}); }]>];
 
@@ -78,20 +89,7 @@ def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   let hasVerifier = 0;
 }
 
-def Cxx_CallOp : Cxx_Op<"call"> {
-  let arguments = (ins Cxx_ExprType:$callee, Variadic<AnyType>:$arguments);
-  let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat =
-      "$callee `(` $arguments `:` type($arguments) `)` attr-dict `:` "
-      "type($result)";
-  let builders =
-      [OpBuilder<
-           (ins "mlir::Value":$callee, "mlir::ValueRange":$arguments),
-           [{ build($_builder, $_state, $_builder.getType<ExprType>(), callee, arguments); }]>,
-  ];
-}
-
-def TodoExprOp : Cxx_Op<"todo.expr"> {
+def Cxx_TodoExprOp : Cxx_Op<"todo.expr"> {
   let arguments = (ins StrAttr:$message);
   let results = (outs Cxx_ExprType:$result);
   let assemblyFormat = "$message attr-dict `:` type($result)";
@@ -102,59 +100,8 @@ def TodoExprOp : Cxx_Op<"todo.expr"> {
   ];
 }
 
-def TodoStmtOp : Cxx_Op<"todo.stmt"> {
+def Cxx_TodoStmtOp : Cxx_Op<"todo.stmt"> {
   let arguments = (ins StrAttr:$message);
   let results = (outs);
   let assemblyFormat = "$message attr-dict";
-}
-
-def ToBoolOp : Cxx_Op<"to.bool"> {
-  let arguments = (ins Cxx_ExprType:$value);
-  let results = (outs I1:$result);
-  let assemblyFormat = "`(` $value `)` attr-dict `:` type($result)";
-}
-
-def ImplicitCastOp : Cxx_Op<"implicit.cast"> {
-  let arguments = (ins StrAttr:$cast, Cxx_ExprType:$value);
-  let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat = "$cast `(` $value `)` attr-dict `:` type($result)";
-  let builders =
-      [OpBuilder<
-           (ins "llvm::StringRef":$cast, "mlir::Value":$value),
-           [{ build($_builder, $_state, $_builder.getType<ExprType>(), cast, value); }]>,
-  ];
-}
-
-def IntLiteralOp : Cxx_Op<"int.literal"> {
-  let arguments = (ins I64Attr:$value);
-  let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat = "$value attr-dict `:` type($result)";
-  let builders =
-      [OpBuilder<
-           (ins "int64_t":$value),
-           [{ build($_builder, $_state, $_builder.getType<ExprType>(), value); }]>,
-  ];
-}
-
-def IdOp : Cxx_Op<"id"> {
-  let arguments = (ins StrAttr:$name);
-  let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat = "$name attr-dict `:` type($result)";
-  let builders =
-      [OpBuilder<
-           (ins "llvm::StringRef":$name),
-           [{ build($_builder, $_state, $_builder.getType<ExprType>(), name); }]>,
-  ];
-}
-
-def BinOp : Cxx_Op<"binary"> {
-  let arguments = (ins StrAttr:$op, Cxx_ExprType:$lhs, Cxx_ExprType:$rhs);
-  let results = (outs Cxx_ExprType:$result);
-  let assemblyFormat =
-      "`op` $op `(` $lhs `,` $rhs `)` attr-dict `:` type($result)";
-  let builders =
-      [OpBuilder<
-           (ins "llvm::StringRef":$op, "mlir::Value":$lhs, "mlir::Value":$rhs),
-           [{ build($_builder, $_state, $_builder.getType<ExprType>(), op, lhs, rhs); }]>,
-  ];
 }

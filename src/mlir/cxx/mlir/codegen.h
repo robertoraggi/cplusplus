@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/source_location.h>
+#include <cxx/types_fwd.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -172,6 +173,8 @@ class Codegen {
   [[nodiscard]] auto emitTodoExpr(SourceLocation loc, std::string_view message)
       -> mlir::cxx::TodoExprOp;
 
+  [[nodiscard]] auto convertType(const Type* type) -> mlir::Type;
+
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;
@@ -193,6 +196,8 @@ class Codegen {
   struct ExceptionDeclarationVisitor;
   struct AttributeSpecifierVisitor;
   struct AttributeTokenVisitor;
+
+  struct ConvertType;
 
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
