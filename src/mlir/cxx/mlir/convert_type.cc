@@ -99,11 +99,11 @@ auto Codegen::ConvertType::getExprType() const -> mlir::Type {
 auto Codegen::ConvertType::getIntType(const Type* type, bool isSigned)
     -> mlir::Type {
   const auto width = memoryLayout()->sizeOf(type).value() * 8;
-  return gen.builder_.getIntegerType(width, isSigned);
+  return gen.builder_.getType<mlir::cxx::IntegerType>(width, isSigned);
 }
 
 auto Codegen::ConvertType::operator()(const VoidType* type) -> mlir::Type {
-  return gen.builder_.getNoneType();
+  return gen.builder_.getType<mlir::cxx::VoidType>();
 }
 
 auto Codegen::ConvertType::operator()(const NullptrType* type) -> mlir::Type {
@@ -120,7 +120,7 @@ auto Codegen::ConvertType::operator()(const AutoType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const BoolType* type) -> mlir::Type {
-  return gen.builder_.getI1Type();
+  return gen.builder_.getType<mlir::cxx::BoolType>();
 }
 
 auto Codegen::ConvertType::operator()(const SignedCharType* type)

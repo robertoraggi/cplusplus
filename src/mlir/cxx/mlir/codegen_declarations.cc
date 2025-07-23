@@ -268,6 +268,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
   auto functionSymbol = ast->symbol;
   auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  auto returnType = functionType->returnType();
 
   auto exprType = gen.builder_.getType<mlir::cxx::ExprType>();
 
@@ -279,7 +280,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   if (!gen.control()->is_void(functionType->returnType())) {
-    resultTypes.push_back(exprType);
+    resultTypes.push_back(gen.convertType(returnType));
   }
 
   auto funcType = gen.builder_.getFunctionType(inputTypes, resultTypes);
@@ -337,12 +338,13 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
-  if (gen.control()->is_void(functionType->returnType())) {
+  if (gen.control()->is_void(returnType)) {
     // If the function returns void, we don't need to return anything.
     gen.builder_.create<mlir::cxx::ReturnOp>(endLoc);
   } else {
     // Otherwise, we need to return a value of the correct type.
     auto r = gen.emitTodoExpr(ast->lastSourceLocation(), "result value");
+
     auto result =
         gen.builder_.create<mlir::cxx::ReturnOp>(endLoc, r->getResults());
   }

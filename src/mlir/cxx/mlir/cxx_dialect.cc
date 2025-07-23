@@ -32,6 +32,33 @@
 
 namespace mlir::cxx {
 
+namespace {
+
+struct CxxGenerateAliases : public OpAsmDialectInterface {
+ public:
+  using OpAsmDialectInterface::OpAsmDialectInterface;
+
+  auto getAlias(Type type, raw_ostream &os) const -> AliasResult override {
+    if (auto intType = mlir::dyn_cast<mlir::cxx::IntegerType>(type)) {
+      os << 'i' << intType.getWidth() << (intType.getIsSigned() ? 's' : 'u');
+      return AliasResult::FinalAlias;
+    }
+
+    if (mlir::isa<VoidType>(type)) {
+      os << "void";
+      return AliasResult::FinalAlias;
+    }
+
+    if (mlir::isa<BoolType>(type)) {
+      os << "bool";
+      return AliasResult::FinalAlias;
+    }
+
+    return AliasResult::NoAlias;
+  }
+};
+}  // namespace
+
 void CxxDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
@@ -42,6 +69,8 @@ void CxxDialect::initialize() {
 #define GET_TYPEDEF_LIST
 #include <cxx/mlir/CxxOpsTypes.cpp.inc>
       >();
+
+  addInterface<CxxGenerateAliases>();
 }
 
 void FuncOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
@@ -72,9 +101,10 @@ auto FuncOp::parse(mlir::OpAsmParser &parser, mlir::OperationState &result)
 
 }  // namespace mlir::cxx
 
+#include <cxx/mlir/CxxOpsDialect.cpp.inc>
+
 #define GET_TYPEDEF_CLASSES
 #include <cxx/mlir/CxxOpsTypes.cpp.inc>
 
 #define GET_OP_CLASSES
 #include <cxx/mlir/CxxOps.cpp.inc>
-#include <cxx/mlir/CxxOpsDialect.cpp.inc>

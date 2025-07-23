@@ -47,6 +47,16 @@ class Cxx_Op<string mnemonic, list<Trait> traits = []>
 
 def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
 
+def Cxx_VoidType : Cxx_Type<"Void", "void">;
+
+def Cxx_BoolType : Cxx_Type<"Bool", "bool">;
+
+def Cxx_IntegerType : Cxx_Type<"Integer", "int"> {
+  let parameters = (ins "unsigned":$width, "bool":$isSigned);
+
+  let assemblyFormat = "`<` $width `,` $isSigned `>`";
+}
+
 def Cxx_PointerType : Cxx_Type<"Pointer", "ptr"> {
   let parameters = (ins "Type":$elementType);
 
