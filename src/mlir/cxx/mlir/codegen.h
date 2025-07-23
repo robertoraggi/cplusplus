@@ -203,6 +203,8 @@ class Codegen {
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp function_;
   TranslationUnit* unit_ = nullptr;
+  mlir::Block* exitBlock_ = nullptr;
+  mlir::cxx::AllocaOp exitValue_;
   int count_ = 0;
 };
 

@@ -99,6 +99,22 @@ def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   let hasVerifier = 0;
 }
 
+def Cxx_AllocaOp : Cxx_Op<"alloca"> {
+  let arguments = (ins);
+
+  let results = (outs Cxx_PointerType:$result);
+}
+
+def Cxx_LoadOp : Cxx_Op<"load"> {
+  let arguments = (ins Cxx_PointerType:$addr);
+
+  let results = (outs AnyType:$result);
+}
+
+def Cxx_StoreOp : Cxx_Op<"store"> {
+  let arguments = (ins AnyType:$value, Cxx_PointerType:$addr);
+}
+
 def Cxx_TodoExprOp : Cxx_Op<"todo.expr"> {
   let arguments = (ins StrAttr:$message);
   let results = (outs Cxx_ExprType:$result);
