@@ -2,7 +2,19 @@
 include_directories(${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS}) # for tablegen
 add_mlir_dialect(CxxOps cxx)
 
-aux_source_directory(. SOURCES)
+set(SOURCES
+    codegen.cc
+    codegen_declarations.cc
+    codegen_declarators.cc
+    codegen_expressions.cc
+    codegen_names.cc
+    codegen_specifiers.cc
+    codegen_statements.cc
+    codegen_units.cc
+    convert_type.cc
+    cxx_dialect.cc
+)
+
 add_library(cxx-mlir ${SOURCES})
 
 llvm_update_compile_flags(cxx-mlir)
