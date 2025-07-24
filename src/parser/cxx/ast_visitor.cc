@@ -245,6 +245,125 @@ void ASTVisitor::visit(AsmClobberAST* ast) {}
 
 void ASTVisitor::visit(AsmGotoLabelAST* ast) {}
 
+void ASTVisitor::visit(SplicerAST* ast) { accept(ast->expression); }
+
+void ASTVisitor::visit(GlobalModuleFragmentAST* ast) {
+  for (auto node : ListView{ast->declarationList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(PrivateModuleFragmentAST* ast) {
+  for (auto node : ListView{ast->declarationList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(ModuleDeclarationAST* ast) {
+  accept(ast->moduleName);
+  accept(ast->modulePartition);
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(ModuleNameAST* ast) { accept(ast->moduleQualifier); }
+
+void ASTVisitor::visit(ModuleQualifierAST* ast) {
+  accept(ast->moduleQualifier);
+}
+
+void ASTVisitor::visit(ModulePartitionAST* ast) { accept(ast->moduleName); }
+
+void ASTVisitor::visit(ImportNameAST* ast) {
+  accept(ast->modulePartition);
+  accept(ast->moduleName);
+}
+
+void ASTVisitor::visit(InitDeclaratorAST* ast) {
+  accept(ast->declarator);
+  accept(ast->requiresClause);
+  accept(ast->initializer);
+}
+
+void ASTVisitor::visit(DeclaratorAST* ast) {
+  for (auto node : ListView{ast->ptrOpList}) {
+    accept(node);
+  }
+  accept(ast->coreDeclarator);
+  for (auto node : ListView{ast->declaratorChunkList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(UsingDeclaratorAST* ast) {
+  accept(ast->nestedNameSpecifier);
+  accept(ast->unqualifiedId);
+}
+
+void ASTVisitor::visit(EnumeratorAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+  accept(ast->expression);
+}
+
+void ASTVisitor::visit(TypeIdAST* ast) {
+  for (auto node : ListView{ast->typeSpecifierList}) {
+    accept(node);
+  }
+  accept(ast->declarator);
+}
+
+void ASTVisitor::visit(HandlerAST* ast) {
+  accept(ast->exceptionDeclaration);
+  accept(ast->statement);
+}
+
+void ASTVisitor::visit(BaseSpecifierAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+  accept(ast->nestedNameSpecifier);
+  accept(ast->unqualifiedId);
+}
+
+void ASTVisitor::visit(RequiresClauseAST* ast) { accept(ast->expression); }
+
+void ASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
+  for (auto node : ListView{ast->parameterDeclarationList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(TrailingReturnTypeAST* ast) { accept(ast->typeId); }
+
+void ASTVisitor::visit(LambdaSpecifierAST* ast) {}
+
+void ASTVisitor::visit(TypeConstraintAST* ast) {
+  accept(ast->nestedNameSpecifier);
+  for (auto node : ListView{ast->templateArgumentList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(AttributeArgumentClauseAST* ast) {}
+
+void ASTVisitor::visit(AttributeAST* ast) {
+  accept(ast->attributeToken);
+  accept(ast->attributeArgumentClause);
+}
+
+void ASTVisitor::visit(AttributeUsingPrefixAST* ast) {}
+
+void ASTVisitor::visit(NewPlacementAST* ast) {
+  for (auto node : ListView{ast->expressionList}) {
+    accept(node);
+  }
+}
+
+void ASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
+
 void ASTVisitor::visit(LabeledStatementAST* ast) {}
 
 void ASTVisitor::visit(CaseStatementAST* ast) { accept(ast->expression); }
@@ -590,125 +709,6 @@ void ASTVisitor::visit(TypeGenericAssociationAST* ast) {
 void ASTVisitor::visit(DotDesignatorAST* ast) {}
 
 void ASTVisitor::visit(SubscriptDesignatorAST* ast) { accept(ast->expression); }
-
-void ASTVisitor::visit(SplicerAST* ast) { accept(ast->expression); }
-
-void ASTVisitor::visit(GlobalModuleFragmentAST* ast) {
-  for (auto node : ListView{ast->declarationList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(PrivateModuleFragmentAST* ast) {
-  for (auto node : ListView{ast->declarationList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(ModuleDeclarationAST* ast) {
-  accept(ast->moduleName);
-  accept(ast->modulePartition);
-  for (auto node : ListView{ast->attributeList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(ModuleNameAST* ast) { accept(ast->moduleQualifier); }
-
-void ASTVisitor::visit(ModuleQualifierAST* ast) {
-  accept(ast->moduleQualifier);
-}
-
-void ASTVisitor::visit(ModulePartitionAST* ast) { accept(ast->moduleName); }
-
-void ASTVisitor::visit(ImportNameAST* ast) {
-  accept(ast->modulePartition);
-  accept(ast->moduleName);
-}
-
-void ASTVisitor::visit(InitDeclaratorAST* ast) {
-  accept(ast->declarator);
-  accept(ast->requiresClause);
-  accept(ast->initializer);
-}
-
-void ASTVisitor::visit(DeclaratorAST* ast) {
-  for (auto node : ListView{ast->ptrOpList}) {
-    accept(node);
-  }
-  accept(ast->coreDeclarator);
-  for (auto node : ListView{ast->declaratorChunkList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(UsingDeclaratorAST* ast) {
-  accept(ast->nestedNameSpecifier);
-  accept(ast->unqualifiedId);
-}
-
-void ASTVisitor::visit(EnumeratorAST* ast) {
-  for (auto node : ListView{ast->attributeList}) {
-    accept(node);
-  }
-  accept(ast->expression);
-}
-
-void ASTVisitor::visit(TypeIdAST* ast) {
-  for (auto node : ListView{ast->typeSpecifierList}) {
-    accept(node);
-  }
-  accept(ast->declarator);
-}
-
-void ASTVisitor::visit(HandlerAST* ast) {
-  accept(ast->exceptionDeclaration);
-  accept(ast->statement);
-}
-
-void ASTVisitor::visit(BaseSpecifierAST* ast) {
-  for (auto node : ListView{ast->attributeList}) {
-    accept(node);
-  }
-  accept(ast->nestedNameSpecifier);
-  accept(ast->unqualifiedId);
-}
-
-void ASTVisitor::visit(RequiresClauseAST* ast) { accept(ast->expression); }
-
-void ASTVisitor::visit(ParameterDeclarationClauseAST* ast) {
-  for (auto node : ListView{ast->parameterDeclarationList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(TrailingReturnTypeAST* ast) { accept(ast->typeId); }
-
-void ASTVisitor::visit(LambdaSpecifierAST* ast) {}
-
-void ASTVisitor::visit(TypeConstraintAST* ast) {
-  accept(ast->nestedNameSpecifier);
-  for (auto node : ListView{ast->templateArgumentList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(AttributeArgumentClauseAST* ast) {}
-
-void ASTVisitor::visit(AttributeAST* ast) {
-  accept(ast->attributeToken);
-  accept(ast->attributeArgumentClause);
-}
-
-void ASTVisitor::visit(AttributeUsingPrefixAST* ast) {}
-
-void ASTVisitor::visit(NewPlacementAST* ast) {
-  for (auto node : ListView{ast->expressionList}) {
-    accept(node);
-  }
-}
-
-void ASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
 
 void ASTVisitor::visit(TemplateTypeParameterAST* ast) {
   for (auto node : ListView{ast->templateParameterList}) {

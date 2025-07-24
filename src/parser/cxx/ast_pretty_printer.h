@@ -70,6 +70,10 @@ class ASTPrettyPrinter {
   void operator()(AttributeTokenAST* ast);
 
   // run on the misc nodes
+  void operator()(AsmOperandAST* ast);
+  void operator()(AsmQualifierAST* ast);
+  void operator()(AsmClobberAST* ast);
+  void operator()(AsmGotoLabelAST* ast);
   void operator()(SplicerAST* ast);
   void operator()(GlobalModuleFragmentAST* ast);
   void operator()(PrivateModuleFragmentAST* ast);

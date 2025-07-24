@@ -86,11 +86,11 @@ struct Codegen::AttributeTokenVisitor {
   auto operator()(SimpleAttributeTokenAST* ast) -> AttributeTokenResult;
 };
 
-auto Codegen::operator()(EnumeratorAST* ast) -> EnumeratorResult {
+auto Codegen::enumerator(EnumeratorAST* ast) -> EnumeratorResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = operator()(node);
+    auto value = attributeSpecifier(node);
   }
 
   auto expressionResult = expression(ast->expression);
@@ -98,59 +98,62 @@ auto Codegen::operator()(EnumeratorAST* ast) -> EnumeratorResult {
   return {};
 }
 
-auto Codegen::operator()(BaseSpecifierAST* ast) -> BaseSpecifierResult {
+auto Codegen::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = operator()(node);
+    auto value = attributeSpecifier(node);
   }
 
-  auto nestedNameSpecifierResult = operator()(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = operator()(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = unqualifiedId(ast->unqualifiedId);
 
   return {};
 }
 
-auto Codegen::operator()(SpecifierAST* ast) -> SpecifierResult {
+auto Codegen::specifier(SpecifierAST* ast) -> SpecifierResult {
   if (ast) return visit(SpecifierVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(AttributeSpecifierAST* ast)
+auto Codegen::attributeSpecifier(AttributeSpecifierAST* ast)
     -> AttributeSpecifierResult {
   if (ast) return visit(AttributeSpecifierVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(AttributeTokenAST* ast) -> AttributeTokenResult {
+auto Codegen::attributeToken(AttributeTokenAST* ast) -> AttributeTokenResult {
   if (ast) return visit(AttributeTokenVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(AttributeArgumentClauseAST* ast)
+auto Codegen::attributeArgumentClause(AttributeArgumentClauseAST* ast)
     -> AttributeArgumentClauseResult {
   if (!ast) return {};
 
   return {};
 }
 
-auto Codegen::operator()(AttributeAST* ast) -> AttributeResult {
+auto Codegen::attribute(AttributeAST* ast) -> AttributeResult {
   if (!ast) return {};
 
-  auto attributeTokenResult = operator()(ast->attributeToken);
-  auto attributeArgumentClauseResult = operator()(ast->attributeArgumentClause);
+  auto attributeTokenResult = attributeToken(ast->attributeToken);
+
+  auto attributeArgumentClauseResult =
+      attributeArgumentClause(ast->attributeArgumentClause);
 
   return {};
 }
 
-auto Codegen::operator()(AttributeUsingPrefixAST* ast)
+auto Codegen::attributeUsingPrefix(AttributeUsingPrefixAST* ast)
     -> AttributeUsingPrefixResult {
   if (!ast) return {};
 
   return {};
 }
 
-auto Codegen::operator()(SplicerAST* ast) -> SplicerResult {
+auto Codegen::splicer(SplicerAST* ast) -> SplicerResult {
   if (!ast) return {};
 
   auto expressionResult = expression(ast->expression);
@@ -158,14 +161,14 @@ auto Codegen::operator()(SplicerAST* ast) -> SplicerResult {
   return {};
 }
 
-auto Codegen::operator()(TypeIdAST* ast) -> TypeIdResult {
+auto Codegen::typeId(TypeIdAST* ast) -> TypeIdResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->typeSpecifierList}) {
-    auto value = operator()(node);
+    auto value = specifier(node);
   }
 
-  auto declaratorResult = operator()(ast->declarator);
+  auto declaratorResult = declarator(ast->declarator);
 
   return {};
 }
@@ -294,22 +297,23 @@ auto Codegen::SpecifierVisitor::operator()(ComplexTypeSpecifierAST* ast)
 
 auto Codegen::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
     -> SpecifierResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   return {};
 }
 
 auto Codegen::SpecifierVisitor::operator()(AtomicTypeSpecifierAST* ast)
     -> SpecifierResult {
-  auto typeIdResult = gen(ast->typeId);
+  auto typeIdResult = gen.typeId(ast->typeId);
 
   return {};
 }
 
 auto Codegen::SpecifierVisitor::operator()(UnderlyingTypeSpecifierAST* ast)
     -> SpecifierResult {
-  auto typeIdResult = gen(ast->typeId);
+  auto typeIdResult = gen.typeId(ast->typeId);
 
   return {};
 }
@@ -317,11 +321,12 @@ auto Codegen::SpecifierVisitor::operator()(UnderlyingTypeSpecifierAST* ast)
 auto Codegen::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
     -> SpecifierResult {
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   return {};
 }
@@ -340,8 +345,9 @@ auto Codegen::SpecifierVisitor::operator()(DecltypeSpecifierAST* ast)
 
 auto Codegen::SpecifierVisitor::operator()(PlaceholderTypeSpecifierAST* ast)
     -> SpecifierResult {
-  auto typeConstraintResult = gen(ast->typeConstraint);
-  auto specifierResult = gen(ast->specifier);
+  auto typeConstraintResult = gen.typeConstraint(ast->typeConstraint);
+
+  auto specifierResult = gen.specifier(ast->specifier);
 
   return {};
 }
@@ -369,18 +375,20 @@ auto Codegen::SpecifierVisitor::operator()(AtomicQualifierAST* ast)
 auto Codegen::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
     -> SpecifierResult {
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   for (auto node : ListView{ast->typeSpecifierList}) {
-    auto value = gen(node);
+    auto value = gen.specifier(node);
   }
 
   for (auto node : ListView{ast->enumeratorList}) {
-    auto value = gen(node);
+    auto value = gen.enumerator(node);
   }
 
   return {};
@@ -389,18 +397,20 @@ auto Codegen::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 auto Codegen::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
     -> SpecifierResult {
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   for (auto node : ListView{ast->baseSpecifierList}) {
-    auto value = gen(node);
+    auto value = gen.baseSpecifier(node);
   }
 
   for (auto node : ListView{ast->declarationList}) {
-    auto value = gen(node);
+    auto value = gen.declaration(node);
   }
 
   return {};
@@ -408,25 +418,28 @@ auto Codegen::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
 auto Codegen::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)
     -> SpecifierResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   return {};
 }
 
 auto Codegen::SpecifierVisitor::operator()(SplicerTypeSpecifierAST* ast)
     -> SpecifierResult {
-  auto splicerResult = gen(ast->splicer);
+  auto splicerResult = gen.splicer(ast->splicer);
 
   return {};
 }
 
 auto Codegen::AttributeSpecifierVisitor::operator()(CxxAttributeAST* ast)
     -> AttributeSpecifierResult {
-  auto attributeUsingPrefixResult = gen(ast->attributeUsingPrefix);
+  auto attributeUsingPrefixResult =
+      gen.attributeUsingPrefix(ast->attributeUsingPrefix);
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attribute(node);
   }
 
   return {};
@@ -446,7 +459,7 @@ auto Codegen::AttributeSpecifierVisitor::operator()(AlignasAttributeAST* ast)
 
 auto Codegen::AttributeSpecifierVisitor::operator()(
     AlignasTypeAttributeAST* ast) -> AttributeSpecifierResult {
-  auto typeIdResult = gen(ast->typeId);
+  auto typeIdResult = gen.typeId(ast->typeId);
 
   return {};
 }

@@ -47,7 +47,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   std::swap(gen.module_, module);
 
   for (auto node : ListView{ast->declarationList}) {
-    auto value = gen(node);
+    auto value = gen.declaration(node);
   }
 
   std::swap(gen.module_, module);
@@ -64,14 +64,17 @@ auto Codegen::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
-  auto globalModuleFragmentResult = gen(ast->globalModuleFragment);
-  auto moduleDeclarationResult = gen(ast->moduleDeclaration);
+  auto globalModuleFragmentResult =
+      gen.globalModuleFragment(ast->globalModuleFragment);
+
+  auto moduleDeclarationResult = gen.moduleDeclaration(ast->moduleDeclaration);
 
   for (auto node : ListView{ast->declarationList}) {
-    auto value = gen(node);
+    auto value = gen.declaration(node);
   }
 
-  auto privateModuleFragmentResult = gen(ast->privateModuleFragment);
+  auto privateModuleFragmentResult =
+      gen.privateModuleFragment(ast->privateModuleFragment);
 
   std::swap(gen.module_, module);
 
@@ -79,70 +82,75 @@ auto Codegen::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
   return result;
 }
 
-auto Codegen::operator()(GlobalModuleFragmentAST* ast)
+auto Codegen::globalModuleFragment(GlobalModuleFragmentAST* ast)
     -> GlobalModuleFragmentResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->declarationList}) {
-    auto value = operator()(node);
+    auto value = declaration(node);
   }
 
   return {};
 }
 
-auto Codegen::operator()(PrivateModuleFragmentAST* ast)
+auto Codegen::privateModuleFragment(PrivateModuleFragmentAST* ast)
     -> PrivateModuleFragmentResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->declarationList}) {
-    auto value = operator()(node);
+    auto value = declaration(node);
   }
 
   return {};
 }
 
-auto Codegen::operator()(ModuleDeclarationAST* ast) -> ModuleDeclarationResult {
+auto Codegen::moduleDeclaration(ModuleDeclarationAST* ast)
+    -> ModuleDeclarationResult {
   if (!ast) return {};
 
-  auto moduleNameResult = operator()(ast->moduleName);
-  auto modulePartitionResult = operator()(ast->modulePartition);
+  auto moduleNameResult = moduleName(ast->moduleName);
+
+  auto modulePartitionResult = modulePartition(ast->modulePartition);
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = operator()(node);
+    auto value = attributeSpecifier(node);
   }
 
   return {};
 }
 
-auto Codegen::operator()(ModuleNameAST* ast) -> ModuleNameResult {
+auto Codegen::moduleName(ModuleNameAST* ast) -> ModuleNameResult {
   if (!ast) return {};
 
-  auto moduleQualifierResult = operator()(ast->moduleQualifier);
+  auto moduleQualifierResult = moduleQualifier(ast->moduleQualifier);
 
   return {};
 }
 
-auto Codegen::operator()(ModuleQualifierAST* ast) -> ModuleQualifierResult {
+auto Codegen::moduleQualifier(ModuleQualifierAST* ast)
+    -> ModuleQualifierResult {
   if (!ast) return {};
 
-  auto moduleQualifierResult = operator()(ast->moduleQualifier);
+  auto moduleQualifierResult = moduleQualifier(ast->moduleQualifier);
 
   return {};
 }
 
-auto Codegen::operator()(ModulePartitionAST* ast) -> ModulePartitionResult {
+auto Codegen::modulePartition(ModulePartitionAST* ast)
+    -> ModulePartitionResult {
   if (!ast) return {};
 
-  auto moduleNameResult = operator()(ast->moduleName);
+  auto moduleNameResult = moduleName(ast->moduleName);
 
   return {};
 }
 
-auto Codegen::operator()(ImportNameAST* ast) -> ImportNameResult {
+auto Codegen::importName(ImportNameAST* ast) -> ImportNameResult {
   if (!ast) return {};
 
-  auto modulePartitionResult = operator()(ast->modulePartition);
-  auto moduleNameResult = operator()(ast->moduleName);
+  auto modulePartitionResult = modulePartition(ast->modulePartition);
+
+  auto moduleNameResult = moduleName(ast->moduleName);
 
   return {};
 }

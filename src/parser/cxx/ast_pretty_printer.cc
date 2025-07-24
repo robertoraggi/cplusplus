@@ -108,14 +108,6 @@ struct ASTPrettyPrinter::DeclarationVisitor {
   void operator()(ForRangeDeclarationAST* ast);
 
   void operator()(StructuredBindingDeclarationAST* ast);
-
-  void operator()(AsmOperandAST* ast);
-
-  void operator()(AsmQualifierAST* ast);
-
-  void operator()(AsmClobberAST* ast);
-
-  void operator()(AsmGotoLabelAST* ast);
 };
 
 struct ASTPrettyPrinter::StatementVisitor {
@@ -887,6 +879,60 @@ void ASTPrettyPrinter::operator()(AttributeSpecifierAST* ast) {
 void ASTPrettyPrinter::operator()(AttributeTokenAST* ast) {
   if (!ast) return;
   visit(AttributeTokenVisitor{*this}, ast);
+}
+
+void ASTPrettyPrinter::operator()(AsmOperandAST* ast) {
+  if (!ast) return;
+
+  if (ast->lbracketLoc) {
+    nospace();
+    writeToken(ast->lbracketLoc);
+    nospace();
+  }
+  if (ast->symbolicNameLoc) {
+    writeToken(ast->symbolicNameLoc);
+  }
+  if (ast->rbracketLoc) {
+    nospace();
+    writeToken(ast->rbracketLoc);
+  }
+  if (ast->constraintLiteralLoc) {
+    writeToken(ast->constraintLiteralLoc);
+  }
+  if (ast->lparenLoc) {
+    nospace();
+    writeToken(ast->lparenLoc);
+    nospace();
+  }
+  operator()(ast->expression);
+  if (ast->rparenLoc) {
+    nospace();
+    writeToken(ast->rparenLoc);
+  }
+}
+
+void ASTPrettyPrinter::operator()(AsmQualifierAST* ast) {
+  if (!ast) return;
+
+  if (ast->qualifierLoc) {
+    writeToken(ast->qualifierLoc);
+  }
+}
+
+void ASTPrettyPrinter::operator()(AsmClobberAST* ast) {
+  if (!ast) return;
+
+  if (ast->literalLoc) {
+    writeToken(ast->literalLoc);
+  }
+}
+
+void ASTPrettyPrinter::operator()(AsmGotoLabelAST* ast) {
+  if (!ast) return;
+
+  if (ast->identifierLoc) {
+    writeToken(ast->identifierLoc);
+  }
 }
 
 void ASTPrettyPrinter::operator()(SplicerAST* ast) {
@@ -1893,52 +1939,6 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
     nonewline();
     accept.writeToken(ast->semicolonLoc);
     newline();
-  }
-}
-
-void ASTPrettyPrinter::DeclarationVisitor::operator()(AsmOperandAST* ast) {
-  if (ast->lbracketLoc) {
-    nospace();
-    accept.writeToken(ast->lbracketLoc);
-    nospace();
-  }
-  if (ast->symbolicNameLoc) {
-    accept.writeToken(ast->symbolicNameLoc);
-  }
-  if (ast->rbracketLoc) {
-    nospace();
-    accept.writeToken(ast->rbracketLoc);
-  }
-  if (ast->constraintLiteralLoc) {
-    accept.writeToken(ast->constraintLiteralLoc);
-  }
-  if (ast->lparenLoc) {
-    nospace();
-    accept.writeToken(ast->lparenLoc);
-    nospace();
-  }
-  accept(ast->expression);
-  if (ast->rparenLoc) {
-    nospace();
-    accept.writeToken(ast->rparenLoc);
-  }
-}
-
-void ASTPrettyPrinter::DeclarationVisitor::operator()(AsmQualifierAST* ast) {
-  if (ast->qualifierLoc) {
-    accept.writeToken(ast->qualifierLoc);
-  }
-}
-
-void ASTPrettyPrinter::DeclarationVisitor::operator()(AsmClobberAST* ast) {
-  if (ast->literalLoc) {
-    accept.writeToken(ast->literalLoc);
-  }
-}
-
-void ASTPrettyPrinter::DeclarationVisitor::operator()(AsmGotoLabelAST* ast) {
-  if (ast->identifierLoc) {
-    accept.writeToken(ast->identifierLoc);
   }
 }
 
