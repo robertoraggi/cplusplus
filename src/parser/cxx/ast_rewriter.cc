@@ -168,14 +168,6 @@ struct ASTRewriter::DeclarationVisitor {
 
   [[nodiscard]] auto operator()(StructuredBindingDeclarationAST* ast)
       -> DeclarationAST*;
-
-  [[nodiscard]] auto operator()(AsmOperandAST* ast) -> DeclarationAST*;
-
-  [[nodiscard]] auto operator()(AsmQualifierAST* ast) -> DeclarationAST*;
-
-  [[nodiscard]] auto operator()(AsmClobberAST* ast) -> DeclarationAST*;
-
-  [[nodiscard]] auto operator()(AsmGotoLabelAST* ast) -> DeclarationAST*;
 };
 
 struct ASTRewriter::StatementVisitor {
@@ -1416,6 +1408,49 @@ auto ASTRewriter::operator()(NestedNamespaceSpecifierAST* ast)
   return copy;
 }
 
+auto ASTRewriter::operator()(AsmOperandAST* ast) -> AsmOperandAST* {
+  auto copy = make_node<AsmOperandAST>(arena());
+
+  copy->lbracketLoc = ast->lbracketLoc;
+  copy->symbolicNameLoc = ast->symbolicNameLoc;
+  copy->rbracketLoc = ast->rbracketLoc;
+  copy->constraintLiteralLoc = ast->constraintLiteralLoc;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->expression = operator()(ast->expression);
+  copy->rparenLoc = ast->rparenLoc;
+  copy->symbolicName = ast->symbolicName;
+  copy->constraintLiteral = ast->constraintLiteral;
+
+  return copy;
+}
+
+auto ASTRewriter::operator()(AsmQualifierAST* ast) -> AsmQualifierAST* {
+  auto copy = make_node<AsmQualifierAST>(arena());
+
+  copy->qualifierLoc = ast->qualifierLoc;
+  copy->qualifier = ast->qualifier;
+
+  return copy;
+}
+
+auto ASTRewriter::operator()(AsmClobberAST* ast) -> AsmClobberAST* {
+  auto copy = make_node<AsmClobberAST>(arena());
+
+  copy->literalLoc = ast->literalLoc;
+  copy->literal = ast->literal;
+
+  return copy;
+}
+
+auto ASTRewriter::operator()(AsmGotoLabelAST* ast) -> AsmGotoLabelAST* {
+  auto copy = make_node<AsmGotoLabelAST>(arena());
+
+  copy->identifierLoc = ast->identifierLoc;
+  copy->identifier = ast->identifier;
+
+  return copy;
+}
+
 auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
   auto copy = make_node<TranslationUnitAST>(arena());
 
@@ -2013,53 +2048,6 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->rbracketLoc = ast->rbracketLoc;
   copy->initializer = rewrite(ast->initializer);
   copy->semicolonLoc = ast->semicolonLoc;
-
-  return copy;
-}
-
-auto ASTRewriter::DeclarationVisitor::operator()(AsmOperandAST* ast)
-    -> DeclarationAST* {
-  auto copy = make_node<AsmOperandAST>(arena());
-
-  copy->lbracketLoc = ast->lbracketLoc;
-  copy->symbolicNameLoc = ast->symbolicNameLoc;
-  copy->rbracketLoc = ast->rbracketLoc;
-  copy->constraintLiteralLoc = ast->constraintLiteralLoc;
-  copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite(ast->expression);
-  copy->rparenLoc = ast->rparenLoc;
-  copy->symbolicName = ast->symbolicName;
-  copy->constraintLiteral = ast->constraintLiteral;
-
-  return copy;
-}
-
-auto ASTRewriter::DeclarationVisitor::operator()(AsmQualifierAST* ast)
-    -> DeclarationAST* {
-  auto copy = make_node<AsmQualifierAST>(arena());
-
-  copy->qualifierLoc = ast->qualifierLoc;
-  copy->qualifier = ast->qualifier;
-
-  return copy;
-}
-
-auto ASTRewriter::DeclarationVisitor::operator()(AsmClobberAST* ast)
-    -> DeclarationAST* {
-  auto copy = make_node<AsmClobberAST>(arena());
-
-  copy->literalLoc = ast->literalLoc;
-  copy->literal = ast->literal;
-
-  return copy;
-}
-
-auto ASTRewriter::DeclarationVisitor::operator()(AsmGotoLabelAST* ast)
-    -> DeclarationAST* {
-  auto copy = make_node<AsmGotoLabelAST>(arena());
-
-  copy->identifierLoc = ast->identifierLoc;
-  copy->identifier = ast->identifier;
 
   return copy;
 }

@@ -778,11 +778,11 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AsmOperandAST final : public DeclarationAST {
+class AsmOperandAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmOperand;
 
-  AsmOperandAST() : DeclarationAST(Kind) {}
+  AsmOperandAST() : AST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation symbolicNameLoc;
@@ -800,11 +800,11 @@ class AsmOperandAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AsmQualifierAST final : public DeclarationAST {
+class AsmQualifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmQualifier;
 
-  AsmQualifierAST() : DeclarationAST(Kind) {}
+  AsmQualifierAST() : AST(Kind) {}
 
   SourceLocation qualifierLoc;
   TokenKind qualifier = TokenKind::T_EOF_SYMBOL;
@@ -815,11 +815,11 @@ class AsmQualifierAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AsmClobberAST final : public DeclarationAST {
+class AsmClobberAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmClobber;
 
-  AsmClobberAST() : DeclarationAST(Kind) {}
+  AsmClobberAST() : AST(Kind) {}
 
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
@@ -830,14 +830,443 @@ class AsmClobberAST final : public DeclarationAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class AsmGotoLabelAST final : public DeclarationAST {
+class AsmGotoLabelAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmGotoLabel;
 
-  AsmGotoLabelAST() : DeclarationAST(Kind) {}
+  AsmGotoLabelAST() : AST(Kind) {}
 
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class SplicerAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::Splicer;
+
+  SplicerAST() : AST(Kind) {}
+
+  SourceLocation lbracketLoc;
+  SourceLocation colonLoc;
+  SourceLocation ellipsisLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation secondColonLoc;
+  SourceLocation rbracketLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class GlobalModuleFragmentAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::GlobalModuleFragment;
+
+  GlobalModuleFragmentAST() : AST(Kind) {}
+
+  SourceLocation moduleLoc;
+  SourceLocation semicolonLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class PrivateModuleFragmentAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::PrivateModuleFragment;
+
+  PrivateModuleFragmentAST() : AST(Kind) {}
+
+  SourceLocation moduleLoc;
+  SourceLocation colonLoc;
+  SourceLocation privateLoc;
+  SourceLocation semicolonLoc;
+  List<DeclarationAST*>* declarationList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ModuleDeclarationAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ModuleDeclaration;
+
+  ModuleDeclarationAST() : AST(Kind) {}
+
+  SourceLocation exportLoc;
+  SourceLocation moduleLoc;
+  ModuleNameAST* moduleName = nullptr;
+  ModulePartitionAST* modulePartition = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation semicolonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ModuleNameAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ModuleName;
+
+  ModuleNameAST() : AST(Kind) {}
+
+  ModuleQualifierAST* moduleQualifier = nullptr;
+  SourceLocation identifierLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ModuleQualifierAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ModuleQualifier;
+
+  ModuleQualifierAST() : AST(Kind) {}
+
+  ModuleQualifierAST* moduleQualifier = nullptr;
+  SourceLocation identifierLoc;
+  SourceLocation dotLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ModulePartitionAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ModulePartition;
+
+  ModulePartitionAST() : AST(Kind) {}
+
+  SourceLocation colonLoc;
+  ModuleNameAST* moduleName = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ImportNameAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ImportName;
+
+  ImportNameAST() : AST(Kind) {}
+
+  SourceLocation headerLoc;
+  ModulePartitionAST* modulePartition = nullptr;
+  ModuleNameAST* moduleName = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class InitDeclaratorAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::InitDeclarator;
+
+  InitDeclaratorAST() : AST(Kind) {}
+
+  DeclaratorAST* declarator = nullptr;
+  RequiresClauseAST* requiresClause = nullptr;
+  ExpressionAST* initializer = nullptr;
+  Symbol* symbol = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class DeclaratorAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::Declarator;
+
+  DeclaratorAST() : AST(Kind) {}
+
+  List<PtrOperatorAST*>* ptrOpList = nullptr;
+  CoreDeclaratorAST* coreDeclarator = nullptr;
+  List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class UsingDeclaratorAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::UsingDeclarator;
+
+  UsingDeclaratorAST() : AST(Kind) {}
+
+  SourceLocation typenameLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
+  SourceLocation ellipsisLoc;
+  UsingDeclarationSymbol* symbol = nullptr;
+  bool isPack = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class EnumeratorAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::Enumerator;
+
+  EnumeratorAST() : AST(Kind) {}
+
+  SourceLocation identifierLoc;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation equalLoc;
+  ExpressionAST* expression = nullptr;
+  const Identifier* identifier = nullptr;
+  EnumeratorSymbol* symbol = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypeIdAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TypeId;
+
+  TypeIdAST() : AST(Kind) {}
+
+  List<SpecifierAST*>* typeSpecifierList = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  const Type* type = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class HandlerAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::Handler;
+
+  HandlerAST() : AST(Kind) {}
+
+  SourceLocation catchLoc;
+  SourceLocation lparenLoc;
+  ExceptionDeclarationAST* exceptionDeclaration = nullptr;
+  SourceLocation rparenLoc;
+  CompoundStatementAST* statement = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class BaseSpecifierAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::BaseSpecifier;
+
+  BaseSpecifierAST() : AST(Kind) {}
+
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation virtualOrAccessLoc;
+  SourceLocation otherVirtualOrAccessLoc;
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation templateLoc;
+  UnqualifiedIdAST* unqualifiedId = nullptr;
+  SourceLocation ellipsisLoc;
+  bool isTemplateIntroduced = false;
+  bool isVirtual = false;
+  bool isVariadic = false;
+  TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
+  BaseClassSymbol* symbol = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class RequiresClauseAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::RequiresClause;
+
+  RequiresClauseAST() : AST(Kind) {}
+
+  SourceLocation requiresLoc;
+  ExpressionAST* expression = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class ParameterDeclarationClauseAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ParameterDeclarationClause;
+
+  ParameterDeclarationClauseAST() : AST(Kind) {}
+
+  List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
+  SourceLocation commaLoc;
+  SourceLocation ellipsisLoc;
+  FunctionParametersSymbol* functionParametersSymbol = nullptr;
+  bool isVariadic = false;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TrailingReturnTypeAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TrailingReturnType;
+
+  TrailingReturnTypeAST() : AST(Kind) {}
+
+  SourceLocation minusGreaterLoc;
+  TypeIdAST* typeId = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class LambdaSpecifierAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::LambdaSpecifier;
+
+  LambdaSpecifierAST() : AST(Kind) {}
+
+  SourceLocation specifierLoc;
+  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class TypeConstraintAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::TypeConstraint;
+
+  TypeConstraintAST() : AST(Kind) {}
+
+  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+  SourceLocation identifierLoc;
+  SourceLocation lessLoc;
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+  SourceLocation greaterLoc;
+  const Identifier* identifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AttributeArgumentClauseAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AttributeArgumentClause;
+
+  AttributeArgumentClauseAST() : AST(Kind) {}
+
+  SourceLocation lparenLoc;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AttributeAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::Attribute;
+
+  AttributeAST() : AST(Kind) {}
+
+  AttributeTokenAST* attributeToken = nullptr;
+  AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
+  SourceLocation ellipsisLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class AttributeUsingPrefixAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::AttributeUsingPrefix;
+
+  AttributeUsingPrefixAST() : AST(Kind) {}
+
+  SourceLocation usingLoc;
+  SourceLocation attributeNamespaceLoc;
+  SourceLocation colonLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NewPlacementAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::NewPlacement;
+
+  NewPlacementAST() : AST(Kind) {}
+
+  SourceLocation lparenLoc;
+  List<ExpressionAST*>* expressionList = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class NestedNamespaceSpecifierAST final : public AST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::NestedNamespaceSpecifier;
+
+  NestedNamespaceSpecifierAST() : AST(Kind) {}
+
+  SourceLocation inlineLoc;
+  SourceLocation identifierLoc;
+  SourceLocation scopeLoc;
+  const Identifier* identifier = nullptr;
+  bool isInline = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2298,435 +2727,6 @@ class SubscriptDesignatorAST final : public DesignatorAST {
   SourceLocation lbracketLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rbracketLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class SplicerAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::Splicer;
-
-  SplicerAST() : AST(Kind) {}
-
-  SourceLocation lbracketLoc;
-  SourceLocation colonLoc;
-  SourceLocation ellipsisLoc;
-  ExpressionAST* expression = nullptr;
-  SourceLocation secondColonLoc;
-  SourceLocation rbracketLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class GlobalModuleFragmentAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::GlobalModuleFragment;
-
-  GlobalModuleFragmentAST() : AST(Kind) {}
-
-  SourceLocation moduleLoc;
-  SourceLocation semicolonLoc;
-  List<DeclarationAST*>* declarationList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class PrivateModuleFragmentAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::PrivateModuleFragment;
-
-  PrivateModuleFragmentAST() : AST(Kind) {}
-
-  SourceLocation moduleLoc;
-  SourceLocation colonLoc;
-  SourceLocation privateLoc;
-  SourceLocation semicolonLoc;
-  List<DeclarationAST*>* declarationList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ModuleDeclarationAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ModuleDeclaration;
-
-  ModuleDeclarationAST() : AST(Kind) {}
-
-  SourceLocation exportLoc;
-  SourceLocation moduleLoc;
-  ModuleNameAST* moduleName = nullptr;
-  ModulePartitionAST* modulePartition = nullptr;
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-  SourceLocation semicolonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ModuleNameAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ModuleName;
-
-  ModuleNameAST() : AST(Kind) {}
-
-  ModuleQualifierAST* moduleQualifier = nullptr;
-  SourceLocation identifierLoc;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ModuleQualifierAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ModuleQualifier;
-
-  ModuleQualifierAST() : AST(Kind) {}
-
-  ModuleQualifierAST* moduleQualifier = nullptr;
-  SourceLocation identifierLoc;
-  SourceLocation dotLoc;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ModulePartitionAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ModulePartition;
-
-  ModulePartitionAST() : AST(Kind) {}
-
-  SourceLocation colonLoc;
-  ModuleNameAST* moduleName = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ImportNameAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ImportName;
-
-  ImportNameAST() : AST(Kind) {}
-
-  SourceLocation headerLoc;
-  ModulePartitionAST* modulePartition = nullptr;
-  ModuleNameAST* moduleName = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class InitDeclaratorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::InitDeclarator;
-
-  InitDeclaratorAST() : AST(Kind) {}
-
-  DeclaratorAST* declarator = nullptr;
-  RequiresClauseAST* requiresClause = nullptr;
-  ExpressionAST* initializer = nullptr;
-  Symbol* symbol = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class DeclaratorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::Declarator;
-
-  DeclaratorAST() : AST(Kind) {}
-
-  List<PtrOperatorAST*>* ptrOpList = nullptr;
-  CoreDeclaratorAST* coreDeclarator = nullptr;
-  List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class UsingDeclaratorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::UsingDeclarator;
-
-  UsingDeclaratorAST() : AST(Kind) {}
-
-  SourceLocation typenameLoc;
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
-  SourceLocation ellipsisLoc;
-  UsingDeclarationSymbol* symbol = nullptr;
-  bool isPack = false;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class EnumeratorAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::Enumerator;
-
-  EnumeratorAST() : AST(Kind) {}
-
-  SourceLocation identifierLoc;
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-  SourceLocation equalLoc;
-  ExpressionAST* expression = nullptr;
-  const Identifier* identifier = nullptr;
-  EnumeratorSymbol* symbol = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TypeIdAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::TypeId;
-
-  TypeIdAST() : AST(Kind) {}
-
-  List<SpecifierAST*>* typeSpecifierList = nullptr;
-  DeclaratorAST* declarator = nullptr;
-  const Type* type = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class HandlerAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::Handler;
-
-  HandlerAST() : AST(Kind) {}
-
-  SourceLocation catchLoc;
-  SourceLocation lparenLoc;
-  ExceptionDeclarationAST* exceptionDeclaration = nullptr;
-  SourceLocation rparenLoc;
-  CompoundStatementAST* statement = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class BaseSpecifierAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::BaseSpecifier;
-
-  BaseSpecifierAST() : AST(Kind) {}
-
-  List<AttributeSpecifierAST*>* attributeList = nullptr;
-  SourceLocation virtualOrAccessLoc;
-  SourceLocation otherVirtualOrAccessLoc;
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  SourceLocation templateLoc;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
-  SourceLocation ellipsisLoc;
-  bool isTemplateIntroduced = false;
-  bool isVirtual = false;
-  bool isVariadic = false;
-  TokenKind accessSpecifier = TokenKind::T_EOF_SYMBOL;
-  BaseClassSymbol* symbol = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class RequiresClauseAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::RequiresClause;
-
-  RequiresClauseAST() : AST(Kind) {}
-
-  SourceLocation requiresLoc;
-  ExpressionAST* expression = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class ParameterDeclarationClauseAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::ParameterDeclarationClause;
-
-  ParameterDeclarationClauseAST() : AST(Kind) {}
-
-  List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
-  SourceLocation commaLoc;
-  SourceLocation ellipsisLoc;
-  FunctionParametersSymbol* functionParametersSymbol = nullptr;
-  bool isVariadic = false;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TrailingReturnTypeAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::TrailingReturnType;
-
-  TrailingReturnTypeAST() : AST(Kind) {}
-
-  SourceLocation minusGreaterLoc;
-  TypeIdAST* typeId = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class LambdaSpecifierAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::LambdaSpecifier;
-
-  LambdaSpecifierAST() : AST(Kind) {}
-
-  SourceLocation specifierLoc;
-  TokenKind specifier = TokenKind::T_EOF_SYMBOL;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class TypeConstraintAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::TypeConstraint;
-
-  TypeConstraintAST() : AST(Kind) {}
-
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  SourceLocation identifierLoc;
-  SourceLocation lessLoc;
-  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
-  SourceLocation greaterLoc;
-  const Identifier* identifier = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class AttributeArgumentClauseAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::AttributeArgumentClause;
-
-  AttributeArgumentClauseAST() : AST(Kind) {}
-
-  SourceLocation lparenLoc;
-  SourceLocation rparenLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class AttributeAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::Attribute;
-
-  AttributeAST() : AST(Kind) {}
-
-  AttributeTokenAST* attributeToken = nullptr;
-  AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
-  SourceLocation ellipsisLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class AttributeUsingPrefixAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::AttributeUsingPrefix;
-
-  AttributeUsingPrefixAST() : AST(Kind) {}
-
-  SourceLocation usingLoc;
-  SourceLocation attributeNamespaceLoc;
-  SourceLocation colonLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NewPlacementAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::NewPlacement;
-
-  NewPlacementAST() : AST(Kind) {}
-
-  SourceLocation lparenLoc;
-  List<ExpressionAST*>* expressionList = nullptr;
-  SourceLocation rparenLoc;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
-class NestedNamespaceSpecifierAST final : public AST {
- public:
-  static constexpr ASTKind Kind = ASTKind::NestedNamespaceSpecifier;
-
-  NestedNamespaceSpecifierAST() : AST(Kind) {}
-
-  SourceLocation inlineLoc;
-  SourceLocation identifierLoc;
-  SourceLocation scopeLoc;
-  const Identifier* identifier = nullptr;
-  bool isInline = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4413,18 +4413,6 @@ auto visit(Visitor&& visitor, DeclarationAST* ast) {
     case StructuredBindingDeclarationAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<StructuredBindingDeclarationAST*>(ast));
-    case AsmOperandAST::Kind:
-      return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<AsmOperandAST*>(ast));
-    case AsmQualifierAST::Kind:
-      return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<AsmQualifierAST*>(ast));
-    case AsmClobberAST::Kind:
-      return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<AsmClobberAST*>(ast));
-    case AsmGotoLabelAST::Kind:
-      return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<AsmGotoLabelAST*>(ast));
     default:
       cxx_runtime_error("unexpected Declaration");
   }  // switch
@@ -4460,10 +4448,6 @@ template <>
     case AccessDeclarationAST::Kind:
     case ForRangeDeclarationAST::Kind:
     case StructuredBindingDeclarationAST::Kind:
-    case AsmOperandAST::Kind:
-    case AsmQualifierAST::Kind:
-    case AsmClobberAST::Kind:
-    case AsmGotoLabelAST::Kind:
       return static_cast<DeclarationAST*>(ast);
     default:
       return nullptr;

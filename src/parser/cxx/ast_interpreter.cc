@@ -251,14 +251,6 @@ struct ASTInterpreter::DeclarationVisitor {
 
   [[nodiscard]] auto operator()(StructuredBindingDeclarationAST* ast)
       -> DeclarationResult;
-
-  [[nodiscard]] auto operator()(AsmOperandAST* ast) -> DeclarationResult;
-
-  [[nodiscard]] auto operator()(AsmQualifierAST* ast) -> DeclarationResult;
-
-  [[nodiscard]] auto operator()(AsmClobberAST* ast) -> DeclarationResult;
-
-  [[nodiscard]] auto operator()(AsmGotoLabelAST* ast) -> DeclarationResult;
 };
 
 struct ASTInterpreter::StatementVisitor {
@@ -1514,6 +1506,24 @@ auto ASTInterpreter::operator()(NestedNamespaceSpecifierAST* ast)
   return {};
 }
 
+auto ASTInterpreter::operator()(AsmOperandAST* ast) -> DeclarationResult {
+  auto expressionResult = operator()(ast->expression);
+
+  return {};
+}
+
+auto ASTInterpreter::operator()(AsmQualifierAST* ast) -> DeclarationResult {
+  return {};
+}
+
+auto ASTInterpreter::operator()(AsmClobberAST* ast) -> DeclarationResult {
+  return {};
+}
+
+auto ASTInterpreter::operator()(AsmGotoLabelAST* ast) -> DeclarationResult {
+  return {};
+}
+
 auto ASTInterpreter::UnitVisitor::operator()(TranslationUnitAST* ast)
     -> UnitResult {
   for (auto node : ListView{ast->declarationList}) {
@@ -1824,28 +1834,6 @@ auto ASTInterpreter::DeclarationVisitor::operator()(
 
   auto initializerResult = accept(ast->initializer);
 
-  return {};
-}
-
-auto ASTInterpreter::DeclarationVisitor::operator()(AsmOperandAST* ast)
-    -> DeclarationResult {
-  auto expressionResult = accept(ast->expression);
-
-  return {};
-}
-
-auto ASTInterpreter::DeclarationVisitor::operator()(AsmQualifierAST* ast)
-    -> DeclarationResult {
-  return {};
-}
-
-auto ASTInterpreter::DeclarationVisitor::operator()(AsmClobberAST* ast)
-    -> DeclarationResult {
-  return {};
-}
-
-auto ASTInterpreter::DeclarationVisitor::operator()(AsmGotoLabelAST* ast)
-    -> DeclarationResult {
   return {};
 }
 

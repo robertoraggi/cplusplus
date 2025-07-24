@@ -64,16 +64,17 @@ void Codegen::statement(StatementAST* ast) {
   visit(StatementVisitor{*this}, ast);
 }
 
-auto Codegen::operator()(ExceptionDeclarationAST* ast)
+auto Codegen::exceptionDeclaration(ExceptionDeclarationAST* ast)
     -> ExceptionDeclarationResult {
   if (ast) return visit(ExceptionDeclarationVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(HandlerAST* ast) -> HandlerResult {
+auto Codegen::handler(HandlerAST* ast) -> HandlerResult {
   if (!ast) return {};
 
-  auto exceptionDeclarationResult = operator()(ast->exceptionDeclaration);
+  auto exceptionDeclarationResult =
+      exceptionDeclaration(ast->exceptionDeclaration);
   statement(ast->statement);
 
   return {};
@@ -232,14 +233,14 @@ auto Codegen::ExceptionDeclarationVisitor::operator()(
 auto Codegen::ExceptionDeclarationVisitor::operator()(
     TypeExceptionDeclarationAST* ast) -> ExceptionDeclarationResult {
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   for (auto node : ListView{ast->typeSpecifierList}) {
-    auto value = gen(node);
+    auto value = gen.specifier(node);
   }
 
-  auto declaratorResult = gen(ast->declarator);
+  auto declaratorResult = gen.declarator(ast->declarator);
 
   return {};
 }

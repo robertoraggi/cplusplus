@@ -156,10 +156,36 @@ class ASTEncoder : ASTVisitor {
   void visit(AccessDeclarationAST* ast) override;
   void visit(ForRangeDeclarationAST* ast) override;
   void visit(StructuredBindingDeclarationAST* ast) override;
+
   void visit(AsmOperandAST* ast) override;
   void visit(AsmQualifierAST* ast) override;
   void visit(AsmClobberAST* ast) override;
   void visit(AsmGotoLabelAST* ast) override;
+  void visit(SplicerAST* ast) override;
+  void visit(GlobalModuleFragmentAST* ast) override;
+  void visit(PrivateModuleFragmentAST* ast) override;
+  void visit(ModuleDeclarationAST* ast) override;
+  void visit(ModuleNameAST* ast) override;
+  void visit(ModuleQualifierAST* ast) override;
+  void visit(ModulePartitionAST* ast) override;
+  void visit(ImportNameAST* ast) override;
+  void visit(InitDeclaratorAST* ast) override;
+  void visit(DeclaratorAST* ast) override;
+  void visit(UsingDeclaratorAST* ast) override;
+  void visit(EnumeratorAST* ast) override;
+  void visit(TypeIdAST* ast) override;
+  void visit(HandlerAST* ast) override;
+  void visit(BaseSpecifierAST* ast) override;
+  void visit(RequiresClauseAST* ast) override;
+  void visit(ParameterDeclarationClauseAST* ast) override;
+  void visit(TrailingReturnTypeAST* ast) override;
+  void visit(LambdaSpecifierAST* ast) override;
+  void visit(TypeConstraintAST* ast) override;
+  void visit(AttributeArgumentClauseAST* ast) override;
+  void visit(AttributeAST* ast) override;
+  void visit(AttributeUsingPrefixAST* ast) override;
+  void visit(NewPlacementAST* ast) override;
+  void visit(NestedNamespaceSpecifierAST* ast) override;
 
   void visit(LabeledStatementAST* ast) override;
   void visit(CaseStatementAST* ast) override;
@@ -249,32 +275,6 @@ class ASTEncoder : ASTVisitor {
 
   void visit(DotDesignatorAST* ast) override;
   void visit(SubscriptDesignatorAST* ast) override;
-
-  void visit(SplicerAST* ast) override;
-  void visit(GlobalModuleFragmentAST* ast) override;
-  void visit(PrivateModuleFragmentAST* ast) override;
-  void visit(ModuleDeclarationAST* ast) override;
-  void visit(ModuleNameAST* ast) override;
-  void visit(ModuleQualifierAST* ast) override;
-  void visit(ModulePartitionAST* ast) override;
-  void visit(ImportNameAST* ast) override;
-  void visit(InitDeclaratorAST* ast) override;
-  void visit(DeclaratorAST* ast) override;
-  void visit(UsingDeclaratorAST* ast) override;
-  void visit(EnumeratorAST* ast) override;
-  void visit(TypeIdAST* ast) override;
-  void visit(HandlerAST* ast) override;
-  void visit(BaseSpecifierAST* ast) override;
-  void visit(RequiresClauseAST* ast) override;
-  void visit(ParameterDeclarationClauseAST* ast) override;
-  void visit(TrailingReturnTypeAST* ast) override;
-  void visit(LambdaSpecifierAST* ast) override;
-  void visit(TypeConstraintAST* ast) override;
-  void visit(AttributeArgumentClauseAST* ast) override;
-  void visit(AttributeAST* ast) override;
-  void visit(AttributeUsingPrefixAST* ast) override;
-  void visit(NewPlacementAST* ast) override;
-  void visit(NestedNamespaceSpecifierAST* ast) override;
 
   void visit(TemplateTypeParameterAST* ast) override;
   void visit(NonTypeTemplateParameterAST* ast) override;

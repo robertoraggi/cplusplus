@@ -127,6 +127,10 @@ class ASTRewriter {
   [[nodiscard]] auto operator()(NewPlacementAST* ast) -> NewPlacementAST*;
   [[nodiscard]] auto operator()(NestedNamespaceSpecifierAST* ast)
       -> NestedNamespaceSpecifierAST*;
+  [[nodiscard]] auto operator()(AsmOperandAST* ast) -> AsmOperandAST*;
+  [[nodiscard]] auto operator()(AsmQualifierAST* ast) -> AsmQualifierAST*;
+  [[nodiscard]] auto operator()(AsmClobberAST* ast) -> AsmClobberAST*;
+  [[nodiscard]] auto operator()(AsmGotoLabelAST* ast) -> AsmGotoLabelAST*;
 
  private:
   struct UnitVisitor;

@@ -64,10 +64,37 @@ class ASTVisitor {
   virtual void visit(AccessDeclarationAST* ast);
   virtual void visit(ForRangeDeclarationAST* ast);
   virtual void visit(StructuredBindingDeclarationAST* ast);
+
+  // AST
   virtual void visit(AsmOperandAST* ast);
   virtual void visit(AsmQualifierAST* ast);
   virtual void visit(AsmClobberAST* ast);
   virtual void visit(AsmGotoLabelAST* ast);
+  virtual void visit(SplicerAST* ast);
+  virtual void visit(GlobalModuleFragmentAST* ast);
+  virtual void visit(PrivateModuleFragmentAST* ast);
+  virtual void visit(ModuleDeclarationAST* ast);
+  virtual void visit(ModuleNameAST* ast);
+  virtual void visit(ModuleQualifierAST* ast);
+  virtual void visit(ModulePartitionAST* ast);
+  virtual void visit(ImportNameAST* ast);
+  virtual void visit(InitDeclaratorAST* ast);
+  virtual void visit(DeclaratorAST* ast);
+  virtual void visit(UsingDeclaratorAST* ast);
+  virtual void visit(EnumeratorAST* ast);
+  virtual void visit(TypeIdAST* ast);
+  virtual void visit(HandlerAST* ast);
+  virtual void visit(BaseSpecifierAST* ast);
+  virtual void visit(RequiresClauseAST* ast);
+  virtual void visit(ParameterDeclarationClauseAST* ast);
+  virtual void visit(TrailingReturnTypeAST* ast);
+  virtual void visit(LambdaSpecifierAST* ast);
+  virtual void visit(TypeConstraintAST* ast);
+  virtual void visit(AttributeArgumentClauseAST* ast);
+  virtual void visit(AttributeAST* ast);
+  virtual void visit(AttributeUsingPrefixAST* ast);
+  virtual void visit(NewPlacementAST* ast);
+  virtual void visit(NestedNamespaceSpecifierAST* ast);
 
   // StatementAST
   virtual void visit(LabeledStatementAST* ast);
@@ -161,33 +188,6 @@ class ASTVisitor {
   // DesignatorAST
   virtual void visit(DotDesignatorAST* ast);
   virtual void visit(SubscriptDesignatorAST* ast);
-
-  // AST
-  virtual void visit(SplicerAST* ast);
-  virtual void visit(GlobalModuleFragmentAST* ast);
-  virtual void visit(PrivateModuleFragmentAST* ast);
-  virtual void visit(ModuleDeclarationAST* ast);
-  virtual void visit(ModuleNameAST* ast);
-  virtual void visit(ModuleQualifierAST* ast);
-  virtual void visit(ModulePartitionAST* ast);
-  virtual void visit(ImportNameAST* ast);
-  virtual void visit(InitDeclaratorAST* ast);
-  virtual void visit(DeclaratorAST* ast);
-  virtual void visit(UsingDeclaratorAST* ast);
-  virtual void visit(EnumeratorAST* ast);
-  virtual void visit(TypeIdAST* ast);
-  virtual void visit(HandlerAST* ast);
-  virtual void visit(BaseSpecifierAST* ast);
-  virtual void visit(RequiresClauseAST* ast);
-  virtual void visit(ParameterDeclarationClauseAST* ast);
-  virtual void visit(TrailingReturnTypeAST* ast);
-  virtual void visit(LambdaSpecifierAST* ast);
-  virtual void visit(TypeConstraintAST* ast);
-  virtual void visit(AttributeArgumentClauseAST* ast);
-  virtual void visit(AttributeAST* ast);
-  virtual void visit(AttributeUsingPrefixAST* ast);
-  virtual void visit(NewPlacementAST* ast);
-  virtual void visit(NestedNamespaceSpecifierAST* ast);
 
   // TemplateParameterAST
   virtual void visit(TemplateTypeParameterAST* ast);

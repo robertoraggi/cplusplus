@@ -27,6 +27,10 @@ table Source {
 }
 
 union AST {
+  AsmOperand,
+  AsmQualifier,
+  AsmClobber,
+  AsmGotoLabel,
   Splicer,
   GlobalModuleFragment,
   PrivateModuleFragment,
@@ -100,10 +104,6 @@ union Declaration {
   AccessDeclaration,
   ForRangeDeclaration,
   StructuredBindingDeclaration,
-  AsmOperand,
-  AsmQualifier,
-  AsmClobber,
-  AsmGotoLabel,
 }
 
 union DeclaratorChunk {
@@ -333,6 +333,32 @@ union UnqualifiedId {
   SimpleTemplateId,
   LiteralOperatorTemplateId,
   OperatorFunctionTemplateId,
+}
+
+table AsmOperand /* AST */ {
+  expression: Expression;
+  symbolic_name: string;
+  lbracket_loc: uint32;
+  symbolic_name_loc: uint32;
+  rbracket_loc: uint32;
+  constraint_literal_loc: uint32;
+  lparen_loc: uint32;
+  rparen_loc: uint32;
+}
+
+table AsmQualifier /* AST */ {
+  qualifier: uint32;
+  qualifier_loc: uint32;
+}
+
+table AsmClobber /* AST */ {
+  literal: string;
+  literal_loc: uint32;
+}
+
+table AsmGotoLabel /* AST */ {
+  identifier: string;
+  identifier_loc: uint32;
 }
 
 table Splicer /* AST */ {
@@ -786,32 +812,6 @@ table StructuredBindingDeclaration /* DeclarationAST */ {
   lbracket_loc: uint32;
   rbracket_loc: uint32;
   semicolon_loc: uint32;
-}
-
-table AsmOperand /* DeclarationAST */ {
-  expression: Expression;
-  symbolic_name: string;
-  lbracket_loc: uint32;
-  symbolic_name_loc: uint32;
-  rbracket_loc: uint32;
-  constraint_literal_loc: uint32;
-  lparen_loc: uint32;
-  rparen_loc: uint32;
-}
-
-table AsmQualifier /* DeclarationAST */ {
-  qualifier: uint32;
-  qualifier_loc: uint32;
-}
-
-table AsmClobber /* DeclarationAST */ {
-  literal: string;
-  literal_loc: uint32;
-}
-
-table AsmGotoLabel /* DeclarationAST */ {
-  identifier: string;
-  identifier_loc: uint32;
 }
 
 table FunctionDeclaratorChunk /* DeclaratorChunkAST */ {

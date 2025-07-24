@@ -104,65 +104,131 @@ class Codegen {
 
   // run on the base nodes
   [[nodiscard]] auto operator()(UnitAST* ast) -> UnitResult;
-  [[nodiscard]] auto operator()(DeclarationAST* ast) -> DeclarationResult;
+
+  [[nodiscard]] auto declaration(DeclarationAST* ast) -> DeclarationResult;
 
   void statement(StatementAST* ast);
+
   [[nodiscard]] auto expression(ExpressionAST* ast) -> ExpressionResult;
 
-  [[nodiscard]] auto operator()(TemplateParameterAST* ast)
+  [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterResult;
-  [[nodiscard]] auto operator()(SpecifierAST* ast) -> SpecifierResult;
-  [[nodiscard]] auto operator()(PtrOperatorAST* ast) -> PtrOperatorResult;
-  [[nodiscard]] auto operator()(CoreDeclaratorAST* ast) -> CoreDeclaratorResult;
-  [[nodiscard]] auto operator()(DeclaratorChunkAST* ast)
+
+  [[nodiscard]] auto specifier(SpecifierAST* ast) -> SpecifierResult;
+
+  [[nodiscard]] auto ptrOperator(PtrOperatorAST* ast) -> PtrOperatorResult;
+
+  [[nodiscard]] auto coreDeclarator(CoreDeclaratorAST* ast)
+      -> CoreDeclaratorResult;
+
+  [[nodiscard]] auto declaratorChunk(DeclaratorChunkAST* ast)
       -> DeclaratorChunkResult;
-  [[nodiscard]] auto operator()(UnqualifiedIdAST* ast) -> UnqualifiedIdResult;
-  [[nodiscard]] auto operator()(NestedNameSpecifierAST* ast)
+
+  [[nodiscard]] auto unqualifiedId(UnqualifiedIdAST* ast)
+      -> UnqualifiedIdResult;
+
+  [[nodiscard]] auto nestedNameSpecifier(NestedNameSpecifierAST* ast)
       -> NestedNameSpecifierResult;
-  [[nodiscard]] auto operator()(FunctionBodyAST* ast) -> FunctionBodyResult;
-  [[nodiscard]] auto operator()(TemplateArgumentAST* ast)
+
+  [[nodiscard]] auto functionBody(FunctionBodyAST* ast) -> FunctionBodyResult;
+
+  [[nodiscard]] auto templateArgument(TemplateArgumentAST* ast)
       -> TemplateArgumentResult;
-  [[nodiscard]] auto operator()(ExceptionSpecifierAST* ast)
+
+  [[nodiscard]] auto exceptionSpecifier(ExceptionSpecifierAST* ast)
       -> ExceptionSpecifierResult;
-  [[nodiscard]] auto operator()(RequirementAST* ast) -> RequirementResult;
-  [[nodiscard]] auto operator()(NewInitializerAST* ast) -> NewInitializerResult;
-  [[nodiscard]] auto operator()(MemInitializerAST* ast) -> MemInitializerResult;
-  [[nodiscard]] auto operator()(LambdaCaptureAST* ast) -> LambdaCaptureResult;
-  [[nodiscard]] auto operator()(ExceptionDeclarationAST* ast)
+
+  [[nodiscard]] auto requirement(RequirementAST* ast) -> RequirementResult;
+
+  [[nodiscard]] auto newInitializer(NewInitializerAST* ast)
+      -> NewInitializerResult;
+
+  [[nodiscard]] auto memInitializer(MemInitializerAST* ast)
+      -> MemInitializerResult;
+
+  [[nodiscard]] auto lambdaCapture(LambdaCaptureAST* ast)
+      -> LambdaCaptureResult;
+
+  [[nodiscard]] auto exceptionDeclaration(ExceptionDeclarationAST* ast)
       -> ExceptionDeclarationResult;
-  [[nodiscard]] auto operator()(AttributeSpecifierAST* ast)
+
+  [[nodiscard]] auto attributeSpecifier(AttributeSpecifierAST* ast)
       -> AttributeSpecifierResult;
-  [[nodiscard]] auto operator()(AttributeTokenAST* ast) -> AttributeTokenResult;
+
+  [[nodiscard]] auto attributeToken(AttributeTokenAST* ast)
+      -> AttributeTokenResult;
 
   // run on the misc nodes
-  auto operator()(SplicerAST* ast) -> SplicerResult;
-  auto operator()(GlobalModuleFragmentAST* ast) -> GlobalModuleFragmentResult;
-  auto operator()(PrivateModuleFragmentAST* ast) -> PrivateModuleFragmentResult;
-  auto operator()(ModuleDeclarationAST* ast) -> ModuleDeclarationResult;
-  auto operator()(ModuleNameAST* ast) -> ModuleNameResult;
-  auto operator()(ModuleQualifierAST* ast) -> ModuleQualifierResult;
-  auto operator()(ModulePartitionAST* ast) -> ModulePartitionResult;
-  auto operator()(ImportNameAST* ast) -> ImportNameResult;
-  auto operator()(InitDeclaratorAST* ast) -> InitDeclaratorResult;
-  auto operator()(DeclaratorAST* ast) -> DeclaratorResult;
-  auto operator()(UsingDeclaratorAST* ast) -> UsingDeclaratorResult;
-  auto operator()(EnumeratorAST* ast) -> EnumeratorResult;
-  auto operator()(TypeIdAST* ast) -> TypeIdResult;
-  auto operator()(HandlerAST* ast) -> HandlerResult;
-  auto operator()(BaseSpecifierAST* ast) -> BaseSpecifierResult;
-  auto operator()(RequiresClauseAST* ast) -> RequiresClauseResult;
-  auto operator()(ParameterDeclarationClauseAST* ast)
-      -> ParameterDeclarationClauseResult;
-  auto operator()(TrailingReturnTypeAST* ast) -> TrailingReturnTypeResult;
-  auto operator()(LambdaSpecifierAST* ast) -> LambdaSpecifierResult;
-  auto operator()(TypeConstraintAST* ast) -> TypeConstraintResult;
-  auto operator()(AttributeArgumentClauseAST* ast)
+  [[nodiscard]] auto splicer(SplicerAST* ast) -> SplicerResult;
+
+  [[nodiscard]] auto globalModuleFragment(GlobalModuleFragmentAST* ast)
+      -> GlobalModuleFragmentResult;
+
+  [[nodiscard]] auto privateModuleFragment(PrivateModuleFragmentAST* ast)
+      -> PrivateModuleFragmentResult;
+
+  [[nodiscard]] auto moduleDeclaration(ModuleDeclarationAST* ast)
+      -> ModuleDeclarationResult;
+
+  [[nodiscard]] auto moduleName(ModuleNameAST* ast) -> ModuleNameResult;
+
+  [[nodiscard]] auto moduleQualifier(ModuleQualifierAST* ast)
+      -> ModuleQualifierResult;
+
+  [[nodiscard]] auto modulePartition(ModulePartitionAST* ast)
+      -> ModulePartitionResult;
+
+  [[nodiscard]] auto importName(ImportNameAST* ast) -> ImportNameResult;
+
+  [[nodiscard]] auto initDeclarator(InitDeclaratorAST* ast)
+      -> InitDeclaratorResult;
+
+  [[nodiscard]] auto declarator(DeclaratorAST* ast) -> DeclaratorResult;
+
+  [[nodiscard]] auto usingDeclarator(UsingDeclaratorAST* ast)
+      -> UsingDeclaratorResult;
+
+  [[nodiscard]] auto enumerator(EnumeratorAST* ast) -> EnumeratorResult;
+
+  [[nodiscard]] auto typeId(TypeIdAST* ast) -> TypeIdResult;
+
+  [[nodiscard]] auto handler(HandlerAST* ast) -> HandlerResult;
+
+  [[nodiscard]] auto baseSpecifier(BaseSpecifierAST* ast)
+      -> BaseSpecifierResult;
+
+  [[nodiscard]] auto requiresClause(RequiresClauseAST* ast)
+      -> RequiresClauseResult;
+
+  [[nodiscard]] auto parameterDeclarationClause(
+      ParameterDeclarationClauseAST* ast) -> ParameterDeclarationClauseResult;
+
+  [[nodiscard]] auto trailingReturnType(TrailingReturnTypeAST* ast)
+      -> TrailingReturnTypeResult;
+
+  [[nodiscard]] auto lambdaSpecifier(LambdaSpecifierAST* ast)
+      -> LambdaSpecifierResult;
+
+  [[nodiscard]] auto typeConstraint(TypeConstraintAST* ast)
+      -> TypeConstraintResult;
+
+  [[nodiscard]] auto attributeArgumentClause(AttributeArgumentClauseAST* ast)
       -> AttributeArgumentClauseResult;
-  auto operator()(AttributeAST* ast) -> AttributeResult;
-  auto operator()(AttributeUsingPrefixAST* ast) -> AttributeUsingPrefixResult;
-  auto operator()(NewPlacementAST* ast) -> NewPlacementResult;
-  auto operator()(NestedNamespaceSpecifierAST* ast)
+
+  [[nodiscard]] auto attribute(AttributeAST* ast) -> AttributeResult;
+
+  [[nodiscard]] auto attributeUsingPrefix(AttributeUsingPrefixAST* ast)
+      -> AttributeUsingPrefixResult;
+
+  [[nodiscard]] auto newPlacement(NewPlacementAST* ast) -> NewPlacementResult;
+
+  [[nodiscard]] auto nestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast)
       -> NestedNamespaceSpecifierResult;
+
+  void asmOperand(AsmOperandAST* ast);
+  void asmQualifier(AsmQualifierAST* ast);
+  void asmClobber(AsmClobberAST* ast);
+  void asmGotoLabel(AsmGotoLabelAST* ast);
 
  private:
   [[nodiscard]] auto getLocation(SourceLocation loc) -> mlir::Location;

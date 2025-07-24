@@ -202,6 +202,10 @@ class ASTInterpreter {
   [[nodiscard]] auto operator()(NewPlacementAST* ast) -> NewPlacementResult;
   [[nodiscard]] auto operator()(NestedNamespaceSpecifierAST* ast)
       -> NestedNamespaceSpecifierResult;
+  [[nodiscard]] auto operator()(AsmOperandAST* ast) -> DeclarationResult;
+  [[nodiscard]] auto operator()(AsmQualifierAST* ast) -> DeclarationResult;
+  [[nodiscard]] auto operator()(AsmClobberAST* ast) -> DeclarationResult;
+  [[nodiscard]] auto operator()(AsmGotoLabelAST* ast) -> DeclarationResult;
 
  private:
   TranslationUnit* unit_ = nullptr;

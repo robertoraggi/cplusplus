@@ -115,69 +115,70 @@ struct Codegen::RequirementVisitor {
   [[nodiscard]] auto operator()(NestedRequirementAST* ast) -> RequirementResult;
 };
 
-auto Codegen::operator()(InitDeclaratorAST* ast) -> InitDeclaratorResult {
+auto Codegen::initDeclarator(InitDeclaratorAST* ast) -> InitDeclaratorResult {
   if (!ast) return {};
 
-  auto declaratorResult = operator()(ast->declarator);
-  auto requiresClauseResult = operator()(ast->requiresClause);
+  auto declaratorResult = declarator(ast->declarator);
+  auto requiresClauseResult = requiresClause(ast->requiresClause);
   auto initializerResult = expression(ast->initializer);
 
   return {};
 }
 
-auto Codegen::operator()(DeclaratorAST* ast) -> DeclaratorResult {
+auto Codegen::declarator(DeclaratorAST* ast) -> DeclaratorResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->ptrOpList}) {
-    auto value = operator()(node);
+    auto value = ptrOperator(node);
   }
 
-  auto coreDeclaratorResult = operator()(ast->coreDeclarator);
+  auto coreDeclaratorResult = coreDeclarator(ast->coreDeclarator);
 
   for (auto node : ListView{ast->declaratorChunkList}) {
-    auto value = operator()(node);
+    auto value = declaratorChunk(node);
   }
 
   return {};
 }
 
-auto Codegen::operator()(PtrOperatorAST* ast) -> PtrOperatorResult {
+auto Codegen::ptrOperator(PtrOperatorAST* ast) -> PtrOperatorResult {
   if (ast) return visit(PtrOperatorVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(CoreDeclaratorAST* ast) -> CoreDeclaratorResult {
+auto Codegen::coreDeclarator(CoreDeclaratorAST* ast) -> CoreDeclaratorResult {
   if (ast) return visit(CoreDeclaratorVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(DeclaratorChunkAST* ast) -> DeclaratorChunkResult {
+auto Codegen::declaratorChunk(DeclaratorChunkAST* ast)
+    -> DeclaratorChunkResult {
   if (ast) return visit(DeclaratorChunkVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(ExceptionSpecifierAST* ast)
+auto Codegen::exceptionSpecifier(ExceptionSpecifierAST* ast)
     -> ExceptionSpecifierResult {
   if (ast) return visit(ExceptionSpecifierVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(RequirementAST* ast) -> RequirementResult {
+auto Codegen::requirement(RequirementAST* ast) -> RequirementResult {
   if (ast) return visit(RequirementVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(MemInitializerAST* ast) -> MemInitializerResult {
+auto Codegen::memInitializer(MemInitializerAST* ast) -> MemInitializerResult {
   if (ast) return visit(MemInitializerVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(LambdaCaptureAST* ast) -> LambdaCaptureResult {
+auto Codegen::lambdaCapture(LambdaCaptureAST* ast) -> LambdaCaptureResult {
   if (ast) return visit(LambdaCaptureVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(RequiresClauseAST* ast) -> RequiresClauseResult {
+auto Codegen::requiresClause(RequiresClauseAST* ast) -> RequiresClauseResult {
   if (!ast) return {};
 
   auto expressionResult = expression(ast->expression);
@@ -185,22 +186,22 @@ auto Codegen::operator()(RequiresClauseAST* ast) -> RequiresClauseResult {
   return {};
 }
 
-auto Codegen::operator()(ParameterDeclarationClauseAST* ast)
+auto Codegen::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
     -> ParameterDeclarationClauseResult {
   if (!ast) return {};
 
   for (auto node : ListView{ast->parameterDeclarationList}) {
-    auto value = operator()(node);
+    auto value = declaration(node);
   }
 
   return {};
 }
 
-auto Codegen::operator()(TrailingReturnTypeAST* ast)
+auto Codegen::trailingReturnType(TrailingReturnTypeAST* ast)
     -> TrailingReturnTypeResult {
   if (!ast) return {};
 
-  auto typeIdResult = operator()(ast->typeId);
+  auto typeIdResult = typeId(ast->typeId);
 
   return {};
 }
@@ -208,11 +209,11 @@ auto Codegen::operator()(TrailingReturnTypeAST* ast)
 auto Codegen::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
     -> PtrOperatorResult {
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   for (auto node : ListView{ast->cvQualifierList}) {
-    auto value = gen(node);
+    auto value = gen.specifier(node);
   }
 
   return {};
@@ -221,7 +222,7 @@ auto Codegen::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
 auto Codegen::PtrOperatorVisitor::operator()(ReferenceOperatorAST* ast)
     -> PtrOperatorResult {
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   return {};
@@ -229,14 +230,15 @@ auto Codegen::PtrOperatorVisitor::operator()(ReferenceOperatorAST* ast)
 
 auto Codegen::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
     -> PtrOperatorResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   for (auto node : ListView{ast->cvQualifierList}) {
-    auto value = gen(node);
+    auto value = gen.specifier(node);
   }
 
   return {};
@@ -244,7 +246,7 @@ auto Codegen::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
 
 auto Codegen::CoreDeclaratorVisitor::operator()(BitfieldDeclaratorAST* ast)
     -> CoreDeclaratorResult {
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
   auto sizeExpressionResult = gen.expression(ast->sizeExpression);
 
   return {};
@@ -252,18 +254,19 @@ auto Codegen::CoreDeclaratorVisitor::operator()(BitfieldDeclaratorAST* ast)
 
 auto Codegen::CoreDeclaratorVisitor::operator()(ParameterPackAST* ast)
     -> CoreDeclaratorResult {
-  auto coreDeclaratorResult = gen(ast->coreDeclarator);
+  auto coreDeclaratorResult = gen.coreDeclarator(ast->coreDeclarator);
 
   return {};
 }
 
 auto Codegen::CoreDeclaratorVisitor::operator()(IdDeclaratorAST* ast)
     -> CoreDeclaratorResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   return {};
@@ -271,26 +274,29 @@ auto Codegen::CoreDeclaratorVisitor::operator()(IdDeclaratorAST* ast)
 
 auto Codegen::CoreDeclaratorVisitor::operator()(NestedDeclaratorAST* ast)
     -> CoreDeclaratorResult {
-  auto declaratorResult = gen(ast->declarator);
+  auto declaratorResult = gen.declarator(ast->declarator);
 
   return {};
 }
 
 auto Codegen::DeclaratorChunkVisitor::operator()(
     FunctionDeclaratorChunkAST* ast) -> DeclaratorChunkResult {
-  auto parameterDeclarationClauseResult = gen(ast->parameterDeclarationClause);
+  auto parameterDeclarationClauseResult =
+      gen.parameterDeclarationClause(ast->parameterDeclarationClause);
 
   for (auto node : ListView{ast->cvQualifierList}) {
-    auto value = gen(node);
+    auto value = gen.specifier(node);
   }
 
-  auto exceptionSpecifierResult = gen(ast->exceptionSpecifier);
+  auto exceptionSpecifierResult =
+      gen.exceptionSpecifier(ast->exceptionSpecifier);
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
-  auto trailingReturnTypeResult = gen(ast->trailingReturnType);
+  auto trailingReturnTypeResult =
+      gen.trailingReturnType(ast->trailingReturnType);
 
   return {};
 }
@@ -300,7 +306,7 @@ auto Codegen::DeclaratorChunkVisitor::operator()(ArrayDeclaratorChunkAST* ast)
   auto expressionResult = gen.expression(ast->expression);
 
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   return {};
@@ -328,15 +334,17 @@ auto Codegen::RequirementVisitor::operator()(SimpleRequirementAST* ast)
 auto Codegen::RequirementVisitor::operator()(CompoundRequirementAST* ast)
     -> RequirementResult {
   auto expressionResult = gen.expression(ast->expression);
-  auto typeConstraintResult = gen(ast->typeConstraint);
+
+  auto typeConstraintResult = gen.typeConstraint(ast->typeConstraint);
 
   return {};
 }
 
 auto Codegen::RequirementVisitor::operator()(TypeRequirementAST* ast)
     -> RequirementResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   return {};
 }
@@ -350,8 +358,9 @@ auto Codegen::RequirementVisitor::operator()(NestedRequirementAST* ast)
 
 auto Codegen::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
     -> MemInitializerResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
 
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
@@ -362,8 +371,9 @@ auto Codegen::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
 
 auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
     -> MemInitializerResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
   auto bracedInitListResult = gen.expression(ast->bracedInitList);
 
   return {};

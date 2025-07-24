@@ -59,18 +59,19 @@ struct Codegen::TemplateArgumentVisitor {
   auto operator()(ExpressionTemplateArgumentAST* ast) -> TemplateArgumentResult;
 };
 
-auto Codegen::operator()(UnqualifiedIdAST* ast) -> UnqualifiedIdResult {
+auto Codegen::unqualifiedId(UnqualifiedIdAST* ast) -> UnqualifiedIdResult {
   if (ast) return visit(UnqualifiedIdVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(NestedNameSpecifierAST* ast)
+auto Codegen::nestedNameSpecifier(NestedNameSpecifierAST* ast)
     -> NestedNameSpecifierResult {
   if (ast) return visit(NestedNameSpecifierVisitor{*this}, ast);
   return {};
 }
 
-auto Codegen::operator()(TemplateArgumentAST* ast) -> TemplateArgumentResult {
+auto Codegen::templateArgument(TemplateArgumentAST* ast)
+    -> TemplateArgumentResult {
   if (ast) return visit(TemplateArgumentVisitor{*this}, ast);
   return {};
 }
@@ -82,14 +83,14 @@ auto Codegen::UnqualifiedIdVisitor::operator()(NameIdAST* ast)
 
 auto Codegen::UnqualifiedIdVisitor::operator()(DestructorIdAST* ast)
     -> UnqualifiedIdResult {
-  auto idResult = gen(ast->id);
+  auto idResult = gen.unqualifiedId(ast->id);
 
   return {};
 }
 
 auto Codegen::UnqualifiedIdVisitor::operator()(DecltypeIdAST* ast)
     -> UnqualifiedIdResult {
-  auto decltypeSpecifierResult = gen(ast->decltypeSpecifier);
+  auto decltypeSpecifierResult = gen.specifier(ast->decltypeSpecifier);
 
   return {};
 }
@@ -106,7 +107,7 @@ auto Codegen::UnqualifiedIdVisitor::operator()(LiteralOperatorIdAST* ast)
 
 auto Codegen::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
     -> UnqualifiedIdResult {
-  auto typeIdResult = gen(ast->typeId);
+  auto typeIdResult = gen.typeId(ast->typeId);
 
   return {};
 }
@@ -114,7 +115,7 @@ auto Codegen::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
 auto Codegen::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
     -> UnqualifiedIdResult {
   for (auto node : ListView{ast->templateArgumentList}) {
-    auto value = gen(node);
+    auto value = gen.templateArgument(node);
   }
 
   return {};
@@ -122,10 +123,10 @@ auto Codegen::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
 
 auto Codegen::UnqualifiedIdVisitor::operator()(
     LiteralOperatorTemplateIdAST* ast) -> UnqualifiedIdResult {
-  auto literalOperatorIdResult = gen(ast->literalOperatorId);
+  auto literalOperatorIdResult = gen.unqualifiedId(ast->literalOperatorId);
 
   for (auto node : ListView{ast->templateArgumentList}) {
-    auto value = gen(node);
+    auto value = gen.templateArgument(node);
   }
 
   return {};
@@ -133,10 +134,10 @@ auto Codegen::UnqualifiedIdVisitor::operator()(
 
 auto Codegen::UnqualifiedIdVisitor::operator()(
     OperatorFunctionTemplateIdAST* ast) -> UnqualifiedIdResult {
-  auto operatorFunctionIdResult = gen(ast->operatorFunctionId);
+  auto operatorFunctionIdResult = gen.unqualifiedId(ast->operatorFunctionId);
 
   for (auto node : ListView{ast->templateArgumentList}) {
-    auto value = gen(node);
+    auto value = gen.templateArgument(node);
   }
 
   return {};
@@ -149,29 +150,31 @@ auto Codegen::NestedNameSpecifierVisitor::operator()(
 
 auto Codegen::NestedNameSpecifierVisitor::operator()(
     SimpleNestedNameSpecifierAST* ast) -> NestedNameSpecifierResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
 
   return {};
 }
 
 auto Codegen::NestedNameSpecifierVisitor::operator()(
     DecltypeNestedNameSpecifierAST* ast) -> NestedNameSpecifierResult {
-  auto decltypeSpecifierResult = gen(ast->decltypeSpecifier);
+  auto decltypeSpecifierResult = gen.specifier(ast->decltypeSpecifier);
 
   return {};
 }
 
 auto Codegen::NestedNameSpecifierVisitor::operator()(
     TemplateNestedNameSpecifierAST* ast) -> NestedNameSpecifierResult {
-  auto nestedNameSpecifierResult = gen(ast->nestedNameSpecifier);
-  auto templateIdResult = gen(ast->templateId);
+  auto nestedNameSpecifierResult =
+      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
+  auto templateIdResult = gen.unqualifiedId(ast->templateId);
 
   return {};
 }
 
 auto Codegen::TemplateArgumentVisitor::operator()(TypeTemplateArgumentAST* ast)
     -> TemplateArgumentResult {
-  auto typeIdResult = gen(ast->typeId);
+  auto typeIdResult = gen.typeId(ast->typeId);
 
   return {};
 }

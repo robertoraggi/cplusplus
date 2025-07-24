@@ -89,6 +89,10 @@ struct Codegen::ConvertType {
 };
 
 auto Codegen::convertType(const Type* type) -> mlir::Type {
+  if (!type) {
+    return builder_.getType<mlir::cxx::ExprType>();
+  }
+
   return visit(ConvertType{*this}, type);
 }
 
@@ -180,7 +184,8 @@ auto Codegen::ConvertType::operator()(const UnsignedInt128Type* type)
 }
 
 auto Codegen::ConvertType::operator()(const CharType* type) -> mlir::Type {
-  return getExprType();
+  // todo: toolchain specific
+  return getIntType(type, true);
 }
 
 auto Codegen::ConvertType::operator()(const Char8Type* type) -> mlir::Type {
