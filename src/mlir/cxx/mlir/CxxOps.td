@@ -57,10 +57,31 @@ def Cxx_IntegerType : Cxx_Type<"Integer", "int"> {
   let assemblyFormat = "`<` $width `,` $isSigned `>`";
 }
 
+def Cxx_FloatType : Cxx_Type<"Float", "float"> {
+  let parameters = (ins "unsigned":$width);
+
+  let assemblyFormat = "`<` $width `>`";
+}
+
 def Cxx_PointerType : Cxx_Type<"Pointer", "ptr"> {
   let parameters = (ins "Type":$elementType);
 
   let assemblyFormat = "`<` $elementType `>`";
+}
+
+def Cxx_ArrayType : Cxx_Type<"Array", "array"> {
+  let parameters = (ins "Type":$elementType, "unsigned":$size);
+
+  let assemblyFormat = "`<` $elementType `,` $size `>`";
+}
+
+def Cxx_ClassType : Cxx_Type<"Class", "class"> {
+  let parameters = (ins
+    StringRefParameter<"class name", [{ "" }]>:$name,
+    OptionalArrayRefParameter<"mlir::Type">:$body
+  );
+
+  let assemblyFormat = "`<` $name `(` $body `)` `>`";
 }
 
 // ops

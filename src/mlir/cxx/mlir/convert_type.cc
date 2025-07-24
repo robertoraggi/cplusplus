@@ -26,9 +26,12 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -40,6 +43,7 @@ struct Codegen::ConvertType {
 
   auto getExprType() const -> mlir::Type;
   auto getIntType(const Type* type, bool isSigned) -> mlir::Type;
+  auto getFloatType(const Type* type) -> mlir::Type;
 
   auto operator()(const VoidType* type) -> mlir::Type;
   auto operator()(const NullptrType* type) -> mlir::Type;
@@ -104,6 +108,11 @@ auto Codegen::ConvertType::getIntType(const Type* type, bool isSigned)
     -> mlir::Type {
   const auto width = memoryLayout()->sizeOf(type).value() * 8;
   return gen.builder_.getType<mlir::cxx::IntegerType>(width, isSigned);
+}
+
+auto Codegen::ConvertType::getFloatType(const Type* type) -> mlir::Type {
+  return gen.builder_.getType<mlir::cxx::FloatType>(
+      memoryLayout()->sizeOf(type).value() * 8);
 }
 
 auto Codegen::ConvertType::operator()(const VoidType* type) -> mlir::Type {
@@ -205,16 +214,16 @@ auto Codegen::ConvertType::operator()(const WideCharType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const FloatType* type) -> mlir::Type {
-  return gen.builder_.getF32Type();
+  return getFloatType(type);
 }
 
 auto Codegen::ConvertType::operator()(const DoubleType* type) -> mlir::Type {
-  return gen.builder_.getF64Type();
+  return getFloatType(type);
 }
 
 auto Codegen::ConvertType::operator()(const LongDoubleType* type)
     -> mlir::Type {
-  return getExprType();
+  return getFloatType(type);
 }
 
 auto Codegen::ConvertType::operator()(const QualType* type) -> mlir::Type {
@@ -223,12 +232,14 @@ auto Codegen::ConvertType::operator()(const QualType* type) -> mlir::Type {
 
 auto Codegen::ConvertType::operator()(const BoundedArrayType* type)
     -> mlir::Type {
-  return getExprType();
+  auto elementType = gen.convertType(type->elementType());
+  return gen.builder_.getType<mlir::cxx::ArrayType>(elementType, type->size());
 }
 
 auto Codegen::ConvertType::operator()(const UnboundedArrayType* type)
     -> mlir::Type {
-  return getExprType();
+  auto elementType = gen.convertType(type->elementType());
+  return gen.builder_.getType<mlir::cxx::PointerType>(elementType);
 }
 
 auto Codegen::ConvertType::operator()(const PointerType* type) -> mlir::Type {
@@ -251,7 +262,38 @@ auto Codegen::ConvertType::operator()(const FunctionType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
-  return getExprType();
+  auto classSymbol = type->symbol();
+
+  auto ctx = gen.builder_.getContext();
+
+  if (auto it = gen.classNames_.find(classSymbol);
+      it != gen.classNames_.end()) {
+    return mlir::cxx::ClassType::get(ctx, it->second, {});
+  }
+
+  auto name = to_string(classSymbol->name());
+  if (name.empty()) {
+    auto loc = type->symbol()->location();
+    name = std::format("$class_{}", loc.index());
+  }
+
+  gen.classNames_[classSymbol] = name;
+
+  // todo: layout of parent classes, anonymous nested fields, etc.
+
+  std::vector<mlir::Type> memberTypes;
+
+  for (auto member : classSymbol->scope()->symbols()) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field) continue;
+    if (field->isStatic()) continue;
+    auto memberType = gen.convertType(member->type());
+    memberTypes.push_back(memberType);
+  }
+
+  auto classType = mlir::cxx::ClassType::get(ctx, name, memberTypes);
+
+  return classType;
 }
 
 auto Codegen::ConvertType::operator()(const EnumType* type) -> mlir::Type {
