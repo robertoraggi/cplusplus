@@ -93,7 +93,7 @@ struct CxxDocument::Private {
 };
 
 void CxxDocument::Private::configure() {
-  auto preprocesor = unit.preprocessor();
+  auto preprocessor = unit.preprocessor();
 
   auto toolchainId = cli.getSingle("-toolchain");
 
@@ -102,9 +102,15 @@ void CxxDocument::Private::configure() {
   }
 
   if (toolchainId == "darwin" || toolchainId == "macos") {
-    toolchain = std::make_unique<MacOSToolchain>(preprocesor);
+    std::string host = "aarch64";
+#ifdef __x86_64__
+    host = "x86_64";
+#endif
+
+    toolchain = std::make_unique<MacOSToolchain>(
+        preprocessor, cli.getSingle("-arch").value_or(host));
   } else if (toolchainId == "wasm32") {
-    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocesor);
+    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
 
     fs::path app_dir;
 
@@ -130,17 +136,22 @@ void CxxDocument::Private::configure() {
 
     toolchain = std::move(wasmToolchain);
   } else if (toolchainId == "linux") {
-    std::string host;
+    std::string host = "x86_64";
 #ifdef __aarch64__
     host = "aarch64";
-#elif __x86_64__
-    host = "x86_64";
 #endif
 
-    std::string arch = cli.getSingle("-arch").value_or(host);
-    toolchain = std::make_unique<GCCLinuxToolchain>(preprocesor, arch);
+    toolchain = std::make_unique<GCCLinuxToolchain>(
+        preprocessor, cli.getSingle("-arch").value_or(host));
+
   } else if (toolchainId == "windows") {
-    auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocesor);
+    std::string host = "x86_64";
+#ifdef __aarch64__
+    host = "aarch64";
+#endif
+
+    auto windowsToolchain = std::make_unique<WindowsToolchain>(
+        preprocessor, cli.getSingle("-arch").value_or(host));
 
     if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
       windowsToolchain->setVctoolsdir(paths.back());
@@ -168,21 +179,21 @@ void CxxDocument::Private::configure() {
   }
 
   for (const auto& path : cli.get("-I")) {
-    preprocesor->addSystemIncludePath(path);
+    preprocessor->addSystemIncludePath(path);
   }
 
   for (const auto& macro : cli.get("-D")) {
     auto sep = macro.find_first_of("=");
 
     if (sep == std::string::npos) {
-      preprocesor->defineMacro(macro, "1");
+      preprocessor->defineMacro(macro, "1");
     } else {
-      preprocesor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
     }
   }
 
   for (const auto& macro : cli.get("-U")) {
-    preprocesor->undefMacro(macro);
+    preprocessor->undefMacro(macro);
   }
 }
 

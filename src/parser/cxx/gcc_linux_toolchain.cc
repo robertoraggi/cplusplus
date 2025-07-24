@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/gcc_linux_toolchain.h>
+#include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 
@@ -29,6 +30,14 @@ namespace cxx {
 GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
                                      std::string arch)
     : Toolchain(preprocessor), arch_(std::move(arch)) {
+  if (arch_ == "aarch64") {
+    memoryLayout()->setSizeOfLongDouble(8);
+  } else if (arch_ == "x86_64") {
+    memoryLayout()->setSizeOfLongDouble(16);
+  } else {
+    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+  }
+
   for (int version : {15, 14, 13, 12, 11, 10, 9}) {
     const auto path = fs::path(
         std::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));

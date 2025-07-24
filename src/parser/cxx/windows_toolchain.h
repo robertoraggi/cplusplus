@@ -28,7 +28,7 @@ namespace cxx {
 
 class WindowsToolchain final : public Toolchain {
  public:
-  using Toolchain::Toolchain;
+  explicit WindowsToolchain(Preprocessor* preprocessor, std::string arch);
 
   void setVctoolsdir(std::string path);
   void setWinsdkdir(std::string path);
@@ -40,6 +40,7 @@ class WindowsToolchain final : public Toolchain {
   void addPredefinedMacros() override;
 
  private:
+  std::string arch_;
   std::string vctoolsdir_;
   std::string winsdkdir_;
   std::string winsdkversion_;

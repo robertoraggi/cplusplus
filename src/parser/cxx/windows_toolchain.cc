@@ -21,6 +21,7 @@
 #include <cxx/windows_toolchain.h>
 
 // cxx
+#include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 
@@ -28,6 +29,15 @@
 #include <utility>
 
 namespace cxx {
+
+WindowsToolchain::WindowsToolchain(Preprocessor *preprocessor,
+                                   std::string arch = "x86_64")
+    : Toolchain(preprocessor), arch_(std::move(arch)) {
+  memoryLayout()->setSizeOfLong(4);
+  memoryLayout()->setSizeOfLongLong(8);
+  memoryLayout()->setSizeOfLongDouble(8);
+  memoryLayout()->setSizeOfPointer(8);
+}
 
 void WindowsToolchain::setVctoolsdir(std::string path) {
   vctoolsdir_ = std::move(path);
@@ -72,28 +82,6 @@ void WindowsToolchain::addSystemIncludePaths() {
 void WindowsToolchain::addSystemCppIncludePaths() {}
 
 void WindowsToolchain::addPredefinedMacros() {
-  // clang-format off
-  defineMacro("__cplusplus", "202101L");
-  defineMacro("_WIN32", "1");
-  defineMacro("_WIN64", "1");
-  defineMacro("_MT", "1");
-  defineMacro("_M_AMD64", "100");
-  defineMacro("_M_X64", "100");
-  defineMacro("_MSC_BUILD", "1");
-  defineMacro("_MSC_EXTENSIONS", "1");
-  defineMacro("_MSC_FULL_VER", "193000000");
-  defineMacro("_MSC_VER", "1930");
-  defineMacro("_MSVC_LANG", "201705L");
-  defineMacro("_CPPRTTI", "1");
-  defineMacro("_CPPUNWIND", "1");
-  defineMacro("_WCHAR_T_DEFINED", "1");
-  defineMacro("__BOOL_DEFINED", "1");
-
-  defineMacro("__int8", "char");
-  defineMacro("__int16", "short");
-  defineMacro("__int32", "int");
-  defineMacro("__int64", "long long");
-
   defineMacro("__pragma(a)", "");
   defineMacro("__declspec(a)", "");
   defineMacro("__cdecl", "");
@@ -105,7 +93,24 @@ void WindowsToolchain::addPredefinedMacros() {
   defineMacro("__unaligned", "");
   defineMacro("_Pragma(a)", "");
 
-  // clang-format on
+  addCommonMacros();
+  addCommonWindowsMacros();
+
+  if (language() == LanguageKind::kCXX) {
+    addCommonCxx26Macros();
+    addWindowsCxx26Macros();
+  } else {
+    addCommonC23Macros();
+    addWindowsC23Macros();
+  }
+
+  if (arch_ == "aarch64") {
+    addWindowsAArch64Macros();
+  } else if (arch_ == "x86_64") {
+    addWindowsX86_64Macros();
+  } else {
+    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+  }
 }
 
 }  // namespace cxx

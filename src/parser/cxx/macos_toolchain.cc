@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/macos_toolchain.h>
+#include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 
@@ -26,8 +27,8 @@
 
 namespace cxx {
 
-MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor)
-    : Toolchain(preprocessor) {
+MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch)
+    : Toolchain(preprocessor), arch_(std::move(arch)) {
   std::string xcodeContentsBasePath = "/Applications/Xcode.app/Contents";
 
   platformPath_ = std::format(
@@ -38,6 +39,14 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor)
   toolchainPath_ =
       std::format("{}/Developer/Toolchains/XcodeDefault.xctoolchain",
                   xcodeContentsBasePath);
+
+  if (arch_ == "aarch64") {
+    memoryLayout()->setSizeOfLongDouble(8);
+  } else if (arch_ == "x86_64") {
+    memoryLayout()->setSizeOfLongDouble(16);
+  } else {
+    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+  }
 }
 
 void MacOSToolchain::addSystemIncludePaths() {
