@@ -44,6 +44,18 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
       return AliasResult::FinalAlias;
     }
 
+    if (auto floatType = mlir::dyn_cast<mlir::cxx::FloatType>(type)) {
+      os << 'f' << floatType.getWidth();
+      return AliasResult::FinalAlias;
+    }
+
+    if (auto classType = mlir::dyn_cast<mlir::cxx::ClassType>(type)) {
+      if (!classType.getBody().empty()) {
+        os << "class_" << classType.getName();
+        return AliasResult::FinalAlias;
+      }
+    }
+
     if (mlir::isa<VoidType>(type)) {
       os << "void";
       return AliasResult::FinalAlias;
