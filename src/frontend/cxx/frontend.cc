@@ -182,15 +182,15 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
   }
 
   if (toolchainId == "darwin" || toolchainId == "macos") {
-    auto macosToolchain = std::make_unique<MacOSToolchain>(preprocessor);
-    std::string host;
-#ifdef __aarch64__
-    host = "aarch64";
-#elif __x86_64__
+    // on macOS we default to aarch64, since it is the most common
+    std::string host = "aarch64";
+
+#if __x86_64__
     host = "x86_64";
 #endif
-    macosToolchain->setArch(cli.getSingle("-arch").value_or(host));
-    toolchain = std::move(macosToolchain);
+
+    toolchain = std::make_unique<MacOSToolchain>(
+        preprocessor, cli.getSingle("-arch").value_or(host));
 
   } else if (toolchainId == "wasm32") {
     auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
@@ -219,17 +219,25 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
     toolchain = std::move(wasmToolchain);
   } else if (toolchainId == "linux") {
-    std::string host;
+    // on linux we default to x86_64, unless the host is aarch64
+    std::string host = "x86_64";
+
 #ifdef __aarch64__
     host = "aarch64";
-#elif __x86_64__
-    host = "x86_64";
 #endif
 
-    std::string arch = cli.getSingle("-arch").value_or(host);
-    toolchain = std::make_unique<GCCLinuxToolchain>(preprocessor, arch);
+    toolchain = std::make_unique<GCCLinuxToolchain>(
+        preprocessor, cli.getSingle("-arch").value_or(host));
   } else if (toolchainId == "windows") {
-    auto windowsToolchain = std::make_unique<WindowsToolchain>(preprocessor);
+    // on linux we default to x86_64, unless the host is aarch64
+    std::string host = "x86_64";
+
+#ifdef __aarch64__
+    host = "aarch64";
+#endif
+
+    auto windowsToolchain = std::make_unique<WindowsToolchain>(
+        preprocessor, cli.getSingle("-arch").value_or(host));
 
     if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
       windowsToolchain->setVctoolsdir(paths.back());
