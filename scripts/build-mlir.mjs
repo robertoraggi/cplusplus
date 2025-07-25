@@ -51,7 +51,7 @@ async function downloadLLVM({ packages, version, outdir }) {
 }
 
 async function main() {
-  const version = "20.1.2";
+  const version = "20.1.8";
   const packages = ["cmake", "third-party", "llvm", "mlir"];
 
   const llvm_source_dir = zx.path.resolve(
