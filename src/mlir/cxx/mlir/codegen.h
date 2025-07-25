@@ -274,7 +274,7 @@ class Codegen {
   TranslationUnit* unit_ = nullptr;
   mlir::Block* exitBlock_ = nullptr;
   mlir::cxx::AllocaOp exitValue_;
-  std::unordered_map<ClassSymbol*, std::string> classNames_;
+  std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   int count_ = 0;
 };
 

@@ -75,13 +75,24 @@ def Cxx_ArrayType : Cxx_Type<"Array", "array"> {
   let assemblyFormat = "`<` $elementType `,` $size `>`";
 }
 
-def Cxx_ClassType : Cxx_Type<"Class", "class"> {
+def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType]> {
+
+  let storageClass = "ClassTypeStorage";
+  let genStorageClass = 0;
+
+  let skipDefaultBuilders = 1;
+  let hasCustomAssemblyFormat = 1;
+
   let parameters = (ins
     StringRefParameter<"class name", [{ "" }]>:$name,
     OptionalArrayRefParameter<"mlir::Type">:$body
   );
 
-  let assemblyFormat = "`<` $name `(` $body `)` `>`";
+  let extraClassDeclaration = [{
+    static auto getNamed(MLIRContext *context, StringRef name) -> ClassType;
+    auto setBody(ArrayRef<Type> types) -> LogicalResult;
+  }];
+
 }
 
 // ops
@@ -97,8 +108,7 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   let builders = [OpBuilder<(ins "StringRef":$name, "FunctionType":$type,
       CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs)>];
 
-  let extraClassDeclaration =
-      [{
+  let extraClassDeclaration = [{
     auto getArgumentTypes() -> ArrayRef<Type> { return getFunctionType().getInputs(); }
     auto getResultTypes() -> ArrayRef<Type> { return getFunctionType().getResults(); }
     auto getCallableRegion() -> Region* { return &getBody(); }

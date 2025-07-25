@@ -13,6 +13,7 @@ set(SOURCES
     codegen_units.cc
     convert_type.cc
     cxx_dialect.cc
+    cxx_dialect_conversions.cc
 )
 
 add_library(cxx-mlir ${SOURCES})
@@ -31,6 +32,8 @@ target_link_libraries(cxx-mlir PUBLIC
     MLIRFuncDialect
     MLIRControlFlowDialect
     MLIRSCFDialect
+    MLIRPass
+    MLIRTransforms
 )
 
 target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_MLIR)

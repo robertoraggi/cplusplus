@@ -32,6 +32,43 @@
 
 namespace mlir::cxx {
 
+struct detail::ClassTypeStorage : public TypeStorage {
+ public:
+  using KeyTy = StringRef;
+
+  explicit ClassTypeStorage(const KeyTy &key) : name_(key) {}
+
+  auto getName() -> StringRef const { return name_; }
+  auto getBody() const -> ArrayRef<Type> { return body_; }
+
+  auto operator==(const KeyTy &key) const -> bool { return name_ == key; };
+
+  static auto hashKey(const KeyTy &key) -> llvm::hash_code {
+    return llvm::hash_value(key);
+  }
+
+  static ClassTypeStorage *construct(TypeStorageAllocator &allocator,
+                                     const KeyTy &key) {
+    return new (allocator.allocate<ClassTypeStorage>())
+        ClassTypeStorage(allocator.copyInto(key));
+  }
+
+  auto mutate(TypeStorageAllocator &allocator, ArrayRef<Type> body)
+      -> LogicalResult {
+    if (isInitialized_) return success(body == getBody());
+
+    isInitialized_ = true;
+    body_ = allocator.copyInto(body);
+
+    return success();
+  }
+
+ private:
+  StringRef name_;
+  ArrayRef<Type> body_;
+  bool isInitialized_ = false;
+};
+
 namespace {
 
 struct CxxGenerateAliases : public OpAsmDialectInterface {
@@ -39,29 +76,29 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
   using OpAsmDialectInterface::OpAsmDialectInterface;
 
   auto getAlias(Type type, raw_ostream &os) const -> AliasResult override {
-    if (auto intType = mlir::dyn_cast<mlir::cxx::IntegerType>(type)) {
+    if (auto intType = dyn_cast<IntegerType>(type)) {
       os << 'i' << intType.getWidth() << (intType.getIsSigned() ? 's' : 'u');
       return AliasResult::FinalAlias;
     }
 
-    if (auto floatType = mlir::dyn_cast<mlir::cxx::FloatType>(type)) {
+    if (auto floatType = dyn_cast<FloatType>(type)) {
       os << 'f' << floatType.getWidth();
       return AliasResult::FinalAlias;
     }
 
-    if (auto classType = mlir::dyn_cast<mlir::cxx::ClassType>(type)) {
+    if (auto classType = dyn_cast<ClassType>(type)) {
       if (!classType.getBody().empty()) {
         os << "class_" << classType.getName();
         return AliasResult::FinalAlias;
       }
     }
 
-    if (mlir::isa<VoidType>(type)) {
+    if (isa<VoidType>(type)) {
       os << "void";
       return AliasResult::FinalAlias;
     }
 
-    if (mlir::isa<BoolType>(type)) {
+    if (isa<BoolType>(type)) {
       os << "bool";
       return AliasResult::FinalAlias;
     }
@@ -85,30 +122,71 @@ void CxxDialect::initialize() {
   addInterface<CxxGenerateAliases>();
 }
 
-void FuncOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
-                   llvm::StringRef name, mlir::FunctionType type,
-                   llvm::ArrayRef<mlir::NamedAttribute> attrs) {
+void FuncOp::build(OpBuilder &builder, OperationState &state, StringRef name,
+                   FunctionType type, ArrayRef<NamedAttribute> attrs) {
   buildWithEntryBlock(builder, state, name, type, attrs, type.getInputs());
 }
 
-void FuncOp::print(mlir::OpAsmPrinter &p) {
-  mlir::function_interface_impl::printFunctionOp(
+void FuncOp::print(OpAsmPrinter &p) {
+  function_interface_impl::printFunctionOp(
       p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),
       getArgAttrsAttrName(), getResAttrsAttrName());
 }
 
-auto FuncOp::parse(mlir::OpAsmParser &parser, mlir::OperationState &result)
-    -> mlir::ParseResult {
+auto FuncOp::parse(OpAsmParser &parser, OperationState &result) -> ParseResult {
   auto funcTypeBuilder =
-      [](mlir::Builder &builder, llvm::ArrayRef<mlir::Type> argTypes,
-         llvm::ArrayRef<mlir::Type> results,
-         mlir::function_interface_impl::VariadicFlag,
+      [](Builder &builder, llvm::ArrayRef<Type> argTypes,
+         ArrayRef<Type> results, function_interface_impl::VariadicFlag,
          std::string &) { return builder.getFunctionType(argTypes, results); };
 
-  return mlir::function_interface_impl::parseFunctionOp(
+  return function_interface_impl::parseFunctionOp(
       parser, result, false, getFunctionTypeAttrName(result.name),
       funcTypeBuilder, getArgAttrsAttrName(result.name),
       getResAttrsAttrName(result.name));
+}
+
+auto ClassType::getNamed(MLIRContext *context, StringRef name) -> ClassType {
+  return Base::get(context, name);
+}
+
+auto ClassType::setBody(llvm::ArrayRef<Type> body) -> LogicalResult {
+  Base::mutate(body);
+}
+
+void ClassType::print(AsmPrinter &p) const {
+  FailureOr<AsmPrinter::CyclicPrintReset> cyclicPrint;
+
+  p << "<";
+  cyclicPrint = p.tryStartCyclicPrint(*this);
+
+  p << '"';
+  llvm::printEscapedString(getName(), p.getStream());
+  p << '"';
+
+  if (failed(cyclicPrint)) {
+    p << '>';
+    return;
+  }
+
+  p << ", ";
+
+  p << '(';
+  llvm::interleaveComma(getBody(), p.getStream(),
+                        [&](Type subtype) { p << subtype; });
+  p << ')';
+
+  p << '>';
+}
+
+auto ClassType::parse(AsmParser &parser) -> Type {
+  // todo: implement parsing for ClassType
+  return {};
+}
+
+auto ClassType::getName() const -> StringRef { return getImpl()->getName(); }
+
+auto ClassType::getBody() const -> ArrayRef<Type> {
+  return getImpl()->getBody();
 }
 
 }  // namespace mlir::cxx
