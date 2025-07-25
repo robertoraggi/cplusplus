@@ -20,34 +20,13 @@
 
 #pragma once
 
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Pass/Pass.h>
 
-#include <mlir/Bytecode/BytecodeOpInterface.h>
-#include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/SymbolTable.h>
-#include <mlir/Interfaces/CallInterfaces.h>
-#include <mlir/Interfaces/CastInterfaces.h>
-#include <mlir/Interfaces/FunctionInterfaces.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
+namespace cxx {
 
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+[[nodiscard]] auto createLowerToFuncPass() -> std::unique_ptr<mlir::Pass>;
 
-namespace mlir::cxx::detail {
+[[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult;
 
-struct ClassTypeStorage;
-
-}
-
-#include <cxx/mlir/CxxOpsDialect.h.inc>
-
-#define GET_TYPEDEF_CLASSES
-#include <cxx/mlir/CxxOpsTypes.h.inc>
-
-#define GET_OP_CLASSES
-#include <cxx/mlir/CxxOps.h.inc>
+}  // namespace cxx

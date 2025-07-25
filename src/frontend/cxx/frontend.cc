@@ -40,6 +40,7 @@
 #ifdef CXX_WITH_MLIR
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/cxx_dialect_conversions.h>
 #endif
 
 #include <format>
@@ -375,6 +376,11 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       cxx::Codegen codegen(context, &unit);
 
       auto ir = codegen(unit.ast());
+
+      if (failed(lowerToMLIR(ir.module))) {
+        std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
+        return false;
+      }
 
       mlir::OpPrintingFlags flags;
       if (cli.opt_g) {

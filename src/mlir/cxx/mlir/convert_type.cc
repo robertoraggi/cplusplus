@@ -268,7 +268,7 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   if (auto it = gen.classNames_.find(classSymbol);
       it != gen.classNames_.end()) {
-    return mlir::cxx::ClassType::get(ctx, it->second, {});
+    return it->second;
   }
 
   auto name = to_string(classSymbol->name());
@@ -277,7 +277,9 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     name = std::format("$class_{}", loc.index());
   }
 
-  gen.classNames_[classSymbol] = name;
+  mlir::cxx::ClassType classType = mlir::cxx::ClassType::getNamed(ctx, name);
+
+  gen.classNames_[classSymbol] = classType;
 
   // todo: layout of parent classes, anonymous nested fields, etc.
 
@@ -291,7 +293,7 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     memberTypes.push_back(memberType);
   }
 
-  auto classType = mlir::cxx::ClassType::get(ctx, name, memberTypes);
+  classType.setBody(memberTypes);
 
   return classType;
 }
