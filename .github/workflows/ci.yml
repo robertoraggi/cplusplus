@@ -70,11 +70,12 @@ jobs:
 
       - name: Install LLVM and MLIR deps
         run: |
-          sudo apt-get -y update
-          sudo apt-get install -y \
-            llvm-19-dev \
-            libmlir-19-dev \
-            mlir-19-tools
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          rm llvm.sh
+
+          sudo apt-get install -y libmlir-20-dev mlir-20-tools
 
       - name: Install unit tests requirements
         run: |
@@ -85,7 +86,7 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          PATH=/usr/lib/llvm-19/bin:$PATH
+          PATH=/usr/lib/llvm-20/bin:$PATH
 
           cmake --preset default-mlir
 

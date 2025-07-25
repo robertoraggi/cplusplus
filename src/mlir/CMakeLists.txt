@@ -5,6 +5,10 @@ endif()
 
 find_package(MLIR REQUIRED CONFIG)
 
+if (MLIR_VERSION VERSION_LESS "20.0")
+    message(FATAL_ERROR "MLIR >= 20.0 is required")
+endif()
+
 LIST(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}" "${LLVM_CMAKE_DIR}")
 
 include(AddMLIR)
