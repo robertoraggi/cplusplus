@@ -144,7 +144,37 @@ def Cxx_LoadOp : Cxx_Op<"load"> {
 
 def Cxx_StoreOp : Cxx_Op<"store"> {
   let arguments = (ins AnyType:$value, Cxx_PointerType:$addr);
+
+  let hasVerifier = 1;
 }
+
+def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [
+  Pure
+]> {
+  let arguments = (ins BoolAttr:$value);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_IntConstantOp : Cxx_Op<"constant.int", [
+  Pure
+]> {
+  let arguments = (ins I64Attr:$value);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
+  Pure
+]> {
+  let arguments = (ins F64Attr:$value);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+//
+// todo ops
+//
 
 def Cxx_TodoExprOp : Cxx_Op<"todo.expr"> {
   let arguments = (ins StrAttr:$message);

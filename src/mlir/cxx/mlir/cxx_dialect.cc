@@ -145,6 +145,24 @@ auto FuncOp::parse(OpAsmParser &parser, OperationState &result) -> ParseResult {
       getResAttrsAttrName(result.name));
 }
 
+auto StoreOp::verify() -> LogicalResult {
+#if false
+  auto addrType = dyn_cast<PointerType>(getAddr().getType());
+  if (!addrType) {
+    return emitOpError("addr must be a pointer type");
+  }
+
+  auto valueType = getValue().getType();
+  if (addrType.getElementType() != valueType) {
+    return emitOpError("addr must be a pointer to the value type (")
+           << valueType << " but found " << addrType << ")";
+  }
+
+#endif
+
+  return success();
+}
+
 auto ClassType::getNamed(MLIRContext *context, StringRef name) -> ClassType {
   return Base::get(context, name);
 }

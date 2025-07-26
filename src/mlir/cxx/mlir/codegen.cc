@@ -35,6 +35,12 @@ Codegen::~Codegen() {}
 
 auto Codegen::control() const -> Control* { return unit_->control(); }
 
+auto Codegen::currentBlockMightHaveTerminator() -> bool {
+  auto block = builder_.getInsertionBlock();
+  if (!block) return true;
+  return block->mightHaveTerminator();
+}
+
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {
   auto [filename, line, column] = unit_->tokenStartPosition(location);
 

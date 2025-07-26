@@ -22,11 +22,17 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/control.h>
+
+// mlir
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 
 namespace cxx {
 
 struct Codegen::StatementVisitor {
   Codegen& gen;
+
+  [[nodiscard]] auto control() const -> Control* { return gen.control(); }
 
   void operator()(LabeledStatementAST* ast);
   void operator()(CaseStatementAST* ast);
@@ -61,6 +67,9 @@ struct Codegen::ExceptionDeclarationVisitor {
 
 void Codegen::statement(StatementAST* ast) {
   if (!ast) return;
+
+  if (currentBlockMightHaveTerminator()) return;
+
   visit(StatementVisitor{*this}, ast);
 }
 
@@ -75,6 +84,7 @@ auto Codegen::handler(HandlerAST* ast) -> HandlerResult {
 
   auto exceptionDeclarationResult =
       exceptionDeclaration(ast->exceptionDeclaration);
+
   statement(ast->statement);
 
   return {};
@@ -185,11 +195,26 @@ void Codegen::StatementVisitor::operator()(ContinueStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  // (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+
+  auto value = gen.expression(ast->expression);
 
 #if false
   auto expressionResult = gen.expression(ast->expression);
 #endif
+
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  mlir::SmallVector<mlir::Value> results;
+
+  if (gen.exitValue_) {
+    gen.builder_.create<mlir::cxx::StoreOp>(loc, value.value,
+                                            gen.exitValue_.getResult());
+
+    results.push_back(gen.exitValue_);
+  }
+
+  gen.builder_.create<mlir::cf::BranchOp>(loc, results, gen.exitBlock_);
 }
 
 void Codegen::StatementVisitor::operator()(CoroutineReturnStatementAST* ast) {
