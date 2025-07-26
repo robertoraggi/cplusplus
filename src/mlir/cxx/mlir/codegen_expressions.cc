@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/literals.h>
 
 namespace cxx {
 
@@ -129,37 +130,49 @@ auto Codegen::ExpressionVisitor::operator()(GeneratedLiteralExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->literalLoc);
+
+  auto type = gen.convertType(ast->type);
+  auto value = gen.builder_.getI64IntegerAttr(ast->literal->charValue());
+
+  auto op = gen.builder_.create<mlir::cxx::IntConstantOp>(loc, type, value);
+
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BoolLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->literalLoc);
+
+  auto type = gen.convertType(ast->type);
+  auto value = gen.builder_.getBoolAttr(ast->isTrue);
+
+  auto op = gen.builder_.create<mlir::cxx::BoolConstantOp>(loc, type, value);
+
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
   auto loc = gen.getLocation(ast->literalLoc);
 
-  auto op = gen.builder_.create<mlir::cxx::IntLiteralOp>(
-      loc, ast->literal->integerValue());
-#endif
+  auto type = gen.convertType(ast->type);
+  auto value = gen.builder_.getI64IntegerAttr(ast->literal->integerValue());
+
+  auto op = gen.builder_.create<mlir::cxx::IntConstantOp>(loc, type, value);
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->literalLoc);
+
+  auto type = gen.convertType(ast->type);
+  auto value = gen.builder_.getF64FloatAttr(ast->literal->floatValue());
+
+  auto op = gen.builder_.create<mlir::cxx::FloatConstantOp>(loc, type, value);
+
   return {op};
 }
 

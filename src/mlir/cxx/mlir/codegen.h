@@ -244,6 +244,8 @@ class Codegen {
 
   [[nodiscard]] auto convertType(const Type* type) -> mlir::Type;
 
+  [[nodiscard]] auto currentBlockMightHaveTerminator() -> bool;
+
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;

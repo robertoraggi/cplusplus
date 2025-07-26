@@ -353,17 +353,21 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   const auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
-  if (needsExitValue) {
-    // We need to return a value of the correct type.
-
+  if (!gen.builder_.getBlock()->mightHaveTerminator()) {
     llvm::SmallVector<mlir::Value> exitBlockArgs;
-    exitBlockArgs.push_back(gen.exitValue_.getResult());
 
-    gen.builder_.create<mlir::cf::BranchOp>(endLoc, gen.exitBlock_,
-                                            exitBlockArgs);
+    if (gen.exitValue_) {
+      exitBlockArgs.push_back(gen.exitValue_.getResult());
+    }
 
-    gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
+    gen.builder_.create<mlir::cf::BranchOp>(endLoc, exitBlockArgs,
+                                            gen.exitBlock_);
+  }
 
+  gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
+
+  if (gen.exitValue_) {
+    // We need to return a value of the correct type.
     auto elementType = gen.exitValue_.getType().getElementType();
 
     auto value = gen.builder_.create<mlir::cxx::LoadOp>(endLoc, elementType,
@@ -372,9 +376,6 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     gen.builder_.create<mlir::cxx::ReturnOp>(endLoc, value->getResults());
   } else {
     // If the function returns void, we don't need to return anything.
-
-    gen.builder_.create<mlir::cf::BranchOp>(endLoc, gen.exitBlock_);
-    gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
     gen.builder_.create<mlir::cxx::ReturnOp>(endLoc);
   }
 
