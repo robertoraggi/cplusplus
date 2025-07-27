@@ -28,10 +28,11 @@ target_include_directories(cxx-mlir
 
 target_link_libraries(cxx-mlir PUBLIC
     cxx-parser
-    MLIRIR
-    MLIRFuncDialect
     MLIRControlFlowDialect
-    MLIRSCFDialect
+    MLIRControlFlowToLLVM
+    MLIRIR
+    MLIRLLVMCommonConversion
+    MLIRLLVMDialect
     MLIRPass
     MLIRTransforms
 )

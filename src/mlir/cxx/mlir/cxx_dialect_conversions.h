@@ -25,7 +25,7 @@
 
 namespace cxx {
 
-[[nodiscard]] auto createLowerToFuncPass() -> std::unique_ptr<mlir::Pass>;
+[[nodiscard]] auto createLowerToLLVMPass() -> std::unique_ptr<mlir::Pass>;
 
 [[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult;
 
