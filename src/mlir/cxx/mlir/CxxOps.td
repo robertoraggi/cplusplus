@@ -28,10 +28,7 @@ def Cxx_Dialect : Dialect {
   let name = "cxx";
   let cppNamespace = "mlir::cxx";
   let useDefaultTypePrinterParser = 1;
-  let dependentDialects = ["mlir::func::FuncDialect",
-                           "mlir::cf::ControlFlowDialect",
-                           "mlir::scf::SCFDialect",
-  ];
+  let dependentDialects = ["mlir::cf::ControlFlowDialect" ];
 }
 
 class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
