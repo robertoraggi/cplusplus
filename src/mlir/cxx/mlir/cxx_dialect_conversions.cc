@@ -170,6 +170,29 @@ class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
   }
 };
 
+class BoolConstantOpLowering : public OpConversionPattern<cxx::BoolConstantOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::BoolConstantOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert boolean constant type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, resultType,
+                                                  adaptor.getValue());
+
+    return success();
+  }
+};
+
 class IntConstantOpLowering : public OpConversionPattern<cxx::IntConstantOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -186,8 +209,32 @@ class IntConstantOpLowering : public OpConversionPattern<cxx::IntConstantOp> {
           op, "failed to convert integer constant type");
     }
 
-    auto valueAttr = adaptor.getValueAttr();
-    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, resultType, valueAttr);
+    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, resultType,
+                                                  adaptor.getValue());
+
+    return success();
+  }
+};
+
+class FloatConstantOpLowering
+    : public OpConversionPattern<cxx::FloatConstantOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::FloatConstantOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert float constant type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, resultType,
+                                                  adaptor.getValue());
 
     return success();
   }
@@ -218,12 +265,58 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   // set up the type converter
   LLVMTypeConverter typeConverter{context};
+
+  typeConverter.addConversion([](cxx::BoolType type) {
+    // todo: i8/i32 for data and i1 for control flow
+    return IntegerType::get(type.getContext(), 8);
+  });
+
   typeConverter.addConversion([](cxx::IntegerType type) {
     return IntegerType::get(type.getContext(), type.getWidth());
   });
 
+  typeConverter.addConversion([](cxx::FloatType type) -> Type {
+    auto width = type.getWidth();
+    switch (width) {
+      case 16:
+        return Float16Type::get(type.getContext());
+      case 32:
+        return Float32Type::get(type.getContext());
+      case 64:
+        return Float64Type::get(type.getContext());
+      default:
+        return {};
+    }  // switch
+  });
+
   typeConverter.addConversion([](cxx::PointerType type) {
     return LLVM::LLVMPointerType::get(type.getContext());
+  });
+
+  DenseMap<cxx::ClassType, Type> convertedClassTypes;
+  typeConverter.addConversion([&](cxx::ClassType type) -> Type {
+    if (auto it = convertedClassTypes.find(type);
+        it != convertedClassTypes.end()) {
+      return it->second;
+    }
+
+    auto structType =
+        LLVM::LLVMStructType::getIdentified(type.getContext(), type.getName());
+
+    convertedClassTypes[type] = structType;
+
+    SmallVector<Type> fieldTypes;
+    bool isPacked = false;
+
+    for (auto field : type.getBody()) {
+      auto convertedFieldType = typeConverter.convertType(field);
+      // todo: check if the field type was converted successfully
+      fieldTypes.push_back(convertedFieldType);
+    }
+
+    structType.setBody(fieldTypes, isPacked);
+
+    return structType;
   });
 
   // set up the conversion patterns
@@ -234,8 +327,9 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   RewritePatternSet patterns(context);
   patterns.insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
-                  LoadOpLowering, StoreOpLowering, IntConstantOpLowering>(
-      typeConverter, context);
+                  LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
+                  IntConstantOpLowering, FloatConstantOpLowering>(typeConverter,
+                                                                  context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);
