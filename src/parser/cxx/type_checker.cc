@@ -2262,4 +2262,28 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
   return true;
 }
 
+void TypeChecker::checkReturnStatement(ReturnStatementAST* ast) {
+  const Type* targetType = nullptr;
+  for (auto current = scope_; current; current = current->parent()) {
+    if (auto function = symbol_cast<FunctionSymbol>(current->owner())) {
+      if (auto functionType = type_cast<FunctionType>(function->type())) {
+        targetType = functionType->returnType();
+      }
+      break;
+    }
+
+    if (auto lambda = symbol_cast<LambdaSymbol>(current->owner())) {
+      if (auto functionType = type_cast<FunctionType>(lambda->type())) {
+        targetType = functionType->returnType();
+      }
+      break;
+    }
+  }
+
+  if (!targetType) return;
+
+  Visitor visitor{*this};
+  (void)visitor.implicit_conversion(ast->expression, targetType);
+}
+
 }  // namespace cxx
