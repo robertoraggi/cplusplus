@@ -215,6 +215,11 @@ struct GetDeclaratorType {
     if (auto params = ast->parameterDeclarationClause) {
       for (auto it = params->parameterDeclarationList; it; it = it->next) {
         auto paramType = it->value->type;
+
+        if (control()->is_void(paramType)) {
+          continue;
+        }
+
         parameterTypes.push_back(paramType);
       }
 

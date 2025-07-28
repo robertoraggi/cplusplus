@@ -299,12 +299,14 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const EnumType* type) -> mlir::Type {
-  return getExprType();
+  if (type->underlyingType()) return gen.convertType(type->underlyingType());
+  return gen.builder_.getType<mlir::cxx::IntegerType>(32, true);
 }
 
 auto Codegen::ConvertType::operator()(const ScopedEnumType* type)
     -> mlir::Type {
-  return getExprType();
+  if (type->underlyingType()) return gen.convertType(type->underlyingType());
+  return gen.builder_.getType<mlir::cxx::IntegerType>(32, true);
 }
 
 auto Codegen::ConvertType::operator()(const MemberObjectPointerType* type)

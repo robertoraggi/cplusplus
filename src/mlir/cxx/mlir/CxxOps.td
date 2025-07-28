@@ -23,6 +23,7 @@ include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 def Cxx_Dialect : Dialect {
   let name = "cxx";
@@ -148,7 +149,7 @@ def Cxx_StoreOp : Cxx_Op<"store"> {
 def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [
   Pure
 ]> {
-  let arguments = (ins BoolAttr:$value);
+  let arguments = (ins BoolProp:$value);
 
   let results = (outs Cxx_BoolType:$result);
 }
@@ -156,7 +157,7 @@ def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [
 def Cxx_IntConstantOp : Cxx_Op<"constant.int", [
   Pure
 ]> {
-  let arguments = (ins I64Attr:$value);
+  let arguments = (ins I64Prop:$value);
 
   let results = (outs Cxx_IntegerType:$result);
 }
@@ -164,7 +165,7 @@ def Cxx_IntConstantOp : Cxx_Op<"constant.int", [
 def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
   Pure
 ]> {
-  let arguments = (ins F64Attr:$value);
+  let arguments = (ins TypedAttrInterface:$value);
 
   let results = (outs Cxx_FloatType:$result);
 }
@@ -174,7 +175,7 @@ def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
 //
 
 def Cxx_TodoExprOp : Cxx_Op<"todo.expr"> {
-  let arguments = (ins StrAttr:$message);
+  let arguments = (ins StringProp:$message);
   let results = (outs Cxx_ExprType:$result);
   let assemblyFormat = "$message attr-dict `:` type($result)";
   let builders =
@@ -185,7 +186,7 @@ def Cxx_TodoExprOp : Cxx_Op<"todo.expr"> {
 }
 
 def Cxx_TodoStmtOp : Cxx_Op<"todo.stmt"> {
-  let arguments = (ins StrAttr:$message);
+  let arguments = (ins StringProp:$message);
   let results = (outs);
   let assemblyFormat = "$message attr-dict";
 }

@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/literals.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
@@ -133,8 +134,7 @@ auto Codegen::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)
   auto loc = gen.getLocation(ast->literalLoc);
 
   auto type = gen.convertType(ast->type);
-  auto value = gen.builder_.getI64IntegerAttr(ast->literal->charValue());
-
+  auto value = std::int64_t(ast->literal->charValue());
   auto op = gen.builder_.create<mlir::cxx::IntConstantOp>(loc, type, value);
 
   return {op};
@@ -145,9 +145,9 @@ auto Codegen::ExpressionVisitor::operator()(BoolLiteralExpressionAST* ast)
   auto loc = gen.getLocation(ast->literalLoc);
 
   auto type = gen.convertType(ast->type);
-  auto value = gen.builder_.getBoolAttr(ast->isTrue);
 
-  auto op = gen.builder_.create<mlir::cxx::BoolConstantOp>(loc, type, value);
+  auto op =
+      gen.builder_.create<mlir::cxx::BoolConstantOp>(loc, type, ast->isTrue);
 
   return {op};
 }
@@ -157,7 +157,7 @@ auto Codegen::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
   auto loc = gen.getLocation(ast->literalLoc);
 
   auto type = gen.convertType(ast->type);
-  auto value = gen.builder_.getI64IntegerAttr(ast->literal->integerValue());
+  auto value = ast->literal->integerValue();
 
   auto op = gen.builder_.create<mlir::cxx::IntConstantOp>(loc, type, value);
 
@@ -169,7 +169,25 @@ auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
   auto loc = gen.getLocation(ast->literalLoc);
 
   auto type = gen.convertType(ast->type);
-  auto value = gen.builder_.getF64FloatAttr(ast->literal->floatValue());
+
+  mlir::TypedAttr value;
+
+  switch (ast->type->kind()) {
+    case TypeKind::kFloat:
+      value = gen.builder_.getF32FloatAttr(ast->literal->floatValue());
+      break;
+    case TypeKind::kDouble:
+      value = gen.builder_.getF64FloatAttr(ast->literal->floatValue());
+      break;
+    case TypeKind::kLongDouble:
+      value = gen.builder_.getF64FloatAttr(ast->literal->floatValue());
+      break;
+    default:
+      // Handle other float types if necessary
+      auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
+                                 "unsupported float type");
+      return {op};
+  }
 
   auto op = gen.builder_.create<mlir::cxx::FloatConstantOp>(loc, type, value);
 
