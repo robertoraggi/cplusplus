@@ -3790,6 +3790,8 @@ auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
     parse_expr_or_braced_init_list(ast->expression, ExprContext{});
 
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
+    check(ast);
   }
 
   return true;
@@ -9806,6 +9808,17 @@ void Parser::check(ExpressionAST* ast) {
   check.setScope(scope());
   check.setReportErrors(config().checkTypes);
   check(ast);
+}
+
+void Parser::check(StatementAST* ast) {
+  if (binder_.inTemplate()) return;
+  auto returnStatement = ast_cast<ReturnStatementAST>(ast);
+  if (!returnStatement) return;
+
+  TypeChecker check{unit};
+  check.setScope(scope());
+  check.setReportErrors(config().checkTypes);
+  check.checkReturnStatement(returnStatement);
 }
 
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)

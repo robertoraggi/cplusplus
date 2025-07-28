@@ -789,6 +789,7 @@ class Parser final {
   void setScope(ScopedSymbol* symbol);
 
   void check(ExpressionAST* ast);
+  void check(StatementAST* ast);
 
   // lookup
 

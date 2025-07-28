@@ -45,6 +45,8 @@ class TypeChecker {
 
   void check(ExpressionAST* ast);
 
+  void checkReturnStatement(ReturnStatementAST* ast);
+
  private:
   struct Visitor;
 
