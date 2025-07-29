@@ -1726,14 +1726,13 @@ auto TypeChecker::Visitor::implicit_conversion(ExpressionAST*& expr,
   if (!expr || !expr->type) return false;
   if (!destinationType) return false;
 
-  if (control()->is_same(expr->type, destinationType)) return true;
-
   auto savedValueCategory = expr->valueCategory;
   auto savedExpr = expr;
   auto didConvert = ensure_prvalue(expr);
 
   adjust_cv(expr);
 
+  if (control()->is_same(expr->type, destinationType)) return true;
   if (integral_promotion(expr)) return true;
   if (floating_point_promotion(expr)) return true;
   if (integral_conversion(expr, destinationType)) return true;
@@ -2284,6 +2283,26 @@ void TypeChecker::checkReturnStatement(ReturnStatementAST* ast) {
 
   Visitor visitor{*this};
   (void)visitor.implicit_conversion(ast->expression, targetType);
+}
+
+auto TypeChecker::implicit_conversion(ExpressionAST*& yyast,
+                                      const Type* targetType) -> bool {
+  Visitor visitor{*this};
+  return visitor.implicit_conversion(yyast, targetType);
+}
+
+void TypeChecker::check_bool_condition(ExpressionAST*& expr) {
+  Visitor visitor{*this};
+  (void)visitor.implicit_conversion(expr, unit_->control()->getBoolType());
+}
+
+void TypeChecker::check_integral_condition(ExpressionAST*& expr) {
+  auto control = unit_->control();
+  if (!control->is_integral(expr->type) && !control->is_enum(expr->type))
+    return;
+  Visitor visitor{*this};
+  (void)visitor.lvalue_to_rvalue_conversion(expr);
+  visitor.adjust_cv(expr);
 }
 
 }  // namespace cxx

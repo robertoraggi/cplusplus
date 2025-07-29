@@ -600,6 +600,14 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
 
   auto functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
 
+  // todo: scope chain fixup should be handled elsewhere, not here.
+  if (auto proto = getFunctionPrototype(declarator)) {
+    if (proto->parameterDeclarationClause) {
+      proto->parameterDeclarationClause->functionParametersSymbol->scope()
+          ->setParent(functionSymbol->scope());
+    }
+  }
+
   if (is_parsing_c()) {
     functionSymbol->setHasCxxLinkage(false);
   }

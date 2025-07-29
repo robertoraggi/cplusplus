@@ -51,6 +51,8 @@ struct object {
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list
 // CHECK-NEXT:                    return-statement
-// CHECK-NEXT:                      expression: id-expression [lvalue auto]
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: self
+// CHECK-NEXT:                      expression: implicit-cast-expression [prvalue auto]
+// CHECK-NEXT:                        cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                        expression: id-expression [lvalue auto]
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: self

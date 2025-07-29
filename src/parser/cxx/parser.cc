@@ -3534,6 +3534,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
   parse_init_statement(ast->initializer);
 
   parse_condition(ast->condition, ExprContext{});
+  check_bool_condition(ast->condition);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3567,6 +3568,7 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
   parse_init_statement(ast->initializer);
 
   parse_condition(ast->condition, ExprContext{});
+  check_integral_condition(ast->condition);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3594,6 +3596,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   parse_condition(ast->condition, ExprContext{});
+  check_bool_condition(ast->condition);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3623,6 +3626,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   parse_expression(ast->expression, ExprContext{});
+  check_bool_condition(ast->expression);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -3694,6 +3698,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
     parse_condition(ast->condition, ExprContext{});
+    check_bool_condition(ast->condition);
     expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
   }
 
@@ -4047,6 +4052,7 @@ auto Parser::parse_empty_or_attribute_declaration(
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
     BindingContext ctx) -> bool {
+  if (!is_parsing_cxx()) return false;
   if (!context_allows_function_definition(ctx)) return false;
 
   LookaheadParser lookahead{this};
@@ -4110,6 +4116,8 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
                                       List<SpecifierAST*>* declSpecifierList,
                                       const DeclSpecs& specs,
                                       BindingContext ctx) -> bool {
+  if (!is_parsing_cxx()) return false;
+
   LookaheadParser lookahead{this};
 
   if (!context_allows_structured_bindings(ctx)) {
@@ -5505,6 +5513,11 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
         }
       }
     }
+  }
+
+  if (ast->initializer && !control()->is_reference(symbol->type())) {
+    (void)implicit_conversion(ast->initializer,
+                              control()->remove_cv(symbol->type()));
   }
 
   return true;
@@ -9819,6 +9832,31 @@ void Parser::check(StatementAST* ast) {
   check.setScope(scope());
   check.setReportErrors(config().checkTypes);
   check.checkReturnStatement(returnStatement);
+}
+
+void Parser::check_bool_condition(ExpressionAST*& ast) {
+  if (binder_.inTemplate()) return;
+  TypeChecker check{unit};
+  check.setScope(scope());
+  check.setReportErrors(config().checkTypes);
+  check.check_bool_condition(ast);
+}
+
+void Parser::check_integral_condition(ExpressionAST*& ast) {
+  if (binder_.inTemplate()) return;
+  TypeChecker check{unit};
+  check.setScope(scope());
+  check.setReportErrors(config().checkTypes);
+  check.check_integral_condition(ast);
+}
+
+auto Parser::implicit_conversion(ExpressionAST*& yyast, const Type* targetType)
+    -> bool {
+  if (binder_.inTemplate()) return true;
+  TypeChecker check{unit};
+  check.setScope(scope());
+  check.setReportErrors(config().checkTypes);
+  return check.implicit_conversion(yyast, targetType);
 }
 
 auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
