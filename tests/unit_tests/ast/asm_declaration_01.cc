@@ -90,9 +90,11 @@ end:;
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: p
-// CHECK-NEXT:                    initializer: equal-initializer [prvalue decltype(nullptr)]
-// CHECK-NEXT:                      expression: nullptr-literal-expression [prvalue decltype(nullptr)]
-// CHECK-NEXT:                        literal: nullptr
+// CHECK-NEXT:                    initializer: implicit-cast-expression [prvalue char*]
+// CHECK-NEXT:                      cast-kind: pointer-conversion
+// CHECK-NEXT:                      expression: equal-initializer [prvalue decltype(nullptr)]
+// CHECK-NEXT:                        expression: nullptr-literal-expression [prvalue decltype(nullptr)]
+// CHECK-NEXT:                          literal: nullptr
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: asm-declaration
 // CHECK-NEXT:                literal: "nop"

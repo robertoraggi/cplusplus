@@ -791,6 +791,12 @@ class Parser final {
   void check(ExpressionAST* ast);
   void check(StatementAST* ast);
 
+  void check_bool_condition(ExpressionAST*& ast);
+  void check_integral_condition(ExpressionAST*& ast);
+
+  [[nodiscard]] auto implicit_conversion(ExpressionAST*& yyast,
+                                         const Type* targetType) -> bool;
+
   // lookup
 
   [[nodiscard]] auto getFunction(Scope* scope, const Name* name,

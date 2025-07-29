@@ -45,7 +45,14 @@ class TypeChecker {
 
   void check(ExpressionAST* ast);
 
+  // todo: remove
   void checkReturnStatement(ReturnStatementAST* ast);
+
+  void check_bool_condition(ExpressionAST*& ast);
+  void check_integral_condition(ExpressionAST*& ast);
+
+  [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
+                                         const Type* targetType) -> bool;
 
  private:
   struct Visitor;

@@ -359,6 +359,7 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
   pm.addPass(cxx::createLowerToLLVMPass());
 
   if (failed(pm.run(module))) {
+    module.print(llvm::errs());
     return mlir::failure();
   }
 
