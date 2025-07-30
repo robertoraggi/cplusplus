@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 // mlir
@@ -150,19 +151,43 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationResult {
 #if false
   for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+    auto value = gen.attributeSpecifier(node);
   }
 
   for (auto node : ListView{ast->declSpecifierList}) {
-    auto value = gen(node);
+    auto value = gen.specifier(node);
   }
 
   for (auto node : ListView{ast->initDeclaratorList}) {
-    auto value = gen(node);
+    auto value = gen.initDeclarator(node);
   }
 
-  auto requiresClauseResult = gen(ast->requiresClause);
+  auto requiresClauseResult = gen.requiresClause(ast->requiresClause);
 #endif
+
+  for (auto node : ListView{ast->initDeclaratorList}) {
+    auto var = symbol_cast<VariableSymbol>(node->symbol);
+    if (!var) continue;
+    if (!node->initializer) continue;
+
+    const auto loc = gen.getLocation(var->location());
+
+    auto local = gen.findOrCreateLocal(var);
+
+    if (!local.has_value()) {
+      gen.unit_->error(node->initializer->firstSourceLocation(),
+                       std::format("cannot find local variable '{}'",
+                                   to_string(var->name())));
+      continue;
+    }
+
+    auto expressionResult = gen.expression(node->initializer);
+
+    const auto elementType = gen.convertType(var->type());
+
+    gen.builder_.create<mlir::cxx::StoreOp>(loc, expressionResult.value,
+                                            local.value());
+  }
 
   return {};
 }
@@ -319,10 +344,11 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     name += std::format("_{}", ++gen.count_);
   }
 
-  const auto savedInsertionPoint = gen.builder_.saveInsertionPoint();
+  auto guard = mlir::OpBuilder::InsertionGuard(gen.builder_);
 
   const auto loc = gen.getLocation(ast->symbol->location());
 
+  std::unordered_map<Symbol*, mlir::Value> locals;
   auto func = gen.builder_.create<mlir::cxx::FuncOp>(loc, name, funcType);
   auto entryBlock = &func.front();
   auto exitBlock = gen.builder_.createBlock(&func.getBody());
@@ -345,6 +371,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.function_, func);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
+  std::swap(gen.locals_, locals);
 
   // generate code for the function body
   auto functionBodyResult = gen.functionBody(ast->functionBody);
@@ -383,8 +410,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.function_, func);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
-
-  gen.builder_.restoreInsertionPoint(savedInsertionPoint);
+  std::swap(gen.locals_, locals);
 
   return {};
 }

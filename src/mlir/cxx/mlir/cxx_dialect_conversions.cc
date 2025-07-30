@@ -119,6 +119,11 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
     auto resultType = LLVM::LLVMPointerType::get(context);
     auto elementType = typeConverter->convertType(ptrTy.getElementType());
 
+    if (!elementType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert element type of alloca");
+    }
+
     auto size = rewriter.create<LLVM::ConstantOp>(
         op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(1));
 
@@ -240,6 +245,58 @@ class FloatConstantOpLowering
   }
 };
 
+class IntegralCastOpLowering : public OpConversionPattern<cxx::IntegralCastOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::IntegralCastOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert integral cast type");
+    }
+
+    const auto sourceType = dyn_cast<cxx::IntegerType>(op.getValue().getType());
+    const auto targetType = dyn_cast<cxx::IntegerType>(op.getType());
+    const auto isSigned = targetType.getIsSigned();
+
+    if (sourceType.getWidth() == targetType.getWidth()) {
+      // no conversion needed, just replace the op with the value
+      rewriter.replaceOp(op, adaptor.getValue());
+      return success();
+    }
+
+    if (targetType.getWidth() < sourceType.getWidth()) {
+      // truncation
+      if (isSigned) {
+        rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, resultType,
+                                                   adaptor.getValue());
+      } else {
+        rewriter.replaceOpWithNewOp<LLVM::ZExtOp>(op, resultType,
+                                                  adaptor.getValue());
+      }
+      return success();
+    }
+
+    // extension
+
+    if (isSigned) {
+      rewriter.replaceOpWithNewOp<LLVM::SExtOp>(op, resultType,
+                                                adaptor.getValue());
+    } else {
+      rewriter.replaceOpWithNewOp<LLVM::ZExtOp>(op, resultType,
+                                                adaptor.getValue());
+    }
+
+    return success();
+  }
+};
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -328,8 +385,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(context);
   patterns.insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
                   LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
-                  IntConstantOpLowering, FloatConstantOpLowering>(typeConverter,
-                                                                  context);
+                  IntConstantOpLowering, FloatConstantOpLowering,
+                  IntegralCastOpLowering>(typeConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);

@@ -22,7 +22,9 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/literals.h>
+#include <cxx/symbols.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -255,6 +257,25 @@ auto Codegen::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionResult {
+  if (auto local = gen.findOrCreateLocal(ast->symbol)) {
+    return {local.value()};
+  }
+
+  if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
+    auto value = enumerator->value().and_then([&](const ConstValue& value) {
+      ASTInterpreter interp{gen.unit_};
+      return interp.toInt(value);
+    });
+
+    if (value.has_value()) {
+      auto loc = gen.getLocation(ast->firstSourceLocation());
+      auto type = gen.convertType(enumerator->type());
+      auto op =
+          gen.builder_.create<mlir::cxx::IntConstantOp>(loc, type, *value);
+      return {op};
+    }
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -731,19 +752,44 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto typeIdResult = gen.typeId(ast->typeId);
   auto expressionResult = gen.expression(ast->expression);
-#endif
 
-  return {op};
+  return expressionResult;
 }
 
 auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  switch (ast->castKind) {
+    case ImplicitCastKind::kLValueToRValueConversion: {
+      // generate a load
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      auto op = gen.builder_.create<mlir::cxx::LoadOp>(loc, resultType,
+                                                       expressionResult.value);
+
+      return {op};
+    }
+
+    case ImplicitCastKind::kIntegralConversion:
+    case ImplicitCastKind::kIntegralPromotion: {
+      // generate a cast
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      auto op = gen.builder_.create<mlir::cxx::IntegralCastOp>(
+          loc, resultType, expressionResult.value);
+
+      return {op};
+    }
+
+    default:
+      break;
+
+  }  // switch
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -891,14 +937,12 @@ auto Codegen::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(EqualInitializerAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  // auto op =
+  //     gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
-#if false
   auto expressionResult = gen.expression(ast->expression);
-#endif
 
-  return {op};
+  return expressionResult;
 }
 
 auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)

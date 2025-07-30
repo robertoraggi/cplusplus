@@ -355,7 +355,9 @@ auto Codegen::ConvertType::operator()(const OverloadSetType* type)
 
 auto Codegen::ConvertType::operator()(const BuiltinVaListType* type)
     -> mlir::Type {
-  return getExprType();
+  // todo: toolchain specific
+  auto voidType = gen.builder_.getType<mlir::cxx::VoidType>();
+  return gen.builder_.getType<mlir::cxx::PointerType>(voidType);
 }
 
 }  // namespace cxx
