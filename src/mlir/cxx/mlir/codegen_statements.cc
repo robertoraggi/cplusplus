@@ -107,7 +107,7 @@ void Codegen::StatementVisitor::operator()(DefaultStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(ExpressionStatementAST* ast) {
-  auto expressionResult = gen.expression(ast->expression);
+  (void)gen.expression(ast->expression, ExpressionFormat::kSideEffect);
 }
 
 void Codegen::StatementVisitor::operator()(CompoundStatementAST* ast) {
