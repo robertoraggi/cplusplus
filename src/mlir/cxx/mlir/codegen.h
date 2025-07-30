@@ -112,7 +112,14 @@ class Codegen {
 
   void statement(StatementAST* ast);
 
-  [[nodiscard]] auto expression(ExpressionAST* ast) -> ExpressionResult;
+  enum struct ExpressionFormat {
+    kValue,
+    kSideEffect,
+  };
+
+  [[nodiscard]] auto expression(
+      ExpressionAST* ast, ExpressionFormat format = ExpressionFormat::kValue)
+      -> ExpressionResult;
 
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterResult;

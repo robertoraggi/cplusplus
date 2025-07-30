@@ -31,6 +31,7 @@ namespace cxx {
 
 struct Codegen::ExpressionVisitor {
   Codegen& gen;
+  ExpressionFormat format = ExpressionFormat::kValue;
 
   auto operator()(GeneratedLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(CharLiteralExpressionAST* ast) -> ExpressionResult;
@@ -104,8 +105,9 @@ struct Codegen::NewInitializerVisitor {
   auto operator()(NewBracedInitializerAST* ast) -> NewInitializerResult;
 };
 
-auto Codegen::expression(ExpressionAST* ast) -> ExpressionResult {
-  if (ast) return visit(ExpressionVisitor{*this}, ast);
+auto Codegen::expression(ExpressionAST* ast, ExpressionFormat format)
+    -> ExpressionResult {
+  if (ast) return visit(ExpressionVisitor{*this, format}, ast);
   return {};
 }
 
@@ -252,7 +254,7 @@ auto Codegen::ExpressionVisitor::operator()(NestedStatementExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(NestedExpressionAST* ast)
     -> ExpressionResult {
-  return gen.expression(ast->expression);
+  return gen.expression(ast->expression, format);
 }
 
 auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
@@ -865,6 +867,25 @@ auto Codegen::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->op == TokenKind::T_EQUAL) {
+    auto leftExpressionResult = gen.expression(ast->leftExpression);
+    auto rightExpressionResult = gen.expression(ast->rightExpression);
+
+    // Generate a store operation
+    auto loc = gen.getLocation(ast->opLoc);
+
+    auto resultType = gen.convertType(ast->leftExpression->type);
+
+    gen.builder_.create<mlir::cxx::StoreOp>(loc, rightExpressionResult.value,
+                                            leftExpressionResult.value);
+
+    if (format == ExpressionFormat::kSideEffect) {
+      return {};
+    }
+
+    return leftExpressionResult;
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
