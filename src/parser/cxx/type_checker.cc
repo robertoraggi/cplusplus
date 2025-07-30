@@ -2264,18 +2264,13 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
 void TypeChecker::checkReturnStatement(ReturnStatementAST* ast) {
   const Type* targetType = nullptr;
   for (auto current = scope_; current; current = current->parent()) {
-    if (auto function = symbol_cast<FunctionSymbol>(current->owner())) {
-      if (auto functionType = type_cast<FunctionType>(function->type())) {
+    auto owner = current->owner();
+    if (!owner) continue;
+    if (owner->isFunction() || owner->isLambda()) {
+      if (auto functionType = type_cast<FunctionType>(owner->type())) {
         targetType = functionType->returnType();
+        break;
       }
-      break;
-    }
-
-    if (auto lambda = symbol_cast<LambdaSymbol>(current->owner())) {
-      if (auto functionType = type_cast<FunctionType>(lambda->type())) {
-        targetType = functionType->returnType();
-      }
-      break;
     }
   }
 

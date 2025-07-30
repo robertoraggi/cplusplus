@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -551,6 +552,47 @@ void Binder::complete(LambdaExpressionAST* ast) {
 
   auto parentScope = ast->symbol->enclosingScope();
   parentScope->addSymbol(ast->symbol);
+
+  const Type* returnType = control()->getAutoType();
+  std::vector<const Type*> parameterTypes;
+  bool isVariadic = false;
+
+  if (auto params = ast->parameterDeclarationClause) {
+    for (auto it = params->parameterDeclarationList; it; it = it->next) {
+      auto paramType = it->value->type;
+
+      if (control()->is_void(paramType)) {
+        continue;
+      }
+
+      parameterTypes.push_back(paramType);
+    }
+
+    isVariadic = params->isVariadic;
+  }
+
+  bool isNoexcept = false;
+
+  if (auto noexceptSpec =
+          ast_cast<NoexceptSpecifierAST>(ast->exceptionSpecifier)) {
+    if (!noexceptSpec->expression) {
+      isNoexcept = true;
+    } else {
+      ASTInterpreter sem{unit_};
+      auto value = sem.evaluate(noexceptSpec->expression);
+      if (value.has_value()) {
+        isNoexcept = sem.toBool(*value).value_or(false);
+      }
+    }
+  }
+
+  if (ast->trailingReturnType && ast->trailingReturnType->typeId) {
+    returnType = ast->trailingReturnType->typeId->type;
+  }
+
+  auto type = control()->getFunctionType(returnType, std::move(parameterTypes),
+                                         isVariadic, {}, {}, isNoexcept);
+  ast->symbol->setType(type);
 }
 
 void Binder::bind(ParameterDeclarationClauseAST* ast) {
@@ -599,14 +641,6 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   }
 
   auto functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
-
-  // todo: scope chain fixup should be handled elsewhere, not here.
-  if (auto proto = getFunctionPrototype(declarator)) {
-    if (proto->parameterDeclarationClause) {
-      proto->parameterDeclarationClause->functionParametersSymbol->scope()
-          ->setParent(functionSymbol->scope());
-    }
-  }
 
   if (is_parsing_c()) {
     functionSymbol->setHasCxxLinkage(false);

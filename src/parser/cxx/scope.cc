@@ -111,6 +111,13 @@ void Scope::addSymbol(Symbol* symbol) {
     }
   }
 
+  if (auto params = symbol_cast<FunctionParametersSymbol>(symbol);
+      params && owner_) {
+    if (owner_->isFunction() || owner_->isLambda()) {
+      params->scope()->setParent(this);
+    }
+  }
+
   symbol->setEnclosingScope(this);
   symbols_.push_back(symbol);
 
