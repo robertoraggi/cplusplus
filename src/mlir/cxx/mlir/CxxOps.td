@@ -170,6 +170,12 @@ def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
   let results = (outs Cxx_FloatType:$result);
 }
 
+def Cxx_IntegralCastOp : Cxx_Op<"cast.integral"> {
+  let arguments = (ins AnyType:$value);
+
+  let results = (outs AnyType:$result);
+}
+
 //
 // todo ops
 //

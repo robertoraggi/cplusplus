@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/control.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 
 #include <format>
@@ -39,6 +40,25 @@ auto Codegen::currentBlockMightHaveTerminator() -> bool {
   auto block = builder_.getInsertionBlock();
   if (!block) return true;
   return block->mightHaveTerminator();
+}
+
+auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
+  auto var = symbol_cast<VariableSymbol>(symbol);
+  if (!var) return std::nullopt;
+
+  if (auto local = locals_.find(var); local != locals_.end()) {
+    return local->second;
+  }
+
+  auto type = convertType(var->type());
+  auto ptrType = builder_.getType<mlir::cxx::PointerType>(type);
+
+  auto loc = getLocation(var->location());
+  auto allocaOp = builder_.create<mlir::cxx::AllocaOp>(loc, ptrType);
+
+  locals_.emplace(var, allocaOp);
+
+  return allocaOp;
 }
 
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {

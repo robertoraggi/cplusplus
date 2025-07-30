@@ -231,11 +231,7 @@ void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(DeclarationStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto declarationResult = gen(ast->declaration);
-#endif
+  auto declarationResult = gen.declaration(ast->declaration);
 }
 
 void Codegen::StatementVisitor::operator()(TryBlockStatementAST* ast) {

@@ -384,7 +384,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
       mlir::OpPrintingFlags flags;
       if (cli.opt_g) {
-        flags.enableDebugInfo(true, true);
+        flags.enableDebugInfo(true, false);
       }
       ir.module->print(llvm::outs(), flags);
     }

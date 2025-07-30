@@ -136,9 +136,12 @@ struct TypeChecker::Visitor {
                                          CvQualifiers source) const -> bool;
 
   void check_cpp_cast_expression(CppCastExpressionAST* ast);
-  [[nodiscard]] auto check_static_cast(CppCastExpressionAST* ast) -> bool;
-  [[nodiscard]] auto check_cast_to_derived(const Type* targetType,
-                                           ExpressionAST* expression) -> bool;
+
+  [[nodiscard]] auto check_static_cast(ExpressionAST*& expression,
+                                       const Type* targetType) -> bool;
+
+  [[nodiscard]] auto check_cast_to_derived(ExpressionAST* expression,
+                                           const Type* targetType) -> bool;
 
   void check_addition(BinaryExpressionAST* ast);
   void check_subtraction(BinaryExpressionAST* ast);
@@ -562,11 +565,21 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
+  if (ast->typeId) ast->type = ast->typeId->type;
+
+  if (control()->is_lvalue_reference(ast->type)) {
+    ast->valueCategory = ValueCategory::kLValue;
+  } else if (control()->is_rvalue_reference(ast->type)) {
+    ast->valueCategory = ValueCategory::kXValue;
+  } else {
+    ast->valueCategory = ValueCategory::kPrValue;
+  }
+
   check_cpp_cast_expression(ast);
 
   switch (check.unit_->tokenKind(ast->castLoc)) {
     case TokenKind::T_STATIC_CAST:
-      if (check_static_cast(ast)) break;
+      if (check_static_cast(ast->expression, ast->type)) break;
       error(
           ast->firstSourceLocation(),
           std::format("invalid static_cast of '{}' to '{}'",
@@ -607,23 +620,20 @@ void TypeChecker::Visitor::check_cpp_cast_expression(
   }
 }
 
-auto TypeChecker::Visitor::check_static_cast(CppCastExpressionAST* ast)
-    -> bool {
-  if (!ast->typeId) return false;
-  auto targetType = ast->typeId->type;
-
+auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
+                                             const Type* targetType) -> bool {
   if (control()->is_void(targetType)) return true;
 
-  if (check_cast_to_derived(targetType, ast->expression)) return true;
+  if (check_cast_to_derived(expression, targetType)) return true;
 
-  const auto cv1 = control()->get_cv_qualifiers(ast->expression->type);
+  const auto cv1 = control()->get_cv_qualifiers(expression->type);
   const auto cv2 = control()->get_cv_qualifiers(targetType);
 
   if (!check_cv_qualifiers(cv2, cv1)) return false;
 
-  if (implicit_conversion(ast->expression, ast->type)) return true;
+  if (implicit_conversion(expression, targetType)) return true;
 
-  auto source = ast->expression;
+  auto source = expression;
   (void)ensure_prvalue(source);
   adjust_cv(source);
 
@@ -637,13 +647,13 @@ auto TypeChecker::Visitor::check_static_cast(CppCastExpressionAST* ast)
 
   if (!control()->is_object(targetPtr->elementType())) return false;
 
-  ast->expression = source;
+  expression = source;
 
   return true;
 }
 
-auto TypeChecker::Visitor::check_cast_to_derived(const Type* targetType,
-                                                 ExpressionAST* expression)
+auto TypeChecker::Visitor::check_cast_to_derived(ExpressionAST* expression,
+                                                 const Type* targetType)
     -> bool {
   if (!is_lvalue(expression)) return false;
 
@@ -943,17 +953,20 @@ void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {
-  if (ast->typeId) {
-    ast->type = control()->remove_reference(ast->typeId->type);
-    if (control()->is_lvalue_reference(ast->typeId->type))
-      ast->valueCategory = ValueCategory::kLValue;
-    else if (control()->is_rvalue_reference(ast->typeId->type))
-      ast->valueCategory = ValueCategory::kXValue;
-    else {
-      ast->valueCategory = ValueCategory::kPrValue;
-      adjust_cv(ast);
-    }
+  if (!ast->typeId) return;
+
+  if (ast->typeId) ast->type = ast->typeId->type;
+
+  if (control()->is_lvalue_reference(ast->type)) {
+    ast->valueCategory = ValueCategory::kLValue;
+  } else if (control()->is_rvalue_reference(ast->type)) {
+    ast->valueCategory = ValueCategory::kXValue;
+  } else {
+    ast->valueCategory = ValueCategory::kPrValue;
   }
+
+  if (check_static_cast(ast->expression, ast->type)) return;
+  // check the other casts
 }
 
 void TypeChecker::Visitor::operator()(ImplicitCastExpressionAST* ast) {}

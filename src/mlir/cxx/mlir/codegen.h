@@ -246,6 +246,9 @@ class Codegen {
 
   [[nodiscard]] auto currentBlockMightHaveTerminator() -> bool;
 
+  [[nodiscard]] auto findOrCreateLocal(Symbol* symbol)
+      -> std::optional<mlir::Value>;
+
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;
@@ -277,6 +280,7 @@ class Codegen {
   mlir::Block* exitBlock_ = nullptr;
   mlir::cxx::AllocaOp exitValue_;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
+  std::unordered_map<Symbol*, mlir::Value> locals_;
   int count_ = 0;
 };
 
