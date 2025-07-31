@@ -655,6 +655,11 @@ void ASTVisitor::visit(AssignmentExpressionAST* ast) {
   accept(ast->rightExpression);
 }
 
+void ASTVisitor::visit(CompoundAssignmentExpressionAST* ast) {
+  accept(ast->leftExpression);
+  accept(ast->rightExpression);
+}
+
 void ASTVisitor::visit(PackExpansionExpressionAST* ast) {
   accept(ast->expression);
 }

@@ -803,6 +803,9 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto operator()(AssignmentExpressionAST* ast)
       -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(CompoundAssignmentExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(PackExpansionExpressionAST* ast)
       -> ExpressionResult;
 
@@ -2561,6 +2564,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     -> ExpressionResult {
+  auto leftExpressionResult = accept(ast->leftExpression);
+  auto rightExpressionResult = accept(ast->rightExpression);
+
+  return ExpressionResult{std::nullopt};
+}
+
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    CompoundAssignmentExpressionAST* ast) -> ExpressionResult {
   auto leftExpressionResult = accept(ast->leftExpression);
   auto rightExpressionResult = accept(ast->rightExpression);
 

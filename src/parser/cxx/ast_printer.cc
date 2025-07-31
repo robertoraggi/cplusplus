@@ -1784,6 +1784,27 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   accept(ast->rightExpression, "right-expression");
 }
 
+void ASTPrinter::visit(CompoundAssignmentExpressionAST* ast) {
+  out_ << "compound-assignment-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  if (ast->op != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
+  ++indent_;
+  out_ << std::format("{:{}}", "", indent_ * 2);
+  out_ << std::format("left-cast-kind: {}\n", to_string(ast->leftCastKind));
+  --indent_;
+  accept(ast->leftExpression, "left-expression");
+  accept(ast->rightExpression, "right-expression");
+}
+
 void ASTPrinter::visit(PackExpansionExpressionAST* ast) {
   out_ << "pack-expansion-expression";
   if (ast->type) {

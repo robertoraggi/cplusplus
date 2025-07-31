@@ -3369,6 +3369,27 @@ void ASTEncoder::visit(AssignmentExpressionAST* ast) {
   type_ = io::Expression_AssignmentExpression;
 }
 
+void ASTEncoder::visit(CompoundAssignmentExpressionAST* ast) {
+  const auto [leftExpression, leftExpressionType] =
+      acceptExpression(ast->leftExpression);
+
+  const auto [rightExpression, rightExpressionType] =
+      acceptExpression(ast->rightExpression);
+
+  io::CompoundAssignmentExpression::Builder builder{fbb_};
+  builder.add_left_expression(leftExpression);
+  builder.add_left_expression_type(
+      static_cast<io::Expression>(leftExpressionType));
+  builder.add_op_loc(ast->opLoc.index());
+  builder.add_right_expression(rightExpression);
+  builder.add_right_expression_type(
+      static_cast<io::Expression>(rightExpressionType));
+  builder.add_op(static_cast<std::uint32_t>(ast->op));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_CompoundAssignmentExpression;
+}
+
 void ASTEncoder::visit(PackExpansionExpressionAST* ast) {
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
