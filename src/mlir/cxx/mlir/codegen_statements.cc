@@ -195,26 +195,16 @@ void Codegen::StatementVisitor::operator()(ContinueStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
-  // (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
-
   auto value = gen.expression(ast->expression);
 
-#if false
-  auto expressionResult = gen.expression(ast->expression);
-#endif
-
   auto loc = gen.getLocation(ast->firstSourceLocation());
-
-  mlir::SmallVector<mlir::Value> results;
 
   if (gen.exitValue_) {
     gen.builder_.create<mlir::cxx::StoreOp>(loc, value.value,
                                             gen.exitValue_.getResult());
-
-    results.push_back(gen.exitValue_);
   }
 
-  gen.builder_.create<mlir::cf::BranchOp>(loc, results, gen.exitBlock_);
+  gen.builder_.create<mlir::cf::BranchOp>(loc, gen.exitBlock_);
 }
 
 void Codegen::StatementVisitor::operator()(CoroutineReturnStatementAST* ast) {
