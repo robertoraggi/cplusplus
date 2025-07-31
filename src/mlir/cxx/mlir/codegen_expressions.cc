@@ -810,6 +810,13 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->op == TokenKind::T_COMMA) {
+    // For the comma operator, we evaluate the left expression for its side
+    // effects and then return the right expression as the result.
+    (void)gen.expression(ast->leftExpression, ExpressionFormat::kSideEffect);
+    return gen.expression(ast->rightExpression, format);
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
