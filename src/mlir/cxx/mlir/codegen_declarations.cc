@@ -363,8 +363,6 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto exitValueType = gen.convertType(returnType);
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(exitValueType);
     exitValue = gen.builder_.create<mlir::cxx::AllocaOp>(exitValueLoc, ptrType);
-
-    exitBlock->addArgument(ptrType, exitValueLoc);
   }
 
   // restore state
