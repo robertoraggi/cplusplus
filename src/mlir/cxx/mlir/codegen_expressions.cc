@@ -25,6 +25,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/literals.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -872,15 +873,25 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     auto rightExpressionResult = gen.expression(ast->rightExpression);
 
     // Generate a store operation
-    auto loc = gen.getLocation(ast->opLoc);
-
-    auto resultType = gen.convertType(ast->leftExpression->type);
+    const auto loc = gen.getLocation(ast->opLoc);
 
     gen.builder_.create<mlir::cxx::StoreOp>(loc, rightExpressionResult.value,
                                             leftExpressionResult.value);
 
     if (format == ExpressionFormat::kSideEffect) {
       return {};
+    }
+
+    if (gen.unit_->language() == LanguageKind::kC) {
+      // in C mode the result of the assignment is an rvalue
+      auto resultLoc = gen.getLocation(ast->firstSourceLocation());
+      auto resultType = gen.convertType(ast->leftExpression->type);
+
+      // generate a load
+      auto op = gen.builder_.create<mlir::cxx::LoadOp>(
+          resultLoc, resultType, leftExpressionResult.value);
+
+      return {op};
     }
 
     return leftExpressionResult;

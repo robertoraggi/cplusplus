@@ -1195,7 +1195,12 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   if (!ast->rightExpression) return;
 
   ast->type = ast->leftExpression->type;
-  ast->valueCategory = ast->leftExpression->valueCategory;
+
+  if (is_parsing_c()) {
+    ast->valueCategory = ValueCategory::kPrValue;
+  } else {
+    ast->valueCategory = ast->leftExpression->valueCategory;
+  }
 
   (void)implicit_conversion(ast->rightExpression, ast->type);
 }
