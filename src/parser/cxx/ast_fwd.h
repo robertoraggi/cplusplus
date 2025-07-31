@@ -219,6 +219,7 @@ class ConditionalExpressionAST;
 class YieldExpressionAST;
 class ThrowExpressionAST;
 class AssignmentExpressionAST;
+class CompoundAssignmentExpressionAST;
 class PackExpansionExpressionAST;
 class DesignatedInitializerClauseAST;
 class TypeTraitExpressionAST;

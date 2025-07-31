@@ -1551,6 +1551,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit CompoundAssignmentExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitCompoundAssignmentExpression(
+    node: ast.CompoundAssignmentExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit PackExpansionExpression node.
    *
    * @param node The node to visit.

@@ -182,6 +182,7 @@ union Expression {
   YieldExpression,
   ThrowExpression,
   AssignmentExpression,
+  CompoundAssignmentExpression,
   PackExpansionExpression,
   DesignatedInitializerClause,
   TypeTraitExpression,
@@ -1244,6 +1245,13 @@ table ThrowExpression /* ExpressionAST */ {
 }
 
 table AssignmentExpression /* ExpressionAST */ {
+  left_expression: Expression;
+  right_expression: Expression;
+  op: uint32;
+  op_loc: uint32;
+}
+
+table CompoundAssignmentExpression /* ExpressionAST */ {
   left_expression: Expression;
   right_expression: Expression;
   op: uint32;

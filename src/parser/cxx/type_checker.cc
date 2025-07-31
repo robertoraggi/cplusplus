@@ -205,6 +205,7 @@ struct TypeChecker::Visitor {
   void operator()(YieldExpressionAST* ast);
   void operator()(ThrowExpressionAST* ast);
   void operator()(AssignmentExpressionAST* ast);
+  void operator()(CompoundAssignmentExpressionAST* ast);
   void operator()(PackExpansionExpressionAST* ast);
   void operator()(DesignatedInitializerClauseAST* ast);
   void operator()(TypeTraitExpressionAST* ast);
@@ -1194,6 +1195,12 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   if (!ast->leftExpression) return;
   if (!ast->rightExpression) return;
 
+  if (!is_lvalue(ast->leftExpression)) {
+    error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
+                                  to_string(ast->leftExpression->type)));
+    return;
+  }
+
   ast->type = ast->leftExpression->type;
 
   if (is_parsing_c()) {
@@ -1203,6 +1210,96 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   }
 
   (void)implicit_conversion(ast->rightExpression, ast->type);
+}
+
+void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
+  if (!ast->leftExpression) return;
+  if (!ast->rightExpression) return;
+
+  if (!is_lvalue(ast->leftExpression)) {
+    error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
+                                  to_string(ast->leftExpression->type)));
+    return;
+  }
+
+  if ((ast->op == TokenKind::T_PLUS_EQUAL ||
+       ast->op == TokenKind::T_MINUS_EQUAL) &&
+      control()->is_pointer(ast->leftExpression->type) &&
+      control()->is_integral_or_unscoped_enum(ast->rightExpression->type)) {
+    // pointer addition/subtraction
+    (void)ensure_prvalue(ast->rightExpression);
+    adjust_cv(ast->rightExpression);
+
+    (void)integral_promotion(ast->rightExpression);
+    ast->type = ast->leftExpression->type;
+
+    ast->leftCastKind = ImplicitCastKind::kIdentity;
+    ast->leftCastType = ast->leftExpression->type;
+
+    if (is_parsing_cxx()) {
+      ast->valueCategory = ValueCategory::kLValue;
+    } else {
+      ast->valueCategory = ValueCategory::kPrValue;
+    }
+
+    return;
+  }
+
+  auto lhs = ast->leftExpression;
+
+  auto targetType = usual_arithmetic_conversion(lhs, ast->rightExpression);
+
+  if (!targetType) {
+    error(
+        ast->opLoc,
+        std::format("invalid compound assignment operator '{}' for types '{}' "
+                    "and '{}'",
+                    Token::spell(ast->op), to_string(lhs->type),
+                    to_string(ast->rightExpression->type)));
+    return;
+  }
+
+  if (auto leftCastExpr = ast_cast<ImplicitCastExpressionAST>(lhs)) {
+    ast->leftCastKind = leftCastExpr->castKind;
+    ast->leftCastType = leftCastExpr->type;
+  }
+
+  // todo: clean up and generalize
+  switch (ast->op) {
+    case TokenKind::T_PLUS_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_MINUS_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_STAR_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_SLASH_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_PERCENT_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_LESS_LESS_EQUAL:
+      ast->type = ast->leftExpression->type;
+      break;
+    case TokenKind::T_GREATER_GREATER_EQUAL:
+      ast->type = ast->leftExpression->type;
+      break;
+    case TokenKind::T_AMP_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_CARET_EQUAL:
+      ast->type = targetType;
+      break;
+    case TokenKind::T_BAR_EQUAL:
+      ast->type = targetType;
+      break;
+
+    default:
+      error(ast->opLoc, "invalid compound assignment operator");
+  }  // switch
 }
 
 void TypeChecker::Visitor::operator()(PackExpansionExpressionAST* ast) {}
@@ -2214,7 +2311,8 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
     if (symbol->isEnumerator()) {
       ast->valueCategory = ValueCategory::kPrValue;
     } else {
-      if (is_lvalue(ast->baseExpression)) {
+      if (is_lvalue(ast->baseExpression) ||
+          ast->accessOp == TokenKind::T_MINUS_GREATER) {
         ast->valueCategory = ValueCategory::kLValue;
       } else {
         ast->valueCategory = ValueCategory::kXValue;

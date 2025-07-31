@@ -24,6 +24,7 @@
 #include <cxx/cxx_fwd.h>
 
 #include <cstdint>
+#include <optional>
 
 namespace cxx {
 
@@ -322,5 +323,32 @@ enum class BuiltinTypeTraitKind {
 #undef TOKEN_ENUM
 #undef TOKEN_ALIAS_ENUM
 // clang-format on
+
+[[nodiscard]] inline auto get_underlying_binary_op(TokenKind op) -> TokenKind {
+  switch (op) {
+    case TokenKind::T_STAR_EQUAL:
+      return TokenKind::T_STAR;
+    case TokenKind::T_SLASH_EQUAL:
+      return TokenKind::T_SLASH;
+    case TokenKind::T_PERCENT_EQUAL:
+      return TokenKind::T_PERCENT;
+    case TokenKind::T_PLUS_EQUAL:
+      return TokenKind::T_PLUS;
+    case TokenKind::T_MINUS_EQUAL:
+      return TokenKind::T_MINUS;
+    case TokenKind::T_LESS_LESS_EQUAL:
+      return TokenKind::T_LESS_LESS;
+    case TokenKind::T_AMP_EQUAL:
+      return TokenKind::T_AMP;
+    case TokenKind::T_CARET_EQUAL:
+      return TokenKind::T_CARET;
+    case TokenKind::T_BAR_EQUAL:
+      return TokenKind::T_BAR;
+    case TokenKind::T_GREATER_GREATER_EQUAL:
+      return TokenKind::T_GREATER_GREATER;
+    default:
+      return TokenKind::T_EOF_SYMBOL;
+  }  // switch
+}
 
 }  // namespace cxx

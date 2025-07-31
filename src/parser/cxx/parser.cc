@@ -3095,15 +3095,24 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
       parse_error("expected an expression");
     }
 
-    auto ast = make_node<AssignmentExpressionAST>(pool_);
-    ast->leftExpression = yyast;
-    ast->opLoc = opLoc;
-    ast->rightExpression = expression;
-    ast->op = op;
+    if (op == TokenKind::T_EQUAL) {
+      auto ast = make_node<AssignmentExpressionAST>(pool_);
 
-    check(ast);
+      ast->leftExpression = yyast;
+      ast->opLoc = opLoc;
+      ast->rightExpression = expression;
+      ast->op = op;
+      yyast = ast;
+    } else {
+      auto ast = make_node<CompoundAssignmentExpressionAST>(pool_);
+      ast->leftExpression = yyast;
+      ast->opLoc = opLoc;
+      ast->rightExpression = expression;
+      ast->op = op;
+      yyast = ast;
+    }
 
-    yyast = ast;
+    check(yyast);
   }
 
   return true;

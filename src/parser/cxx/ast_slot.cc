@@ -4010,6 +4010,33 @@ void ASTSlot::visit(AssignmentExpressionAST* ast) {
   slotCount_ = 4;
 }
 
+void ASTSlot::visit(CompoundAssignmentExpressionAST* ast) {
+  switch (slot_) {
+    case 0:  // leftExpression
+      value_ = reinterpret_cast<std::intptr_t>(ast->leftExpression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{129};
+      break;
+    case 1:  // opLoc
+      value_ = ast->opLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{155};
+      break;
+    case 2:  // rightExpression
+      value_ = reinterpret_cast<std::intptr_t>(ast->rightExpression);
+      slotKind_ = ASTSlotKind::kNode;
+      slotNameIndex_ = SlotNameIndex{183};
+      break;
+    case 3:  // op
+      value_ = std::intptr_t(ast->op);
+      slotKind_ = ASTSlotKind::kIntAttribute;
+      slotNameIndex_ = SlotNameIndex{154};
+      break;
+  }  // switch
+
+  slotCount_ = 4;
+}
+
 void ASTSlot::visit(PackExpansionExpressionAST* ast) {
   switch (slot_) {
     case 0:  // expression

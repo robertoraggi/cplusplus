@@ -173,6 +173,7 @@ class ASTVisitor {
   virtual void visit(YieldExpressionAST* ast);
   virtual void visit(ThrowExpressionAST* ast);
   virtual void visit(AssignmentExpressionAST* ast);
+  virtual void visit(CompoundAssignmentExpressionAST* ast);
   virtual void visit(PackExpansionExpressionAST* ast);
   virtual void visit(DesignatedInitializerClauseAST* ast);
   virtual void visit(TypeTraitExpressionAST* ast);

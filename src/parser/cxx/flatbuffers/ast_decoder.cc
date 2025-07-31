@@ -372,6 +372,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_AssignmentExpression:
       return decodeAssignmentExpression(
           reinterpret_cast<const io::AssignmentExpression*>(ptr));
+    case io::Expression_CompoundAssignmentExpression:
+      return decodeCompoundAssignmentExpression(
+          reinterpret_cast<const io::CompoundAssignmentExpression*>(ptr));
     case io::Expression_PackExpansionExpression:
       return decodePackExpansionExpression(
           reinterpret_cast<const io::PackExpansionExpression*>(ptr));
@@ -3032,6 +3035,21 @@ auto ASTDecoder::decodeAssignmentExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) AssignmentExpressionAST();
+  ast->leftExpression =
+      decodeExpression(node->left_expression(), node->left_expression_type());
+  ast->opLoc = SourceLocation(node->op_loc());
+  ast->rightExpression =
+      decodeExpression(node->right_expression(), node->right_expression_type());
+  ast->op = static_cast<TokenKind>(node->op());
+  return ast;
+}
+
+auto ASTDecoder::decodeCompoundAssignmentExpression(
+    const io::CompoundAssignmentExpression* node)
+    -> CompoundAssignmentExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) CompoundAssignmentExpressionAST();
   ast->leftExpression =
       decodeExpression(node->left_expression(), node->left_expression_type());
   ast->opLoc = SourceLocation(node->op_loc());

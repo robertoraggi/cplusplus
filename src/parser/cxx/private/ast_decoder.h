@@ -334,6 +334,9 @@ class ASTDecoder {
       -> ThrowExpressionAST*;
   auto decodeAssignmentExpression(const io::AssignmentExpression* node)
       -> AssignmentExpressionAST*;
+  auto decodeCompoundAssignmentExpression(
+      const io::CompoundAssignmentExpression* node)
+      -> CompoundAssignmentExpressionAST*;
   auto decodePackExpansionExpression(const io::PackExpansionExpression* node)
       -> PackExpansionExpressionAST*;
   auto decodeDesignatedInitializerClause(

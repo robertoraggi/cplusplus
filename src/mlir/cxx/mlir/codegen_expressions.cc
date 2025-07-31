@@ -90,6 +90,7 @@ struct Codegen::ExpressionVisitor {
   auto operator()(YieldExpressionAST* ast) -> ExpressionResult;
   auto operator()(ThrowExpressionAST* ast) -> ExpressionResult;
   auto operator()(AssignmentExpressionAST* ast) -> ExpressionResult;
+  auto operator()(CompoundAssignmentExpressionAST* ast) -> ExpressionResult;
   auto operator()(PackExpansionExpressionAST* ast) -> ExpressionResult;
   auto operator()(DesignatedInitializerClauseAST* ast) -> ExpressionResult;
   auto operator()(TypeTraitExpressionAST* ast) -> ExpressionResult;
@@ -904,6 +905,19 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     return leftExpressionResult;
   }
 
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+
+#if false
+  auto leftExpressionResult = gen.expression(ast->leftExpression);
+  auto rightExpressionResult = gen.expression(ast->rightExpression);
+#endif
+
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::operator()(
+    CompoundAssignmentExpressionAST* ast) -> ExpressionResult {
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
