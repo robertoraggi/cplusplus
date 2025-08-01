@@ -24,7 +24,8 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
-#include <string_view>
+#include <string>
+#include <unordered_map>
 
 namespace cxx {
 
@@ -36,14 +37,35 @@ class ExternalNameEncoder {
   [[nodiscard]] auto encode(const Type* type) -> std::string;
 
  private:
-  void out(std::string_view s);
+  [[nodiscard]] auto encodeFunction(FunctionSymbol* function) -> std::string;
+  [[nodiscard]] auto encodeData(Symbol* symbol) -> std::string;
 
-  struct NameVisitor;
-  struct TypeVisitor;
-  struct SymbolVisitor;
+  void encodePrefix(Symbol* symbol);
+  void encodeTemplatePrefix(Symbol* symbol);
+  void encodeUnqualifiedName(Symbol* symbol);
+
+  void encodeName(Symbol* symbol);
+  [[nodiscard]] auto encodeNestedName(Symbol* symbol) -> bool;
+  [[nodiscard]] auto encodeUnscopedName(Symbol* symbol) -> bool;
+  [[nodiscard]] auto encodeOperatorName(const Name* name, bool isUnary)
+      -> std::string_view;
+
+  void encodeType(const Type* type);
+  void encodeBareFunctionType(const FunctionType* functionType,
+                              bool includeReturnType = false);
+
+  [[nodiscard]] auto encodeSubstitution(const Type* type) -> bool;
+  void enterSubstitution(const Type* type);
+
+  void out(std::string_view str) { out_.append(str); }
+
+  struct EncodeType;
+  struct EncodeUnqualifiedName;
 
  private:
-  std::string externalName_;
+  std::unordered_map<const Type*, int> substs_;
+  std::string out_;
+  int substCount_ = 0;
 };
 
 }  // namespace cxx

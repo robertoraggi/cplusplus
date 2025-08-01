@@ -7174,6 +7174,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
   SourceLocation externLoc;
   List<AttributeSpecifierAST*>* attributes = nullptr;
   SourceLocation stringLiteralLoc;
+  bool isExternC = false;
 
   auto lookat_linkage_specification = [&] {
     LookaheadParser lookahead{this};
@@ -7186,7 +7187,29 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
     lookahead.commit();
 
+    isExternC = unit->literal(stringLiteralLoc)->value() == "\"C\"";
+
     return true;
+  };
+
+  auto update_linkage = [&](DeclarationAST* declaration) {
+    if (!declaration) return;
+    if (!isExternC) return;
+
+    if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(declaration)) {
+      for (auto declarator : ListView{simpleDecl->initDeclaratorList}) {
+        auto func = symbol_cast<FunctionSymbol>(declarator->symbol);
+        if (!func) continue;
+        func->setHasCxxLinkage(false);
+      }
+      return;
+    }
+
+    if (auto functionDecl = ast_cast<FunctionDefinitionAST>(declaration)) {
+      if (auto func = symbol_cast<FunctionSymbol>(functionDecl->symbol)) {
+        func->setHasCxxLinkage(false);
+      }
+    }
   };
 
   if (!lookat_linkage_specification()) return false;
@@ -7210,12 +7233,18 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
       expect(TokenKind::T_RBRACE, ast->rbraceLoc);
     }
 
+    for (auto declaration : ListView{ast->declarationList}) {
+      update_linkage(declaration);
+    }
+
     return true;
   }
 
   DeclarationAST* declaration = nullptr;
 
   if (!parse_declaration(declaration, BindingContext::kNamespace)) return false;
+
+  update_linkage(declaration);
 
   auto ast = make_node<LinkageSpecificationAST>(pool_);
   yyast = ast;
