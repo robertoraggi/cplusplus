@@ -22,9 +22,27 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_visitor.h>
 #include <cxx/translation_unit.h>
 
 namespace cxx {
+
+namespace {
+struct ForEachExternalDefinition final : ASTVisitor {
+  std::function<void(FunctionDefinitionAST*)> functionCallback;
+
+  void visit(TemplateDeclarationAST*) override {
+    // Skip template declarations, we only want to visit function definitions.
+  }
+
+  void visit(FunctionDefinitionAST* ast) override {
+    if (functionCallback) functionCallback(ast);
+
+    ASTVisitor::visit(ast);
+  }
+};
+
+}  // namespace
 
 struct Codegen::UnitVisitor {
   Codegen& gen;
@@ -46,8 +64,15 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
+  ForEachExternalDefinition forEachExternalDefinition;
+
+  forEachExternalDefinition.functionCallback =
+      [&](FunctionDefinitionAST* function) {
+        auto functionResult = gen.declaration(function);
+      };
+
   for (auto node : ListView{ast->declarationList}) {
-    auto value = gen.declaration(node);
+    forEachExternalDefinition.accept(node);
   }
 
   std::swap(gen.module_, module);

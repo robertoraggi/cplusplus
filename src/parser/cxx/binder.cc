@@ -320,6 +320,14 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
                   bool inTemplateParameters) {
   ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 
+  // decay the type of the parameters
+  if (control()->is_array(ast->type))
+    ast->type = control()->add_pointer(control()->remove_extent(ast->type));
+  else if (control()->is_function(ast->type))
+    ast->type = control()->add_pointer(ast->type);
+  else if (control()->is_scalar(ast->type))
+    ast->type = control()->remove_cv(ast->type);
+
   if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
     auto paramName = get_name(control(), declId->unqualifiedId);
     if (auto identifier = name_cast<Identifier>(paramName)) {
