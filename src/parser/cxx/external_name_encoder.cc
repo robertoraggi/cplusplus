@@ -27,188 +27,669 @@
 
 namespace cxx {
 
-struct ExternalNameEncoder::NameVisitor {
+namespace {
+
+[[nodiscard]] auto is_global_namespace(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (!symbol->isNamespace()) return false;
+  if (symbol->enclosingSymbol()) return false;
+  return true;
+}
+
+[[nodiscard]] auto enclosing_class_or_namespace(Symbol* symbol) -> Symbol* {
+  if (!symbol) return nullptr;
+  auto parent = symbol->enclosingSymbol();
+  if (!parent) return nullptr;
+  if (!parent->isClassOrNamespace()) return nullptr;
+  return parent;
+}
+
+[[nodiscard]] auto is_std_namespace(Symbol* symbol) -> bool {
+  auto parent = enclosing_class_or_namespace(symbol);
+  if (!parent) return false;
+
+  if (!is_global_namespace(parent)) return false;
+
+  auto id = name_cast<Identifier>(symbol->name());
+  if (!id) return false;
+
+  if (id->name() != "std") return false;
+
+  return true;
+}
+
+}  // namespace
+
+struct ExternalNameEncoder::EncodeType {
   ExternalNameEncoder& encoder;
 
-  void operator()(const Identifier* name) {}
+  auto operator()(const VoidType* type) -> bool {
+    encoder.out("v");
+    return false;
+  }
 
-  void operator()(const OperatorId* name) {}
+  auto operator()(const NullptrType* type) -> bool {
+    encoder.out("Dn");
+    return false;
+  }
 
-  void operator()(const DestructorId* name) {}
+  auto operator()(const DecltypeAutoType* type) -> bool {
+    encoder.out("Dc");
+    return false;
+  }
 
-  void operator()(const LiteralOperatorId* name) {}
+  auto operator()(const AutoType* type) -> bool {
+    encoder.out("Da");
+    return false;
+  }
 
-  void operator()(const ConversionFunctionId* name) {}
+  auto operator()(const BoolType* type) -> bool {
+    encoder.out("b");
+    return false;
+  }
 
-  void operator()(const TemplateId* name) {}
+  auto operator()(const SignedCharType* type) -> bool {
+    encoder.out("a");
+    return false;
+  }
+
+  auto operator()(const ShortIntType* type) -> bool {
+    encoder.out("s");
+    return false;
+  }
+
+  auto operator()(const IntType* type) -> bool {
+    encoder.out("i");
+    return false;
+  }
+
+  auto operator()(const LongIntType* type) -> bool {
+    encoder.out("l");
+    return false;
+  }
+
+  auto operator()(const LongLongIntType* type) -> bool {
+    encoder.out("x");
+    return false;
+  }
+
+  auto operator()(const Int128Type* type) -> bool {
+    encoder.out("n");
+    return false;
+  }
+
+  auto operator()(const UnsignedCharType* type) -> bool {
+    encoder.out("h");
+    return false;
+  }
+
+  auto operator()(const UnsignedShortIntType* type) -> bool {
+    encoder.out("t");
+    return false;
+  }
+
+  auto operator()(const UnsignedIntType* type) -> bool {
+    encoder.out("j");
+    return false;
+  }
+
+  auto operator()(const UnsignedLongIntType* type) -> bool {
+    encoder.out("m");
+    return false;
+  }
+
+  auto operator()(const UnsignedLongLongIntType* type) -> bool {
+    encoder.out("y");
+    return false;
+  }
+
+  auto operator()(const UnsignedInt128Type* type) -> bool {
+    encoder.out("o");
+    return false;
+  }
+
+  auto operator()(const CharType* type) -> bool {
+    encoder.out("c");
+    return false;
+  }
+
+  auto operator()(const Char8Type* type) -> bool {
+    encoder.out("Du");
+    return false;
+  }
+
+  auto operator()(const Char16Type* type) -> bool {
+    encoder.out("Ds");
+    return false;
+  }
+
+  auto operator()(const Char32Type* type) -> bool {
+    encoder.out("Di");
+    return false;
+  }
+
+  auto operator()(const WideCharType* type) -> bool {
+    encoder.out("w");
+    return false;
+  }
+
+  auto operator()(const FloatType* type) -> bool {
+    encoder.out("f");
+    return false;
+  }
+
+  auto operator()(const DoubleType* type) -> bool {
+    encoder.out("d");
+    return false;
+  }
+
+  auto operator()(const LongDoubleType* type) -> bool {
+    encoder.out("e");
+    return false;
+  }
+
+  auto operator()(const QualType* type) -> bool {
+    if (type->isVolatile()) encoder.out("V");
+    if (type->isConst()) encoder.out("K");
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const BoundedArrayType* type) -> bool {
+    encoder.out(std::format("A{}_", type->size()));
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const UnboundedArrayType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const PointerType* type) -> bool {
+    encoder.out("P");
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const LvalueReferenceType* type) -> bool {
+    encoder.out("R");
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const RvalueReferenceType* type) -> bool {
+    encoder.out("O");
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const FunctionType* type) -> bool {
+    if (is_volatile(type->cvQualifiers())) encoder.out("V");
+    if (is_const(type->cvQualifiers())) encoder.out("K");
+
+    if (type->isNoexcept()) {
+      // todo: computed noexcept
+      encoder.out("N");
+    }
+
+    // todo: "Y" prefix for the bare function type encodes extern "C"
+    encoder.out("F");
+
+    encoder.encodeBareFunctionType(type);
+
+    if (type->refQualifier() == RefQualifier::kLvalue)
+      encoder.out("R");
+    else if (type->refQualifier() == RefQualifier::kRvalue)
+      encoder.out("O");
+
+    encoder.out("E");
+    return true;
+  }
+
+  auto operator()(const ClassType* type) -> bool {
+    if (!type->symbol()->name()) {
+      cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+      return false;
+    }
+
+    encoder.encodeName(type->symbol());
+    return true;
+  }
+
+  auto operator()(const EnumType* type) -> bool {
+    if (!type->symbol()->name()) {
+      cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+      return false;
+    }
+    encoder.encodeName(type->symbol());
+    return true;
+  }
+
+  auto operator()(const ScopedEnumType* type) -> bool {
+    if (!type->symbol()->name()) {
+      cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+      return false;
+    }
+    encoder.encodeName(type->symbol());
+    return true;
+  }
+
+  auto operator()(const MemberObjectPointerType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const NamespaceType* type) -> bool { return false; }
+
+  auto operator()(const TypeParameterType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const TemplateTypeParameterType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const UnresolvedNameType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const UnresolvedUnderlyingType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const OverloadSetType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
+
+  auto operator()(const BuiltinVaListType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return false;
+  }
 };
 
-struct ExternalNameEncoder::TypeVisitor {
+struct ExternalNameEncoder::EncodeUnqualifiedName {
   ExternalNameEncoder& encoder;
-
-  void operator()(const VoidType* type) { encoder.out("v"); }
-
-  void operator()(const NullptrType* type) { encoder.out("Dn"); }
-
-  void operator()(const DecltypeAutoType* type) { encoder.out("Dc"); }
-
-  void operator()(const AutoType* type) { encoder.out("Da"); }
-
-  void operator()(const BoolType* type) { encoder.out("b"); }
-
-  void operator()(const SignedCharType* type) { encoder.out("a"); }
-
-  void operator()(const ShortIntType* type) { encoder.out("s"); }
-
-  void operator()(const IntType* type) { encoder.out("i"); }
-
-  void operator()(const LongIntType* type) { encoder.out("l"); }
-
-  void operator()(const LongLongIntType* type) { encoder.out("x"); }
-
-  void operator()(const Int128Type* type) { encoder.out("n"); }
-
-  void operator()(const UnsignedCharType* type) { encoder.out("h"); }
-
-  void operator()(const UnsignedShortIntType* type) { encoder.out("t"); }
-
-  void operator()(const UnsignedIntType* type) { encoder.out("j"); }
-
-  void operator()(const UnsignedLongIntType* type) { encoder.out("m"); }
-
-  void operator()(const UnsignedLongLongIntType* type) { encoder.out("y"); }
-
-  void operator()(const UnsignedInt128Type* type) { encoder.out("o"); }
-
-  void operator()(const CharType* type) { encoder.out("c"); }
-
-  void operator()(const Char8Type* type) { encoder.out("Du"); }
-
-  void operator()(const Char16Type* type) { encoder.out("Ds"); }
-
-  void operator()(const Char32Type* type) { encoder.out("Di"); }
-
-  void operator()(const WideCharType* type) { encoder.out("w"); }
-
-  void operator()(const FloatType* type) { encoder.out("f"); }
-
-  void operator()(const DoubleType* type) { encoder.out("d"); }
-
-  void operator()(const LongDoubleType* type) { encoder.out("e"); }
-
-  void operator()(const QualType* type) {}
-
-  void operator()(const BoundedArrayType* type) {}
-
-  void operator()(const UnboundedArrayType* type) {}
-
-  void operator()(const PointerType* type) {}
-
-  void operator()(const LvalueReferenceType* type) {}
-
-  void operator()(const RvalueReferenceType* type) {}
-
-  void operator()(const FunctionType* type) {}
-
-  void operator()(const ClassType* type) {}
-
-  void operator()(const EnumType* type) {}
-
-  void operator()(const ScopedEnumType* type) {}
-
-  void operator()(const MemberObjectPointerType* type) {}
-
-  void operator()(const MemberFunctionPointerType* type) {}
-
-  void operator()(const NamespaceType* type) {}
-
-  void operator()(const TypeParameterType* type) {}
-
-  void operator()(const TemplateTypeParameterType* type) {}
-
-  void operator()(const UnresolvedNameType* type) {}
-
-  void operator()(const UnresolvedBoundedArrayType* type) {}
-
-  void operator()(const UnresolvedUnderlyingType* type) {}
-
-  void operator()(const OverloadSetType* type) {}
-
-  void operator()(const BuiltinVaListType* type) {}
-};
-
-struct ExternalNameEncoder::SymbolVisitor {
-  ExternalNameEncoder& encoder;
-
-  void operator()(NamespaceSymbol* symbol) {}
-
-  void operator()(ConceptSymbol* symbol) {}
-
-  void operator()(ClassSymbol* symbol) {}
-
-  void operator()(EnumSymbol* symbol) {}
-
-  void operator()(ScopedEnumSymbol* symbol) {}
-
-  void operator()(FunctionSymbol* symbol) {}
-
-  void operator()(TypeAliasSymbol* symbol) {}
-
-  void operator()(VariableSymbol* symbol) {}
-
-  void operator()(FieldSymbol* symbol) {}
-
-  void operator()(ParameterSymbol* symbol) {}
-
-  void operator()(ParameterPackSymbol* symbol) {}
-
-  void operator()(EnumeratorSymbol* symbol) {}
-
-  void operator()(FunctionParametersSymbol* symbol) {}
-
-  void operator()(TemplateParametersSymbol* symbol) {}
-
-  void operator()(BlockSymbol* symbol) {}
-
-  void operator()(LambdaSymbol* symbol) {}
-
-  void operator()(TypeParameterSymbol* symbol) {}
-
-  void operator()(NonTypeParameterSymbol* symbol) {}
-
-  void operator()(TemplateTypeParameterSymbol* symbol) {}
-
-  void operator()(ConstraintTypeParameterSymbol* symbol) {}
-
-  void operator()(OverloadSetSymbol* symbol) {}
-
-  void operator()(BaseClassSymbol* symbol) {}
-
-  void operator()(UsingDeclarationSymbol* symbol) {}
+  Symbol* symbol = nullptr;
+
+  void operator()(const Identifier* id) {
+    if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+      if (function->isConstructor()) {
+        out("C2");
+        return;
+      }
+    }
+
+    out(std::format("{}{}", id->name().length(), id->name()));
+  }
+
+  void operator()(const OperatorId* name) {
+    auto is_unary = [&] {
+      auto function = symbol_cast<FunctionSymbol>(symbol);
+      if (!function) {
+        cxx_runtime_error(
+            std::format("cannot encode operator '{}' for non-function symbol",
+                        to_string(name)));
+      }
+
+      auto functionType = type_cast<FunctionType>(function->type());
+      if (!functionType) {
+        cxx_runtime_error(
+            std::format("cannot encode operator '{}' for non-function type",
+                        to_string(name)));
+      }
+
+      bool unary = false;
+      switch (name->op()) {
+        case TokenKind::T_PLUS:
+        case TokenKind::T_MINUS:
+        case TokenKind::T_AMP:
+        case TokenKind::T_STAR: {
+          auto argc = functionType->parameterTypes().size();
+          if (argc == 0)
+            unary = true;
+          else if (argc == 1 && !function->enclosingSymbol()->isClass())
+            unary = true;
+          break;
+        }
+
+        default:
+          break;
+      }  // switch
+
+      return unary;
+    };
+
+    const auto unary = is_unary();
+
+    switch (name->op()) {
+      case TokenKind::T_NEW:
+        out("nw");
+        break;
+      case TokenKind::T_NEW_ARRAY:
+        out("na");
+        break;
+      case TokenKind::T_DELETE:
+        out("dl");
+        break;
+      case TokenKind::T_DELETE_ARRAY:
+        out("da");
+        break;
+      case TokenKind::T_CO_AWAIT:
+        out("aw");
+        break;
+      case TokenKind::T_PLUS:
+        out(unary ? "ps" : "pl");
+        break;
+      case TokenKind::T_MINUS:
+        out(unary ? "ng" : "mi");
+        break;
+      case TokenKind::T_AMP:
+        out(unary ? "ad" : "an");
+        break;
+      case TokenKind::T_STAR:
+        out(unary ? "de" : "ml");
+        break;
+      case TokenKind::T_TILDE:
+        out("co");
+        break;
+      case TokenKind::T_SLASH:
+        out("dv");
+        break;
+      case TokenKind::T_PERCENT:
+        out("rm");
+        break;
+      case TokenKind::T_BAR:
+        out("or");
+        break;
+      case TokenKind::T_CARET:
+        out("eo");
+        break;
+      case TokenKind::T_EQUAL:
+        out("aS");
+        break;
+      case TokenKind::T_PLUS_EQUAL:
+        out("pL");
+        break;
+      case TokenKind::T_MINUS_EQUAL:
+        out("mI");
+        break;
+      case TokenKind::T_STAR_EQUAL:
+        out("mL");
+        break;
+      case TokenKind::T_SLASH_EQUAL:
+        out("dV");
+        break;
+      case TokenKind::T_PERCENT_EQUAL:
+        out("rM");
+        break;
+      case TokenKind::T_AMP_EQUAL:
+        out("aN");
+        break;
+      case TokenKind::T_BAR_EQUAL:
+        out("oR");
+        break;
+      case TokenKind::T_CARET_EQUAL:
+        out("eO");
+        break;
+      case TokenKind::T_LESS_LESS:
+        out("ls");
+        break;
+      case TokenKind::T_GREATER_GREATER:
+        out("rs");
+        break;
+      case TokenKind::T_LESS_LESS_EQUAL:
+        out("lS");
+        break;
+      case TokenKind::T_GREATER_GREATER_EQUAL:
+        out("rS");
+        break;
+      case TokenKind::T_EQUAL_EQUAL:
+        out("eq");
+        break;
+      case TokenKind::T_EXCLAIM_EQUAL:
+        out("ne");
+        break;
+      case TokenKind::T_LESS:
+        out("lt");
+        break;
+      case TokenKind::T_GREATER:
+        out("gt");
+        break;
+      case TokenKind::T_LESS_EQUAL:
+        out("le");
+        break;
+      case TokenKind::T_GREATER_EQUAL:
+        out("ge");
+        break;
+      case TokenKind::T_LESS_EQUAL_GREATER:
+        out("ss");
+        break;
+      case TokenKind::T_EXCLAIM:
+        out("nt");
+        break;
+      case TokenKind::T_AMP_AMP:
+        out("aa");
+        break;
+      case TokenKind::T_BAR_BAR:
+        out("oo");
+        break;
+      case TokenKind::T_PLUS_PLUS:
+        out("pp");
+        break;
+      case TokenKind::T_MINUS_MINUS:
+        out("mm");
+        break;
+      case TokenKind::T_COMMA:
+        out("cm");
+        break;
+      case TokenKind::T_MINUS_GREATER_STAR:
+        out("pm");
+        break;
+      case TokenKind::T_MINUS_GREATER:
+        out("pt");
+        break;
+      case TokenKind::T_LPAREN:
+        out("cl");
+        break;
+      case TokenKind::T_LBRACKET:
+        out("ix");
+        break;
+      case TokenKind::T_QUESTION:
+        out("qu");
+        break;
+      default:
+        cxx_runtime_error(
+            std::format("cannot encode operator '{}'", to_string(name)));
+    }  // switch
+  }
+
+  void operator()(const DestructorId* name) { out("D2"); }
+
+  void operator()(const LiteralOperatorId* name) {
+    out("ll");
+    encoder.out(std::format("{}{}", name->name().length(), name->name()));
+  }
+
+  void operator()(const ConversionFunctionId* name) {
+    out("cv");
+    encoder.encodeType(name->type());
+  }
+
+  void operator()(const TemplateId* name) {
+    cxx_runtime_error("template names not supported yet");
+  }
+
+  void out(std::string_view str) { encoder.out(str); }
 };
 
 ExternalNameEncoder::ExternalNameEncoder() {}
 
-void ExternalNameEncoder::out(std::string_view s) { externalName_.append(s); }
-
 auto ExternalNameEncoder::encode(Symbol* symbol) -> std::string {
-  std::string externalName;
-  if (symbol) {
-    std::swap(externalName, externalName_);
-    visit(SymbolVisitor{*this}, symbol);
-    std::swap(externalName, externalName_);
+  if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
+    return encodeFunction(functionSymbol);
   }
-  return externalName;
+
+  return encodeData(symbol);
 }
 
 auto ExternalNameEncoder::encode(const Type* type) -> std::string {
   std::string externalName;
-  if (type) {
-    std::swap(externalName, externalName_);
-    visit(TypeVisitor{*this}, type);
-    std::swap(externalName, externalName_);
-  }
+  std::swap(externalName, out_);
+
+  encodeType(type);
+
+  std::swap(externalName, out_);
   return externalName;
+}
+
+auto ExternalNameEncoder::encodeData(Symbol* symbol) -> std::string {
+  std::string externalName;
+  std::swap(externalName, out_);
+  if (is_global_namespace(enclosing_class_or_namespace(symbol))) {
+    auto id = name_cast<Identifier>(symbol->name());
+    out(id->name());
+  } else {
+    out("_Z");
+    encodeName(symbol);
+  }
+  std::swap(externalName, out_);
+  return externalName;
+}
+
+auto ExternalNameEncoder::encodeFunction(FunctionSymbol* function)
+    -> std::string {
+  std::string externalName;
+  std::swap(externalName, out_);
+
+  const auto id = name_cast<Identifier>(function->name());
+
+  if (id && (function->hasCLinkage() ||
+             (id->name() == "main" &&
+              is_global_namespace(function->enclosingSymbol())))) {
+    out(id->name());
+  } else {
+    out("_Z");
+    encodeName(function);
+    auto functionType = type_cast<FunctionType>(function->type());
+    encodeBareFunctionType(functionType);
+  }
+
+  std::swap(externalName, out_);
+
+  return externalName;
+}
+
+void ExternalNameEncoder::encodeName(Symbol* symbol) {
+  if (encodeNestedName(symbol)) return;
+  if (encodeUnscopedName(symbol)) return;
+
+  cxx_runtime_error(std::format("cannot encode name for symbol '{}'",
+                                to_string(symbol->type(), symbol->name())));
+}
+
+auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
+  auto parent = enclosing_class_or_namespace(symbol);
+  if (!parent) return false;
+  if (is_global_namespace(parent)) return false;
+  if (is_std_namespace(parent)) return false;
+
+  out("N");
+  // todo: encode cv qualifiers
+  // todo: encode ref qualifier
+  encodePrefix(parent);
+  encodeUnqualifiedName(symbol);
+  out("E");
+  return true;
+}
+
+auto ExternalNameEncoder::encodeUnscopedName(Symbol* symbol) -> bool {
+  if (is_std_namespace(enclosing_class_or_namespace(symbol))) {
+    out("St");
+  }
+
+  encodeUnqualifiedName(symbol);
+  return true;
+}
+
+void ExternalNameEncoder::encodePrefix(Symbol* symbol) {
+  if (encodeSubstitution(symbol->type())) return;
+
+  if (auto parent = enclosing_class_or_namespace(symbol);
+      parent && !is_global_namespace(parent)) {
+    encodePrefix(parent);
+  }
+
+  enterSubstitution(symbol->type());
+  encodeUnqualifiedName(symbol);
+}
+
+void ExternalNameEncoder::encodeTemplatePrefix(Symbol* symbol) {}
+
+void ExternalNameEncoder::encodeUnqualifiedName(Symbol* symbol) {
+  visit(EncodeUnqualifiedName{*this, symbol}, symbol->name());
+}
+
+void ExternalNameEncoder::encodeBareFunctionType(
+    const FunctionType* functionType, bool includeReturnType) {
+  if (includeReturnType) {
+    encodeType(functionType->returnType());
+  }
+
+  for (auto param : functionType->parameterTypes()) {
+    encodeType(param);
+  }
+
+  if (functionType->parameterTypes().empty()) {
+    out("v");
+  }
+
+  if (functionType->isVariadic()) {
+    out("z");
+  }
+}
+
+void ExternalNameEncoder::encodeType(const Type* type) {
+  if (encodeSubstitution(type)) return;
+  if (!visit(EncodeType{*this}, type)) return;
+  enterSubstitution(type);
+}
+
+auto ExternalNameEncoder::encodeSubstitution(const Type* type) -> bool {
+  auto it = substs_.find(type);
+  if (it == substs_.end()) return false;
+
+  const auto index = it->second;
+
+  if (index == 0) {
+    out("S_");
+    return true;
+  }
+
+  out(std::format("S{}_", index - 1));
+  return true;
+}
+
+void ExternalNameEncoder::enterSubstitution(const Type* type) {
+  const auto index = substCount_;
+  ++substCount_;
+
+  substs_.emplace(type, index);
 }
 
 }  // namespace cxx

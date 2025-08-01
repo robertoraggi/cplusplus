@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/external_name_encoder.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -84,16 +85,7 @@ struct Codegen::TemplateParameterVisitor {
 };
 
 auto Codegen::declaration(DeclarationAST* ast) -> DeclarationResult {
-  // if (ast) return visit(DeclarationVisitor{*this}, ast);
-
-  // restrict for now to declarations that are not definitions
-  if (ast_cast<FunctionDefinitionAST>(ast) ||
-      ast_cast<LinkageSpecificationAST>(ast) ||
-      ast_cast<SimpleDeclarationAST>(ast) ||
-      ast_cast<NamespaceDefinitionAST>(ast)) {
-    return visit(DeclarationVisitor{*this}, ast);
-  }
-
+  if (ast) return visit(DeclarationVisitor{*this}, ast);
   return {};
 }
 
@@ -228,32 +220,39 @@ auto Codegen::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(NamespaceAliasDefinitionAST* ast)
     -> DeclarationResult {
+#if false
   auto nestedNameSpecifierResult =
       gen.nestedNameSpecifier(ast->nestedNameSpecifier);
 
   auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->usingDeclaratorList}) {
     auto value = gen.usingDeclarator(node);
   }
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(UsingEnumDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   auto enumTypeSpecifierResult = gen.specifier(ast->enumTypeSpecifier);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(UsingDirectiveAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen.attributeSpecifier(node);
   }
@@ -262,19 +261,23 @@ auto Codegen::DeclarationVisitor::operator()(UsingDirectiveAST* ast)
       gen.nestedNameSpecifier(ast->nestedNameSpecifier);
 
   auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(StaticAssertDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen.attributeSpecifier(node);
   }
@@ -284,12 +287,14 @@ auto Codegen::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   }
 
   auto typeIdResult = gen.typeId(ast->typeId);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen.attributeSpecifier(node);
   }
@@ -302,6 +307,7 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
   for (auto node : ListView{ast->typeSpecifierList}) {
     auto value = gen.specifier(node);
   }
+#endif
 
   return {};
 }
@@ -338,15 +344,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   if (ast->symbol->hasCLinkage()) {
     name = to_string(ast->symbol->name());
   } else {
-    // todo: external name mangling
-
-    std::ranges::for_each(path | std::views::reverse, [&](auto& part) {
-      name += "::";
-      name += part;
-    });
-
-    // generate unique names until we have proper name mangling
-    name += std::format("_{}", ++gen.count_);
+    ExternalNameEncoder encoder;
+    name = encoder.encode(ast->symbol);
   }
 
   auto guard = mlir::OpBuilder::InsertionGuard(gen.builder_);
@@ -413,6 +412,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->templateParameterList}) {
     auto value = gen.templateParameter(node);
   }
@@ -420,26 +420,30 @@ auto Codegen::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
   auto requiresClauseResult = gen.requiresClause(ast->requiresClause);
 
   auto declarationResult = gen.declaration(ast->declaration);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(ConceptDefinitionAST* ast)
     -> DeclarationResult {
+#if false
   auto expressionResult = gen.expression(ast->expression);
+#endif
 
   return {};
 }
 
 auto Codegen::DeclarationVisitor::operator()(DeductionGuideAST* ast)
     -> DeclarationResult {
+#if false
   auto explicitSpecifierResult = gen.specifier(ast->explicitSpecifier);
 
   auto parameterDeclarationClauseResult =
       gen.parameterDeclarationClause(ast->parameterDeclarationClause);
 
   auto templateIdResult = gen.unqualifiedId(ast->templateId);
-
+#endif
   return {};
 }
 
@@ -523,6 +527,7 @@ auto Codegen::DeclarationVisitor::operator()(ModuleImportDeclarationAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
     -> DeclarationResult {
+#if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen.attributeSpecifier(node);
   }
@@ -533,7 +538,7 @@ auto Codegen::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   auto declaratorResult = gen.declarator(ast->declarator);
   auto expressionResult = gen.expression(ast->expression);
-
+#endif
   return {};
 }
 
