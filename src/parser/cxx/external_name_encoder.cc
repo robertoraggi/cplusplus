@@ -236,7 +236,7 @@ struct ExternalNameEncoder::EncodeType {
     // todo: "Y" prefix for the bare function type encodes extern "C"
     encoder.out("F");
 
-    encoder.encodeBareFunctionType(type);
+    encoder.encodeBareFunctionType(type, /*includeReturnType=*/true);
 
     if (type->refQualifier() == RefQualifier::kLvalue)
       encoder.out("R");
