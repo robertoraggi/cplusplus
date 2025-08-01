@@ -149,6 +149,11 @@ auto Codegen::lambdaSpecifier(LambdaSpecifierAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationResult {
+  if (!gen.function_) {
+    // skip for now, as we only look for local variable declarations
+    return {};
+  }
+
 #if false
   for (auto node : ListView{ast->attributeList}) {
     auto value = gen.attributeSpecifier(node);
@@ -379,14 +384,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   const auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
   if (!gen.builder_.getBlock()->mightHaveTerminator()) {
-    llvm::SmallVector<mlir::Value> exitBlockArgs;
-
-    if (gen.exitValue_) {
-      exitBlockArgs.push_back(gen.exitValue_.getResult());
-    }
-
-    gen.builder_.create<mlir::cf::BranchOp>(endLoc, exitBlockArgs,
-                                            gen.exitBlock_);
+    gen.builder_.create<mlir::cf::BranchOp>(endLoc, gen.exitBlock_);
   }
 
   gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
