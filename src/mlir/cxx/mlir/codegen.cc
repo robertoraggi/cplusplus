@@ -61,12 +61,12 @@ void Codegen::branch(mlir::Location loc, mlir::Block* block,
 }
 
 auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
-  auto var = symbol_cast<VariableSymbol>(symbol);
-  if (!var) return std::nullopt;
-
-  if (auto local = locals_.find(var); local != locals_.end()) {
+  if (auto local = locals_.find(symbol); local != locals_.end()) {
     return local->second;
   }
+
+  auto var = symbol_cast<VariableSymbol>(symbol);
+  if (!var) return std::nullopt;
 
   auto type = convertType(var->type());
   auto ptrType = builder_.getType<mlir::cxx::PointerType>(type);

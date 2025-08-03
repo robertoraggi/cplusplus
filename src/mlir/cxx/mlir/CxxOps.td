@@ -189,9 +189,9 @@ def Cxx_IntegralCastOp : Cxx_Op<"integral_cast"> {
 }
 
 def Cxx_NotOp : Cxx_Op<"not"> {
-  let arguments = (ins Cxx_BoolType:$value);
+  let arguments = (ins AnyType:$value);
 
-  let results = (outs Cxx_BoolType:$result);
+  let results = (outs AnyType:$result);
 }
 
 def Cxx_AddIOp : Cxx_Op<"addi"> {
@@ -211,6 +211,70 @@ def Cxx_MulIOp : Cxx_Op<"muli"> {
 
   let results = (outs Cxx_IntegerType:$result);
 }
+
+def Cxx_DivIOp : Cxx_Op<"divi"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_ModIOp : Cxx_Op<"mod"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_ShiftLeftOp : Cxx_Op<"shl"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_ShiftRightOp : Cxx_Op<"shr"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_EqualOp : Cxx_Op<"eq"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_NotEqualOp : Cxx_Op<"ne"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_LessThanOp : Cxx_Op<"lt"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_LessEqualOp : Cxx_Op<"le"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_GreaterThanOp : Cxx_Op<"gt"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_GreaterEqualOp : Cxx_Op<"ge"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+//
+// control flow ops
+//
 
 def Cxx_LabelOp : Cxx_Op<"label"> {
   let arguments = (ins StringProp:$name);
