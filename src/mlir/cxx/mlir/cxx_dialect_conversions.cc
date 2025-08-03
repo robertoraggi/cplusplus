@@ -81,6 +81,10 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     auto func = rewriter.create<LLVM::LLVMFuncOp>(op.getLoc(), op.getSymName(),
                                                   llvmFuncType);
 
+    if (op.getBody().empty()) {
+      func.setLinkage(LLVM::linkage::Linkage::External);
+    }
+
     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
 
     rewriter.eraseOp(op);
@@ -97,6 +101,39 @@ class ReturnOpLowering : public OpConversionPattern<cxx::ReturnOp> {
                        ConversionPatternRewriter &rewriter) const
       -> LogicalResult override {
     rewriter.replaceOpWithNewOp<LLVM::ReturnOp>(op, adaptor.getOperands());
+    return success();
+  }
+};
+
+class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::CallOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+
+    SmallVector<Type> argumentTypes;
+    for (auto argType : op.getOperandTypes()) {
+      auto convertedType = typeConverter->convertType(argType);
+      if (!convertedType) {
+        return rewriter.notifyMatchFailure(
+            op, "failed to convert call argument type");
+      }
+      argumentTypes.push_back(convertedType);
+    }
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert call result types");
+    }
+
+    auto llvmCallOp = rewriter.create<LLVM::CallOp>(
+        op.getLoc(), resultType, adaptor.getCallee(), adaptor.getInputs());
+
+    rewriter.replaceOp(op, llvmCallOp.getResults());
     return success();
   }
 };
@@ -908,7 +945,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(context);
 
   // function operations
-  patterns.insert<FuncOpLowering, ReturnOpLowering>(typeConverter, context);
+  patterns.insert<FuncOpLowering, ReturnOpLowering, CallOpLowering>(
+      typeConverter, context);
 
   // memory operations
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering>(

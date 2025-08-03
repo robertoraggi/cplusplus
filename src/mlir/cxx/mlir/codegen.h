@@ -259,6 +259,9 @@ class Codegen {
 
   [[nodiscard]] auto currentBlockMightHaveTerminator() -> bool;
 
+  [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
+      -> mlir::cxx::FuncOp;
+
   [[nodiscard]] auto findOrCreateLocal(Symbol* symbol)
       -> std::optional<mlir::Value>;
 
@@ -308,6 +311,7 @@ class Codegen {
   mlir::cxx::AllocaOp exitValue_;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
+  std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
   Loop loop_;
   int count_ = 0;
 };

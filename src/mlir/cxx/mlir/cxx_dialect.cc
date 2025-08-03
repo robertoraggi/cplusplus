@@ -122,11 +122,6 @@ void CxxDialect::initialize() {
   addInterface<CxxGenerateAliases>();
 }
 
-void FuncOp::build(OpBuilder &builder, OperationState &state, StringRef name,
-                   FunctionType type, ArrayRef<NamedAttribute> attrs) {
-  buildWithEntryBlock(builder, state, name, type, attrs, type.getInputs());
-}
-
 void FuncOp::print(OpAsmPrinter &p) {
   function_interface_impl::printFunctionOp(
       p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),

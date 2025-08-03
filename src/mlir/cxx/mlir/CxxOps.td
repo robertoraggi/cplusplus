@@ -21,9 +21,10 @@
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 def Cxx_Dialect : Dialect {
   let name = "cxx";
@@ -103,9 +104,6 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
 
   let regions = (region AnyRegion:$body);
 
-  let builders = [OpBuilder<(ins "StringRef":$name, "FunctionType":$type,
-      CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs)>];
-
   let extraClassDeclaration = [{
     auto getArgumentTypes() -> ArrayRef<Type> { return getFunctionType().getInputs(); }
     auto getResultTypes() -> ArrayRef<Type> { return getFunctionType().getResults(); }
@@ -113,7 +111,6 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   }];
 
   let hasCustomAssemblyFormat = 1;
-  let skipDefaultBuilders = 1;
 }
 
 def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
@@ -126,6 +123,17 @@ def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   }];
 
   let hasVerifier = 0;
+}
+
+def Cxx_CallOp : Cxx_Op<"call"> {
+  let arguments = (ins
+    FlatSymbolRefAttr:$callee,
+    Variadic<AnyType>:$inputs,
+    OptionalAttr<DictArrayAttr>:$arg_attrs,
+    OptionalAttr<DictArrayAttr>:$res_attrs
+  );
+
+  let results = (outs AnyType);
 }
 
 def Cxx_AllocaOp : Cxx_Op<"alloca"> {

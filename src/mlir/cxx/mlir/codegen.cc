@@ -22,8 +22,10 @@
 
 // cxx
 #include <cxx/control.h>
+#include <cxx/external_name_encoder.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/types.h>
 
 // mlir
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -77,6 +79,52 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   locals_.emplace(var, allocaOp);
 
   return allocaOp;
+}
+
+auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
+    -> mlir::cxx::FuncOp {
+  if (auto it = funcOps_.find(functionSymbol); it != funcOps_.end()) {
+    return it->second;
+  }
+
+  const auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  const auto returnType = functionType->returnType();
+  const auto needsExitValue = !control()->is_void(returnType);
+
+  std::vector<mlir::Type> inputTypes;
+  std::vector<mlir::Type> resultTypes;
+
+  for (auto paramTy : functionType->parameterTypes()) {
+    inputTypes.push_back(convertType(paramTy));
+  }
+
+  if (needsExitValue) {
+    resultTypes.push_back(convertType(returnType));
+  }
+
+  auto funcType = builder_.getFunctionType(inputTypes, resultTypes);
+
+  std::string name;
+
+  if (functionSymbol->hasCLinkage()) {
+    name = to_string(functionSymbol->name());
+  } else {
+    ExternalNameEncoder encoder;
+    name = encoder.encode(functionSymbol);
+  }
+
+  const auto loc = getLocation(functionSymbol->location());
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  auto func = builder_.create<mlir::cxx::FuncOp>(
+      loc, name, funcType, mlir::ArrayAttr{}, mlir::ArrayAttr{});
+
+  funcOps_.insert_or_assign(functionSymbol, func);
+
+  return func;
 }
 
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {
