@@ -3288,6 +3288,8 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
 
 void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
   auto lookat_condition = [&] {
+    if (!is_parsing_cxx()) return false;
+
     LookaheadParser lookahead{this};
 
     List<AttributeSpecifierAST*>* attributes = nullptr;
