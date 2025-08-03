@@ -465,6 +465,43 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
+  auto check_direct_call = [&]() -> ExpressionResult {
+    auto func = ast->baseExpression;
+
+    while (auto nested = ast_cast<NestedExpressionAST>(func)) {
+      func = nested->expression;
+    }
+
+    auto id = ast_cast<IdExpressionAST>(func);
+    if (!id) return {};
+
+    auto functionSymbol = symbol_cast<FunctionSymbol>(id->symbol);
+
+    if (!functionSymbol) return {};
+
+    auto funcOp = gen.findOrCreateFunction(functionSymbol);
+
+    mlir::SmallVector<mlir::Value> arguments;
+    for (auto node : ListView{ast->expressionList}) {
+      auto value = gen.expression(node);
+      arguments.push_back(value.value);
+    }
+
+    auto loc = gen.getLocation(ast->lparenLoc);
+
+    auto functionType = type_cast<FunctionType>(functionSymbol->type());
+    auto resultType = gen.convertType(functionType->returnType());
+    auto op = gen.builder_.create<mlir::cxx::CallOp>(
+        loc, resultType, funcOp.getSymName(), arguments, mlir::ArrayAttr{},
+        mlir::ArrayAttr{});
+
+    return {op};
+  };
+
+  if (auto op = check_direct_call(); op.value) {
+    return op;
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 

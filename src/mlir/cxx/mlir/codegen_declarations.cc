@@ -316,46 +316,20 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
   auto functionSymbol = ast->symbol;
+
+  auto func = gen.findOrCreateFunction(functionSymbol);
   const auto functionType = type_cast<FunctionType>(functionSymbol->type());
   const auto returnType = functionType->returnType();
   const auto needsExitValue = !gen.control()->is_void(returnType);
 
-  std::vector<mlir::Type> inputTypes;
-  std::vector<mlir::Type> resultTypes;
+  auto loc = gen.getLocation(ast->firstSourceLocation());
 
-  for (auto paramTy : functionType->parameterTypes()) {
-    inputTypes.push_back(gen.convertType(paramTy));
+  // Add the function body.
+  auto entryBlock = gen.builder_.createBlock(&func.getBody());
+  for (const auto& input : func.getFunctionType().getInputs()) {
+    entryBlock->addArgument(input, loc);
   }
 
-  if (needsExitValue) {
-    resultTypes.push_back(gen.convertType(returnType));
-  }
-
-  auto funcType = gen.builder_.getFunctionType(inputTypes, resultTypes);
-
-  std::vector<std::string> path;
-  for (Symbol* symbol = ast->symbol; symbol;
-       symbol = symbol->enclosingSymbol()) {
-    if (!symbol->name()) continue;
-    path.push_back(to_string(symbol->name()));
-  }
-
-  std::string name;
-
-  if (ast->symbol->hasCLinkage()) {
-    name = to_string(ast->symbol->name());
-  } else {
-    ExternalNameEncoder encoder;
-    name = encoder.encode(ast->symbol);
-  }
-
-  auto guard = mlir::OpBuilder::InsertionGuard(gen.builder_);
-
-  const auto loc = gen.getLocation(ast->symbol->location());
-
-  std::unordered_map<Symbol*, mlir::Value> locals;
-  auto func = gen.builder_.create<mlir::cxx::FuncOp>(loc, name, funcType);
-  auto entryBlock = &func.front();
   auto exitBlock = gen.builder_.createBlock(&func.getBody());
   mlir::cxx::AllocaOp exitValue;
 
@@ -369,6 +343,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(exitValueType);
     exitValue = gen.builder_.create<mlir::cxx::AllocaOp>(exitValueLoc, ptrType);
   }
+
+  std::unordered_map<Symbol*, mlir::Value> locals;
 
   // function state
   std::swap(gen.function_, func);
