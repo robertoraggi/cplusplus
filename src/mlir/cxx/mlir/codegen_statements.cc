@@ -117,14 +117,21 @@ void Codegen::StatementVisitor::operator()(CompoundStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(IfStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto trueBlock = gen.newBlock();
+  auto falseBlock = gen.newBlock();
+  auto mergeBlock = gen.newBlock();
 
-#if false
   gen.statement(ast->initializer);
-  auto conditionResult = gen.expression(ast->condition);
+  gen.condition(ast->condition, trueBlock, falseBlock);
+
+  gen.builder_.setInsertionPointToEnd(trueBlock);
   gen.statement(ast->statement);
+  gen.branch(gen.getLocation(ast->statement->lastSourceLocation()), mergeBlock);
+  gen.builder_.setInsertionPointToEnd(falseBlock);
   gen.statement(ast->elseStatement);
-#endif
+  gen.branch(gen.getLocation(ast->elseStatement->lastSourceLocation()),
+             mergeBlock);
+  gen.builder_.setInsertionPointToEnd(mergeBlock);
 }
 
 void Codegen::StatementVisitor::operator()(ConstevalIfStatementAST* ast) {
@@ -147,21 +154,35 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(WhileStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto beginLoopBlock = gen.newBlock();
+  auto bodyLoopBlock = gen.newBlock();
+  auto endLoopBlock = gen.newBlock();
 
-#if false
-  auto conditionResult = gen.expression(ast->condition);
+  gen.branch(gen.getLocation(ast->condition->firstSourceLocation()),
+             beginLoopBlock);
+
+  gen.builder_.setInsertionPointToEnd(beginLoopBlock);
+  gen.condition(ast->condition, bodyLoopBlock, endLoopBlock);
+
+  gen.builder_.setInsertionPointToEnd(bodyLoopBlock);
   gen.statement(ast->statement);
-#endif
+
+  gen.branch(gen.getLocation(ast->statement->lastSourceLocation()),
+             beginLoopBlock);
+  gen.builder_.setInsertionPointToEnd(endLoopBlock);
 }
 
 void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loopBlock = gen.newBlock();
+  auto endLoopBlock = gen.newBlock();
 
-#if false
+  gen.branch(gen.getLocation(ast->statement->firstSourceLocation()), loopBlock);
+
+  gen.builder_.setInsertionPointToEnd(loopBlock);
   gen.statement(ast->statement);
-  auto expressionResult = gen.expression(ast->expression);
-#endif
+  gen.condition(ast->expression, loopBlock, endLoopBlock);
+
+  gen.builder_.setInsertionPointToEnd(endLoopBlock);
 }
 
 void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {

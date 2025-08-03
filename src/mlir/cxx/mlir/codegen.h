@@ -121,6 +121,9 @@ class Codegen {
       ExpressionAST* ast, ExpressionFormat format = ExpressionFormat::kValue)
       -> ExpressionResult;
 
+  void condition(ExpressionAST* ast, mlir::Block* trueBlock,
+                 mlir::Block* falseBlock);
+
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterResult;
 
@@ -255,6 +258,10 @@ class Codegen {
 
   [[nodiscard]] auto findOrCreateLocal(Symbol* symbol)
       -> std::optional<mlir::Value>;
+
+  [[nodiscard]] auto newBlock() -> mlir::Block*;
+  void branch(mlir::Location loc, mlir::Block* block,
+              mlir::ValueRange operands = {});
 
   struct UnitVisitor;
   struct DeclarationVisitor;

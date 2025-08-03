@@ -25,6 +25,9 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 
+// mlir
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
+
 #include <format>
 
 namespace cxx {
@@ -40,6 +43,19 @@ auto Codegen::currentBlockMightHaveTerminator() -> bool {
   auto block = builder_.getInsertionBlock();
   if (!block) return true;
   return block->mightHaveTerminator();
+}
+
+auto Codegen::newBlock() -> mlir::Block* {
+  auto region = builder_.getBlock()->getParent();
+  auto newBlock = new mlir::Block();
+  region->getBlocks().push_back(newBlock);
+  return newBlock;
+}
+
+void Codegen::branch(mlir::Location loc, mlir::Block* block,
+                     mlir::ValueRange operands) {
+  if (currentBlockMightHaveTerminator()) return;
+  builder_.create<mlir::cf::BranchOp>(loc, block, operands);
 }
 
 auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
