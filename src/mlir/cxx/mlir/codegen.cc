@@ -41,7 +41,9 @@ auto Codegen::control() const -> Control* { return unit_->control(); }
 
 auto Codegen::currentBlockMightHaveTerminator() -> bool {
   auto block = builder_.getInsertionBlock();
-  if (!block) return true;
+  if (!block) {
+    cxx_runtime_error("current block is null");
+  }
   return block->mightHaveTerminator();
 }
 

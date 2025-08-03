@@ -459,6 +459,53 @@ class CondBranchOpLowering : public OpConversionPattern<cxx::CondBranchOp> {
   }
 };
 
+struct LabelConverter {
+  DenseMap<StringRef, Block *> labels;
+};
+
+class GotoOpLowering : public OpConversionPattern<cxx::GotoOp> {
+ public:
+  GotoOpLowering(const TypeConverter &typeConverter,
+                 const LabelConverter &labelConverter, MLIRContext *context,
+                 PatternBenefit benefit = 1)
+      : OpConversionPattern(typeConverter, context, benefit),
+        labelConverter_(labelConverter) {}
+
+  auto matchAndRewrite(cxx::GotoOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto context = getContext();
+
+    auto targetBlock = labelConverter_.labels.lookup(op.getLabel());
+
+    if (auto nextOp = ++op->getIterator(); isa<cf::BranchOp>(&*nextOp)) {
+      rewriter.eraseOp(&*nextOp);
+    }
+
+    rewriter.replaceOpWithNewOp<cf::BranchOp>(op, targetBlock);
+
+    return success();
+  }
+
+ private:
+  const LabelConverter &labelConverter_;
+};
+
+class LabelOpLowering : public OpConversionPattern<cxx::LabelOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::LabelOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto context = getContext();
+
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -552,6 +599,17 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                   IntegralCastOpLowering, NotOpLowering, AddIOpLowering,
                   SubIOpLowering, MulIOpLowering, CondBranchOpLowering>(
       typeConverter, context);
+
+  LabelConverter labelConverter;
+
+  module.walk([&](Operation *op) {
+    if (auto labelOp = dyn_cast<cxx::LabelOp>(op)) {
+      labelConverter.labels[labelOp.getName()] = labelOp->getBlock();
+    }
+  });
+
+  patterns.insert<LabelOpLowering>(typeConverter, context);
+  patterns.insert<GotoOpLowering>(typeConverter, labelConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);
