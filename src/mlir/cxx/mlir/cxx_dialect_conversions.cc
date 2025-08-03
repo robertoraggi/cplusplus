@@ -297,6 +297,149 @@ class IntegralCastOpLowering : public OpConversionPattern<cxx::IntegralCastOp> {
   }
 };
 
+class IntToBoolOpLowering : public OpConversionPattern<cxx::IntToBoolOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::IntToBoolOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert int to bool type");
+    }
+
+    auto c0 = rewriter.create<LLVM::ConstantOp>(
+        op.getLoc(), adaptor.getValue().getType(), 0);
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, LLVM::ICmpPredicate::ne, adaptor.getValue(), c0);
+
+    return success();
+  }
+};
+
+class BoolToIntOpLowering : public OpConversionPattern<cxx::BoolToIntOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::BoolToIntOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert bool to int type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ZExtOp>(op, resultType,
+                                              adaptor.getValue());
+
+    return success();
+  }
+};
+
+class NotOpLowering : public OpConversionPattern<cxx::NotOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::NotOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "failed to convert not operation");
+    }
+
+    auto c1 =
+        rewriter.create<LLVM::ConstantOp>(op.getLoc(), rewriter.getI1Type(), 1);
+
+    rewriter.replaceOpWithNewOp<LLVM::XOrOp>(op, resultType, adaptor.getValue(),
+                                             c1);
+
+    return success();
+  }
+};
+
+class AddIOpLowering : public OpConversionPattern<cxx::AddIOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::AddIOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert addi operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::AddOp>(op, resultType, adaptor.getLhs(),
+                                             adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class SubIOpLowering : public OpConversionPattern<cxx::SubIOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::SubIOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert subi operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(op, resultType, adaptor.getLhs(),
+                                             adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class MulIOpLowering : public OpConversionPattern<cxx::MulIOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::MulIOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert muli operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::MulOp>(op, resultType, adaptor.getLhs(),
+                                             adaptor.getRhs());
+
+    return success();
+  }
+};
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -325,7 +468,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   typeConverter.addConversion([](cxx::BoolType type) {
     // todo: i8/i32 for data and i1 for control flow
-    return IntegerType::get(type.getContext(), 8);
+    return IntegerType::get(type.getContext(), 1);
   });
 
   typeConverter.addConversion([](cxx::IntegerType type) {
@@ -383,10 +526,13 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   target.addIllegalDialect<cxx::CxxDialect>();
 
   RewritePatternSet patterns(context);
-  patterns.insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
-                  LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
-                  IntConstantOpLowering, FloatConstantOpLowering,
-                  IntegralCastOpLowering>(typeConverter, context);
+  patterns
+      .insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
+              LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
+              IntConstantOpLowering, FloatConstantOpLowering,
+              IntToBoolOpLowering, BoolToIntOpLowering, IntegralCastOpLowering,
+              NotOpLowering, AddIOpLowering, SubIOpLowering, MulIOpLowering>(
+          typeConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);

@@ -170,10 +170,46 @@ def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
   let results = (outs Cxx_FloatType:$result);
 }
 
-def Cxx_IntegralCastOp : Cxx_Op<"cast.integral"> {
+def Cxx_IntToBoolOp : Cxx_Op<"int_to_bool"> {
   let arguments = (ins AnyType:$value);
 
-  let results = (outs AnyType:$result);
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_BoolToIntOp : Cxx_Op<"bool_to_int"> {
+  let arguments = (ins Cxx_BoolType:$value);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_IntegralCastOp : Cxx_Op<"integral_cast"> {
+  let arguments = (ins Cxx_IntegerType:$value);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_NotOp : Cxx_Op<"not"> {
+  let arguments = (ins Cxx_BoolType:$value);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_AddIOp : Cxx_Op<"addi"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_SubIOp : Cxx_Op<"subi"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_MulIOp : Cxx_Op<"muli"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
 }
 
 //
