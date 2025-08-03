@@ -22,9 +22,12 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
+
+// mlir
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>

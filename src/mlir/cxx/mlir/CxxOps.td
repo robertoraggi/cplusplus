@@ -212,6 +212,14 @@ def Cxx_MulIOp : Cxx_Op<"muli"> {
   let results = (outs Cxx_IntegerType:$result);
 }
 
+def Cxx_LabelOp : Cxx_Op<"label"> {
+  let arguments = (ins StringProp:$name);
+}
+
+def Cxx_GotoOp : Cxx_Op<"goto"> {
+  let arguments = (ins StringProp:$label);
+}
+
 def CondBranchOp : Cxx_Op<"cond_br", [ AttrSizedOperandSegments, Terminator ]> {
   let arguments = (ins Cxx_BoolType:$condition, Variadic<AnyType>:$trueDestOperands, Variadic<AnyType>:$falseDestOperands);
 

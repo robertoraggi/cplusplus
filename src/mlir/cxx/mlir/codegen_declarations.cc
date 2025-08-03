@@ -369,7 +369,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     exitValue = gen.builder_.create<mlir::cxx::AllocaOp>(exitValueLoc, ptrType);
   }
 
-  // restore state
+  // function state
   std::swap(gen.function_, func);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);

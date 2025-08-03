@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/names.h>
 
 // mlir
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -91,7 +92,12 @@ auto Codegen::handler(HandlerAST* ast) -> HandlerResult {
 }
 
 void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto targetBlock = gen.newBlock();
+  gen.branch(gen.getLocation(ast->firstSourceLocation()), targetBlock);
+  gen.builder_.setInsertionPointToEnd(targetBlock);
+
+  gen.builder_.create<mlir::cxx::LabelOp>(
+      gen.getLocation(ast->firstSourceLocation()), ast->identifier->name());
 }
 
 void Codegen::StatementVisitor::operator()(CaseStatementAST* ast) {
@@ -291,7 +297,19 @@ void Codegen::StatementVisitor::operator()(CoroutineReturnStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  if (ast->isIndirect) {
+    (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+    return;
+  }
+
+  gen.builder_.create<mlir::cxx::GotoOp>(
+      gen.getLocation(ast->firstSourceLocation()), mlir::ValueRange{},
+      ast->identifier->name());
+
+  auto nextBlock = gen.newBlock();
+  gen.branch(gen.getLocation(ast->firstSourceLocation()), nextBlock);
+
+  gen.builder_.setInsertionPointToEnd(nextBlock);
 }
 
 void Codegen::StatementVisitor::operator()(DeclarationStatementAST* ast) {
