@@ -140,6 +140,9 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto check_static_cast(ExpressionAST*& expression,
                                        const Type* targetType) -> bool;
 
+  [[nodiscard]] auto check_const_cast(ExpressionAST*& expression,
+                                      const Type* targetType) -> bool;
+
   [[nodiscard]] auto check_cast_to_derived(ExpressionAST* expression,
                                            const Type* targetType) -> bool;
 
@@ -467,13 +470,13 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
 
   if (!functionType) {
     if (control()->is_pointer(ast->baseExpression->type)) {
-      // ressolve pointer to function type
+      // resolve pointer to function type
       functionType = type_cast<FunctionType>(
           control()->get_element_type(ast->baseExpression->type));
-    }
 
-    if (functionType && is_parsing_c()) {
-      (void)ensure_prvalue(ast->baseExpression);
+      if (functionType && is_parsing_c()) {
+        (void)ensure_prvalue(ast->baseExpression);
+      }
     }
   }
 
@@ -489,6 +492,46 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
   }
 
   // TODO: check the arguments
+  if (is_parsing_c()) {
+    const auto& argumentTypes = functionType->parameterTypes();
+
+    int argc = 0;
+    for (auto it = ast->expressionList; it; it = it->next) {
+      if (!it->value) {
+        error(ast->firstSourceLocation(),
+              "invalid call with null argument expression");
+        continue;
+      }
+
+      if (argc >= argumentTypes.size()) {
+        if (functionType->isVariadic()) {
+          // do the promotion for the variadic arguments
+          (void)ensure_prvalue(it->value);
+          adjust_cv(it->value);
+
+          if (integral_promotion(it->value)) continue;
+          if (floating_point_promotion(it->value)) continue;
+
+          continue;
+        }
+
+        error(it->value->firstSourceLocation(),
+              std::format("too many arguments for function of type '{}'",
+                          to_string(functionType)));
+        break;
+      }
+
+      auto targetType = argumentTypes[argc];
+      ++argc;
+
+      if (!implicit_conversion(it->value, targetType)) {
+        error(it->value->firstSourceLocation(),
+              std::format("invalid argument of type '{}' for parameter of type "
+                          "'{}'",
+                          to_string(it->value->type), to_string(targetType)));
+      }
+    }
+  }
 
   ast->type = functionType->returnType();
 
@@ -579,13 +622,23 @@ void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
   check_cpp_cast_expression(ast);
 
   switch (check.unit_->tokenKind(ast->castLoc)) {
-    case TokenKind::T_STATIC_CAST:
+    case TokenKind::T_STATIC_CAST: {
       if (check_static_cast(ast->expression, ast->type)) break;
       error(
           ast->firstSourceLocation(),
           std::format("invalid static_cast of '{}' to '{}'",
                       to_string(ast->expression->type), to_string(ast->type)));
       break;
+    }
+
+    case TokenKind::T_CONST_CAST: {
+      if (check_const_cast(ast->expression, ast->type)) break;
+      error(
+          ast->firstSourceLocation(),
+          std::format("invalid const_cast of '{}' to '{}'",
+                      to_string(ast->expression->type), to_string(ast->type)));
+      break;
+    }
 
     default:
       break;
@@ -651,6 +704,11 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
   expression = source;
 
   return true;
+}
+
+auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
+                                            const Type* targetType) -> bool {
+  return false;
 }
 
 auto TypeChecker::Visitor::check_cast_to_derived(ExpressionAST* expression,
@@ -967,6 +1025,7 @@ void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {
   }
 
   if (check_static_cast(ast->expression, ast->type)) return;
+  if (check_const_cast(ast->expression, ast->type)) return;
   // check the other casts
 }
 
@@ -1659,9 +1718,11 @@ auto TypeChecker::Visitor::pointer_conversion(ExpressionAST*& expr,
     const auto destinationPointerType = type_cast<PointerType>(destinationType);
     if (!destinationPointerType) return false;
 
-    if (control()->get_cv_qualifiers(pointerType->elementType()) !=
-        control()->get_cv_qualifiers(destinationPointerType->elementType()))
-      return false;
+    auto sourceCv = control()->get_cv_qualifiers(pointerType->elementType());
+    auto targetCv =
+        control()->get_cv_qualifiers(destinationPointerType->elementType());
+
+    if (!check_cv_qualifiers(targetCv, sourceCv)) return false;
 
     if (!control()->is_void(destinationPointerType->elementType()))
       return false;
@@ -1812,7 +1873,19 @@ auto TypeChecker::Visitor::temporary_materialization_conversion(
 auto TypeChecker::Visitor::qualification_conversion(ExpressionAST*& expr,
                                                     const Type* destinationType)
     -> bool {
-  return false;
+  auto type = get_qualification_combined_type(expr->type, destinationType);
+  if (!type) return false;
+
+  if (!control()->is_same(destinationType, type)) return false;
+
+  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  cast->castKind = ImplicitCastKind::kQualificationConversion;
+  cast->expression = expr;
+  cast->type = destinationType;
+  cast->valueCategory = expr->valueCategory;
+  expr = cast;
+
+  return true;
 }
 
 auto TypeChecker::Visitor::ensure_prvalue(ExpressionAST*& expr) -> bool {

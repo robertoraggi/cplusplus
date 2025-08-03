@@ -133,7 +133,7 @@ def Cxx_CallOp : Cxx_Op<"call"> {
     OptionalAttr<DictArrayAttr>:$res_attrs
   );
 
-  let results = (outs AnyType);
+  let results = (outs Optional<AnyType>:$result);
 }
 
 def Cxx_AllocaOp : Cxx_Op<"alloca"> {

@@ -465,7 +465,7 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
-  auto check_direct_call = [&]() -> ExpressionResult {
+  auto check_direct_call = [&]() -> std::optional<ExpressionResult> {
     auto func = ast->baseExpression;
 
     while (auto nested = ast_cast<NestedExpressionAST>(func)) {
@@ -490,16 +490,20 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     auto loc = gen.getLocation(ast->lparenLoc);
 
     auto functionType = type_cast<FunctionType>(functionSymbol->type());
-    auto resultType = gen.convertType(functionType->returnType());
+    mlir::SmallVector<mlir::Type> resultTypes;
+    if (!control()->is_void(functionType->returnType())) {
+      resultTypes.push_back(gen.convertType(functionType->returnType()));
+    }
+
     auto op = gen.builder_.create<mlir::cxx::CallOp>(
-        loc, resultType, funcOp.getSymName(), arguments, mlir::ArrayAttr{},
+        loc, resultTypes, funcOp.getSymName(), arguments, mlir::ArrayAttr{},
         mlir::ArrayAttr{});
 
-    return {op};
+    return ExpressionResult{op.getResult()};
   };
 
-  if (auto op = check_direct_call(); op.value) {
-    return op;
+  if (auto op = check_direct_call(); op.has_value()) {
+    return *op;
   }
 
   auto op =

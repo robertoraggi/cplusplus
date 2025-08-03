@@ -340,7 +340,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
 
   if (!shouldExit) {
     unit.parse(ParserConfiguration{
-        .checkTypes = cli.opt_fcheck,
+        .checkTypes = cli.opt_fcheck || unit.language() == LanguageKind::kC,
         .fuzzyTemplateResolution = true,
         .reflect = !cli.opt_fno_reflect,
     });

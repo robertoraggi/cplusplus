@@ -124,16 +124,16 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
       argumentTypes.push_back(convertedType);
     }
 
-    auto resultType = typeConverter->convertType(op.getType());
-    if (!resultType) {
+    SmallVector<Type> resultTypes;
+    if (failed(typeConverter->convertTypes(op.getResultTypes(), resultTypes))) {
       return rewriter.notifyMatchFailure(op,
                                          "failed to convert call result types");
     }
 
     auto llvmCallOp = rewriter.create<LLVM::CallOp>(
-        op.getLoc(), resultType, adaptor.getCallee(), adaptor.getInputs());
+        op.getLoc(), resultTypes, adaptor.getCallee(), adaptor.getInputs());
 
-    rewriter.replaceOp(op, llvmCallOp.getResults());
+    rewriter.replaceOp(op, llvmCallOp);
     return success();
   }
 };
@@ -874,6 +874,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   // set up the type converter
   LLVMTypeConverter typeConverter{context};
+
+  typeConverter.addConversion([](cxx::VoidType type) {
+    return LLVM::LLVMVoidType::get(type.getContext());
+  });
 
   typeConverter.addConversion([](cxx::BoolType type) {
     // todo: i8/i32 for data and i1 for control flow
