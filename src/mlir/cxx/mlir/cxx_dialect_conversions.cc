@@ -26,7 +26,7 @@
 // mlir
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
-#include <mlir/Dialect/ControlFlow/IR/ControlFlow.h>
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
@@ -440,6 +440,25 @@ class MulIOpLowering : public OpConversionPattern<cxx::MulIOp> {
   }
 };
 
+class CondBranchOpLowering : public OpConversionPattern<cxx::CondBranchOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::CondBranchOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    rewriter.replaceOpWithNewOp<cf::CondBranchOp>(
+        op, adaptor.getCondition(), op.getTrueDest(),
+        adaptor.getTrueDestOperands(), op.getFalseDest(),
+        adaptor.getFalseDestOperands());
+
+    return success();
+  }
+};
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -461,7 +480,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   auto module = getOperation();
 
   // set up the data layout
-  mlir::DataLayout dataLayout(module);
+  DataLayout dataLayout(module);
 
   // set up the type converter
   LLVMTypeConverter typeConverter{context};
@@ -526,13 +545,13 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   target.addIllegalDialect<cxx::CxxDialect>();
 
   RewritePatternSet patterns(context);
-  patterns
-      .insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
-              LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
-              IntConstantOpLowering, FloatConstantOpLowering,
-              IntToBoolOpLowering, BoolToIntOpLowering, IntegralCastOpLowering,
-              NotOpLowering, AddIOpLowering, SubIOpLowering, MulIOpLowering>(
-          typeConverter, context);
+  patterns.insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
+                  LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
+                  IntConstantOpLowering, FloatConstantOpLowering,
+                  IntToBoolOpLowering, BoolToIntOpLowering,
+                  IntegralCastOpLowering, NotOpLowering, AddIOpLowering,
+                  SubIOpLowering, MulIOpLowering, CondBranchOpLowering>(
+      typeConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);

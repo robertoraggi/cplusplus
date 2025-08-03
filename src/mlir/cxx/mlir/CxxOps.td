@@ -212,6 +212,12 @@ def Cxx_MulIOp : Cxx_Op<"muli"> {
   let results = (outs Cxx_IntegerType:$result);
 }
 
+def CondBranchOp : Cxx_Op<"cond_br", [ AttrSizedOperandSegments, Terminator ]> {
+  let arguments = (ins Cxx_BoolType:$condition, Variadic<AnyType>:$trueDestOperands, Variadic<AnyType>:$falseDestOperands);
+
+  let successors = (successor AnySuccessor:$trueDest, AnySuccessor:$falseDest);
+}
+
 //
 // todo ops
 //

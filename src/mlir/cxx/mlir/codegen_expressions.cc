@@ -29,6 +29,9 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+// mlir
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
+
 namespace cxx {
 
 struct Codegen::ExpressionVisitor {
@@ -118,6 +121,40 @@ auto Codegen::expression(ExpressionAST* ast, ExpressionFormat format)
     -> ExpressionResult {
   if (ast) return visit(ExpressionVisitor{*this, format}, ast);
   return {};
+}
+
+void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
+                        mlir::Block* falseBlock) {
+  if (!ast) return;
+
+  if (auto nested = ast_cast<NestedExpressionAST>(ast)) {
+    condition(nested->expression, trueBlock, falseBlock);
+    return;
+  }
+
+  if (auto binop = ast_cast<BinaryExpressionAST>(ast)) {
+    if (binop->op == TokenKind::T_AMP_AMP) {
+      auto nextBlock = newBlock();
+      condition(binop->leftExpression, nextBlock, falseBlock);
+      builder_.setInsertionPointToEnd(nextBlock);
+      condition(binop->rightExpression, trueBlock, falseBlock);
+      return;
+    }
+
+    if (binop->op == TokenKind::T_BAR_BAR) {
+      auto nextBlock = newBlock();
+      condition(binop->leftExpression, trueBlock, nextBlock);
+      builder_.setInsertionPointToEnd(nextBlock);
+      condition(binop->rightExpression, trueBlock, falseBlock);
+      return;
+    }
+  }
+
+  const auto loc = getLocation(ast->firstSourceLocation());
+  auto value = expression(ast);
+  builder_.create<mlir::cxx::CondBranchOp>(loc, value.value, mlir::ValueRange{},
+                                           mlir::ValueRange{}, trueBlock,
+                                           falseBlock);
 }
 
 auto Codegen::newInitializer(NewInitializerAST* ast) -> NewInitializerResult {
