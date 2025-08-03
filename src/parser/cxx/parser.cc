@@ -6048,6 +6048,11 @@ auto Parser::parse_parameter_declaration_clause(
 
 auto Parser::parse_parameter_declaration_list(
     ParameterDeclarationClauseAST* ast) -> bool {
+  if (lookat(TokenKind::T_VOID, TokenKind::T_RPAREN)) {
+    consumeToken();
+    return true;
+  }
+
   auto it = &ast->parameterDeclarationList;
 
   auto _ = Binder::ScopeGuard{&binder_};

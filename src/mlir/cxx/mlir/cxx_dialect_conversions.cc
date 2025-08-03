@@ -31,6 +31,7 @@
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
+#include <mlir/Transforms/Passes.h>
 
 namespace mlir {
 
@@ -361,8 +362,8 @@ class NotOpLowering : public OpConversionPattern<cxx::NotOp> {
       return rewriter.notifyMatchFailure(op, "failed to convert not operation");
     }
 
-    auto c1 =
-        rewriter.create<LLVM::ConstantOp>(op.getLoc(), rewriter.getI1Type(), 1);
+    auto c1 = rewriter.create<LLVM::ConstantOp>(
+        op.getLoc(), adaptor.getValue().getType(), -1);
 
     rewriter.replaceOpWithNewOp<LLVM::XOrOp>(op, resultType, adaptor.getValue(),
                                              c1);
@@ -435,6 +436,311 @@ class MulIOpLowering : public OpConversionPattern<cxx::MulIOp> {
 
     rewriter.replaceOpWithNewOp<LLVM::MulOp>(op, resultType, adaptor.getLhs(),
                                              adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class DivIOpLowering : public OpConversionPattern<cxx::DivIOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::DivIOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert divi operation type");
+    }
+
+    bool isSigned = true;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getType())) {
+      isSigned = intType.getIsSigned();
+    }
+
+    if (isSigned) {
+      rewriter.replaceOpWithNewOp<LLVM::SDivOp>(
+          op, resultType, adaptor.getLhs(), adaptor.getRhs());
+    } else {
+      rewriter.replaceOpWithNewOp<LLVM::UDivOp>(
+          op, resultType, adaptor.getLhs(), adaptor.getRhs());
+    }
+
+    return success();
+  }
+};
+
+class ModIOpLowering : public OpConversionPattern<cxx::ModIOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::ModIOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert modi operation type");
+    }
+
+    bool isSigned = true;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getType())) {
+      isSigned = intType.getIsSigned();
+    }
+
+    if (isSigned) {
+      rewriter.replaceOpWithNewOp<LLVM::SRemOp>(
+          op, resultType, adaptor.getLhs(), adaptor.getRhs());
+    } else {
+      rewriter.replaceOpWithNewOp<LLVM::URemOp>(
+          op, resultType, adaptor.getLhs(), adaptor.getRhs());
+    }
+
+    return success();
+  }
+};
+
+class ShiftLeftOpLowering : public OpConversionPattern<cxx::ShiftLeftOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::ShiftLeftOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert shift left operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ShlOp>(op, resultType, adaptor.getLhs(),
+                                             adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class ShiftRightOpLowering : public OpConversionPattern<cxx::ShiftRightOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::ShiftRightOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert shift right operation type");
+    }
+
+    bool isSigned = true;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getType())) {
+      isSigned = intType.getIsSigned();
+    }
+
+    if (isSigned) {
+      rewriter.replaceOpWithNewOp<LLVM::AShrOp>(
+          op, resultType, adaptor.getLhs(), adaptor.getRhs());
+    } else {
+      rewriter.replaceOpWithNewOp<LLVM::LShrOp>(
+          op, resultType, adaptor.getLhs(), adaptor.getRhs());
+    }
+
+    return success();
+  }
+};
+
+class EqualOpLowering : public OpConversionPattern<cxx::EqualOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::EqualOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert equal operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, LLVM::ICmpPredicate::eq, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class NotEquaOpLowering : public OpConversionPattern<cxx::NotEqualOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::NotEqualOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert not equal operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, LLVM::ICmpPredicate::ne, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class LessThanOpLowering : public OpConversionPattern<cxx::LessThanOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::LessThanOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert less than operation type");
+    }
+
+    auto predicate = LLVM::ICmpPredicate::slt;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getLhs().getType())) {
+      if (intType.getIsSigned()) {
+        predicate = LLVM::ICmpPredicate::slt;
+      } else {
+        predicate = LLVM::ICmpPredicate::ult;
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, predicate, adaptor.getLhs(), adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class LessEqualOpLowering : public OpConversionPattern<cxx::LessEqualOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::LessEqualOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert less equal operation type");
+    }
+
+    auto predicate = LLVM::ICmpPredicate::sle;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getLhs().getType())) {
+      if (intType.getIsSigned()) {
+        predicate = LLVM::ICmpPredicate::sle;
+      } else {
+        predicate = LLVM::ICmpPredicate::ule;
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, predicate, adaptor.getLhs(), adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class GreaterThanOpLowering : public OpConversionPattern<cxx::GreaterThanOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::GreaterThanOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert greater than operation type");
+    }
+
+    auto predicate = LLVM::ICmpPredicate::sgt;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getLhs().getType())) {
+      if (intType.getIsSigned()) {
+        predicate = LLVM::ICmpPredicate::sgt;
+      } else {
+        predicate = LLVM::ICmpPredicate::ugt;
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, predicate, adaptor.getLhs(), adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class GreaterEqualOpLowering : public OpConversionPattern<cxx::GreaterEqualOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::GreaterEqualOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert greater equal operation type");
+    }
+
+    auto predicate = LLVM::ICmpPredicate::sge;
+
+    if (auto intType = dyn_cast<cxx::IntegerType>(op.getLhs().getType())) {
+      if (intType.getIsSigned()) {
+        predicate = LLVM::ICmpPredicate::sge;
+      } else {
+        predicate = LLVM::ICmpPredicate::uge;
+      }
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
+        op, resultType, predicate, adaptor.getLhs(), adaptor.getRhs());
 
     return success();
   }
@@ -588,18 +894,6 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   // set up the conversion patterns
   ConversionTarget target(*context);
 
-  target.addLegalDialect<LLVM::LLVMDialect>();
-  target.addIllegalDialect<cxx::CxxDialect>();
-
-  RewritePatternSet patterns(context);
-  patterns.insert<FuncOpLowering, ReturnOpLowering, AllocaOpLowering,
-                  LoadOpLowering, StoreOpLowering, BoolConstantOpLowering,
-                  IntConstantOpLowering, FloatConstantOpLowering,
-                  IntToBoolOpLowering, BoolToIntOpLowering,
-                  IntegralCastOpLowering, NotOpLowering, AddIOpLowering,
-                  SubIOpLowering, MulIOpLowering, CondBranchOpLowering>(
-      typeConverter, context);
-
   LabelConverter labelConverter;
 
   module.walk([&](Operation *op) {
@@ -608,6 +902,43 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     }
   });
 
+  target.addLegalDialect<LLVM::LLVMDialect>();
+  target.addIllegalDialect<cxx::CxxDialect>();
+
+  RewritePatternSet patterns(context);
+
+  // function operations
+  patterns.insert<FuncOpLowering, ReturnOpLowering>(typeConverter, context);
+
+  // memory operations
+  patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering>(
+      typeConverter, context);
+
+  // cast operations
+  patterns
+      .insert<IntToBoolOpLowering, BoolToIntOpLowering, IntegralCastOpLowering>(
+          typeConverter, context);
+
+  // constant operations
+  patterns.insert<BoolConstantOpLowering, IntConstantOpLowering,
+                  FloatConstantOpLowering>(typeConverter, context);
+
+  // unary operations
+  patterns.insert<NotOpLowering>(typeConverter, context);
+
+  // binary operations
+  patterns
+      .insert<AddIOpLowering, SubIOpLowering, MulIOpLowering, DivIOpLowering,
+              ModIOpLowering, ShiftLeftOpLowering, ShiftRightOpLowering>(
+          typeConverter, context);
+
+  // comparison operations
+  patterns.insert<EqualOpLowering, NotEquaOpLowering, LessThanOpLowering,
+                  LessEqualOpLowering, GreaterThanOpLowering,
+                  GreaterEqualOpLowering>(typeConverter, context);
+
+  // control flow operations
+  patterns.insert<CondBranchOpLowering>(typeConverter, context);
   patterns.insert<LabelOpLowering>(typeConverter, context);
   patterns.insert<GotoOpLowering>(typeConverter, labelConverter, context);
 
@@ -637,6 +968,7 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
 #endif
 
   pm.addPass(cxx::createLowerToLLVMPass());
+  pm.addPass(mlir::createCanonicalizerPass());
 
   if (failed(pm.run(module))) {
     module.print(llvm::errs());

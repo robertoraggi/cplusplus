@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
+#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -374,6 +375,31 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);
+
+  FunctionParametersSymbol* params = nullptr;
+  for (auto member : ast->symbol->scope()->symbols()) {
+    params = symbol_cast<FunctionParametersSymbol>(member);
+    if (!params) continue;
+
+    int argc = 0;
+    auto args = entryBlock->getArguments();
+    for (auto param : params->scope()->symbols()) {
+      auto arg = symbol_cast<ParameterSymbol>(param);
+      if (!arg) continue;
+
+      auto type = gen.convertType(arg->type());
+      auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(type);
+
+      auto loc = gen.getLocation(arg->location());
+      auto allocaOp = gen.builder_.create<mlir::cxx::AllocaOp>(loc, ptrType);
+
+      auto value = args[argc];
+      ++argc;
+      gen.builder_.create<mlir::cxx::StoreOp>(loc, value, allocaOp);
+
+      gen.locals_.emplace(arg, allocaOp);
+    }
+  }
 
   // generate code for the function body
   auto functionBodyResult = gen.functionBody(ast->functionBody);

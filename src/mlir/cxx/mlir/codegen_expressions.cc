@@ -678,7 +678,7 @@ auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionResult {
   switch (ast->op) {
-    case cxx::TokenKind::T_EXCLAIM: {
+    case TokenKind::T_EXCLAIM: {
       if (type_cast<BoolType>(control()->remove_cv(ast->type))) {
         auto loc = gen.getLocation(ast->opLoc);
         auto expressionResult = gen.expression(ast->expression);
@@ -688,6 +688,38 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
         return {op};
       }
       break;
+    }
+
+    case TokenKind::T_PLUS: {
+      // unary plus, no-op
+      auto expressionResult = gen.expression(ast->expression);
+      return expressionResult;
+    }
+
+    case TokenKind::T_MINUS: {
+      // unary minus
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      auto loc = gen.getLocation(ast->opLoc);
+      auto zero =
+          gen.builder_.create<mlir::cxx::IntConstantOp>(loc, resultType, 0);
+      auto op = gen.builder_.create<mlir::cxx::SubIOp>(loc, resultType, zero,
+                                                       expressionResult.value);
+
+      return {op};
+    }
+
+    case TokenKind::T_TILDE: {
+      // unary bitwise not
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      auto loc = gen.getLocation(ast->opLoc);
+      auto op = gen.builder_.create<mlir::cxx::NotOp>(loc, resultType,
+                                                      expressionResult.value);
+
+      return {op};
     }
 
     default:
@@ -920,6 +952,116 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     case TokenKind::T_STAR: {
       if (control()->is_integral(ast->type)) {
         auto op = gen.builder_.create<mlir::cxx::MulIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_SLASH: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::DivIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_PERCENT: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::ModIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_LESS_LESS: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::ShiftLeftOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_GREATER_GREATER: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::ShiftRightOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_EQUAL_EQUAL: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::EqualOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_EXCLAIM_EQUAL: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::NotEqualOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_LESS: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::LessThanOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_LESS_EQUAL: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::LessEqualOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_GREATER: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::GreaterThanOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_GREATER_EQUAL: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::GreaterEqualOp>(
             loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
