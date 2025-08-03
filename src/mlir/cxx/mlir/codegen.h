@@ -263,6 +263,16 @@ class Codegen {
   void branch(mlir::Location loc, mlir::Block* block,
               mlir::ValueRange operands = {});
 
+  struct Loop {
+    mlir::Block* continueBlock = nullptr;
+    mlir::Block* breakBlock = nullptr;
+
+    Loop() = default;
+
+    Loop(mlir::Block* continueBlock, mlir::Block* breakBlock)
+        : continueBlock(continueBlock), breakBlock(breakBlock) {}
+  };
+
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;
@@ -295,6 +305,7 @@ class Codegen {
   mlir::cxx::AllocaOp exitValue_;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
+  Loop loop_;
   int count_ = 0;
 };
 
