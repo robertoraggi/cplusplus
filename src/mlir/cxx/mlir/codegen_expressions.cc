@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -33,6 +34,12 @@ namespace cxx {
 struct Codegen::ExpressionVisitor {
   Codegen& gen;
   ExpressionFormat format = ExpressionFormat::kValue;
+
+  [[nodiscard]] auto control() const -> Control* { return gen.control(); }
+
+  [[nodiscard]] auto is_bool(const Type* type) const -> bool {
+    return type_cast<BoolType>(control()->remove_cv(type));
+  }
 
   auto operator()(GeneratedLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(CharLiteralExpressionAST* ast) -> ExpressionResult;
@@ -633,12 +640,25 @@ auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionResult {
+  switch (ast->op) {
+    case cxx::TokenKind::T_EXCLAIM: {
+      if (type_cast<BoolType>(control()->remove_cv(ast->type))) {
+        auto loc = gen.getLocation(ast->opLoc);
+        auto expressionResult = gen.expression(ast->expression);
+        auto resultType = gen.convertType(ast->type);
+        auto op = gen.builder_.create<mlir::cxx::NotOp>(loc, resultType,
+                                                        expressionResult.value);
+        return {op};
+      }
+      break;
+    }
+
+    default:
+      break;
+  }  // switch
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto expressionResult = gen.expression(ast->expression);
-#endif
 
   return {op};
 }
@@ -779,10 +799,24 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
 
     case ImplicitCastKind::kIntegralConversion:
     case ImplicitCastKind::kIntegralPromotion: {
-      // generate a cast
       auto expressionResult = gen.expression(ast->expression);
       auto resultType = gen.convertType(ast->type);
 
+      if (is_bool(ast->type)) {
+        // If the result type is a boolean, we can use a specialized cast
+        auto op = gen.builder_.create<mlir::cxx::IntToBoolOp>(
+            loc, resultType, expressionResult.value);
+        return {op};
+      }
+
+      if (is_bool(ast->expression->type)) {
+        // If the expression type is a boolean, we can use a specialized cast
+        auto op = gen.builder_.create<mlir::cxx::BoolToIntOp>(
+            loc, resultType, expressionResult.value);
+        return {op};
+      }
+
+      // generate an integral cast
       auto op = gen.builder_.create<mlir::cxx::IntegralCastOp>(
           loc, resultType, expressionResult.value);
 
@@ -818,20 +852,51 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     return gen.expression(ast->rightExpression, format);
   }
 
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
+  auto loc = gen.getLocation(ast->opLoc);
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
+  auto resultType = gen.convertType(ast->type);
 
-  auto loc = gen.getLocation(ast->opLoc);
+  switch (ast->op) {
+    case TokenKind::T_PLUS: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::AddIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
 
-  auto operation = Token::spell(ast->op);
+      break;
+    }
 
-  auto op = gen.builder_.create<mlir::cxx::BinOp>(
-      loc, operation, leftExpressionResult.value, rightExpressionResult.value);
-#endif
+    case TokenKind::T_MINUS: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::SubIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    case TokenKind::T_STAR: {
+      if (control()->is_integral(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::MulIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
+    default:
+      break;
+  }  // switch
+
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
   return {op};
 }
