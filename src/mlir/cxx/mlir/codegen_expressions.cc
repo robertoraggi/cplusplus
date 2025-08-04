@@ -763,6 +763,16 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       return {op};
     }
 
+    case TokenKind::T_AMP: {
+      auto expressionResult = gen.expression(ast->expression);
+      return expressionResult;
+    }
+
+    case TokenKind::T_STAR: {
+      auto expressionResult = gen.expression(ast->expression);
+      return expressionResult;
+    }
+
     default:
       break;
   }  // switch
