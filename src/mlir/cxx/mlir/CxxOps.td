@@ -281,6 +281,88 @@ def Cxx_GreaterEqualOp : Cxx_Op<"ge"> {
 }
 
 //
+// float operations
+//
+
+def Cxx_AddFOp : Cxx_Op<"addf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+def Cxx_SubFOp : Cxx_Op<"subf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+def Cxx_MulFOp : Cxx_Op<"mulf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+def Cxx_DivFOp : Cxx_Op<"divf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+def Cxx_FloatingPointCastOp : Cxx_Op<"floating_point_cast"> {
+  let arguments = (ins Cxx_FloatType:$value);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+def Cxx_FloatToIntOp : Cxx_Op<"float_to_int"> {
+  let arguments = (ins Cxx_FloatType:$value);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_IntToFloatOp : Cxx_Op<"int_to_float"> {
+  let arguments = (ins Cxx_IntegerType:$value);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
+def Cxx_LessThanFOp : Cxx_Op<"ltf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_LessEqualFOp : Cxx_Op<"lef"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_GreaterThanFOp : Cxx_Op<"gtf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_GreaterEqualFOp : Cxx_Op<"gef"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_EqualFOp : Cxx_Op<"eqf"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+def Cxx_NotEqualFOp : Cxx_Op<"nef"> {
+  let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
+//
 // control flow ops
 //
 

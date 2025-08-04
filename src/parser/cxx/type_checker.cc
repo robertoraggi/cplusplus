@@ -1564,6 +1564,7 @@ auto TypeChecker::Visitor::floating_point_conversion(
     ExpressionAST*& expr, const Type* destinationType) -> bool {
   if (!is_prvalue(expr)) return false;
 
+  if (control()->is_same(expr->type, destinationType)) return true;
   if (!control()->is_floating_point(expr->type)) return false;
   if (!control()->is_floating_point(destinationType)) return false;
 
@@ -1986,12 +1987,14 @@ auto TypeChecker::Visitor::usual_arithmetic_conversion(ExpressionAST*& expr,
     if (expr->type->kind() == TypeKind::kLongDouble ||
         other->type->kind() == TypeKind::kLongDouble) {
       (void)floating_point_conversion(expr, control()->getLongDoubleType());
+      (void)floating_point_conversion(other, control()->getLongDoubleType());
       return control()->getLongDoubleType();
     }
 
     if (expr->type->kind() == TypeKind::kDouble ||
         other->type->kind() == TypeKind::kDouble) {
       (void)floating_point_conversion(expr, control()->getDoubleType());
+      (void)floating_point_conversion(other, control()->getDoubleType());
       return control()->getDoubleType();
     }
 
