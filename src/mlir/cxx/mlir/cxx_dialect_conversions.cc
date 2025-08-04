@@ -783,6 +783,193 @@ class GreaterEqualOpLowering : public OpConversionPattern<cxx::GreaterEqualOp> {
   }
 };
 
+//
+// floating point operations
+//
+
+class AddFOpLowering : public OpConversionPattern<cxx::AddFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::AddFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert addf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FAddOp>(op, resultType, adaptor.getLhs(),
+                                              adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class SubFOpLowering : public OpConversionPattern<cxx::SubFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::SubFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert subf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FSubOp>(op, resultType, adaptor.getLhs(),
+                                              adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class MulFOpLowering : public OpConversionPattern<cxx::MulFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::MulFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert mulf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FMulOp>(op, resultType, adaptor.getLhs(),
+                                              adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class DivFOpLowering : public OpConversionPattern<cxx::DivFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::DivFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert divf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FDivOp>(op, resultType, adaptor.getLhs(),
+                                              adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class FloatingPointCastOpLowering
+    : public OpConversionPattern<cxx::FloatingPointCastOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::FloatingPointCastOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert floating point cast type");
+    }
+
+    const auto sourceType = dyn_cast<cxx::FloatType>(op.getValue().getType());
+    const auto targetType = dyn_cast<cxx::FloatType>(op.getType());
+
+    if (sourceType.getWidth() == targetType.getWidth()) {
+      // no conversion needed, just replace the op with the value
+      rewriter.replaceOp(op, adaptor.getValue());
+      return success();
+    }
+
+    if (sourceType.getWidth() < targetType.getWidth()) {
+      // extension
+      rewriter.replaceOpWithNewOp<LLVM::FPExtOp>(op, resultType,
+                                                 adaptor.getValue());
+      return success();
+    }
+
+    // truncation
+    rewriter.replaceOpWithNewOp<LLVM::FPTruncOp>(op, resultType,
+                                                 adaptor.getValue());
+
+    return success();
+  }
+};
+
+class IntToFloatOpLowering : public OpConversionPattern<cxx::IntToFloatOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::IntToFloatOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert int to float type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::SIToFPOp>(op, resultType,
+                                                adaptor.getValue());
+
+    return success();
+  }
+};
+
+class FloatToIntOpLowering : public OpConversionPattern<cxx::FloatToIntOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::FloatToIntOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert float to int type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FPToSIOp>(op, resultType,
+                                                adaptor.getValue());
+
+    return success();
+  }
+};
+
+//
+// control flow operations
+//
+
 class CondBranchOpLowering : public OpConversionPattern<cxx::CondBranchOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -978,6 +1165,15 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   patterns.insert<EqualOpLowering, NotEquaOpLowering, LessThanOpLowering,
                   LessEqualOpLowering, GreaterThanOpLowering,
                   GreaterEqualOpLowering>(typeConverter, context);
+
+  // floating point operations
+  patterns
+      .insert<AddFOpLowering, SubFOpLowering, MulFOpLowering, DivFOpLowering>(
+          typeConverter, context);
+
+  // floating point cast operations
+  patterns.insert<FloatingPointCastOpLowering, IntToFloatOpLowering,
+                  FloatToIntOpLowering>(typeConverter, context);
 
   // control flow operations
   patterns.insert<CondBranchOpLowering>(typeConverter, context);

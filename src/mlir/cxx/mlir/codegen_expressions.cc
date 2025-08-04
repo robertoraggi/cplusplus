@@ -25,6 +25,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -743,12 +744,46 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       auto resultType = gen.convertType(ast->type);
 
       auto loc = gen.getLocation(ast->opLoc);
-      auto zero =
-          gen.builder_.create<mlir::cxx::IntConstantOp>(loc, resultType, 0);
-      auto op = gen.builder_.create<mlir::cxx::SubIOp>(loc, resultType, zero,
-                                                       expressionResult.value);
 
-      return {op};
+      if (control()->is_integral_or_unscoped_enum(ast->type)) {
+        auto zero =
+            gen.builder_.create<mlir::cxx::IntConstantOp>(loc, resultType, 0);
+        auto op = gen.builder_.create<mlir::cxx::SubIOp>(
+            loc, resultType, zero, expressionResult.value);
+
+        return {op};
+      }
+
+      if (control()->is_floating_point(ast->type)) {
+        resultType.dump();
+
+        mlir::FloatAttr value;
+        switch (ast->type->kind()) {
+          case TypeKind::kFloat:
+            value = gen.builder_.getF32FloatAttr(0);
+            break;
+          case TypeKind::kDouble:
+            value = gen.builder_.getF64FloatAttr(0);
+            break;
+          case TypeKind::kLongDouble:
+            value = gen.builder_.getF64FloatAttr(0);
+            break;
+          default:
+            // Handle other float types if necessary
+            auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
+                                       "unsupported float type");
+            return {op};
+        }
+
+        auto zero = gen.builder_.create<mlir::cxx::FloatConstantOp>(
+            loc, resultType, value);
+        auto op = gen.builder_.create<mlir::cxx::SubFOp>(
+            loc, resultType, zero, expressionResult.value);
+
+        return {op};
+      }
+
+      break;
     }
 
     case TokenKind::T_TILDE: {
@@ -943,6 +978,39 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
       return {op};
     }
 
+    case ImplicitCastKind::kFloatingPointPromotion:
+    case ImplicitCastKind::kFloatingPointConversion: {
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      // generate a floating point cast
+      auto op = gen.builder_.create<mlir::cxx::FloatingPointCastOp>(
+          loc, resultType, expressionResult.value);
+
+      return {op};
+    }
+
+    case ImplicitCastKind::kFloatingIntegralConversion: {
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      if (control()->is_floating_point(ast->type)) {
+        // If the result type is a floating point, we can use a specialized cast
+        auto op = gen.builder_.create<mlir::cxx::IntToFloatOp>(
+            loc, resultType, expressionResult.value);
+        return {op};
+      }
+
+      if (control()->is_integral(ast->type)) {
+        // If the expression type is an integral, we can use a specialized cast
+        auto op = gen.builder_.create<mlir::cxx::FloatToIntOp>(
+            loc, resultType, expressionResult.value);
+        return {op};
+      }
+
+      break;
+    }
+
     default:
       break;
 
@@ -986,12 +1054,26 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         return {op};
       }
 
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::AddFOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
       break;
     }
 
     case TokenKind::T_MINUS: {
       if (control()->is_integral(ast->type)) {
         auto op = gen.builder_.create<mlir::cxx::SubIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::SubFOp>(
             loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
@@ -1008,12 +1090,26 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         return {op};
       }
 
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::MulFOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
       break;
     }
 
     case TokenKind::T_SLASH: {
       if (control()->is_integral(ast->type)) {
         auto op = gen.builder_.create<mlir::cxx::DivIOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::DivFOp>(
             loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
@@ -1063,12 +1159,26 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         return {op};
       }
 
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::EqualFOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
       break;
     }
 
     case TokenKind::T_EXCLAIM_EQUAL: {
       if (control()->is_integral(ast->type)) {
         auto op = gen.builder_.create<mlir::cxx::NotEqualOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::NotEqualFOp>(
             loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
@@ -1085,12 +1195,26 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         return {op};
       }
 
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::LessThanFOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
       break;
     }
 
     case TokenKind::T_LESS_EQUAL: {
       if (control()->is_integral(ast->type)) {
         auto op = gen.builder_.create<mlir::cxx::LessEqualOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::LessEqualFOp>(
             loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
@@ -1107,12 +1231,26 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         return {op};
       }
 
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::GreaterThanFOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
       break;
     }
 
     case TokenKind::T_GREATER_EQUAL: {
       if (control()->is_integral(ast->type)) {
         auto op = gen.builder_.create<mlir::cxx::GreaterEqualOp>(
+            loc, resultType, leftExpressionResult.value,
+            rightExpressionResult.value);
+        return {op};
+      }
+
+      if (control()->is_floating_point(ast->type)) {
+        auto op = gen.builder_.create<mlir::cxx::GreaterEqualFOp>(
             loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
