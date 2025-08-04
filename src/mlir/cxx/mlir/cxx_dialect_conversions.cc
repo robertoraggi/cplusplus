@@ -163,7 +163,7 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
     }
 
     auto size = rewriter.create<LLVM::ConstantOp>(
-        op.getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(1));
+        op.getLoc(), rewriter.getI64Type(), rewriter.getIndexAttr(1));
 
     auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(op, resultType,
                                                          elementType, size);
