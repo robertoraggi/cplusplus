@@ -2105,7 +2105,21 @@ auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
 
   expect(TokenKind::T_COMMA, ast->commaLoc);
-  parse_expression(ast->expression, ctx);
+  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  ast->identifier = unit->identifier(ast->identifierLoc);
+
+  auto it = &ast->designatorList;
+  while (lookat_designator()) {
+    DesignatorAST* designator = nullptr;
+
+    parse_designator(designator);
+
+    if (!designator) continue;
+
+    *it = make_list_node(pool_, designator);
+    it = &(*it)->next;
+  }
+
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   check(ast);

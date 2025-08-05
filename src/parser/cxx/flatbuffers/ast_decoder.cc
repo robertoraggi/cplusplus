@@ -2717,9 +2717,21 @@ auto ASTDecoder::decodeBuiltinOffsetofExpression(
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
   ast->commaLoc = SourceLocation(node->comma_loc());
-  ast->expression =
-      decodeExpression(node->expression(), node->expression_type());
+  ast->identifierLoc = SourceLocation(node->identifier_loc());
+  if (node->designator_list()) {
+    auto* inserter = &ast->designatorList;
+    for (std::uint32_t i = 0; i < node->designator_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeDesignator(
+          node->designator_list()->Get(i),
+          io::Designator(node->designator_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->rparenLoc = SourceLocation(node->rparen_loc());
+  if (node->identifier()) {
+    ast->identifier =
+        unit_->control()->getIdentifier(node->identifier()->str());
+  }
   return ast;
 }
 

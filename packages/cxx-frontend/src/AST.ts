@@ -6820,20 +6820,51 @@ export class BuiltinOffsetofExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the expression of this node
+   * Returns the location of the identifier token in this node
    */
-  getExpression(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
-      this.parser,
-    );
+  getIdentifierToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+
+  /**
+   * Returns the designatorList of this node
+   */
+  getDesignatorList(): Iterable<DesignatorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: DesignatorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<DesignatorAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
   }
 
   /**
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the identifier attribute of this node
+   */
+  getIdentifier(): string | undefined {
+    const slot = cxx.getASTSlot(this.getHandle(), 7);
+    return cxx.getIdentifierValue(slot);
   }
 }
 

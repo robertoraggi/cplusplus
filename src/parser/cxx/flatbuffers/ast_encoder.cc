@@ -2955,16 +2955,41 @@ void ASTEncoder::visit(BuiltinBitCastExpressionAST* ast) {
 void ASTEncoder::visit(BuiltinOffsetofExpressionAST* ast) {
   const auto typeId = accept(ast->typeId);
 
-  const auto [expression, expressionType] = acceptExpression(ast->expression);
+  std::vector<flatbuffers::Offset<>> designatorListOffsets;
+  std::vector<std::underlying_type_t<io::Designator>> designatorListTypes;
+
+  for (auto node : ListView{ast->designatorList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptDesignator(node);
+    designatorListOffsets.push_back(offset);
+    designatorListTypes.push_back(type);
+  }
+
+  auto designatorListOffsetsVector = fbb_.CreateVector(designatorListOffsets);
+  auto designatorListTypesVector = fbb_.CreateVector(designatorListTypes);
+
+  flatbuffers::Offset<flatbuffers::String> identifier;
+  if (ast->identifier) {
+    if (identifiers_.contains(ast->identifier)) {
+      identifier = identifiers_.at(ast->identifier);
+    } else {
+      identifier = fbb_.CreateString(ast->identifier->value());
+      identifiers_.emplace(ast->identifier, identifier);
+    }
+  }
 
   io::BuiltinOffsetofExpression::Builder builder{fbb_};
   builder.add_offsetof_loc(ast->offsetofLoc.index());
   builder.add_lparen_loc(ast->lparenLoc.index());
   builder.add_type_id(typeId.o);
   builder.add_comma_loc(ast->commaLoc.index());
-  builder.add_expression(expression);
-  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+  builder.add_identifier_loc(ast->identifierLoc.index());
+  builder.add_designator_list(designatorListOffsetsVector);
+  builder.add_designator_list_type(designatorListTypesVector);
   builder.add_rparen_loc(ast->rparenLoc.index());
+  if (ast->identifier) {
+    builder.add_identifier(identifier);
+  }
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_BuiltinOffsetofExpression;

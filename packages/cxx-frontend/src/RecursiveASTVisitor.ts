@@ -1424,7 +1424,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     context: Context,
   ): void {
     this.accept(node.getTypeId(), context);
-    this.accept(node.getExpression(), context);
+    for (const element of node.getDesignatorList()) {
+      this.accept(element, context);
+    }
   }
 
   /**

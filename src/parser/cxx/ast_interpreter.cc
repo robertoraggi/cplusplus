@@ -2246,7 +2246,6 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 auto ASTInterpreter::ExpressionVisitor::operator()(
     BuiltinOffsetofExpressionAST* ast) -> ExpressionResult {
   auto typeIdResult = accept(ast->typeId);
-  auto expressionResult = accept(ast->expression);
 
   if (ast->symbol) return ast->symbol->offset();
 

@@ -2922,8 +2922,17 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->lparenLoc = ast->lparenLoc;
   copy->typeId = rewrite(ast->typeId);
   copy->commaLoc = ast->commaLoc;
-  copy->expression = rewrite(ast->expression);
+  copy->identifierLoc = ast->identifierLoc;
+
+  for (auto designatorList = &copy->designatorList;
+       auto node : ListView{ast->designatorList}) {
+    auto value = rewrite(node);
+    *designatorList = make_list_node(arena(), value);
+    designatorList = &(*designatorList)->next;
+  }
+
   copy->rparenLoc = ast->rparenLoc;
+  copy->identifier = ast->identifier;
   copy->symbol = ast->symbol;
 
   return copy;
