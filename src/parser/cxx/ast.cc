@@ -1710,14 +1710,16 @@ auto BuiltinOffsetofExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(designatorList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return {};
 }
 
 auto BuiltinOffsetofExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(designatorList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;

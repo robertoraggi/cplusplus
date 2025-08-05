@@ -3405,19 +3405,29 @@ void ASTSlot::visit(BuiltinOffsetofExpressionAST* ast) {
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{38};
       break;
-    case 4:  // expression
-      value_ = reinterpret_cast<std::intptr_t>(ast->expression);
-      slotKind_ = ASTSlotKind::kNode;
-      slotNameIndex_ = SlotNameIndex{79};
+    case 4:  // identifierLoc
+      value_ = ast->identifierLoc.index();
+      slotKind_ = ASTSlotKind::kToken;
+      slotNameIndex_ = SlotNameIndex{102};
       break;
-    case 5:  // rparenLoc
+    case 5:  // designatorList
+      value_ = reinterpret_cast<std::intptr_t>(ast->designatorList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      slotNameIndex_ = SlotNameIndex{62};
+      break;
+    case 6:  // rparenLoc
       value_ = ast->rparenLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{185};
       break;
+    case 7:  // identifier
+      value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
+      slotKind_ = ASTSlotKind::kIdentifierAttribute;
+      slotNameIndex_ = SlotNameIndex{101};
+      break;
   }  // switch
 
-  slotCount_ = 6;
+  slotCount_ = 8;
 }
 
 void ASTSlot::visit(TypeidExpressionAST* ast) {

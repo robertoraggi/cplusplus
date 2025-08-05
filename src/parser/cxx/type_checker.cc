@@ -371,6 +371,12 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
         ast->valueCategory = ValueCategory::kLValue;
       }
     }
+  } else {
+#if false
+    auto name = get_name(control(), ast->unqualifiedId);
+    error(ast->firstSourceLocation(),
+          std::format("use of undefined name '{}'", to_string(name)));
+#endif
   }
 }
 
@@ -745,19 +751,76 @@ auto TypeChecker::Visitor::check_cast_to_derived(ExpressionAST* expression,
 void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
+  ast->type = control()->getSizeType();
+
   auto classType =
       ast->typeId ? type_cast<ClassType>(ast->typeId->type) : nullptr;
-  auto id = ast_cast<IdExpressionAST>(ast->expression);
 
-  if (classType && id && !id->nestedNameSpecifier) {
-    auto symbol = classType->symbol();
-    auto name = get_name(control(), id->unqualifiedId);
-    auto member = Lookup{scope()}.qualifiedLookup(symbol->scope(), name);
-    auto field = symbol_cast<FieldSymbol>(member);
-    ast->symbol = field;
+  if (!classType) {
+    error(ast->firstSourceLocation(), "expected a type");
+    return;
   }
 
-  ast->type = control()->getSizeType();
+  if (!ast->identifier) {
+    return;
+  }
+
+  auto symbol = classType->symbol();
+  auto member =
+      Lookup{scope()}.qualifiedLookup(symbol->scope(), ast->identifier);
+
+  auto field = symbol_cast<FieldSymbol>(member);
+  if (!field) {
+    error(ast->firstSourceLocation(),
+          std::format("no member named '{}'", ast->identifier->name()));
+    return;
+  }
+
+  for (auto designator : ListView{ast->designatorList}) {
+    if (auto dot = ast_cast<DotDesignatorAST>(designator);
+        dot && dot->identifier) {
+      // resolve the field in the current class scope
+      auto currentClass =
+          type_cast<ClassType>(control()->remove_cvref(field->type()));
+
+      if (!currentClass) {
+        error(designator->firstSourceLocation(),
+              std::format("expected a class or union type, but got '{}'",
+                          to_string(field->type())));
+        break;
+      }
+
+      auto member = Lookup{scope()}.qualifiedLookup(
+          currentClass->symbol()->scope(), dot->identifier);
+
+      auto field = symbol_cast<FieldSymbol>(member);
+
+      if (!field) {
+        error(dot->firstSourceLocation(),
+              std::format("no member named '{}' in class '{}'",
+                          dot->identifier->name(),
+                          to_string(currentClass->symbol()->name())));
+      }
+
+      break;
+    }
+
+    if (auto subscript = ast_cast<SubscriptDesignatorAST>(designator)) {
+      if (!control()->is_array(field->type()) &&
+          !control()->is_pointer(field->type())) {
+        error(subscript->firstSourceLocation(),
+              std::format("cannot subscript a member of type '{}'",
+                          to_string(field->type())));
+        break;
+      }
+
+      // todo update offset
+
+      continue;
+    }
+  }
+
+  ast->symbol = field;
 }
 
 void TypeChecker::Visitor::operator()(TypeidExpressionAST* ast) {}

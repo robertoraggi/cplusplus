@@ -1493,8 +1493,17 @@ void ASTPrinter::visit(BuiltinOffsetofExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  accept(ast->identifier, "identifier");
   accept(ast->typeId, "type-id");
-  accept(ast->expression, "expression");
+  if (ast->designatorList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "designator-list");
+    for (auto node : ListView{ast->designatorList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(TypeidExpressionAST* ast) {

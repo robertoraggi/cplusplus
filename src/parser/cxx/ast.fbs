@@ -1086,10 +1086,12 @@ table BuiltinBitCastExpression /* ExpressionAST */ {
 
 table BuiltinOffsetofExpression /* ExpressionAST */ {
   type_id: TypeId;
-  expression: Expression;
+  designator_list: [Designator];
+  identifier: string;
   offsetof_loc: uint32;
   lparen_loc: uint32;
   comma_loc: uint32;
+  identifier_loc: uint32;
   rparen_loc: uint32;
 }
 

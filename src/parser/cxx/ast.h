@@ -2135,8 +2135,10 @@ class BuiltinOffsetofExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation commaLoc;
-  ExpressionAST* expression = nullptr;
+  SourceLocation identifierLoc;
+  List<DesignatorAST*>* designatorList = nullptr;
   SourceLocation rparenLoc;
+  const Identifier* identifier = nullptr;
   FieldSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }

@@ -2751,7 +2751,14 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     nospace();
     accept.writeToken(ast->commaLoc);
   }
-  accept(ast->expression);
+  if (ast->identifierLoc) {
+    accept.writeToken(ast->identifierLoc);
+  }
+
+  for (auto it = ast->designatorList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->rparenLoc) {
     nospace();
     accept.writeToken(ast->rparenLoc);
