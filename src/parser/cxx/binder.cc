@@ -412,6 +412,28 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId)
   if (typeId) symbol->setType(typeId->type);
   symbol->setTemplateParameters(currentTemplateParameters());
   declaringScope()->addSymbol(symbol);
+
+  if (auto classType = type_cast<ClassType>(symbol->type())) {
+    auto classSymbol = classType->symbol();
+    if (!classSymbol->name()) {
+      classSymbol->setName(symbol->name());
+    }
+  }
+
+  if (auto enumType = type_cast<EnumType>(symbol->type())) {
+    auto enumSymbol = enumType->symbol();
+    if (!enumSymbol->name()) {
+      enumSymbol->setName(symbol->name());
+    }
+  }
+
+  if (auto scopedEnumType = type_cast<ScopedEnumType>(symbol->type())) {
+    auto scopedEnumSymbol = scopedEnumType->symbol();
+    if (!scopedEnumSymbol->name()) {
+      scopedEnumSymbol->setName(symbol->name());
+    }
+  }
+
   return symbol;
 }
 
@@ -634,6 +656,28 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   symbol->setName(name);
   symbol->setType(type);
   scope()->addSymbol(symbol);
+
+  if (auto classType = type_cast<ClassType>(symbol->type())) {
+    auto classSymbol = classType->symbol();
+    if (!classSymbol->name()) {
+      classSymbol->setName(symbol->name());
+    }
+  }
+
+  if (auto enumType = type_cast<EnumType>(symbol->type())) {
+    auto enumSymbol = enumType->symbol();
+    if (!enumSymbol->name()) {
+      enumSymbol->setName(symbol->name());
+    }
+  }
+
+  if (auto scopedEnumType = type_cast<ScopedEnumType>(symbol->type())) {
+    auto scopedEnumSymbol = scopedEnumType->symbol();
+    if (!scopedEnumSymbol->name()) {
+      scopedEnumSymbol->setName(symbol->name());
+    }
+  }
+
   return symbol;
 }
 
