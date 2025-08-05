@@ -3426,9 +3426,30 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
+  FunctionSymbol* functionSymbol =
+      symbol_cast<FunctionSymbol>(scope()->owner());
+
+  if (!functionSymbol && scope()->isFunctionParametersScope()) {
+    functionSymbol =
+        symbol_cast<FunctionSymbol>(scope()->owner()->enclosingSymbol());
+  }
+
   auto _ = Binder::ScopeGuard{&binder_};
 
   auto blockSymbol = binder_.enterBlock(lbraceLoc);
+
+  if (functionSymbol && is_parsing_c()) {
+    auto functionName = to_string(functionSymbol->name());
+
+    auto func = control()->newVariableSymbol(scope(), lbraceLoc);
+    func->setName(control()->getIdentifier("__func__"));
+    func->setType(functionSymbol->type());
+    func->setType(control()->getBoundedArrayType(control()->getCharType(),
+                                                 functionName.size() + 1));
+    func->setConstexpr(true);
+    func->setConstValue(control()->stringLiteral(functionName));
+    scope()->addSymbol(func);
+  }
 
   auto ast = make_node<CompoundStatementAST>(pool_);
   yyast = ast;
