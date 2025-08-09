@@ -214,7 +214,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      WASMTIME_VERSION: 31.0.0
+      WASMTIME_VERSION: 35.0.0
 
     steps:
       - uses: actions/checkout@v4
@@ -267,16 +267,10 @@ jobs:
         with:
           name: cxx-wasi
           path: |
-            build.wasi/install/
-            !build.wasi/install/usr/lib/*.a
-            !build.wasi/install/usr/lib/cmake
-            !build.wasi/install/usr/lib/wasi-sysroot/lib
-            !build.wasi/install/usr/lib/wasi-sysroot/share
-            !build.wasi/install/usr/lib/wasi-sysroot/include/
-            !build.wasi/install/usr/include/wasm32-wasi-threads
-            !build.wasi/install/usr/include/wasm32-wasip1
-            !build.wasi/install/usr/include/wasm32-wasip1-threads
-            !build.wasi/install/usr/include/wasm32-wasip2
+            build.wasi/install/usr/bin
+            build.wasi/install/usr/lib/cxx
+            build.wasi/install/usr/lib/wasi-sysroot/include/c++
+            build.wasi/install/usr/lib/wasi-sysroot/include/wasm32-wasi
           retention-days: 1
 
   release-please:
