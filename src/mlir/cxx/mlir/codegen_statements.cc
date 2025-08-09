@@ -188,15 +188,21 @@ void Codegen::StatementVisitor::operator()(WhileStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
   auto loopBlock = gen.newBlock();
+  auto conditionBlock = gen.newBlock();
   auto endLoopBlock = gen.newBlock();
 
-  Loop loop{loopBlock, endLoopBlock};
+  Loop loop{conditionBlock, endLoopBlock};
   std::swap(gen.loop_, loop);
 
   gen.branch(gen.getLocation(ast->statement->firstSourceLocation()), loopBlock);
 
   gen.builder_.setInsertionPointToEnd(loopBlock);
   gen.statement(ast->statement);
+
+  gen.branch(gen.getLocation(ast->statement->lastSourceLocation()),
+             conditionBlock);
+
+  gen.builder_.setInsertionPointToEnd(conditionBlock);
   gen.condition(ast->expression, loopBlock, endLoopBlock);
 
   gen.builder_.setInsertionPointToEnd(endLoopBlock);
@@ -226,13 +232,14 @@ void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {
   Loop loop{stepLoopBlock, endLoopBlock};
   std::swap(gen.loop_, loop);
 
-  gen.branch(
-      gen.getLocation(ast->condition ? ast->condition->firstSourceLocation()
-                                     : ast->semicolonLoc),
-      beginLoopBlock);
-
+  gen.branch(gen.getLocation(ast->firstSourceLocation()), beginLoopBlock);
   gen.builder_.setInsertionPointToEnd(beginLoopBlock);
-  gen.condition(ast->condition, loopBodyBlock, endLoopBlock);
+
+  if (ast->condition) {
+    gen.condition(ast->condition, loopBodyBlock, endLoopBlock);
+  } else {
+    gen.branch(gen.getLocation(ast->semicolonLoc), loopBodyBlock);
+  }
 
   gen.builder_.setInsertionPointToEnd(loopBodyBlock);
   gen.statement(ast->statement);
