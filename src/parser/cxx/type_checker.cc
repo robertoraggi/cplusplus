@@ -1229,8 +1229,9 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
                             control()->remove_cv(ast->iffalseExpression->type)))
       return false;
 
-    ast->valueCategory = ast->iftrueExpression->valueCategory;
     ast->type = ast->iftrueExpression->type;
+
+    ast->valueCategory = ast->iftrueExpression->valueCategory;
 
     return true;
   };
@@ -1277,33 +1278,47 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
     return true;
   };
 
-  if (ast->iftrueExpression && ast->iffalseExpression) {
-    if (check_void_type()) return;
-    if (check_same_type_and_value_category()) return;
-
-    (void)array_to_pointer_conversion(ast->iftrueExpression);
-    (void)function_to_pointer_conversion(ast->iftrueExpression);
-
-    (void)array_to_pointer_conversion(ast->iffalseExpression);
-    (void)function_to_pointer_conversion(ast->iffalseExpression);
-
-    if (check_arith_types()) return;
-    if (check_same_types()) return;
-    if (check_compatible_pointers()) return;
-  }
-
-  if (!ast->type) {
-    auto iftrueType =
-        ast->iftrueExpression ? ast->iftrueExpression->type : nullptr;
-
-    auto iffalseType =
-        ast->iffalseExpression ? ast->iffalseExpression->type : nullptr;
-
+  if (!ast->iftrueExpression) {
     error(ast->questionLoc,
-          std::format(
-              "left operand to ? is '{}', but right operand is of type '{}'",
-              to_string(iftrueType), to_string(iffalseType)));
+          "left operand to ? is null, but right operand is not null");
+    return;
   }
+
+  if (!ast->iffalseExpression) {
+    error(ast->colonLoc,
+          "right operand to ? is null, but left operand is not null");
+    return;
+  }
+
+  if (is_parsing_c()) {
+    // in C, both expressions must be prvalues
+    (void)ensure_prvalue(ast->iftrueExpression);
+    (void)ensure_prvalue(ast->iffalseExpression);
+  }
+
+  if (check_void_type()) return;
+  if (check_same_type_and_value_category()) return;
+
+  (void)array_to_pointer_conversion(ast->iftrueExpression);
+  (void)function_to_pointer_conversion(ast->iftrueExpression);
+
+  (void)array_to_pointer_conversion(ast->iffalseExpression);
+  (void)function_to_pointer_conversion(ast->iffalseExpression);
+
+  if (check_arith_types()) return;
+  if (check_same_types()) return;
+  if (check_compatible_pointers()) return;
+
+  auto iftrueType =
+      ast->iftrueExpression ? ast->iftrueExpression->type : nullptr;
+
+  auto iffalseType =
+      ast->iffalseExpression ? ast->iffalseExpression->type : nullptr;
+
+  error(ast->questionLoc,
+        std::format(
+            "left operand to ? is '{}', but right operand is of type '{}'",
+            to_string(iftrueType), to_string(iffalseType)));
 }
 
 void TypeChecker::Visitor::operator()(YieldExpressionAST* ast) {}
