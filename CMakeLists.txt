@@ -45,7 +45,9 @@ option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
 option(CXX_BUILD_TESTS "Build tests" ON)
 option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
 
-find_package(Threads)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    find_package(Threads)
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CXX_LIBCXX_WITH_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
@@ -109,7 +111,7 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
 
 FetchContent_Declare(
     wasi_sysroot
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sysroot-25.0.tar.gz
+    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sysroot-27.0.tar.gz
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)
