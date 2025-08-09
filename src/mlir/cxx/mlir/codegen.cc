@@ -81,6 +81,12 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   return allocaOp;
 }
 
+auto Codegen::newTemp(const Type* type, SourceLocation loc)
+    -> mlir::cxx::AllocaOp {
+  auto ptrType = builder_.getType<mlir::cxx::PointerType>(convertType(type));
+  return builder_.create<mlir::cxx::AllocaOp>(getLocation(loc), ptrType);
+}
+
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> mlir::cxx::FuncOp {
   if (auto it = funcOps_.find(functionSymbol); it != funcOps_.end()) {

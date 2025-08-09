@@ -262,6 +262,9 @@ class Codegen {
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;
 
+  [[nodiscard]] auto newTemp(const Type* type, SourceLocation loc)
+      -> mlir::cxx::AllocaOp;
+
   [[nodiscard]] auto findOrCreateLocal(Symbol* symbol)
       -> std::optional<mlir::Value>;
 
