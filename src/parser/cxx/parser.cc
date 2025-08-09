@@ -424,16 +424,20 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       auto prefix = ast->literal->components().prefix;
 
-      if (prefix == "u8")
-        ast->type = control_->getChar8Type();
-      else if (prefix == "u")
-        ast->type = control_->getChar16Type();
-      else if (prefix == "U")
-        ast->type = control_->getChar32Type();
-      else if (prefix == "L")
-        ast->type = control_->getWideCharType();
-      else
-        ast->type = control_->getCharType();
+      if (is_parsing_cxx()) {
+        if (prefix == "u8")
+          ast->type = control_->getChar8Type();
+        else if (prefix == "u")
+          ast->type = control_->getChar16Type();
+        else if (prefix == "U")
+          ast->type = control_->getChar32Type();
+        else if (prefix == "L")
+          ast->type = control_->getWideCharType();
+        else
+          ast->type = control_->getCharType();
+      } else {
+        ast->type = control_->getIntType();
+      }
 
       return true;
     }
@@ -540,9 +544,12 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           static_cast<const StringLiteral*>(unit->literal(literalLoc));
 
       if (unit->tokenKind(literalLoc) == TokenKind::T_STRING_LITERAL) {
-        ast->type = control_->getBoundedArrayType(
-            control_->add_const(control_->getCharType()),
-            ast->literal->stringValue().size() + 1);
+        const Type* elementType = control_->getCharType();
+        if (is_parsing_cxx()) elementType = control_->add_const(elementType);
+
+        auto extent = ast->literal->stringValue().size() + 1;
+
+        ast->type = control_->getBoundedArrayType(elementType, extent);
 
         ast->valueCategory = ValueCategory::kLValue;
       }

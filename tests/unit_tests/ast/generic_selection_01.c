@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck -ast-dump -xc %s | %filecheck %s --match-full-lines
+// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
 // clang-format on
 
 int main() {
@@ -30,33 +30,33 @@ int main() {
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [8]]
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue char [8]]
 // CHECK-NEXT:                  matched-assoc-index: 0
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
 // CHECK-NEXT:                  generic-association-list
 // CHECK-NEXT:                    default-generic-association
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [8]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [8]]
 // CHECK-NEXT:                        literal: "default"
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: cast-expression [prvalue void]
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [4]]
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue char [4]]
 // CHECK-NEXT:                  matched-assoc-index: 1
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
 // CHECK-NEXT:                  generic-association-list
 // CHECK-NEXT:                    default-generic-association
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [8]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [8]]
 // CHECK-NEXT:                        literal: "default"
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          integral-type-specifier
 // CHECK-NEXT:                            specifier: int
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [4]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [4]]
 // CHECK-NEXT:                        literal: "int"
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
@@ -67,14 +67,14 @@ int main() {
 // CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:                          ptr-op-list
 // CHECK-NEXT:                            pointer-operator
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [12]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [12]]
 // CHECK-NEXT:                        literal: "const char*"
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: cast-expression [prvalue void]
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [4]]
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue char [4]]
 // CHECK-NEXT:                  matched-assoc-index: 0
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
@@ -84,7 +84,7 @@ int main() {
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          integral-type-specifier
 // CHECK-NEXT:                            specifier: int
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [4]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [4]]
 // CHECK-NEXT:                        literal: "int"
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
@@ -95,17 +95,17 @@ int main() {
 // CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:                          ptr-op-list
 // CHECK-NEXT:                            pointer-operator
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [12]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [12]]
 // CHECK-NEXT:                        literal: "const char*"
 // CHECK-NEXT:                    default-generic-association
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [8]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [8]]
 // CHECK-NEXT:                        literal: "default"
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: cast-expression [prvalue void]
 // CHECK-NEXT:                type-id: type-id
 // CHECK-NEXT:                  type-specifier-list
 // CHECK-NEXT:                    void-type-specifier
-// CHECK-NEXT:                expression: generic-selection-expression [lvalue const char [4]]
+// CHECK-NEXT:                expression: generic-selection-expression [lvalue char [4]]
 // CHECK-NEXT:                  matched-assoc-index: 0
 // CHECK-NEXT:                  expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 1
@@ -115,7 +115,7 @@ int main() {
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          integral-type-specifier
 // CHECK-NEXT:                            specifier: int
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [4]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [4]]
 // CHECK-NEXT:                        literal: "int"
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
@@ -126,5 +126,5 @@ int main() {
 // CHECK-NEXT:                        declarator: declarator
 // CHECK-NEXT:                          ptr-op-list
 // CHECK-NEXT:                            pointer-operator
-// CHECK-NEXT:                      expression: string-literal-expression [lvalue const char [12]]
+// CHECK-NEXT:                      expression: string-literal-expression [lvalue char [12]]
 // CHECK-NEXT:                        literal: "const char*"
