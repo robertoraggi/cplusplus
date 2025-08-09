@@ -154,6 +154,12 @@ def Cxx_StoreOp : Cxx_Op<"store"> {
   let hasVerifier = 1;
 }
 
+def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
+  let arguments = (ins Cxx_PointerType:$base, AnyType:$index);
+
+  let results = (outs Cxx_PointerType:$result);
+}
+
 def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [
   Pure
 ]> {
