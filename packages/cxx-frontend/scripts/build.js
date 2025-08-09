@@ -132,7 +132,7 @@ async function dockerBuild() {
   await $`${docker} build -t cxx-emsdk -f ${projectRootSourcePath}/Dockerfile.emsdk ${projectRootSourcePath}`;
   await $`${docker} run -t --rm -u ${user} -v ${emscriptenCacheDir}:/emsdk/upstream/emscripten/cache/ cxx-emsdk embuilder.py build MINIMAL --lto=thin`;
   await $`${docker} run -t --rm -u ${user} -v ${emscriptenCacheDir}:/emsdk/upstream/emscripten/cache/ -v ${projectRootSourcePath}:/code -w /code cxx-emsdk emcmake cmake ${cmakeOptions}`;
-  await $`${docker} run -t --rm -u ${user} -v ${emscriptenCacheDir}:/emsdk/upstream/emscripten/cache/ -v ${projectRootSourcePath}:/code -w /code cxx-emsdk cmake --build build.em`;
+  await $`${docker} run -t --rm -u ${user} -v ${emscriptenCacheDir}:/emsdk/upstream/emscripten/cache/ -v ${projectRootSourcePath}:/code -w /code cxx-emsdk cmake --build build.em --parallel`;
 }
 
 async function emsdkBuild({ cmake, emcmake, flatc }) {
@@ -165,7 +165,7 @@ async function emsdkBuild({ cmake, emcmake, flatc }) {
 
   await $`${emcmake} ${cmake} ${cmakeOptions}`;
 
-  await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
+  await $`${cmake} --build ${projectRootSourcePath}/build.em --parallel --target install`;
 }
 
 async function emsdkBuildPresets() {
@@ -175,7 +175,7 @@ async function emsdkBuildPresets() {
 
   await $`${cmake} -S ${projectRootSourcePath} --preset ${preset}`;
 
-  await $`${cmake} --build ${projectRootSourcePath}/build.em --target install`;
+  await $`${cmake} --build ${projectRootSourcePath}/build.em --parallel --target install`;
 }
 
 async function detectEmsdk() {
