@@ -453,13 +453,15 @@ auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
   auto baseExpressionResult = gen.expression(ast->baseExpression);
   auto indexExpressionResult = gen.expression(ast->indexExpression);
-#endif
+
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  auto resultType = gen.convertType(control()->add_pointer(ast->type));
+
+  auto op = gen.builder_.create<mlir::cxx::SubscriptOp>(
+      loc, resultType, baseExpressionResult.value, indexExpressionResult.value);
 
   return {op};
 }

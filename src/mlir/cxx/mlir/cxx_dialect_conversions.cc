@@ -236,6 +236,43 @@ class BoolConstantOpLowering : public OpConversionPattern<cxx::BoolConstantOp> {
   }
 };
 
+class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::SubscriptOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto ptrType = dyn_cast_or_null<cxx::PointerType>(op.getBase().getType());
+
+    if (!ptrType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert subscript operation type");
+    }
+
+    auto arrayType = dyn_cast_or_null<cxx::ArrayType>(ptrType.getElementType());
+    if (!arrayType) {
+      return rewriter.notifyMatchFailure(
+          op, "expected base type of subscript to be an array type");
+    }
+
+    SmallVector<Value> indices;
+
+    indices.push_back(adaptor.getIndex());
+
+    auto resultType = LLVM::LLVMPointerType::get(context);
+    auto elementType = typeConverter->convertType(ptrType.getElementType());
+
+    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
+                                             adaptor.getBase(), indices);
+
+    return success();
+  }
+};
+
 class IntConstantOpLowering : public OpConversionPattern<cxx::IntConstantOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -1093,6 +1130,13 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     return LLVM::LLVMPointerType::get(type.getContext());
   });
 
+  typeConverter.addConversion([&](cxx::ArrayType type) -> Type {
+    auto elementType = typeConverter.convertType(type.getElementType());
+    auto size = type.getSize();
+
+    return LLVM::LLVMArrayType::get(elementType, size);
+  });
+
   DenseMap<cxx::ClassType, Type> convertedClassTypes;
   typeConverter.addConversion([&](cxx::ClassType type) -> Type {
     if (auto it = convertedClassTypes.find(type);
@@ -1140,8 +1184,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       typeConverter, context);
 
   // memory operations
-  patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering>(
-      typeConverter, context);
+  patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
+                  SubscriptOpLowering>(typeConverter, context);
 
   // cast operations
   patterns
