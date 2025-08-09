@@ -1040,6 +1040,98 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     return gen.expression(ast->rightExpression, format);
   }
 
+  if (ast->op == TokenKind::T_BAR_BAR) {
+    auto t = gen.newTemp(control()->getBoolType(), ast->opLoc);
+
+    auto trueBlock = gen.newBlock();
+    auto continueBlock = gen.newBlock();
+    auto falseBlock = gen.newBlock();
+    auto endBlock = gen.newBlock();
+
+    gen.condition(ast->leftExpression, trueBlock, continueBlock);
+
+    gen.builder_.setInsertionPointToEnd(continueBlock);
+    gen.condition(ast->rightExpression, trueBlock, falseBlock);
+
+    // build the true block
+    gen.builder_.setInsertionPointToEnd(trueBlock);
+
+    auto i1type = gen.convertType(control()->getBoolType());
+
+    auto trueValue = gen.builder_.create<mlir::cxx::BoolConstantOp>(
+        gen.getLocation(ast->opLoc), i1type, true);
+
+    gen.builder_.create<mlir::cxx::StoreOp>(gen.getLocation(ast->opLoc),
+                                            trueValue, t);
+
+    auto endLoc = gen.getLocation(ast->lastSourceLocation());
+    gen.branch(endLoc, endBlock);
+
+    // build the false block
+    gen.builder_.setInsertionPointToEnd(falseBlock);
+    auto falseValue = gen.builder_.create<mlir::cxx::BoolConstantOp>(
+        gen.getLocation(ast->opLoc), i1type, false);
+    gen.builder_.create<mlir::cxx::StoreOp>(gen.getLocation(ast->opLoc),
+                                            falseValue, t);
+    gen.branch(gen.getLocation(ast->lastSourceLocation()), endBlock);
+
+    // place the end block
+    gen.builder_.setInsertionPointToEnd(endBlock);
+
+    if (format == ExpressionFormat::kSideEffect) return {};
+
+    auto resultType = gen.convertType(ast->type);
+    auto loadOp = gen.builder_.create<mlir::cxx::LoadOp>(
+        gen.getLocation(ast->opLoc), resultType, t);
+    return {loadOp};
+  }
+
+  if (ast->op == TokenKind::T_AMP_AMP) {
+    auto t = gen.newTemp(control()->getBoolType(), ast->opLoc);
+
+    auto trueBlock = gen.newBlock();
+    auto continueBlock = gen.newBlock();
+    auto falseBlock = gen.newBlock();
+    auto endBlock = gen.newBlock();
+
+    gen.condition(ast->leftExpression, continueBlock, falseBlock);
+
+    gen.builder_.setInsertionPointToEnd(continueBlock);
+    gen.condition(ast->rightExpression, trueBlock, falseBlock);
+
+    // build the true block
+    gen.builder_.setInsertionPointToEnd(trueBlock);
+
+    auto i1type = gen.convertType(control()->getBoolType());
+
+    auto trueValue = gen.builder_.create<mlir::cxx::BoolConstantOp>(
+        gen.getLocation(ast->opLoc), i1type, true);
+
+    gen.builder_.create<mlir::cxx::StoreOp>(gen.getLocation(ast->opLoc),
+                                            trueValue, t);
+
+    auto endLoc = gen.getLocation(ast->lastSourceLocation());
+    gen.branch(endLoc, endBlock);
+
+    // build the false block
+    gen.builder_.setInsertionPointToEnd(falseBlock);
+    auto falseValue = gen.builder_.create<mlir::cxx::BoolConstantOp>(
+        gen.getLocation(ast->opLoc), i1type, false);
+    gen.builder_.create<mlir::cxx::StoreOp>(gen.getLocation(ast->opLoc),
+                                            falseValue, t);
+    gen.branch(gen.getLocation(ast->lastSourceLocation()), endBlock);
+
+    // place the end block
+    gen.builder_.setInsertionPointToEnd(endBlock);
+
+    if (format == ExpressionFormat::kSideEffect) return {};
+
+    auto resultType = gen.convertType(ast->type);
+    auto loadOp = gen.builder_.create<mlir::cxx::LoadOp>(
+        gen.getLocation(ast->opLoc), resultType, t);
+    return {loadOp};
+  }
+
   auto loc = gen.getLocation(ast->opLoc);
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
