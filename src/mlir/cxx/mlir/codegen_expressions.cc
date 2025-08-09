@@ -1363,16 +1363,39 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto trueBlock = gen.newBlock();
+  auto falseBlock = gen.newBlock();
+  auto endBlock = gen.newBlock();
 
-#if false
-  auto conditionResult = gen.expression(ast->condition);
-  auto iftrueExpressionResult = gen.expression(ast->iftrueExpression);
-  auto iffalseExpressionResult = gen.expression(ast->iffalseExpression);
-#endif
+  auto t = gen.newTemp(ast->type, ast->questionLoc);
 
-  return {op};
+  gen.condition(ast->condition, trueBlock, falseBlock);
+
+  auto endLoc = gen.getLocation(ast->lastSourceLocation());
+
+  // place the true block
+  gen.builder_.setInsertionPointToEnd(trueBlock);
+  auto trueExpressionResult = gen.expression(ast->iftrueExpression);
+  auto trueValue = gen.builder_.create<mlir::cxx::StoreOp>(
+      gen.getLocation(ast->questionLoc), trueExpressionResult.value, t);
+  gen.branch(endLoc, endBlock);
+
+  // place the false block
+  gen.builder_.setInsertionPointToEnd(falseBlock);
+  auto falseExpressionResult = gen.expression(ast->iffalseExpression);
+  auto falseValue = gen.builder_.create<mlir::cxx::StoreOp>(
+      gen.getLocation(ast->colonLoc), falseExpressionResult.value, t);
+  gen.branch(endLoc, endBlock);
+
+  // place the end block
+  gen.builder_.setInsertionPointToEnd(endBlock);
+
+  if (format == ExpressionFormat::kSideEffect) return {};
+
+  auto resultType = gen.convertType(ast->type);
+  auto loadOp = gen.builder_.create<mlir::cxx::LoadOp>(
+      gen.getLocation(ast->colonLoc), resultType, t);
+  return {loadOp};
 }
 
 auto Codegen::ExpressionVisitor::operator()(YieldExpressionAST* ast)
