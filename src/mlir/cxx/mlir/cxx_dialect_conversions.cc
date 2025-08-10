@@ -24,10 +24,13 @@
 #include <cxx/mlir/cxx_dialect.h>
 
 // mlir
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Support/Error.h>
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
+#include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
@@ -1085,6 +1088,7 @@ class CxxToLLVMLoweringPass
   auto getArgument() const -> StringRef override { return "cxx-to-llvm"; }
 
   void getDependentDialects(DialectRegistry &registry) const override {
+    registry.insert<DLTIDialect>();
     registry.insert<LLVM::LLVMDialect>();
   }
 
@@ -1096,9 +1100,6 @@ class CxxToLLVMLoweringPass
 void CxxToLLVMLoweringPass::runOnOperation() {
   auto context = &getContext();
   auto module = getOperation();
-
-  // set up the data layout
-  DataLayout dataLayout(module);
 
   // set up the type converter
   LLVMTypeConverter typeConverter{context};

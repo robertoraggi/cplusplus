@@ -29,6 +29,7 @@
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
 #include <cxx/macos_toolchain.h>
+#include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/scope.h>
@@ -43,7 +44,12 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Pass.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
 #endif
 
 #include <format>
@@ -81,6 +87,10 @@ struct Frontend::Private {
     return cli.opt_emit_ir || cli.opt_emit_llvm || cli.opt_S || cli.opt_c;
   }
 
+  [[nodiscard]] auto needsLLVMIR() const -> bool {
+    return cli.opt_emit_llvm || cli.opt_S || cli.opt_c;
+  }
+
   void prepare();
   void preparePreprocessor();
   void preprocess();
@@ -94,6 +104,8 @@ struct Frontend::Private {
   void generateIR();
   void emitIR();
   void emitLLVMIR();
+  void emitCode();
+  void emitObjectFile();
   void printPreprocessedText();
   void dumpMacros(std::ostream& out);
 
@@ -109,7 +121,7 @@ struct Frontend::Private {
 #ifdef CXX_WITH_MLIR
   void withRawOutputStream(
       const std::optional<std::string>& extension,
-      const std::function<void(llvm::raw_ostream&)>& action);
+      const std::function<void(llvm::raw_pwrite_stream&)>& action);
 #endif
 };
 
@@ -169,6 +181,7 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
   actions_.emplace_back([this]() { generateIR(); });
   actions_.emplace_back([this]() { emitIR(); });
   actions_.emplace_back([this]() { emitLLVMIR(); });
+  actions_.emplace_back([this]() { emitCode(); });
 }
 
 Frontend::Private::~Private() {}
@@ -196,7 +209,7 @@ void Frontend::Private::withOutputStream(
 #ifdef CXX_WITH_MLIR
 void Frontend::Private::withRawOutputStream(
     const std::optional<std::string>& extension,
-    const std::function<void(llvm::raw_ostream&)>& action) {
+    const std::function<void(llvm::raw_pwrite_stream&)>& action) {
   auto explicitOutput = cli.getSingle("-o");
 
   if (explicitOutput == "-" || (!explicitOutput.has_value() &&
@@ -507,7 +520,7 @@ void Frontend::Private::emitIR() {
 }
 
 void Frontend::Private::emitLLVMIR() {
-  if (!cli.opt_emit_llvm) return;
+  if (!needsLLVMIR()) return;
 
 #ifdef CXX_WITH_MLIR
   if (!module_) return;
@@ -522,9 +535,76 @@ void Frontend::Private::emitLLVMIR() {
     return;
   }
 
+  if (!cli.opt_emit_llvm) return;
+
   shouldExit_ = true;
+
   withRawOutputStream(
       ".ll", [&](llvm::raw_ostream& out) { llvmModule_->print(out, nullptr); });
+
+#endif
+}
+
+void Frontend::Private::emitCode() {
+  if (!cli.opt_S && !cli.opt_c) return;
+#ifdef CXX_WITH_MLIR
+  llvm::InitializeAllAsmPrinters();
+
+  auto triple = toolchain_->memoryLayout()->triple();
+
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(triple, error);
+
+  if (!target) {
+    std::cerr << std::format("cxx: cannot find target for triple '{}': {}\n",
+                             triple, error);
+    shouldExit_ = true;
+    exitStatus_ = EXIT_FAILURE;
+    return;
+  }
+
+  llvm::TargetOptions opt;
+
+  auto RM = std::optional<llvm::Reloc::Model>();
+
+  auto targetMachine =
+      target->createTargetMachine(triple, "generic", "", opt, RM);
+
+  if (!targetMachine) {
+    std::cerr << std::format("cxx: cannot create target machine for '{}': {}\n",
+                             triple, error);
+    shouldExit_ = true;
+    exitStatus_ = EXIT_FAILURE;
+    return;
+  }
+
+  std::string extension;
+  if (cli.opt_S) {
+    extension = ".s";
+  } else if (cli.opt_c) {
+    extension = ".o";
+  }
+
+  withRawOutputStream(extension, [&](llvm::raw_pwrite_stream& out) {
+    llvm::legacy::PassManager pm;
+
+    llvm::CodeGenFileType fileType;
+    if (cli.opt_S) {
+      fileType = llvm::CodeGenFileType::AssemblyFile;
+    } else {
+      fileType = llvm::CodeGenFileType::ObjectFile;
+    }
+
+    if (targetMachine->addPassesToEmitFile(pm, out, nullptr, fileType)) {
+      std::cerr << "cxx: target machine cannot emit assembly\n";
+      shouldExit_ = true;
+      exitStatus_ = EXIT_FAILURE;
+      return;
+    }
+
+    pm.run(*llvmModule_);
+    out.flush();
+  });
 #endif
 }
 

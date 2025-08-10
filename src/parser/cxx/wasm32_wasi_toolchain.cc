@@ -34,6 +34,7 @@ Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor)
   setMemoryLayout(std::make_unique<MemoryLayout>(32));
   memoryLayout()->setSizeOfLongDouble(16);
   memoryLayout()->setSizeOfLongLong(8);
+  memoryLayout()->setTriple("wasm32");
 }
 
 auto Wasm32WasiToolchain::appdir() const -> const std::string& {

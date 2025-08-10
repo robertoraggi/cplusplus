@@ -37,6 +37,14 @@ WindowsToolchain::WindowsToolchain(Preprocessor *preprocessor,
   memoryLayout()->setSizeOfLongLong(8);
   memoryLayout()->setSizeOfLongDouble(8);
   memoryLayout()->setSizeOfPointer(8);
+
+  if (arch_ == "aarch64") {
+    memoryLayout()->setTriple("aarch64-windows");
+  } else if (arch_ == "x86_64") {
+    memoryLayout()->setTriple("x86_64-windows");
+  } else {
+    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+  }
 }
 
 void WindowsToolchain::setVctoolsdir(std::string path) {
