@@ -19,8 +19,11 @@
 
 
 add_executable(cxx
+    cxx/cxx.cc
+    cxx/dump_tokens.cc
     cxx/frontend.cc
     cxx/verify_diagnostics_client.cc
+    cxx/check_expression_types.cc
 )
 
 target_link_libraries(cxx PRIVATE cxx-lsp)

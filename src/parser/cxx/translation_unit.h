@@ -94,6 +94,10 @@ class TranslationUnit {
     return static_cast<unsigned>(tokens_.size());
   }
 
+  [[nodiscard]] inline auto tokens() const -> const std::vector<Token>& {
+    return tokens_;
+  }
+
   [[nodiscard]] inline auto tokenAt(SourceLocation loc) const -> const Token& {
     return tokens_[loc.index()];
   }

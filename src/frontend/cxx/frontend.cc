@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "frontend.h"
+
 #include <cxx/ast.h>
 #include <cxx/ast_pretty_printer.h>
 #include <cxx/ast_printer.h>
@@ -26,7 +28,6 @@
 #include <cxx/control.h>
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
-#include <cxx/lsp/lsp_server.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
@@ -46,134 +47,162 @@
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <list>
-#include <regex>
 #include <string>
 
+#include "check_expression_types.h"
+#include "dump_tokens.h"
 #include "verify_diagnostics_client.h"
 
-namespace {
+namespace cxx {
 
-using namespace cxx;
+Frontend::Frontend(const CLI& cli, std::string fileName)
+    : cli(cli), fileName_(std::move(fileName)) {
+  diagnosticsClient_ = std::make_unique<VerifyDiagnosticsClient>();
+  unit_ = std::make_unique<TranslationUnit>(diagnosticsClient_.get());
 
-class CheckExpressionTypes final : private ASTVisitor {
- public:
-  [[nodiscard]] auto operator()(TranslationUnit* unit) {
-    std::size_t missingTypes = 0;
-    std::swap(unit_, unit);
-    std::swap(missingTypes_, missingTypes);
-
-    accept(unit_->ast());
-
-    std::swap(unit_, unit);
-    std::swap(missingTypes_, missingTypes);
-
-    return missingTypes == 0;
-  }
-
- private:
-  using ASTVisitor::visit;
-
-  auto preVisit(AST* ast) -> bool override {
-    if (ast_cast<TemplateDeclarationAST>(ast)) {
-      // skip template declarations, as they are not instantiated yet
-      return false;
-    }
-
-    if (auto expression = ast_cast<ExpressionAST>(ast)) {
-      if (!expression->type) {
-        const auto loc = expression->firstSourceLocation();
-
-        unit_->warning(loc, std::format("untyped expression of kind '{}'",
-                                        to_string(expression->kind())));
-
-        ++missingTypes_;
-        return false;
-      }
-    }
-
-    return true;  // visit children
-  }
-
- private:
-  TranslationUnit* unit_ = nullptr;
-  std::size_t missingTypes_ = 0;
-};
-
-auto readAll(const std::string& fileName, std::istream& in)
-    -> std::optional<std::string> {
-  std::string code;
-  char buffer[4 * 1024];
-  do {
-    in.read(buffer, sizeof(buffer));
-    code.append(buffer, in.gcount());
-  } while (in);
-  return code;
+  actions_.emplace_back([this]() { showSearchPaths(std::cerr); });
+  actions_.emplace_back([this]() { preprocess(); });
+  actions_.emplace_back([this]() { printPreprocessedText(); });
+  actions_.emplace_back([this]() { dumpMacros(std::cout); });
+  actions_.emplace_back([this]() { dumpTokens(std::cout); });
+  actions_.emplace_back([this]() { unit_->preprocessor()->squeeze(); });
+  actions_.emplace_back([this]() { parse(); });
+  actions_.emplace_back([this]() { dumpSymbols(std::cout); });
+  actions_.emplace_back([this]() { dumpAst(); });
+  actions_.emplace_back([this]() { printAstIfNeeded(); });
+  actions_.emplace_back([this]() { serializeAst(); });
+  actions_.emplace_back([this]() { emitIR(); });
 }
 
-auto readAll(const std::string& fileName) -> std::optional<std::string> {
-  if (fileName == "-" || fileName.empty()) return readAll("<stdin>", std::cin);
-  if (std::ifstream stream(fileName); stream) return readAll(fileName, stream);
-  return std::nullopt;
+Frontend::~Frontend() {}
+
+auto Frontend::translationUnit() const -> TranslationUnit* {
+  return unit_.get();
 }
 
-void dumpTokens(const CLI& cli, TranslationUnit& unit, std::ostream& output) {
-  auto lang = LanguageKind::kCXX;
+auto Frontend::toolchain() const -> Toolchain* { return toolchain_.get(); }
 
-  if (auto x = cli.getSingle("x")) {
-    if (x == "c") lang = LanguageKind::kC;
-  } else if (unit.fileName().ends_with(".c")) {
-    lang = LanguageKind::kC;
-  }
+auto Frontend::fileName() const -> const std::string& { return fileName_; }
 
-  std::string flags;
-
-  for (SourceLocation loc(1);; loc = loc.next()) {
-    const auto& tk = unit.tokenAt(loc);
-
-    flags.clear();
-
-    if (tk.startOfLine()) {
-      flags += " [start-of-line]";
-    }
-
-    if (tk.leadingSpace()) {
-      flags += " [leading-space]";
-    }
-
-    auto kind = tk.kind();
-    if (kind == TokenKind::T_IDENTIFIER) {
-      kind = Lexer::classifyKeyword(tk.spell(), lang);
-    }
-
-    output << std::format("{} '{}'{}", Token::name(kind), tk.spell(), flags);
-
-    auto pos = unit.tokenStartPosition(loc);
-
-    output << std::format(" at {}:{}:{}\n", pos.fileName, pos.line, pos.column);
-
-    if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
-  }
+void Frontend::addAction(std::function<void()> action) {
+  actions_.emplace_back(std::move(action));
 }
 
-auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
-  VerifyDiagnosticsClient diagnosticsClient;
-  TranslationUnit unit(&diagnosticsClient);
+auto Frontend::operator()() -> bool {
+  prepare();
+  preparePreprocessor();
 
-  auto preprocessor = unit.preprocessor();
+  for (const auto& action : actions_) {
+    if (shouldExit_) break;
+    action();
+  }
+
+  diagnosticsClient_->verifyExpectedDiagnostics();
+
+  return !diagnosticsClient_->hasErrors();
+}
+
+void Frontend::withOutputStream(
+    const std::optional<std::string>& extension,
+    const std::function<void(std::ostream&)>& action) {
+  auto explicitOutput = cli.getSingle("-o");
+
+  if (explicitOutput == "-" || (!explicitOutput.has_value() &&
+                                (!extension.has_value() || fileName_ == "-"))) {
+    action(std::cout);
+    return;
+  }
+
+  auto inputFile = fs::path{fileName_}.filename();
+  auto defaultOutputFile = inputFile.replace_extension(*extension);
+
+  auto outputFile = cli.getSingle("-o").value_or(defaultOutputFile.string());
+
+  std::ofstream output(outputFile);
+  action(output);
+}
+
+#ifdef CXX_WITH_MLIR
+void Frontend::withRawOutputStream(
+    const std::optional<std::string>& extension,
+    const std::function<void(llvm::raw_ostream&)>& action) {
+  auto explicitOutput = cli.getSingle("-o");
+
+  if (explicitOutput == "-" || (!explicitOutput.has_value() &&
+                                (!extension.has_value() || fileName_ == "-"))) {
+    action(llvm::outs());
+    return;
+  }
+
+  auto inputFile = fs::path{fileName_}.filename();
+  auto defaultOutputFile = inputFile.replace_extension(*extension);
+
+  auto outputFile = cli.getSingle("-o").value_or(defaultOutputFile.string());
+
+  std::error_code error_code;
+  llvm::raw_fd_ostream output(outputFile, error_code);
+  action(output);
+}
+#endif
+
+void Frontend::printPreprocessedText() {
+  if (!cli.opt_E && !cli.opt_Eonly) {
+    return;
+  }
+
+  if (cli.opt_dM) {
+    // If we are only dumping macros, we don't need to output the preprocessed
+    // text.
+    return;
+  }
+
+  shouldExit_ = true;
+
+  if (cli.opt_Eonly) {
+    // If we are only preprocessing, we don't need to output the preprocessed
+    return;
+  }
+
+  withOutputStream(std::nullopt, [&](std::ostream& out) {
+    unit_->preprocessor()->getPreprocessedText(unit_->tokens(), out);
+  });
+}
+
+void Frontend::preprocess() {
+  auto source = readAll(fileName_);
+
+  if (!source.has_value()) {
+    std::cerr << std::format("cxx: No such file or directory: '{}'\n",
+                             fileName_);
+    shouldExit_ = true;
+    exitStatus_ = EXIT_FAILURE;
+    return;
+  }
+
+  unit_->setSource(std::move(*source), fileName_);
+}
+
+void Frontend::dumpMacros(std::ostream& out) {
+  if (!cli.opt_E && !cli.opt_dM) return;
+
+  unit_->preprocessor()->printMacros(out);
+
+  shouldExit_ = true;
+}
+
+void Frontend::prepare() {
+  auto preprocessor = unit_->preprocessor();
 
   const auto lang = cli.getSingle("-x");
 
-  if (lang == "c" || (!lang.has_value() && fileName.ends_with(".c"))) {
+  if (lang == "c" || (!lang.has_value() && fileName_.ends_with(".c"))) {
     // set the language to C
     preprocessor->setLanguage(LanguageKind::kC);
   }
 
-  std::unique_ptr<Toolchain> toolchain;
-
   if (cli.opt_verify) {
-    diagnosticsClient.setVerify(true);
-    preprocessor->setCommentHandler(&diagnosticsClient);
+    diagnosticsClient_->setVerify(true);
+    preprocessor->setCommentHandler(diagnosticsClient_.get());
   }
 
   auto toolchainId = cli.getSingle("-toolchain");
@@ -190,7 +219,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     host = "x86_64";
 #endif
 
-    toolchain = std::make_unique<MacOSToolchain>(
+    toolchain_ = std::make_unique<MacOSToolchain>(
         preprocessor, cli.getSingle("-arch").value_or(host));
 
   } else if (toolchainId == "wasm32") {
@@ -218,7 +247,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       wasmToolchain->setSysroot(sysroot_dir.string());
     }
 
-    toolchain = std::move(wasmToolchain);
+    toolchain_ = std::move(wasmToolchain);
   } else if (toolchainId == "linux") {
     // on linux we default to x86_64, unless the host is aarch64
     std::string host = "x86_64";
@@ -227,7 +256,7 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     host = "aarch64";
 #endif
 
-    toolchain = std::make_unique<GCCLinuxToolchain>(
+    toolchain_ = std::make_unique<GCCLinuxToolchain>(
         preprocessor, cli.getSingle("-arch").value_or(host));
   } else if (toolchainId == "windows") {
     // on linux we default to x86_64, unless the host is aarch64
@@ -252,30 +281,31 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
       windowsToolchain->setWinsdkversion(versions.back());
     }
 
-    toolchain = std::move(windowsToolchain);
+    toolchain_ = std::move(windowsToolchain);
   }
 
-  if (toolchain) {
-    unit.control()->setMemoryLayout(toolchain->memoryLayout());
+  unit_->control()->setMemoryLayout(toolchain_->memoryLayout());
+}
 
-    if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
+void Frontend::preparePreprocessor() {
+  auto preprocessor = unit_->preprocessor();
 
-    if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();
-
-    toolchain->addPredefinedMacros();
+  if (cli.opt_P) {
+    preprocessor->setOmitLineMarkers(true);
   }
+
+  if (!cli.opt_nostdinc) {
+    toolchain_->addSystemIncludePaths();
+  }
+
+  if (!cli.opt_nostdincpp) {
+    toolchain_->addSystemCppIncludePaths();
+  }
+
+  toolchain_->addPredefinedMacros();
 
   for (const auto& path : cli.get("-I")) {
     preprocessor->addSystemIncludePath(path);
-  }
-
-  if (cli.opt_v) {
-    std::cerr << std::format("#include <...> search starts here:\n");
-    const auto& paths = preprocessor->systemIncludePaths();
-    for (auto it = rbegin(paths); it != rend(paths); ++it) {
-      std::cerr << std::format(" {}\n", *it);
-    }
-    std::cerr << std::format("End of search list.\n");
   }
 
   for (const auto& macro : cli.get("-D")) {
@@ -292,20 +322,6 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
     preprocessor->undefMacro(macro);
   }
 
-  auto outputs = cli.get("-o");
-
-  auto outfile = !outputs.empty() && outputs.back() != "-"
-                     ? std::optional{std::ofstream{outputs.back()}}
-                     : std::nullopt;
-
-  auto& output = outfile ? *outfile : std::cout;
-
-  bool shouldExit = false;
-
-  if (cli.opt_P) {
-    preprocessor->setOmitLineMarkers(true);
-  }
-
   if (cli.opt_H && (cli.opt_E || cli.opt_Eonly)) {
     preprocessor->setOnWillIncludeHeader(
         [&](const std::string& header, int level) {
@@ -313,126 +329,115 @@ auto runOnFile(const CLI& cli, const std::string& fileName) -> bool {
           std::cout << std::format("{} {}\n", fill, header);
         });
   }
+}
 
-  if (auto source = readAll(fileName)) {
-    if (cli.opt_E && !cli.opt_dM) {
-      std::vector<Token> tokens;
-      preprocessor->preprocess(std::move(*source), fileName, tokens);
-      preprocessor->getPreprocessedText(tokens, output);
-      shouldExit = true;
-    } else {
-      unit.setSource(std::move(*source), fileName);
-      if (cli.opt_dM) {
-        preprocessor->printMacros(output);
-        shouldExit = true;
-      } else if (cli.opt_dump_tokens) {
-        dumpTokens(cli, unit, output);
-        shouldExit = true;
-      } else if (cli.opt_Eonly) {
-        shouldExit = true;
-      }
-    }
-  } else {
-    std::cerr << std::format("cxx: No such file or directory: '{}'\n",
-                             fileName);
-    return false;
+void Frontend::parse() {
+  unit_->parse(ParserConfiguration{
+      .checkTypes = cli.opt_fcheck || unit_->language() == LanguageKind::kC,
+      .fuzzyTemplateResolution = true,
+      .reflect = !cli.opt_fno_reflect,
+  });
+
+  if (cli.opt_freport_missing_types) {
+    (void)checkExpressionTypes(*unit_);
+  }
+}
+
+void Frontend::dumpTokens(std::ostream& out) {
+  if (!cli.opt_dump_tokens) return;
+
+  auto dumpTokens = DumpTokens{cli};
+  dumpTokens(*unit_, out);
+
+  shouldExit_ = true;
+}
+
+void Frontend::dumpSymbols(std::ostream& out) {
+  if (!cli.opt_dump_symbols) return;
+  auto globalScope = unit_->globalScope();
+  auto globalNamespace = globalScope->owner();
+  cxx::dump(out, globalNamespace);
+}
+
+void Frontend::dumpAst() {
+  if (!cli.opt_ast_dump) return;
+  auto printAST = ASTPrinter{unit_.get(), std::cout};
+  printAST(unit_->ast());
+}
+
+void Frontend::printAstIfNeeded() {
+  if (!cli.opt_ast_print) return;
+  auto prettyPrinter = ASTPrettyPrinter{unit_.get(), std::cout};
+  prettyPrinter(unit_->ast());
+}
+
+void Frontend::serializeAst() {
+  if (!cli.opt_emit_ast) return;
+  auto outputFile = fs::path{fileName_}.filename().replace_extension(".ast");
+  std::ofstream out(outputFile.string(), std::ios::binary);
+  (void)unit_->serialize(out);
+}
+
+void Frontend::showSearchPaths(std::ostream& out) {
+  if (!cli.opt_v) return;
+
+  out << std::format("#include <...> search starts here:\n");
+
+  const auto& searchPaths = unit_->preprocessor()->systemIncludePaths();
+
+  for (const auto& path : searchPaths | std::views::reverse) {
+    out << std::format(" {}\n", path);
   }
 
-  if (!shouldExit) {
-    unit.parse(ParserConfiguration{
-        .checkTypes = cli.opt_fcheck || unit.language() == LanguageKind::kC,
-        .fuzzyTemplateResolution = true,
-        .reflect = !cli.opt_fno_reflect,
-    });
+  out << std::format("End of search list.\n");
+}
 
-    if (cli.opt_freport_missing_types) {
-      CheckExpressionTypes checkExpressionTypes;
-      const auto missingTypes = checkExpressionTypes(&unit);
-    }
-
-    if (cli.opt_dump_symbols && unit.globalScope()) {
-      dump(std::cout, unit.globalScope()->owner());
-    }
-
-    if (cli.opt_emit_ast) {
-      (void)unit.serialize(output);
-    }
-
-    if (cli.opt_ast_dump) {
-      ASTPrinter printAST(&unit, std::cout);
-      printAST(unit.ast());
-    }
-
-    if (cli.opt_ast_print) {
-      ASTPrettyPrinter prettyPrinter(&unit, std::cout);
-      prettyPrinter(unit.ast());
-    }
+void Frontend::emitIR() {
+  if (!cli.opt_emit_ir) return;
 
 #ifdef CXX_WITH_MLIR
-    if (cli.opt_emit_ir) {
-      mlir::MLIRContext context;
-      context.loadDialect<mlir::cxx::CxxDialect>();
+  mlir::MLIRContext context;
+  context.loadDialect<mlir::cxx::CxxDialect>();
 
-      cxx::Codegen codegen(context, &unit);
+  auto codegen = cxx::Codegen{context, unit_.get()};
 
-      auto ir = codegen(unit.ast());
+  auto ir = codegen(unit_->ast());
 
-      if (failed(lowerToMLIR(ir.module))) {
-        std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
-        return false;
-      }
+  if (failed(lowerToMLIR(ir.module))) {
+    std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
+    shouldExit_ = true;
+    exitStatus_ = EXIT_FAILURE;
+    return;
+  }
 
-      mlir::OpPrintingFlags flags;
-      if (cli.opt_g) {
-        flags.enableDebugInfo(true, false);
-      }
-      ir.module->print(llvm::outs(), flags);
-    }
+  mlir::OpPrintingFlags flags;
+  if (cli.opt_g) {
+    flags.enableDebugInfo(true, false);
+  }
+
+  withRawOutputStream(std::nullopt, [&](llvm::raw_ostream& out) {
+    ir.module->print(out, flags);
+  });
+
 #endif
-  }
-
-  diagnosticsClient.verifyExpectedDiagnostics();
-
-  return !diagnosticsClient.hasErrors();
 }
 
-}  // namespace
-
-auto main(int argc, char* argv[]) -> int {
-  using namespace cxx;
-
-  CLI cli;
-  cli.parse(argc, argv);
-
-  if (cli.opt_help) {
-    cli.showHelp();
-    exit(0);
-  }
-
-  const auto& inputFiles = cli.positionals();
-
-  if (cli.opt_lsp_test) {
-    cli.opt_lsp = true;
-  }
-
-  if (!cli.opt_lsp && inputFiles.empty()) {
-    std::cerr << "cxx: no input files" << std::endl
-              << "Usage: cxx [options] file..." << std::endl;
-    return EXIT_FAILURE;
-  }
-
-  int existStatus = EXIT_SUCCESS;
-
-  if (cli.opt_lsp) {
-    lsp::Server server(cli);
-    existStatus = server.start();
-  } else {
-    for (const auto& fileName : inputFiles) {
-      if (!runOnFile(cli, fileName)) {
-        existStatus = EXIT_FAILURE;
-      }
-    }
-  }
-
-  return existStatus;
+auto Frontend::readAll(const std::string& fileName, std::istream& in)
+    -> std::optional<std::string> {
+  std::string code;
+  char buffer[4 * 1024];
+  do {
+    in.read(buffer, sizeof(buffer));
+    code.append(buffer, in.gcount());
+  } while (in);
+  return code;
 }
+
+auto Frontend::readAll(const std::string& fileName)
+    -> std::optional<std::string> {
+  if (fileName == "-" || fileName.empty()) return readAll("<stdin>", std::cin);
+  if (std::ifstream stream(fileName); stream) return readAll(fileName, stream);
+  return std::nullopt;
+}
+
+}  // namespace cxx

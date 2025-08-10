@@ -170,8 +170,7 @@ void TranslationUnit::parse(ParserConfiguration config) {
 
   config_ = std::move(config);
 
-  preprocessor_->squeeze();
-  Parser parse(this);
+  auto parse = Parser(this);
   parse(ast_);
 }
 
