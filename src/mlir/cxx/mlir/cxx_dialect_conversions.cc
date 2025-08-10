@@ -1251,6 +1251,7 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
 
   pm.addPass(cxx::createLowerToLLVMPass());
   pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::createCSEPass());
 
   if (failed(pm.run(module))) {
     module.print(llvm::errs());
