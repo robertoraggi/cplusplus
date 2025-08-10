@@ -23,7 +23,20 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
+#include <cxx/control.h>
+#include <cxx/memory_layout.h>
 #include <cxx/translation_unit.h>
+
+// mlir
+#include <llvm/IR/DataLayout.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/Error.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+#include <mlir/Dialect/DLTI/DLTI.h>
+#include <mlir/Target/LLVMIR/Import.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -57,10 +70,43 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
 }
 
 auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+
   auto loc = gen.builder_.getUnknownLoc();
   auto name = gen.unit_->fileName();
   auto module = gen.builder_.create<mlir::ModuleOp>(loc, name);
   gen.builder_.setInsertionPointToStart(module.getBody());
+
+  auto memoryLayout = gen.control()->memoryLayout();
+
+  auto triple = gen.control()->memoryLayout()->triple();
+
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(triple, error);
+
+  if (!target) {
+    cxx_runtime_error(std::format("failed to find target for triple '{}': {}",
+                                  triple, error));
+  }
+
+  llvm::TargetOptions opt;
+
+  auto RM = std::optional<llvm::Reloc::Model>();
+
+  auto targetMachine =
+      target->createTargetMachine(triple, "generic", "", opt, RM);
+
+  auto llvmDataLayout = targetMachine->createDataLayout();
+
+  auto dataLayout =
+      mlir::translateDataLayout(llvmDataLayout, module->getContext());
+
+  module->setAttr(mlir::DLTIDialect::kDataLayoutAttrName, dataLayout);
+
+  module->setAttr("cxx.triple", mlir::StringAttr::get(module->getContext(),
+                                                      memoryLayout->triple()));
 
   std::swap(gen.module_, module);
 

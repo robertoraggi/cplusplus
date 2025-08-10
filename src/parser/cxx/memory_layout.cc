@@ -326,4 +326,10 @@ auto MemoryLayout::alignmentOf(const Type* type) const
   return visit(AlignmentOf{*this}, type);
 }
 
+auto MemoryLayout::triple() const -> const std::string& { return triple_; }
+
+void MemoryLayout::setTriple(std::string triple) {
+  triple_ = std::move(triple);
+}
+
 }  // namespace cxx

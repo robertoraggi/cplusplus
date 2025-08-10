@@ -37,8 +37,13 @@ target_link_libraries(cxx-mlir PUBLIC
     MLIRLLVMToLLVMIRTranslation
     MLIRPass
     MLIRTargetLLVMIRExport
+    MLIRTargetLLVMIRImport
     MLIRTransforms
 )
+
+if (EMSCRIPTEN)
+    target_link_libraries(cxx-mlir PUBLIC LLVMWebAssemblyCodeGen)
+endif()
 
 target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_MLIR)
 

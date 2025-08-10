@@ -32,8 +32,10 @@ GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
     : Toolchain(preprocessor), arch_(std::move(arch)) {
   if (arch_ == "aarch64") {
     memoryLayout()->setSizeOfLongDouble(8);
+    memoryLayout()->setTriple("aarch64-linux");
   } else if (arch_ == "x86_64") {
     memoryLayout()->setSizeOfLongDouble(16);
+    memoryLayout()->setTriple("x86_64-linux");
   } else {
     cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
   }

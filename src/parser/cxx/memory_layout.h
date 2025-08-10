@@ -50,12 +50,16 @@ class MemoryLayout {
   [[nodiscard]] auto alignmentOf(const Type* type) const
       -> std::optional<std::size_t>;
 
+  [[nodiscard]] auto triple() const -> const std::string&;
+  void setTriple(std::string triple);
+
  private:
   std::size_t bits_ = 0;
   std::size_t sizeOfPointer_ = 0;
   std::size_t sizeOfLong_ = 0;
   std::size_t sizeOfLongLong_ = 0;
   std::size_t sizeOfLongDouble_ = 0;
+  std::string triple_;
 };
 
 #undef DECLARE_METHOD
