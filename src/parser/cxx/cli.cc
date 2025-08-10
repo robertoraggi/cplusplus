@@ -158,6 +158,9 @@ std::vector<CLIOptionDescr> options{
 
     {"-emit-ir", "Emit the IR for the source inputs", &CLI::opt_emit_ir},
 
+    {"-emit-llvm", "Emit the LLVM IR for the source inputs",
+     &CLI::opt_emit_llvm},
+
     {"-ast-dump", "Build ASTs and then debug dump them", &CLI::opt_ast_dump},
 
     {"-ast-print", "Print the AST", &CLI::opt_ast_print},
