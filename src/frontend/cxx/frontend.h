@@ -27,13 +27,8 @@
 #include <memory>
 #include <string>
 
-#ifdef CXX_WITH_MLIR
-#include <llvm/Support/raw_ostream.h>
-#endif
-
 namespace cxx {
 
-class VerifyDiagnosticsClient;
 class Toolchain;
 
 class Frontend {
@@ -41,53 +36,16 @@ class Frontend {
   Frontend(const CLI& cli, std::string fileName);
   ~Frontend();
 
-  [[nodiscard]] auto operator()() -> bool;
-
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
   [[nodiscard]] auto toolchain() const -> Toolchain*;
   [[nodiscard]] auto fileName() const -> const std::string&;
-
   void addAction(std::function<void()> action);
 
- private:
-  void prepare();
-  void preparePreprocessor();
-  void preprocess();
-  void parse();
-  void showSearchPaths(std::ostream& out);
-  void dumpTokens(std::ostream& out);
-  void dumpSymbols(std::ostream& out);
-  void serializeAst();
-  void dumpAst();
-  void printAstIfNeeded();
-  void emitIR();
-  void printPreprocessedText();
-  void dumpMacros(std::ostream& out);
-
-  void withOutputStream(const std::optional<std::string>& extension,
-                        const std::function<void(std::ostream&)>& action);
-
-#ifdef CXX_WITH_MLIR
-  void withRawOutputStream(
-      const std::optional<std::string>& extension,
-      const std::function<void(llvm::raw_ostream&)>& action);
-#endif
-
-  [[nodiscard]] auto readAll(const std::string& fileName, std::istream& in)
-      -> std::optional<std::string>;
-
-  [[nodiscard]] auto readAll(const std::string& fileName)
-      -> std::optional<std::string>;
+  [[nodiscard]] auto operator()() -> bool;
 
  private:
-  const CLI& cli;
-  std::string fileName_;
-  std::unique_ptr<TranslationUnit> unit_;
-  std::unique_ptr<VerifyDiagnosticsClient> diagnosticsClient_;
-  std::unique_ptr<Toolchain> toolchain_;
-  std::vector<std::function<void()>> actions_;
-  bool shouldExit_ = false;
-  int exitStatus_ = 0;
+  struct Private;
+  std::unique_ptr<Private> priv;
 };
 
 }  // namespace cxx

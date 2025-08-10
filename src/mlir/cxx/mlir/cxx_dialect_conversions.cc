@@ -24,12 +24,16 @@
 #include <cxx/mlir/cxx_dialect.h>
 
 // mlir
+#include <llvm/IR/Module.h>
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h>
+#include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
+#include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/Passes.h>
 
@@ -1259,4 +1263,15 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
   }
 
   return mlir::success();
+}
+
+auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext &context)
+    -> std::unique_ptr<llvm::Module> {
+  mlir::registerBuiltinDialectTranslation(*module->getContext());
+  mlir::registerLLVMDialectTranslation(*module->getContext());
+
+  auto llvmModule = mlir::translateModuleToLLVMIR(module, context);
+  module->getContext()->loadDialect<mlir::LLVM::LLVMDialect>();
+
+  return llvmModule;
 }

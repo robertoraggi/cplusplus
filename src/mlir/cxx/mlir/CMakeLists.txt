@@ -28,12 +28,15 @@ target_include_directories(cxx-mlir
 
 target_link_libraries(cxx-mlir PUBLIC
     cxx-parser
+    MLIRBuiltinToLLVMIRTranslation
     MLIRControlFlowDialect
     MLIRControlFlowToLLVM
     MLIRIR
     MLIRLLVMCommonConversion
     MLIRLLVMDialect
+    MLIRLLVMToLLVMIRTranslation
     MLIRPass
+    MLIRTargetLLVMIRExport
     MLIRTransforms
 )
 

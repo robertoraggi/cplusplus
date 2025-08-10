@@ -42,6 +42,8 @@
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #endif
 
 #include <format>
@@ -55,8 +57,101 @@
 
 namespace cxx {
 
-Frontend::Frontend(const CLI& cli, std::string fileName)
-    : cli(cli), fileName_(std::move(fileName)) {
+struct Frontend::Private {
+  Frontend& frontend;
+  const CLI& cli;
+  std::string fileName_;
+  std::unique_ptr<TranslationUnit> unit_;
+  std::unique_ptr<VerifyDiagnosticsClient> diagnosticsClient_;
+  std::unique_ptr<Toolchain> toolchain_;
+  std::vector<std::function<void()>> actions_;
+#ifdef CXX_WITH_MLIR
+  std::unique_ptr<mlir::MLIRContext> context_;
+  mlir::ModuleOp module_;
+  std::unique_ptr<llvm::LLVMContext> llvmContext_;
+  std::unique_ptr<llvm::Module> llvmModule_;
+#endif
+  bool shouldExit_ = false;
+  int exitStatus_ = 0;
+
+  Private(Frontend& frontend, const CLI& cli, std::string fileName);
+  ~Private();
+
+  [[nodiscard]] auto needsIR() const -> bool {
+    return cli.opt_emit_ir || cli.opt_emit_llvm || cli.opt_S || cli.opt_c;
+  }
+
+  void prepare();
+  void preparePreprocessor();
+  void preprocess();
+  void parse();
+  void showSearchPaths(std::ostream& out);
+  void dumpTokens(std::ostream& out);
+  void dumpSymbols(std::ostream& out);
+  void serializeAst();
+  void dumpAst();
+  void printAstIfNeeded();
+  void generateIR();
+  void emitIR();
+  void emitLLVMIR();
+  void printPreprocessedText();
+  void dumpMacros(std::ostream& out);
+
+  [[nodiscard]] auto readAll(const std::string& fileName, std::istream& in)
+      -> std::optional<std::string>;
+
+  [[nodiscard]] auto readAll(const std::string& fileName)
+      -> std::optional<std::string>;
+
+  void withOutputStream(const std::optional<std::string>& extension,
+                        const std::function<void(std::ostream&)>& action);
+
+#ifdef CXX_WITH_MLIR
+  void withRawOutputStream(
+      const std::optional<std::string>& extension,
+      const std::function<void(llvm::raw_ostream&)>& action);
+#endif
+};
+
+Frontend::Frontend(const CLI& cli, std::string fileName) {
+  priv = std::make_unique<Private>(*this, cli, std::move(fileName));
+}
+
+Frontend::~Frontend() {}
+
+auto Frontend::translationUnit() const -> TranslationUnit* {
+  return priv->unit_.get();
+}
+
+auto Frontend::toolchain() const -> Toolchain* {
+  return priv->toolchain_.get();
+}
+
+auto Frontend::fileName() const -> const std::string& {
+  return priv->fileName_;
+}
+
+void Frontend::addAction(std::function<void()> action) {
+  priv->actions_.emplace_back(std::move(action));
+}
+
+auto Frontend::operator()() -> bool {
+  priv->prepare();
+  priv->preparePreprocessor();
+
+  for (const auto& action : priv->actions_) {
+    if (priv->shouldExit_) break;
+    action();
+  }
+
+  priv->diagnosticsClient_->verifyExpectedDiagnostics();
+
+  return !priv->diagnosticsClient_->hasErrors();
+}
+
+Frontend::Private::Private(Frontend& frontend, const CLI& cli,
+                           std::string fileName)
+    : frontend(frontend), cli(cli), fileName_(std::move(fileName)) {
   diagnosticsClient_ = std::make_unique<VerifyDiagnosticsClient>();
   unit_ = std::make_unique<TranslationUnit>(diagnosticsClient_.get());
 
@@ -71,38 +166,14 @@ Frontend::Frontend(const CLI& cli, std::string fileName)
   actions_.emplace_back([this]() { dumpAst(); });
   actions_.emplace_back([this]() { printAstIfNeeded(); });
   actions_.emplace_back([this]() { serializeAst(); });
+  actions_.emplace_back([this]() { generateIR(); });
   actions_.emplace_back([this]() { emitIR(); });
+  actions_.emplace_back([this]() { emitLLVMIR(); });
 }
 
-Frontend::~Frontend() {}
+Frontend::Private::~Private() {}
 
-auto Frontend::translationUnit() const -> TranslationUnit* {
-  return unit_.get();
-}
-
-auto Frontend::toolchain() const -> Toolchain* { return toolchain_.get(); }
-
-auto Frontend::fileName() const -> const std::string& { return fileName_; }
-
-void Frontend::addAction(std::function<void()> action) {
-  actions_.emplace_back(std::move(action));
-}
-
-auto Frontend::operator()() -> bool {
-  prepare();
-  preparePreprocessor();
-
-  for (const auto& action : actions_) {
-    if (shouldExit_) break;
-    action();
-  }
-
-  diagnosticsClient_->verifyExpectedDiagnostics();
-
-  return !diagnosticsClient_->hasErrors();
-}
-
-void Frontend::withOutputStream(
+void Frontend::Private::withOutputStream(
     const std::optional<std::string>& extension,
     const std::function<void(std::ostream&)>& action) {
   auto explicitOutput = cli.getSingle("-o");
@@ -123,7 +194,7 @@ void Frontend::withOutputStream(
 }
 
 #ifdef CXX_WITH_MLIR
-void Frontend::withRawOutputStream(
+void Frontend::Private::withRawOutputStream(
     const std::optional<std::string>& extension,
     const std::function<void(llvm::raw_ostream&)>& action) {
   auto explicitOutput = cli.getSingle("-o");
@@ -145,7 +216,7 @@ void Frontend::withRawOutputStream(
 }
 #endif
 
-void Frontend::printPreprocessedText() {
+void Frontend::Private::printPreprocessedText() {
   if (!cli.opt_E && !cli.opt_Eonly) {
     return;
   }
@@ -168,7 +239,7 @@ void Frontend::printPreprocessedText() {
   });
 }
 
-void Frontend::preprocess() {
+void Frontend::Private::preprocess() {
   auto source = readAll(fileName_);
 
   if (!source.has_value()) {
@@ -182,7 +253,7 @@ void Frontend::preprocess() {
   unit_->setSource(std::move(*source), fileName_);
 }
 
-void Frontend::dumpMacros(std::ostream& out) {
+void Frontend::Private::dumpMacros(std::ostream& out) {
   if (!cli.opt_E && !cli.opt_dM) return;
 
   unit_->preprocessor()->printMacros(out);
@@ -190,7 +261,7 @@ void Frontend::dumpMacros(std::ostream& out) {
   shouldExit_ = true;
 }
 
-void Frontend::prepare() {
+void Frontend::Private::prepare() {
   auto preprocessor = unit_->preprocessor();
 
   const auto lang = cli.getSingle("-x");
@@ -287,7 +358,7 @@ void Frontend::prepare() {
   unit_->control()->setMemoryLayout(toolchain_->memoryLayout());
 }
 
-void Frontend::preparePreprocessor() {
+void Frontend::Private::preparePreprocessor() {
   auto preprocessor = unit_->preprocessor();
 
   if (cli.opt_P) {
@@ -331,7 +402,7 @@ void Frontend::preparePreprocessor() {
   }
 }
 
-void Frontend::parse() {
+void Frontend::Private::parse() {
   unit_->parse(ParserConfiguration{
       .checkTypes = cli.opt_fcheck || unit_->language() == LanguageKind::kC,
       .fuzzyTemplateResolution = true,
@@ -343,7 +414,7 @@ void Frontend::parse() {
   }
 }
 
-void Frontend::dumpTokens(std::ostream& out) {
+void Frontend::Private::dumpTokens(std::ostream& out) {
   if (!cli.opt_dump_tokens) return;
 
   auto dumpTokens = DumpTokens{cli};
@@ -352,33 +423,33 @@ void Frontend::dumpTokens(std::ostream& out) {
   shouldExit_ = true;
 }
 
-void Frontend::dumpSymbols(std::ostream& out) {
+void Frontend::Private::dumpSymbols(std::ostream& out) {
   if (!cli.opt_dump_symbols) return;
   auto globalScope = unit_->globalScope();
   auto globalNamespace = globalScope->owner();
   cxx::dump(out, globalNamespace);
 }
 
-void Frontend::dumpAst() {
+void Frontend::Private::dumpAst() {
   if (!cli.opt_ast_dump) return;
   auto printAST = ASTPrinter{unit_.get(), std::cout};
   printAST(unit_->ast());
 }
 
-void Frontend::printAstIfNeeded() {
+void Frontend::Private::printAstIfNeeded() {
   if (!cli.opt_ast_print) return;
   auto prettyPrinter = ASTPrettyPrinter{unit_.get(), std::cout};
   prettyPrinter(unit_->ast());
 }
 
-void Frontend::serializeAst() {
+void Frontend::Private::serializeAst() {
   if (!cli.opt_emit_ast) return;
   auto outputFile = fs::path{fileName_}.filename().replace_extension(".ast");
   std::ofstream out(outputFile.string(), std::ios::binary);
   (void)unit_->serialize(out);
 }
 
-void Frontend::showSearchPaths(std::ostream& out) {
+void Frontend::Private::showSearchPaths(std::ostream& out) {
   if (!cli.opt_v) return;
 
   out << std::format("#include <...> search starts here:\n");
@@ -392,23 +463,36 @@ void Frontend::showSearchPaths(std::ostream& out) {
   out << std::format("End of search list.\n");
 }
 
-void Frontend::emitIR() {
-  if (!cli.opt_emit_ir) return;
+void Frontend::Private::generateIR() {
+  if (cli.opt_fsyntax_only) return;
+  if (!needsIR()) return;
 
 #ifdef CXX_WITH_MLIR
-  mlir::MLIRContext context;
-  context.loadDialect<mlir::cxx::CxxDialect>();
+  context_ = std::make_unique<mlir::MLIRContext>();
+  context_->loadDialect<mlir::cxx::CxxDialect>();
 
-  auto codegen = cxx::Codegen{context, unit_.get()};
+  auto codegen = cxx::Codegen{*context_, unit_.get()};
 
   auto ir = codegen(unit_->ast());
 
-  if (failed(lowerToMLIR(ir.module))) {
-    std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
-    shouldExit_ = true;
-    exitStatus_ = EXIT_FAILURE;
+  if (succeeded(lowerToMLIR(ir.module))) {
+    module_ = ir.module;
     return;
   }
+
+  std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
+  shouldExit_ = true;
+  exitStatus_ = EXIT_FAILURE;
+#endif
+}
+
+void Frontend::Private::emitIR() {
+  if (!cli.opt_emit_ir) return;
+
+#ifdef CXX_WITH_MLIR
+  if (!module_) return;
+
+  shouldExit_ = true;
 
   mlir::OpPrintingFlags flags;
   if (cli.opt_g) {
@@ -416,13 +500,35 @@ void Frontend::emitIR() {
   }
 
   withRawOutputStream(std::nullopt, [&](llvm::raw_ostream& out) {
-    ir.module->print(out, flags);
+    module_->print(out, flags);
   });
 
 #endif
 }
 
-auto Frontend::readAll(const std::string& fileName, std::istream& in)
+void Frontend::Private::emitLLVMIR() {
+  if (!cli.opt_emit_llvm) return;
+
+#ifdef CXX_WITH_MLIR
+  if (!module_) return;
+
+  llvmContext_ = std::make_unique<llvm::LLVMContext>();
+  llvmModule_ = exportToLLVMIR(module_, *llvmContext_);
+
+  if (!llvmModule_) {
+    std::cerr << "cxx: failed to lower MLIR module to LLVM IR" << std::endl;
+    shouldExit_ = true;
+    exitStatus_ = EXIT_FAILURE;
+    return;
+  }
+
+  shouldExit_ = true;
+  withRawOutputStream(
+      ".ll", [&](llvm::raw_ostream& out) { llvmModule_->print(out, nullptr); });
+#endif
+}
+
+auto Frontend::Private::readAll(const std::string& fileName, std::istream& in)
     -> std::optional<std::string> {
   std::string code;
   char buffer[4 * 1024];
@@ -433,7 +539,7 @@ auto Frontend::readAll(const std::string& fileName, std::istream& in)
   return code;
 }
 
-auto Frontend::readAll(const std::string& fileName)
+auto Frontend::Private::readAll(const std::string& fileName)
     -> std::optional<std::string> {
   if (fileName == "-" || fileName.empty()) return readAll("<stdin>", std::cin);
   if (std::ifstream stream(fileName); stream) return readAll(fileName, stream);

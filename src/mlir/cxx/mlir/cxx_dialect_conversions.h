@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <llvm/IR/LLVMContext.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 
@@ -28,5 +29,9 @@ namespace cxx {
 [[nodiscard]] auto createLowerToLLVMPass() -> std::unique_ptr<mlir::Pass>;
 
 [[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult;
+
+[[nodiscard]] auto exportToLLVMIR(mlir::ModuleOp module,
+                                  llvm::LLVMContext& context)
+    -> std::unique_ptr<llvm::Module>;
 
 }  // namespace cxx
