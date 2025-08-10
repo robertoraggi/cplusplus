@@ -40,6 +40,8 @@ namespace cxx {
 struct Codegen::DeclarationVisitor {
   Codegen& gen;
 
+  void allocateLocals(ScopedSymbol* block);
+
   auto operator()(SimpleDeclarationAST* ast) -> DeclarationResult;
   auto operator()(AsmDeclarationAST* ast) -> DeclarationResult;
   auto operator()(NamespaceAliasDefinitionAST* ast) -> DeclarationResult;
@@ -138,6 +140,26 @@ auto Codegen::lambdaSpecifier(LambdaSpecifierAST* ast)
   if (!ast) return {};
 
   return {};
+}
+
+void Codegen::DeclarationVisitor::allocateLocals(ScopedSymbol* block) {
+  for (auto symbol : block->scope()->symbols()) {
+    if (auto nestedBlock = symbol_cast<BlockSymbol>(symbol)) {
+      allocateLocals(nestedBlock);
+      continue;
+    }
+
+    if (auto var = symbol_cast<VariableSymbol>(symbol)) {
+      if (var->isStatic()) continue;
+
+      auto local = gen.findOrCreateLocal(var);
+      if (!local.has_value()) {
+        gen.unit_->error(var->location(),
+                         std::format("cannot allocate local variable '{}'",
+                                     to_string(var->name())));
+      }
+    }
+  }
 }
 
 auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
@@ -376,6 +398,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       gen.locals_.emplace(arg, allocaOp);
     }
   }
+
+  allocateLocals(functionSymbol);
 
   // generate code for the function body
   auto functionBodyResult = gen.functionBody(ast->functionBody);
