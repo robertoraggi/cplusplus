@@ -254,8 +254,31 @@ auto Codegen::ExpressionVisitor::operator()(NullptrLiteralExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
     -> ExpressionResult {
+  auto loc = gen.getLocation(ast->literalLoc);
+  auto type = gen.convertType(ast->type);
+  auto resultType = mlir::cxx::PointerType::get(type.getContext(), type);
+
+  auto it = gen.stringLiterals_.find(ast->literal);
+  if (it == gen.stringLiterals_.end()) {
+    // todo: clean up
+    std::string str(ast->literal->stringValue());
+    str.push_back('\0');
+
+    auto initializer = gen.builder_.getStringAttr(str);
+
+    // todo: generate unique name for the global
+    auto name = gen.builder_.getStringAttr(gen.newUniqueSymbolName(".str"));
+
+    auto x = mlir::OpBuilder(gen.module_->getContext());
+    x.setInsertionPointToEnd(gen.module_.getBody());
+    x.create<mlir::cxx::GlobalOp>(loc, type, true, name, initializer);
+
+    it = gen.stringLiterals_.insert_or_assign(ast->literal, name).first;
+  }
+
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+      gen.builder_.create<mlir::cxx::AddressOfOp>(loc, resultType, it->second);
+
   return {op};
 }
 
@@ -1022,6 +1045,11 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
           loc, resultType, expressionResult.value);
 
       return {op};
+    }
+
+    case ImplicitCastKind::kQualificationConversion: {
+      auto expressionResult = gen.expression(ast->expression);
+      return expressionResult;
     }
 
     default:

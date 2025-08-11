@@ -56,6 +56,15 @@ auto Codegen::newBlock() -> mlir::Block* {
   return newBlock;
 }
 
+auto Codegen::newUniqueSymbolName(std::string_view prefix) -> std::string {
+  auto& uniqueName = uniqueSymbolNames_[prefix];
+  if (uniqueName == 0) {
+    uniqueName = 1;
+    return std::format("{}{}", prefix, uniqueName);
+  }
+  return std::format("{}{}", prefix, ++uniqueName);
+}
+
 void Codegen::branch(mlir::Location loc, mlir::Block* block,
                      mlir::ValueRange operands) {
   if (currentBlockMightHaveTerminator()) return;
