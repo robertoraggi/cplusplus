@@ -113,6 +113,15 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   let hasCustomAssemblyFormat = 1;
 }
 
+def Cxx_GlobalOp : Cxx_Op<"global"> {
+  let arguments = (ins
+      TypeAttrOf<AnyType>:$global_type
+    , UnitAttr:$constant
+    , SymbolNameAttr:$sym_name
+    , OptionalAttr<AnyAttr>:$value
+  );
+}
+
 def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   let arguments = (ins Variadic<AnyType>:$input);
 
@@ -121,8 +130,6 @@ def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   let extraClassDeclaration = [{
     bool hasOperand() { return getNumOperands() != 0; }
   }];
-
-  let hasVerifier = 0;
 }
 
 def Cxx_CallOp : Cxx_Op<"call"> {
@@ -158,6 +165,12 @@ def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
   let arguments = (ins Cxx_PointerType:$base, AnyType:$index);
 
   let results = (outs Cxx_PointerType:$result);
+}
+
+def Cxx_AddressOfOp : Cxx_Op<"addressof"> {
+  let arguments = (ins FlatSymbolRefAttr:$sym_name);
+
+  let results = (outs AnyType:$result);
 }
 
 def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [

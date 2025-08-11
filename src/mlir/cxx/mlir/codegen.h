@@ -269,6 +269,10 @@ class Codegen {
       -> std::optional<mlir::Value>;
 
   [[nodiscard]] auto newBlock() -> mlir::Block*;
+
+  [[nodiscard]] auto newUniqueSymbolName(std::string_view prefix)
+      -> std::string;
+
   void branch(mlir::Location loc, mlir::Block* block,
               mlir::ValueRange operands = {});
 
@@ -315,6 +319,8 @@ class Codegen {
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
+  std::unordered_map<std::string_view, int> uniqueSymbolNames_;
+  std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;
   Loop loop_;
   int count_ = 0;
 };

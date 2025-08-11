@@ -100,6 +100,25 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
   }
 };
 
+class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::GlobalOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+
+    auto elementType = getTypeConverter()->convertType(op.getGlobalType());
+
+    rewriter.replaceOpWithNewOp<LLVM::GlobalOp>(
+        op, elementType, op.getConstant(), LLVM::linkage::Linkage::Private,
+        op.getSymName(), adaptor.getValue().value());
+
+    return success();
+  }
+};
+
 class ReturnOpLowering : public OpConversionPattern<cxx::ReturnOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -141,6 +160,28 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
         op.getLoc(), resultTypes, adaptor.getCallee(), adaptor.getInputs());
 
     rewriter.replaceOp(op, llvmCallOp);
+    return success();
+  }
+};
+
+class AddressOfOpLowering : public OpConversionPattern<cxx::AddressOfOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::AddressOfOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert address of type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::AddressOfOp>(op, resultType,
+                                                   adaptor.getSymName());
+
     return success();
   }
 };
@@ -461,7 +502,6 @@ class ArrayToPointerOpLowering
 
     SmallVector<LLVM::GEPArg> indices;
 
-    indices.push_back(0);
     indices.push_back(0);
 
     auto resultType = LLVM::LLVMPointerType::get(context);
@@ -1254,8 +1294,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(context);
 
   // function operations
-  patterns.insert<FuncOpLowering, ReturnOpLowering, CallOpLowering>(
-      typeConverter, context);
+  patterns.insert<FuncOpLowering, GlobalOpLowering, ReturnOpLowering,
+                  CallOpLowering, AddressOfOpLowering>(typeConverter, context);
 
   // memory operations
   DataLayout dataLayout{module};
