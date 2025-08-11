@@ -202,6 +202,12 @@ def Cxx_IntegralCastOp : Cxx_Op<"integral_cast"> {
   let results = (outs Cxx_IntegerType:$result);
 }
 
+def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_pointer"> {
+  let arguments = (ins Cxx_PointerType:$value);
+
+  let results = (outs Cxx_PointerType:$result);
+}
+
 def Cxx_NotOp : Cxx_Op<"not"> {
   let arguments = (ins AnyType:$value);
 
