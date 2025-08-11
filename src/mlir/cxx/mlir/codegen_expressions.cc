@@ -1013,6 +1013,17 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
       break;
     }
 
+    case ImplicitCastKind::kArrayToPointerConversion: {
+      // generate an array to pointer conversion
+      auto expressionResult = gen.expression(ast->expression);
+      auto resultType = gen.convertType(ast->type);
+
+      auto op = gen.builder_.create<mlir::cxx::ArrayToPointerOp>(
+          loc, resultType, expressionResult.value);
+
+      return {op};
+    }
+
     default:
       break;
 

@@ -256,14 +256,14 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
 
-    auto ptrType = dyn_cast_or_null<cxx::PointerType>(op.getBase().getType());
+    auto ptrType = dyn_cast<cxx::PointerType>(op.getBase().getType());
 
     if (!ptrType) {
       return rewriter.notifyMatchFailure(
           op, "failed to convert subscript operation type");
     }
 
-    auto arrayType = dyn_cast_or_null<cxx::ArrayType>(ptrType.getElementType());
+    auto arrayType = dyn_cast<cxx::ArrayType>(ptrType.getElementType());
     if (!arrayType) {
       return rewriter.notifyMatchFailure(
           op, "expected base type of subscript to be an array type");
@@ -430,6 +430,45 @@ class IntToBoolOpLowering : public OpConversionPattern<cxx::IntToBoolOp> {
 
     rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
         op, resultType, LLVM::ICmpPredicate::ne, adaptor.getValue(), c0);
+
+    return success();
+  }
+};
+
+class ArrayToPointerOpLowering
+    : public OpConversionPattern<cxx::ArrayToPointerOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::ArrayToPointerOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto ptrType = dyn_cast<cxx::PointerType>(op.getValue().getType());
+
+    if (!ptrType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert subscript operation type");
+    }
+
+    auto arrayType = dyn_cast<cxx::ArrayType>(ptrType.getElementType());
+    if (!arrayType) {
+      return rewriter.notifyMatchFailure(
+          op, "expected base type of subscript to be an array type");
+    }
+
+    SmallVector<LLVM::GEPArg> indices;
+
+    indices.push_back(0);
+    indices.push_back(0);
+
+    auto resultType = LLVM::LLVMPointerType::get(context);
+    auto elementType = typeConverter->convertType(ptrType.getElementType());
+
+    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
+                                             adaptor.getValue(), indices);
 
     return success();
   }
@@ -1225,9 +1264,9 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                   SubscriptOpLowering>(typeConverter, dataLayout, context);
 
   // cast operations
-  patterns
-      .insert<IntToBoolOpLowering, BoolToIntOpLowering, IntegralCastOpLowering>(
-          typeConverter, context);
+  patterns.insert<IntToBoolOpLowering, BoolToIntOpLowering,
+                  IntegralCastOpLowering, ArrayToPointerOpLowering>(
+      typeConverter, context);
 
   // constant operations
   patterns.insert<BoolConstantOpLowering, IntConstantOpLowering,
