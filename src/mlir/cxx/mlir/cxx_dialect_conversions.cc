@@ -147,7 +147,11 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
 
 class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
  public:
-  using OpConversionPattern::OpConversionPattern;
+  AllocaOpLowering(const TypeConverter &typeConverter,
+                   const DataLayout &dataLayout, MLIRContext *context,
+                   PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::AllocaOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::AllocaOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter &rewriter) const
@@ -170,17 +174,25 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
     }
 
     auto size = rewriter.create<LLVM::ConstantOp>(
-        op.getLoc(), rewriter.getI64Type(), rewriter.getIndexAttr(1));
+        op.getLoc(), typeConverter->convertType(rewriter.getIndexType()),
+        rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
 
     auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(op, resultType,
                                                          elementType, size);
     return success();
   }
+
+ private:
+  const DataLayout &dataLayout_;
 };
 
 class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
  public:
-  using OpConversionPattern::OpConversionPattern;
+  LoadOpLowering(const TypeConverter &typeConverter,
+                 const DataLayout &dataLayout, MLIRContext *context,
+                 PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::LoadOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::LoadOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter &rewriter) const
@@ -195,11 +207,18 @@ class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
 
     return success();
   }
+
+ private:
+  const DataLayout &dataLayout_;
 };
 
 class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
  public:
-  using OpConversionPattern::OpConversionPattern;
+  StoreOpLowering(const TypeConverter &typeConverter,
+                  const DataLayout &dataLayout, MLIRContext *context,
+                  PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::StoreOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::StoreOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter &rewriter) const
@@ -218,34 +237,18 @@ class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
 
     return success();
   }
-};
 
-class BoolConstantOpLowering : public OpConversionPattern<cxx::BoolConstantOp> {
- public:
-  using OpConversionPattern::OpConversionPattern;
-
-  auto matchAndRewrite(cxx::BoolConstantOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
-      -> LogicalResult override {
-    auto typeConverter = getTypeConverter();
-    auto context = getContext();
-
-    auto resultType = typeConverter->convertType(op.getType());
-    if (!resultType) {
-      return rewriter.notifyMatchFailure(
-          op, "failed to convert boolean constant type");
-    }
-
-    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, resultType,
-                                                  adaptor.getValue());
-
-    return success();
-  }
+ private:
+  const DataLayout &dataLayout_;
 };
 
 class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
  public:
-  using OpConversionPattern::OpConversionPattern;
+  SubscriptOpLowering(const TypeConverter &typeConverter,
+                      const DataLayout &dataLayout, MLIRContext *context,
+                      PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::SubscriptOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::SubscriptOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter &rewriter) const
@@ -266,8 +269,9 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
           op, "expected base type of subscript to be an array type");
     }
 
-    SmallVector<Value> indices;
+    SmallVector<LLVM::GEPArg> indices;
 
+    indices.push_back(0);
     indices.push_back(adaptor.getIndex());
 
     auto resultType = LLVM::LLVMPointerType::get(context);
@@ -275,6 +279,32 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
 
     rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
                                              adaptor.getBase(), indices);
+
+    return success();
+  }
+
+ private:
+  const DataLayout &dataLayout_;
+};
+
+class BoolConstantOpLowering : public OpConversionPattern<cxx::BoolConstantOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::BoolConstantOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert boolean constant type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ConstantOp>(op, resultType,
+                                                  adaptor.getValue());
 
     return success();
   }
@@ -1189,8 +1219,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       typeConverter, context);
 
   // memory operations
+  DataLayout dataLayout{module};
+
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
-                  SubscriptOpLowering>(typeConverter, context);
+                  SubscriptOpLowering>(typeConverter, dataLayout, context);
 
   // cast operations
   patterns
@@ -1236,7 +1268,20 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
+    return;
   }
+
+  auto targetTriple =
+      mlir::cast<mlir::StringAttr>(module->getAttr("cxx.triple"));
+
+  module->setAttr(LLVM::LLVMDialect::getTargetTripleAttrName(),
+                  mlir::StringAttr::get(context, targetTriple.str()));
+
+  auto dataLayoutDescr =
+      mlir::cast<mlir::StringAttr>(module->getAttr("cxx.data-layout"));
+
+  module->setAttr(LLVM::LLVMDialect::getDataLayoutAttrName(),
+                  mlir::StringAttr::get(context, dataLayoutDescr.str()));
 }
 
 }  // namespace mlir

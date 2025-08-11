@@ -108,6 +108,11 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   module->setAttr("cxx.triple", mlir::StringAttr::get(module->getContext(),
                                                       memoryLayout->triple()));
 
+  module->setAttr(
+      "cxx.data-layout",
+      mlir::StringAttr::get(module->getContext(),
+                            llvmDataLayout.getStringRepresentation()));
+
   std::swap(gen.module_, module);
 
   ForEachExternalDefinition forEachExternalDefinition;
