@@ -53,37 +53,12 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
 
+    if (failed(convertFunctionTyype(op, rewriter))) {
+      return rewriter.notifyMatchFailure(op, "failed to convert function type");
+    }
+
     auto funcType = op.getFunctionType();
-
-    SmallVector<Type> argumentTypes;
-    for (auto argType : funcType.getInputs()) {
-      auto convertedType = typeConverter->convertType(argType);
-      if (!convertedType) {
-        return rewriter.notifyMatchFailure(
-            op, "failed to convert function argument type");
-      }
-      argumentTypes.push_back(convertedType);
-    }
-
-    SmallVector<Type> resultTypes;
-    for (auto resultType : funcType.getResults()) {
-      auto convertedType = typeConverter->convertType(resultType);
-      if (!convertedType) {
-        return rewriter.notifyMatchFailure(
-            op, "failed to convert function result type");
-      }
-
-      resultTypes.push_back(convertedType);
-    }
-
-    const auto returnType = resultTypes.empty()
-                                ? LLVM::LLVMVoidType::get(getContext())
-                                : resultTypes.front();
-
-    const auto isVarArg = funcType.getVariadic();
-
-    auto llvmFuncType =
-        LLVM::LLVMFunctionType::get(returnType, argumentTypes, isVarArg);
+    auto llvmFuncType = typeConverter->convertType(funcType);
 
     auto func = rewriter.create<LLVM::LLVMFuncOp>(op.getLoc(), op.getSymName(),
                                                   llvmFuncType);
@@ -95,6 +70,29 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
 
     rewriter.eraseOp(op);
+
+    return success();
+  }
+
+  auto convertFunctionTyype(cxx::FuncOp funcOp,
+                            ConversionPatternRewriter &rewriter) const
+      -> LogicalResult {
+    auto type = funcOp.getFunctionType();
+    const auto &typeConverter = *getTypeConverter();
+
+    TypeConverter::SignatureConversion result(type.getInputs().size());
+    SmallVector<Type, 1> newResults;
+    if (failed(typeConverter.convertSignatureArgs(type.getInputs(), result)) ||
+        failed(typeConverter.convertTypes(type.getResults(), newResults)) ||
+        failed(rewriter.convertRegionTypes(&funcOp.getFunctionBody(),
+                                           typeConverter, &result)))
+      return failure();
+
+    auto newType = cxx::FunctionType::get(rewriter.getContext(),
+                                          result.getConvertedTypes(),
+                                          newResults, type.getVariadic());
+
+    rewriter.modifyOpInPlace(funcOp, [&] { funcOp.setType(newType); });
 
     return success();
   }
@@ -323,6 +321,45 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
 
     auto resultType = LLVM::LLVMPointerType::get(context);
     auto elementType = typeConverter->convertType(ptrType.getElementType());
+
+    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
+                                             adaptor.getBase(), indices);
+
+    return success();
+  }
+
+ private:
+  const DataLayout &dataLayout_;
+};
+
+class MemberOpLowering : public OpConversionPattern<cxx::MemberOp> {
+ public:
+  MemberOpLowering(const TypeConverter &typeConverter,
+                   const DataLayout &dataLayout, MLIRContext *context,
+                   PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::MemberOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
+
+  auto matchAndRewrite(cxx::MemberOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto pointerType = cast<cxx::PointerType>(op.getBase().getType());
+    auto classType = dyn_cast<cxx::ClassType>(pointerType.getElementType());
+
+    auto resultType = typeConverter->convertType(op.getResult().getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert member result type");
+    }
+
+    auto elementType = typeConverter->convertType(classType);
+
+    SmallVector<LLVM::GEPArg> indices;
+    indices.push_back(0);
+    indices.push_back(adaptor.getMemberIndex());
 
     rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
                                              adaptor.getBase(), indices);
@@ -1329,7 +1366,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   DataLayout dataLayout{module};
 
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
-                  SubscriptOpLowering>(typeConverter, dataLayout, context);
+                  SubscriptOpLowering, MemberOpLowering>(typeConverter,
+                                                         dataLayout, context);
 
   // cast operations
   patterns.insert<IntToBoolOpLowering, BoolToIntOpLowering,

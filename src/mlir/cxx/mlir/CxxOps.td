@@ -180,6 +180,12 @@ def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
   let results = (outs Cxx_PointerType:$result);
 }
 
+def Cxx_MemberOp : Cxx_Op<"member"> {
+  let arguments = (ins Cxx_PointerType:$base, I32Prop:$member_index);
+
+  let results = (outs Cxx_PointerType:$result);
+}
+
 def Cxx_AddressOfOp : Cxx_Op<"addressof"> {
   let arguments = (ins FlatSymbolRefAttr:$sym_name);
 
