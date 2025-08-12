@@ -26,6 +26,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -601,14 +602,34 @@ auto Codegen::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
+  if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
+      field && !field->isStatic()) {
+    // todo: introduce ClassLayout to avoid linear searches and support c++
+    // class layout
+    int fieldIndex = 0;
+    auto classSymbol = symbol_cast<ClassSymbol>(field->enclosingSymbol());
+    for (auto member : classSymbol->scope()->symbols()) {
+      auto f = symbol_cast<FieldSymbol>(member);
+      if (!f) continue;
+      if (f->isStatic()) continue;
+      if (member == field) break;
+      ++fieldIndex;
+    }
+
+    auto baseExpressionResult = gen.expression(ast->baseExpression);
+
+    auto loc = gen.getLocation(ast->unqualifiedId->firstSourceLocation());
+
+    auto resultType = gen.convertType(control()->add_pointer(ast->type));
+
+    auto op = gen.builder_.create<mlir::cxx::MemberOp>(
+        loc, resultType, baseExpressionResult.value, fieldIndex);
+
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto baseExpressionResult = gen.expression(ast->baseExpression);
-  auto nestedNameSpecifierResult = gen.nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen(ast->unqualifiedId);
-#endif
 
   return {op};
 }
