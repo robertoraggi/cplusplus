@@ -80,7 +80,7 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
                                 ? LLVM::LLVMVoidType::get(getContext())
                                 : resultTypes.front();
 
-    const auto isVarArg = false;
+    const auto isVarArg = funcType.getVariadic();
 
     auto llvmFuncType =
         LLVM::LLVMFunctionType::get(returnType, argumentTypes, isVarArg);
@@ -158,6 +158,12 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
 
     auto llvmCallOp = rewriter.create<LLVM::CallOp>(
         op.getLoc(), resultTypes, adaptor.getCallee(), adaptor.getInputs());
+
+    if (op.getVarCalleeType().has_value()) {
+      auto varCalleeType =
+          typeConverter->convertType(op.getVarCalleeType().value());
+      llvmCallOp.setVarCalleeType(cast<LLVM::LLVMFunctionType>(varCalleeType));
+    }
 
     rewriter.replaceOp(op, llvmCallOp);
     return success();
@@ -1249,6 +1255,28 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     auto size = type.getSize();
 
     return LLVM::LLVMArrayType::get(elementType, size);
+  });
+
+  typeConverter.addConversion([&](cxx::FunctionType type) -> Type {
+    SmallVector<Type> inputs;
+    for (auto argType : type.getInputs()) {
+      auto convertedType = typeConverter.convertType(argType);
+      inputs.push_back(convertedType);
+    }
+    SmallVector<Type> results;
+    for (auto resultType : type.getResults()) {
+      auto convertedType = typeConverter.convertType(resultType);
+      results.push_back(convertedType);
+    }
+    if (results.size() > 1) {
+      return {};
+    }
+    if (results.empty()) {
+      results.push_back(LLVM::LLVMVoidType::get(type.getContext()));
+    }
+    auto context = type.getContext();
+    return LLVM::LLVMFunctionType::get(context, results.front(), inputs,
+                                       type.getVariadic());
   });
 
   DenseMap<cxx::ClassType, Type> convertedClassTypes;

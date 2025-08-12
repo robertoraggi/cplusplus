@@ -94,11 +94,25 @@ def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType]> {
 
 }
 
+def Cxx_FunctionType : Cxx_Type<"Function", "function"> {
+  let parameters = (ins
+      ArrayRefParameter<"mlir::Type">:$inputs
+    , ArrayRefParameter<"mlir::Type">:$results
+    , "bool":$variadic
+  );
+
+  let assemblyFormat = "`<` $inputs `,` $results `,` $variadic `>`";
+
+  let extraClassDeclaration = [{
+    auto clone(mlir::TypeRange inputs, mlir::TypeRange results) const -> FunctionType;
+  }];
+}
+
 // ops
 
 def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   let arguments = (ins SymbolNameAttr:$sym_name,
-      TypeAttrOf<FunctionType>:$function_type,
+      TypeAttrOf<Cxx_FunctionType>:$function_type,
       OptionalAttr<DictArrayAttr>:$arg_attrs,
       OptionalAttr<DictArrayAttr>:$res_attrs);
 
@@ -134,10 +148,9 @@ def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
 
 def Cxx_CallOp : Cxx_Op<"call"> {
   let arguments = (ins
-    FlatSymbolRefAttr:$callee,
-    Variadic<AnyType>:$inputs,
-    OptionalAttr<DictArrayAttr>:$arg_attrs,
-    OptionalAttr<DictArrayAttr>:$res_attrs
+      FlatSymbolRefAttr:$callee
+    , Variadic<AnyType>:$inputs
+    , OptionalAttr<TypeAttrOf<Cxx_FunctionType>>:$var_callee_type
   );
 
   let results = (outs Optional<AnyType>:$result);

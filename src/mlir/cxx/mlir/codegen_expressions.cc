@@ -522,8 +522,12 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     }
 
     auto op = gen.builder_.create<mlir::cxx::CallOp>(
-        loc, resultTypes, funcOp.getSymName(), arguments, mlir::ArrayAttr{},
-        mlir::ArrayAttr{});
+        loc, resultTypes, funcOp.getSymName(), arguments, mlir::TypeAttr{});
+
+    if (functionType->isVariadic()) {
+      op.setVarCalleeType(
+          cast<mlir::cxx::FunctionType>(gen.convertType(functionType)));
+    }
 
     return ExpressionResult{op.getResult()};
   };

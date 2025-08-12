@@ -125,9 +125,10 @@ void CxxDialect::initialize() {
 }
 
 void FuncOp::print(OpAsmPrinter &p) {
+  const auto isVariadic = getFunctionType().getVariadic();
   function_interface_impl::printFunctionOp(
-      p, *this, /*isVariadic=*/false, getFunctionTypeAttrName(),
-      getArgAttrsAttrName(), getResAttrsAttrName());
+      p, *this, isVariadic, getFunctionTypeAttrName(), getArgAttrsAttrName(),
+      getResAttrsAttrName());
 }
 
 auto FuncOp::parse(OpAsmParser &parser, OperationState &result) -> ParseResult {
@@ -158,6 +159,12 @@ auto StoreOp::verify() -> LogicalResult {
 #endif
 
   return success();
+}
+
+auto FunctionType::clone(TypeRange inputs, TypeRange results) const
+    -> FunctionType {
+  return get(getContext(), llvm::to_vector(inputs), llvm::to_vector(results),
+             getVariadic());
 }
 
 auto ClassType::getNamed(MLIRContext *context, StringRef name) -> ClassType {

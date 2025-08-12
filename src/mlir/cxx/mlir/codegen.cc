@@ -117,7 +117,9 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     resultTypes.push_back(convertType(returnType));
   }
 
-  auto funcType = builder_.getFunctionType(inputTypes, resultTypes);
+  auto funcType =
+      mlir::cxx::FunctionType::get(builder_.getContext(), inputTypes,
+                                   resultTypes, functionType->isVariadic());
 
   std::string name;
 
