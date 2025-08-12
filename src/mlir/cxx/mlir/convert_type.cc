@@ -258,7 +258,16 @@ auto Codegen::ConvertType::operator()(const RvalueReferenceType* type)
 }
 
 auto Codegen::ConvertType::operator()(const FunctionType* type) -> mlir::Type {
-  return getExprType();
+  mlir::SmallVector<mlir::Type> inputs;
+  for (auto argType : type->parameterTypes()) {
+    inputs.push_back(gen.convertType(argType));
+  }
+  mlir::SmallVector<mlir::Type> results;
+  if (!control()->is_void(type->returnType())) {
+    results.push_back(gen.convertType(type->returnType()));
+  }
+  return gen.builder_.getType<mlir::cxx::FunctionType>(inputs, results,
+                                                       type->isVariadic());
 }
 
 auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
