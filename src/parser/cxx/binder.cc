@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -32,6 +33,7 @@
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/types.h>
 
 #include <format>
@@ -874,20 +876,29 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
 auto Binder::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
   if (!translationUnit()->config().templateInstantiation) return nullptr;
 
-  std::vector<TemplateArgument> args;
-  for (auto it = templateId->templateArgumentList; it; it = it->next) {
-    if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
-      args.push_back(arg->typeId->type);
-    } else {
-      error(it->value->firstSourceLocation(),
-            std::format("only type template arguments are supported"));
-    }
+  TemplateDeclarationAST* templateDecl = nullptr;
+
+  if (auto classDecl =
+          symbol_cast<ClassSymbol>(templateId->primaryTemplateSymbol)) {
+    templateDecl = classDecl->templateDeclaration();
+  } else if (auto decl = symbol_cast<TypeAliasSymbol>(
+                 templateId->primaryTemplateSymbol)) {
+    templateDecl = decl->templateDeclaration();
   }
 
+  if (!templateDecl) {
+    error(templateId->firstSourceLocation(),
+          "expected a class or type alias symbol for template instantiation");
+    return nullptr;
+  }
+
+  auto templateArguments = ASTRewriter::make_substitution(
+      unit_, templateDecl, templateId->templateArgumentList);
+
   auto needsInstantiation = [&]() -> bool {
-    if (args.empty()) return true;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-      auto typeArgument = std::get_if<const Type*>(&args[i]);
+    if (templateArguments.empty()) return true;
+    for (std::size_t i = 0; i < templateArguments.size(); ++i) {
+      auto typeArgument = std::get_if<const Type*>(&templateArguments[i]);
       if (!typeArgument) return true;
       auto ty = type_cast<TypeParameterType>(*typeArgument);
       if (!ty) return true;
@@ -898,10 +909,68 @@ auto Binder::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
 
   if (!needsInstantiation()) return nullptr;
 
-  auto symbol = control()->instantiate(unit_, templateId->primaryTemplateSymbol,
-                                       std::move(args));
+  if (!templateDecl->declaration) {
+    error(templateId->firstSourceLocation(),
+          "expected a template declaration for instantiation");
+    return nullptr;
+  }
 
-  return symbol;
+  auto rewrite = ASTRewriter{unit_, scope(), templateArguments};
+
+  auto instance = rewrite.declaration(templateDecl->declaration);
+
+  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(instance)) {
+    if (simpleDecl->initDeclaratorList) {
+      error(templateId->firstSourceLocation(),
+            "expected a simple declaration without initializers for template "
+            "instantiation");
+      return nullptr;
+    }
+
+    if (simpleDecl->initDeclaratorList) {
+      cxx_runtime_error("should not get here");
+      return simpleDecl->initDeclaratorList->value->symbol;
+    }
+
+    auto classSpec =
+        ast_cast<ClassSpecifierAST>(simpleDecl->declSpecifierList->value);
+
+    if (!classSpec) {
+      error(templateId->firstSourceLocation(),
+            "expected a class specifier for template instantiation");
+    }
+
+    auto symbol = symbol_cast<ClassSymbol>(classSpec->symbol);
+    if (!symbol->declaration()) {
+      cxx_runtime_error("class symbol does not have a declaration attached");
+    }
+
+    if (!symbol) {
+      error(templateId->firstSourceLocation(),
+            "expected a class symbol for template instantiation");
+
+      return nullptr;
+    }
+
+    return symbol;
+  }
+
+  if (auto typeAlias = ast_cast<AliasDeclarationAST>(instance)) {
+    auto symbol = typeAlias->symbol;
+
+    if (!symbol) {
+      error(templateId->firstSourceLocation(),
+            "expected a type alias symbol for template instantiation");
+      return nullptr;
+    }
+
+    return symbol;
+  }
+
+  error(templateId->firstSourceLocation(),
+        "expected a simple declaration for template instantiation");
+
+  return nullptr;
 }
 
 void Binder::bind(IdExpressionAST* ast) {

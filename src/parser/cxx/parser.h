@@ -845,6 +845,7 @@ class Parser final {
   int classDepth_ = 0;
   std::uint32_t lastErrorCursor_ = 0;
   std::uint32_t cursor_ = 0;
+  int anonNamespaceCount_ = 0;
   int templateParameterDepth_ = -1;
   int templateParameterCount_ = 0;
   bool didAcceptCompletionToken_ = false;

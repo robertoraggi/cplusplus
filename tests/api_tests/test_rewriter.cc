@@ -25,7 +25,6 @@
 #include <cxx/control.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
-#include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -42,45 +41,12 @@ using namespace cxx;
 
 namespace {
 
-[[nodiscard]] auto make_substitution(
-    TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-    List<TemplateArgumentAST*>* templateArgumentList)
-    -> std::vector<TemplateArgument> {
-  auto control = unit->control();
-  auto interp = ASTInterpreter{unit};
-
-  std::vector<TemplateArgument> templateArguments;
-
-  for (auto arg : ListView{templateArgumentList}) {
-    if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-      auto expr = exprArg->expression;
-      // ### need to set scope and location
-      auto templArg = control->newVariableSymbol(nullptr, {});
-      templArg->setInitializer(expr);
-      templArg->setType(control->add_const(expr->type));
-      templArg->setConstValue(interp.evaluate(expr));
-      if (!templArg->constValue().has_value())
-        cxx_runtime_error("template argument is not a constant expression");
-      templateArguments.push_back(templArg);
-    } else if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-      auto type = typeArg->typeId->type;
-      // ### need to set scope and location
-      auto templArg = control->newTypeAliasSymbol(nullptr, {});
-      templArg->setType(type);
-      templateArguments.push_back(templArg);
-    }
-  }
-
-  return templateArguments;
-}
-
 template <typename Node>
 [[nodiscard]] auto substitute(Source& source, Node* ast,
-                              std::vector<TemplateArgument> args) {
+                              const std::vector<TemplateArgument>& args) {
   auto control = source.control();
-  TypeChecker typeChecker(&source.unit);
-  ASTRewriter rewrite{&typeChecker, args};
-  return ast_cast<Node>(rewrite(ast));
+  auto rewrite = ASTRewriter{&source.unit, source.scope(), args};
+  return ast_cast<Node>(rewrite.declaration(ast));
 };
 
 [[nodiscard]] auto getTemplateBody(TemplateDeclarationAST* ast)
@@ -120,9 +86,9 @@ using Func1 = Func<int, float>;
       symbol_cast<TypeAliasSymbol>(templateId->primaryTemplateSymbol);
   ASSERT_TRUE(templateSym != nullptr);
 
-  auto templateArguments =
-      make_substitution(&source.unit, templateSym->templateDeclaration(),
-                        templateId->templateArgumentList);
+  auto templateArguments = ASTRewriter::make_substitution(
+      &source.unit, templateSym->templateDeclaration(),
+      templateId->templateArgumentList);
 
   auto funcInstance = substitute(source,
                                  getTemplateBodyAs<AliasDeclarationAST>(
@@ -167,9 +133,9 @@ constexpr int y = c<123 * 2>;
       templateSym->templateDeclaration());
   ASSERT_TRUE(templateDecl != nullptr);
 
-  std::vector<TemplateArgument> templateArguments =
-      make_substitution(&source.unit, templateSym->templateDeclaration(),
-                        templateId->templateArgumentList);
+  auto templateArguments = ASTRewriter::make_substitution(
+      &source.unit, templateSym->templateDeclaration(),
+      templateId->templateArgumentList);
 
   auto instance = substitute(source, templateDecl, templateArguments);
   ASSERT_TRUE(instance != nullptr);
@@ -279,10 +245,7 @@ using Pair1 = Pair<int, float*>;
   auto pair = source.getAs<ClassSymbol>("Pair");
   ASSERT_TRUE(pair != nullptr);
 
-  ASSERT_TRUE(pair->declaration() != nullptr);
-
-  auto classDecl = ast_cast<ClassSpecifierAST>(pair->declaration());
-  ASSERT_TRUE(classDecl != nullptr);
+  ASSERT_TRUE(pair->templateDeclaration() != nullptr);
 
   auto templateDecl = pair->templateDeclaration();
   ASSERT_TRUE(templateDecl != nullptr);
@@ -296,13 +259,16 @@ using Pair1 = Pair<int, float*>;
   auto templateId = ast_cast<SimpleTemplateIdAST>(pair1Type->unqualifiedId());
   ASSERT_TRUE(templateId != nullptr);
 
-  auto templateArguments = make_substitution(&source.unit, templateDecl,
-                                             templateId->templateArgumentList);
+  auto templateArguments = ASTRewriter::make_substitution(
+      &source.unit, templateDecl, templateId->templateArgumentList);
 
-  auto instance = substitute(source, classDecl, templateArguments);
+  auto instance = ast_cast<SimpleDeclarationAST>(
+      substitute(source, templateDecl->declaration, templateArguments));
   ASSERT_TRUE(instance != nullptr);
 
-  auto classDeclInstance = ast_cast<ClassSpecifierAST>(instance);
+  auto classDeclInstance =
+      ast_cast<ClassSpecifierAST>(instance->declSpecifierList->value);
+
   ASSERT_TRUE(classDeclInstance != nullptr);
 
   auto classInstance = classDeclInstance->symbol;

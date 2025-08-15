@@ -80,12 +80,6 @@ struct Source {
     auto symbol = get(name);
     return symbol_cast<S>(symbol);
   }
-
-  auto instantiate(std::string_view name,
-                   const std::vector<TemplateArgument>& arguments) -> Symbol* {
-    auto symbol = get(name);
-    return control()->instantiate(&unit, symbol, arguments);
-  }
 };
 
 inline auto operator""_cxx(const char* source, std::size_t size) -> Source {

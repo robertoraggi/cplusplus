@@ -185,8 +185,12 @@ class NamespaceSymbol final : public ScopedSymbol {
   [[nodiscard]] auto unnamedNamespace() const -> NamespaceSymbol*;
   void setUnnamedNamespace(NamespaceSymbol* unnamedNamespace);
 
+  [[nodiscard]] auto anonNamespaceIndex() const -> std::optional<int>;
+  void setAnonNamespaceIndex(int index);
+
  private:
   NamespaceSymbol* unnamedNamespace_ = nullptr;
+  int anonNamespaceIndex_ = -1;
   bool isInline_ = false;
 };
 

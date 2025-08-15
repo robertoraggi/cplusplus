@@ -318,8 +318,10 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const BuiltinVaListType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
-    return false;
+    // cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    // return encoder.encode()
+    encoder.out("Pc");
+    return true;
   }
 };
 
@@ -642,6 +644,13 @@ void ExternalNameEncoder::encodePrefix(Symbol* symbol) {
 void ExternalNameEncoder::encodeTemplatePrefix(Symbol* symbol) {}
 
 void ExternalNameEncoder::encodeUnqualifiedName(Symbol* symbol) {
+  if (auto ns = symbol_cast<NamespaceSymbol>(symbol); ns && !ns->name()) {
+    auto index = ns->anonNamespaceIndex().value();
+    std::string name = std::format("_GLOBAL__N_{}", index + 1);
+    out(std::format("{}{}", name.length(), name));
+    return;
+  }
+
   visit(EncodeUnqualifiedName{*this, symbol}, symbol->name());
 }
 

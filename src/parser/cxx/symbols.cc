@@ -111,6 +111,16 @@ auto NamespaceSymbol::unnamedNamespace() const -> NamespaceSymbol* {
 void NamespaceSymbol::setUnnamedNamespace(NamespaceSymbol* unnamedNamespace) {
   unnamedNamespace_ = unnamedNamespace;
 }
+
+auto NamespaceSymbol::anonNamespaceIndex() const -> std::optional<int> {
+  if (anonNamespaceIndex_ < 0) return std::nullopt;
+  return anonNamespaceIndex_;
+}
+
+void NamespaceSymbol::setAnonNamespaceIndex(int index) {
+  anonNamespaceIndex_ = index;
+}
+
 ConceptSymbol::ConceptSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 

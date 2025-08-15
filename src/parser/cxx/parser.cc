@@ -31,7 +31,6 @@
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
-#include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/type_checker.h>
@@ -1068,8 +1067,8 @@ auto Parser::parse_template_nested_name_specifier(
   }
 
   if (!ast->symbol && config().checkTypes) {
-    ast->symbol =
-        binder_.resolveNestedNameSpecifier(binder_.instantiate(templateId));
+    auto instance = binder_.instantiate(templateId);
+    ast->symbol = binder_.resolveNestedNameSpecifier(instance);
   }
 
   return true;
@@ -4059,6 +4058,8 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
     if (identifier) {
       namespaceSymbol->setName(identifier);
     } else {
+      const auto anonNamespaceIndex = anonNamespaceCount_++;
+      namespaceSymbol->setAnonNamespaceIndex(anonNamespaceIndex);
       parentNamespace->setUnnamedNamespace(namespaceSymbol);
     }
 
@@ -5100,6 +5101,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   if (!lookat(TokenKind::T_IDENTIFIER)) return false;
 
+  auto id = unit->identifier(currentLocation());
+
   UnqualifiedIdAST* unqualifiedId = nullptr;
   if (!parse_type_name(unqualifiedId, nestedNameSpecifier,
                        isTemplateIntroduced)) {
@@ -5117,8 +5120,13 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   auto symbol =
       binder_.resolve(nestedNameSpecifier, unqualifiedId, canInstantiate);
 
-  if (config().checkTypes && !symbol && ast_cast<NameIdAST>(unqualifiedId)) {
-    return false;
+  if (config().checkTypes) {
+    if (!symbol) {
+      auto name = get_name(control_, unqualifiedId);
+      parse_error(unqualifiedId->firstSourceLocation(),
+                  std::format("'{}' is not a type", to_string(name)));
+      return false;
+    }
   }
 
   lookahead.commit();

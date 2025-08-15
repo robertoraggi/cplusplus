@@ -26,7 +26,6 @@ add_executable(test_api
     test_control.cc
     test_external_names.cc
     test_rewriter.cc
-    test_substitution.cc
     test_type_printer.cc
 )
 
