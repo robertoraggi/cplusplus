@@ -348,7 +348,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   // Add the function body.
   auto entryBlock = gen.builder_.createBlock(&func.getBody());
-  for (const auto& input : func.getFunctionType().getInputs()) {
+  auto inputs = func.getFunctionType().getInputs();
+
+  for (const auto& input : inputs) {
     entryBlock->addArgument(input, loc);
   }
 
@@ -370,9 +372,28 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   // function state
   std::swap(gen.function_, func);
+  std::swap(gen.entryBlock_, entryBlock);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);
+
+  mlir::Value thisValue;
+
+  // if this is a non static member function, we need to allocate the `this`
+  if (!functionSymbol->isStatic() &&
+      functionSymbol->enclosingSymbol()->isClass()) {
+    auto classSymbol =
+        symbol_cast<ClassSymbol>(functionSymbol->enclosingSymbol());
+
+    auto thisType = gen.convertType(classSymbol->type());
+    auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(thisType);
+
+    thisValue = gen.newTemp(classSymbol->type(), ast->firstSourceLocation());
+
+    // store the `this` pointer in the entry block
+    gen.builder_.create<mlir::cxx::StoreOp>(
+        loc, gen.entryBlock_->getArgument(0), thisValue);
+  }
 
   FunctionParametersSymbol* params = nullptr;
   for (auto member : ast->symbol->scope()->symbols()) {
@@ -380,7 +401,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     if (!params) continue;
 
     int argc = 0;
-    auto args = entryBlock->getArguments();
+    auto args = gen.entryBlock_->getArguments();
     for (auto param : params->scope()->symbols()) {
       auto arg = symbol_cast<ParameterSymbol>(param);
       if (!arg) continue;
@@ -398,6 +419,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       gen.locals_.emplace(arg, allocaOp);
     }
   }
+
+  std::swap(gen.thisValue_, thisValue);
 
   allocateLocals(functionSymbol);
 
@@ -428,7 +451,10 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   // restore the state
+  std::swap(gen.thisValue_, thisValue);
+
   std::swap(gen.function_, func);
+  std::swap(gen.entryBlock_, entryBlock);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);

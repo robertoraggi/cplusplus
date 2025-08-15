@@ -25,6 +25,13 @@ add_library(cxx-parser
     cxx/ast_interpreter.cc
     cxx/ast_pretty_printer.cc
     cxx/ast_printer.cc
+    cxx/ast_rewriter_declarations.cc
+    cxx/ast_rewriter_declarators.cc
+    cxx/ast_rewriter_expressions.cc
+    cxx/ast_rewriter_names.cc
+    cxx/ast_rewriter_specifiers.cc
+    cxx/ast_rewriter_statements.cc
+    cxx/ast_rewriter_units.cc
     cxx/ast_rewriter.cc
     cxx/ast_slot.cc
     cxx/ast_visitor.cc
@@ -54,7 +61,6 @@ add_library(cxx-parser
     cxx/scope.cc
     cxx/source_location.cc
     cxx/symbol_chain_view.cc
-    cxx/symbol_instantiation.cc
     cxx/symbol_printer.cc
     cxx/symbols.cc
     cxx/token.cc

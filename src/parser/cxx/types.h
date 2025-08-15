@@ -423,30 +423,40 @@ class NamespaceType final : public Type, public std::tuple<NamespaceSymbol*> {
   }
 };
 
-class TypeParameterType final : public Type,
-                                public std::tuple<TypeParameterSymbol*> {
+class TypeParameterType final : public Type, public std::tuple<int, int, bool> {
  public:
   static constexpr TypeKind Kind = TypeKind::kTypeParameter;
 
-  explicit TypeParameterType(TypeParameterSymbol* symbol)
-      : Type(Kind), tuple(symbol) {}
+  explicit TypeParameterType(int index, int depth, bool isPack)
+      : Type(Kind), tuple(index, depth, isPack) {}
 
-  [[nodiscard]] auto symbol() const -> TypeParameterSymbol* {
-    return std::get<0>(*this);
+  [[nodiscard]] auto index() const -> int { return std::get<0>(*this); }
+  [[nodiscard]] auto depth() const -> int { return std::get<1>(*this); }
+  [[nodiscard]] auto isParameterPack() const -> bool {
+    return std::get<2>(*this);
   }
 };
 
 class TemplateTypeParameterType final
     : public Type,
-      public std::tuple<TemplateTypeParameterSymbol*> {
+      public std::tuple<int, int, bool, std::vector<const Type*>> {
  public:
   static constexpr TypeKind Kind = TypeKind::kTypeParameter;
 
-  explicit TemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
-      : Type(Kind), tuple(symbol) {}
+  explicit TemplateTypeParameterType(
+      int index, int depth, bool isPack,
+      std::vector<const Type*> templateParameters)
+      : Type(Kind),
+        tuple(index, depth, isPack, std::move(templateParameters)) {}
 
-  [[nodiscard]] auto symbol() const -> TemplateTypeParameterSymbol* {
-    return std::get<0>(*this);
+  [[nodiscard]] auto index() const -> int { return std::get<0>(*this); }
+  [[nodiscard]] auto depth() const -> int { return std::get<1>(*this); }
+  [[nodiscard]] auto isParameterPack() const -> bool {
+    return std::get<2>(*this);
+  }
+  [[nodiscard]] auto templateParameters() const
+      -> const std::vector<const Type*>& {
+    return std::get<3>(*this);
   }
 };
 

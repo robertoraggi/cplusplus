@@ -25,6 +25,8 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/scope.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 
 // mlir
@@ -62,6 +64,38 @@ struct Codegen::UnitVisitor {
 
   auto operator()(TranslationUnitAST* ast) -> UnitResult;
   auto operator()(ModuleUnitAST* ast) -> UnitResult;
+
+  struct VisitSymbols {
+    UnitVisitor& p;
+
+    void operator()(NamespaceSymbol* symbol) {
+      for (auto member : symbol->scope()->symbols()) {
+        visit(*this, member);
+      }
+    }
+
+    void operator()(FunctionSymbol* symbol) {
+      if (auto funcDecl = symbol->declaration()) {
+        p.gen.declaration(funcDecl);
+      }
+    }
+
+    void operator()(ClassSymbol* symbol) {
+      for (auto specialization : symbol->specializations()) {
+        visit(*this, specialization.symbol);
+      }
+
+      if (!symbol->templateParameters()) {
+        for (auto member : symbol->scope()->symbols()) {
+          visit(*this, member);
+        }
+      }
+    }
+
+    void operator()(Symbol*) {
+      // Do nothing for other symbols.
+    }
+  } visitor{*this};
 };
 
 auto Codegen::operator()(UnitAST* ast) -> UnitResult {
@@ -115,6 +149,9 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
+  visit(visitor, gen.unit_->globalScope()->owner());
+
+#if false
   ForEachExternalDefinition forEachExternalDefinition;
 
   forEachExternalDefinition.functionCallback =
@@ -125,6 +162,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   for (auto node : ListView{ast->declarationList}) {
     forEachExternalDefinition.accept(node);
   }
+#endif
 
   std::swap(gen.module_, module);
 

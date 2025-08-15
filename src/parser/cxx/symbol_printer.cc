@@ -97,21 +97,34 @@ struct DumpSymbols {
     std::string_view classKey = symbol->isUnion() ? "union" : "class";
 
     if (symbol->templateParameters()) {
-      out << std::format("template {} {}\n", classKey,
-                         to_string(symbol->name()));
+      out << std::format("template {} {}", classKey, to_string(symbol->name()));
+
+      out << '<';
+      std::string_view sep = "";
+      for (const auto& param :
+           symbol->templateParameters()->scope()->symbols()) {
+        out << std::format("{}{}", sep, to_string(param->type()));
+        sep = ", ";
+      }
+      out << '>';
+
+      out << "\n";
+
       dumpScope(symbol->templateParameters()->scope());
     } else if (symbol->isSpecialization()) {
-      out << std::format("{} {}<", classKey, to_string(symbol->name()));
+      out << std::format("{} {}", classKey, to_string(symbol->name()));
+      out << "<";
       std::string_view sep = "";
       for (auto arg : symbol->templateArguments()) {
-        auto type = std::get_if<const Type*>(&arg);
-        if (!type) continue;
-        out << std::format("{}{}", sep, to_string(*type));
+        auto symbol = std::get_if<Symbol*>(&arg);
+        if (!symbol) continue;
+        out << std::format("{}{}", sep, to_string((*symbol)->type()));
         sep = ", ";
       }
       out << std::format(">\n");
     } else {
-      out << std::format("{} {}\n", classKey, to_string(symbol->name()));
+      out << std::format("{} {}", classKey, to_string(symbol->name()));
+      out << "\n";
     }
     for (auto baseClass : symbol->baseClasses()) {
       ++depth;
@@ -297,10 +310,11 @@ struct DumpSymbols {
   }
 
   void operator()(TypeParameterSymbol* symbol) {
-    std::string_view pack = symbol->isParameterPack() ? "..." : "";
+    auto type = type_cast<TypeParameterType>(symbol->type());
+    std::string_view pack = type->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter typename<{}, {}>{} {}\n", symbol->index(),
-                       symbol->depth(), pack, to_string(symbol->name()));
+    out << std::format("parameter typename<{}, {}>{} {}\n", type->index(),
+                       type->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(NonTypeParameterSymbol* symbol) {
@@ -312,10 +326,11 @@ struct DumpSymbols {
   }
 
   void operator()(TemplateTypeParameterSymbol* symbol) {
-    std::string_view pack = symbol->isParameterPack() ? "..." : "";
+    auto type = type_cast<TemplateTypeParameterType>(symbol->type());
+    std::string_view pack = type->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter template<{}, {}>{} {}\n", symbol->index(),
-                       symbol->depth(), pack, to_string(symbol->name()));
+    out << std::format("parameter template<{}, {}>{} {}\n", type->index(),
+                       type->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(ConstraintTypeParameterSymbol* symbol) {

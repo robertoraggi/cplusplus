@@ -135,10 +135,12 @@ class Control {
   [[nodiscard]] auto getMemberFunctionPointerType(
       const ClassType* classType, const FunctionType* functionType)
       -> const MemberFunctionPointerType*;
-  [[nodiscard]] auto getTypeParameterType(TypeParameterSymbol* symbol)
+  [[nodiscard]] auto getTypeParameterType(int index, int depth, bool isPack)
       -> const TypeParameterType*;
   [[nodiscard]] auto getTemplateTypeParameterType(
-      TemplateTypeParameterSymbol* symbol) -> const TemplateTypeParameterType*;
+      int index, int depth, bool isPack,
+      std::vector<const Type*> templateParameters)
+      -> const TemplateTypeParameterType*;
   [[nodiscard]] auto getUnresolvedNameType(
       TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier,
       UnqualifiedIdAST* unqualifiedId) -> const UnresolvedNameType*;
@@ -208,13 +210,16 @@ class Control {
                                             SourceLocation sourceLocation)
       -> ParameterPackSymbol*;
   [[nodiscard]] auto newTypeParameterSymbol(Scope* enclosingScope,
-                                            SourceLocation sourceLocation)
+                                            SourceLocation sourceLocation,
+                                            int index, int depth,
+                                            bool isParameterPack)
       -> TypeParameterSymbol*;
   [[nodiscard]] auto newNonTypeParameterSymbol(Scope* enclosingScope,
                                                SourceLocation sourceLocation)
       -> NonTypeParameterSymbol*;
   [[nodiscard]] auto newTemplateTypeParameterSymbol(
-      Scope* enclosingScope, SourceLocation sourceLocation)
+      Scope* enclosingScope, SourceLocation sourceLocation, int index,
+      int depth, bool isPack, std::vector<const Type*> parameters)
       -> TemplateTypeParameterSymbol*;
   [[nodiscard]] auto newConstraintTypeParameterSymbol(
       Scope* enclosingScope, SourceLocation sourceLocation)
@@ -225,10 +230,6 @@ class Control {
   [[nodiscard]] auto newUsingDeclarationSymbol(Scope* enclosingScope,
                                                SourceLocation sourceLocation)
       -> UsingDeclarationSymbol*;
-
-  [[nodiscard]] auto instantiate(TranslationUnit* unit, Symbol* primaryTemplate,
-                                 const std::vector<TemplateArgument>& arguments)
-      -> Symbol*;
 
   // primary type categories
   [[nodiscard]] auto is_void(const Type* type) -> bool;

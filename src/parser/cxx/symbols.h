@@ -45,6 +45,10 @@ struct TemplateSpecialization {
   S* symbol = nullptr;
 };
 
+[[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
+                                const std::vector<TemplateArgument>& args2)
+    -> bool;
+
 template <typename S>
 class TemplateInfo {
  public:
@@ -68,7 +72,13 @@ class TemplateInfo {
   [[nodiscard]] auto findSpecialization(
       const std::vector<TemplateArgument>& arguments) const -> S* {
     for (const auto& specialization : specializations_) {
-      if (specialization.arguments == arguments) return specialization.symbol;
+      const std::vector<TemplateArgument>& args = specialization.arguments;
+      if (args == arguments) return specialization.symbol;
+      if (args.size() != arguments.size()) continue;
+      if (compare_args(args, arguments)) {
+        // If the arguments match, return the specialization symbol
+        return specialization.symbol;
+      }
     }
     return nullptr;
   }
@@ -185,8 +195,12 @@ class NamespaceSymbol final : public ScopedSymbol {
   [[nodiscard]] auto unnamedNamespace() const -> NamespaceSymbol*;
   void setUnnamedNamespace(NamespaceSymbol* unnamedNamespace);
 
+  [[nodiscard]] auto anonNamespaceIndex() const -> std::optional<int>;
+  void setAnonNamespaceIndex(int index);
+
  private:
   NamespaceSymbol* unnamedNamespace_ = nullptr;
+  int anonNamespaceIndex_ = -1;
   bool isInline_ = false;
 };
 
@@ -420,8 +434,12 @@ class FunctionSymbol final : public ScopedSymbol {
   [[nodiscard]] auto hasCxxLinkage() const -> bool;
   void setHasCxxLinkage(bool hasCLinkage);
 
+  [[nodiscard]] auto declaration() const -> DeclarationAST*;
+  void setDeclaration(DeclarationAST* declaration);
+
  private:
   TemplateParametersSymbol* templateParameters_ = nullptr;
+  DeclarationAST* declaration_ = nullptr;
 
   union {
     std::uint32_t flags_{};
@@ -681,20 +699,6 @@ class TypeParameterSymbol final : public Symbol {
 
   explicit TypeParameterSymbol(Scope* enclosingScope);
   ~TypeParameterSymbol() override;
-
-  [[nodiscard]] auto index() const -> int;
-  void setIndex(int index);
-
-  [[nodiscard]] auto depth() const -> int;
-  void setDepth(int depth);
-
-  [[nodiscard]] auto isParameterPack() const -> bool;
-  void setParameterPack(bool isParameterPack);
-
- private:
-  int index_ = 0;
-  int depth_ = 0;
-  bool isParameterPack_ = false;
 };
 
 class NonTypeParameterSymbol final : public Symbol {
@@ -729,24 +733,6 @@ class TemplateTypeParameterSymbol final : public Symbol {
 
   explicit TemplateTypeParameterSymbol(Scope* enclosingScope);
   ~TemplateTypeParameterSymbol() override;
-
-  [[nodiscard]] auto index() const -> int;
-  void setIndex(int index);
-
-  [[nodiscard]] auto depth() const -> int;
-  void setDepth(int depth);
-
-  [[nodiscard]] auto isParameterPack() const -> bool;
-  void setParameterPack(bool isParameterPack);
-
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
-
- private:
-  int index_ = 0;
-  int depth_ = 0;
-  bool isParameterPack_ = false;
-  TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
 class ConstraintTypeParameterSymbol final : public Symbol {

@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -32,6 +33,7 @@
 #include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/types.h>
 
 #include <format>
@@ -81,6 +83,18 @@ auto Binder::currentTemplateParameters() const -> TemplateParametersSymbol* {
       symbol_cast<TemplateParametersSymbol>(scope()->owner());
 
   return templateParameters;
+}
+
+auto Binder::isInstantiating() const -> bool {
+  return instantiatingSymbol_ != nullptr;
+}
+
+auto Binder::instantiatingSymbol() const -> Symbol* {
+  return instantiatingSymbol_;
+}
+
+void Binder::setInstantiatingSymbol(Symbol* symbol) {
+  instantiatingSymbol_ = symbol;
 }
 
 auto Binder::declaringScope() const -> Scope* {
@@ -404,14 +418,15 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
   }
 }
 
-auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId)
-    -> TypeAliasSymbol* {
-  auto name = unit_->identifier(identifierLoc);
+auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
+                              bool addSymbolToParentScope) -> TypeAliasSymbol* {
   auto symbol = control()->newTypeAliasSymbol(scope(), identifierLoc);
+
+  auto name = unit_->identifier(identifierLoc);
   symbol->setName(name);
+
   if (typeId) symbol->setType(typeId->type);
   symbol->setTemplateParameters(currentTemplateParameters());
-  declaringScope()->addSymbol(symbol);
 
   if (auto classType = type_cast<ClassType>(symbol->type())) {
     auto classSymbol = classType->symbol();
@@ -432,6 +447,10 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId)
     if (!scopedEnumSymbol->name()) {
       scopedEnumSymbol->setName(symbol->name());
     }
+  }
+
+  if (addSymbolToParentScope) {
+    declaringScope()->addSymbol(symbol);
   }
 
   return symbol;
@@ -521,12 +540,10 @@ void Binder::bind(NonTypeTemplateParameterAST* ast, int index, int depth) {
 void Binder::bind(TypenameTypeParameterAST* ast, int index, int depth) {
   auto location = ast->identifier ? ast->identifierLoc : ast->classKeyLoc;
 
-  auto symbol = control()->newTypeParameterSymbol(scope(), location);
+  auto symbol = control()->newTypeParameterSymbol(scope(), location, index,
+                                                  depth, ast->isPack);
   ast->symbol = symbol;
 
-  symbol->setIndex(index);
-  symbol->setDepth(depth);
-  symbol->setParameterPack(ast->isPack);
   symbol->setName(ast->identifier);
   scope()->addSymbol(symbol);
 }
@@ -541,15 +558,14 @@ void Binder::bind(ConstraintTypeParameterAST* ast, int index, int depth) {
 }
 
 void Binder::bind(TemplateTypeParameterAST* ast, int index, int depth) {
-  auto symbol =
-      control()->newTemplateTypeParameterSymbol(scope(), ast->templateLoc);
+  std::vector<const Type*> parameters;
+
+  auto symbol = control()->newTemplateTypeParameterSymbol(
+      scope(), ast->templateLoc, index, depth, ast->isPack,
+      std::move(parameters));
 
   ast->symbol = symbol;
 
-  symbol->setIndex(index);
-  symbol->setDepth(depth);
-  symbol->setName(ast->identifier);
-  symbol->setParameterPack(ast->isPack);
   scope()->addSymbol(symbol);
 }
 
@@ -849,16 +865,28 @@ auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopedSymbol* {
 }
 
 auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
-                     UnqualifiedIdAST* unqualifiedId, bool canInstantiate)
+                     UnqualifiedIdAST* unqualifiedId, bool checkTemplates)
     -> Symbol* {
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
-    if (!canInstantiate) return nullptr;
+    if (!checkTemplates) return templateId->symbol;
 
-    auto instance = instantiate(templateId);
+    if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
+      // todo: delay
+      auto instance = ASTRewriter::instantiateClassTemplate(
+          unit_, templateId->templateArgumentList, classSymbol);
 
-    if (!is_type(instance)) return nullptr;
+      return instance;
+    }
 
-    return instance;
+    if (auto typeAliasSymbol =
+            symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
+      auto instance = ASTRewriter::instantiateTypeAliasTemplate(
+          unit_, templateId->templateArgumentList, typeAliasSymbol);
+
+      return instance;
+    }
+
+    return templateId->symbol;
   }
 
   auto name = ast_cast<NameIdAST>(unqualifiedId);
@@ -871,39 +899,6 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
   return symbol;
 }
 
-auto Binder::instantiate(SimpleTemplateIdAST* templateId) -> Symbol* {
-  if (!translationUnit()->config().templateInstantiation) return nullptr;
-
-  std::vector<TemplateArgument> args;
-  for (auto it = templateId->templateArgumentList; it; it = it->next) {
-    if (auto arg = ast_cast<TypeTemplateArgumentAST>(it->value)) {
-      args.push_back(arg->typeId->type);
-    } else {
-      error(it->value->firstSourceLocation(),
-            std::format("only type template arguments are supported"));
-    }
-  }
-
-  auto needsInstantiation = [&]() -> bool {
-    if (args.empty()) return true;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-      auto typeArgument = std::get_if<const Type*>(&args[i]);
-      if (!typeArgument) return true;
-      auto ty = type_cast<TypeParameterType>(*typeArgument);
-      if (!ty) return true;
-      if (ty->symbol()->index() != i) return true;
-    }
-    return false;
-  };
-
-  if (!needsInstantiation()) return nullptr;
-
-  auto symbol = control()->instantiate(unit_, templateId->primaryTemplateSymbol,
-                                       std::move(args));
-
-  return symbol;
-}
-
 void Binder::bind(IdExpressionAST* ast) {
   if (ast->unqualifiedId) {
     auto name = get_name(control(), ast->unqualifiedId);
@@ -912,6 +907,40 @@ void Binder::bind(IdExpressionAST* ast) {
       componentName = templateId->name();
     ast->symbol = Lookup{scope()}(ast->nestedNameSpecifier, componentName);
   }
+}
+
+auto Binder::getFunction(Scope* scope, const Name* name, const Type* type)
+    -> FunctionSymbol* {
+  auto parentScope = scope;
+
+  while (parentScope && parentScope->isTransparent()) {
+    parentScope = parentScope->parent();
+  }
+
+  if (auto parentClass = symbol_cast<ClassSymbol>(parentScope->owner());
+      parentClass && parentClass->name() == name) {
+    for (auto ctor : parentClass->constructors()) {
+      if (control()->is_same(ctor->type(), type)) {
+        return ctor;
+      }
+    }
+  }
+
+  for (auto candidate : scope->find(name)) {
+    if (auto function = symbol_cast<FunctionSymbol>(candidate)) {
+      if (control()->is_same(function->type(), type)) {
+        return function;
+      }
+    } else if (auto overloads = symbol_cast<OverloadSetSymbol>(candidate)) {
+      for (auto function : overloads->functions()) {
+        if (control()->is_same(function->type(), type)) {
+          return function;
+        }
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 }  // namespace cxx

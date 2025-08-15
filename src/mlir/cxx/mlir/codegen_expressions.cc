@@ -299,9 +299,15 @@ auto Codegen::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-  return {op};
+  auto type = gen.convertType(ast->type);
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  auto loadOp =
+      gen.builder_.create<mlir::cxx::LoadOp>(loc, type, gen.thisValue_);
+  return {loadOp};
+  // auto op =
+  //     gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  // return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(GenericSelectionExpressionAST* ast)
@@ -497,6 +503,38 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
     while (auto nested = ast_cast<NestedExpressionAST>(func)) {
       func = nested->expression;
+    }
+
+    if (auto member = ast_cast<MemberExpressionAST>(func)) {
+      auto thisValue = gen.expression(member->baseExpression);
+      auto functionSymbol = symbol_cast<FunctionSymbol>(member->symbol);
+
+      auto funcOp = gen.findOrCreateFunction(functionSymbol);
+
+      mlir::SmallVector<mlir::Value> arguments;
+      arguments.push_back(thisValue.value);
+      for (auto node : ListView{ast->expressionList}) {
+        auto value = gen.expression(node);
+        arguments.push_back(value.value);
+      }
+
+      auto loc = gen.getLocation(ast->lparenLoc);
+
+      auto functionType = type_cast<FunctionType>(functionSymbol->type());
+      mlir::SmallVector<mlir::Type> resultTypes;
+      if (!control()->is_void(functionType->returnType())) {
+        resultTypes.push_back(gen.convertType(functionType->returnType()));
+      }
+
+      auto op = gen.builder_.create<mlir::cxx::CallOp>(
+          loc, resultTypes, funcOp.getSymName(), arguments, mlir::TypeAttr{});
+
+      if (functionType->isVariadic()) {
+        op.setVarCalleeType(
+            cast<mlir::cxx::FunctionType>(gen.convertType(functionType)));
+      }
+
+      return ExpressionResult{op.getResult()};
     }
 
     auto id = ast_cast<IdExpressionAST>(func);

@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -31,7 +32,6 @@
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
-#include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/type_checker.h>
@@ -1010,9 +1010,8 @@ struct IsReferencingTemplateParameter {
     auto typeParam = type_cast<TypeParameterType>(type);
     if (!typeParam) return false;
 
-    auto typeParamSymbol = typeParam->symbol();
-    if (typeParamSymbol->depth() != depth) return false;
-    if (typeParamSymbol->index() != index) return false;
+    if (typeParam->depth() != depth) return false;
+    if (typeParam->index() != index) return false;
 
     return true;
   }
@@ -1050,26 +1049,26 @@ auto Parser::parse_template_nested_name_specifier(
   ast->scopeLoc = scopeLoc;
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
-  if (ctx == NestedNameSpecifierContext::kDeclarative) {
-    bool isReferencingPrimaryTemplate = true;
+  if (config().checkTypes) {
+    // replace with instantiated class template
+    if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
+      auto instance = ASTRewriter::instantiateClassTemplate(
+          unit, templateId->templateArgumentList, classSymbol);
 
-    for (int index = 0; auto arg : ListView{templateId->templateArgumentList}) {
-      if (!visit(IsReferencingTemplateParameter{*this, depth, index}, arg)) {
-        isReferencingPrimaryTemplate = false;
-        break;
+      templateId->symbol = instance;
+
+      ast->symbol = instance;
+    } else if (auto typeAliasSymbol =
+                   symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
+      auto instance = ASTRewriter::instantiateTypeAliasTemplate(
+          unit, templateId->templateArgumentList, typeAliasSymbol);
+
+      templateId->symbol = instance;
+
+      if (auto classType = type_cast<ClassType>(instance->type())) {
+        ast->symbol = classType->symbol();
       }
-      ++index;
     }
-
-    if (isReferencingPrimaryTemplate) {
-      ast->symbol =
-          binder_.resolveNestedNameSpecifier(templateId->primaryTemplateSymbol);
-    }
-  }
-
-  if (!ast->symbol && config().checkTypes) {
-    ast->symbol =
-        binder_.resolveNestedNameSpecifier(binder_.instantiate(templateId));
   }
 
   return true;
@@ -4059,6 +4058,8 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
     if (identifier) {
       namespaceSymbol->setName(identifier);
     } else {
+      const auto anonNamespaceIndex = anonNamespaceCount_++;
+      namespaceSymbol->setAnonNamespaceIndex(anonNamespaceIndex);
       parentNamespace->setUnnamedNamespace(namespaceSymbol);
     }
 
@@ -4306,7 +4307,8 @@ auto Parser::parse_simple_declaration(
     }
 
     const Name* functionName = decl.getName();
-    auto functionSymbol = getFunction(scope(), functionName, functionType);
+    auto functionSymbol =
+        binder_.getFunction(scope(), functionName, functionType);
 
     if (!functionSymbol) {
       if (q && config().checkTypes) {
@@ -4347,6 +4349,7 @@ auto Parser::parse_simple_declaration(
     ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
     ast->symbol = functionSymbol;
+    ast->symbol->setDeclaration(ast);
 
     if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -4451,8 +4454,8 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!isDeclaration && !isDefinition) return false;
 
-  FunctionSymbol* functionSymbol =
-      getFunction(scope(), decl.getName(), functionType);
+  auto functionSymbol =
+      binder_.getFunction(scope(), decl.getName(), functionType);
 
   if (!functionSymbol) {
     functionSymbol = binder_.declareFunction(declarator, decl);
@@ -4501,6 +4504,7 @@ auto Parser::parse_notypespec_function_definition(
   ast->declarator = declarator;
   ast->functionBody = functionBody;
   ast->symbol = functionSymbol;
+  ast->symbol->setDeclaration(ast);
 
   if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -5100,6 +5104,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   if (!lookat(TokenKind::T_IDENTIFIER)) return false;
 
+  auto id = unit->identifier(currentLocation());
+
   UnqualifiedIdAST* unqualifiedId = nullptr;
   if (!parse_type_name(unqualifiedId, nestedNameSpecifier,
                        isTemplateIntroduced)) {
@@ -5107,18 +5113,23 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
-    auto primaryTemplateSymbol = templateId->primaryTemplateSymbol;
+    auto primaryTemplateSymbol = templateId->symbol;
     auto conceptSymbol = symbol_cast<ConceptSymbol>(primaryTemplateSymbol);
     if (conceptSymbol && !lookat(TokenKind::T_AUTO)) return false;
   }
 
-  const auto canInstantiate = config().checkTypes;
+  const auto checkTemplates = config().checkTypes;
 
   auto symbol =
-      binder_.resolve(nestedNameSpecifier, unqualifiedId, canInstantiate);
+      binder_.resolve(nestedNameSpecifier, unqualifiedId, checkTemplates);
 
-  if (config().checkTypes && !symbol && ast_cast<NameIdAST>(unqualifiedId)) {
-    return false;
+  if (config().checkTypes) {
+    if (!is_type(symbol)) {
+      auto name = get_name(control_, unqualifiedId);
+      parse_error(unqualifiedId->firstSourceLocation(),
+                  std::format("'{}' is not a type", to_string(name)));
+      return false;
+    }
   }
 
   lookahead.commit();
@@ -8176,6 +8187,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     ast->requiresClause = requiresClause;
     ast->functionBody = functionBody;
     ast->symbol = functionSymbol;
+    ast->symbol->setDeclaration(ast);
 
     if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -9218,6 +9230,11 @@ auto Parser::parse_simple_template_id(SimpleTemplateIdAST*& yyast) -> bool {
     expect(TokenKind::T_GREATER, ast->greaterLoc);
   }
 
+  auto candidate = Lookup{scope()}(
+      ast->identifier, [this](Symbol* symbol) { return is_template(symbol); });
+
+  ast->symbol = candidate;
+
   return true;
 }
 
@@ -9251,7 +9268,7 @@ auto Parser::parse_simple_template_id(
     if (!maybe_template_name(templateId->identifier)) return false;
   }
 
-  templateId->primaryTemplateSymbol = primaryTemplateSymbol;
+  templateId->symbol = primaryTemplateSymbol;
 
   yyast = templateId;
 
@@ -9644,6 +9661,32 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
   if (!parse_declaration(ast->declaration, BindingContext::kTemplate))
     parse_error("expected a declaration");
 
+  auto check_elaborated_type_specifier = [&] {
+    if (!config().checkTypes) return;
+
+    auto simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration);
+    if (!simpleDecl) return;
+
+    if (!simpleDecl->declSpecifierList) return;
+
+    auto elabSpec = ast_cast<ElaboratedTypeSpecifierAST>(
+        simpleDecl->declSpecifierList->value);
+    if (!elabSpec) return;
+
+    auto templateId = ast_cast<SimpleTemplateIdAST>(elabSpec->unqualifiedId);
+    if (!templateId) return;
+
+    auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol);
+    if (!classSymbol) return;
+
+    auto instance = ASTRewriter::instantiateClassTemplate(
+        unit, templateId->templateArgumentList, classSymbol);
+
+    (void)instance;
+  };
+
+  check_elaborated_type_specifier();
+
   return true;
 }
 
@@ -9946,40 +9989,6 @@ auto Parser::implicit_conversion(ExpressionAST*& yyast, const Type* targetType)
   check.setScope(scope());
   check.setReportErrors(config().checkTypes);
   return check.implicit_conversion(yyast, targetType);
-}
-
-auto Parser::getFunction(Scope* scope, const Name* name, const Type* type)
-    -> FunctionSymbol* {
-  auto parentScope = scope;
-
-  while (parentScope && parentScope->isTransparent()) {
-    parentScope = parentScope->parent();
-  }
-
-  if (auto parentClass = symbol_cast<ClassSymbol>(parentScope->owner());
-      parentClass && parentClass->name() == name) {
-    for (auto ctor : parentClass->constructors()) {
-      if (control_->is_same(ctor->type(), type)) {
-        return ctor;
-      }
-    }
-  }
-
-  for (auto candidate : scope->find(name)) {
-    if (auto function = symbol_cast<FunctionSymbol>(candidate)) {
-      if (control_->is_same(function->type(), type)) {
-        return function;
-      }
-    } else if (auto overloads = symbol_cast<OverloadSetSymbol>(candidate)) {
-      for (auto function : overloads->functions()) {
-        if (control_->is_same(function->type(), type)) {
-          return function;
-        }
-      }
-    }
-  }
-
-  return nullptr;
 }
 
 }  // namespace cxx

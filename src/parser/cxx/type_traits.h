@@ -1021,12 +1021,26 @@ class TypeTraits {
 
     auto operator()(const TypeParameterType* type,
                     const TypeParameterType* otherType) const -> bool {
-      return type->symbol() == otherType->symbol();
+      return type->index() == otherType->index() &&
+             type->depth() == otherType->depth() &&
+             type->isParameterPack() == otherType->isParameterPack();
     }
 
     auto operator()(const TemplateTypeParameterType* type,
                     const TemplateTypeParameterType* otherType) const -> bool {
-      return type->symbol() == otherType->symbol();
+      if (type->index() != otherType->index()) return false;
+      if (type->depth() != otherType->depth()) return false;
+      if (type->isParameterPack() != otherType->isParameterPack()) return false;
+      if (type->templateParameters().size() !=
+          otherType->templateParameters().size())
+        return false;
+      for (std::size_t i = 0; i < type->templateParameters().size(); ++i) {
+        if (!traits.is_same(type->templateParameters()[i],
+                            otherType->templateParameters()[i]))
+          return false;
+      }
+
+      return true;
     }
 
     auto operator()(const UnresolvedNameType* type,
