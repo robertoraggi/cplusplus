@@ -55,6 +55,10 @@ class Binder {
   void setScope(Scope* scope);
   void setScope(ScopedSymbol* symbol);
 
+  [[nodiscard]] auto isInstantiating() const -> bool;
+  [[nodiscard]] auto instantiatingSymbol() const -> Symbol*;
+  void setInstantiatingSymbol(Symbol* symbol);
+
   [[nodiscard]] auto declaringScope() const -> Scope*;
 
   [[nodiscard]] auto currentTemplateParameters() const
@@ -65,7 +69,9 @@ class Binder {
   [[nodiscard]] auto enterBlock(SourceLocation loc) -> BlockSymbol*;
 
   [[nodiscard]] auto declareTypeAlias(SourceLocation identifierLoc,
-                                      TypeIdAST* typeId) -> TypeAliasSymbol*;
+                                      TypeIdAST* typeId,
+                                      bool addSymbolToParentScope = true)
+      -> TypeAliasSymbol*;
 
   [[nodiscard]] auto declareTypedef(DeclaratorAST* declarator, const Decl& decl)
       -> TypeAliasSymbol*;
@@ -131,14 +137,15 @@ class Binder {
 
   void bind(IdExpressionAST* ast);
 
-  [[nodiscard]] auto instantiate(SimpleTemplateIdAST* templateId) -> Symbol*;
-
   [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
                              UnqualifiedIdAST* unqualifiedId,
-                             bool canInstantiate) -> Symbol*;
+                             bool checkTemplates) -> Symbol*;
 
   [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol)
       -> ScopedSymbol*;
+
+  [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
+                                 const Type* type) -> FunctionSymbol*;
 
   class ScopeGuard {
    public:
@@ -164,6 +171,7 @@ class Binder {
  private:
   TranslationUnit* unit_ = nullptr;
   Scope* scope_ = nullptr;
+  Symbol* instantiatingSymbol_ = nullptr;
   bool inTemplate_ = false;
   bool reportErrors_ = true;
 };

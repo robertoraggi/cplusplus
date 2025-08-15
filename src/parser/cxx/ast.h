@@ -3703,7 +3703,7 @@ class SimpleTemplateIdAST final : public UnqualifiedIdAST {
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;
   SourceLocation greaterLoc;
   const Identifier* identifier = nullptr;
-  Symbol* primaryTemplateSymbol = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

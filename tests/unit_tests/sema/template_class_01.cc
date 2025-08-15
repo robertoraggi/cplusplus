@@ -17,14 +17,14 @@ A<void*> a2;
 
 // clang-format off
 //      CHECK:namespace
-// CHECK-NEXT:  template class A
+// CHECK-NEXT:  template class A<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
-// CHECK-NEXT:    field T a
-// CHECK-NEXT:    field A<T>* next
-// CHECK-NEXT:    function T get_a()
-// CHECK-NEXT:    function void set_a(const T&)
-// CHECK-NEXT:    typealias T type
-// CHECK-NEXT:    typealias T& reference
+// CHECK-NEXT:    field type-param<0, 0> a
+// CHECK-NEXT:    field ::A* next
+// CHECK-NEXT:    function type-param<0, 0> get_a()
+// CHECK-NEXT:    function void set_a(const type-param<0, 0>&)
+// CHECK-NEXT:    typealias type-param<0, 0> type
+// CHECK-NEXT:    typealias type-param<0, 0>& reference
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<int>
 // CHECK-NEXT:        field int a

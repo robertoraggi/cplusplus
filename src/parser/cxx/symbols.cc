@@ -32,6 +32,28 @@
 
 namespace cxx {
 
+auto compare_args(const std::vector<TemplateArgument>& args1,
+                  const std::vector<TemplateArgument>& args2) -> bool {
+  if (args1.size() != args2.size()) return false;
+  for (size_t i = 0; i < args1.size(); ++i) {
+    const auto& arg = args1[i];
+    const auto& otherArg = args2[i];
+    auto sym = std::get_if<Symbol*>(&arg);
+    auto otherSym = std::get_if<Symbol*>(&otherArg);
+    if (!sym || !otherSym) {
+      // If either is not a symbol, we cannot compare them
+      return false;
+    }
+    auto symType = (*sym)->type();
+    auto otherSymType = (*otherSym)->type();
+    if (symType != otherSymType) {
+      // If the types are different, we cannot compare them
+      return false;
+    }
+  }
+  return true;
+};
+
 auto Symbol::EnclosingSymbolIterator::operator++() -> EnclosingSymbolIterator& {
   symbol_ = symbol_->enclosingSymbol();
   return *this;
@@ -111,6 +133,16 @@ auto NamespaceSymbol::unnamedNamespace() const -> NamespaceSymbol* {
 void NamespaceSymbol::setUnnamedNamespace(NamespaceSymbol* unnamedNamespace) {
   unnamedNamespace_ = unnamedNamespace;
 }
+
+auto NamespaceSymbol::anonNamespaceIndex() const -> std::optional<int> {
+  if (anonNamespaceIndex_ < 0) return std::nullopt;
+  return anonNamespaceIndex_;
+}
+
+void NamespaceSymbol::setAnonNamespaceIndex(int index) {
+  anonNamespaceIndex_ = index;
+}
+
 ConceptSymbol::ConceptSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
@@ -392,6 +424,14 @@ auto FunctionSymbol::templateParameters() const -> TemplateParametersSymbol* {
 void FunctionSymbol::setTemplateParameters(
     TemplateParametersSymbol* templateParameters) {
   templateParameters_ = templateParameters;
+}
+
+auto FunctionSymbol::declaration() const -> DeclarationAST* {
+  return declaration_;
+}
+
+void FunctionSymbol::setDeclaration(DeclarationAST* declaration) {
+  declaration_ = declaration;
 }
 
 auto FunctionSymbol::isDefined() const -> bool { return isDefined_; }
@@ -709,22 +749,6 @@ TypeParameterSymbol::TypeParameterSymbol(Scope* enclosingScope)
 
 TypeParameterSymbol::~TypeParameterSymbol() {}
 
-auto TypeParameterSymbol::index() const -> int { return index_; }
-
-void TypeParameterSymbol::setIndex(int index) { index_ = index; }
-
-auto TypeParameterSymbol::depth() const -> int { return depth_; }
-
-void TypeParameterSymbol::setDepth(int depth) { depth_ = depth; }
-
-auto TypeParameterSymbol::isParameterPack() const -> bool {
-  return isParameterPack_;
-}
-
-void TypeParameterSymbol::setParameterPack(bool isParameterPack) {
-  isParameterPack_ = isParameterPack;
-}
-
 NonTypeParameterSymbol::NonTypeParameterSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
@@ -758,32 +782,6 @@ TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 TemplateTypeParameterSymbol::~TemplateTypeParameterSymbol() {}
-
-auto TemplateTypeParameterSymbol::index() const -> int { return index_; }
-
-void TemplateTypeParameterSymbol::setIndex(int index) { index_ = index; }
-
-auto TemplateTypeParameterSymbol::depth() const -> int { return depth_; }
-
-void TemplateTypeParameterSymbol::setDepth(int depth) { depth_ = depth; }
-
-auto TemplateTypeParameterSymbol::isParameterPack() const -> bool {
-  return isParameterPack_;
-}
-
-void TemplateTypeParameterSymbol::setParameterPack(bool isParameterPack) {
-  isParameterPack_ = isParameterPack;
-}
-
-auto TemplateTypeParameterSymbol::templateParameters() const
-    -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void TemplateTypeParameterSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
 
 ConstraintTypeParameterSymbol::ConstraintTypeParameterSymbol(
     Scope* enclosingScope)

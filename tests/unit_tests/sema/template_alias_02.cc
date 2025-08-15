@@ -14,16 +14,16 @@ struct Scope {
 };
 
 // clang-format off
-// CHECK:namespace
-// CHECK:  template class HashMap
-// CHECK:    parameter typename<0, 0> Key
-// CHECK:    parameter typename<1, 0> Value
-// CHECK:    typealias Value* iterator
-// CHECK:    [specializations]
-// CHECK:      class HashMap<const ::Name*, ::Symbol*>
-// CHECK:        typealias ::Symbol** iterator
-// CHECK:  class Name
-// CHECK:  class Symbol
-// CHECK:  class Scope
-// CHECK:    typealias ::HashMap<const ::Name*, ::Symbol*> Table
-// CHECK:    typealias ::Symbol** MemberIterator
+//      CHECK:namespace
+// CHECK-NEXT:  template class HashMap<type-param<0, 0>, type-param<1, 0>>
+// CHECK-NEXT:    parameter typename<0, 0> Key
+// CHECK-NEXT:    parameter typename<1, 0> Value
+// CHECK-NEXT:    typealias type-param<1, 0>* iterator
+// CHECK-NEXT:    [specializations]
+// CHECK-NEXT:      class HashMap<const ::Name*, ::Symbol*>
+// CHECK-NEXT:        typealias ::Symbol** iterator
+// CHECK-NEXT:  class Name
+// CHECK-NEXT:  class Symbol
+// CHECK-NEXT:  class Scope
+// CHECK-NEXT:    typealias ::HashMap<const ::Name*, ::Symbol*> Table
+// CHECK-NEXT:    typealias ::Symbol** MemberIterator

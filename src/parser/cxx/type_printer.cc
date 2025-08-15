@@ -21,6 +21,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/names.h>
+#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -301,18 +302,30 @@ class TypePrinter {
 
   void operator()(const ClassType* type) {
     std::string out;
+
     if (auto parent = type->symbol()->enclosingSymbol()) {
       accept(parent->type());
       out += "::";
     }
+
     out += to_string(type->symbol()->name());
+
     if (type->symbol()->isSpecialization()) {
       out += '<';
       std::string_view sep = "";
       for (auto arg : type->symbol()->templateArguments()) {
-        auto type = std::get_if<const Type*>(&arg);
-        if (!type) continue;
-        out += std::format("{}{}", sep, to_string(*type));
+        auto sym = std::get_if<Symbol*>(&arg);
+        if (!sym) continue;
+        out += std::format("{}{}", sep, to_string((*sym)->type()));
+        sep = ", ";
+      }
+      out += '>';
+    } else if (auto templDecl = type->symbol()->templateClass()) {
+      out += '<';
+      std::string_view sep = "";
+      for (const auto& param :
+           templDecl->templateParameters()->scope()->symbols()) {
+        out += std::format("{}{}", sep, to_string(param->type()));
         sep = ", ";
       }
       out += '>';
@@ -338,11 +351,15 @@ class TypePrinter {
   }
 
   void operator()(const TypeParameterType* type) {
-    specifiers_.append(to_string(type->symbol()->name()));
+    specifiers_.append(std::format("type-param<{}, {}{}>", type->index(),
+                                   type->depth(),
+                                   type->isParameterPack() ? ", ..." : ""));
   }
 
   void operator()(const TemplateTypeParameterType* type) {
-    specifiers_.append(to_string(type->symbol()->name()));
+    specifiers_.append(std::format("template-type-param<{}, {}{}>",
+                                   type->index(), type->depth(),
+                                   type->isParameterPack() ? ", ..." : ""));
   }
 
   void operator()(const UnresolvedNameType* type) {

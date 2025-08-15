@@ -314,8 +314,10 @@ class Codegen {
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp function_;
   TranslationUnit* unit_ = nullptr;
+  mlir::Block* entryBlock_ = nullptr;
   mlir::Block* exitBlock_ = nullptr;
   mlir::cxx::AllocaOp exitValue_;
+  mlir::Value thisValue_;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;

@@ -359,7 +359,7 @@ if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
       std::optional<int> index{n};
       std::swap(rewrite.elementIndex_, index);
 
-      auto expression = rewrite(ast->expression);
+      auto expression = rewrite.expression(ast->expression);
       if (!current) {
         current = expression;
       } else {

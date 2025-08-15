@@ -22,7 +22,6 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
-#include <cxx/symbol_instantiation.h>
 #include <cxx/symbols.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
@@ -427,14 +426,18 @@ auto Control::getMemberFunctionPointerType(const ClassType* classType,
   return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
 }
 
-auto Control::getTypeParameterType(TypeParameterSymbol* symbol)
+auto Control::getTypeParameterType(int index, int depth, bool isParameterPack)
     -> const TypeParameterType* {
-  return &*d->typeParameterTypes.emplace(symbol).first;
+  return &*d->typeParameterTypes.emplace(index, depth, isParameterPack).first;
 }
 
-auto Control::getTemplateTypeParameterType(TemplateTypeParameterSymbol* symbol)
+auto Control::getTemplateTypeParameterType(
+    int index, int depth, bool isPack,
+    std::vector<const Type*> templateParameters)
     -> const TemplateTypeParameterType* {
-  return &*d->templateTypeParameterTypes.emplace(symbol).first;
+  return &*d->templateTypeParameterTypes
+               .emplace(index, depth, isPack, std::move(templateParameters))
+               .first;
 }
 
 auto Control::getUnresolvedNameType(TranslationUnit* unit,
@@ -605,19 +608,22 @@ auto Control::newParameterPackSymbol(Scope* enclosingScope, SourceLocation loc)
   return symbol;
 }
 
-auto Control::newTypeParameterSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newTypeParameterSymbol(Scope* enclosingScope, SourceLocation loc,
+                                     int index, int depth, bool isParameterPack)
     -> TypeParameterSymbol* {
   auto symbol = &d->typeParameterSymbols.emplace_front(enclosingScope);
-  symbol->setType(getTypeParameterType(symbol));
+  symbol->setType(getTypeParameterType(index, depth, isParameterPack));
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newTemplateTypeParameterSymbol(Scope* enclosingScope,
-                                             SourceLocation loc)
+auto Control::newTemplateTypeParameterSymbol(
+    Scope* enclosingScope, SourceLocation loc, int index, int depth,
+    bool isPack, std::vector<const Type*> parameters)
     -> TemplateTypeParameterSymbol* {
   auto symbol = &d->templateTypeParameterSymbols.emplace_front(enclosingScope);
-  symbol->setType(getTemplateTypeParameterType(symbol));
+  symbol->setType(getTemplateTypeParameterType(index, depth, isPack,
+                                               std::move(parameters)));
   symbol->setLocation(loc);
   return symbol;
 }
@@ -873,13 +879,6 @@ auto Control::is_same(const Type* a, const Type* b) -> bool {
 
 auto Control::decay(const Type* type) -> const Type* {
   return d->traits.decay(type);
-}
-
-auto Control::instantiate(TranslationUnit* unit, Symbol* symbol,
-                          const std::vector<TemplateArgument>& arguments)
-    -> Symbol* {
-  SymbolInstantiation instantiate{unit, arguments};
-  return instantiate(symbol);
 }
 
 }  // namespace cxx
