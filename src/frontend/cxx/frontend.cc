@@ -32,7 +32,6 @@
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -439,7 +438,7 @@ void Frontend::Private::dumpTokens(std::ostream& out) {
 void Frontend::Private::dumpSymbols(std::ostream& out) {
   if (!cli.opt_dump_symbols) return;
   auto globalScope = unit_->globalScope();
-  auto globalNamespace = globalScope->owner();
+  auto globalNamespace = globalScope;
   cxx::dump(out, globalNamespace);
 }
 

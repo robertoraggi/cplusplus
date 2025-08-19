@@ -109,12 +109,10 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   std::vector<mlir::Type> inputTypes;
   std::vector<mlir::Type> resultTypes;
 
-  if (!functionSymbol->isStatic() &&
-      functionSymbol->enclosingSymbol()->isClass()) {
+  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
     // if it is a non static member function, we need to add the `this` pointer
 
-    auto classSymbol =
-        symbol_cast<ClassSymbol>(functionSymbol->enclosingSymbol());
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
     inputTypes.push_back(builder_.getType<mlir::cxx::PointerType>(
         convertType(classSymbol->type())));

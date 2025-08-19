@@ -158,76 +158,76 @@ class Control {
   [[nodiscard]] auto getScopedEnumType(ScopedEnumSymbol* symbol)
       -> const ScopedEnumType*;
 
-  [[nodiscard]] auto newNamespaceSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newNamespaceSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> NamespaceSymbol*;
-  [[nodiscard]] auto newConceptSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newConceptSymbol(ScopeSymbol* enclosingScope,
                                       SourceLocation sourceLocation)
       -> ConceptSymbol*;
-  [[nodiscard]] auto newBaseClassSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newBaseClassSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> BaseClassSymbol*;
-  [[nodiscard]] auto newClassSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newClassSymbol(ScopeSymbol* enclosingScope,
                                     SourceLocation sourceLocation)
       -> ClassSymbol*;
-  [[nodiscard]] auto newEnumSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newEnumSymbol(ScopeSymbol* enclosingScope,
                                    SourceLocation sourceLocation)
       -> EnumSymbol*;
-  [[nodiscard]] auto newScopedEnumSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newScopedEnumSymbol(ScopeSymbol* enclosingScope,
                                          SourceLocation sourceLocation)
       -> ScopedEnumSymbol*;
-  [[nodiscard]] auto newOverloadSetSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newOverloadSetSymbol(ScopeSymbol* enclosingScope,
                                           SourceLocation sourceLocation)
       -> OverloadSetSymbol*;
-  [[nodiscard]] auto newFunctionSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newFunctionSymbol(ScopeSymbol* enclosingScope,
                                        SourceLocation sourceLocation)
       -> FunctionSymbol*;
-  [[nodiscard]] auto newLambdaSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newLambdaSymbol(ScopeSymbol* enclosingScope,
                                      SourceLocation sourceLocation)
       -> LambdaSymbol*;
-  [[nodiscard]] auto newFunctionParametersSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newFunctionParametersSymbol(ScopeSymbol* enclosingScope,
                                                  SourceLocation sourceLocation)
       -> FunctionParametersSymbol*;
-  [[nodiscard]] auto newTemplateParametersSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newTemplateParametersSymbol(ScopeSymbol* enclosingScope,
                                                  SourceLocation sourceLocation)
       -> TemplateParametersSymbol*;
-  [[nodiscard]] auto newBlockSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newBlockSymbol(ScopeSymbol* enclosingScope,
                                     SourceLocation sourceLocation)
       -> BlockSymbol*;
-  [[nodiscard]] auto newTypeAliasSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newTypeAliasSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> TypeAliasSymbol*;
-  [[nodiscard]] auto newVariableSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newVariableSymbol(ScopeSymbol* enclosingScope,
                                        SourceLocation sourceLocation)
       -> VariableSymbol*;
-  [[nodiscard]] auto newFieldSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newFieldSymbol(ScopeSymbol* enclosingScope,
                                     SourceLocation sourceLocation)
       -> FieldSymbol*;
-  [[nodiscard]] auto newParameterSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newParameterSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> ParameterSymbol*;
-  [[nodiscard]] auto newParameterPackSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newParameterPackSymbol(ScopeSymbol* enclosingScope,
                                             SourceLocation sourceLocation)
       -> ParameterPackSymbol*;
-  [[nodiscard]] auto newTypeParameterSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                             SourceLocation sourceLocation,
                                             int index, int depth,
                                             bool isParameterPack)
       -> TypeParameterSymbol*;
-  [[nodiscard]] auto newNonTypeParameterSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newNonTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                                SourceLocation sourceLocation)
       -> NonTypeParameterSymbol*;
   [[nodiscard]] auto newTemplateTypeParameterSymbol(
-      Scope* enclosingScope, SourceLocation sourceLocation, int index,
+      ScopeSymbol* enclosingScope, SourceLocation sourceLocation, int index,
       int depth, bool isPack, std::vector<const Type*> parameters)
       -> TemplateTypeParameterSymbol*;
   [[nodiscard]] auto newConstraintTypeParameterSymbol(
-      Scope* enclosingScope, SourceLocation sourceLocation)
+      ScopeSymbol* enclosingScope, SourceLocation sourceLocation)
       -> ConstraintTypeParameterSymbol*;
-  [[nodiscard]] auto newEnumeratorSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newEnumeratorSymbol(ScopeSymbol* enclosingScope,
                                          SourceLocation sourceLocation)
       -> EnumeratorSymbol*;
-  [[nodiscard]] auto newUsingDeclarationSymbol(Scope* enclosingScope,
+  [[nodiscard]] auto newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
                                                SourceLocation sourceLocation)
       -> UsingDeclarationSymbol*;
 

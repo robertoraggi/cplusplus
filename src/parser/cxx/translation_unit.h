@@ -58,7 +58,7 @@ class TranslationUnit {
 
   void setAST(UnitAST* ast) { ast_ = ast; }
 
-  [[nodiscard]] auto globalScope() const -> Scope*;
+  [[nodiscard]] auto globalScope() const -> ScopeSymbol*;
 
   [[nodiscard]] auto fileName() const -> const std::string&;
 

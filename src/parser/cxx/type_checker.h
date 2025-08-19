@@ -39,7 +39,7 @@ class TypeChecker {
   [[nodiscard]] auto reportErrors() const -> bool { return reportErrors_; }
   void setReportErrors(bool reportErrors) { reportErrors_ = reportErrors; }
 
-  void setScope(Scope* scope) { scope_ = scope; }
+  void setScope(ScopeSymbol* scope) { scope_ = scope; }
 
   void operator()(ExpressionAST* ast);
 
@@ -58,7 +58,7 @@ class TypeChecker {
   struct Visitor;
 
   TranslationUnit* unit_;
-  Scope* scope_ = nullptr;
+  ScopeSymbol* scope_ = nullptr;
   bool reportErrors_ = false;
 };
 

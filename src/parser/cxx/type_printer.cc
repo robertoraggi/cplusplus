@@ -21,10 +21,10 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 
@@ -303,7 +303,10 @@ class TypePrinter {
   void operator()(const ClassType* type) {
     std::string out;
 
-    if (auto parent = type->symbol()->enclosingSymbol()) {
+    if (auto parent = type->symbol()->parent()) {
+      while (symbol_cast<TemplateParametersSymbol>(parent)) {
+        parent = parent->parent();
+      }
       accept(parent->type());
       out += "::";
     }
@@ -324,7 +327,7 @@ class TypePrinter {
       out += '<';
       std::string_view sep = "";
       for (const auto& param :
-           templDecl->templateParameters()->scope()->symbols()) {
+           views::members(templDecl->templateParameters())) {
         out += std::format("{}{}", sep, to_string(param->type()));
         sep = ", ";
       }

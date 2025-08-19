@@ -27,80 +27,21 @@
 #include <cxx/types_fwd.h>
 #include <cxx/views/symbol_chain.h>
 
-#include <vector>
-
 namespace cxx {
 
 class SymbolChainView;
-
-class Scope {
- public:
-  explicit Scope(Scope* parent);
-  ~Scope();
-
-  [[nodiscard]] auto isTransparent() const -> bool;
-  [[nodiscard]] auto isNamespaceScope() const -> bool;
-  [[nodiscard]] auto isClassScope() const -> bool;
-  [[nodiscard]] auto isClassOrNamespaceScope() const -> bool;
-  [[nodiscard]] auto isFunctionScope() const -> bool;
-  [[nodiscard]] auto isBlockScope() const -> bool;
-  [[nodiscard]] auto isEnumScope() const -> bool;
-  [[nodiscard]] auto isTemplateParametersScope() const -> bool;
-  [[nodiscard]] auto isFunctionParametersScope() const -> bool;
-
-  [[nodiscard]] auto enclosingNamespaceScope() const -> Scope*;
-  [[nodiscard]] auto enclosingNonTemplateParametersScope() const -> Scope*;
-
-  [[nodiscard]] auto parent() const -> Scope* { return parent_; }
-  [[nodiscard]] auto owner() const -> ScopedSymbol* { return owner_; }
-
-  [[nodiscard]] auto empty() const -> bool { return symbols_.empty(); }
-
-  [[nodiscard]] auto symbols() const { return std::views::all(symbols_); }
-
-  [[nodiscard]] auto usingDirectives() const {
-    return std::views::all(usingDirectives_);
-  }
-
-  [[nodiscard]] auto find(const Name* name) const -> SymbolChainView;
-
-  [[nodiscard]] auto find(const std::string_view& name) const
-      -> SymbolChainView;
-
-  [[nodiscard]] auto find(TokenKind op) const -> SymbolChainView;
-
-  void setParent(Scope* parent) { parent_ = parent; }
-  void setOwner(ScopedSymbol* owner) { owner_ = owner; }
-
-  void addSymbol(Symbol* symbol);
-  void addUsingDirective(Scope* scope);
-
-  void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
-
-  void reset();
-
- private:
-  void rehash();
-
- private:
-  Scope* parent_ = nullptr;
-  ScopedSymbol* owner_ = nullptr;
-  std::vector<Symbol*> symbols_;
-  std::vector<Symbol*> buckets_;
-  std::vector<Scope*> usingDirectives_;
-};
 
 namespace views {
 
 constexpr auto class_or_namespaces =
     std::views::filter(&Symbol::isClassOrNamespace) |
     std::views::transform(
-        [](Symbol* s) { return static_cast<ScopedSymbol*>(s); });
+        [](Symbol* s) { return static_cast<ScopeSymbol*>(s); });
 
 constexpr auto enum_or_scoped_enums =
     std::views::filter(&Symbol::isEnumOrScopedEnum) |
     std::views::transform(
-        [](Symbol* s) { return static_cast<ScopedSymbol*>(s); });
+        [](Symbol* s) { return static_cast<ScopeSymbol*>(s); });
 
 constexpr const auto namespaces =
     std::views::filter(&Symbol::isNamespace) |
@@ -125,13 +66,11 @@ constexpr auto functions = std::views::filter(&Symbol::isFunction) |
 constexpr auto variables = std::views::filter(&Symbol::isVariable) |
                            std::views::transform(symbol_cast<VariableSymbol>);
 
-inline auto members(Scope* scope) { return std::views::all(scope->symbols()); }
-
-inline auto members(ScopedSymbol* symbol) {
-  return std::views::all(symbol->scope()->symbols());
+inline auto members(ScopeSymbol* symbol) {
+  return std::views::all(symbol->members());
 }
 
-inline auto find(Scope* scope, const Name* name) {
+inline auto find(ScopeSymbol* scope, const Name* name) {
   return scope ? scope->find(name) : SymbolChainView{nullptr};
 }
 

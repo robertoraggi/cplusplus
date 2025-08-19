@@ -26,7 +26,6 @@
 #include <cxx/literals.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -40,11 +39,11 @@ struct TypeChecker::Visitor {
 
   [[nodiscard]] auto arena() const -> Arena* { return check.unit_->arena(); }
 
-  [[nodiscard]] auto globalScope() const -> Scope* {
+  [[nodiscard]] auto globalScope() const -> ScopeSymbol* {
     return check.unit_->globalScope();
   }
 
-  [[nodiscard]] auto scope() const -> Scope* { return check.scope_; }
+  [[nodiscard]] auto scope() const -> ScopeSymbol* { return check.scope_; }
 
   [[nodiscard]] auto control() const -> Control* {
     return check.unit_->control();
@@ -246,15 +245,15 @@ void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {
   auto scope_ = check.scope_;
 
   for (auto current = scope_; current; current = current->parent()) {
-    if (auto classSymbol = symbol_cast<ClassSymbol>(current->owner())) {
+    if (auto classSymbol = symbol_cast<ClassSymbol>(current)) {
       // maybe a this expression in a field initializer
       ast->type = control()->getPointerType(classSymbol->type());
       break;
     }
 
-    if (auto functionSymbol = symbol_cast<FunctionSymbol>(current->owner())) {
+    if (auto functionSymbol = symbol_cast<FunctionSymbol>(current)) {
       if (auto classSymbol =
-              symbol_cast<ClassSymbol>(functionSymbol->enclosingSymbol())) {
+              symbol_cast<ClassSymbol>(functionSymbol->parent())) {
         auto functionType = type_cast<FunctionType>(functionSymbol->type());
         const auto cv = functionType->cvQualifiers();
         if (cv != CvQualifiers::kNone) {
@@ -766,8 +765,7 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
   }
 
   auto symbol = classType->symbol();
-  auto member =
-      Lookup{scope()}.qualifiedLookup(symbol->scope(), ast->identifier);
+  auto member = Lookup{scope()}.qualifiedLookup(symbol, ast->identifier);
 
   auto field = symbol_cast<FieldSymbol>(member);
   if (!field) {
@@ -790,8 +788,8 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
         break;
       }
 
-      auto member = Lookup{scope()}.qualifiedLookup(
-          currentClass->symbol()->scope(), dot->identifier);
+      auto member = Lookup{scope()}.qualifiedLookup(currentClass->symbol(),
+                                                    dot->identifier);
 
       auto field = symbol_cast<FieldSymbol>(member);
 
@@ -880,7 +878,7 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         auto symbol = idExpr->symbol;
         if (auto field = symbol_cast<FieldSymbol>(symbol);
             field && !field->isStatic()) {
-          auto parentClass = field->enclosingSymbol();
+          auto parentClass = field->parent();
           auto classType = type_cast<ClassType>(parentClass->type());
 
           ast->type =
@@ -894,7 +892,7 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         if (auto function = symbol_cast<FunctionSymbol>(symbol);
             function && !function->isStatic()) {
           auto functionType = type_cast<FunctionType>(function->type());
-          auto parentClass = function->enclosingSymbol();
+          auto parentClass = function->parent();
           auto classType = type_cast<ClassType>(parentClass->type());
 
           ast->type =
@@ -2454,8 +2452,7 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
 
   auto classSymbol = classType->symbol();
 
-  auto symbol =
-      Lookup{scope()}.qualifiedLookup(classSymbol->scope(), memberName);
+  auto symbol = Lookup{scope()}.qualifiedLookup(classSymbol, memberName);
 
   ast->symbol = symbol;
 
@@ -2534,10 +2531,9 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
 void TypeChecker::checkReturnStatement(ReturnStatementAST* ast) {
   const Type* targetType = nullptr;
   for (auto current = scope_; current; current = current->parent()) {
-    auto owner = current->owner();
-    if (!owner) continue;
-    if (owner->isFunction() || owner->isLambda()) {
-      if (auto functionType = type_cast<FunctionType>(owner->type())) {
+    if (!current) continue;
+    if (current->isFunction() || current->isLambda()) {
+      if (auto functionType = type_cast<FunctionType>(current->type())) {
         targetType = functionType->returnType();
         break;
       }

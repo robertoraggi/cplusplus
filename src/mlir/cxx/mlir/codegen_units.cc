@@ -25,9 +25,9 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/views/symbols.h>
 
 // mlir
 #include <llvm/IR/DataLayout.h>
@@ -69,7 +69,7 @@ struct Codegen::UnitVisitor {
     UnitVisitor& p;
 
     void operator()(NamespaceSymbol* symbol) {
-      for (auto member : symbol->scope()->symbols()) {
+      for (auto member : views::members(symbol)) {
         visit(*this, member);
       }
     }
@@ -86,7 +86,7 @@ struct Codegen::UnitVisitor {
       }
 
       if (!symbol->templateParameters()) {
-        for (auto member : symbol->scope()->symbols()) {
+        for (auto member : views::members(symbol)) {
           visit(*this, member);
         }
       }
@@ -149,7 +149,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
-  visit(visitor, gen.unit_->globalScope()->owner());
+  visit(visitor, gen.unit_->globalScope());
 
 #if false
   ForEachExternalDefinition forEachExternalDefinition;

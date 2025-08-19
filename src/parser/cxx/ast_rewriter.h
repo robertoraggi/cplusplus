@@ -42,12 +42,7 @@ class ASTRewriter {
       TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
       TypeAliasSymbol* typeAliasSymbol) -> TypeAliasSymbol*;
 
-  [[nodiscard]] static auto make_substitution(
-      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-      List<TemplateArgumentAST*>* templateArgumentList)
-      -> std::vector<TemplateArgument>;
-
-  explicit ASTRewriter(TranslationUnit* unit, Scope* scope,
+  explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                        const std::vector<TemplateArgument>& templateArguments);
   ~ASTRewriter();
 
@@ -55,7 +50,9 @@ class ASTRewriter {
     return unit_;
   }
 
-  [[nodiscard]] auto declaration(DeclarationAST* ast) -> DeclarationAST*;
+  [[nodiscard]] auto declaration(DeclarationAST* ast,
+                                 TemplateDeclarationAST* templateHead = nullptr)
+      -> DeclarationAST*;
 
  private:
   [[nodiscard]] auto templateArguments() const
@@ -76,6 +73,11 @@ class ASTRewriter {
   [[nodiscard]] auto restrictedToDeclarations() const -> bool;
   void setRestrictedToDeclarations(bool restrictedToDeclarations);
 
+  [[nodiscard]] static auto make_substitution(
+      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
+      List<TemplateArgumentAST*>* templateArgumentList)
+      -> std::vector<TemplateArgument>;
+
   // run on the base nodes
   [[nodiscard]] auto unit(UnitAST* ast) -> UnitAST*;
   [[nodiscard]] auto statement(StatementAST* ast) -> StatementAST*;
@@ -85,7 +87,9 @@ class ASTRewriter {
   [[nodiscard]] auto designator(DesignatorAST* ast) -> DesignatorAST*;
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterAST*;
-  [[nodiscard]] auto specifier(SpecifierAST* ast) -> SpecifierAST*;
+  [[nodiscard]] auto specifier(SpecifierAST* ast,
+                               TemplateDeclarationAST* templateHead = nullptr)
+      -> SpecifierAST*;
   [[nodiscard]] auto ptrOperator(PtrOperatorAST* ast) -> PtrOperatorAST*;
   [[nodiscard]] auto coreDeclarator(CoreDeclaratorAST* ast)
       -> CoreDeclaratorAST*;

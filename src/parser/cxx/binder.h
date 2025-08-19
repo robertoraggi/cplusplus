@@ -51,15 +51,14 @@ class Binder {
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
 
-  [[nodiscard]] auto scope() const -> Scope*;
-  void setScope(Scope* scope);
-  void setScope(ScopedSymbol* symbol);
+  [[nodiscard]] auto scope() const -> ScopeSymbol*;
+  void setScope(ScopeSymbol* scope);
 
   [[nodiscard]] auto isInstantiating() const -> bool;
   [[nodiscard]] auto instantiatingSymbol() const -> Symbol*;
   void setInstantiatingSymbol(Symbol* symbol);
 
-  [[nodiscard]] auto declaringScope() const -> Scope*;
+  [[nodiscard]] auto declaringScope() const -> ScopeSymbol*;
 
   [[nodiscard]] auto currentTemplateParameters() const
       -> TemplateParametersSymbol*;
@@ -141,23 +140,22 @@ class Binder {
                              UnqualifiedIdAST* unqualifiedId,
                              bool checkTemplates) -> Symbol*;
 
-  [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol)
-      -> ScopedSymbol*;
+  [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol*;
 
-  [[nodiscard]] auto getFunction(Scope* scope, const Name* name,
+  [[nodiscard]] auto getFunction(ScopeSymbol* scope, const Name* name,
                                  const Type* type) -> FunctionSymbol*;
 
   class ScopeGuard {
    public:
     Binder* p = nullptr;
-    Scope* savedScope = nullptr;
+    ScopeSymbol* savedScope = nullptr;
 
     ScopeGuard(const ScopeGuard&) = delete;
     auto operator=(const ScopeGuard&) -> ScopeGuard& = delete;
 
     ScopeGuard() = default;
 
-    explicit ScopeGuard(Binder* p, Scope* scope = nullptr)
+    explicit ScopeGuard(Binder* p, ScopeSymbol* scope = nullptr)
         : p(p), savedScope(p->scope_) {
       if (scope) p->setScope(scope);
     }
@@ -170,7 +168,7 @@ class Binder {
 
  private:
   TranslationUnit* unit_ = nullptr;
-  Scope* scope_ = nullptr;
+  ScopeSymbol* scope_ = nullptr;
   Symbol* instantiatingSymbol_ = nullptr;
   bool inTemplate_ = false;
   bool reportErrors_ = true;

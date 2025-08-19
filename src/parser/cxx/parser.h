@@ -782,11 +782,10 @@ class Parser final {
   void completePendingFunctionDefinitions();
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
-  [[nodiscard]] auto getCurrentNonClassScope() const -> Scope*;
+  [[nodiscard]] auto getCurrentNonClassScope() const -> ScopeSymbol*;
 
-  [[nodiscard]] auto scope() const -> Scope*;
-  void setScope(Scope* scope);
-  void setScope(ScopedSymbol* symbol);
+  [[nodiscard]] auto scope() const -> ScopeSymbol*;
+  void setScope(ScopeSymbol* scope);
 
   void check(ExpressionAST* ast);
   void check(StatementAST* ast);
@@ -829,7 +828,7 @@ class Parser final {
   Arena* pool_ = nullptr;
   Control* control_ = nullptr;
   DiagnosticsClient* diagnosticClient_ = nullptr;
-  Scope* globalScope_ = nullptr;
+  ScopeSymbol* globalScope_ = nullptr;
   Binder binder_;
   LanguageKind lang_ = LanguageKind::kCXX;
   bool skipFunctionBody_ = false;

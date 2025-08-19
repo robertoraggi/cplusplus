@@ -24,9 +24,10 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
-#include <cxx/scope.h>
+#include <cxx/names.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 
@@ -55,14 +56,14 @@ auto compare_args(const std::vector<TemplateArgument>& args1,
 };
 
 auto Symbol::EnclosingSymbolIterator::operator++() -> EnclosingSymbolIterator& {
-  symbol_ = symbol_->enclosingSymbol();
+  symbol_ = symbol_->parent();
   return *this;
 }
 
 auto Symbol::EnclosingSymbolIterator::operator++(int)
     -> EnclosingSymbolIterator {
   auto it = *this;
-  symbol_ = symbol_->enclosingSymbol();
+  symbol_ = symbol_->parent();
   return it;
 }
 
@@ -87,10 +88,10 @@ auto Symbol::location() const -> SourceLocation { return location_; }
 
 void Symbol::setLocation(SourceLocation location) { location_ = location; }
 
-auto Symbol::enclosingScope() const -> Scope* { return enclosingScope_; }
+auto Symbol::parent() const -> ScopeSymbol* { return parent_; }
 
-void Symbol::setEnclosingScope(Scope* enclosingScope) {
-  enclosingScope_ = enclosingScope;
+void Symbol::setParent(ScopeSymbol* enclosingScope) {
+  parent_ = enclosingScope;
 }
 
 auto Symbol::next() const -> Symbol* {
@@ -100,25 +101,172 @@ auto Symbol::next() const -> Symbol* {
   return nullptr;
 }
 
-auto Symbol::enclosingSymbol() const -> ScopedSymbol* {
-  if (!enclosingScope_) return nullptr;
-  return enclosingScope_->owner();
+auto Symbol::enclosingNamespace() const -> NamespaceSymbol* {
+  for (auto scope = parent(); scope; scope = scope->parent()) {
+    if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
+      return ns;
+    }
+  }
+  return nullptr;
 }
 
-ScopedSymbol::ScopedSymbol(SymbolKind kind, Scope* enclosingScope)
-    : Symbol(kind, enclosingScope) {
-  scope_ = std::make_unique<Scope>(enclosingScope);
-  scope_->setOwner(this);
+auto Symbol::enclosingNonTemplateParametersScope() const -> ScopeSymbol* {
+  auto scope = parent();
+
+  while (scope && scope->isTemplateParameters()) {
+    scope = scope->parent();
+  }
+
+  return scope;
 }
 
-ScopedSymbol::~ScopedSymbol() {}
+ScopeSymbol::ScopeSymbol(SymbolKind kind, ScopeSymbol* enclosingScope)
+    : Symbol(kind, enclosingScope) {}
 
-auto ScopedSymbol::scope() const -> Scope* { return scope_.get(); }
+ScopeSymbol::~ScopeSymbol() {}
 
-void ScopedSymbol::addMember(Symbol* symbol) { scope_->addSymbol(symbol); }
+void ScopeSymbol::addMember(Symbol* symbol) { addSymbol(symbol); }
 
-NamespaceSymbol::NamespaceSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+auto ScopeSymbol::members() const -> const std::vector<Symbol*>& {
+  return members_;
+}
+
+void ScopeSymbol::reset() {
+  for (auto symbol : members_) {
+    symbol->link_ = nullptr;
+    symbol->setParent(nullptr);
+  }
+  members_.clear();
+  buckets_.clear();
+  usingDirectives_.clear();
+}
+
+auto ScopeSymbol::isTransparent() const -> bool {
+  if (isTemplateParameters()) return true;
+  if (isFunctionParameters()) return true;
+  return false;
+}
+
+void ScopeSymbol::addSymbol(Symbol* symbol) {
+  if (symbol->isTemplateParameters()) {
+    cxx_runtime_error("trying to add a template parameters symbol to a scope");
+    return;
+  }
+
+  if (isTemplateParameters()) {
+    if (!(symbol->isTypeParameter() || symbol->isTemplateTypeParameter() ||
+          symbol->isNonTypeParameter() ||
+          symbol->isConstraintTypeParameter())) {
+      cxx_runtime_error("invalid symbol in template parameters scope");
+    }
+  }
+
+  if (!symbol->parent_ || symbol->isFunctionParameters()) {
+    symbol->setParent(this);
+  }
+
+  members_.push_back(symbol);
+
+  if (name_cast<ConversionFunctionId>(symbol->name())) {
+    if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(this)) {
+        classSymbol->addConversionFunction(functionSymbol);
+      }
+    }
+  }
+
+  if (3 * members_.size() >= 2 * buckets_.size()) {
+    rehash();
+  } else {
+    auto h = symbol->name() ? symbol->name()->hashValue() : 0;
+    h = h % buckets_.size();
+    symbol->link_ = buckets_[h];
+    buckets_[h] = symbol;
+  }
+}
+
+void ScopeSymbol::rehash() {
+  const auto newSize = std::max(std::size_t(8), buckets_.size() * 2);
+
+  buckets_ = std::vector<Symbol*>(newSize);
+
+  for (auto symbol : members_) {
+    auto h = symbol->name() ? symbol->name()->hashValue() : 0;
+    auto index = h % newSize;
+    symbol->link_ = buckets_[index];
+    buckets_[index] = symbol;
+  }
+}
+
+void ScopeSymbol::replaceSymbol(Symbol* symbol, Symbol* newSymbol) {
+  if (symbol == newSymbol) return;
+
+  auto it = std::find(members_.begin(), members_.end(), symbol);
+
+  if (it == members_.end()) return;
+
+  *it = newSymbol;
+
+  newSymbol->link_ = symbol->link_;
+
+  auto h = newSymbol->name() ? newSymbol->name()->hashValue() : 0;
+  h = h % buckets_.size();
+
+  if (buckets_[h] == symbol) {
+    buckets_[h] = newSymbol;
+  } else {
+    for (auto p = buckets_[h]; p; p = p->link_) {
+      if (p->link_ == symbol) {
+        p->link_ = newSymbol;
+        break;
+      }
+    }
+  }
+
+  symbol->link_ = nullptr;
+}
+
+void ScopeSymbol::addUsingDirective(ScopeSymbol* scope) {
+  usingDirectives_.push_back(scope);
+}
+
+auto ScopeSymbol::find(const Name* name) const -> SymbolChainView {
+  if (!members_.empty()) {
+    auto h = name ? name->hashValue() : 0;
+    h = h % buckets_.size();
+    for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
+      if (symbol->name() == name) {
+        return SymbolChainView{symbol};
+      }
+    }
+  }
+  return SymbolChainView{nullptr};
+}
+
+auto ScopeSymbol::find(TokenKind op) const -> SymbolChainView {
+  if (!members_.empty()) {
+    const auto h = OperatorId::hash(op) % buckets_.size();
+    for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
+      auto id = name_cast<OperatorId>(symbol->name());
+      if (id && id->op() == op) return SymbolChainView{symbol};
+    }
+  }
+  return SymbolChainView{nullptr};
+}
+
+auto ScopeSymbol::find(const std::string_view& name) const -> SymbolChainView {
+  if (!members_.empty()) {
+    const auto h = Identifier::hash(name) % buckets_.size();
+    for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
+      auto id = name_cast<Identifier>(symbol->name());
+      if (id && id->name() == name) return SymbolChainView{symbol};
+    }
+  }
+  return SymbolChainView{nullptr};
+}
+
+NamespaceSymbol::NamespaceSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 NamespaceSymbol::~NamespaceSymbol() {}
 
@@ -143,7 +291,7 @@ void NamespaceSymbol::setAnonNamespaceIndex(int index) {
   anonNamespaceIndex_ = index;
 }
 
-ConceptSymbol::ConceptSymbol(Scope* enclosingScope)
+ConceptSymbol::ConceptSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 ConceptSymbol::~ConceptSymbol() {}
@@ -157,7 +305,7 @@ void ConceptSymbol::setTemplateParameters(
   templateParameters_ = templateParameters;
 }
 
-BaseClassSymbol::BaseClassSymbol(Scope* enclosingScope)
+BaseClassSymbol::BaseClassSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 BaseClassSymbol::~BaseClassSymbol() {}
@@ -178,8 +326,8 @@ auto BaseClassSymbol::symbol() const -> Symbol* { return symbol_; }
 
 void BaseClassSymbol::setSymbol(Symbol* symbol) { symbol_ = symbol; }
 
-ClassSymbol::ClassSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+ClassSymbol::ClassSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 ClassSymbol::~ClassSymbol() {}
 
@@ -324,7 +472,7 @@ auto ClassSymbol::buildClassLayout(Control* control)
 
   FieldSymbol* lastField = nullptr;
 
-  for (auto member : scope()->symbols()) {
+  for (auto member : members()) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field) continue;
     if (field->isStatic()) continue;
@@ -378,8 +526,8 @@ auto ClassSymbol::buildClassLayout(Control* control)
   return true;
 }
 
-EnumSymbol::EnumSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+EnumSymbol::EnumSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 EnumSymbol::~EnumSymbol() {}
 
@@ -399,8 +547,8 @@ void EnumSymbol::setUnderlyingType(const Type* underlyingType) {
   underlyingType_ = underlyingType;
 }
 
-ScopedEnumSymbol::ScopedEnumSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+ScopedEnumSymbol::ScopedEnumSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 ScopedEnumSymbol::~ScopedEnumSymbol() {}
 
@@ -412,8 +560,8 @@ void ScopedEnumSymbol::setUnderlyingType(const Type* underlyingType) {
   underlyingType_ = underlyingType;
 }
 
-FunctionSymbol::FunctionSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 FunctionSymbol::~FunctionSymbol() {}
 
@@ -485,8 +633,8 @@ void FunctionSymbol::setDefaulted(bool isDefaulted) {
 }
 
 auto FunctionSymbol::isConstructor() const -> bool {
-  auto parent = symbol_cast<ClassSymbol>(enclosingSymbol());
-  if (!parent) return false;
+  auto p = symbol_cast<ClassSymbol>(parent());
+  if (!p) return false;
 
   auto functionType = type_cast<FunctionType>(type());
   if (functionType->returnType()) {
@@ -494,7 +642,7 @@ auto FunctionSymbol::isConstructor() const -> bool {
     return false;
   }
 
-  if (name() != parent->name()) {
+  if (name() != p->name()) {
     // constructors have the same name as the class
     return false;
   }
@@ -510,7 +658,7 @@ void FunctionSymbol::setHasCxxLinkage(bool hasCxxLinkage) {
   isExternC_ = !hasCxxLinkage;
 }
 
-OverloadSetSymbol::OverloadSetSymbol(Scope* enclosingScope)
+OverloadSetSymbol::OverloadSetSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 OverloadSetSymbol::~OverloadSetSymbol() {}
@@ -528,8 +676,8 @@ void OverloadSetSymbol::addFunction(FunctionSymbol* function) {
   functions_.push_back(function);
 }
 
-LambdaSymbol::LambdaSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+LambdaSymbol::LambdaSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 LambdaSymbol::~LambdaSymbol() {}
 
@@ -562,22 +710,22 @@ auto LambdaSymbol::isStatic() const -> bool { return isStatic_; }
 
 void LambdaSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
 
-FunctionParametersSymbol::FunctionParametersSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+FunctionParametersSymbol::FunctionParametersSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 FunctionParametersSymbol::~FunctionParametersSymbol() {}
 
-TemplateParametersSymbol::TemplateParametersSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+TemplateParametersSymbol::TemplateParametersSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 TemplateParametersSymbol::~TemplateParametersSymbol() {}
 
-BlockSymbol::BlockSymbol(Scope* enclosingScope)
-    : ScopedSymbol(Kind, enclosingScope) {}
+BlockSymbol::BlockSymbol(ScopeSymbol* enclosingScope)
+    : ScopeSymbol(Kind, enclosingScope) {}
 
 BlockSymbol::~BlockSymbol() {}
 
-TypeAliasSymbol::TypeAliasSymbol(Scope* enclosingScope)
+TypeAliasSymbol::TypeAliasSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 TypeAliasSymbol::~TypeAliasSymbol() {}
@@ -600,7 +748,7 @@ void TypeAliasSymbol::setTemplateDeclaration(
   templateDeclaration_ = declaration;
 }
 
-VariableSymbol::VariableSymbol(Scope* enclosingScope)
+VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 VariableSymbol::~VariableSymbol() {}
@@ -669,7 +817,7 @@ void VariableSymbol::setConstValue(std::optional<ConstValue> value) {
   constValue_ = std::move(value);
 }
 
-FieldSymbol::FieldSymbol(Scope* enclosingScope)
+FieldSymbol::FieldSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 FieldSymbol::~FieldSymbol() {}
@@ -726,12 +874,12 @@ auto FieldSymbol::alignment() const -> int { return alignment_; }
 
 void FieldSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
-ParameterSymbol::ParameterSymbol(Scope* enclosingScope)
+ParameterSymbol::ParameterSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 ParameterSymbol::~ParameterSymbol() {}
 
-ParameterPackSymbol::ParameterPackSymbol(Scope* enclosingScope)
+ParameterPackSymbol::ParameterPackSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 ParameterPackSymbol::~ParameterPackSymbol() {}
@@ -744,12 +892,12 @@ void ParameterPackSymbol::addElement(Symbol* element) {
   elements_.push_back(element);
 }
 
-TypeParameterSymbol::TypeParameterSymbol(Scope* enclosingScope)
+TypeParameterSymbol::TypeParameterSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 TypeParameterSymbol::~TypeParameterSymbol() {}
 
-NonTypeParameterSymbol::NonTypeParameterSymbol(Scope* enclosingScope)
+NonTypeParameterSymbol::NonTypeParameterSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 NonTypeParameterSymbol::~NonTypeParameterSymbol() {}
@@ -778,13 +926,14 @@ void NonTypeParameterSymbol::setParameterPack(bool isParameterPack) {
   isParameterPack_ = isParameterPack;
 }
 
-TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(Scope* enclosingScope)
+TemplateTypeParameterSymbol::TemplateTypeParameterSymbol(
+    ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 TemplateTypeParameterSymbol::~TemplateTypeParameterSymbol() {}
 
 ConstraintTypeParameterSymbol::ConstraintTypeParameterSymbol(
-    Scope* enclosingScope)
+    ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 ConstraintTypeParameterSymbol::~ConstraintTypeParameterSymbol() {}
@@ -805,7 +954,7 @@ void ConstraintTypeParameterSymbol::setParameterPack(bool isParameterPack) {
   isParameterPack_ = isParameterPack;
 }
 
-EnumeratorSymbol::EnumeratorSymbol(Scope* enclosingScope)
+EnumeratorSymbol::EnumeratorSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 EnumeratorSymbol::~EnumeratorSymbol() {}
@@ -818,7 +967,7 @@ void EnumeratorSymbol::setValue(const std::optional<ConstValue>& value) {
   value_ = value;
 }
 
-UsingDeclarationSymbol::UsingDeclarationSymbol(Scope* enclosingScope)
+UsingDeclarationSymbol::UsingDeclarationSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 UsingDeclarationSymbol::~UsingDeclarationSymbol() {}

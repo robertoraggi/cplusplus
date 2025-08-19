@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/binder.h>
+#include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
@@ -31,6 +32,11 @@ namespace cxx {
 
 struct ASTRewriter::DeclarationVisitor {
   ASTRewriter& rewrite;
+  TemplateDeclarationAST* templateHead = nullptr;
+
+  DeclarationVisitor(ASTRewriter& rewrite, TemplateDeclarationAST* templateHead)
+      : rewrite(rewrite), templateHead(templateHead) {}
+
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return rewrite.unit_;
   }
@@ -169,9 +175,11 @@ struct ASTRewriter::RequirementVisitor {
   [[nodiscard]] auto operator()(NestedRequirementAST* ast) -> RequirementAST*;
 };
 
-auto ASTRewriter::declaration(DeclarationAST* ast) -> DeclarationAST* {
+auto ASTRewriter::declaration(DeclarationAST* ast,
+                              TemplateDeclarationAST* templateHead)
+    -> DeclarationAST* {
   if (!ast) return {};
-  return visit(DeclarationVisitor{*this}, ast);
+  return visit(DeclarationVisitor{*this, templateHead}, ast);
 }
 
 auto ASTRewriter::templateParameter(TemplateParameterAST* ast)
@@ -257,7 +265,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   auto declSpecifierListCtx = DeclSpecs{rewriter()};
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
-    auto value = rewrite.specifier(node);
+    auto value = rewrite.specifier(node, templateHead);
     *declSpecifierList = make_list_node(arena(), value);
     declSpecifierList = &(*declSpecifierList)->next;
     declSpecifierListCtx.accept(value);
@@ -550,6 +558,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
   copy->templateLoc = ast->templateLoc;
   copy->lessLoc = ast->lessLoc;
 
+  auto _ = Binder::ScopeGuard{binder()};
+
+  auto templateParametersSymbol = control()->newTemplateParametersSymbol(
+      binder()->scope(), ast->symbol->location());
+
+  copy->symbol = templateParametersSymbol;
+
+  binder()->setScope(templateParametersSymbol);
+
   for (auto templateParameterList = &copy->templateParameterList;
        auto node : ListView{ast->templateParameterList}) {
     auto value = rewrite.templateParameter(node);
@@ -558,9 +575,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
   }
 
   copy->greaterLoc = ast->greaterLoc;
+
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
-  copy->declaration = rewrite.declaration(ast->declaration);
-  copy->symbol = ast->symbol;
+  copy->declaration = rewrite.declaration(ast->declaration, copy);
 
   return copy;
 }
@@ -892,7 +909,6 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
     TypenameTypeParameterAST* ast) -> TemplateParameterAST* {
   auto copy = make_node<TypenameTypeParameterAST>(arena());
 
-  copy->symbol = ast->symbol;
   copy->depth = ast->depth;
   copy->index = ast->index;
   copy->classKeyLoc = ast->classKeyLoc;
@@ -902,6 +918,8 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->identifier = ast->identifier;
   copy->isPack = ast->isPack;
+
+  binder()->bind(copy, copy->index, copy->depth);
 
   return copy;
 }

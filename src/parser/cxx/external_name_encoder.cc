@@ -32,13 +32,13 @@ namespace {
 [[nodiscard]] auto is_global_namespace(Symbol* symbol) -> bool {
   if (!symbol) return false;
   if (!symbol->isNamespace()) return false;
-  if (symbol->enclosingSymbol()) return false;
+  if (symbol->parent()) return false;
   return true;
 }
 
 [[nodiscard]] auto enclosing_class_or_namespace(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
-  auto parent = symbol->enclosingSymbol();
+  auto parent = symbol->parent();
   if (!parent) return nullptr;
   if (!parent->isClassOrNamespace()) return nullptr;
   return parent;
@@ -365,7 +365,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
           auto argc = functionType->parameterTypes().size();
           if (argc == 0)
             unary = true;
-          else if (argc == 1 && !function->enclosingSymbol()->isClass())
+          else if (argc == 1 && !function->parent()->isClass())
             unary = true;
           break;
         }
@@ -581,9 +581,9 @@ auto ExternalNameEncoder::encodeFunction(FunctionSymbol* function)
 
   const auto id = name_cast<Identifier>(function->name());
 
-  if (id && (function->hasCLinkage() ||
-             (id->name() == "main" &&
-              is_global_namespace(function->enclosingSymbol())))) {
+  if (id &&
+      (function->hasCLinkage() ||
+       (id->name() == "main" && is_global_namespace(function->parent())))) {
     out(id->name());
   } else {
     out("_Z");

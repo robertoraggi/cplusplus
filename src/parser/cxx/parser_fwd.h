@@ -33,7 +33,7 @@ namespace cxx {
 class Parser;
 
 struct UnqualifiedCompletionContext {
-  Scope* scope = nullptr;
+  ScopeSymbol* scope = nullptr;
 };
 
 struct MemberCompletionContext {
