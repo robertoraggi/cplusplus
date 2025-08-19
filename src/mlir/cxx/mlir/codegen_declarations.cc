@@ -24,10 +24,10 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 // mlir
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -40,7 +40,7 @@ namespace cxx {
 struct Codegen::DeclarationVisitor {
   Codegen& gen;
 
-  void allocateLocals(ScopedSymbol* block);
+  void allocateLocals(ScopeSymbol* block);
 
   auto operator()(SimpleDeclarationAST* ast) -> DeclarationResult;
   auto operator()(AsmDeclarationAST* ast) -> DeclarationResult;
@@ -142,8 +142,8 @@ auto Codegen::lambdaSpecifier(LambdaSpecifierAST* ast)
   return {};
 }
 
-void Codegen::DeclarationVisitor::allocateLocals(ScopedSymbol* block) {
-  for (auto symbol : block->scope()->symbols()) {
+void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
+  for (auto symbol : views::members(block)) {
     if (auto nestedBlock = symbol_cast<BlockSymbol>(symbol)) {
       allocateLocals(nestedBlock);
       continue;
@@ -380,10 +380,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   mlir::Value thisValue;
 
   // if this is a non static member function, we need to allocate the `this`
-  if (!functionSymbol->isStatic() &&
-      functionSymbol->enclosingSymbol()->isClass()) {
-    auto classSymbol =
-        symbol_cast<ClassSymbol>(functionSymbol->enclosingSymbol());
+  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(thisType);
@@ -396,13 +394,13 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   FunctionParametersSymbol* params = nullptr;
-  for (auto member : ast->symbol->scope()->symbols()) {
+  for (auto member : views::members(ast->symbol)) {
     params = symbol_cast<FunctionParametersSymbol>(member);
     if (!params) continue;
 
     int argc = 0;
     auto args = gen.entryBlock_->getArguments();
-    for (auto param : params->scope()->symbols()) {
+    for (auto param : views::members(params)) {
       auto arg = symbol_cast<ParameterSymbol>(param);
       if (!arg) continue;
 

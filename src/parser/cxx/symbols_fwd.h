@@ -52,8 +52,8 @@ namespace cxx {
   V(UsingDeclaration)
 
 class Symbol;
-class ScopedSymbol;
-class Scope;
+class ScopeSymbol;
+class ScopeSymbol;
 
 template <typename S>
 struct TemplateSpecialization;

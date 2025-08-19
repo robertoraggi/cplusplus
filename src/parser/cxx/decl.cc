@@ -25,7 +25,6 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -366,7 +365,7 @@ auto Decl::getNestedNameSpecifier() const -> NestedNameSpecifierAST* {
   return declaratorId->nestedNameSpecifier;
 }
 
-auto Decl::getScope() const -> Scope* {
+auto Decl::getScope() const -> ScopeSymbol* {
   auto nestedNameSpecifier = getNestedNameSpecifier();
   if (!nestedNameSpecifier) return nullptr;
 
@@ -379,11 +378,10 @@ auto Decl::getScope() const -> Scope* {
     }
   }
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol))
-    return classSymbol->scope();
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) return classSymbol;
 
   if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
-    return namespaceSymbol->scope();
+    return namespaceSymbol;
 
   return nullptr;
 }

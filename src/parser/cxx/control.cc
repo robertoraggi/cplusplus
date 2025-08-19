@@ -482,29 +482,29 @@ auto Control::getScopedEnumType(ScopedEnumSymbol* symbol)
   return &*d->scopedEnumTypes.emplace(symbol).first;
 }
 
-auto Control::newNamespaceSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> NamespaceSymbol* {
+auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
+                                 SourceLocation loc) -> NamespaceSymbol* {
   auto symbol = &d->namespaceSymbols.emplace_front(enclosingScope);
   symbol->setType(getNamespaceType(symbol));
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newConceptSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newConceptSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> ConceptSymbol* {
   auto symbol = &d->conceptSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newBaseClassSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> BaseClassSymbol* {
+auto Control::newBaseClassSymbol(ScopeSymbol* enclosingScope,
+                                 SourceLocation loc) -> BaseClassSymbol* {
   auto symbol = &d->baseClassSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newClassSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newClassSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> ClassSymbol* {
   auto symbol = &d->classSymbols.emplace_front(enclosingScope);
   symbol->setType(getClassType(symbol));
@@ -512,7 +512,7 @@ auto Control::newClassSymbol(Scope* enclosingScope, SourceLocation loc)
   return symbol;
 }
 
-auto Control::newEnumSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newEnumSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> EnumSymbol* {
   auto symbol = &d->enumSymbols.emplace_front(enclosingScope);
   symbol->setType(getEnumType(symbol));
@@ -520,37 +520,37 @@ auto Control::newEnumSymbol(Scope* enclosingScope, SourceLocation loc)
   return symbol;
 }
 
-auto Control::newScopedEnumSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> ScopedEnumSymbol* {
+auto Control::newScopedEnumSymbol(ScopeSymbol* enclosingScope,
+                                  SourceLocation loc) -> ScopedEnumSymbol* {
   auto symbol = &d->scopedEnumSymbols.emplace_front(enclosingScope);
   symbol->setType(getScopedEnumType(symbol));
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newOverloadSetSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> OverloadSetSymbol* {
+auto Control::newOverloadSetSymbol(ScopeSymbol* enclosingScope,
+                                   SourceLocation loc) -> OverloadSetSymbol* {
   auto symbol = &d->overloadSetSymbols.emplace_front(enclosingScope);
   symbol->setType(getOverloadSetType(symbol));
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newFunctionSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newFunctionSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> FunctionSymbol* {
   auto symbol = &d->functionSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newLambdaSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newLambdaSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> LambdaSymbol* {
   auto symbol = &d->lambdaSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newFunctionParametersSymbol(Scope* enclosingScope,
+auto Control::newFunctionParametersSymbol(ScopeSymbol* enclosingScope,
                                           SourceLocation loc)
     -> FunctionParametersSymbol* {
   auto symbol = &d->functionParametersSymbol.emplace_front(enclosingScope);
@@ -558,7 +558,7 @@ auto Control::newFunctionParametersSymbol(Scope* enclosingScope,
   return symbol;
 }
 
-auto Control::newTemplateParametersSymbol(Scope* enclosingScope,
+auto Control::newTemplateParametersSymbol(ScopeSymbol* enclosingScope,
                                           SourceLocation loc)
     -> TemplateParametersSymbol* {
   auto symbol = &d->templateParametersSymbol.emplace_front(enclosingScope);
@@ -566,50 +566,52 @@ auto Control::newTemplateParametersSymbol(Scope* enclosingScope,
   return symbol;
 }
 
-auto Control::newBlockSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newBlockSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> BlockSymbol* {
   auto symbol = &d->blockSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newTypeAliasSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> TypeAliasSymbol* {
+auto Control::newTypeAliasSymbol(ScopeSymbol* enclosingScope,
+                                 SourceLocation loc) -> TypeAliasSymbol* {
   auto symbol = &d->typeAliasSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newVariableSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> VariableSymbol* {
   auto symbol = &d->variableSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newFieldSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newFieldSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> FieldSymbol* {
   auto symbol = &d->fieldSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newParameterSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> ParameterSymbol* {
+auto Control::newParameterSymbol(ScopeSymbol* enclosingScope,
+                                 SourceLocation loc) -> ParameterSymbol* {
   auto symbol = &d->parameterSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newParameterPackSymbol(Scope* enclosingScope, SourceLocation loc)
+auto Control::newParameterPackSymbol(ScopeSymbol* enclosingScope,
+                                     SourceLocation loc)
     -> ParameterPackSymbol* {
   auto symbol = &d->parameterPackSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newTypeParameterSymbol(Scope* enclosingScope, SourceLocation loc,
-                                     int index, int depth, bool isParameterPack)
+auto Control::newTypeParameterSymbol(ScopeSymbol* enclosingScope,
+                                     SourceLocation loc, int index, int depth,
+                                     bool isParameterPack)
     -> TypeParameterSymbol* {
   auto symbol = &d->typeParameterSymbols.emplace_front(enclosingScope);
   symbol->setType(getTypeParameterType(index, depth, isParameterPack));
@@ -618,7 +620,7 @@ auto Control::newTypeParameterSymbol(Scope* enclosingScope, SourceLocation loc,
 }
 
 auto Control::newTemplateTypeParameterSymbol(
-    Scope* enclosingScope, SourceLocation loc, int index, int depth,
+    ScopeSymbol* enclosingScope, SourceLocation loc, int index, int depth,
     bool isPack, std::vector<const Type*> parameters)
     -> TemplateTypeParameterSymbol* {
   auto symbol = &d->templateTypeParameterSymbols.emplace_front(enclosingScope);
@@ -628,7 +630,7 @@ auto Control::newTemplateTypeParameterSymbol(
   return symbol;
 }
 
-auto Control::newNonTypeParameterSymbol(Scope* enclosingScope,
+auto Control::newNonTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation loc)
     -> NonTypeParameterSymbol* {
   auto symbol = &d->nonTypeParameterSymbols.emplace_front(enclosingScope);
@@ -636,7 +638,7 @@ auto Control::newNonTypeParameterSymbol(Scope* enclosingScope,
   return symbol;
 }
 
-auto Control::newConstraintTypeParameterSymbol(Scope* enclosingScope,
+auto Control::newConstraintTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                                SourceLocation loc)
     -> ConstraintTypeParameterSymbol* {
   auto symbol =
@@ -645,14 +647,14 @@ auto Control::newConstraintTypeParameterSymbol(Scope* enclosingScope,
   return symbol;
 }
 
-auto Control::newEnumeratorSymbol(Scope* enclosingScope, SourceLocation loc)
-    -> EnumeratorSymbol* {
+auto Control::newEnumeratorSymbol(ScopeSymbol* enclosingScope,
+                                  SourceLocation loc) -> EnumeratorSymbol* {
   auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
-auto Control::newUsingDeclarationSymbol(Scope* enclosingScope,
+auto Control::newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation loc)
     -> UsingDeclarationSymbol* {
   auto symbol = &d->usingDeclarationSymbols.emplace_front(enclosingScope);

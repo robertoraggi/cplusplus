@@ -25,7 +25,6 @@
 #include <cxx/binder.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 
@@ -208,7 +207,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       getDeclaratorType(translationUnit(), copy->declarator, declSpecs.type());
 
   // ### fix scope
-  if (binder_.scope()->isClassScope()) {
+  if (binder_.scope()->isClass()) {
     auto symbol = binder_.declareMemberSymbol(copy->declarator, decl);
     copy->symbol = symbol;
   } else {

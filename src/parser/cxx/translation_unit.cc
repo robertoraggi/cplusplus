@@ -182,9 +182,9 @@ auto TranslationUnit::config() const -> const ParserConfiguration& {
   return config_;
 }
 
-auto TranslationUnit::globalScope() const -> Scope* {
+auto TranslationUnit::globalScope() const -> ScopeSymbol* {
   if (!globalNamespace_) return nullptr;
-  return globalNamespace_->scope();
+  return globalNamespace_;
 }
 
 auto TranslationUnit::fileName() const -> const std::string& {

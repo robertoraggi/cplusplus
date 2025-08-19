@@ -20,9 +20,9 @@
 
 // cxx
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <algorithm>
 #include <format>
@@ -48,12 +48,12 @@ struct DumpSymbols {
   std::ostream& out;
   int depth = 0;
 
-  auto dumpScope(Scope* scope) {
+  auto dumpScope(ScopeSymbol* scope) {
     if (!scope) return;
 
     ++depth;
 
-    auto symbols = scope->symbols();
+    auto symbols = scope->members();
 
     std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
 
@@ -84,7 +84,7 @@ struct DumpSymbols {
     out << "namespace";
     if (symbol->name()) out << std::format(" {}", to_string(symbol->name()));
     out << "\n";
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(BaseClassSymbol* symbol) {
@@ -101,8 +101,7 @@ struct DumpSymbols {
 
       out << '<';
       std::string_view sep = "";
-      for (const auto& param :
-           symbol->templateParameters()->scope()->symbols()) {
+      for (const auto& param : views::members(symbol->templateParameters())) {
         out << std::format("{}{}", sep, to_string(param->type()));
         sep = ", ";
       }
@@ -110,7 +109,7 @@ struct DumpSymbols {
 
       out << "\n";
 
-      dumpScope(symbol->templateParameters()->scope());
+      dumpScope(symbol->templateParameters());
     } else if (symbol->isSpecialization()) {
       out << std::format("{} {}", classKey, to_string(symbol->name()));
       out << "<";
@@ -138,15 +137,14 @@ struct DumpSymbols {
       }
       --depth;
     }
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
     dumpSpecializations(symbol->specializations());
   }
 
   void operator()(ConceptSymbol* symbol) {
     indent();
     out << std::format("concept {}\n", to_string(symbol->name()));
-    if (symbol->templateParameters())
-      dumpScope(symbol->templateParameters()->scope());
+    if (symbol->templateParameters()) dumpScope(symbol->templateParameters());
   }
 
   void operator()(EnumSymbol* symbol) {
@@ -159,7 +157,7 @@ struct DumpSymbols {
 
     out << std::format("\n");
 
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(ScopedEnumSymbol* symbol) {
@@ -172,7 +170,7 @@ struct DumpSymbols {
 
     out << std::format("\n");
 
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(OverloadSetSymbol* symbol) {
@@ -208,10 +206,10 @@ struct DumpSymbols {
     out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
 
     if (symbol->templateParameters()) {
-      dumpScope(symbol->templateParameters()->scope());
+      dumpScope(symbol->templateParameters());
     }
 
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(LambdaSymbol* symbol) {
@@ -226,25 +224,25 @@ struct DumpSymbols {
 
     out << std::format("{}\n", to_string(symbol->type(), symbol->name()));
 
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(TemplateParametersSymbol* symbol) {
     indent();
     out << std::format("template parameters\n");
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(FunctionParametersSymbol* symbol) {
     indent();
     out << std::format("parameters\n");
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(BlockSymbol* symbol) {
     indent();
     out << std::format("block\n");
-    dumpScope(symbol->scope());
+    dumpScope(symbol);
   }
 
   void operator()(TypeAliasSymbol* symbol) {
@@ -252,7 +250,7 @@ struct DumpSymbols {
     if (symbol->templateParameters()) {
       out << std::format("template typealias {}\n",
                          to_string(symbol->type(), symbol->name()));
-      dumpScope(symbol->templateParameters()->scope());
+      dumpScope(symbol->templateParameters());
     } else {
       out << std::format("typealias {}\n",
                          to_string(symbol->type(), symbol->name()));
@@ -276,7 +274,7 @@ struct DumpSymbols {
     out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
 
     if (symbol->templateParameters()) {
-      dumpScope(symbol->templateParameters()->scope());
+      dumpScope(symbol->templateParameters());
     }
   }
 

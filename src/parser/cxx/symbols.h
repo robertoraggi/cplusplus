@@ -25,6 +25,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <expected>
@@ -37,6 +38,8 @@
 #include <vector>
 
 namespace cxx {
+
+class SymbolChainView;
 
 template <typename S>
 struct TemplateSpecialization {
@@ -103,22 +106,24 @@ class Symbol {
     using difference_type = std::ptrdiff_t;
 
     EnclosingSymbolIterator() = default;
-    explicit EnclosingSymbolIterator(ScopedSymbol* symbol) : symbol_(symbol) {}
+    explicit EnclosingSymbolIterator(ScopeSymbol* symbol) : symbol_(symbol) {}
 
     auto operator<=>(const EnclosingSymbolIterator&) const = default;
 
-    auto operator*() const -> ScopedSymbol* { return symbol_; }
+    auto operator*() const -> ScopeSymbol* { return symbol_; }
     auto operator++() -> EnclosingSymbolIterator&;
     auto operator++(int) -> EnclosingSymbolIterator;
 
    private:
-    ScopedSymbol* symbol_ = nullptr;
+    ScopeSymbol* symbol_ = nullptr;
   };
 
-  Symbol(SymbolKind kind, Scope* enclosingScope)
-      : kind_(kind), enclosingScope_(enclosingScope) {}
+  Symbol(SymbolKind kind, ScopeSymbol* enclosingScope)
+      : kind_(kind), parent_(enclosingScope) {}
 
   virtual ~Symbol() = default;
+
+  [[nodiscard]] virtual auto asScopeSymbol() -> ScopeSymbol* { return nullptr; }
 
   [[nodiscard]] auto kind() const -> SymbolKind;
 
@@ -131,13 +136,16 @@ class Symbol {
   [[nodiscard]] auto location() const -> SourceLocation;
   void setLocation(SourceLocation location);
 
-  [[nodiscard]] auto enclosingScope() const -> Scope*;
-  void setEnclosingScope(Scope* enclosingScope);
+  [[nodiscard]] auto parent() const -> ScopeSymbol*;
+  void setParent(ScopeSymbol* parent);
 
-  [[nodiscard]] auto enclosingSymbol() const -> ScopedSymbol*;
+  [[nodiscard]] auto enclosingNamespace() const -> NamespaceSymbol*;
+
+  [[nodiscard]] auto enclosingNonTemplateParametersScope() const
+      -> ScopeSymbol*;
 
   [[nodiscard]] auto enclosingSymbols() const {
-    return std::ranges::subrange(EnclosingSymbolIterator{enclosingSymbol()},
+    return std::ranges::subrange(EnclosingSymbolIterator{parent()},
                                  EnclosingSymbolIterator{});
   }
 
@@ -159,34 +167,62 @@ class Symbol {
   }
 
  private:
-  friend class Scope;
+  friend class ScopeSymbol;
 
   SymbolKind kind_;
   const Name* name_ = nullptr;
   const Type* type_ = nullptr;
-  Scope* enclosingScope_ = nullptr;
+  ScopeSymbol* parent_ = nullptr;
   Symbol* link_ = nullptr;
   SourceLocation location_;
 };
 
-class ScopedSymbol : public Symbol {
+class ScopeSymbol : public Symbol {
  public:
-  ScopedSymbol(SymbolKind kind, Scope* enclosingScope);
-  ~ScopedSymbol() override;
+  ScopeSymbol(SymbolKind kind, ScopeSymbol* enclosingScope);
+  ~ScopeSymbol() override;
 
-  [[nodiscard]] auto scope() const -> Scope*;
+  [[nodiscard]] auto asScopeSymbol() -> ScopeSymbol* override { return this; }
 
+  [[nodiscard]] auto empty() const -> bool { return members_.empty(); }
+
+  [[nodiscard]] auto members() const -> const std::vector<Symbol*>&;
   void addMember(Symbol* member);
 
+  [[nodiscard]] auto usingDirectives() const {
+    return std::views::all(usingDirectives_);
+  }
+
+  [[nodiscard]] auto find(const Name* name) const -> SymbolChainView;
+
+  [[nodiscard]] auto find(const std::string_view& name) const
+      -> SymbolChainView;
+
+  [[nodiscard]] auto find(TokenKind op) const -> SymbolChainView;
+
+  void addSymbol(Symbol* symbol);
+  void addUsingDirective(ScopeSymbol* scope);
+
+  [[nodiscard]] auto isTransparent() const -> bool;
+
+  // internal
+  void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
+  void reset();
+
  private:
-  std::unique_ptr<Scope> scope_;
+  void rehash();
+
+ private:
+  std::vector<Symbol*> members_;
+  std::vector<Symbol*> buckets_;
+  std::vector<ScopeSymbol*> usingDirectives_;
 };
 
-class NamespaceSymbol final : public ScopedSymbol {
+class NamespaceSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kNamespace;
 
-  explicit NamespaceSymbol(Scope* enclosingScope);
+  explicit NamespaceSymbol(ScopeSymbol* enclosingScope);
   ~NamespaceSymbol() override;
 
   [[nodiscard]] auto isInline() const -> bool;
@@ -208,7 +244,7 @@ class ConceptSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kConcept;
 
-  explicit ConceptSymbol(Scope* enclosingScope);
+  explicit ConceptSymbol(ScopeSymbol* enclosingScope);
   ~ConceptSymbol() override;
 
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
@@ -222,7 +258,7 @@ class BaseClassSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kBaseClass;
 
-  explicit BaseClassSymbol(Scope* enclosingScope);
+  explicit BaseClassSymbol(ScopeSymbol* enclosingScope);
   ~BaseClassSymbol() override;
 
   [[nodiscard]] auto isVirtual() const -> bool;
@@ -240,11 +276,11 @@ class BaseClassSymbol final : public Symbol {
   bool isVirtual_ = false;
 };
 
-class ClassSymbol final : public ScopedSymbol {
+class ClassSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
 
-  explicit ClassSymbol(Scope* enclosingScope);
+  explicit ClassSymbol(ScopeSymbol* enclosingScope);
   ~ClassSymbol() override;
 
   [[nodiscard]] auto isUnion() const -> bool;
@@ -353,11 +389,11 @@ class ClassSymbol final : public ScopedSymbol {
   };
 };
 
-class EnumSymbol final : public ScopedSymbol {
+class EnumSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kEnum;
 
-  explicit EnumSymbol(Scope* enclosingScope);
+  explicit EnumSymbol(ScopeSymbol* enclosingScope);
   ~EnumSymbol() override;
 
   [[nodiscard]] bool hasFixedUnderlyingType() const;
@@ -371,11 +407,11 @@ class EnumSymbol final : public ScopedSymbol {
   bool hasFixedUnderlyingType_ = false;
 };
 
-class ScopedEnumSymbol final : public ScopedSymbol {
+class ScopedEnumSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kScopedEnum;
 
-  explicit ScopedEnumSymbol(Scope* enclosingScope);
+  explicit ScopedEnumSymbol(ScopeSymbol* enclosingScope);
   ~ScopedEnumSymbol() override;
 
   [[nodiscard]] auto underlyingType() const -> const Type*;
@@ -385,11 +421,11 @@ class ScopedEnumSymbol final : public ScopedSymbol {
   const Type* underlyingType_ = nullptr;
 };
 
-class FunctionSymbol final : public ScopedSymbol {
+class FunctionSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kFunction;
 
-  explicit FunctionSymbol(Scope* enclosingScope);
+  explicit FunctionSymbol(ScopeSymbol* enclosingScope);
   ~FunctionSymbol() override;
 
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
@@ -464,7 +500,7 @@ class OverloadSetSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kOverloadSet;
 
-  explicit OverloadSetSymbol(Scope* enclosingScope);
+  explicit OverloadSetSymbol(ScopeSymbol* enclosingScope);
   ~OverloadSetSymbol() override;
 
   [[nodiscard]] auto functions() const -> const std::vector<FunctionSymbol*>&;
@@ -476,11 +512,11 @@ class OverloadSetSymbol final : public Symbol {
   std::vector<FunctionSymbol*> functions_;
 };
 
-class LambdaSymbol final : public ScopedSymbol {
+class LambdaSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kLambda;
 
-  explicit LambdaSymbol(Scope* enclosingScope);
+  explicit LambdaSymbol(ScopeSymbol* enclosingScope);
   ~LambdaSymbol() override;
 
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
@@ -512,27 +548,27 @@ class LambdaSymbol final : public ScopedSymbol {
   };
 };
 
-class FunctionParametersSymbol final : public ScopedSymbol {
+class FunctionParametersSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kFunctionParameters;
 
-  explicit FunctionParametersSymbol(Scope* enclosingScope);
+  explicit FunctionParametersSymbol(ScopeSymbol* enclosingScope);
   ~FunctionParametersSymbol() override;
 };
 
-class TemplateParametersSymbol final : public ScopedSymbol {
+class TemplateParametersSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kTemplateParameters;
 
-  explicit TemplateParametersSymbol(Scope* enclosingScope);
+  explicit TemplateParametersSymbol(ScopeSymbol* enclosingScope);
   ~TemplateParametersSymbol() override;
 };
 
-class BlockSymbol final : public ScopedSymbol {
+class BlockSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kBlock;
 
-  explicit BlockSymbol(Scope* enclosingScope);
+  explicit BlockSymbol(ScopeSymbol* enclosingScope);
   ~BlockSymbol() override;
 };
 
@@ -540,7 +576,7 @@ class TypeAliasSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kTypeAlias;
 
-  explicit TypeAliasSymbol(Scope* enclosingScope);
+  explicit TypeAliasSymbol(ScopeSymbol* enclosingScope);
   ~TypeAliasSymbol() override;
 
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
@@ -558,7 +594,7 @@ class VariableSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kVariable;
 
-  explicit VariableSymbol(Scope* enclosingScope);
+  explicit VariableSymbol(ScopeSymbol* enclosingScope);
   ~VariableSymbol() override;
 
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
@@ -614,7 +650,7 @@ class FieldSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kField;
 
-  explicit FieldSymbol(Scope* enclosingScope);
+  explicit FieldSymbol(ScopeSymbol* enclosingScope);
   ~FieldSymbol() override;
 
   [[nodiscard]] bool isBitField() const;
@@ -675,7 +711,7 @@ class ParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kParameter;
 
-  explicit ParameterSymbol(Scope* enclosingScope);
+  explicit ParameterSymbol(ScopeSymbol* enclosingScope);
   ~ParameterSymbol() override;
 };
 
@@ -683,7 +719,7 @@ class ParameterPackSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kParameterPack;
 
-  explicit ParameterPackSymbol(Scope* enclosingScope);
+  explicit ParameterPackSymbol(ScopeSymbol* enclosingScope);
   ~ParameterPackSymbol() override;
 
   [[nodiscard]] auto elements() const -> const std::vector<Symbol*>&;
@@ -697,7 +733,7 @@ class TypeParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kTypeParameter;
 
-  explicit TypeParameterSymbol(Scope* enclosingScope);
+  explicit TypeParameterSymbol(ScopeSymbol* enclosingScope);
   ~TypeParameterSymbol() override;
 };
 
@@ -705,7 +741,7 @@ class NonTypeParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kNonTypeParameter;
 
-  explicit NonTypeParameterSymbol(Scope* enclosingScope);
+  explicit NonTypeParameterSymbol(ScopeSymbol* enclosingScope);
   ~NonTypeParameterSymbol() override;
 
   [[nodiscard]] auto index() const -> int;
@@ -731,7 +767,7 @@ class TemplateTypeParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kTemplateTypeParameter;
 
-  explicit TemplateTypeParameterSymbol(Scope* enclosingScope);
+  explicit TemplateTypeParameterSymbol(ScopeSymbol* enclosingScope);
   ~TemplateTypeParameterSymbol() override;
 };
 
@@ -739,7 +775,7 @@ class ConstraintTypeParameterSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kConstraintTypeParameter;
 
-  explicit ConstraintTypeParameterSymbol(Scope* enclosingScope);
+  explicit ConstraintTypeParameterSymbol(ScopeSymbol* enclosingScope);
   ~ConstraintTypeParameterSymbol() override;
 
   [[nodiscard]] auto index() const -> int;
@@ -761,7 +797,7 @@ class EnumeratorSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kEnumerator;
 
-  explicit EnumeratorSymbol(Scope* enclosingScope);
+  explicit EnumeratorSymbol(ScopeSymbol* enclosingScope);
   ~EnumeratorSymbol() override;
 
   [[nodiscard]] auto value() const -> const std::optional<ConstValue>&;
@@ -775,7 +811,7 @@ class UsingDeclarationSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kUsingDeclaration;
 
-  explicit UsingDeclarationSymbol(Scope* enclosingScope);
+  explicit UsingDeclarationSymbol(ScopeSymbol* enclosingScope);
   ~UsingDeclarationSymbol() override;
 
   [[nodiscard]] auto declarator() const -> UsingDeclaratorAST*;
@@ -818,6 +854,12 @@ CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 template <typename T>
 auto symbol_cast(Symbol* symbol) -> T* {
   if (symbol && symbol->kind() == T::Kind) return static_cast<T*>(symbol);
+  return nullptr;
+}
+
+template <>
+inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
+  if (symbol) return symbol->asScopeSymbol();
   return nullptr;
 }
 

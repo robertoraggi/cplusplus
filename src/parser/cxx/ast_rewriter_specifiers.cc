@@ -26,7 +26,6 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
@@ -36,6 +35,11 @@ namespace cxx {
 
 struct ASTRewriter::SpecifierVisitor {
   ASTRewriter& rewrite;
+  TemplateDeclarationAST* templateHead = nullptr;
+
+  SpecifierVisitor(ASTRewriter& rewrite, TemplateDeclarationAST* templateHead)
+      : rewrite(rewrite), templateHead(templateHead) {}
+
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return rewrite.unit_;
   }
@@ -171,9 +175,11 @@ struct ASTRewriter::AttributeTokenVisitor {
       -> AttributeTokenAST*;
 };
 
-auto ASTRewriter::specifier(SpecifierAST* ast) -> SpecifierAST* {
+auto ASTRewriter::specifier(SpecifierAST* ast,
+                            TemplateDeclarationAST* templateHead)
+    -> SpecifierAST* {
   if (!ast) return {};
-  auto specifier = visit(SpecifierVisitor{*this}, ast);
+  auto specifier = visit(SpecifierVisitor{*this, templateHead}, ast);
   return specifier;
 }
 
@@ -779,13 +785,18 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   classSymbol->setIsUnion(ast->symbol->isUnion());
   classSymbol->setFinal(ast->isFinal);
   classSymbol->setDeclaration(copy);
+  classSymbol->setTemplateDeclaration(templateHead);
 
-  if (ast->symbol != rewrite.binder().instantiatingSymbol()) {
+  if (templateHead) {
+    classSymbol->setTemplateParameters(binder()->currentTemplateParameters());
+  }
+
+  if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
+    ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
+  } else {
     // If we are not instantiating a template, we can add the class symbol to
     // the scope.
     binder()->declaringScope()->addSymbol(classSymbol);
-  } else {
-    ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
   }
 
   // enter the class scope

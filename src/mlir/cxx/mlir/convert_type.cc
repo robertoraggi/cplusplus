@@ -26,10 +26,10 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 
@@ -294,7 +294,7 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   std::vector<mlir::Type> memberTypes;
 
-  for (auto member : classSymbol->scope()->symbols()) {
+  for (auto member : views::members(classSymbol)) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field) continue;
     if (field->isStatic()) continue;

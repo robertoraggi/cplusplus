@@ -24,7 +24,6 @@
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -63,7 +62,7 @@ struct Source {
 
   auto control() -> Control* { return unit.control(); }
   auto ast() -> UnitAST* { return unit.ast(); }
-  auto scope() -> Scope* { return unit.globalScope(); }
+  auto scope() -> ScopeSymbol* { return unit.globalScope(); }
 
   auto get(std::string_view name) -> Symbol* {
     Symbol* symbol = nullptr;
@@ -97,7 +96,7 @@ inline auto operator""_cxx_no_templates(const char* source, std::size_t size)
 struct LookupMember {
   Source& source;
 
-  auto operator()(Scope* scope, std::string_view name) -> Symbol* {
+  auto operator()(ScopeSymbol* scope, std::string_view name) -> Symbol* {
     auto id = source.control()->getIdentifier(name);
     for (auto candidate : scope->find(id)) {
       return candidate;

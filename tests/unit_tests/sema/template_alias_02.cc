@@ -8,7 +8,7 @@ struct HashMap {
 struct Name;
 struct Symbol;
 
-struct Scope {
+struct ScopeSymbol {
   using Table = HashMap<const Name*, Symbol*>;
   using MemberIterator = Table::iterator;
 };
@@ -24,6 +24,6 @@ struct Scope {
 // CHECK-NEXT:        typealias ::Symbol** iterator
 // CHECK-NEXT:  class Name
 // CHECK-NEXT:  class Symbol
-// CHECK-NEXT:  class Scope
+// CHECK-NEXT:  class ScopeSymbol
 // CHECK-NEXT:    typealias ::HashMap<const ::Name*, ::Symbol*> Table
 // CHECK-NEXT:    typealias ::Symbol** MemberIterator

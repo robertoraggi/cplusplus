@@ -31,13 +31,13 @@
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbol_chain.h>
+#include <cxx/views/symbols.h>
 
 #include <algorithm>
 #include <cstring>
@@ -1083,7 +1083,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
     auto ast = make_node<GlobalNestedNameSpecifierAST>(pool_);
     yyast = ast;
     ast->scopeLoc = scopeLoc;
-    ast->symbol = globalScope_->owner();
+    ast->symbol = globalScope_;
   } else if (parse_decltype_nested_name_specifier(yyast, ctx)) {
     //
   }
@@ -3264,7 +3264,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
     LookaheadParser lookahead{this};
     DeclarationAST* declaration = nullptr;
 
-    if (!scope()->isBlockScope()) {
+    if (!scope()->isBlock()) {
       cxx_runtime_error("not a block scope");
     }
 
@@ -3446,12 +3446,10 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
-  FunctionSymbol* functionSymbol =
-      symbol_cast<FunctionSymbol>(scope()->owner());
+  FunctionSymbol* functionSymbol = symbol_cast<FunctionSymbol>(scope());
 
-  if (!functionSymbol && scope()->isFunctionParametersScope()) {
-    functionSymbol =
-        symbol_cast<FunctionSymbol>(scope()->owner()->enclosingSymbol());
+  if (!functionSymbol && scope()->isFunctionParameters()) {
+    functionSymbol = symbol_cast<FunctionSymbol>(scope()->parent());
   }
 
   auto _ = Binder::ScopeGuard{&binder_};
@@ -4038,7 +4036,7 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
                                     SourceLocation identifierLoc, bool isInline)
     -> NamespaceSymbol* {
   auto parentScope = scope();
-  auto parentNamespace = symbol_cast<NamespaceSymbol>(parentScope->owner());
+  auto parentNamespace = symbol_cast<NamespaceSymbol>(parentScope);
 
   NamespaceSymbol* namespaceSymbol = nullptr;
 
@@ -4068,7 +4066,7 @@ auto Parser::enterOrCreateNamespace(const Identifier* identifier,
     parentScope->addSymbol(namespaceSymbol);
 
     if (isInline || !namespaceSymbol->name()) {
-      parentNamespace->scope()->addUsingDirective(namespaceSymbol->scope());
+      parentNamespace->addUsingDirective(namespaceSymbol);
     }
   }
 
@@ -4321,7 +4319,7 @@ auto Parser::parse_simple_declaration(
     }
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      auto functionScope = functionSymbol->scope();
+      auto functionScope = functionSymbol;
       functionScope->addSymbol(params->functionParametersSymbol);
       setScope(params->functionParametersSymbol);
     } else {
@@ -4486,7 +4484,7 @@ auto Parser::parse_notypespec_function_definition(
   functionSymbol->setDefined(true);
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
-    auto functionScope = functionSymbol->scope();
+    auto functionScope = functionSymbol;
     functionScope->addSymbol(params->functionParametersSymbol);
     setScope(params->functionParametersSymbol);
   } else {
@@ -7977,7 +7975,7 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
     ast->isFinal = true;
   }
 
-  if (scope()->isTemplateParametersScope()) {
+  if (scope()->isTemplateParameters()) {
     mark_maybe_template_name(unqualifiedId);
   }
 
@@ -8167,7 +8165,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     auto _ = Binder::ScopeGuard{&binder_};
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      auto functionScope = functionSymbol->scope();
+      auto functionScope = functionSymbol;
       functionScope->addSymbol(params->functionParametersSymbol);
       setScope(params->functionParametersSymbol);
     } else {
@@ -9094,7 +9092,7 @@ void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-    setScope(parameters->enclosingScope());
+    setScope(parameters->parent());
   }
 
   (void)parse_requires_clause(ast->requiresClause);
@@ -9878,20 +9876,18 @@ void Parser::completePendingFunctionDefinitions() {
   }
 }
 
-auto Parser::getCurrentNonClassScope() const -> Scope* {
+auto Parser::getCurrentNonClassScope() const -> ScopeSymbol* {
   for (auto current = scope(); current; current = current->parent()) {
-    if (current->isClassOrNamespaceScope()) continue;
+    if (current->isClassOrNamespace()) continue;
     return current;
   }
 
   return globalScope_;
 }
 
-auto Parser::scope() const -> Scope* { return binder_.scope(); }
+auto Parser::scope() const -> ScopeSymbol* { return binder_.scope(); }
 
-void Parser::setScope(Scope* scope) { binder_.setScope(scope); }
-
-void Parser::setScope(ScopedSymbol* symbol) { setScope(symbol->scope()); }
+void Parser::setScope(ScopeSymbol* scope) { binder_.setScope(scope); }
 
 void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!ast->functionBody) return;

@@ -30,11 +30,11 @@
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 
@@ -79,9 +79,7 @@ void Binder::warning(SourceLocation loc, std::string message) {
 auto Binder::inTemplate() const -> bool { return inTemplate_; }
 
 auto Binder::currentTemplateParameters() const -> TemplateParametersSymbol* {
-  auto templateParameters =
-      symbol_cast<TemplateParametersSymbol>(scope()->owner());
-
+  auto templateParameters = symbol_cast<TemplateParametersSymbol>(scope());
   return templateParameters;
 }
 
@@ -97,32 +95,30 @@ void Binder::setInstantiatingSymbol(Symbol* symbol) {
   instantiatingSymbol_ = symbol;
 }
 
-auto Binder::declaringScope() const -> Scope* {
+auto Binder::declaringScope() const -> ScopeSymbol* {
   if (!scope_) return nullptr;
-  if (!scope_->isTemplateParametersScope()) return scope_;
+  if (!scope_->isTemplateParameters()) return scope_;
   return scope_->enclosingNonTemplateParametersScope();
 }
 
-auto Binder::scope() const -> Scope* { return scope_; }
+auto Binder::scope() const -> ScopeSymbol* { return scope_; }
 
-void Binder::setScope(Scope* scope) {
+void Binder::setScope(ScopeSymbol* scope) {
   scope_ = scope;
   inTemplate_ = false;
 
   for (auto current = scope_; current; current = current->parent()) {
-    if (current->isTemplateParametersScope()) {
+    if (current->isTemplateParameters()) {
       inTemplate_ = true;
       break;
     }
   }
 }
 
-void Binder::setScope(ScopedSymbol* symbol) { setScope(symbol->scope()); }
-
 auto Binder::enterBlock(SourceLocation loc) -> BlockSymbol* {
   auto blockSymbol = control()->newBlockSymbol(scope_, loc);
   scope_->addSymbol(blockSymbol);
-  setScope(blockSymbol->scope());
+  setScope(blockSymbol);
   return blockSymbol;
 }
 
@@ -176,7 +172,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
     auto parent = ast->nestedNameSpecifier->symbol;
 
     if (parent && parent->isClassOrNamespace()) {
-      setScope(static_cast<ScopedSymbol*>(parent));
+      setScope(static_cast<ScopeSymbol*>(parent));
     }
   }
 
@@ -203,16 +199,11 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
 
     auto classSymbol = symbol_cast<ClassSymbol>(candidate);
 
-    if (classSymbol) {
-      // validate the resolved class symbol
-
-      if (isDeclaration) {
-        // if the class is already declared, we need to check if the
-        if (classSymbol->enclosingScope() != declaringScope()) {
-          // the class is declared in a different scope
-          classSymbol = nullptr;
-        }
-      }
+    if (classSymbol && isDeclaration &&
+        classSymbol->enclosingNonTemplateParametersScope() !=
+            declaringScope()) {
+      // the class is declared in a different scope
+      classSymbol = nullptr;
     }
 
     if (!classSymbol) {
@@ -245,7 +236,7 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
     auto parent = ast->nestedNameSpecifier->symbol;
 
     if (parent && parent->isClassOrNamespace()) {
-      setScope(static_cast<ScopedSymbol*>(parent));
+      setScope(static_cast<ScopeSymbol*>(parent));
     }
   }
 
@@ -264,7 +255,7 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
   ClassSymbol* primaryTemplate = nullptr;
 
-  if (templateId && scope()->isTemplateParametersScope()) {
+  if (templateId && scope()->isTemplateParameters()) {
     for (auto candidate : declaringScope()->find(className) | views::classes) {
       primaryTemplate = candidate;
       break;
@@ -388,8 +379,8 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
     ast->symbol->setValue(value);
     scope()->addSymbol(symbol);
 
-    if (auto enumSymbol = symbol_cast<EnumSymbol>(scope()->owner())) {
-      auto parentScope = enumSymbol->enclosingScope();
+    if (auto enumSymbol = symbol_cast<EnumSymbol>(scope())) {
+      auto parentScope = enumSymbol->parent();
 
       auto u =
           control()->newUsingDeclarationSymbol(parentScope, ast->identifierLoc);
@@ -403,8 +394,8 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
 
   // in C mode
 
-  if (auto enumSymbol = symbol_cast<EnumSymbol>(scope()->owner())) {
-    auto parentScope = enumSymbol->enclosingScope();
+  if (auto enumSymbol = symbol_cast<EnumSymbol>(scope())) {
+    auto parentScope = enumSymbol->parent();
 
     auto enumeratorSymbol =
         control()->newEnumeratorSymbol(parentScope, ast->identifierLoc);
@@ -589,14 +580,14 @@ void Binder::bind(LambdaExpressionAST* ast) {
 
 void Binder::complete(LambdaExpressionAST* ast) {
   if (auto params = ast->parameterDeclarationClause) {
-    auto lambdaScope = ast->symbol->scope();
+    auto lambdaScope = ast->symbol;
     lambdaScope->addSymbol(params->functionParametersSymbol);
     setScope(params->functionParametersSymbol);
   } else {
     setScope(ast->symbol);
   }
 
-  auto parentScope = ast->symbol->enclosingScope();
+  auto parentScope = ast->symbol->parent();
   parentScope->addSymbol(ast->symbol);
 
   const Type* returnType = control()->getAutoType();
@@ -649,11 +640,11 @@ void Binder::bind(ParameterDeclarationClauseAST* ast) {
 void Binder::bind(UsingDirectiveAST* ast) {
   auto id = ast->unqualifiedId->identifier;
 
-  NamespaceSymbol* namespaceSymbol =
+  auto namespaceSymbol =
       Lookup{scope()}.lookupNamespace(ast->nestedNameSpecifier, id);
 
   if (namespaceSymbol) {
-    scope()->addUsingDirective(namespaceSymbol->scope());
+    scope()->addUsingDirective(namespaceSymbol);
   } else {
     error(ast->unqualifiedId->firstSourceLocation(),
           std::format("'{}' is not a namespace name", id->name()));
@@ -704,8 +695,8 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
 
   auto parentScope = scope();
 
-  if (parentScope->isBlockScope()) {
-    parentScope = parentScope->enclosingNamespaceScope();
+  if (parentScope->isBlock()) {
+    parentScope = parentScope->enclosingNamespace();
   }
 
   auto functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
@@ -720,7 +711,7 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   functionSymbol->setTemplateParameters(currentTemplateParameters());
 
   if (isConstructor(functionSymbol)) {
-    auto enclosingClass = symbol_cast<ClassSymbol>(scope()->owner());
+    auto enclosingClass = symbol_cast<ClassSymbol>(scope());
 
     if (enclosingClass) {
       enclosingClass->addConstructor(functionSymbol);
@@ -830,15 +821,14 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
 auto Binder::isConstructor(Symbol* symbol) const -> bool {
   auto functionSymbol = symbol_cast<FunctionSymbol>(symbol);
   if (!functionSymbol) return false;
-  if (!functionSymbol->enclosingScope()) return false;
-  auto classSymbol =
-      symbol_cast<ClassSymbol>(functionSymbol->enclosingScope()->owner());
+  if (!functionSymbol->parent()) return false;
+  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
   if (!classSymbol) return false;
   if (classSymbol->name() != functionSymbol->name()) return false;
   return true;
 }
 
-auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopedSymbol* {
+auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) return classSymbol;
 
   if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
@@ -909,7 +899,7 @@ void Binder::bind(IdExpressionAST* ast) {
   }
 }
 
-auto Binder::getFunction(Scope* scope, const Name* name, const Type* type)
+auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type)
     -> FunctionSymbol* {
   auto parentScope = scope;
 
@@ -917,7 +907,7 @@ auto Binder::getFunction(Scope* scope, const Name* name, const Type* type)
     parentScope = parentScope->parent();
   }
 
-  if (auto parentClass = symbol_cast<ClassSymbol>(parentScope->owner());
+  if (auto parentClass = symbol_cast<ClassSymbol>(parentScope);
       parentClass && parentClass->name() == name) {
     for (auto ctor : parentClass->constructors()) {
       if (control()->is_same(ctor->type(), type)) {

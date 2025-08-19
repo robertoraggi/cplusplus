@@ -34,46 +34,7 @@
 
 namespace cxx {
 
-auto ASTRewriter::make_substitution(
-    TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-    List<TemplateArgumentAST*>* templateArgumentList)
-    -> std::vector<TemplateArgument> {
-  auto control = unit->control();
-  auto interp = ASTInterpreter{unit};
-
-  std::vector<TemplateArgument> templateArguments;
-
-  for (auto arg : ListView{templateArgumentList}) {
-    if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-      auto expr = exprArg->expression;
-      auto value = interp.evaluate(expr);
-      if (!value.has_value()) {
-#if false
-        unit->error(arg->firstSourceLocation(),
-                    "template argument is not a constant expression");
-#endif
-        continue;
-      }
-
-      // ### need to set scope and location
-      auto templArg = control->newVariableSymbol(nullptr, {});
-      templArg->setInitializer(expr);
-      templArg->setType(control->add_const(expr->type));
-      templArg->setConstValue(value);
-      templateArguments.push_back(templArg);
-    } else if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-      auto type = typeArg->typeId->type;
-      // ### need to set scope and location
-      auto templArg = control->newTypeAliasSymbol(nullptr, {});
-      templArg->setType(type);
-      templateArguments.push_back(templArg);
-    }
-  }
-
-  return templateArguments;
-}
-
-ASTRewriter::ASTRewriter(TranslationUnit* unit, Scope* scope,
+ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                          const std::vector<TemplateArgument>& templateArguments)
     : unit_(unit), templateArguments_(templateArguments), binder_(unit_) {
   binder_.setScope(scope);
@@ -167,7 +128,7 @@ auto ASTRewriter::instantiateClassTemplate(
     return subst;
   }
 
-  auto parentScope = classSymbol->enclosingSymbol()->scope();
+  auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
 
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
 
@@ -222,7 +183,10 @@ auto ASTRewriter::instantiateTypeAliasTemplate(
   }
 #endif
 
-  auto parentScope = typeAliasSymbol->enclosingSymbol()->scope();
+  auto parentScope = typeAliasSymbol->parent();
+  while (parentScope->isTemplateParameters()) {
+    parentScope = parentScope->parent();
+  }
 
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
 
@@ -234,6 +198,45 @@ auto ASTRewriter::instantiateTypeAliasTemplate(
   if (!instance) return nullptr;
 
   return instance->symbol;
+}
+
+auto ASTRewriter::make_substitution(
+    TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
+    List<TemplateArgumentAST*>* templateArgumentList)
+    -> std::vector<TemplateArgument> {
+  auto control = unit->control();
+  auto interp = ASTInterpreter{unit};
+
+  std::vector<TemplateArgument> templateArguments;
+
+  for (auto arg : ListView{templateArgumentList}) {
+    if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+      auto expr = exprArg->expression;
+      auto value = interp.evaluate(expr);
+      if (!value.has_value()) {
+#if false
+        unit->error(arg->firstSourceLocation(),
+                    "template argument is not a constant expression");
+#endif
+        continue;
+      }
+
+      // ### need to set scope and location
+      auto templArg = control->newVariableSymbol(nullptr, {});
+      templArg->setInitializer(expr);
+      templArg->setType(control->add_const(expr->type));
+      templArg->setConstValue(value);
+      templateArguments.push_back(templArg);
+    } else if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+      auto type = typeArg->typeId->type;
+      // ### need to set scope and location
+      auto templArg = control->newTypeAliasSymbol(nullptr, {});
+      templArg->setType(type);
+      templateArguments.push_back(templArg);
+    }
+  }
+
+  return templateArguments;
 }
 
 }  // namespace cxx

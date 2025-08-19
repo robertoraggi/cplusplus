@@ -26,10 +26,10 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
-#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 // mlir
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -645,8 +645,8 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     // todo: introduce ClassLayout to avoid linear searches and support c++
     // class layout
     int fieldIndex = 0;
-    auto classSymbol = symbol_cast<ClassSymbol>(field->enclosingSymbol());
-    for (auto member : classSymbol->scope()->symbols()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(field->parent());
+    for (auto member : cxx::views::members(classSymbol)) {
       auto f = symbol_cast<FieldSymbol>(member);
       if (!f) continue;
       if (f->isStatic()) continue;

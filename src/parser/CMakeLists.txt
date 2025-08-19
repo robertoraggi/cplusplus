@@ -58,7 +58,6 @@ add_library(cxx-parser
     cxx/parser.cc
     cxx/path.cc
     cxx/preprocessor.cc
-    cxx/scope.cc
     cxx/source_location.cc
     cxx/symbol_chain_view.cc
     cxx/symbol_printer.cc

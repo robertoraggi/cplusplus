@@ -31,7 +31,7 @@ namespace cxx {
 
 class Lookup {
  public:
-  explicit Lookup(Scope* scope);
+  explicit Lookup(ScopeSymbol* scope);
 
   [[nodiscard]] auto operator()(
       const Name* name, const std::function<bool(Symbol*)>& accept = {}) const
@@ -46,7 +46,7 @@ class Lookup {
       const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
 
   [[nodiscard]] auto qualifiedLookup(
-      Scope* scope, const Name* name,
+      ScopeSymbol* scope, const Name* name,
       const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
 
   [[nodiscard]] auto lookupNamespace(
@@ -62,23 +62,24 @@ class Lookup {
       -> Symbol*;
 
   [[nodiscard]] auto qualifiedLookup(
-      Symbol* scopedSymbol, const Name* name,
+      Symbol* scopeSymbol, const Name* name,
       const std::function<bool(Symbol*)>& accept) const -> Symbol*;
 
   [[nodiscard]] auto lookupHelper(
-      Scope* scope, const Name* name, std::unordered_set<Scope*>& cache,
+      ScopeSymbol* scope, const Name* name,
+      std::unordered_set<ScopeSymbol*>& cache,
       const std::function<bool(Symbol*)>& accept) const -> Symbol*;
 
   [[nodiscard]] auto lookupNamespaceHelper(
-      Scope* scope, const Identifier* id, std::unordered_set<Scope*>& set) const
-      -> NamespaceSymbol*;
+      ScopeSymbol* scope, const Identifier* id,
+      std::unordered_set<ScopeSymbol*>& set) const -> NamespaceSymbol*;
 
-  [[nodiscard]] auto lookupTypeHelper(Scope* scope, const Identifier* id,
-                                      std::unordered_set<Scope*>& set) const
-      -> Symbol*;
+  [[nodiscard]] auto lookupTypeHelper(
+      ScopeSymbol* scope, const Identifier* id,
+      std::unordered_set<ScopeSymbol*>& set) const -> Symbol*;
 
  private:
-  Scope* scope_ = nullptr;
+  ScopeSymbol* scope_ = nullptr;
 };
 
 }  // namespace cxx
