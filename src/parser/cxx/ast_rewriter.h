@@ -54,6 +54,11 @@ class ASTRewriter {
                                  TemplateDeclarationAST* templateHead = nullptr)
       -> DeclarationAST*;
 
+  [[nodiscard]] static auto make_substitution(
+      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
+      List<TemplateArgumentAST*>* templateArgumentList)
+      -> std::vector<TemplateArgument>;
+
  private:
   [[nodiscard]] auto templateArguments() const
       -> const std::vector<TemplateArgument>& {
@@ -72,11 +77,6 @@ class ASTRewriter {
 
   [[nodiscard]] auto restrictedToDeclarations() const -> bool;
   void setRestrictedToDeclarations(bool restrictedToDeclarations);
-
-  [[nodiscard]] static auto make_substitution(
-      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-      List<TemplateArgumentAST*>* templateArgumentList)
-      -> std::vector<TemplateArgument>;
 
   // run on the base nodes
   [[nodiscard]] auto unit(UnitAST* ast) -> UnitAST*;

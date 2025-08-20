@@ -787,10 +787,6 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   classSymbol->setDeclaration(copy);
   classSymbol->setTemplateDeclaration(templateHead);
 
-  if (templateHead) {
-    classSymbol->setTemplateParameters(binder()->currentTemplateParameters());
-  }
-
   if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
     ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
   } else {

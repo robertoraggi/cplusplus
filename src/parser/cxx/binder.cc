@@ -108,7 +108,7 @@ void Binder::setScope(ScopeSymbol* scope) {
   inTemplate_ = false;
 
   for (auto current = scope_; current; current = current->parent()) {
-    if (current->isTemplateParameters()) {
+    if (auto params = current->templateParameters()) {
       inTemplate_ = true;
       break;
     }
@@ -212,7 +212,6 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
 
       classSymbol->setIsUnion(isUnion);
       classSymbol->setName(name);
-      classSymbol->setTemplateParameters(currentTemplateParameters());
       classSymbol->setTemplateDeclaration(declSpecs.templateHead);
       declaringScope()->addSymbol(classSymbol);
 
@@ -230,42 +229,99 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
 }
 
 void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
-  auto templateParameters = currentTemplateParameters();
+  auto check_optional_nested_name_specifier = [&] {
+    if (!ast->nestedNameSpecifier) return;
 
-  if (ast->nestedNameSpecifier) {
     auto parent = ast->nestedNameSpecifier->symbol;
 
-    if (parent && parent->isClassOrNamespace()) {
-      setScope(static_cast<ScopeSymbol*>(parent));
+    if (!parent || !parent->isClassOrNamespace()) {
+      error(ast->nestedNameSpecifier->firstSourceLocation(),
+            "nested name specifier must be a class or namespace");
+      return;
     }
-  }
 
-  auto className = get_name(control(), ast->unqualifiedId);
-  auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
-  if (templateId) {
-    className = templateId->identifier;
-  }
+    setScope(static_cast<ScopeSymbol*>(parent));
+  };
 
-  auto location = ast->classLoc;
-  if (templateId) {
-    location = templateId->identifierLoc;
-  } else if (ast->unqualifiedId) {
-    location = ast->unqualifiedId->firstSourceLocation();
-  }
+  auto check_template_specialization = [&] {
+    auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+    if (!templateId) return false;
 
-  ClassSymbol* primaryTemplate = nullptr;
+    const auto location = templateId->identifierLoc;
 
-  if (templateId && scope()->isTemplateParameters()) {
-    for (auto candidate : declaringScope()->find(className) | views::classes) {
-      primaryTemplate = candidate;
+    ClassSymbol* primaryTemplateSymbol = nullptr;
+
+    for (auto candidate :
+         declaringScope()->find(templateId->identifier) | views::classes) {
+      primaryTemplateSymbol = candidate;
       break;
     }
 
-    if (!primaryTemplate) {
+    if (!primaryTemplateSymbol ||
+        !primaryTemplateSymbol->templateParameters()) {
       error(location, std::format("specialization of undeclared template '{}'",
                                   templateId->identifier->name()));
+      // return true;
     }
-  }
+
+    std::vector<TemplateArgument> templateArguments;
+    ClassSymbol* specialization = nullptr;
+
+    if (primaryTemplateSymbol) {
+      templateArguments = ASTRewriter::make_substitution(
+          unit_, primaryTemplateSymbol->templateDeclaration(),
+          templateId->templateArgumentList);
+
+      specialization =
+          primaryTemplateSymbol
+              ? primaryTemplateSymbol->findSpecialization(templateArguments)
+              : nullptr;
+
+      if (specialization) {
+        error(location, std::format("redefinition of specialization '{}'",
+                                    templateId->identifier->name()));
+        // return true;
+      }
+    }
+
+    const auto isUnion = ast->classKey == TokenKind::T_UNION;
+
+    auto classSymbol = control()->newClassSymbol(declaringScope(), location);
+    ast->symbol = classSymbol;
+
+    classSymbol->setIsUnion(isUnion);
+    classSymbol->setName(templateId->identifier);
+    ast->symbol->setDeclaration(ast);
+    ast->symbol->setFinal(ast->isFinal);
+
+    // if (declSpecs.templateHead) {
+    //   warning(location, "setting template head");
+    //   ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
+    // }
+
+    declSpecs.setTypeSpecifier(ast);
+    declSpecs.setType(ast->symbol->type());
+
+    if (primaryTemplateSymbol) {
+      primaryTemplateSymbol->addSpecialization(std::move(templateArguments),
+                                               classSymbol);
+    }
+
+    return true;
+  };
+
+  check_optional_nested_name_specifier();
+
+  if (check_template_specialization()) return;
+
+  // get the component anme
+  const Identifier* className = nullptr;
+  if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId))
+    className = nameId->identifier;
+
+  const auto location = ast->unqualifiedId
+                            ? ast->unqualifiedId->firstSourceLocation()
+                            : ast->classLoc;
 
   ClassSymbol* classSymbol = nullptr;
 
@@ -277,6 +333,9 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
   }
 
   if (classSymbol && classSymbol->isComplete()) {
+    // not a template-id, but a class with the same name already exists
+    error(location,
+          std::format("redefinition of class '{}'", to_string(className)));
     classSymbol = nullptr;
   }
 
@@ -285,29 +344,22 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
     classSymbol = control()->newClassSymbol(scope(), location);
     classSymbol->setIsUnion(isUnion);
     classSymbol->setName(className);
-    classSymbol->setTemplateParameters(templateParameters);
 
-    if (!primaryTemplate) {
-      declaringScope()->addSymbol(classSymbol);
-    } else {
-      std::vector<TemplateArgument> arguments;
-      // TODO: parse template arguments
-      primaryTemplate->addSpecialization(arguments, classSymbol);
-    }
+    declaringScope()->addSymbol(classSymbol);
   }
-
-  classSymbol->setDeclaration(ast);
-
-  if (declSpecs.templateHead) {
-    classSymbol->setTemplateDeclaration(declSpecs.templateHead);
-  }
-
-  classSymbol->setFinal(ast->isFinal);
 
   ast->symbol = classSymbol;
 
+  ast->symbol->setDeclaration(ast);
+
+  if (declSpecs.templateHead) {
+    ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
+  }
+
+  ast->symbol->setFinal(ast->isFinal);
+
   declSpecs.setTypeSpecifier(ast);
-  declSpecs.setType(classSymbol->type());
+  declSpecs.setType(ast->symbol->type());
 }
 
 void Binder::complete(ClassSpecifierAST* ast) {
@@ -417,7 +469,6 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
   symbol->setName(name);
 
   if (typeId) symbol->setType(typeId->type);
-  symbol->setTemplateParameters(currentTemplateParameters());
 
   if (auto classType = type_cast<ClassType>(symbol->type())) {
     auto classSymbol = classType->symbol();
@@ -565,7 +616,6 @@ void Binder::bind(ConceptDefinitionAST* ast) {
 
   auto symbol = control()->newConceptSymbol(scope(), ast->identifierLoc);
   symbol->setName(ast->identifier);
-  symbol->setTemplateParameters(templateParameters);
 
   declaringScope()->addSymbol(symbol);
 }
@@ -708,7 +758,6 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   applySpecifiers(functionSymbol, decl.specs);
   functionSymbol->setName(name);
   functionSymbol->setType(type);
-  functionSymbol->setTemplateParameters(currentTemplateParameters());
 
   if (isConstructor(functionSymbol)) {
     auto enclosingClass = symbol_cast<ClassSymbol>(scope());
@@ -775,7 +824,6 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl)
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);
-  symbol->setTemplateParameters(currentTemplateParameters());
   declaringScope()->addSymbol(symbol);
   return symbol;
 }
@@ -890,13 +938,29 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
 }
 
 void Binder::bind(IdExpressionAST* ast) {
-  if (ast->unqualifiedId) {
-    auto name = get_name(control(), ast->unqualifiedId);
-    const Name* componentName = name;
-    if (auto templateId = name_cast<TemplateId>(name))
-      componentName = templateId->name();
-    ast->symbol = Lookup{scope()}(ast->nestedNameSpecifier, componentName);
+  if (!ast->unqualifiedId) {
+    error(ast->firstSourceLocation(),
+          "expected an unqualified identifier in id expression");
+    return;
   }
+
+  auto name = get_name(control(), ast->unqualifiedId);
+
+  const Name* componentName = name;
+
+  if (auto templateId = name_cast<TemplateId>(name)) {
+    componentName = templateId->name();
+  }
+
+  if (ast->nestedNameSpecifier) {
+    if (!ast->nestedNameSpecifier->symbol) {
+      error(ast->nestedNameSpecifier->firstSourceLocation(),
+            "nested name specifier must be a class or namespace");
+      return;
+    }
+  }
+
+  ast->symbol = Lookup{scope()}(ast->nestedNameSpecifier, componentName);
 }
 
 auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type)

@@ -96,10 +96,7 @@ auto ASTRewriter::instantiateClassTemplate(
     ClassSymbol* classSymbol) -> ClassSymbol* {
   auto templateDecl = classSymbol->templateDeclaration();
 
-  ClassSpecifierAST* classSpecifier =
-      ast_cast<ClassSpecifierAST>(classSymbol->declaration());
-
-  if (!classSpecifier) return nullptr;
+  if (!classSymbol->declaration()) return nullptr;
 
   auto templateArguments =
       make_substitution(unit, templateDecl, templateArgumentList);
@@ -127,6 +124,9 @@ auto ASTRewriter::instantiateClassTemplate(
   if (subst) {
     return subst;
   }
+
+  auto classSpecifier = ast_cast<ClassSpecifierAST>(classSymbol->declaration());
+  if (!classSpecifier) return nullptr;
 
   auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
 

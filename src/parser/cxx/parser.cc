@@ -1056,7 +1056,6 @@ auto Parser::parse_template_nested_name_specifier(
           unit, templateId->templateArgumentList, classSymbol);
 
       templateId->symbol = instance;
-
       ast->symbol = instance;
     } else if (auto typeAliasSymbol =
                    symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
@@ -5314,8 +5313,7 @@ void Parser::check_type_traits() {
 auto Parser::is_template(Symbol* symbol) const -> bool {
   if (!symbol) return false;
   if (symbol->isTemplateTypeParameter()) return true;
-  auto templateParameters = cxx::getTemplateParameters(symbol);
-  return templateParameters != nullptr;
+  return symbol_cast<TemplateParametersSymbol>(symbol->parent());
 }
 
 auto Parser::evaluate_constant_expression(ExpressionAST* expr)
@@ -7900,18 +7898,10 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
-  SimpleTemplateIdAST* templateId = nullptr;
-  const Identifier* className = nullptr;
-  ClassSymbol* symbol = nullptr;
   SourceLocation finalLoc;
-  bool isUnion = false;
-  bool isTemplateSpecialization = false;
-  SourceLocation location = classLoc;
 
   auto lookat_class_head = [&] {
     LookaheadParser lookahead{this};
-
-    isUnion = unit->tokenKind(classLoc) == TokenKind::T_UNION;
 
     parse_optional_attribute_specifier_seq(attributeList);
 
@@ -7921,23 +7911,19 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
     if (lookat(TokenKind::T_IDENTIFIER)) {
       check_type_traits();
 
-      if (parse_simple_template_id(templateId)) {
+      if (SimpleTemplateIdAST* templateId = nullptr;
+          parse_simple_template_id(templateId)) {
         unqualifiedId = templateId;
-        className = templateId->identifier;
-        isTemplateSpecialization = true;
-        location = templateId->firstSourceLocation();
       } else {
         NameIdAST* nameId = nullptr;
         (void)parse_name_id(nameId);
         unqualifiedId = nameId;
-        className = nameId->identifier;
-        location = nameId->firstSourceLocation();
       }
 
       (void)parse_class_virt_specifier(finalLoc);
     }
 
-    if (nestedNameSpecifier && !className) {
+    if (nestedNameSpecifier && !unqualifiedId) {
       parse_error("expected class name");
     }
 

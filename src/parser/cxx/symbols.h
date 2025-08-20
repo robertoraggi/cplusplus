@@ -55,17 +55,7 @@ struct TemplateSpecialization {
 template <typename S>
 class TemplateInfo {
  public:
-  TemplateInfo(S* templateSymbol, TemplateParametersSymbol* templateParameters)
-      : templateSymbol_(templateSymbol),
-        templateParameters_(templateParameters) {}
-
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    return templateParameters_;
-  }
-
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    templateParameters_ = templateParameters;
-  }
+  explicit TemplateInfo(S* templateSymbol) : templateSymbol_(templateSymbol) {}
 
   [[nodiscard]] auto specializations() const
       -> std::span<const TemplateSpecialization<S>> {
@@ -94,7 +84,6 @@ class TemplateInfo {
 
  private:
   S* templateSymbol_ = nullptr;
-  TemplateParametersSymbol* templateParameters_ = nullptr;
   std::vector<TemplateSpecialization<S>> specializations_;
 };
 
@@ -148,6 +137,8 @@ class Symbol {
     return std::ranges::subrange(EnclosingSymbolIterator{parent()},
                                  EnclosingSymbolIterator{});
   }
+
+  [[nodiscard]] auto templateParameters() -> TemplateParametersSymbol*;
 
   [[nodiscard]] auto hasEnclosingSymbol(Symbol* symbol) const -> bool;
 
@@ -247,11 +238,7 @@ class ConceptSymbol final : public Symbol {
   explicit ConceptSymbol(ScopeSymbol* enclosingScope);
   ~ConceptSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
-
  private:
-  TemplateParametersSymbol* templateParameters_ = nullptr;
 };
 
 class BaseClassSymbol final : public Symbol {
@@ -323,9 +310,6 @@ class ClassSymbol final : public ScopeSymbol {
 
   [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
   void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration);
-
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
   [[nodiscard]] auto specializations() const
       -> std::span<const TemplateSpecialization<ClassSymbol>>;
@@ -428,9 +412,6 @@ class FunctionSymbol final : public ScopeSymbol {
   explicit FunctionSymbol(ScopeSymbol* enclosingScope);
   ~FunctionSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
-
   [[nodiscard]] auto isDefined() const -> bool;
   void setDefined(bool isDefined);
 
@@ -474,7 +455,6 @@ class FunctionSymbol final : public ScopeSymbol {
   void setDeclaration(DeclarationAST* declaration);
 
  private:
-  TemplateParametersSymbol* templateParameters_ = nullptr;
   DeclarationAST* declaration_ = nullptr;
 
   union {
@@ -519,9 +499,6 @@ class LambdaSymbol final : public ScopeSymbol {
   explicit LambdaSymbol(ScopeSymbol* enclosingScope);
   ~LambdaSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
-
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
 
@@ -535,8 +512,6 @@ class LambdaSymbol final : public ScopeSymbol {
   void setStatic(bool isStatic);
 
  private:
-  TemplateParametersSymbol* templateParameters_ = nullptr;
-
   union {
     std::uint32_t flags_{};
     struct {
@@ -579,14 +554,10 @@ class TypeAliasSymbol final : public Symbol {
   explicit TypeAliasSymbol(ScopeSymbol* enclosingScope);
   ~TypeAliasSymbol() override;
 
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
-
   [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
   void setTemplateDeclaration(TemplateDeclarationAST* declaration);
 
  private:
-  TemplateParametersSymbol* templateParameters_ = nullptr;
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
 };
 
@@ -596,9 +567,6 @@ class VariableSymbol final : public Symbol {
 
   explicit VariableSymbol(ScopeSymbol* enclosingScope);
   ~VariableSymbol() override;
-
-  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol*;
-  void setTemplateParameters(TemplateParametersSymbol* templateParameters);
 
   [[nodiscard]] auto isStatic() const -> bool;
   void setStatic(bool isStatic);
@@ -628,7 +596,6 @@ class VariableSymbol final : public Symbol {
   void setConstValue(std::optional<ConstValue> value);
 
  private:
-  TemplateParametersSymbol* templateParameters_ = nullptr;
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
   ExpressionAST* initializer_ = nullptr;
   std::optional<ConstValue> constValue_;
@@ -862,48 +829,5 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   if (symbol) return symbol->asScopeSymbol();
   return nullptr;
 }
-
-struct GetTemplateParameters {
-  auto operator()(Symbol* symbol) const -> TemplateParametersSymbol* {
-    if (!symbol) return nullptr;
-    return visit(Visitor{*this}, symbol);
-  }
-
- private:
-  struct Visitor {
-    const GetTemplateParameters& getTemplateParameters;
-
-    auto operator()(ConceptSymbol* symbol) const -> TemplateParametersSymbol* {
-      return symbol->templateParameters();
-    }
-
-    auto operator()(ClassSymbol* symbol) const -> TemplateParametersSymbol* {
-      return symbol->templateParameters();
-    }
-
-    auto operator()(FunctionSymbol* symbol) const -> TemplateParametersSymbol* {
-      return symbol->templateParameters();
-    }
-
-    auto operator()(LambdaSymbol* symbol) const -> TemplateParametersSymbol* {
-      return symbol->templateParameters();
-    }
-
-    auto operator()(TypeAliasSymbol* symbol) const
-        -> TemplateParametersSymbol* {
-      return symbol->templateParameters();
-    }
-
-    auto operator()(VariableSymbol* symbol) const -> TemplateParametersSymbol* {
-      return symbol->templateParameters();
-    }
-
-    auto operator()(auto symbol) const -> TemplateParametersSymbol* {
-      return nullptr;
-    }
-  };
-};
-
-inline constexpr auto getTemplateParameters = GetTemplateParameters{};
 
 }  // namespace cxx

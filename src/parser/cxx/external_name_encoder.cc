@@ -329,6 +329,31 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   ExternalNameEncoder& encoder;
   Symbol* symbol = nullptr;
 
+  void encodeTemplateArguments(Symbol* symbol) {
+    if (!symbol) return;
+
+    std::span<const TemplateArgument> args;
+
+    if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+      args = classSymbol->templateArguments();
+    }
+
+    if (args.empty()) return;
+
+    encoder.out("I");
+
+    for (const auto& arg : args) {
+      if (auto sym = std::get_if<Symbol*>(&arg)) {
+        auto type = (*sym)->type();
+        encoder.encodeType(type);
+      } else {
+        cxx_runtime_error("template argument not supported yet");
+      }
+    }
+
+    encoder.out("E");
+  }
+
   void operator()(const Identifier* id) {
     if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
       if (function->isConstructor()) {
@@ -338,6 +363,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
     }
 
     out(std::format("{}{}", id->name().length(), id->name()));
+    encodeTemplateArguments(symbol);
   }
 
   void operator()(const OperatorId* name) {
