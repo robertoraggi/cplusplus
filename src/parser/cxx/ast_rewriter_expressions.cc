@@ -25,7 +25,12 @@
 #include <cxx/binder.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/name_lookup.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
+
+#include <format>
 
 namespace cxx {
 
@@ -485,7 +490,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
   if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
-      param && param->depth() == 0 &&
+      param && param->depth() == rewrite.depth_ &&
       param->index() < rewrite.templateArguments_.size()) {
     auto symbolPtr =
         std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
@@ -514,10 +519,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
       rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
-  copy->symbol = ast->symbol;
+  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
-  if (auto param = symbol_cast<NonTypeParameterSymbol>(copy->symbol);
-      param && param->depth() == 0 &&
+  if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
+      param && param->depth() == rewrite.depth_ &&
       param->index() < rewrite.templateArguments_.size()) {
     auto symbolPtr =
         std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
@@ -528,8 +533,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
     copy->symbol = *symbolPtr;
     copy->type = copy->symbol->type();
+  } else {
+    // copy->symbol = ast->symbol;
+    if (copy->nestedNameSpecifier) {
+      auto id = get_name(control(), copy->unqualifiedId);
+      auto resolved = Lookup(binder()->scope())(copy->nestedNameSpecifier, id);
+      copy->symbol = resolved;
+    }
   }
-  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
   return copy;
 }

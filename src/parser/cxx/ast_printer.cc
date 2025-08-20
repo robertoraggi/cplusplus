@@ -309,6 +309,10 @@ void ASTPrinter::visit(FunctionDefinitionAST* ast) {
 
 void ASTPrinter::visit(TemplateDeclarationAST* ast) {
   out_ << std::format("{}\n", "template-declaration");
+  ++indent_;
+  out_ << std::format("{:{}}", "", indent_ * 2);
+  out_ << std::format("depth: {}\n", ast->depth);
+  --indent_;
   if (ast->templateParameterList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);

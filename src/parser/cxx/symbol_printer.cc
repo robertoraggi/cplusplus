@@ -102,7 +102,16 @@ struct DumpSymbols {
       out << '<';
       std::string_view sep = "";
       for (const auto& param : views::members(symbol->templateParameters())) {
-        out << std::format("{}{}", sep, to_string(param->type()));
+        if (auto cstParam = symbol_cast<NonTypeParameterSymbol>(param)) {
+          out << std::format("{}{}", sep, to_string(cstParam->objectType()));
+        } else if (symbol_cast<TypeParameterSymbol>(param)) {
+          out << std::format("{}{}", sep, to_string(param->type()));
+        } else if (symbol_cast<TemplateTypeParameterSymbol>(param)) {
+          out << std::format("{}{}", sep, to_string(param->type()));
+        } else {
+          out << std::format("{}{}", sep, to_string(param->type()));
+        }
+        if (param->isParameterPack()) out << "...";
         sep = ", ";
       }
       out << '>';
@@ -117,7 +126,15 @@ struct DumpSymbols {
       for (auto arg : symbol->templateArguments()) {
         auto symbol = std::get_if<Symbol*>(&arg);
         if (!symbol) continue;
-        out << std::format("{}{}", sep, to_string((*symbol)->type()));
+        auto sym = *symbol;
+        if (sym->isTypeAlias()) {
+          out << std::format("{}{}", sep, to_string(sym->type()));
+        } else if (auto var = symbol_cast<VariableSymbol>(sym)) {
+          auto cst = std::get<std::intmax_t>(var->constValue().value());
+          out << std::format("{}{}", sep, cst);
+        } else {
+          cxx_runtime_error("todo");
+        }
         sep = ", ";
       }
       out << std::format(">\n");
@@ -318,7 +335,7 @@ struct DumpSymbols {
   void operator()(NonTypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter object<{}, {}, {}>{} {}\n", symbol->index(),
+    out << std::format("parameter constant<{}, {}, {}>{} {}\n", symbol->index(),
                        symbol->depth(), to_string(symbol->objectType()), pack,
                        to_string(symbol->name()));
   }

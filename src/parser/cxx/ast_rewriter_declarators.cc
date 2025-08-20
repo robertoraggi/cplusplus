@@ -28,6 +28,8 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 
+#include <format>
+
 namespace cxx {
 
 struct ASTRewriter::CoreDeclaratorVisitor {

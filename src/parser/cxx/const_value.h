@@ -28,7 +28,7 @@
 
 namespace cxx {
 
-using ConstValue = std::variant<bool, std::intmax_t, const StringLiteral*,
-                                float, double, long double>;
+using ConstValue = std::variant<std::intmax_t, const StringLiteral*, float,
+                                double, long double>;
 
 }  // namespace cxx

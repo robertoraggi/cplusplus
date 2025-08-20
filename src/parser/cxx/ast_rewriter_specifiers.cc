@@ -22,11 +22,13 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 #include <format>
@@ -240,7 +242,13 @@ auto ASTRewriter::enumerator(EnumeratorAST* ast) -> EnumeratorAST* {
   copy->equalLoc = ast->equalLoc;
   copy->expression = expression(ast->expression);
   copy->identifier = ast->identifier;
-  copy->symbol = ast->symbol;
+
+  auto interp = ASTInterpreter{unit_};
+  auto value = interp.evaluate(copy->expression);
+
+  auto type = binder().scope()->type();
+
+  binder_.bind(copy, type, std::move(value));
 
   return copy;
 }
@@ -558,19 +566,25 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
-  copy->symbol = binder()->resolve(
-      copy->nestedNameSpecifier, copy->unqualifiedId, /*checkTemplates=*/true);
+  copy->symbol = ast->symbol;
 
   if (auto typeParameter = symbol_cast<TypeParameterSymbol>(ast->symbol)) {
     auto paramType = type_cast<TypeParameterType>(ast->symbol->type());
     const auto& args = rewrite.templateArguments_;
-    if (paramType && paramType->depth() == 0 &&
+    if (paramType && paramType->depth() == rewrite.depth_ &&
         paramType->index() < args.size()) {
       auto index = paramType->index();
 
       if (auto sym = std::get_if<Symbol*>(&args[index])) {
         copy->symbol = *sym;
       }
+    }
+  } else {
+    // If the symbol is unresolved, we need to resolve it.
+    if (auto s =
+            binder()->resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
+                              /*checkTemplates=*/true)) {
+      copy->symbol = s;
     }
   }
 
@@ -740,6 +754,10 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   copy->lbraceLoc = ast->lbraceLoc;
 
+  auto _ = Binder::ScopeGuard{binder()};
+
+  binder()->bind(copy, typeSpecifierListCtx);
+
   for (auto enumeratorList = &copy->enumeratorList;
        auto node : ListView{ast->enumeratorList}) {
     auto value = rewrite.enumerator(node);
@@ -749,7 +767,6 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   copy->commaLoc = ast->commaLoc;
   copy->rbraceLoc = ast->rbraceLoc;
-  copy->symbol = ast->symbol;
 
   return copy;
 }

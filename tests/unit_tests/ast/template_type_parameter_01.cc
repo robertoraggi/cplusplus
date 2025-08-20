@@ -10,6 +10,7 @@ struct S {
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
 // CHECK-NEXT:    template-declaration
+// CHECK-NEXT:      depth: 0
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        typename-type-parameter
 // CHECK-NEXT:          depth: 0
@@ -32,6 +33,7 @@ struct S {
 // CHECK-NEXT:              identifier: S
 // CHECK-NEXT:            declaration-list
 // CHECK-NEXT:              template-declaration
+// CHECK-NEXT:                depth: 1
 // CHECK-NEXT:                template-parameter-list
 // CHECK-NEXT:                  typename-type-parameter
 // CHECK-NEXT:                    depth: 1

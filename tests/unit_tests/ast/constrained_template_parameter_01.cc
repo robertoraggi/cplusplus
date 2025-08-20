@@ -14,6 +14,7 @@ constexpr auto ident_v = ident<x>::value;
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
 // CHECK-NEXT:    template-declaration
+// CHECK-NEXT:      depth: 0
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        typename-type-parameter
 // CHECK-NEXT:          depth: 0
@@ -24,6 +25,7 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:        expression: bool-literal-expression [prvalue bool]
 // CHECK-NEXT:          is-true: true
 // CHECK-NEXT:    template-declaration
+// CHECK-NEXT:      depth: 0
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        non-type-template-parameter
 // CHECK-NEXT:          depth: 0
@@ -62,6 +64,7 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: x
 // CHECK-NEXT:    template-declaration
+// CHECK-NEXT:      depth: 0
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        non-type-template-parameter
 // CHECK-NEXT:          depth: 0

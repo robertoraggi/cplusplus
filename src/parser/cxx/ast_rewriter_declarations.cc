@@ -27,6 +27,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 
 namespace cxx {
 
@@ -560,12 +561,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
 
   auto _ = Binder::ScopeGuard{binder()};
 
-  auto templateParametersSymbol = control()->newTemplateParametersSymbol(
+  copy->symbol = control()->newTemplateParametersSymbol(
       binder()->scope(), ast->symbol->location());
 
-  copy->symbol = templateParametersSymbol;
+  copy->symbol->setExplicitTemplateSpecialization(
+      ast->symbol->isExplicitTemplateSpecialization());
 
-  binder()->setScope(templateParametersSymbol);
+  copy->depth = ast->depth;
+
+  binder()->setScope(copy->symbol);
 
   for (auto templateParameterList = &copy->templateParameterList;
        auto node : ListView{ast->templateParameterList}) {

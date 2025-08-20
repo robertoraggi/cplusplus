@@ -537,6 +537,12 @@ class TemplateParametersSymbol final : public ScopeSymbol {
 
   explicit TemplateParametersSymbol(ScopeSymbol* enclosingScope);
   ~TemplateParametersSymbol() override;
+
+  [[nodiscard]] auto isExplicitTemplateSpecialization() const -> bool;
+  void setExplicitTemplateSpecialization(bool isExplicit);
+
+ private:
+  bool isExplicitTemplateSpecialization_ = false;
 };
 
 class BlockSymbol final : public ScopeSymbol {

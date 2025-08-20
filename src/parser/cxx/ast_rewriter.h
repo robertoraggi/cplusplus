@@ -199,6 +199,7 @@ class ASTRewriter {
   std::optional<int> elementIndex_;
   TranslationUnit* unit_ = nullptr;
   Binder binder_;
+  int depth_ = 0;
   bool restrictedToDeclarations_ = false;
 };
 

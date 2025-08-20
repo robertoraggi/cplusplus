@@ -45,6 +45,14 @@ auto compare_args(const std::vector<TemplateArgument>& args1,
       // If either is not a symbol, we cannot compare them
       return false;
     }
+    auto var = symbol_cast<VariableSymbol>(*sym);
+    auto otherVar = symbol_cast<VariableSymbol>(*otherSym);
+    if (var && otherVar) {
+      auto cst = std::get<std::intmax_t>(var->constValue().value());
+      auto otherCst = std::get<std::intmax_t>(otherVar->constValue().value());
+      if (cst != otherCst) return false;
+      continue;
+    }
     auto symType = (*sym)->type();
     auto otherSymType = (*otherSym)->type();
     if (symType != otherSymType) {
@@ -687,6 +695,16 @@ TemplateParametersSymbol::TemplateParametersSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
 
 TemplateParametersSymbol::~TemplateParametersSymbol() {}
+
+auto TemplateParametersSymbol::isExplicitTemplateSpecialization() const
+    -> bool {
+  return isExplicitTemplateSpecialization_;
+}
+
+void TemplateParametersSymbol::setExplicitTemplateSpecialization(
+    bool isExplicit) {
+  isExplicitTemplateSpecialization_ = isExplicit;
+}
 
 BlockSymbol::BlockSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}

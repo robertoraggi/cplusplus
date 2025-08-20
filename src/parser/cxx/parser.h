@@ -134,6 +134,7 @@ class Parser final {
   void parse_warn(SourceLocation loc, std::string message);
   void parse_error(std::string message);
   void parse_error(SourceLocation loc, std::string message);
+  void type_error(SourceLocation loc, std::string message);
 
   // generate diagnostic messages regardless of the current parsing state
   void warning(std::string message);
