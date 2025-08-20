@@ -67,6 +67,10 @@ auto Symbol::EnclosingSymbolIterator::operator++(int)
   return it;
 }
 
+auto Symbol::templateParameters() -> TemplateParametersSymbol* {
+  return symbol_cast<TemplateParametersSymbol>(parent());
+}
+
 auto Symbol::hasEnclosingSymbol(Symbol* symbol) const -> bool {
   for (auto enclosingSymbol : enclosingSymbols()) {
     if (enclosingSymbol == symbol) return true;
@@ -296,15 +300,6 @@ ConceptSymbol::ConceptSymbol(ScopeSymbol* enclosingScope)
 
 ConceptSymbol::~ConceptSymbol() {}
 
-auto ConceptSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void ConceptSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
-
 BaseClassSymbol::BaseClassSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
@@ -419,19 +414,6 @@ void ClassSymbol::setTemplateDeclaration(
   templateDeclaration_ = templateDeclaration;
 }
 
-auto ClassSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateInfo_ ? templateInfo_->templateParameters() : nullptr;
-}
-
-void ClassSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  if (templateInfo_) {
-    cxx_runtime_error("symbol already has template parameters");
-  }
-  templateInfo_ =
-      std::make_unique<TemplateInfo<ClassSymbol>>(this, templateParameters);
-}
-
 auto ClassSymbol::specializations() const
     -> std::span<const TemplateSpecialization<ClassSymbol>> {
   if (!templateInfo_) return {};
@@ -440,11 +422,15 @@ auto ClassSymbol::specializations() const
 
 auto ClassSymbol::findSpecialization(
     const std::vector<TemplateArgument>& arguments) const -> ClassSymbol* {
+  if (!templateInfo_) return {};
   return templateInfo_->findSpecialization(arguments);
 }
 
 void ClassSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
                                     ClassSymbol* specialization) {
+  if (!templateInfo_) {
+    templateInfo_ = std::make_unique<TemplateInfo<ClassSymbol>>(this);
+  }
   auto index = templateInfo_->specializations().size();
   specialization->setSpecializationInfo(this, index);
   templateInfo_->addSpecialization(std::move(arguments), specialization);
@@ -565,15 +551,6 @@ FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
-auto FunctionSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void FunctionSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
-
 auto FunctionSymbol::declaration() const -> DeclarationAST* {
   return declaration_;
 }
@@ -681,15 +658,6 @@ LambdaSymbol::LambdaSymbol(ScopeSymbol* enclosingScope)
 
 LambdaSymbol::~LambdaSymbol() {}
 
-auto LambdaSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void LambdaSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
-
 auto LambdaSymbol::isConstexpr() const -> bool { return isConstexpr_; }
 
 void LambdaSymbol::setConstexpr(bool isConstexpr) {
@@ -730,15 +698,6 @@ TypeAliasSymbol::TypeAliasSymbol(ScopeSymbol* enclosingScope)
 
 TypeAliasSymbol::~TypeAliasSymbol() {}
 
-auto TypeAliasSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void TypeAliasSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
-
 auto TypeAliasSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
   return templateDeclaration_;
 }
@@ -752,15 +711,6 @@ VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 VariableSymbol::~VariableSymbol() {}
-
-auto VariableSymbol::templateParameters() const -> TemplateParametersSymbol* {
-  return templateParameters_;
-}
-
-void VariableSymbol::setTemplateParameters(
-    TemplateParametersSymbol* templateParameters) {
-  templateParameters_ = templateParameters;
-}
 
 auto VariableSymbol::isStatic() const -> bool { return isStatic_; }
 
