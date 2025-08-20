@@ -21,6 +21,7 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:            identifier: HelperT
 // CHECK-NEXT:          declaration-list
 // CHECK-NEXT:            template-declaration
+// CHECK-NEXT:              depth: 0
 // CHECK-NEXT:              template-parameter-list
 // CHECK-NEXT:                typename-type-parameter
 // CHECK-NEXT:                  depth: 0
@@ -44,6 +45,7 @@ void set(typename HelperT::template Lookup<int>::PointerT p);
 // CHECK-NEXT:                            ptr-op-list
 // CHECK-NEXT:                              pointer-operator
 // CHECK-NEXT:    template-declaration
+// CHECK-NEXT:      depth: 0
 // CHECK-NEXT:      template-parameter-list
 // CHECK-NEXT:        non-type-template-parameter
 // CHECK-NEXT:          depth: 0

@@ -354,15 +354,15 @@ class TypePrinter {
   }
 
   void operator()(const TypeParameterType* type) {
-    specifiers_.append(std::format("type-param<{}, {}{}>", type->index(),
+    specifiers_.append(std::format("type-param<{}, {}>{}", type->index(),
                                    type->depth(),
-                                   type->isParameterPack() ? ", ..." : ""));
+                                   type->isParameterPack() ? "..." : ""));
   }
 
   void operator()(const TemplateTypeParameterType* type) {
-    specifiers_.append(std::format("template-type-param<{}, {}{}>",
+    specifiers_.append(std::format("template-type-param<{}, {}>{}",
                                    type->index(), type->depth(),
-                                   type->isParameterPack() ? ", ..." : ""));
+                                   type->isParameterPack() ? "..." : ""));
   }
 
   void operator()(const UnresolvedNameType* type) {

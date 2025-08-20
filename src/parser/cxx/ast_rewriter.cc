@@ -131,6 +131,7 @@ auto ASTRewriter::instantiateClassTemplate(
   auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
 
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
+  rewriter.depth_ = templateDecl->depth;
 
   rewriter.binder().setInstantiatingSymbol(classSymbol);
 
@@ -224,7 +225,11 @@ auto ASTRewriter::make_substitution(
       // ### need to set scope and location
       auto templArg = control->newVariableSymbol(nullptr, {});
       templArg->setInitializer(expr);
-      templArg->setType(control->add_const(expr->type));
+      auto type = expr->type;
+      if (!control->is_scalar(expr->type)) {
+        type = control->add_pointer(expr->type);
+      }
+      templArg->setType(expr->type);
       templArg->setConstValue(value);
       templateArguments.push_back(templArg);
     } else if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {

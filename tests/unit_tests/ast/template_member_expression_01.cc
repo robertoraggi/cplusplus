@@ -20,6 +20,7 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:            identifier: Allocator
 // CHECK-NEXT:          declaration-list
 // CHECK-NEXT:            template-declaration
+// CHECK-NEXT:              depth: 0
 // CHECK-NEXT:              template-parameter-list
 // CHECK-NEXT:                typename-type-parameter
 // CHECK-NEXT:                  depth: 0

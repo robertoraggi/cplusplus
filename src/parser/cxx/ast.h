@@ -520,6 +520,7 @@ class TemplateDeclarationAST final : public DeclarationAST {
   RequiresClauseAST* requiresClause = nullptr;
   DeclarationAST* declaration = nullptr;
   TemplateParametersSymbol* symbol = nullptr;
+  int depth = 0;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

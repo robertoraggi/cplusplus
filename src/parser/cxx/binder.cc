@@ -606,6 +606,8 @@ void Binder::bind(TemplateTypeParameterAST* ast, int index, int depth) {
       scope(), ast->templateLoc, index, depth, ast->isPack,
       std::move(parameters));
 
+  symbol->setName(ast->identifier);
+
   ast->symbol = symbol;
 
   scope()->addSymbol(symbol);

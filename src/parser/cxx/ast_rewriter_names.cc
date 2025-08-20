@@ -27,8 +27,10 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 
 #include <format>
+#include <iostream>
 
 namespace cxx {
 
@@ -300,6 +302,13 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
       ast_cast<SimpleTemplateIdAST>(rewrite.unqualifiedId(ast->templateId));
   copy->scopeLoc = ast->scopeLoc;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(copy->symbol);
+
+  auto instance = ASTRewriter::instantiateClassTemplate(
+      translationUnit(), copy->templateId->templateArgumentList, classSymbol);
+
+  copy->symbol = instance;
 
   return copy;
 }

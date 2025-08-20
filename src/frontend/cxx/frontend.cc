@@ -416,9 +416,9 @@ void Frontend::Private::preparePreprocessor() {
 
 void Frontend::Private::parse() {
   unit_->parse(ParserConfiguration{
-      .checkTypes = cli.opt_fcheck || unit_->language() == LanguageKind::kC,
+      .checkTypes =
+          cli.opt_fcheck || needsIR() || unit_->language() == LanguageKind::kC,
       .fuzzyTemplateResolution = true,
-      .reflect = !cli.opt_fno_reflect,
   });
 
   if (cli.opt_freport_missing_types) {

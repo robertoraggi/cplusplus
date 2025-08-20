@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
+#include <iostream>
 #include <ranges>
 #include <unordered_set>
 
@@ -286,6 +287,11 @@ void Parser::parse_error(std::string message) {
 }
 
 void Parser::parse_error(SourceLocation loc, std::string message) {
+  unit->error(loc, std::move(message));
+}
+
+void Parser::type_error(SourceLocation loc, std::string message) {
+  if (!config().checkTypes) return;
   unit->error(loc, std::move(message));
 }
 
@@ -712,8 +718,6 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 }
 
 auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
-  if (!config().reflect) return false;
-
   if (!lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
 
   auto ast = make_node<SplicerAST>(pool_);
@@ -732,8 +736,6 @@ auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
 
 auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
-  if (!config().reflect) return false;
-
   SplicerAST* splicer = nullptr;
   if (!parse_splicer(splicer)) return false;
   auto ast = make_node<SpliceExpressionAST>(pool_);
@@ -744,8 +746,6 @@ auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
-  if (!config().reflect) return false;
-
   SourceLocation caretLoc;
 
   if (!match(TokenKind::T_CARET, caretLoc)) return false;
@@ -1055,18 +1055,13 @@ auto Parser::parse_template_nested_name_specifier(
       auto instance = ASTRewriter::instantiateClassTemplate(
           unit, templateId->templateArgumentList, classSymbol);
 
-      templateId->symbol = instance;
       ast->symbol = instance;
     } else if (auto typeAliasSymbol =
                    symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
       auto instance = ASTRewriter::instantiateTypeAliasTemplate(
           unit, templateId->templateArgumentList, typeAliasSymbol);
 
-      templateId->symbol = instance;
-
-      if (auto classType = type_cast<ClassType>(instance->type())) {
-        ast->symbol = classType->symbol();
-      }
+      ast->symbol = symbol_cast<ScopeSymbol>(instance);
     }
   }
 
@@ -8821,20 +8816,23 @@ auto Parser::parse_template_declaration(TemplateDeclarationAST*& yyast,
   auto ast = make_node<TemplateDeclarationAST>(pool_);
   yyast = ast;
 
+  ast->depth = templateParameterDepth_;
+
   if (!templateHead) templateHead = ast;
-
-  auto templateParametersSymbol =
-      control_->newTemplateParametersSymbol(scope(), {});
-  ast->symbol = templateParametersSymbol;
-
-  setScope(ast->symbol);
 
   expect(TokenKind::T_TEMPLATE, ast->templateLoc);
   expect(TokenKind::T_LESS, ast->lessLoc);
 
+  ast->symbol =
+      control_->newTemplateParametersSymbol(scope(), ast->templateLoc);
+
+  setScope(ast->symbol);
+
   if (!match(TokenKind::T_GREATER, ast->greaterLoc)) {
     parse_template_parameter_list(ast->templateParameterList);
     expect(TokenKind::T_GREATER, ast->greaterLoc);
+  } else {
+    ast->symbol->setExplicitTemplateSpecialization(true);
   }
 
   (void)parse_requires_clause(ast->requiresClause);
@@ -9550,7 +9548,6 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
 auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
-  if (!config().reflect) return false;
   if (specs.hasTypeOrSizeSpecifier()) return false;
   LookaheadParser lookahead{this};
   SourceLocation typenameLoc;
@@ -9655,13 +9652,57 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
 
     auto elabSpec = ast_cast<ElaboratedTypeSpecifierAST>(
         simpleDecl->declSpecifierList->value);
-    if (!elabSpec) return;
+    if (!elabSpec) {
+      type_error(currentLocation(), "expected an elaborated type specifier");
+      return;
+    }
+
+    if (elabSpec->nestedNameSpecifier) {
+      auto templateId = ast_cast<SimpleTemplateIdAST>(elabSpec->unqualifiedId);
+      if (!templateId) {
+        type_error(elabSpec->unqualifiedId->firstSourceLocation(),
+                   "expected a template id");
+        return;
+      }
+
+      auto candidate = Lookup{scope()}.qualifiedLookup(
+          elabSpec->nestedNameSpecifier->symbol, templateId->identifier);
+
+      if (!is_template(candidate)) {
+        type_error(elabSpec->unqualifiedId->firstSourceLocation(),
+                   std::format("expected a template"));
+        return;
+      }
+
+      auto classSymbol = symbol_cast<ClassSymbol>(candidate);
+      if (!classSymbol) {
+        type_error(
+            elabSpec->unqualifiedId->firstSourceLocation(),
+            std::format("expected a class template, got '{}'",
+                        to_string(candidate->type(), candidate->name())));
+        return;
+      }
+
+      auto instance = ASTRewriter::instantiateClassTemplate(
+          unit, templateId->templateArgumentList, classSymbol);
+
+      return;
+    }
 
     auto templateId = ast_cast<SimpleTemplateIdAST>(elabSpec->unqualifiedId);
-    if (!templateId) return;
+    if (!templateId) {
+      type_error(elabSpec->unqualifiedId->firstSourceLocation(),
+                 "expected a template id");
+      return;
+    }
 
     auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol);
-    if (!classSymbol) return;
+    if (!classSymbol) {
+      type_error(
+          templateId->identifierLoc,
+          "explicit instantiation of this template is not yet supported");
+      return;
+    }
 
     auto instance = ASTRewriter::instantiateClassTemplate(
         unit, templateId->templateArgumentList, classSymbol);
