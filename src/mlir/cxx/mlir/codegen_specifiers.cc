@@ -28,7 +28,6 @@ namespace cxx {
 struct Codegen::SpecifierVisitor {
   Codegen& gen;
 
-  auto operator()(GeneratedTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(TypedefSpecifierAST* ast) -> SpecifierResult;
   auto operator()(FriendSpecifierAST* ast) -> SpecifierResult;
   auto operator()(ConstevalSpecifierAST* ast) -> SpecifierResult;
@@ -48,7 +47,7 @@ struct Codegen::SpecifierVisitor {
   auto operator()(VoidTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(SizeTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(SignTypeSpecifierAST* ast) -> SpecifierResult;
-  auto operator()(VaListTypeSpecifierAST* ast) -> SpecifierResult;
+  auto operator()(BuiltinTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(IntegralTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(FloatingPointTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(ComplexTypeSpecifierAST* ast) -> SpecifierResult;
@@ -173,11 +172,6 @@ auto Codegen::typeId(TypeIdAST* ast) -> TypeIdResult {
   return {};
 }
 
-auto Codegen::SpecifierVisitor::operator()(GeneratedTypeSpecifierAST* ast)
-    -> SpecifierResult {
-  return {};
-}
-
 auto Codegen::SpecifierVisitor::operator()(TypedefSpecifierAST* ast)
     -> SpecifierResult {
   return {};
@@ -275,7 +269,7 @@ auto Codegen::SpecifierVisitor::operator()(SignTypeSpecifierAST* ast)
   return {};
 }
 
-auto Codegen::SpecifierVisitor::operator()(VaListTypeSpecifierAST* ast)
+auto Codegen::SpecifierVisitor::operator()(BuiltinTypeSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

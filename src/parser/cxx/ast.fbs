@@ -127,7 +127,6 @@ union ExceptionSpecifier {
 }
 
 union Expression {
-  GeneratedLiteralExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
   IntLiteralExpression,
@@ -244,7 +243,6 @@ union Requirement {
 }
 
 union Specifier {
-  GeneratedTypeSpecifier,
   TypedefSpecifier,
   FriendSpecifier,
   ConstevalSpecifier,
@@ -264,7 +262,7 @@ union Specifier {
   VoidTypeSpecifier,
   SizeTypeSpecifier,
   SignTypeSpecifier,
-  VaListTypeSpecifier,
+  BuiltinTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
   ComplexTypeSpecifier,
@@ -869,10 +867,6 @@ table NoexceptSpecifier /* ExceptionSpecifierAST */ {
   rparen_loc: uint32;
 }
 
-table GeneratedLiteralExpression /* ExpressionAST */ {
-  literal_loc: uint32;
-}
-
 table CharLiteralExpression /* ExpressionAST */ {
   literal: string;
   literal_loc: uint32;
@@ -1114,24 +1108,24 @@ table SpliceExpression /* ExpressionAST */ {
 }
 
 table GlobalScopeReflectExpression /* ExpressionAST */ {
-  caret_loc: uint32;
+  caret_caret_loc: uint32;
   scope_loc: uint32;
 }
 
 table NamespaceReflectExpression /* ExpressionAST */ {
   identifier: string;
-  caret_loc: uint32;
+  caret_caret_loc: uint32;
   identifier_loc: uint32;
 }
 
 table TypeIdReflectExpression /* ExpressionAST */ {
   type_id: TypeId;
-  caret_loc: uint32;
+  caret_caret_loc: uint32;
 }
 
 table ReflectExpression /* ExpressionAST */ {
   expression: Expression;
-  caret_loc: uint32;
+  caret_caret_loc: uint32;
 }
 
 table LabelAddressExpression /* ExpressionAST */ {
@@ -1474,10 +1468,6 @@ table NestedRequirement /* RequirementAST */ {
   semicolon_loc: uint32;
 }
 
-table GeneratedTypeSpecifier /* SpecifierAST */ {
-  type_loc: uint32;
-}
-
 table TypedefSpecifier /* SpecifierAST */ {
   typedef_loc: uint32;
 }
@@ -1559,7 +1549,7 @@ table SignTypeSpecifier /* SpecifierAST */ {
   specifier_loc: uint32;
 }
 
-table VaListTypeSpecifier /* SpecifierAST */ {
+table BuiltinTypeSpecifier /* SpecifierAST */ {
   specifier: uint32;
   specifier_loc: uint32;
 }

@@ -164,7 +164,6 @@ class DeclarationStatementAST;
 class TryBlockStatementAST;
 
 // ExpressionAST
-class GeneratedLiteralExpressionAST;
 class CharLiteralExpressionAST;
 class BoolLiteralExpressionAST;
 class IntLiteralExpressionAST;
@@ -243,7 +242,6 @@ class TypenameTypeParameterAST;
 class ConstraintTypeParameterAST;
 
 // SpecifierAST
-class GeneratedTypeSpecifierAST;
 class TypedefSpecifierAST;
 class FriendSpecifierAST;
 class ConstevalSpecifierAST;
@@ -263,7 +261,7 @@ class AutoTypeSpecifierAST;
 class VoidTypeSpecifierAST;
 class SizeTypeSpecifierAST;
 class SignTypeSpecifierAST;
-class VaListTypeSpecifierAST;
+class BuiltinTypeSpecifierAST;
 class IntegralTypeSpecifierAST;
 class FloatingPointTypeSpecifierAST;
 class ComplexTypeSpecifierAST;

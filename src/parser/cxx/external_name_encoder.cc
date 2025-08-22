@@ -323,6 +323,11 @@ struct ExternalNameEncoder::EncodeType {
     encoder.out("Pc");
     return true;
   }
+
+  auto operator()(const BuiltinMetaInfoType* type) -> bool {
+    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    return true;
+  }
 };
 
 struct ExternalNameEncoder::EncodeUnqualifiedName {

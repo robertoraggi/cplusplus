@@ -208,9 +208,6 @@ auto ASTDecoder::decodeStatement(const void* ptr, io::Statement type)
 auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     -> ExpressionAST* {
   switch (type) {
-    case io::Expression_GeneratedLiteralExpression:
-      return decodeGeneratedLiteralExpression(
-          reinterpret_cast<const io::GeneratedLiteralExpression*>(ptr));
     case io::Expression_CharLiteralExpression:
       return decodeCharLiteralExpression(
           reinterpret_cast<const io::CharLiteralExpression*>(ptr));
@@ -454,9 +451,6 @@ auto ASTDecoder::decodeTemplateParameter(const void* ptr,
 auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     -> SpecifierAST* {
   switch (type) {
-    case io::Specifier_GeneratedTypeSpecifier:
-      return decodeGeneratedTypeSpecifier(
-          reinterpret_cast<const io::GeneratedTypeSpecifier*>(ptr));
     case io::Specifier_TypedefSpecifier:
       return decodeTypedefSpecifier(
           reinterpret_cast<const io::TypedefSpecifier*>(ptr));
@@ -514,9 +508,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_SignTypeSpecifier:
       return decodeSignTypeSpecifier(
           reinterpret_cast<const io::SignTypeSpecifier*>(ptr));
-    case io::Specifier_VaListTypeSpecifier:
-      return decodeVaListTypeSpecifier(
-          reinterpret_cast<const io::VaListTypeSpecifier*>(ptr));
+    case io::Specifier_BuiltinTypeSpecifier:
+      return decodeBuiltinTypeSpecifier(
+          reinterpret_cast<const io::BuiltinTypeSpecifier*>(ptr));
     case io::Specifier_IntegralTypeSpecifier:
       return decodeIntegralTypeSpecifier(
           reinterpret_cast<const io::IntegralTypeSpecifier*>(ptr));
@@ -2233,16 +2227,6 @@ auto ASTDecoder::decodeTryBlockStatement(const io::TryBlockStatement* node)
   return ast;
 }
 
-auto ASTDecoder::decodeGeneratedLiteralExpression(
-    const io::GeneratedLiteralExpression* node)
-    -> GeneratedLiteralExpressionAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) GeneratedLiteralExpressionAST();
-  ast->literalLoc = SourceLocation(node->literal_loc());
-  return ast;
-}
-
 auto ASTDecoder::decodeCharLiteralExpression(
     const io::CharLiteralExpression* node) -> CharLiteralExpressionAST* {
   if (!node) return nullptr;
@@ -2775,7 +2759,7 @@ auto ASTDecoder::decodeGlobalScopeReflectExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) GlobalScopeReflectExpressionAST();
-  ast->caretLoc = SourceLocation(node->caret_loc());
+  ast->caretCaretLoc = SourceLocation(node->caret_caret_loc());
   ast->scopeLoc = SourceLocation(node->scope_loc());
   return ast;
 }
@@ -2786,7 +2770,7 @@ auto ASTDecoder::decodeNamespaceReflectExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) NamespaceReflectExpressionAST();
-  ast->caretLoc = SourceLocation(node->caret_loc());
+  ast->caretCaretLoc = SourceLocation(node->caret_caret_loc());
   ast->identifierLoc = SourceLocation(node->identifier_loc());
   if (node->identifier()) {
     ast->identifier =
@@ -2800,7 +2784,7 @@ auto ASTDecoder::decodeTypeIdReflectExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) TypeIdReflectExpressionAST();
-  ast->caretLoc = SourceLocation(node->caret_loc());
+  ast->caretCaretLoc = SourceLocation(node->caret_caret_loc());
   ast->typeId = decodeTypeId(node->type_id());
   return ast;
 }
@@ -2810,7 +2794,7 @@ auto ASTDecoder::decodeReflectExpression(const io::ReflectExpression* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) ReflectExpressionAST();
-  ast->caretLoc = SourceLocation(node->caret_loc());
+  ast->caretCaretLoc = SourceLocation(node->caret_caret_loc());
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   return ast;
@@ -3324,15 +3308,6 @@ auto ASTDecoder::decodeConstraintTypeParameter(
   return ast;
 }
 
-auto ASTDecoder::decodeGeneratedTypeSpecifier(
-    const io::GeneratedTypeSpecifier* node) -> GeneratedTypeSpecifierAST* {
-  if (!node) return nullptr;
-
-  auto ast = new (pool_) GeneratedTypeSpecifierAST();
-  ast->typeLoc = SourceLocation(node->type_loc());
-  return ast;
-}
-
 auto ASTDecoder::decodeTypedefSpecifier(const io::TypedefSpecifier* node)
     -> TypedefSpecifierAST* {
   if (!node) return nullptr;
@@ -3510,11 +3485,11 @@ auto ASTDecoder::decodeSignTypeSpecifier(const io::SignTypeSpecifier* node)
   return ast;
 }
 
-auto ASTDecoder::decodeVaListTypeSpecifier(const io::VaListTypeSpecifier* node)
-    -> VaListTypeSpecifierAST* {
+auto ASTDecoder::decodeBuiltinTypeSpecifier(
+    const io::BuiltinTypeSpecifier* node) -> BuiltinTypeSpecifierAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) VaListTypeSpecifierAST();
+  auto ast = new (pool_) BuiltinTypeSpecifierAST();
   ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
   return ast;

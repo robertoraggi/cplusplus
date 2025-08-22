@@ -891,18 +891,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit GeneratedLiteralExpression node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitGeneratedLiteralExpression(
-    node: ast.GeneratedLiteralExpressionAST,
-    context: Context,
-  ): Result;
-
-  /**
    * Visit CharLiteralExpression node.
    *
    * @param node The node to visit.
@@ -1743,18 +1731,6 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit GeneratedTypeSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   * @returns The result of the visit.
-   */
-  abstract visitGeneratedTypeSpecifier(
-    node: ast.GeneratedTypeSpecifierAST,
-    context: Context,
-  ): Result;
-
-  /**
    * Visit TypedefSpecifier node.
    *
    * @param node The node to visit.
@@ -1983,14 +1959,14 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit VaListTypeSpecifier node.
+   * Visit BuiltinTypeSpecifier node.
    *
    * @param node The node to visit.
    * @param context The context.
    * @returns The result of the visit.
    */
-  abstract visitVaListTypeSpecifier(
-    node: ast.VaListTypeSpecifierAST,
+  abstract visitBuiltinTypeSpecifier(
+    node: ast.BuiltinTypeSpecifierAST,
     context: Context,
   ): Result;
 

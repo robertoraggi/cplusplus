@@ -74,7 +74,8 @@ class Name;
   V(UnresolvedBoundedArray)       \
   V(UnresolvedUnderlying)         \
   V(OverloadSet)                  \
-  V(BuiltinVaList)
+  V(BuiltinVaList)                \
+  V(BuiltinMetaInfo)
 
 class Type;
 

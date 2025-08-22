@@ -2305,14 +2305,6 @@ void ASTEncoder::visit(TryBlockStatementAST* ast) {
   type_ = io::Statement_TryBlockStatement;
 }
 
-void ASTEncoder::visit(GeneratedLiteralExpressionAST* ast) {
-  io::GeneratedLiteralExpression::Builder builder{fbb_};
-  builder.add_literal_loc(ast->literalLoc.index());
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Expression_GeneratedLiteralExpression;
-}
-
 void ASTEncoder::visit(CharLiteralExpressionAST* ast) {
   flatbuffers::Offset<flatbuffers::String> literal;
   if (ast->literal) {
@@ -3034,7 +3026,7 @@ void ASTEncoder::visit(SpliceExpressionAST* ast) {
 
 void ASTEncoder::visit(GlobalScopeReflectExpressionAST* ast) {
   io::GlobalScopeReflectExpression::Builder builder{fbb_};
-  builder.add_caret_loc(ast->caretLoc.index());
+  builder.add_caret_caret_loc(ast->caretCaretLoc.index());
   builder.add_scope_loc(ast->scopeLoc.index());
 
   offset_ = builder.Finish().Union();
@@ -3053,7 +3045,7 @@ void ASTEncoder::visit(NamespaceReflectExpressionAST* ast) {
   }
 
   io::NamespaceReflectExpression::Builder builder{fbb_};
-  builder.add_caret_loc(ast->caretLoc.index());
+  builder.add_caret_caret_loc(ast->caretCaretLoc.index());
   builder.add_identifier_loc(ast->identifierLoc.index());
   if (ast->identifier) {
     builder.add_identifier(identifier);
@@ -3067,7 +3059,7 @@ void ASTEncoder::visit(TypeIdReflectExpressionAST* ast) {
   const auto typeId = accept(ast->typeId);
 
   io::TypeIdReflectExpression::Builder builder{fbb_};
-  builder.add_caret_loc(ast->caretLoc.index());
+  builder.add_caret_caret_loc(ast->caretCaretLoc.index());
   builder.add_type_id(typeId.o);
 
   offset_ = builder.Finish().Union();
@@ -3078,7 +3070,7 @@ void ASTEncoder::visit(ReflectExpressionAST* ast) {
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   io::ReflectExpression::Builder builder{fbb_};
-  builder.add_caret_loc(ast->caretLoc.index());
+  builder.add_caret_caret_loc(ast->caretCaretLoc.index());
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
 
@@ -3761,14 +3753,6 @@ void ASTEncoder::visit(ConstraintTypeParameterAST* ast) {
   type_ = io::TemplateParameter_ConstraintTypeParameter;
 }
 
-void ASTEncoder::visit(GeneratedTypeSpecifierAST* ast) {
-  io::GeneratedTypeSpecifier::Builder builder{fbb_};
-  builder.add_type_loc(ast->typeLoc.index());
-
-  offset_ = builder.Finish().Union();
-  type_ = io::Specifier_GeneratedTypeSpecifier;
-}
-
 void ASTEncoder::visit(TypedefSpecifierAST* ast) {
   io::TypedefSpecifier::Builder builder{fbb_};
   builder.add_typedef_loc(ast->typedefLoc.index());
@@ -3929,13 +3913,13 @@ void ASTEncoder::visit(SignTypeSpecifierAST* ast) {
   type_ = io::Specifier_SignTypeSpecifier;
 }
 
-void ASTEncoder::visit(VaListTypeSpecifierAST* ast) {
-  io::VaListTypeSpecifier::Builder builder{fbb_};
+void ASTEncoder::visit(BuiltinTypeSpecifierAST* ast) {
+  io::BuiltinTypeSpecifier::Builder builder{fbb_};
   builder.add_specifier_loc(ast->specifierLoc.index());
   builder.add_specifier(static_cast<std::uint32_t>(ast->specifier));
 
   offset_ = builder.Finish().Union();
-  type_ = io::Specifier_VaListTypeSpecifier;
+  type_ = io::Specifier_BuiltinTypeSpecifier;
 }
 
 void ASTEncoder::visit(IntegralTypeSpecifierAST* ast) {

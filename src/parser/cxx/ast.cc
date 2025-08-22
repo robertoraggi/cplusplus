@@ -1239,16 +1239,6 @@ auto TryBlockStatementAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto GeneratedLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
-  return {};
-}
-
-auto GeneratedLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
-  return {};
-}
-
 auto CharLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
   return {};
@@ -1770,50 +1760,50 @@ auto SpliceExpressionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto GlobalScopeReflectExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(caretCaretLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
   return {};
 }
 
 auto GlobalScopeReflectExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(caretCaretLoc)) return loc;
   return {};
 }
 
 auto NamespaceReflectExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(caretCaretLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   return {};
 }
 
 auto NamespaceReflectExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(caretCaretLoc)) return loc;
   return {};
 }
 
 auto TypeIdReflectExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(caretCaretLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   return {};
 }
 
 auto TypeIdReflectExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
-  if (auto loc = cxx::lastSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(caretCaretLoc)) return loc;
   return {};
 }
 
 auto ReflectExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(caretCaretLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   return {};
 }
 
 auto ReflectExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
-  if (auto loc = cxx::lastSourceLocation(caretLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(caretCaretLoc)) return loc;
   return {};
 }
 
@@ -2321,16 +2311,6 @@ auto ConstraintTypeParameterAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto GeneratedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(typeLoc)) return loc;
-  return {};
-}
-
-auto GeneratedTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(typeLoc)) return loc;
-  return {};
-}
-
 auto TypedefSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typedefLoc)) return loc;
   return {};
@@ -2527,12 +2507,12 @@ auto SignTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto VaListTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+auto BuiltinTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return {};
 }
 
-auto VaListTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+auto BuiltinTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(specifierLoc)) return loc;
   return {};
 }
@@ -3656,7 +3636,6 @@ std::string_view kASTKindNames[] = {
     "try-block-statement",
 
     // ExpressionAST
-    "generated-literal-expression",
     "char-literal-expression",
     "bool-literal-expression",
     "int-literal-expression",
@@ -3735,7 +3714,6 @@ std::string_view kASTKindNames[] = {
     "constraint-type-parameter",
 
     // SpecifierAST
-    "generated-type-specifier",
     "typedef-specifier",
     "friend-specifier",
     "consteval-specifier",
@@ -3755,7 +3733,7 @@ std::string_view kASTKindNames[] = {
     "void-type-specifier",
     "size-type-specifier",
     "sign-type-specifier",
-    "va-list-type-specifier",
+    "builtin-type-specifier",
     "integral-type-specifier",
     "floating-point-type-specifier",
     "complex-type-specifier",

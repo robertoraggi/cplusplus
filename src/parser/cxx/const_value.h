@@ -20,15 +20,31 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
 #include <cxx/cxx_fwd.h>
 #include <cxx/literals_fwd.h>
+#include <cxx/symbols_fwd.h>
+#include <cxx/types_fwd.h>
 
 #include <cstdint>
+#include <memory>
 #include <variant>
 
 namespace cxx {
 
+class Meta;
+
 using ConstValue = std::variant<std::intmax_t, const StringLiteral*, float,
-                                double, long double>;
+                                double, long double, std::shared_ptr<Meta>>;
+
+class Meta {
+ public:
+  struct ConstExpr {
+    ExpressionAST* expression = nullptr;
+    ConstValue value;
+  };
+
+  std::variant<const Type*, const Symbol*, ConstExpr> value;
+};
 
 }  // namespace cxx

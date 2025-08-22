@@ -52,6 +52,15 @@ struct ConstValueHash {
   auto operator()(const StringLiteral* value) const -> std::size_t {
     return value->hashCode();
   }
+  auto operator()(const std::shared_ptr<Meta>& value) const -> std::size_t {
+    if (std::holds_alternative<const Type*>(value->value)) {
+      return std::hash<const void*>{}(std::get<const Type*>(value->value));
+    } else if (std::holds_alternative<const Symbol*>(value->value)) {
+      auto symbol = std::get<const Symbol*>(value->value);
+      return symbol->name() ? symbol->name()->hashValue() : 0;
+    }
+    return 0;
+  }
 };
 
 struct TemplateArgumentHash {

@@ -79,6 +79,7 @@ struct Control::Private {
   std::unordered_set<TemplateId> templateIds;
 
   BuiltinVaListType builtinVaListType;
+  BuiltinMetaInfoType builtinMetaInfoType;
   VoidType voidType;
   NullptrType nullptrType;
   DecltypeAutoType decltypeAutoType;
@@ -273,6 +274,10 @@ auto Control::getSizeType() -> const Type* {
 
 auto Control::getBuiltinVaListType() -> const BuiltinVaListType* {
   return &d->builtinVaListType;
+}
+
+auto Control::getBuiltinMetaInfoType() -> const BuiltinMetaInfoType* {
+  return &d->builtinMetaInfoType;
 }
 
 auto Control::getVoidType() -> const VoidType* { return &d->voidType; }

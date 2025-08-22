@@ -109,7 +109,6 @@ enum class ASTKind {
   TryBlockStatement,
 
   // ExpressionAST
-  GeneratedLiteralExpression,
   CharLiteralExpression,
   BoolLiteralExpression,
   IntLiteralExpression,
@@ -188,7 +187,6 @@ enum class ASTKind {
   ConstraintTypeParameter,
 
   // SpecifierAST
-  GeneratedTypeSpecifier,
   TypedefSpecifier,
   FriendSpecifier,
   ConstevalSpecifier,
@@ -208,7 +206,7 @@ enum class ASTKind {
   VoidTypeSpecifier,
   SizeTypeSpecifier,
   SignTypeSpecifier,
-  VaListTypeSpecifier,
+  BuiltinTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
   ComplexTypeSpecifier,

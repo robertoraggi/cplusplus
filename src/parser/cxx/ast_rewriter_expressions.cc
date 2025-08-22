@@ -45,9 +45,6 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
   [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
-  [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
-      -> ExpressionAST*;
-
   [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -310,18 +307,6 @@ auto ASTRewriter::lambdaSpecifier(LambdaSpecifierAST* ast)
 
   copy->specifierLoc = ast->specifierLoc;
   copy->specifier = ast->specifier;
-
-  return copy;
-}
-
-auto ASTRewriter::ExpressionVisitor::operator()(
-    GeneratedLiteralExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<GeneratedLiteralExpressionAST>(arena());
-
-  copy->valueCategory = ast->valueCategory;
-  copy->type = ast->type;
-  copy->literalLoc = ast->literalLoc;
-  copy->value = ast->value;
 
   return copy;
 }
@@ -973,7 +958,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->caretLoc = ast->caretLoc;
+  copy->caretCaretLoc = ast->caretCaretLoc;
   copy->scopeLoc = ast->scopeLoc;
 
   return copy;
@@ -985,7 +970,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->caretLoc = ast->caretLoc;
+  copy->caretCaretLoc = ast->caretCaretLoc;
   copy->identifierLoc = ast->identifierLoc;
   copy->identifier = ast->identifier;
   copy->symbol = ast->symbol;
@@ -999,7 +984,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeIdReflectExpressionAST* ast)
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->caretLoc = ast->caretLoc;
+  copy->caretCaretLoc = ast->caretCaretLoc;
   copy->typeId = rewrite.typeId(ast->typeId);
 
   return copy;
@@ -1011,7 +996,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->caretLoc = ast->caretLoc;
+  copy->caretCaretLoc = ast->caretCaretLoc;
   copy->expression = rewrite.expression(ast->expression);
 
   return copy;

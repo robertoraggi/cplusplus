@@ -443,8 +443,6 @@ void ASTVisitor::visit(TryBlockStatementAST* ast) {
   }
 }
 
-void ASTVisitor::visit(GeneratedLiteralExpressionAST* ast) {}
-
 void ASTVisitor::visit(CharLiteralExpressionAST* ast) {}
 
 void ASTVisitor::visit(BoolLiteralExpressionAST* ast) {}
@@ -736,8 +734,6 @@ void ASTVisitor::visit(ConstraintTypeParameterAST* ast) {
   accept(ast->typeId);
 }
 
-void ASTVisitor::visit(GeneratedTypeSpecifierAST* ast) {}
-
 void ASTVisitor::visit(TypedefSpecifierAST* ast) {}
 
 void ASTVisitor::visit(FriendSpecifierAST* ast) {}
@@ -776,7 +772,7 @@ void ASTVisitor::visit(SizeTypeSpecifierAST* ast) {}
 
 void ASTVisitor::visit(SignTypeSpecifierAST* ast) {}
 
-void ASTVisitor::visit(VaListTypeSpecifierAST* ast) {}
+void ASTVisitor::visit(BuiltinTypeSpecifierAST* ast) {}
 
 void ASTVisitor::visit(IntegralTypeSpecifierAST* ast) {}
 

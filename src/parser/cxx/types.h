@@ -47,6 +47,12 @@ class BuiltinVaListType final : public Type {
   BuiltinVaListType() : Type(Kind) {}
 };
 
+class BuiltinMetaInfoType final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kBuiltinMetaInfo;
+  BuiltinMetaInfoType() : Type(Kind) {}
+};
+
 class VoidType final : public Type {
  public:
   static constexpr TypeKind Kind = TypeKind::kVoid;

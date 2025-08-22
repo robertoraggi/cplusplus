@@ -51,9 +51,6 @@ struct ASTRewriter::SpecifierVisitor {
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
   [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
-  [[nodiscard]] auto operator()(GeneratedTypeSpecifierAST* ast)
-      -> SpecifierAST*;
-
   [[nodiscard]] auto operator()(TypedefSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(FriendSpecifierAST* ast) -> SpecifierAST*;
@@ -92,7 +89,7 @@ struct ASTRewriter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(SignTypeSpecifierAST* ast) -> SpecifierAST*;
 
-  [[nodiscard]] auto operator()(VaListTypeSpecifierAST* ast) -> SpecifierAST*;
+  [[nodiscard]] auto operator()(BuiltinTypeSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(IntegralTypeSpecifierAST* ast) -> SpecifierAST*;
 
@@ -331,16 +328,6 @@ auto ASTRewriter::splicer(SplicerAST* ast) -> SplicerAST* {
   return copy;
 }
 
-auto ASTRewriter::SpecifierVisitor::operator()(GeneratedTypeSpecifierAST* ast)
-    -> SpecifierAST* {
-  auto copy = make_node<GeneratedTypeSpecifierAST>(arena());
-
-  copy->typeLoc = ast->typeLoc;
-  copy->type = ast->type;
-
-  return copy;
-}
-
 auto ASTRewriter::SpecifierVisitor::operator()(TypedefSpecifierAST* ast)
     -> SpecifierAST* {
   auto copy = make_node<TypedefSpecifierAST>(arena());
@@ -517,9 +504,9 @@ auto ASTRewriter::SpecifierVisitor::operator()(SignTypeSpecifierAST* ast)
   return copy;
 }
 
-auto ASTRewriter::SpecifierVisitor::operator()(VaListTypeSpecifierAST* ast)
+auto ASTRewriter::SpecifierVisitor::operator()(BuiltinTypeSpecifierAST* ast)
     -> SpecifierAST* {
-  auto copy = make_node<VaListTypeSpecifierAST>(arena());
+  auto copy = make_node<BuiltinTypeSpecifierAST>(arena());
 
   copy->specifierLoc = ast->specifierLoc;
   copy->specifier = ast->specifier;
