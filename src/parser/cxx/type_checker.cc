@@ -152,7 +152,6 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto check_pseudo_destructor_access(MemberExpressionAST* ast)
       -> bool;
 
-  void operator()(GeneratedLiteralExpressionAST* ast);
   void operator()(CharLiteralExpressionAST* ast);
   void operator()(BoolLiteralExpressionAST* ast);
   void operator()(IntLiteralExpressionAST* ast);
@@ -216,8 +215,6 @@ struct TypeChecker::Visitor {
   void operator()(BracedInitListAST* ast);
   void operator()(ParenInitializerAST* ast);
 };
-
-void TypeChecker::Visitor::operator()(GeneratedLiteralExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(CharLiteralExpressionAST* ast) {}
 
@@ -825,15 +822,27 @@ void TypeChecker::Visitor::operator()(TypeidExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(TypeidOfTypeExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(SpliceExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(SpliceExpressionAST* ast) {
+  if (!ast->splicer) return;
+  if (!ast->splicer->expression) return;
+  ast->type = ast->splicer->expression->type;
+}
 
-void TypeChecker::Visitor::operator()(GlobalScopeReflectExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(GlobalScopeReflectExpressionAST* ast) {
+  ast->type = control()->getBuiltinMetaInfoType();
+}
 
-void TypeChecker::Visitor::operator()(NamespaceReflectExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(NamespaceReflectExpressionAST* ast) {
+  ast->type = control()->getBuiltinMetaInfoType();
+}
 
-void TypeChecker::Visitor::operator()(TypeIdReflectExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(TypeIdReflectExpressionAST* ast) {
+  ast->type = control()->getBuiltinMetaInfoType();
+}
 
-void TypeChecker::Visitor::operator()(ReflectExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(ReflectExpressionAST* ast) {
+  ast->type = control()->getBuiltinMetaInfoType();
+}
 
 void TypeChecker::Visitor::operator()(LabelAddressExpressionAST* ast) {
   ast->type = control()->getPointerType(control()->getVoidType());

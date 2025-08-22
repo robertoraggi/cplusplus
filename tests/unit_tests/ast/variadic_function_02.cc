@@ -39,7 +39,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: simple-declaration
 // CHECK-NEXT:                decl-specifier-list
-// CHECK-NEXT:                  va-list-type-specifier
+// CHECK-NEXT:                  builtin-type-specifier
 // CHECK-NEXT:                    specifier: __builtin_va_list
 // CHECK-NEXT:                init-declarator-list
 // CHECK-NEXT:                  init-declarator

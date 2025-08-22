@@ -741,14 +741,15 @@ auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
   auto ast = make_node<SpliceExpressionAST>(pool_);
   yyast = ast;
   ast->splicer = splicer;
+  check(ast);
   return true;
 }
 
 auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
-  SourceLocation caretLoc;
+  SourceLocation caretCaretLoc;
 
-  if (!match(TokenKind::T_CARET, caretLoc)) return false;
+  if (!match(TokenKind::T_CARET_CARET, caretCaretLoc)) return false;
 
   auto lookat_namespace_name = [&] {
     LookaheadParser lookahead{this};
@@ -761,10 +762,11 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
 
     auto ast = make_node<NamespaceReflectExpressionAST>(pool_);
     yyast = ast;
-    ast->caretLoc = caretLoc;
+    ast->caretCaretLoc = caretCaretLoc;
     ast->identifierLoc = identifierLoc;
     ast->identifier = identifier;
     ast->symbol = symbol;
+    check(ast);
     return true;
   };
 
@@ -776,8 +778,9 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
 
     auto ast = make_node<TypeIdReflectExpressionAST>(pool_);
     yyast = ast;
-    ast->caretLoc = caretLoc;
+    ast->caretCaretLoc = caretCaretLoc;
     ast->typeId = typeId;
+    check(ast);
     return true;
   };
 
@@ -789,16 +792,18 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
 
     auto ast = make_node<ReflectExpressionAST>(pool_);
     yyast = ast;
-    ast->caretLoc = caretLoc;
+    ast->caretCaretLoc = caretCaretLoc;
     ast->expression = expression;
+    check(ast);
     return true;
   };
 
   if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
     auto ast = make_node<GlobalScopeReflectExpressionAST>(pool_);
     yyast = ast;
-    ast->caretLoc = caretLoc;
+    ast->caretCaretLoc = caretCaretLoc;
     ast->scopeLoc = scopeLoc;
+    check(ast);
     return true;
   }
 
@@ -5211,8 +5216,9 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   };
 
   switch (auto tk = LA(); tk.kind()) {
-    case TokenKind::T___BUILTIN_VA_LIST: {
-      auto ast = make_node<VaListTypeSpecifierAST>(pool_);
+    case TokenKind::T___BUILTIN_VA_LIST:
+    case TokenKind::T___BUILTIN_META_INFO: {
+      auto ast = make_node<BuiltinTypeSpecifierAST>(pool_);
       yyast = ast;
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
@@ -5313,8 +5319,8 @@ auto Parser::is_template(Symbol* symbol) const -> bool {
 
 auto Parser::evaluate_constant_expression(ExpressionAST* expr)
     -> std::optional<ConstValue> {
-  ASTInterpreter sem{unit};
-  return sem.evaluate(expr);
+  auto interp = ASTInterpreter{unit};
+  return interp.evaluate(expr);
 }
 
 auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
@@ -5570,11 +5576,37 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
         }
       }
     }
-  }
 
-  if (ast->initializer && !control()->is_reference(symbol->type())) {
-    (void)implicit_conversion(ast->initializer,
-                              control()->remove_cv(symbol->type()));
+    if (type_cast<AutoType>(var->type())) {
+      if (!var->initializer()) {
+        parse_error(var->location(),
+                    "variable with 'auto' type must be initialized");
+      } else {
+        var->setType(control()->remove_cvref(var->initializer()->type));
+      }
+    }
+
+    if (var->isConstexpr()) {
+      var->setType(control()->add_const(var->type()));
+    }
+
+    if (ast->initializer && !control()->is_reference(var->type())) {
+      (void)implicit_conversion(ast->initializer,
+                                control()->remove_cv(var->type()));
+    }
+
+    if (var->isConstexpr()) {
+      if (!var->initializer()) {
+        parse_error(var->location(), "constexpr variable must be initialized");
+      } else {
+        var->setConstValue(evaluate_constant_expression(var->initializer()));
+
+        if (!var->constValue().has_value()) {
+          type_error(var->location(),
+                     "initializer of constexpr variable is not a constant");
+        }
+      }
+    }
   }
 
   return true;

@@ -6,7 +6,7 @@ struct S {
   int x;
 };
 
-auto main() -> int { return S{.x = 10}.[:^S::x:]; }
+auto main() -> int { return S{.x = 10}.[:^^S::x:]; }
 
 // clang-format off
 //      CHECK:translation-unit
@@ -62,7 +62,7 @@ auto main() -> int { return S{.x = 10}.[:^S::x:]; }
 // CHECK-NEXT:                          expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 10
 // CHECK-NEXT:                splicer: splicer
-// CHECK-NEXT:                  expression: reflect-expression
+// CHECK-NEXT:                  expression: reflect-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:                    expression: id-expression [lvalue int]
 // CHECK-NEXT:                      nested-name-specifier: simple-nested-name-specifier
 // CHECK-NEXT:                        identifier: S

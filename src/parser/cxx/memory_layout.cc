@@ -36,6 +36,11 @@ struct SizeOf {
     return memoryLayout.sizeOfPointer();
   }
 
+  auto operator()(const BuiltinMetaInfoType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
   auto operator()(const VoidType* type) const -> std::optional<std::size_t> {
     return std::nullopt;
   }

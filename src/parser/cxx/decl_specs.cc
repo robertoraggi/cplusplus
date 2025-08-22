@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/symbols.h>
@@ -35,7 +36,6 @@ struct DeclSpecs::Visitor {
 
   [[nodiscard]] auto control() const -> Control* { return specs.control(); }
 
-  void operator()(GeneratedTypeSpecifierAST* ast);
   void operator()(TypedefSpecifierAST* ast);
   void operator()(FriendSpecifierAST* ast);
   void operator()(ConstevalSpecifierAST* ast);
@@ -55,7 +55,7 @@ struct DeclSpecs::Visitor {
   void operator()(VoidTypeSpecifierAST* ast);
   void operator()(SizeTypeSpecifierAST* ast);
   void operator()(SignTypeSpecifierAST* ast);
-  void operator()(VaListTypeSpecifierAST* ast);
+  void operator()(BuiltinTypeSpecifierAST* ast);
   void operator()(IntegralTypeSpecifierAST* ast);
   void operator()(FloatingPointTypeSpecifierAST* ast);
   void operator()(ComplexTypeSpecifierAST* ast);
@@ -75,8 +75,6 @@ struct DeclSpecs::Visitor {
   void operator()(TypenameSpecifierAST* ast);
   void operator()(SplicerTypeSpecifierAST* ast);
 };
-
-void DeclSpecs::Visitor::operator()(GeneratedTypeSpecifierAST* ast) {}
 
 void DeclSpecs::Visitor::operator()(TypedefSpecifierAST* ast) {
   specs.isTypedef = true;
@@ -182,9 +180,21 @@ void DeclSpecs::Visitor::operator()(SignTypeSpecifierAST* ast) {
   }  // switch
 }
 
-void DeclSpecs::Visitor::operator()(VaListTypeSpecifierAST* ast) {
+void DeclSpecs::Visitor::operator()(BuiltinTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  specs.type_ = control()->getBuiltinVaListType();
+
+  switch (ast->specifier) {
+    case TokenKind::T___BUILTIN_VA_LIST:
+      specs.type_ = control()->getBuiltinVaListType();
+      break;
+
+    case TokenKind::T___BUILTIN_META_INFO:
+      specs.type_ = control()->getBuiltinMetaInfoType();
+      break;
+
+    default:
+      break;
+  }  // switch
 }
 
 void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
@@ -356,7 +366,20 @@ void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  // ### todo
+
+  auto interp = ASTInterpreter{specs.unit_};
+  auto value = interp.evaluate(ast->splicer->expression);
+  if (!value.has_value()) return;
+
+  auto metaPtr = std::get_if<std::shared_ptr<Meta>>(&*value);
+  if (!metaPtr) return;
+
+  auto meta = *metaPtr;
+
+  auto typePtr = std::get_if<const Type*>(&meta->value);
+  if (!typePtr) return;
+
+  specs.type_ = *typePtr;
 }
 
 DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit_(unit) {}

@@ -46,7 +46,6 @@ struct Codegen::ExpressionVisitor {
     return type_cast<BoolType>(control()->remove_cv(type));
   }
 
-  auto operator()(GeneratedLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(CharLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(BoolLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(IntLiteralExpressionAST* ast) -> ExpressionResult;
@@ -172,13 +171,6 @@ auto Codegen::newPlacement(NewPlacementAST* ast) -> NewPlacementResult {
   }
 
   return {};
-}
-
-auto Codegen::ExpressionVisitor::operator()(GeneratedLiteralExpressionAST* ast)
-    -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-  return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)

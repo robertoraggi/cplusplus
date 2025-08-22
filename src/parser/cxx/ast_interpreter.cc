@@ -30,6 +30,8 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <format>
+
 namespace cxx {
 
 namespace {
@@ -65,6 +67,11 @@ struct ToUInt {
 template <typename T>
 struct ArithmeticCast {
   auto operator()(const StringLiteral*) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
+  auto operator()(const std::shared_ptr<Meta>&) const -> T {
     cxx_runtime_error("invalid artihmetic cast");
     return T{};
   }
@@ -113,8 +120,6 @@ struct ASTInterpreter::ExceptionDeclarationResult {};
 struct ASTInterpreter::AttributeSpecifierResult {};
 
 struct ASTInterpreter::AttributeTokenResult {};
-
-struct ASTInterpreter::SplicerResult {};
 
 struct ASTInterpreter::GlobalModuleFragmentResult {};
 
@@ -169,6 +174,10 @@ struct ASTInterpreter::ToBool {
 
   auto operator()(const StringLiteral*) const -> std::optional<bool> {
     return true;
+  }
+
+  auto operator()(const Meta&) const -> std::optional<bool> {
+    return std::nullopt;
   }
 
   auto operator()(const auto& value) const -> std::optional<bool> {
@@ -665,9 +674,6 @@ struct ASTInterpreter::ExpressionVisitor {
     return right;
   }
 
-  [[nodiscard]] auto operator()(GeneratedLiteralExpressionAST* ast)
-      -> ExpressionResult;
-
   [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
       -> ExpressionResult;
 
@@ -844,9 +850,6 @@ struct ASTInterpreter::TemplateParameterVisitor {
 struct ASTInterpreter::SpecifierVisitor {
   ASTInterpreter& accept;
 
-  [[nodiscard]] auto operator()(GeneratedTypeSpecifierAST* ast)
-      -> SpecifierResult;
-
   [[nodiscard]] auto operator()(TypedefSpecifierAST* ast) -> SpecifierResult;
 
   [[nodiscard]] auto operator()(FriendSpecifierAST* ast) -> SpecifierResult;
@@ -886,7 +889,8 @@ struct ASTInterpreter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(SignTypeSpecifierAST* ast) -> SpecifierResult;
 
-  [[nodiscard]] auto operator()(VaListTypeSpecifierAST* ast) -> SpecifierResult;
+  [[nodiscard]] auto operator()(BuiltinTypeSpecifierAST* ast)
+      -> SpecifierResult;
 
   [[nodiscard]] auto operator()(IntegralTypeSpecifierAST* ast)
       -> SpecifierResult;
@@ -1258,12 +1262,12 @@ auto ASTInterpreter::operator()(AttributeTokenAST* ast)
   return {};
 }
 
-auto ASTInterpreter::operator()(SplicerAST* ast) -> SplicerResult {
+auto ASTInterpreter::operator()(SplicerAST* ast) -> ExpressionResult {
   if (!ast) return {};
 
   auto expressionResult = operator()(ast->expression);
 
-  return {};
+  return expressionResult;
 }
 
 auto ASTInterpreter::operator()(GlobalModuleFragmentAST* ast)
@@ -1984,11 +1988,6 @@ auto ASTInterpreter::StatementVisitor::operator()(TryBlockStatementAST* ast)
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
-    GeneratedLiteralExpressionAST* ast) -> ExpressionResult {
-  return ast->value;
-}
-
-auto ASTInterpreter::ExpressionVisitor::operator()(
     CharLiteralExpressionAST* ast) -> ExpressionResult {
   return ConstValue(ast->literal->charValue());
 }
@@ -2269,8 +2268,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 auto ASTInterpreter::ExpressionVisitor::operator()(SpliceExpressionAST* ast)
     -> ExpressionResult {
   auto splicerResult = accept(ast->splicer);
+  if (!splicerResult.has_value()) return std::nullopt;
 
-  return ExpressionResult{std::nullopt};
+  auto metaPtr = std::get_if<std::shared_ptr<Meta>>(&splicerResult.value());
+  if (!metaPtr) return std::nullopt;
+
+  auto meta = *metaPtr;
+
+  auto constExprPtr = std::get_if<Meta::ConstExpr>(&meta->value);
+  if (!constExprPtr) return std::nullopt;
+
+  return constExprPtr->value;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -2285,14 +2293,23 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     TypeIdReflectExpressionAST* ast) -> ExpressionResult {
-  auto typeIdResult = accept(ast->typeId);
+  if (!ast->typeId) return std::nullopt;
+  if (!ast->typeId->type) return std::nullopt;
 
-  return ExpressionResult{std::nullopt};
+  auto meta = std::make_shared<Meta>(ast->typeId->type);
+
+  return ConstValue{meta};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
+
+  if (expressionResult.has_value()) {
+    auto meta = std::make_shared<Meta>(Meta::ConstExpr{
+        .expression = ast->expression, .value = expressionResult.value()});
+    return meta;
+  }
 
   return ExpressionResult{std::nullopt};
 }
@@ -2806,7 +2823,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
     -> ExpressionResult {
   auto expressionResult = accept(ast->expression);
 
-  return ExpressionResult{std::nullopt};
+  return expressionResult;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
@@ -2858,11 +2875,6 @@ auto ASTInterpreter::TemplateParameterVisitor::operator()(
   auto typeConstraintResult = accept(ast->typeConstraint);
   auto typeIdResult = accept(ast->typeId);
 
-  return {};
-}
-
-auto ASTInterpreter::SpecifierVisitor::operator()(
-    GeneratedTypeSpecifierAST* ast) -> SpecifierResult {
   return {};
 }
 
@@ -2963,7 +2975,7 @@ auto ASTInterpreter::SpecifierVisitor::operator()(SignTypeSpecifierAST* ast)
   return {};
 }
 
-auto ASTInterpreter::SpecifierVisitor::operator()(VaListTypeSpecifierAST* ast)
+auto ASTInterpreter::SpecifierVisitor::operator()(BuiltinTypeSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

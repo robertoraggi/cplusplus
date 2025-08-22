@@ -83,7 +83,6 @@ class ASTInterpreter {
   struct AttributeSpecifierResult;
   struct AttributeTokenResult;
   // misc nodes
-  struct SplicerResult;
   struct GlobalModuleFragmentResult;
   struct PrivateModuleFragmentResult;
   struct ModuleDeclarationResult;
@@ -165,7 +164,7 @@ class ASTInterpreter {
   [[nodiscard]] auto operator()(AttributeTokenAST* ast) -> AttributeTokenResult;
 
   // run on the misc nodes
-  [[nodiscard]] auto operator()(SplicerAST* ast) -> SplicerResult;
+  [[nodiscard]] auto operator()(SplicerAST* ast) -> ExpressionResult;
   [[nodiscard]] auto operator()(GlobalModuleFragmentAST* ast)
       -> GlobalModuleFragmentResult;
   [[nodiscard]] auto operator()(PrivateModuleFragmentAST* ast)

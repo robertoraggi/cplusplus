@@ -90,6 +90,7 @@ struct Codegen::ConvertType {
   auto operator()(const UnresolvedUnderlyingType* type) -> mlir::Type;
   auto operator()(const OverloadSetType* type) -> mlir::Type;
   auto operator()(const BuiltinVaListType* type) -> mlir::Type;
+  auto operator()(const BuiltinMetaInfoType* type) -> mlir::Type;
 };
 
 auto Codegen::convertType(const Type* type) -> mlir::Type {
@@ -367,6 +368,11 @@ auto Codegen::ConvertType::operator()(const BuiltinVaListType* type)
   // todo: toolchain specific
   auto voidType = gen.builder_.getType<mlir::cxx::VoidType>();
   return gen.builder_.getType<mlir::cxx::PointerType>(voidType);
+}
+
+auto Codegen::ConvertType::operator()(const BuiltinMetaInfoType* type)
+    -> mlir::Type {
+  return getExprType();
 }
 
 }  // namespace cxx

@@ -175,8 +175,6 @@ struct ASTPrettyPrinter::ExpressionVisitor {
   void indent() { accept.indent(); }
   void unindent() { accept.unindent(); }
 
-  void operator()(GeneratedLiteralExpressionAST* ast);
-
   void operator()(CharLiteralExpressionAST* ast);
 
   void operator()(BoolLiteralExpressionAST* ast);
@@ -373,8 +371,6 @@ struct ASTPrettyPrinter::SpecifierVisitor {
   void indent() { accept.indent(); }
   void unindent() { accept.unindent(); }
 
-  void operator()(GeneratedTypeSpecifierAST* ast);
-
   void operator()(TypedefSpecifierAST* ast);
 
   void operator()(FriendSpecifierAST* ast);
@@ -413,7 +409,7 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(SignTypeSpecifierAST* ast);
 
-  void operator()(VaListTypeSpecifierAST* ast);
+  void operator()(BuiltinTypeSpecifierAST* ast);
 
   void operator()(IntegralTypeSpecifierAST* ast);
 
@@ -2245,13 +2241,6 @@ void ASTPrettyPrinter::StatementVisitor::operator()(TryBlockStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
-    GeneratedLiteralExpressionAST* ast) {
-  if (ast->literalLoc) {
-    accept.writeToken(ast->literalLoc);
-  }
-}
-
-void ASTPrettyPrinter::ExpressionVisitor::operator()(
     CharLiteralExpressionAST* ast) {
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
@@ -2804,8 +2793,8 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(SpliceExpressionAST* ast) {
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     GlobalScopeReflectExpressionAST* ast) {
-  if (ast->caretLoc) {
-    accept.writeToken(ast->caretLoc);
+  if (ast->caretCaretLoc) {
+    accept.writeToken(ast->caretCaretLoc);
   }
   if (ast->scopeLoc) {
     nospace();
@@ -2816,8 +2805,8 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     NamespaceReflectExpressionAST* ast) {
-  if (ast->caretLoc) {
-    accept.writeToken(ast->caretLoc);
+  if (ast->caretCaretLoc) {
+    accept.writeToken(ast->caretCaretLoc);
   }
   if (ast->identifierLoc) {
     accept.writeToken(ast->identifierLoc);
@@ -2826,16 +2815,16 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     TypeIdReflectExpressionAST* ast) {
-  if (ast->caretLoc) {
-    accept.writeToken(ast->caretLoc);
+  if (ast->caretCaretLoc) {
+    accept.writeToken(ast->caretCaretLoc);
   }
   accept(ast->typeId);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     ReflectExpressionAST* ast) {
-  if (ast->caretLoc) {
-    accept.writeToken(ast->caretLoc);
+  if (ast->caretCaretLoc) {
+    accept.writeToken(ast->caretCaretLoc);
   }
   accept(ast->expression);
 }
@@ -3329,13 +3318,6 @@ void ASTPrettyPrinter::TemplateParameterVisitor::operator()(
   accept(ast->typeId);
 }
 
-void ASTPrettyPrinter::SpecifierVisitor::operator()(
-    GeneratedTypeSpecifierAST* ast) {
-  if (ast->typeLoc) {
-    accept.writeToken(ast->typeLoc);
-  }
-}
-
 void ASTPrettyPrinter::SpecifierVisitor::operator()(TypedefSpecifierAST* ast) {
   if (ast->typedefLoc) {
     accept.writeToken(ast->typedefLoc);
@@ -3465,7 +3447,7 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(SignTypeSpecifierAST* ast) {
 }
 
 void ASTPrettyPrinter::SpecifierVisitor::operator()(
-    VaListTypeSpecifierAST* ast) {
+    BuiltinTypeSpecifierAST* ast) {
   if (ast->specifierLoc) {
     accept.writeToken(ast->specifierLoc);
   }

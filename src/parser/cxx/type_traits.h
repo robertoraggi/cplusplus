@@ -1063,6 +1063,11 @@ class TypeTraits {
       return type->symbol() == otherType->symbol();
     }
 
+    auto operator()(const BuiltinMetaInfoType*,
+                    const BuiltinMetaInfoType*) const -> bool {
+      return true;
+    }
+
   } is_same_{*this};
 };
 

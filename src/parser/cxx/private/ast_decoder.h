@@ -219,9 +219,6 @@ class ASTDecoder {
   auto decodeTryBlockStatement(const io::TryBlockStatement* node)
       -> TryBlockStatementAST*;
 
-  auto decodeGeneratedLiteralExpression(
-      const io::GeneratedLiteralExpression* node)
-      -> GeneratedLiteralExpressionAST*;
   auto decodeCharLiteralExpression(const io::CharLiteralExpression* node)
       -> CharLiteralExpressionAST*;
   auto decodeBoolLiteralExpression(const io::BoolLiteralExpression* node)
@@ -372,8 +369,6 @@ class ASTDecoder {
   auto decodeConstraintTypeParameter(const io::ConstraintTypeParameter* node)
       -> ConstraintTypeParameterAST*;
 
-  auto decodeGeneratedTypeSpecifier(const io::GeneratedTypeSpecifier* node)
-      -> GeneratedTypeSpecifierAST*;
   auto decodeTypedefSpecifier(const io::TypedefSpecifier* node)
       -> TypedefSpecifierAST*;
   auto decodeFriendSpecifier(const io::FriendSpecifier* node)
@@ -412,8 +407,8 @@ class ASTDecoder {
       -> SizeTypeSpecifierAST*;
   auto decodeSignTypeSpecifier(const io::SignTypeSpecifier* node)
       -> SignTypeSpecifierAST*;
-  auto decodeVaListTypeSpecifier(const io::VaListTypeSpecifier* node)
-      -> VaListTypeSpecifierAST*;
+  auto decodeBuiltinTypeSpecifier(const io::BuiltinTypeSpecifier* node)
+      -> BuiltinTypeSpecifierAST*;
   auto decodeIntegralTypeSpecifier(const io::IntegralTypeSpecifier* node)
       -> IntegralTypeSpecifierAST*;
   auto decodeFloatingPointTypeSpecifier(

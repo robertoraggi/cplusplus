@@ -5042,31 +5042,6 @@ export class TryBlockStatementAST extends StatementAST {
 }
 
 /**
- * GeneratedLiteralExpressionAST node.
- */
-export class GeneratedLiteralExpressionAST extends ExpressionAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitGeneratedLiteralExpression(this, context);
-  }
-
-  /**
-   * Returns the location of the literal token in this node
-   */
-  getLiteralToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
  * CharLiteralExpressionAST node.
  */
 export class CharLiteralExpressionAST extends ExpressionAST {
@@ -7012,9 +6987,9 @@ export class GlobalScopeReflectExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the location of the caret token in this node
+   * Returns the location of the caretCaret token in this node
    */
-  getCaretToken(): Token | undefined {
+  getCaretCaretToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
@@ -7044,9 +7019,9 @@ export class NamespaceReflectExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the location of the caret token in this node
+   * Returns the location of the caretCaret token in this node
    */
-  getCaretToken(): Token | undefined {
+  getCaretCaretToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
@@ -7084,9 +7059,9 @@ export class TypeIdReflectExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the location of the caret token in this node
+   * Returns the location of the caretCaret token in this node
    */
-  getCaretToken(): Token | undefined {
+  getCaretCaretToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
@@ -7119,9 +7094,9 @@ export class ReflectExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the location of the caret token in this node
+   * Returns the location of the caretCaret token in this node
    */
-  getCaretToken(): Token | undefined {
+  getCaretCaretToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
 
@@ -8923,31 +8898,6 @@ export class ConstraintTypeParameterAST extends TemplateParameterAST {
 }
 
 /**
- * GeneratedTypeSpecifierAST node.
- */
-export class GeneratedTypeSpecifierAST extends SpecifierAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitGeneratedTypeSpecifier(this, context);
-  }
-
-  /**
-   * Returns the location of the type token in this node
-   */
-  getTypeToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-}
-
-/**
  * TypedefSpecifierAST node.
  */
 export class TypedefSpecifierAST extends SpecifierAST {
@@ -9461,9 +9411,9 @@ export class SignTypeSpecifierAST extends SpecifierAST {
 }
 
 /**
- * VaListTypeSpecifierAST node.
+ * BuiltinTypeSpecifierAST node.
  */
-export class VaListTypeSpecifierAST extends SpecifierAST {
+export class BuiltinTypeSpecifierAST extends SpecifierAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -9474,7 +9424,7 @@ export class VaListTypeSpecifierAST extends SpecifierAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitVaListTypeSpecifier(this, context);
+    return visitor.visitBuiltinTypeSpecifier(this, context);
   }
 
   /**
@@ -13404,7 +13354,6 @@ const AST_CONSTRUCTORS: Array<
   GotoStatementAST,
   DeclarationStatementAST,
   TryBlockStatementAST,
-  GeneratedLiteralExpressionAST,
   CharLiteralExpressionAST,
   BoolLiteralExpressionAST,
   IntLiteralExpressionAST,
@@ -13475,7 +13424,6 @@ const AST_CONSTRUCTORS: Array<
   NonTypeTemplateParameterAST,
   TypenameTypeParameterAST,
   ConstraintTypeParameterAST,
-  GeneratedTypeSpecifierAST,
   TypedefSpecifierAST,
   FriendSpecifierAST,
   ConstevalSpecifierAST,
@@ -13495,7 +13443,7 @@ const AST_CONSTRUCTORS: Array<
   VoidTypeSpecifierAST,
   SizeTypeSpecifierAST,
   SignTypeSpecifierAST,
-  VaListTypeSpecifierAST,
+  BuiltinTypeSpecifierAST,
   IntegralTypeSpecifierAST,
   FloatingPointTypeSpecifierAST,
   ComplexTypeSpecifierAST,

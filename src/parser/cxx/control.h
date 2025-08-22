@@ -78,6 +78,7 @@ class Control {
   [[nodiscard]] auto getSizeType() -> const Type*;
 
   [[nodiscard]] auto getBuiltinVaListType() -> const BuiltinVaListType*;
+  [[nodiscard]] auto getBuiltinMetaInfoType() -> const BuiltinMetaInfoType*;
   [[nodiscard]] auto getVoidType() -> const VoidType*;
   [[nodiscard]] auto getNullptrType() -> const NullptrType*;
   [[nodiscard]] auto getDecltypeAutoType() -> const DecltypeAutoType*;

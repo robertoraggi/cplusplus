@@ -118,7 +118,6 @@ class ASTVisitor {
   virtual void visit(TryBlockStatementAST* ast);
 
   // ExpressionAST
-  virtual void visit(GeneratedLiteralExpressionAST* ast);
   virtual void visit(CharLiteralExpressionAST* ast);
   virtual void visit(BoolLiteralExpressionAST* ast);
   virtual void visit(IntLiteralExpressionAST* ast);
@@ -197,7 +196,6 @@ class ASTVisitor {
   virtual void visit(ConstraintTypeParameterAST* ast);
 
   // SpecifierAST
-  virtual void visit(GeneratedTypeSpecifierAST* ast);
   virtual void visit(TypedefSpecifierAST* ast);
   virtual void visit(FriendSpecifierAST* ast);
   virtual void visit(ConstevalSpecifierAST* ast);
@@ -217,7 +215,7 @@ class ASTVisitor {
   virtual void visit(VoidTypeSpecifierAST* ast);
   virtual void visit(SizeTypeSpecifierAST* ast);
   virtual void visit(SignTypeSpecifierAST* ast);
-  virtual void visit(VaListTypeSpecifierAST* ast);
+  virtual void visit(BuiltinTypeSpecifierAST* ast);
   virtual void visit(IntegralTypeSpecifierAST* ast);
   virtual void visit(FloatingPointTypeSpecifierAST* ast);
   virtual void visit(ComplexTypeSpecifierAST* ast);

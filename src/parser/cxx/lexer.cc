@@ -397,6 +397,9 @@ auto Lexer::readToken() -> TokenKind {
       if (pos_ != end_ && LA() == '=') {
         consume();
         return TokenKind::T_CARET_EQUAL;
+      } else if (pos_ != end_ && LA() == '^') {
+        consume();
+        return TokenKind::T_CARET_CARET;
       }
       return TokenKind::T_CARET;
 

@@ -1039,17 +1039,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a GeneratedLiteralExpression node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitGeneratedLiteralExpression(
-    node: ast.GeneratedLiteralExpressionAST,
-    context: Context,
-  ): void {}
-
-  /**
    * Visit a CharLiteralExpression node.
    *
    * @param node The node to visit.
@@ -1941,17 +1930,6 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
-   * Visit a GeneratedTypeSpecifier node.
-   *
-   * @param node The node to visit.
-   * @param context The context.
-   */
-  visitGeneratedTypeSpecifier(
-    node: ast.GeneratedTypeSpecifierAST,
-    context: Context,
-  ): void {}
-
-  /**
    * Visit a TypedefSpecifier node.
    *
    * @param node The node to visit.
@@ -2148,13 +2126,13 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   ): void {}
 
   /**
-   * Visit a VaListTypeSpecifier node.
+   * Visit a BuiltinTypeSpecifier node.
    *
    * @param node The node to visit.
    * @param context The context.
    */
-  visitVaListTypeSpecifier(
-    node: ast.VaListTypeSpecifierAST,
+  visitBuiltinTypeSpecifier(
+    node: ast.BuiltinTypeSpecifierAST,
     context: Context,
   ): void {}
 

@@ -1611,21 +1611,6 @@ class TryBlockStatementAST final : public StatementAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class GeneratedLiteralExpressionAST final : public ExpressionAST {
- public:
-  static constexpr ASTKind Kind = ASTKind::GeneratedLiteralExpression;
-
-  GeneratedLiteralExpressionAST() : ExpressionAST(Kind) {}
-
-  SourceLocation literalLoc;
-  ConstValue value;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class CharLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CharLiteralExpression;
@@ -2202,7 +2187,7 @@ class GlobalScopeReflectExpressionAST final : public ExpressionAST {
 
   GlobalScopeReflectExpressionAST() : ExpressionAST(Kind) {}
 
-  SourceLocation caretLoc;
+  SourceLocation caretCaretLoc;
   SourceLocation scopeLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2217,7 +2202,7 @@ class NamespaceReflectExpressionAST final : public ExpressionAST {
 
   NamespaceReflectExpressionAST() : ExpressionAST(Kind) {}
 
-  SourceLocation caretLoc;
+  SourceLocation caretCaretLoc;
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
   NamespaceSymbol* symbol = nullptr;
@@ -2234,7 +2219,7 @@ class TypeIdReflectExpressionAST final : public ExpressionAST {
 
   TypeIdReflectExpressionAST() : ExpressionAST(Kind) {}
 
-  SourceLocation caretLoc;
+  SourceLocation caretCaretLoc;
   TypeIdAST* typeId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2249,7 +2234,7 @@ class ReflectExpressionAST final : public ExpressionAST {
 
   ReflectExpressionAST() : ExpressionAST(Kind) {}
 
-  SourceLocation caretLoc;
+  SourceLocation caretCaretLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2834,21 +2819,6 @@ class ConstraintTypeParameterAST final : public TemplateParameterAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class GeneratedTypeSpecifierAST final : public SpecifierAST {
- public:
-  static constexpr ASTKind Kind = ASTKind::GeneratedTypeSpecifier;
-
-  GeneratedTypeSpecifierAST() : SpecifierAST(Kind) {}
-
-  SourceLocation typeLoc;
-  const Type* type = nullptr;
-
-  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
-
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
-};
-
 class TypedefSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypedefSpecifier;
@@ -3120,11 +3090,11 @@ class SignTypeSpecifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class VaListTypeSpecifierAST final : public SpecifierAST {
+class BuiltinTypeSpecifierAST final : public SpecifierAST {
  public:
-  static constexpr ASTKind Kind = ASTKind::VaListTypeSpecifier;
+  static constexpr ASTKind Kind = ASTKind::BuiltinTypeSpecifier;
 
-  VaListTypeSpecifierAST() : SpecifierAST(Kind) {}
+  BuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
@@ -4573,9 +4543,6 @@ template <>
 template <typename Visitor>
 auto visit(Visitor&& visitor, ExpressionAST* ast) {
   switch (ast->kind()) {
-    case GeneratedLiteralExpressionAST::Kind:
-      return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<GeneratedLiteralExpressionAST*>(ast));
     case CharLiteralExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<CharLiteralExpressionAST*>(ast));
@@ -4772,7 +4739,6 @@ template <>
 [[nodiscard]] inline auto ast_cast<ExpressionAST>(AST* ast) -> ExpressionAST* {
   if (!ast) return nullptr;
   switch (ast->kind()) {
-    case GeneratedLiteralExpressionAST::Kind:
     case CharLiteralExpressionAST::Kind:
     case BoolLiteralExpressionAST::Kind:
     case IntLiteralExpressionAST::Kind:
@@ -4932,9 +4898,6 @@ template <>
 template <typename Visitor>
 auto visit(Visitor&& visitor, SpecifierAST* ast) {
   switch (ast->kind()) {
-    case GeneratedTypeSpecifierAST::Kind:
-      return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<GeneratedTypeSpecifierAST*>(ast));
     case TypedefSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<TypedefSpecifierAST*>(ast));
@@ -4992,9 +4955,9 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case SignTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<SignTypeSpecifierAST*>(ast));
-    case VaListTypeSpecifierAST::Kind:
+    case BuiltinTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<VaListTypeSpecifierAST*>(ast));
+                         static_cast<BuiltinTypeSpecifierAST*>(ast));
     case IntegralTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<IntegralTypeSpecifierAST*>(ast));
@@ -5058,7 +5021,6 @@ template <>
 [[nodiscard]] inline auto ast_cast<SpecifierAST>(AST* ast) -> SpecifierAST* {
   if (!ast) return nullptr;
   switch (ast->kind()) {
-    case GeneratedTypeSpecifierAST::Kind:
     case TypedefSpecifierAST::Kind:
     case FriendSpecifierAST::Kind:
     case ConstevalSpecifierAST::Kind:
@@ -5078,7 +5040,7 @@ template <>
     case VoidTypeSpecifierAST::Kind:
     case SizeTypeSpecifierAST::Kind:
     case SignTypeSpecifierAST::Kind:
-    case VaListTypeSpecifierAST::Kind:
+    case BuiltinTypeSpecifierAST::Kind:
     case IntegralTypeSpecifierAST::Kind:
     case FloatingPointTypeSpecifierAST::Kind:
     case ComplexTypeSpecifierAST::Kind:

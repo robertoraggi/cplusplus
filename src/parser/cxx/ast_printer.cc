@@ -996,15 +996,6 @@ void ASTPrinter::visit(TryBlockStatementAST* ast) {
   }
 }
 
-void ASTPrinter::visit(GeneratedLiteralExpressionAST* ast) {
-  out_ << "generated-literal-expression";
-  if (ast->type) {
-    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
-                        to_string(ast->type));
-  }
-  out_ << "\n";
-}
-
 void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
   out_ << "char-literal-expression";
   if (ast->type) {
@@ -2039,10 +2030,6 @@ void ASTPrinter::visit(ConstraintTypeParameterAST* ast) {
   accept(ast->typeId, "type-id");
 }
 
-void ASTPrinter::visit(GeneratedTypeSpecifierAST* ast) {
-  out_ << std::format("{}\n", "generated-type-specifier");
-}
-
 void ASTPrinter::visit(TypedefSpecifierAST* ast) {
   out_ << std::format("{}\n", "typedef-specifier");
 }
@@ -2132,8 +2119,8 @@ void ASTPrinter::visit(SignTypeSpecifierAST* ast) {
   }
 }
 
-void ASTPrinter::visit(VaListTypeSpecifierAST* ast) {
-  out_ << std::format("{}\n", "va-list-type-specifier");
+void ASTPrinter::visit(BuiltinTypeSpecifierAST* ast) {
+  out_ << std::format("{}\n", "builtin-type-specifier");
   if (ast->specifier != TokenKind::T_EOF_SYMBOL) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
