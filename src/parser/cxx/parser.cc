@@ -2316,6 +2316,28 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
   return true;
 }
 
+auto Parser::parse_unary_builtin_type_op(SourceLocation& loc,
+                                         UnaryBuiltinTypeKind& builtinKind)
+    -> bool {
+  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LPAREN)) return false;
+
+  auto identifier = unit->identifier(currentLocation());
+
+  auto info = identifier->info();
+  if (!info) return false;
+
+  if (info->kind() != IdentifierInfoKind::kUnaryBuiltinType) return false;
+
+  auto builtin = static_cast<const UnaryBuiltinTypeInfo*>(info);
+
+  if (builtin->builtinKind() == UnaryBuiltinTypeKind::T_NONE) return false;
+
+  builtinKind = builtin->builtinKind();
+  loc = consumeToken();
+
+  return true;
+}
+
 auto Parser::parse_type_traits_op(SourceLocation& loc,
                                   BuiltinTypeTraitKind& builtinKind) -> bool {
   const auto builtin = LA().builtinTypeTrait();
@@ -4298,9 +4320,9 @@ auto Parser::parse_simple_declaration(
 
     if (auto scope = decl.getScope()) {
       setScope(scope);
-    } else if (q && config().checkTypes) {
-      parse_error(q->firstSourceLocation(),
-                  std::format("unresolved class or namespace"));
+    } else if (q) {
+      type_error(q->firstSourceLocation(),
+                 std::format("unresolved class or namespace"));
     }
 
     const Name* functionName = decl.getName();
@@ -4308,10 +4330,10 @@ auto Parser::parse_simple_declaration(
         binder_.getFunction(scope(), functionName, functionType);
 
     if (!functionSymbol) {
-      if (q && config().checkTypes) {
-        parse_error(q->firstSourceLocation(),
-                    std::format("class or namespace has no member named '{}'",
-                                to_string(functionName)));
+      if (q) {
+        type_error(q->firstSourceLocation(),
+                   std::format("class or namespace has no member named '{}'",
+                               to_string(functionName)));
       }
 
       functionSymbol = binder_.declareFunction(declarator, decl);
@@ -4414,10 +4436,8 @@ auto Parser::parse_notypespec_function_definition(
   if (auto scope = decl.getScope()) {
     setScope(scope);
   } else if (auto q = decl.getNestedNameSpecifier()) {
-    if (config().checkTypes) {
-      parse_error(q->firstSourceLocation(),
-                  std::format("unresolved class or namespace"));
-    }
+    type_error(q->firstSourceLocation(),
+               std::format("unresolved class or namespace"));
   }
 
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
@@ -4541,17 +4561,17 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
     bool value = false;
 
     if (constValue.has_value()) {
-      ASTInterpreter interp{unit};
+      auto interp = ASTInterpreter{unit};
       value = interp.toBool(constValue.value()).value_or(false);
     }
 
-    if (!value && config().checkTypes) {
+    if (!value) {
       SourceLocation loc = ast->firstSourceLocation();
 
       if (!ast->expression || !constValue.has_value()) {
-        parse_error(loc,
-                    "static assertion expression is not an integral constant "
-                    "expression");
+        type_error(loc,
+                   "static assertion expression is not an integral constant "
+                   "expression");
       } else {
         if (ast->literalLoc)
           loc = ast->literalLoc;
@@ -4561,7 +4581,7 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
         std::string message =
             ast->literal ? ast->literal->value() : "static assert failed";
 
-        unit->error(loc, std::move(message));
+        type_error(loc, std::move(message));
       }
     }
   }
@@ -5009,6 +5029,7 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (parse_primitive_type_specifier(yyast, specs)) return true;
   if (parse_placeholder_type_specifier(yyast, specs)) return true;
   if (parse_underlying_type_specifier(yyast, specs)) return true;
+  if (parse_unary_builtin_type_specifier(yyast, specs)) return true;
   if (parse_atomic_type_specifier(yyast, specs)) return true;
   if (parse_named_type_specifier(yyast, specs)) return true;
   if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
@@ -5120,13 +5141,11 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   auto symbol =
       binder_.resolve(nestedNameSpecifier, unqualifiedId, checkTemplates);
 
-  if (config().checkTypes) {
-    if (!is_type(symbol)) {
-      auto name = get_name(control_, unqualifiedId);
-      parse_error(unqualifiedId->firstSourceLocation(),
-                  std::format("'{}' is not a type", to_string(name)));
-      return false;
-    }
+  if (!is_type(symbol) && config().checkTypes) {
+    auto name = get_name(control_, unqualifiedId);
+    parse_error(unqualifiedId->firstSourceLocation(),
+                std::format("'{}' is not a type", to_string(name)));
+    return false;
   }
 
   lookahead.commit();
@@ -5166,6 +5185,30 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
   yyast = ast;
 
   ast->underlyingTypeLoc = underlyingTypeLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  if (!parse_type_id(ast->typeId)) parse_error("expected type id");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  specs.accept(ast);
+
+  return true;
+}
+
+auto Parser::parse_unary_builtin_type_specifier(SpecifierAST*& yyast,
+                                                DeclSpecs& specs) -> bool {
+  SourceLocation builtinLoc;
+  UnaryBuiltinTypeKind builtinKind = UnaryBuiltinTypeKind::T_NONE;
+
+  if (!parse_unary_builtin_type_op(builtinLoc, builtinKind)) return false;
+
+  auto ast = make_node<UnaryBuiltinTypeSpecifierAST>(pool_);
+  yyast = ast;
+
+  ast->builtinLoc = builtinLoc;
+  ast->builtinKind = builtinKind;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
@@ -5659,9 +5702,9 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
 
   if (auto scope = decl.getScope()) {
     setScope(scope);
-  } else if (q && config().checkTypes) {
-    parse_error(q->firstSourceLocation(),
-                std::format("unresolved class or namespace"));
+  } else if (q) {
+    type_error(q->firstSourceLocation(),
+               std::format("unresolved class or namespace"));
   }
 
   List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;

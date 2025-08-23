@@ -55,6 +55,7 @@ using TemplateArgument =
 
 enum class IdentifierInfoKind {
   kTypeTrait,
+  kUnaryBuiltinType,
 };
 
 class IdentifierInfo;

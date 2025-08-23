@@ -91,6 +91,12 @@ struct ASTRewriter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(BuiltinTypeSpecifierAST* ast) -> SpecifierAST*;
 
+  [[nodiscard]] auto operator()(UnaryBuiltinTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(BinaryBuiltinTypeSpecifierAST* ast)
+      -> SpecifierAST*;
+
   [[nodiscard]] auto operator()(IntegralTypeSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(FloatingPointTypeSpecifierAST* ast)
@@ -510,6 +516,34 @@ auto ASTRewriter::SpecifierVisitor::operator()(BuiltinTypeSpecifierAST* ast)
 
   copy->specifierLoc = ast->specifierLoc;
   copy->specifier = ast->specifier;
+
+  return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::operator()(
+    UnaryBuiltinTypeSpecifierAST* ast) -> SpecifierAST* {
+  auto copy = make_node<UnaryBuiltinTypeSpecifierAST>(arena());
+
+  copy->builtinLoc = ast->builtinLoc;
+  copy->builtinKind = ast->builtinKind;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->typeId = rewrite.typeId(ast->typeId);
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::operator()(
+    BinaryBuiltinTypeSpecifierAST* ast) -> SpecifierAST* {
+  auto copy = make_node<BinaryBuiltinTypeSpecifierAST>(arena());
+
+  copy->builtinLoc = ast->builtinLoc;
+  copy->builtinKind = ast->builtinKind;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->leftTypeId = rewrite.typeId(ast->leftTypeId);
+  copy->commaLoc = ast->commaLoc;
+  copy->rightTypeId = rewrite.typeId(ast->rightTypeId);
+  copy->rparenLoc = ast->rparenLoc;
 
   return copy;
 }

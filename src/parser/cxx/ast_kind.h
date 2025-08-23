@@ -207,6 +207,8 @@ enum class ASTKind {
   SizeTypeSpecifier,
   SignTypeSpecifier,
   BuiltinTypeSpecifier,
+  UnaryBuiltinTypeSpecifier,
+  BinaryBuiltinTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
   ComplexTypeSpecifier,

@@ -411,6 +411,10 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(BuiltinTypeSpecifierAST* ast);
 
+  void operator()(UnaryBuiltinTypeSpecifierAST* ast);
+
+  void operator()(BinaryBuiltinTypeSpecifierAST* ast);
+
   void operator()(IntegralTypeSpecifierAST* ast);
 
   void operator()(FloatingPointTypeSpecifierAST* ast);
@@ -3450,6 +3454,45 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(
     BuiltinTypeSpecifierAST* ast) {
   if (ast->specifierLoc) {
     accept.writeToken(ast->specifierLoc);
+  }
+}
+
+void ASTPrettyPrinter::SpecifierVisitor::operator()(
+    UnaryBuiltinTypeSpecifierAST* ast) {
+  if (ast->builtinLoc) {
+    accept.writeToken(ast->builtinLoc);
+  }
+  if (ast->lparenLoc) {
+    nospace();
+    accept.writeToken(ast->lparenLoc);
+    nospace();
+  }
+  accept(ast->typeId);
+  if (ast->rparenLoc) {
+    nospace();
+    accept.writeToken(ast->rparenLoc);
+  }
+}
+
+void ASTPrettyPrinter::SpecifierVisitor::operator()(
+    BinaryBuiltinTypeSpecifierAST* ast) {
+  if (ast->builtinLoc) {
+    accept.writeToken(ast->builtinLoc);
+  }
+  if (ast->lparenLoc) {
+    nospace();
+    accept.writeToken(ast->lparenLoc);
+    nospace();
+  }
+  accept(ast->leftTypeId);
+  if (ast->commaLoc) {
+    nospace();
+    accept.writeToken(ast->commaLoc);
+  }
+  accept(ast->rightTypeId);
+  if (ast->rparenLoc) {
+    nospace();
+    accept.writeToken(ast->rparenLoc);
   }
 }
 

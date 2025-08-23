@@ -56,6 +56,8 @@ struct DeclSpecs::Visitor {
   void operator()(SizeTypeSpecifierAST* ast);
   void operator()(SignTypeSpecifierAST* ast);
   void operator()(BuiltinTypeSpecifierAST* ast);
+  void operator()(UnaryBuiltinTypeSpecifierAST* ast);
+  void operator()(BinaryBuiltinTypeSpecifierAST* ast);
   void operator()(IntegralTypeSpecifierAST* ast);
   void operator()(FloatingPointTypeSpecifierAST* ast);
   void operator()(ComplexTypeSpecifierAST* ast);
@@ -195,6 +197,16 @@ void DeclSpecs::Visitor::operator()(BuiltinTypeSpecifierAST* ast) {
     default:
       break;
   }  // switch
+}
+
+void DeclSpecs::Visitor::operator()(UnaryBuiltinTypeSpecifierAST* ast) {
+  specs.typeSpecifier_ = ast;
+  // ### todo
+}
+
+void DeclSpecs::Visitor::operator()(BinaryBuiltinTypeSpecifierAST* ast) {
+  specs.typeSpecifier_ = ast;
+  // ### todo
 }
 
 void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {

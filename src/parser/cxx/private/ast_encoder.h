@@ -301,6 +301,8 @@ class ASTEncoder : ASTVisitor {
   void visit(SizeTypeSpecifierAST* ast) override;
   void visit(SignTypeSpecifierAST* ast) override;
   void visit(BuiltinTypeSpecifierAST* ast) override;
+  void visit(UnaryBuiltinTypeSpecifierAST* ast) override;
+  void visit(BinaryBuiltinTypeSpecifierAST* ast) override;
   void visit(IntegralTypeSpecifierAST* ast) override;
   void visit(FloatingPointTypeSpecifierAST* ast) override;
   void visit(ComplexTypeSpecifierAST* ast) override;

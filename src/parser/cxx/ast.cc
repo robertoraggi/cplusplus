@@ -2517,6 +2517,42 @@ auto BuiltinTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto UnaryBuiltinTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(builtinLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto UnaryBuiltinTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(builtinLoc)) return loc;
+  return {};
+}
+
+auto BinaryBuiltinTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(builtinLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(leftTypeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rightTypeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto BinaryBuiltinTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(rightTypeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(leftTypeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(builtinLoc)) return loc;
+  return {};
+}
+
 auto IntegralTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(specifierLoc)) return loc;
   return {};
@@ -3734,6 +3770,8 @@ std::string_view kASTKindNames[] = {
     "size-type-specifier",
     "sign-type-specifier",
     "builtin-type-specifier",
+    "unary-builtin-type-specifier",
+    "binary-builtin-type-specifier",
     "integral-type-specifier",
     "floating-point-type-specifier",
     "complex-type-specifier",

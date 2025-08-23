@@ -270,6 +270,25 @@ class Token;
   V(__IS_VOID, "__is_void")                                       \
   V(__IS_VOLATILE, "__is_volatile")
 
+#define FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(V)          \
+  V(__ADD_LVALUE_REFERENCE, "__add_lvalue_reference") \
+  V(__ADD_POINTER, "__add_pointer")                   \
+  V(__ADD_RVALUE_REFERENCE, "__add_rvalue_reference") \
+  V(__DECAY, "__decay")                               \
+  V(__MAKE_SIGNED, "__make_signed")                   \
+  V(__MAKE_UNSIGNED, "__make_unsigned")               \
+  V(__REMOVE_ALL_EXTENTS, "__remove_all_extents")     \
+  V(__REMOVE_CONST, "__remove_const")                 \
+  V(__REMOVE_CV, "__remove_cv")                       \
+  V(__REMOVE_CVREF, "__remove_cvref")                 \
+  V(__REMOVE_EXTENT, "__remove_extent")               \
+  V(__REMOVE_POINTER, "__remove_pointer")             \
+  V(__REMOVE_REFERENCE_T, "__remove_reference_t")     \
+  V(__REMOVE_RESTRICT, "__remove_restrict")           \
+  V(__REMOVE_VOLATILE, "__remove_volatile")
+
+#define FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(V)
+
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
   V(__ALIGNOF__, ALIGNOF)          \
@@ -320,6 +339,16 @@ enum class TokenKind : std::uint8_t {
 enum class BuiltinTypeTraitKind {
   T_NONE,
   FOR_EACH_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
+};
+
+enum class UnaryBuiltinTypeKind {
+  T_NONE,
+  FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
+};
+
+enum class BinaryBuiltinTypeKind {
+  T_NONE,
+  FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM

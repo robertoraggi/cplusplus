@@ -152,6 +152,7 @@ struct Control::Private {
   std::forward_list<UsingDeclarationSymbol> usingDeclarationSymbols;
 
   std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
+  std::forward_list<UnaryBuiltinTypeInfo> unaryBuiltinTypeInfos;
 
   int anonymousIdCount = 0;
 
@@ -168,6 +169,12 @@ struct Control::Private {
     FOR_EACH_BUILTIN_TYPE_TRAIT(PROCESS_BUILTIN)
 
 #undef PROCESS_BUILTIN
+
+#define PROCESS_UNARY_BUILTIN(id, name) \
+  getIdentifier(name)->setInfo(         \
+      &unaryBuiltinTypeInfos.emplace_front(UnaryBuiltinTypeKind::T_##id));
+    FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(PROCESS_UNARY_BUILTIN)
+#undef PROCESS_UNARY_BUILTIN
   }
 };
 

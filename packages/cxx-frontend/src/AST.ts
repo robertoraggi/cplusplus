@@ -9443,6 +9443,121 @@ export class BuiltinTypeSpecifierAST extends SpecifierAST {
 }
 
 /**
+ * UnaryBuiltinTypeSpecifierAST node.
+ */
+export class UnaryBuiltinTypeSpecifierAST extends SpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitUnaryBuiltinTypeSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the builtin token in this node
+   */
+  getBuiltinToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the typeId of this node
+   */
+  getTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
+ * BinaryBuiltinTypeSpecifierAST node.
+ */
+export class BinaryBuiltinTypeSpecifierAST extends SpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBinaryBuiltinTypeSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the builtin token in this node
+   */
+  getBuiltinToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the leftTypeId of this node
+   */
+  getLeftTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the comma token in this node
+   */
+  getCommaToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the rightTypeId of this node
+   */
+  getRightTypeId(): TypeIdAST | undefined {
+    return AST.from<TypeIdAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+}
+
+/**
  * IntegralTypeSpecifierAST node.
  */
 export class IntegralTypeSpecifierAST extends SpecifierAST {
@@ -13444,6 +13559,8 @@ const AST_CONSTRUCTORS: Array<
   SizeTypeSpecifierAST,
   SignTypeSpecifierAST,
   BuiltinTypeSpecifierAST,
+  UnaryBuiltinTypeSpecifierAST,
+  BinaryBuiltinTypeSpecifierAST,
   IntegralTypeSpecifierAST,
   FloatingPointTypeSpecifierAST,
   ComplexTypeSpecifierAST,

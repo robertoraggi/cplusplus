@@ -3105,6 +3105,44 @@ class BuiltinTypeSpecifierAST final : public SpecifierAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class UnaryBuiltinTypeSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::UnaryBuiltinTypeSpecifier;
+
+  UnaryBuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
+
+  SourceLocation builtinLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+  UnaryBuiltinTypeKind builtinKind = UnaryBuiltinTypeKind::T_NONE;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class BinaryBuiltinTypeSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::BinaryBuiltinTypeSpecifier;
+
+  BinaryBuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
+
+  SourceLocation builtinLoc;
+  SourceLocation lparenLoc;
+  TypeIdAST* leftTypeId = nullptr;
+  SourceLocation commaLoc;
+  TypeIdAST* rightTypeId = nullptr;
+  SourceLocation rparenLoc;
+  BinaryBuiltinTypeKind builtinKind = BinaryBuiltinTypeKind::T_NONE;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class IntegralTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IntegralTypeSpecifier;
@@ -4958,6 +4996,12 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case BuiltinTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<BuiltinTypeSpecifierAST*>(ast));
+    case UnaryBuiltinTypeSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<UnaryBuiltinTypeSpecifierAST*>(ast));
+    case BinaryBuiltinTypeSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<BinaryBuiltinTypeSpecifierAST*>(ast));
     case IntegralTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<IntegralTypeSpecifierAST*>(ast));
@@ -5041,6 +5085,8 @@ template <>
     case SizeTypeSpecifierAST::Kind:
     case SignTypeSpecifierAST::Kind:
     case BuiltinTypeSpecifierAST::Kind:
+    case UnaryBuiltinTypeSpecifierAST::Kind:
+    case BinaryBuiltinTypeSpecifierAST::Kind:
     case IntegralTypeSpecifierAST::Kind:
     case FloatingPointTypeSpecifierAST::Kind:
     case ComplexTypeSpecifierAST::Kind:

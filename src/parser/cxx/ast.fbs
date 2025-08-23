@@ -263,6 +263,8 @@ union Specifier {
   SizeTypeSpecifier,
   SignTypeSpecifier,
   BuiltinTypeSpecifier,
+  UnaryBuiltinTypeSpecifier,
+  BinaryBuiltinTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
   ComplexTypeSpecifier,
@@ -1552,6 +1554,22 @@ table SignTypeSpecifier /* SpecifierAST */ {
 table BuiltinTypeSpecifier /* SpecifierAST */ {
   specifier: uint32;
   specifier_loc: uint32;
+}
+
+table UnaryBuiltinTypeSpecifier /* SpecifierAST */ {
+  type_id: TypeId;
+  builtin_loc: uint32;
+  lparen_loc: uint32;
+  rparen_loc: uint32;
+}
+
+table BinaryBuiltinTypeSpecifier /* SpecifierAST */ {
+  left_type_id: TypeId;
+  right_type_id: TypeId;
+  builtin_loc: uint32;
+  lparen_loc: uint32;
+  comma_loc: uint32;
+  rparen_loc: uint32;
 }
 
 table IntegralTypeSpecifier /* SpecifierAST */ {

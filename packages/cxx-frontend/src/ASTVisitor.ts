@@ -1971,6 +1971,30 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit UnaryBuiltinTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitUnaryBuiltinTypeSpecifier(
+    node: ast.UnaryBuiltinTypeSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit BinaryBuiltinTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitBinaryBuiltinTypeSpecifier(
+    node: ast.BinaryBuiltinTypeSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit IntegralTypeSpecifier node.
    *
    * @param node The node to visit.

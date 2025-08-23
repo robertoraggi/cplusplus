@@ -52,6 +52,18 @@ export function gen_token_fwd_h({ output }: { output: string }) {
   );
 
   emit();
+  emit("#define FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(V) \\");
+  tokens.UNARY_BUILTIN_TYPE_SPECIFIERS.forEach((tk) =>
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+  );
+
+  emit();
+  emit("#define FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(V) \\");
+  tokens.BINARY_BUILTIN_TYPE_SPECIFIERS.forEach((tk) =>
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+  );
+
+  emit();
   emit("#define FOR_EACH_TOKEN_ALIAS(V) \\");
   Object.entries(tokens.C_AND_CXX_TOKEN_ALIASES).forEach(([tk, other]) =>
     emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
@@ -88,6 +100,16 @@ enum class TokenKind : std::uint8_t {
 enum class BuiltinTypeTraitKind {
   T_NONE,
   FOR_EACH_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
+};
+
+enum class UnaryBuiltinTypeKind {
+  T_NONE,
+  FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
+};
+
+enum class BinaryBuiltinTypeKind {
+  T_NONE,
+  FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM
