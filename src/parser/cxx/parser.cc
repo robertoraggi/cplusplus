@@ -9717,19 +9717,16 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
   if (!parse_declaration(ast->declaration, BindingContext::kTemplate))
     parse_error("expected a declaration");
 
-  auto check_elaborated_type_specifier = [&] {
-    if (!config().checkTypes) return;
-
+  auto check_elaborated_type_specifier = [&]() -> bool {
     auto simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration);
-    if (!simpleDecl) return;
+    if (!simpleDecl) return false;
 
-    if (!simpleDecl->declSpecifierList) return;
+    if (!simpleDecl->declSpecifierList) return false;
 
     auto elabSpec = ast_cast<ElaboratedTypeSpecifierAST>(
         simpleDecl->declSpecifierList->value);
     if (!elabSpec) {
-      type_error(currentLocation(), "expected an elaborated type specifier");
-      return;
+      return false;
     }
 
     if (elabSpec->nestedNameSpecifier) {
@@ -9737,7 +9734,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
       if (!templateId) {
         type_error(elabSpec->unqualifiedId->firstSourceLocation(),
                    "expected a template id");
-        return;
+        return true;
       }
 
       auto candidate = Lookup{scope()}.qualifiedLookup(
@@ -9746,7 +9743,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
       if (!is_template(candidate)) {
         type_error(elabSpec->unqualifiedId->firstSourceLocation(),
                    std::format("expected a template"));
-        return;
+        return true;
       }
 
       auto classSymbol = symbol_cast<ClassSymbol>(candidate);
@@ -9755,20 +9752,24 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
             elabSpec->unqualifiedId->firstSourceLocation(),
             std::format("expected a class template, got '{}'",
                         to_string(candidate->type(), candidate->name())));
-        return;
+        return true;
       }
 
-      auto instance = ASTRewriter::instantiateClassTemplate(
-          unit, templateId->templateArgumentList, classSymbol);
+      if (config().checkTypes) {
+        auto instance = ASTRewriter::instantiateClassTemplate(
+            unit, templateId->templateArgumentList, classSymbol);
 
-      return;
+        (void)instance;
+      }
+
+      return true;
     }
 
     auto templateId = ast_cast<SimpleTemplateIdAST>(elabSpec->unqualifiedId);
     if (!templateId) {
       type_error(elabSpec->unqualifiedId->firstSourceLocation(),
                  "expected a template id");
-      return;
+      return true;
     }
 
     auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol);
@@ -9776,16 +9777,23 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
       type_error(
           templateId->identifierLoc,
           "explicit instantiation of this template is not yet supported");
-      return;
+      return true;
     }
 
-    auto instance = ASTRewriter::instantiateClassTemplate(
-        unit, templateId->templateArgumentList, classSymbol);
+    if (config().checkTypes) {
+      auto instance = ASTRewriter::instantiateClassTemplate(
+          unit, templateId->templateArgumentList, classSymbol);
 
-    (void)instance;
+      (void)instance;
+    }
+
+    return true;
   };
 
-  check_elaborated_type_specifier();
+  if (check_elaborated_type_specifier()) return true;
+
+  // todo: handle other template kinds
+  type_error(ast->firstSourceLocation(), "failed to instantiate template");
 
   return true;
 }
