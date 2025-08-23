@@ -2129,6 +2129,17 @@ void ASTPrinter::visit(BuiltinTypeSpecifierAST* ast) {
   }
 }
 
+void ASTPrinter::visit(UnaryBuiltinTypeSpecifierAST* ast) {
+  out_ << std::format("{}\n", "unary-builtin-type-specifier");
+  accept(ast->typeId, "type-id");
+}
+
+void ASTPrinter::visit(BinaryBuiltinTypeSpecifierAST* ast) {
+  out_ << std::format("{}\n", "binary-builtin-type-specifier");
+  accept(ast->leftTypeId, "left-type-id");
+  accept(ast->rightTypeId, "right-type-id");
+}
+
 void ASTPrinter::visit(IntegralTypeSpecifierAST* ast) {
   out_ << std::format("{}\n", "integral-type-specifier");
   if (ast->specifier != TokenKind::T_EOF_SYMBOL) {

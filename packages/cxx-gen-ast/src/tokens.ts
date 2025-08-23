@@ -252,6 +252,26 @@ export const BUILTIN_TYPE_TRAITS: string[] = [
   "__is_volatile",
 ];
 
+export const UNARY_BUILTIN_TYPE_SPECIFIERS: string[] = [
+  "__add_lvalue_reference",
+  "__add_pointer",
+  "__add_rvalue_reference",
+  "__decay",
+  "__make_signed",
+  "__make_unsigned",
+  "__remove_all_extents",
+  "__remove_const",
+  "__remove_cv",
+  "__remove_cvref",
+  "__remove_extent",
+  "__remove_pointer",
+  "__remove_reference_t",
+  "__remove_restrict",
+  "__remove_volatile",
+];
+
+export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
+
 export const CXX_TOKEN_ALIASES = {
   and_eq: "AMP_EQUAL",
   and: "AMP_AMP",

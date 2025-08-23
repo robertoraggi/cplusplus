@@ -269,6 +269,10 @@ class Parser final {
                                              const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_typename_expression(ExpressionAST*& yyast,
                                                const ExprContext& ctx) -> bool;
+
+  [[nodiscard]] auto parse_unary_builtin_type_op(
+      SourceLocation& loc, UnaryBuiltinTypeKind& builtinKind) -> bool;
+
   [[nodiscard]] auto parse_type_traits_op(SourceLocation& loc,
                                           BuiltinTypeTraitKind& builtinKind)
       -> bool;
@@ -454,6 +458,11 @@ class Parser final {
       SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_underlying_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
+
+  [[nodiscard]] auto parse_unary_builtin_type_specifier(SpecifierAST*& yyast,
+                                                        DeclSpecs& specs)
+      -> bool;
+
   [[nodiscard]] auto parse_atomic_type_specifier(SpecifierAST*& yyast,
                                                  DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_primitive_type_specifier(SpecifierAST*& yyast,

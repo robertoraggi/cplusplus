@@ -216,6 +216,8 @@ class ASTVisitor {
   virtual void visit(SizeTypeSpecifierAST* ast);
   virtual void visit(SignTypeSpecifierAST* ast);
   virtual void visit(BuiltinTypeSpecifierAST* ast);
+  virtual void visit(UnaryBuiltinTypeSpecifierAST* ast);
+  virtual void visit(BinaryBuiltinTypeSpecifierAST* ast);
   virtual void visit(IntegralTypeSpecifierAST* ast);
   virtual void visit(FloatingPointTypeSpecifierAST* ast);
   virtual void visit(ComplexTypeSpecifierAST* ast);

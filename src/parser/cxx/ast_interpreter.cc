@@ -892,6 +892,12 @@ struct ASTInterpreter::SpecifierVisitor {
   [[nodiscard]] auto operator()(BuiltinTypeSpecifierAST* ast)
       -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(UnaryBuiltinTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
+  [[nodiscard]] auto operator()(BinaryBuiltinTypeSpecifierAST* ast)
+      -> SpecifierResult;
+
   [[nodiscard]] auto operator()(IntegralTypeSpecifierAST* ast)
       -> SpecifierResult;
 
@@ -2977,6 +2983,16 @@ auto ASTInterpreter::SpecifierVisitor::operator()(SignTypeSpecifierAST* ast)
 
 auto ASTInterpreter::SpecifierVisitor::operator()(BuiltinTypeSpecifierAST* ast)
     -> SpecifierResult {
+  return {};
+}
+
+auto ASTInterpreter::SpecifierVisitor::operator()(
+    UnaryBuiltinTypeSpecifierAST* ast) -> SpecifierResult {
+  return {};
+}
+
+auto ASTInterpreter::SpecifierVisitor::operator()(
+    BinaryBuiltinTypeSpecifierAST* ast) -> SpecifierResult {
   return {};
 }
 

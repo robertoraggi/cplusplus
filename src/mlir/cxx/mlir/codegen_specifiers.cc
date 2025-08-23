@@ -48,6 +48,8 @@ struct Codegen::SpecifierVisitor {
   auto operator()(SizeTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(SignTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(BuiltinTypeSpecifierAST* ast) -> SpecifierResult;
+  auto operator()(UnaryBuiltinTypeSpecifierAST* ast) -> SpecifierResult;
+  auto operator()(BinaryBuiltinTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(IntegralTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(FloatingPointTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(ComplexTypeSpecifierAST* ast) -> SpecifierResult;
@@ -270,6 +272,16 @@ auto Codegen::SpecifierVisitor::operator()(SignTypeSpecifierAST* ast)
 }
 
 auto Codegen::SpecifierVisitor::operator()(BuiltinTypeSpecifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto Codegen::SpecifierVisitor::operator()(UnaryBuiltinTypeSpecifierAST* ast)
+    -> SpecifierResult {
+  return {};
+}
+
+auto Codegen::SpecifierVisitor::operator()(BinaryBuiltinTypeSpecifierAST* ast)
     -> SpecifierResult {
   return {};
 }

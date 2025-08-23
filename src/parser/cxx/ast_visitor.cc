@@ -774,6 +774,15 @@ void ASTVisitor::visit(SignTypeSpecifierAST* ast) {}
 
 void ASTVisitor::visit(BuiltinTypeSpecifierAST* ast) {}
 
+void ASTVisitor::visit(UnaryBuiltinTypeSpecifierAST* ast) {
+  accept(ast->typeId);
+}
+
+void ASTVisitor::visit(BinaryBuiltinTypeSpecifierAST* ast) {
+  accept(ast->leftTypeId);
+  accept(ast->rightTypeId);
+}
+
 void ASTVisitor::visit(IntegralTypeSpecifierAST* ast) {}
 
 void ASTVisitor::visit(FloatingPointTypeSpecifierAST* ast) {}

@@ -3922,6 +3922,36 @@ void ASTEncoder::visit(BuiltinTypeSpecifierAST* ast) {
   type_ = io::Specifier_BuiltinTypeSpecifier;
 }
 
+void ASTEncoder::visit(UnaryBuiltinTypeSpecifierAST* ast) {
+  const auto typeId = accept(ast->typeId);
+
+  io::UnaryBuiltinTypeSpecifier::Builder builder{fbb_};
+  builder.add_builtin_loc(ast->builtinLoc.index());
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_type_id(typeId.o);
+  builder.add_rparen_loc(ast->rparenLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_UnaryBuiltinTypeSpecifier;
+}
+
+void ASTEncoder::visit(BinaryBuiltinTypeSpecifierAST* ast) {
+  const auto leftTypeId = accept(ast->leftTypeId);
+
+  const auto rightTypeId = accept(ast->rightTypeId);
+
+  io::BinaryBuiltinTypeSpecifier::Builder builder{fbb_};
+  builder.add_builtin_loc(ast->builtinLoc.index());
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_left_type_id(leftTypeId.o);
+  builder.add_comma_loc(ast->commaLoc.index());
+  builder.add_right_type_id(rightTypeId.o);
+  builder.add_rparen_loc(ast->rparenLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_BinaryBuiltinTypeSpecifier;
+}
+
 void ASTEncoder::visit(IntegralTypeSpecifierAST* ast) {
   io::IntegralTypeSpecifier::Builder builder{fbb_};
   builder.add_specifier_loc(ast->specifierLoc.index());

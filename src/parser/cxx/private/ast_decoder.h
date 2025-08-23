@@ -409,6 +409,12 @@ class ASTDecoder {
       -> SignTypeSpecifierAST*;
   auto decodeBuiltinTypeSpecifier(const io::BuiltinTypeSpecifier* node)
       -> BuiltinTypeSpecifierAST*;
+  auto decodeUnaryBuiltinTypeSpecifier(
+      const io::UnaryBuiltinTypeSpecifier* node)
+      -> UnaryBuiltinTypeSpecifierAST*;
+  auto decodeBinaryBuiltinTypeSpecifier(
+      const io::BinaryBuiltinTypeSpecifier* node)
+      -> BinaryBuiltinTypeSpecifierAST*;
   auto decodeIntegralTypeSpecifier(const io::IntegralTypeSpecifier* node)
       -> IntegralTypeSpecifierAST*;
   auto decodeFloatingPointTypeSpecifier(

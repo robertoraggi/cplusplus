@@ -2137,6 +2137,33 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   ): void {}
 
   /**
+   * Visit a UnaryBuiltinTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitUnaryBuiltinTypeSpecifier(
+    node: ast.UnaryBuiltinTypeSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getTypeId(), context);
+  }
+
+  /**
+   * Visit a BinaryBuiltinTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitBinaryBuiltinTypeSpecifier(
+    node: ast.BinaryBuiltinTypeSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getLeftTypeId(), context);
+    this.accept(node.getRightTypeId(), context);
+  }
+
+  /**
    * Visit a IntegralTypeSpecifier node.
    *
    * @param node The node to visit.

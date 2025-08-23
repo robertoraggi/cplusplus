@@ -202,6 +202,8 @@ export enum ASTKind {
   SizeTypeSpecifier,
   SignTypeSpecifier,
   BuiltinTypeSpecifier,
+  UnaryBuiltinTypeSpecifier,
+  BinaryBuiltinTypeSpecifier,
   IntegralTypeSpecifier,
   FloatingPointTypeSpecifier,
   ComplexTypeSpecifier,

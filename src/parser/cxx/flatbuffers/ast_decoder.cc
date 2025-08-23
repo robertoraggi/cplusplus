@@ -511,6 +511,12 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_BuiltinTypeSpecifier:
       return decodeBuiltinTypeSpecifier(
           reinterpret_cast<const io::BuiltinTypeSpecifier*>(ptr));
+    case io::Specifier_UnaryBuiltinTypeSpecifier:
+      return decodeUnaryBuiltinTypeSpecifier(
+          reinterpret_cast<const io::UnaryBuiltinTypeSpecifier*>(ptr));
+    case io::Specifier_BinaryBuiltinTypeSpecifier:
+      return decodeBinaryBuiltinTypeSpecifier(
+          reinterpret_cast<const io::BinaryBuiltinTypeSpecifier*>(ptr));
     case io::Specifier_IntegralTypeSpecifier:
       return decodeIntegralTypeSpecifier(
           reinterpret_cast<const io::IntegralTypeSpecifier*>(ptr));
@@ -3492,6 +3498,34 @@ auto ASTDecoder::decodeBuiltinTypeSpecifier(
   auto ast = new (pool_) BuiltinTypeSpecifierAST();
   ast->specifierLoc = SourceLocation(node->specifier_loc());
   ast->specifier = static_cast<TokenKind>(node->specifier());
+  return ast;
+}
+
+auto ASTDecoder::decodeUnaryBuiltinTypeSpecifier(
+    const io::UnaryBuiltinTypeSpecifier* node)
+    -> UnaryBuiltinTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) UnaryBuiltinTypeSpecifierAST();
+  ast->builtinLoc = SourceLocation(node->builtin_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeBinaryBuiltinTypeSpecifier(
+    const io::BinaryBuiltinTypeSpecifier* node)
+    -> BinaryBuiltinTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BinaryBuiltinTypeSpecifierAST();
+  ast->builtinLoc = SourceLocation(node->builtin_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->leftTypeId = decodeTypeId(node->left_type_id());
+  ast->commaLoc = SourceLocation(node->comma_loc());
+  ast->rightTypeId = decodeTypeId(node->right_type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }
 

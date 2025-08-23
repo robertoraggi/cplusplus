@@ -55,6 +55,21 @@ class TypeTraitIdentifierInfo final : public IdentifierInfo {
   BuiltinTypeTraitKind trait_;
 };
 
+class UnaryBuiltinTypeInfo final : public IdentifierInfo {
+ public:
+  static constexpr auto Kind = IdentifierInfoKind::kUnaryBuiltinType;
+
+  explicit UnaryBuiltinTypeInfo(UnaryBuiltinTypeKind builtinKind)
+      : IdentifierInfo(Kind), builtinKind_(builtinKind) {}
+
+  [[nodiscard]] auto builtinKind() const -> UnaryBuiltinTypeKind {
+    return builtinKind_;
+  }
+
+ private:
+  UnaryBuiltinTypeKind builtinKind_;
+};
+
 class Name {
  public:
   Name(NameKind kind, std::size_t hashValue)

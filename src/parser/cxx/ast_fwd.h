@@ -262,6 +262,8 @@ class VoidTypeSpecifierAST;
 class SizeTypeSpecifierAST;
 class SignTypeSpecifierAST;
 class BuiltinTypeSpecifierAST;
+class UnaryBuiltinTypeSpecifierAST;
+class BinaryBuiltinTypeSpecifierAST;
 class IntegralTypeSpecifierAST;
 class FloatingPointTypeSpecifierAST;
 class ComplexTypeSpecifierAST;
