@@ -22,6 +22,13 @@ file(GLOB CXX_VIEWS_INCLUDE_HEADER_FILES cxx/views/*.h)
 
 add_library(cxx-parser
     cxx/ast_cursor.cc
+    cxx/ast_interpreter_declarations.cc
+    cxx/ast_interpreter_declarators.cc
+    cxx/ast_interpreter_expressions.cc
+    cxx/ast_interpreter_names.cc
+    cxx/ast_interpreter_specifiers.cc
+    cxx/ast_interpreter_statements.cc
+    cxx/ast_interpreter_units.cc
     cxx/ast_interpreter.cc
     cxx/ast_pretty_printer.cc
     cxx/ast_printer.cc
