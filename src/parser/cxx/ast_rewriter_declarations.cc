@@ -462,6 +462,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   auto symbol = binder()->declareTypeAlias(copy->identifierLoc, copy->typeId,
                                            addSymbolToParentScope);
+  if (!addSymbolToParentScope) {
+    ast->symbol->addSpecialization(rewrite.templateArguments(), symbol);
+  }
   // symbol->setTemplateDeclaration(templateHead);
 
   copy->symbol = symbol;

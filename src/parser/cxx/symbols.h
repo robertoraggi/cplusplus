@@ -563,8 +563,33 @@ class TypeAliasSymbol final : public Symbol {
   [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
   void setTemplateDeclaration(TemplateDeclarationAST* declaration);
 
+  [[nodiscard]] auto specializations() const
+      -> std::span<const TemplateSpecialization<TypeAliasSymbol>>;
+
+  [[nodiscard]] auto findSpecialization(
+      const std::vector<TemplateArgument>& arguments) const -> TypeAliasSymbol*;
+
+  void addSpecialization(std::vector<TemplateArgument> arguments,
+                         TypeAliasSymbol* specialization);
+
+  void setSpecializationInfo(TypeAliasSymbol* templateVariable,
+                             std::size_t index) {
+    templateVariable_ = templateVariable;
+    templateSepcializationIndex_ = index;
+  }
+
+  [[nodiscard]] auto templateArguments() const
+      -> std::span<const TemplateArgument> {
+    if (!templateVariable_) return {};
+    return templateVariable_->specializations()[templateSepcializationIndex_]
+        .arguments;
+  }
+
  private:
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
+  std::unique_ptr<TemplateInfo<TypeAliasSymbol>> templateInfo_;
+  TypeAliasSymbol* templateVariable_ = nullptr;
+  std::size_t templateSepcializationIndex_ = 0;
 };
 
 class VariableSymbol final : public Symbol {

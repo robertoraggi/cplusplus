@@ -914,7 +914,7 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
 
     if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
       // todo: delay
-      auto instance = ASTRewriter::instantiateClassTemplate(
+      auto instance = ASTRewriter::instantiate(
           unit_, templateId->templateArgumentList, classSymbol);
 
       return instance;
@@ -922,7 +922,7 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
 
     if (auto typeAliasSymbol =
             symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiateTypeAliasTemplate(
+      auto instance = ASTRewriter::instantiate(
           unit_, templateId->templateArgumentList, typeAliasSymbol);
 
       return instance;
@@ -973,7 +973,7 @@ void Binder::bind(IdExpressionAST* ast) {
       if (!var) {
         error(templateId->firstSourceLocation(), std::format("not a template"));
       } else {
-        auto instance = ASTRewriter::instantiateVariableTemplate(
+        auto instance = ASTRewriter::instantiate(
             unit_, templateId->templateArgumentList, var);
 
         ast->symbol = instance;

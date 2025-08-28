@@ -34,17 +34,9 @@ class Arena;
 
 class ASTRewriter {
  public:
-  [[nodiscard]] static auto instantiateClassTemplate(
+  [[nodiscard]] static auto instantiate(
       TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-      ClassSymbol* symbol) -> ClassSymbol*;
-
-  [[nodiscard]] static auto instantiateTypeAliasTemplate(
-      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-      TypeAliasSymbol* typeAliasSymbol) -> TypeAliasSymbol*;
-
-  [[nodiscard]] static auto instantiateVariableTemplate(
-      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-      VariableSymbol* variableSymbol) -> VariableSymbol*;
+      Symbol* symbol) -> Symbol*;
 
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                        const std::vector<TemplateArgument>& templateArguments);
@@ -57,6 +49,10 @@ class ASTRewriter {
   [[nodiscard]] auto declaration(DeclarationAST* ast,
                                  TemplateDeclarationAST* templateHead = nullptr)
       -> DeclarationAST*;
+
+  [[nodiscard]] auto specifier(SpecifierAST* ast,
+                               TemplateDeclarationAST* templateHead = nullptr)
+      -> SpecifierAST*;
 
   [[nodiscard]] static auto make_substitution(
       TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
@@ -91,9 +87,6 @@ class ASTRewriter {
   [[nodiscard]] auto designator(DesignatorAST* ast) -> DesignatorAST*;
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterAST*;
-  [[nodiscard]] auto specifier(SpecifierAST* ast,
-                               TemplateDeclarationAST* templateHead = nullptr)
-      -> SpecifierAST*;
   [[nodiscard]] auto ptrOperator(PtrOperatorAST* ast) -> PtrOperatorAST*;
   [[nodiscard]] auto coreDeclarator(CoreDeclaratorAST* ast)
       -> CoreDeclaratorAST*;

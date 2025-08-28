@@ -725,6 +725,28 @@ void TypeAliasSymbol::setTemplateDeclaration(
   templateDeclaration_ = declaration;
 }
 
+auto TypeAliasSymbol::specializations() const
+    -> std::span<const TemplateSpecialization<TypeAliasSymbol>> {
+  if (!templateInfo_) return {};
+  return templateInfo_->specializations();
+}
+
+auto TypeAliasSymbol::findSpecialization(
+    const std::vector<TemplateArgument>& arguments) const -> TypeAliasSymbol* {
+  if (!templateInfo_) return {};
+  return templateInfo_->findSpecialization(arguments);
+}
+
+void TypeAliasSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
+                                        TypeAliasSymbol* specialization) {
+  if (!templateInfo_) {
+    templateInfo_ = std::make_unique<TemplateInfo<TypeAliasSymbol>>(this);
+  }
+  auto index = templateInfo_->specializations().size();
+  specialization->setSpecializationInfo(this, index);
+  templateInfo_->addSpecialization(std::move(arguments), specialization);
+}
+
 VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
