@@ -305,10 +305,10 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   auto classSymbol = symbol_cast<ClassSymbol>(copy->symbol);
 
-  auto instance = ASTRewriter::instantiateClassTemplate(
+  auto instance = ASTRewriter::instantiate(
       translationUnit(), copy->templateId->templateArgumentList, classSymbol);
 
-  copy->symbol = instance;
+  copy->symbol = symbol_cast<ClassSymbol>(instance);
 
   return copy;
 }

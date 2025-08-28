@@ -1057,13 +1057,13 @@ auto Parser::parse_template_nested_name_specifier(
   if (config().checkTypes) {
     // replace with instantiated class template
     if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiateClassTemplate(
+      auto instance = ASTRewriter::instantiate(
           unit, templateId->templateArgumentList, classSymbol);
 
-      ast->symbol = instance;
+      ast->symbol = symbol_cast<ClassSymbol>(instance);
     } else if (auto typeAliasSymbol =
                    symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiateTypeAliasTemplate(
+      auto instance = ASTRewriter::instantiate(
           unit, templateId->templateArgumentList, typeAliasSymbol);
 
       ast->symbol = symbol_cast<ScopeSymbol>(instance);
@@ -9758,7 +9758,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
       }
 
       if (config().checkTypes) {
-        auto instance = ASTRewriter::instantiateClassTemplate(
+        auto instance = ASTRewriter::instantiate(
             unit, templateId->templateArgumentList, classSymbol);
 
         (void)instance;
@@ -9783,7 +9783,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
     }
 
     if (config().checkTypes) {
-      auto instance = ASTRewriter::instantiateClassTemplate(
+      auto instance = ASTRewriter::instantiate(
           unit, templateId->templateArgumentList, classSymbol);
 
       (void)instance;

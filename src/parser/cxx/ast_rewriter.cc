@@ -34,6 +34,98 @@
 
 namespace cxx {
 
+namespace {
+struct GetTemplateDeclaration {
+  auto operator()(ClassSymbol* symbol) -> TemplateDeclarationAST* {
+    return symbol->templateDeclaration();
+  }
+
+  auto operator()(VariableSymbol* symbol) -> TemplateDeclarationAST* {
+    return symbol->templateDeclaration();
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) -> TemplateDeclarationAST* {
+    return symbol->templateDeclaration();
+  }
+
+  auto operator()(Symbol*) -> TemplateDeclarationAST* { return nullptr; }
+};
+
+struct GetDeclaration {
+  auto operator()(ClassSymbol* symbol) -> AST* { return symbol->declaration(); }
+
+  auto operator()(VariableSymbol* symbol) -> AST* {
+    return symbol->templateDeclaration()->declaration;
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) -> AST* {
+    return symbol->templateDeclaration()->declaration;
+  }
+
+  auto operator()(Symbol*) -> AST* { return nullptr; }
+};
+
+struct GetSpecialization {
+  const std::vector<TemplateArgument>& templateArguments;
+
+  auto operator()(ClassSymbol* symbol) -> Symbol* {
+    return symbol->findSpecialization(templateArguments);
+  }
+
+  auto operator()(VariableSymbol* symbol) -> Symbol* {
+    return symbol->findSpecialization(templateArguments);
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) -> Symbol* {
+    return symbol->findSpecialization(templateArguments);
+  }
+
+  auto operator()(Symbol*) -> Symbol* { return nullptr; }
+};
+
+struct Instantiate {
+  ASTRewriter& rewriter;
+
+  auto operator()(ClassSymbol* symbol) -> Symbol* {
+    auto classSpecifier = ast_cast<ClassSpecifierAST>(symbol->declaration());
+    if (!classSpecifier) return nullptr;
+
+    auto instance =
+        ast_cast<ClassSpecifierAST>(rewriter.specifier(classSpecifier));
+
+    if (!instance) return nullptr;
+
+    return instance->symbol;
+  }
+
+  auto operator()(VariableSymbol* symbol) -> Symbol* {
+    auto declaration = symbol->templateDeclaration()->declaration;
+    auto instance = ast_cast<SimpleDeclarationAST>(
+        rewriter.declaration(ast_cast<SimpleDeclarationAST>(declaration)));
+
+    if (!instance) return nullptr;
+
+    auto instantiatedSymbol = instance->initDeclaratorList->value->symbol;
+    auto instantiatedVariable = symbol_cast<VariableSymbol>(instantiatedSymbol);
+
+    return instantiatedVariable;
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) -> Symbol* {
+    auto declaration = symbol->templateDeclaration()->declaration;
+
+    auto instance = ast_cast<AliasDeclarationAST>(
+        rewriter.declaration(ast_cast<AliasDeclarationAST>(declaration)));
+
+    if (!instance) return nullptr;
+
+    return instance->symbol;
+  }
+
+  auto operator()(Symbol*) -> Symbol* { return nullptr; }
+};
+}  // namespace
+
 ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                          const std::vector<TemplateArgument>& templateArguments)
     : unit_(unit), templateArguments_(templateArguments), binder_(unit_) {
@@ -91,12 +183,18 @@ auto ASTRewriter::getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol* {
   return nullptr;
 }
 
-auto ASTRewriter::instantiateClassTemplate(
-    TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-    ClassSymbol* classSymbol) -> ClassSymbol* {
-  auto templateDecl = classSymbol->templateDeclaration();
+auto ASTRewriter::instantiate(TranslationUnit* unit,
+                              List<TemplateArgumentAST*>* templateArgumentList,
+                              Symbol* symbol) -> Symbol* {
+  auto classSymbol = symbol_cast<ClassSymbol>(symbol);
+  auto variableSymbol = symbol_cast<VariableSymbol>(symbol);
+  auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(symbol);
 
-  if (!classSymbol->declaration()) return nullptr;
+  auto templateDecl = visit(GetTemplateDeclaration{}, symbol);
+  if (!templateDecl) return nullptr;
+
+  auto declaration = visit(GetDeclaration{}, symbol);
+  if (!declaration) return nullptr;
 
   auto templateArguments =
       make_substitution(unit, templateDecl, templateArgumentList);
@@ -117,150 +215,21 @@ auto ASTRewriter::instantiateClassTemplate(
 
   if (is_primary_template()) {
     // if this is a primary template, we can just return the class symbol
-    return classSymbol;
+    return symbol;
   }
 
-  auto subst = classSymbol->findSpecialization(templateArguments);
-  if (subst) {
-    return subst;
-  }
+  auto specialization = visit(GetSpecialization{templateArguments}, symbol);
 
-  auto classSpecifier = ast_cast<ClassSpecifierAST>(classSymbol->declaration());
-  if (!classSpecifier) return nullptr;
+  if (specialization) return specialization;
 
-  auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
+  auto parentScope = symbol->enclosingNonTemplateParametersScope();
 
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
   rewriter.depth_ = templateDecl->depth;
 
-  rewriter.binder().setInstantiatingSymbol(classSymbol);
+  rewriter.binder().setInstantiatingSymbol(symbol);
 
-  auto instance =
-      ast_cast<ClassSpecifierAST>(rewriter.specifier(classSpecifier));
-
-  if (!instance) return nullptr;
-
-  auto classInstance = instance->symbol;
-
-  return classInstance;
-}
-
-auto ASTRewriter::instantiateTypeAliasTemplate(
-    TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-    TypeAliasSymbol* typeAliasSymbol) -> TypeAliasSymbol* {
-  auto templateDecl = typeAliasSymbol->templateDeclaration();
-
-  auto aliasDeclaration =
-      ast_cast<AliasDeclarationAST>(templateDecl->declaration);
-
-  if (!aliasDeclaration) return nullptr;
-
-  auto templateArguments =
-      make_substitution(unit, templateDecl, templateArgumentList);
-
-  auto is_primary_template = [&]() -> bool {
-    int expected = 0;
-    for (const auto& arg : templateArguments) {
-      if (!std::holds_alternative<Symbol*>(arg)) return false;
-
-      auto ty = type_cast<TypeParameterType>(std::get<Symbol*>(arg)->type());
-      if (!ty) return false;
-
-      if (ty->index() != expected) return false;
-      ++expected;
-    }
-    return true;
-  };
-
-  if (is_primary_template()) {
-    // if this is a primary template, we can just return the class symbol
-    return typeAliasSymbol;
-  }
-
-#if false
-  auto subst = typeAliasSymbol->findSpecialization(templateArguments);
-  if (subst) {
-    return subst;
-  }
-#endif
-
-  auto parentScope = typeAliasSymbol->parent();
-  while (parentScope->isTemplateParameters()) {
-    parentScope = parentScope->parent();
-  }
-
-  auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
-
-  rewriter.binder().setInstantiatingSymbol(typeAliasSymbol);
-
-  auto instance =
-      ast_cast<AliasDeclarationAST>(rewriter.declaration(aliasDeclaration));
-
-  if (!instance) return nullptr;
-
-  return instance->symbol;
-}
-
-auto ASTRewriter::instantiateVariableTemplate(
-    TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-    VariableSymbol* variableSymbol) -> VariableSymbol* {
-  auto templateDecl = variableSymbol->templateDeclaration();
-
-  if (!templateDecl) {
-    unit->error(variableSymbol->location(), "not a template");
-    return nullptr;
-  }
-
-  auto variableDeclaration =
-      ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
-
-  if (!variableDeclaration) return nullptr;
-
-  auto templateArguments =
-      make_substitution(unit, templateDecl, templateArgumentList);
-
-  auto is_primary_template = [&]() -> bool {
-    int expected = 0;
-    for (const auto& arg : templateArguments) {
-      if (!std::holds_alternative<Symbol*>(arg)) return false;
-
-      auto ty = type_cast<TypeParameterType>(std::get<Symbol*>(arg)->type());
-      if (!ty) return false;
-
-      if (ty->index() != expected) return false;
-      ++expected;
-    }
-    return true;
-  };
-
-  if (is_primary_template()) {
-    // if this is a primary template, we can just return the class symbol
-    return variableSymbol;
-  }
-
-  auto subst = variableSymbol->findSpecialization(templateArguments);
-  if (subst) {
-    return subst;
-  }
-
-  auto parentScope = variableSymbol->parent();
-  while (parentScope->isTemplateParameters()) {
-    parentScope = parentScope->parent();
-  }
-
-  auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
-
-  rewriter.binder().setInstantiatingSymbol(variableSymbol);
-
-  auto instance =
-      ast_cast<SimpleDeclarationAST>(rewriter.declaration(variableDeclaration));
-
-  if (!instance) return nullptr;
-
-  auto instantiatedSymbol = instance->initDeclaratorList->value->symbol;
-  auto instantiatedVariable = symbol_cast<VariableSymbol>(instantiatedSymbol);
-
-  return instantiatedVariable;
+  return visit(Instantiate{rewriter}, symbol);
 }
 
 auto ASTRewriter::make_substitution(
