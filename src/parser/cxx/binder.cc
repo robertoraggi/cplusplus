@@ -818,15 +818,17 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   return fieldSymbol;
 }
 
-auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl)
-    -> VariableSymbol* {
+auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
+                             bool addSymbolToParentScope) -> VariableSymbol* {
   auto name = decl.getName();
   auto symbol = control()->newVariableSymbol(scope(), decl.location());
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);
-  declaringScope()->addSymbol(symbol);
+  if (addSymbolToParentScope) {
+    declaringScope()->addSymbol(symbol);
+  }
   return symbol;
 }
 
@@ -963,6 +965,21 @@ void Binder::bind(IdExpressionAST* ast) {
   }
 
   ast->symbol = Lookup{scope()}(ast->nestedNameSpecifier, componentName);
+
+  if (unit_->config().checkTypes) {
+    if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
+      auto var = symbol_cast<VariableSymbol>(ast->symbol);
+
+      if (!var) {
+        error(templateId->firstSourceLocation(), std::format("not a template"));
+      } else {
+        auto instance = ASTRewriter::instantiateVariableTemplate(
+            unit_, templateId->templateArgumentList, var);
+
+        ast->symbol = instance;
+      }
+    }
+  }
 }
 
 auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type)

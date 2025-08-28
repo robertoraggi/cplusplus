@@ -201,6 +201,68 @@ auto ASTRewriter::instantiateTypeAliasTemplate(
   return instance->symbol;
 }
 
+auto ASTRewriter::instantiateVariableTemplate(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
+    VariableSymbol* variableSymbol) -> VariableSymbol* {
+  auto templateDecl = variableSymbol->templateDeclaration();
+
+  if (!templateDecl) {
+    unit->error(variableSymbol->location(), "not a template");
+    return nullptr;
+  }
+
+  auto variableDeclaration =
+      ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+
+  if (!variableDeclaration) return nullptr;
+
+  auto templateArguments =
+      make_substitution(unit, templateDecl, templateArgumentList);
+
+  auto is_primary_template = [&]() -> bool {
+    int expected = 0;
+    for (const auto& arg : templateArguments) {
+      if (!std::holds_alternative<Symbol*>(arg)) return false;
+
+      auto ty = type_cast<TypeParameterType>(std::get<Symbol*>(arg)->type());
+      if (!ty) return false;
+
+      if (ty->index() != expected) return false;
+      ++expected;
+    }
+    return true;
+  };
+
+  if (is_primary_template()) {
+    // if this is a primary template, we can just return the class symbol
+    return variableSymbol;
+  }
+
+  auto subst = variableSymbol->findSpecialization(templateArguments);
+  if (subst) {
+    return subst;
+  }
+
+  auto parentScope = variableSymbol->parent();
+  while (parentScope->isTemplateParameters()) {
+    parentScope = parentScope->parent();
+  }
+
+  auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
+
+  rewriter.binder().setInstantiatingSymbol(variableSymbol);
+
+  auto instance =
+      ast_cast<SimpleDeclarationAST>(rewriter.declaration(variableDeclaration));
+
+  if (!instance) return nullptr;
+
+  auto instantiatedSymbol = instance->initDeclaratorList->value->symbol;
+  auto instantiatedVariable = symbol_cast<VariableSymbol>(instantiatedSymbol);
+
+  return instantiatedVariable;
+}
+
 auto ASTRewriter::make_substitution(
     TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
     List<TemplateArgumentAST*>* templateArgumentList)

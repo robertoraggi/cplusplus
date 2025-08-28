@@ -595,6 +595,28 @@ class VariableSymbol final : public Symbol {
   [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
   void setTemplateDeclaration(TemplateDeclarationAST* declaration);
 
+  [[nodiscard]] auto specializations() const
+      -> std::span<const TemplateSpecialization<VariableSymbol>>;
+
+  [[nodiscard]] auto findSpecialization(
+      const std::vector<TemplateArgument>& arguments) const -> VariableSymbol*;
+
+  void addSpecialization(std::vector<TemplateArgument> arguments,
+                         VariableSymbol* specialization);
+
+  void setSpecializationInfo(VariableSymbol* templateVariable,
+                             std::size_t index) {
+    templateVariable_ = templateVariable;
+    templateSepcializationIndex_ = index;
+  }
+
+  [[nodiscard]] auto templateArguments() const
+      -> std::span<const TemplateArgument> {
+    if (!templateVariable_) return {};
+    return templateVariable_->specializations()[templateSepcializationIndex_]
+        .arguments;
+  }
+
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST*);
 
@@ -605,6 +627,9 @@ class VariableSymbol final : public Symbol {
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
   ExpressionAST* initializer_ = nullptr;
   std::optional<ConstValue> constValue_;
+  std::unique_ptr<TemplateInfo<VariableSymbol>> templateInfo_;
+  VariableSymbol* templateVariable_ = nullptr;
+  std::size_t templateSepcializationIndex_ = 0;
 
   union {
     std::uint32_t flags_{};

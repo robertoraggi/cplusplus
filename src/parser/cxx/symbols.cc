@@ -769,6 +769,28 @@ void VariableSymbol::setTemplateDeclaration(
   templateDeclaration_ = declaration;
 }
 
+auto VariableSymbol::specializations() const
+    -> std::span<const TemplateSpecialization<VariableSymbol>> {
+  if (!templateInfo_) return {};
+  return templateInfo_->specializations();
+}
+
+auto VariableSymbol::findSpecialization(
+    const std::vector<TemplateArgument>& arguments) const -> VariableSymbol* {
+  if (!templateInfo_) return {};
+  return templateInfo_->findSpecialization(arguments);
+}
+
+void VariableSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
+                                       VariableSymbol* specialization) {
+  if (!templateInfo_) {
+    templateInfo_ = std::make_unique<TemplateInfo<VariableSymbol>>(this);
+  }
+  auto index = templateInfo_->specializations().size();
+  specialization->setSpecializationInfo(this, index);
+  templateInfo_->addSpecialization(std::move(arguments), specialization);
+}
+
 auto VariableSymbol::initializer() const -> ExpressionAST* {
   return initializer_;
 }
