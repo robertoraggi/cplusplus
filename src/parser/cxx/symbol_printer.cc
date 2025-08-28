@@ -288,11 +288,35 @@ struct DumpSymbols {
     if (symbol->isConstinit()) out << " constinit";
     if (symbol->isInline()) out << " inline";
 
-    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
+    out << std::format(" {}", to_string(symbol->type(), symbol->name()));
+
+    if (!symbol->templateArguments().empty()) {
+      out << "<";
+      std::string_view sep = "";
+      for (auto arg : symbol->templateArguments()) {
+        auto symbol = std::get_if<Symbol*>(&arg);
+        if (!symbol) continue;
+        auto sym = *symbol;
+        if (sym->isTypeAlias()) {
+          out << std::format("{}{}", sep, to_string(sym->type()));
+        } else if (auto var = symbol_cast<VariableSymbol>(sym)) {
+          auto cst = std::get<std::intmax_t>(var->constValue().value());
+          out << std::format("{}{}", sep, cst);
+        } else {
+          cxx_runtime_error("todo");
+        }
+        sep = ", ";
+      }
+      out << std::format(">");
+    }
+
+    out << "\n";
 
     if (symbol->templateParameters()) {
       dumpScope(symbol->templateParameters());
     }
+
+    dumpSpecializations(symbol->specializations());
   }
 
   void operator()(FieldSymbol* symbol) {
