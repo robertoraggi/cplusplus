@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/binder.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -208,6 +209,9 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   auto type =
       getDeclaratorType(translationUnit(), copy->declarator, declSpecs.type());
 
+  const auto addSymbolToParentScope =
+      binder().instantiatingSymbol() != ast->symbol;
+
   // ### fix scope
   if (binder_.scope()->isClass()) {
     auto symbol = binder_.declareMemberSymbol(copy->declarator, decl);
@@ -222,16 +226,30 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
         auto functionSymbol = binder_.declareFunction(copy->declarator, decl);
         copy->symbol = functionSymbol;
       } else {
-        auto variableSymbol = binder_.declareVariable(copy->declarator, decl);
+        auto variableSymbol = binder_.declareVariable(copy->declarator, decl,
+                                                      addSymbolToParentScope);
         // variableSymbol->setTemplateDeclaration(templateHead);
         copy->symbol = variableSymbol;
+
+        if (!addSymbolToParentScope) {
+          auto templateVariable = symbol_cast<VariableSymbol>(ast->symbol);
+          templateVariable->addSpecialization(templateArguments(),
+                                              variableSymbol);
+        }
       }
     }
   }
 
   copy->requiresClause = requiresClause(ast->requiresClause);
   copy->initializer = expression(ast->initializer);
-  // copy->symbol = ast->symbol; // TODO remove, done above
+
+  if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
+    if (variableSymbol->isConstexpr()) {
+      auto interp = ASTInterpreter{unit_};
+      auto constValue = interp.evaluate(copy->initializer);
+      variableSymbol->setConstValue(constValue);
+    }
+  }
 
   return copy;
 }

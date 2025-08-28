@@ -82,7 +82,9 @@ class Binder {
       -> FieldSymbol*;
 
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
-                                     const Decl& decl) -> VariableSymbol*;
+                                     const Decl& decl,
+                                     bool addSymbolToParentScope)
+      -> VariableSymbol*;
 
   [[nodiscard]] auto declareMemberSymbol(DeclaratorAST* declarator,
                                          const Decl& decl) -> Symbol*;

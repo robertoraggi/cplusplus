@@ -42,6 +42,10 @@ class ASTRewriter {
       TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
       TypeAliasSymbol* typeAliasSymbol) -> TypeAliasSymbol*;
 
+  [[nodiscard]] static auto instantiateVariableTemplate(
+      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
+      VariableSymbol* variableSymbol) -> VariableSymbol*;
+
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                        const std::vector<TemplateArgument>& templateArguments);
   ~ASTRewriter();

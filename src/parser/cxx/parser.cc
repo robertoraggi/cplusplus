@@ -3348,7 +3348,8 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
 
     if (!parse_declarator(declarator, decl)) return false;
 
-    auto symbol = binder_.declareVariable(declarator, decl);
+    auto symbol = binder_.declareVariable(declarator, decl,
+                                          /*addSymbolToParentScope=*/true);
 
     ExpressionAST* initializer = nullptr;
 
@@ -5573,7 +5574,8 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
       auto functionSymbol = binder_.declareFunction(declarator, decl);
       symbol = functionSymbol;
     } else {
-      auto variableSymbol = binder_.declareVariable(declarator, decl);
+      auto variableSymbol = binder_.declareVariable(
+          declarator, decl, /*addSymbolToParentScope=*/true);
       variableSymbol->setTemplateDeclaration(templateHead);
       symbol = variableSymbol;
     }
