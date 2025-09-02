@@ -55,10 +55,7 @@ class Symbol;
 class ScopeSymbol;
 class ScopeSymbol;
 
-template <typename S>
-struct TemplateSpecialization;
-
-template <typename S>
+class TemplateSpecialization;
 class TemplateInfo;
 
 #define PROCESS_SYMBOL(S) class S##Symbol;

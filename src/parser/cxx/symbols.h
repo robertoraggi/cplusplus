@@ -41,29 +41,29 @@ namespace cxx {
 
 class SymbolChainView;
 
-template <typename S>
-struct TemplateSpecialization {
-  S* templateSymbol = nullptr;
+class TemplateSpecialization {
+ public:
+  Symbol* templateSymbol = nullptr;
   std::vector<TemplateArgument> arguments;
-  S* symbol = nullptr;
+  Symbol* symbol = nullptr;
 };
 
 [[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
 
-template <typename S>
 class TemplateInfo {
  public:
-  explicit TemplateInfo(S* templateSymbol) : templateSymbol_(templateSymbol) {}
+  explicit TemplateInfo(Symbol* templateSymbol)
+      : templateSymbol_(templateSymbol) {}
 
   [[nodiscard]] auto specializations() const
-      -> std::span<const TemplateSpecialization<S>> {
+      -> std::span<const TemplateSpecialization> {
     return specializations_;
   }
 
   [[nodiscard]] auto findSpecialization(
-      const std::vector<TemplateArgument>& arguments) const -> S* {
+      const std::vector<TemplateArgument>& arguments) const -> Symbol* {
     for (const auto& specialization : specializations_) {
       const std::vector<TemplateArgument>& args = specialization.arguments;
       if (args == arguments) return specialization.symbol;
@@ -77,14 +77,14 @@ class TemplateInfo {
   }
 
   void addSpecialization(std::vector<TemplateArgument> arguments,
-                         S* specialization) {
+                         Symbol* specialization) {
     specializations_.push_back(
         {templateSymbol_, std::move(arguments), specialization});
   }
 
  private:
-  S* templateSymbol_ = nullptr;
-  std::vector<TemplateSpecialization<S>> specializations_;
+  Symbol* templateSymbol_ = nullptr;
+  std::vector<TemplateSpecialization> specializations_;
 };
 
 class Symbol {
@@ -263,6 +263,15 @@ class BaseClassSymbol final : public Symbol {
   bool isVirtual_ = false;
 };
 
+class Template {
+ public:
+  std::unique_ptr<TemplateInfo> templateInfo_;
+  SpecifierAST* declaration_ = nullptr;
+  TemplateDeclarationAST* templateDeclaration_ = nullptr;
+  ClassSymbol* templateClass_ = nullptr;
+  int templateSepcializationIndex_ = 0;
+};
+
 class ClassSymbol final : public ScopeSymbol {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
@@ -305,47 +314,94 @@ class ClassSymbol final : public ScopeSymbol {
   [[nodiscard]] auto flags() const -> std::uint32_t;
   void setFlags(std::uint32_t flags);
 
-  [[nodiscard]] auto declaration() const -> SpecifierAST*;
-  void setDeclaration(SpecifierAST* ast);
+  [[nodiscard]] auto declaration() const -> SpecifierAST* {
+    if (!template_) return nullptr;
+    return template_->declaration_;
+  }
 
-  [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST*;
-  void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration);
+  void setDeclaration(SpecifierAST* ast) {
+    ensure_template();
+    template_->declaration_ = ast;
+  }
+
+  [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST* {
+    if (!template_) return nullptr;
+    return template_->templateDeclaration_;
+  }
+
+  void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration) {
+    ensure_template();
+    template_->templateDeclaration_ = templateDeclaration;
+  }
 
   [[nodiscard]] auto specializations() const
-      -> std::span<const TemplateSpecialization<ClassSymbol>>;
+      -> std::span<const TemplateSpecialization> {
+    if (!template_) return {};
+    if (!template_->templateInfo_) return {};
+    return template_->templateInfo_->specializations();
+  }
 
   [[nodiscard]] auto findSpecialization(
-      const std::vector<TemplateArgument>& arguments) const -> ClassSymbol*;
+      const std::vector<TemplateArgument>& arguments) const -> Symbol* {
+    if (!template_) return {};
+    if (!template_->templateInfo_) return {};
+    return template_->templateInfo_->findSpecialization(arguments);
+  }
 
   void addSpecialization(std::vector<TemplateArgument> arguments,
-                         ClassSymbol* specialization);
+                         ClassSymbol* specialization) {
+    ensure_template();
+
+    if (!template_->templateInfo_) {
+      template_->templateInfo_ = std::make_unique<TemplateInfo>(this);
+    }
+
+    auto index = int(template_->templateInfo_->specializations().size());
+
+    specialization->setSpecializationInfo(this, index);
+
+    template_->templateInfo_->addSpecialization(std::move(arguments),
+                                                specialization);
+  }
 
   [[nodiscard]] auto isSpecialization() const -> bool {
-    return templateClass_ != nullptr;
+    if (!template_) return false;
+    return template_->templateClass_ != nullptr;
   }
 
   [[nodiscard]] auto templateArguments() const
       -> std::span<const TemplateArgument> {
-    if (!templateClass_) return {};
-    return templateClass_->specializations()[templateSepcializationIndex_]
+    if (!template_) return {};
+    if (!template_->templateClass_) return {};
+
+    return template_->templateClass_
+        ->specializations()[template_->templateSepcializationIndex_]
         .arguments;
   }
 
   void setSpecializationInfo(ClassSymbol* templateClass, std::size_t index) {
-    templateClass_ = templateClass;
-    templateSepcializationIndex_ = index;
+    ensure_template();
+    template_->templateClass_ = templateClass;
+    template_->templateSepcializationIndex_ = index;
   }
 
   [[nodiscard]] auto templateClass() const -> ClassSymbol* {
-    return templateClass_;
+    if (!template_) return nullptr;
+    return template_->templateClass_;
   }
 
   [[nodiscard]] auto templateSepcializationIndex() const -> std::size_t {
-    return templateSepcializationIndex_;
+    if (!template_) return 0;
+    return template_->templateSepcializationIndex_;
   }
 
   [[nodiscard]] auto buildClassLayout(Control* control)
       -> std::expected<bool, std::string>;
+
+  void ensure_template() {
+    if (template_) return;
+    template_ = std::make_unique<Template>();
+  }
 
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
@@ -356,11 +412,7 @@ class ClassSymbol final : public ScopeSymbol {
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
   std::vector<FunctionSymbol*> conversionFunctions_;
-  std::unique_ptr<TemplateInfo<ClassSymbol>> templateInfo_;
-  SpecifierAST* specifier_ = nullptr;
-  TemplateDeclarationAST* templateDeclaration_ = nullptr;
-  ClassSymbol* templateClass_ = nullptr;
-  std::size_t templateSepcializationIndex_ = 0;
+  std::unique_ptr<Template> template_;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
   union {
@@ -564,7 +616,7 @@ class TypeAliasSymbol final : public Symbol {
   void setTemplateDeclaration(TemplateDeclarationAST* declaration);
 
   [[nodiscard]] auto specializations() const
-      -> std::span<const TemplateSpecialization<TypeAliasSymbol>>;
+      -> std::span<const TemplateSpecialization>;
 
   [[nodiscard]] auto findSpecialization(
       const std::vector<TemplateArgument>& arguments) const -> TypeAliasSymbol*;
@@ -587,7 +639,7 @@ class TypeAliasSymbol final : public Symbol {
 
  private:
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
-  std::unique_ptr<TemplateInfo<TypeAliasSymbol>> templateInfo_;
+  std::unique_ptr<TemplateInfo> templateInfo_;
   TypeAliasSymbol* templateVariable_ = nullptr;
   std::size_t templateSepcializationIndex_ = 0;
 };
@@ -621,7 +673,7 @@ class VariableSymbol final : public Symbol {
   void setTemplateDeclaration(TemplateDeclarationAST* declaration);
 
   [[nodiscard]] auto specializations() const
-      -> std::span<const TemplateSpecialization<VariableSymbol>>;
+      -> std::span<const TemplateSpecialization>;
 
   [[nodiscard]] auto findSpecialization(
       const std::vector<TemplateArgument>& arguments) const -> VariableSymbol*;
@@ -652,7 +704,7 @@ class VariableSymbol final : public Symbol {
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
   ExpressionAST* initializer_ = nullptr;
   std::optional<ConstValue> constValue_;
-  std::unique_ptr<TemplateInfo<VariableSymbol>> templateInfo_;
+  std::unique_ptr<TemplateInfo> templateInfo_;
   VariableSymbol* templateVariable_ = nullptr;
   std::size_t templateSepcializationIndex_ = 0;
 

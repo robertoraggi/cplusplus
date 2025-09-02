@@ -407,43 +407,6 @@ void ClassSymbol::addConversionFunction(FunctionSymbol* conversionFunction) {
   conversionFunctions_.push_back(conversionFunction);
 }
 
-auto ClassSymbol::declaration() const -> SpecifierAST* { return specifier_; }
-
-void ClassSymbol::setDeclaration(SpecifierAST* specifier) {
-  specifier_ = specifier;
-}
-
-auto ClassSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
-  return templateDeclaration_;
-}
-
-void ClassSymbol::setTemplateDeclaration(
-    TemplateDeclarationAST* templateDeclaration) {
-  templateDeclaration_ = templateDeclaration;
-}
-
-auto ClassSymbol::specializations() const
-    -> std::span<const TemplateSpecialization<ClassSymbol>> {
-  if (!templateInfo_) return {};
-  return templateInfo_->specializations();
-}
-
-auto ClassSymbol::findSpecialization(
-    const std::vector<TemplateArgument>& arguments) const -> ClassSymbol* {
-  if (!templateInfo_) return {};
-  return templateInfo_->findSpecialization(arguments);
-}
-
-void ClassSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
-                                    ClassSymbol* specialization) {
-  if (!templateInfo_) {
-    templateInfo_ = std::make_unique<TemplateInfo<ClassSymbol>>(this);
-  }
-  auto index = templateInfo_->specializations().size();
-  specialization->setSpecializationInfo(this, index);
-  templateInfo_->addSpecialization(std::move(arguments), specialization);
-}
-
 auto ClassSymbol::buildClassLayout(Control* control)
     -> std::expected<bool, std::string> {
   int offset = 0;
@@ -726,7 +689,7 @@ void TypeAliasSymbol::setTemplateDeclaration(
 }
 
 auto TypeAliasSymbol::specializations() const
-    -> std::span<const TemplateSpecialization<TypeAliasSymbol>> {
+    -> std::span<const TemplateSpecialization> {
   if (!templateInfo_) return {};
   return templateInfo_->specializations();
 }
@@ -734,13 +697,14 @@ auto TypeAliasSymbol::specializations() const
 auto TypeAliasSymbol::findSpecialization(
     const std::vector<TemplateArgument>& arguments) const -> TypeAliasSymbol* {
   if (!templateInfo_) return {};
-  return templateInfo_->findSpecialization(arguments);
+  return symbol_cast<TypeAliasSymbol>(
+      templateInfo_->findSpecialization(arguments));
 }
 
 void TypeAliasSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
                                         TypeAliasSymbol* specialization) {
   if (!templateInfo_) {
-    templateInfo_ = std::make_unique<TemplateInfo<TypeAliasSymbol>>(this);
+    templateInfo_ = std::make_unique<TemplateInfo>(this);
   }
   auto index = templateInfo_->specializations().size();
   specialization->setSpecializationInfo(this, index);
@@ -792,7 +756,7 @@ void VariableSymbol::setTemplateDeclaration(
 }
 
 auto VariableSymbol::specializations() const
-    -> std::span<const TemplateSpecialization<VariableSymbol>> {
+    -> std::span<const TemplateSpecialization> {
   if (!templateInfo_) return {};
   return templateInfo_->specializations();
 }
@@ -800,13 +764,14 @@ auto VariableSymbol::specializations() const
 auto VariableSymbol::findSpecialization(
     const std::vector<TemplateArgument>& arguments) const -> VariableSymbol* {
   if (!templateInfo_) return {};
-  return templateInfo_->findSpecialization(arguments);
+  return symbol_cast<VariableSymbol>(
+      templateInfo_->findSpecialization(arguments));
 }
 
 void VariableSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
                                        VariableSymbol* specialization) {
   if (!templateInfo_) {
-    templateInfo_ = std::make_unique<TemplateInfo<VariableSymbol>>(this);
+    templateInfo_ = std::make_unique<TemplateInfo>(this);
   }
   auto index = templateInfo_->specializations().size();
   specialization->setSpecializationInfo(this, index);

@@ -272,10 +272,11 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
           unit_, primaryTemplateSymbol->templateDeclaration(),
           templateId->templateArgumentList);
 
-      specialization =
-          primaryTemplateSymbol
-              ? primaryTemplateSymbol->findSpecialization(templateArguments)
-              : nullptr;
+      specialization = primaryTemplateSymbol
+                           ? symbol_cast<ClassSymbol>(
+                                 primaryTemplateSymbol->findSpecialization(
+                                     templateArguments))
+                           : nullptr;
 
       if (specialization) {
         error(location, std::format("redefinition of specialization '{}'",
@@ -518,6 +519,8 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
 }
 
 void Binder::bind(BaseSpecifierAST* ast) {
+  const auto checkTemplates = unit_->config().checkTypes;
+
   Symbol* symbol = nullptr;
 
   if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
@@ -525,12 +528,12 @@ void Binder::bind(BaseSpecifierAST* ast) {
             control()->remove_cv(decltypeId->decltypeSpecifier->type))) {
       symbol = classType->symbol();
     }
+  } else {
+    symbol =
+        resolve(ast->nestedNameSpecifier, ast->unqualifiedId, checkTemplates);
   }
 
-  if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-    symbol = Lookup{scope_}(ast->nestedNameSpecifier, nameId->identifier);
-  }
-
+  // dealias
   if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
     if (auto classType =
             type_cast<ClassType>(control()->remove_cv(typeAlias->type()))) {
@@ -538,32 +541,34 @@ void Binder::bind(BaseSpecifierAST* ast) {
     }
   }
 
-  if (symbol) {
-    auto location = ast->unqualifiedId->firstSourceLocation();
-    auto baseClassSymbol = control()->newBaseClassSymbol(scope(), location);
-    ast->symbol = baseClassSymbol;
-
-    baseClassSymbol->setVirtual(ast->isVirtual);
-    baseClassSymbol->setSymbol(symbol);
-
-    if (symbol) {
-      baseClassSymbol->setName(symbol->name());
-    }
-
-    switch (ast->accessSpecifier) {
-      case TokenKind::T_PRIVATE:
-        baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
-        break;
-      case TokenKind::T_PROTECTED:
-        baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
-        break;
-      case TokenKind::T_PUBLIC:
-        baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
-        break;
-      default:
-        break;
-    }  // switch
+  if (!symbol || !symbol->isClass()) {
+    error(ast->unqualifiedId->firstSourceLocation(),
+          "base class specifier must be a class");
+    return;
   }
+
+  auto location = ast->unqualifiedId->firstSourceLocation();
+  auto baseClassSymbol = control()->newBaseClassSymbol(scope(), location);
+  ast->symbol = baseClassSymbol;
+
+  baseClassSymbol->setVirtual(ast->isVirtual);
+  baseClassSymbol->setSymbol(symbol);
+
+  baseClassSymbol->setName(symbol->name());
+
+  switch (ast->accessSpecifier) {
+    case TokenKind::T_PRIVATE:
+      baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
+      break;
+    case TokenKind::T_PROTECTED:
+      baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
+      break;
+    case TokenKind::T_PUBLIC:
+      baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
+      break;
+    default:
+      break;
+  }  // switch
 }
 
 void Binder::bind(NonTypeTemplateParameterAST* ast, int index, int depth) {
