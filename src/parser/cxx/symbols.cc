@@ -522,14 +522,6 @@ FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
-auto FunctionSymbol::declaration() const -> DeclarationAST* {
-  return declaration_;
-}
-
-void FunctionSymbol::setDeclaration(DeclarationAST* declaration) {
-  declaration_ = declaration;
-}
-
 auto FunctionSymbol::isDefined() const -> bool { return isDefined_; }
 
 void FunctionSymbol::setDefined(bool isDefined) { isDefined_ = isDefined; }
@@ -679,38 +671,6 @@ TypeAliasSymbol::TypeAliasSymbol(ScopeSymbol* enclosingScope)
 
 TypeAliasSymbol::~TypeAliasSymbol() {}
 
-auto TypeAliasSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
-  return templateDeclaration_;
-}
-
-void TypeAliasSymbol::setTemplateDeclaration(
-    TemplateDeclarationAST* declaration) {
-  templateDeclaration_ = declaration;
-}
-
-auto TypeAliasSymbol::specializations() const
-    -> std::span<const TemplateSpecialization> {
-  if (!templateInfo_) return {};
-  return templateInfo_->specializations();
-}
-
-auto TypeAliasSymbol::findSpecialization(
-    const std::vector<TemplateArgument>& arguments) const -> TypeAliasSymbol* {
-  if (!templateInfo_) return {};
-  return symbol_cast<TypeAliasSymbol>(
-      templateInfo_->findSpecialization(arguments));
-}
-
-void TypeAliasSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
-                                        TypeAliasSymbol* specialization) {
-  if (!templateInfo_) {
-    templateInfo_ = std::make_unique<TemplateInfo>(this);
-  }
-  auto index = templateInfo_->specializations().size();
-  specialization->setSpecializationInfo(this, index);
-  templateInfo_->addSpecialization(std::move(arguments), specialization);
-}
-
 VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
@@ -745,38 +705,6 @@ void VariableSymbol::setConstinit(bool isConstinit) {
 auto VariableSymbol::isInline() const -> bool { return isInline_; }
 
 void VariableSymbol::setInline(bool isInline) { isInline_ = isInline; }
-
-auto VariableSymbol::templateDeclaration() const -> TemplateDeclarationAST* {
-  return templateDeclaration_;
-}
-
-void VariableSymbol::setTemplateDeclaration(
-    TemplateDeclarationAST* declaration) {
-  templateDeclaration_ = declaration;
-}
-
-auto VariableSymbol::specializations() const
-    -> std::span<const TemplateSpecialization> {
-  if (!templateInfo_) return {};
-  return templateInfo_->specializations();
-}
-
-auto VariableSymbol::findSpecialization(
-    const std::vector<TemplateArgument>& arguments) const -> VariableSymbol* {
-  if (!templateInfo_) return {};
-  return symbol_cast<VariableSymbol>(
-      templateInfo_->findSpecialization(arguments));
-}
-
-void VariableSymbol::addSpecialization(std::vector<TemplateArgument> arguments,
-                                       VariableSymbol* specialization) {
-  if (!templateInfo_) {
-    templateInfo_ = std::make_unique<TemplateInfo>(this);
-  }
-  auto index = templateInfo_->specializations().size();
-  specialization->setSpecializationInfo(this, index);
-  templateInfo_->addSpecialization(std::move(arguments), specialization);
-}
 
 auto VariableSymbol::initializer() const -> ExpressionAST* {
   return initializer_;

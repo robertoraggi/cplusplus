@@ -327,7 +327,7 @@ class TypePrinter {
         sep = ", ";
       }
       out += '>';
-    } else if (auto templDecl = type->symbol()->templateClass()) {
+    } else if (auto templDecl = type->symbol()->primaryTemplateSymbol()) {
       out += '<';
       std::string_view sep = "";
       for (const auto& param :
