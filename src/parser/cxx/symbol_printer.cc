@@ -63,9 +63,8 @@ struct DumpSymbols {
     --depth;
   }
 
-  template <typename S>
   void dumpSpecializations(
-      std::span<const TemplateSpecialization<S>> specializations) {
+      std::span<const TemplateSpecialization> specializations) {
     if (specializations.empty()) return;
     ++depth;
     indent();
