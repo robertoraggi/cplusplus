@@ -62,7 +62,7 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.39.1",
     "use-debounce": "^10.0.5",
-    "vite": "^7.1.2",
+    "vite": "^7.1.5",
     "zx": "^8.8.0"
   },
   "workspaces": [
