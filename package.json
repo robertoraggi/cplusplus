@@ -3,6 +3,7 @@
   "version": "1.1.27",
   "description": "A compiler frontend for C++23",
   "private": true,
+  "type": "module",
   "keywords": [
     "c++",
     "compiler",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.8.1",
+    "jsonc-parser": "^3.3.1",
     "zx": "^8.8.5"
   },
   "workspaces": [
@@ -34,14 +36,14 @@
     "build:cxx-frontend": "npm run build -w cxx-frontend",
     "build:playground": "npm run build -w @robertoraggi/cxx-playground",
     "build:emscripten": "npm run build -w cxx-frontend",
-    "build:wasi": "zx scripts/build-wasi.mjs",
-    "build:mlir": "zx scripts/build-mlir.mjs",
+    "build:wasi": "node scripts/build-wasi.js",
+    "build:mlir": "node scripts/build-mlir.js",
     "playground": "npm run dev -w @robertoraggi/cxx-playground",
-    "setup-venv": "zx scripts/setup-venv.mjs",
-    "update-tests": "zx scripts/update-tests.mjs",
+    "setup-venv": "node scripts/setup-venv.js",
+    "update-tests": "node scripts/update-tests.js",
     "cxx-gen-ast": "node --no-warnings packages/cxx-gen-ast/src/gen.ts",
     "cxx-gen-lsp": "node --no-warnings packages/cxx-gen-lsp/src/main.ts packages/cxx-gen-lsp/metaModel.json packages/cxx-gen-lsp -o src/lsp/cxx/lsp",
-    "download-lsp-model": "zx scripts/download-lsp-model.mjs",
+    "download-lsp-model": "node scripts/download-lsp-model.js",
     "download-mlir": "gh run download -n mlir --dir build.em/llvm-project/install/"
   }
 }
