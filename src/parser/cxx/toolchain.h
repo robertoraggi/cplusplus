@@ -32,15 +32,15 @@ class MemoryLayout;
 
 class Toolchain {
  public:
-  Toolchain(const Toolchain &) = delete;
-  auto operator=(const Toolchain &) -> Toolchain & = delete;
+  Toolchain(const Toolchain&) = delete;
+  auto operator=(const Toolchain&) -> Toolchain& = delete;
 
-  explicit Toolchain(Preprocessor *preprocessor);
+  explicit Toolchain(Preprocessor* preprocessor);
   virtual ~Toolchain();
 
   [[nodiscard]] auto language() const -> LanguageKind;
 
-  [[nodiscard]] auto memoryLayout() const -> MemoryLayout * {
+  [[nodiscard]] auto memoryLayout() const -> MemoryLayout* {
     return memoryLayout_.get();
   }
 
@@ -50,11 +50,11 @@ class Toolchain {
   virtual void addSystemCppIncludePaths() = 0;
   virtual void addPredefinedMacros() = 0;
 
-  [[nodiscard]] auto preprocessor() const -> Preprocessor * {
+  [[nodiscard]] auto preprocessor() const -> Preprocessor* {
     return preprocessor_;
   }
 
-  void defineMacro(const std::string &name, const std::string &definition);
+  void defineMacro(const std::string& name, const std::string& definition);
 
   void addSystemIncludePath(std::string path);
 
@@ -82,7 +82,7 @@ class Toolchain {
   void addWASICxx26Macros();
 
  private:
-  Preprocessor *preprocessor_;
+  Preprocessor* preprocessor_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
 };
 
