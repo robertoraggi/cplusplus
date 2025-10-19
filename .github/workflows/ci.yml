@@ -273,21 +273,6 @@ jobs:
             build.wasi/install/usr/lib/wasi-sysroot/include/wasm32-wasi
           retention-days: 1
 
-  release-please:
-    runs-on: ubuntu-latest
-    if: false && github.repository == 'robertoraggi/cplusplus' && github.ref == 'refs/heads/main'
-    steps:
-      - uses: GoogleCloudPlatform/release-please-action@v3
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          release-type: node
-          package-name: cplusplus
-          extra-files: |
-            packages/cxx-frontend/package.json
-            templates/cxx-parse/package.json
-            templates/cxx-browser-esm-vite/package.json
-            templates/cxx-parse-esm/package.json
-
   build-playground:
     runs-on: ubuntu-latest
     needs: build-emscripten

@@ -35,5 +35,3 @@ jobs:
       - name: Publish
         working-directory: packages/cxx-frontend
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
