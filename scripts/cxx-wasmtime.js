@@ -42,7 +42,7 @@ try {
 } catch (e) {
   if (e instanceof ProcessOutput) {
     echo`${e}`;
-    process.exit(e.status);
+    process.exit(e.exitCode);
   } else {
     process.exit(1);
   }

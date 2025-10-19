@@ -1,5 +1,11 @@
 import { $, path, fs, glob } from "zx";
-import { parse, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
+import {
+  parse,
+  printParseErrorCode,
+  modify,
+  applyEdits,
+  type ParseError,
+} from "jsonc-parser";
 
 $.verbose = true;
 
@@ -11,7 +17,7 @@ const unitTestsPath = path.join(workspacePath, "tests/unit_tests");
 const ccFiles = await glob(`${unitTestsPath}/**/*.cc`);
 console.log(ccFiles);
 
-function makeLaunchConfig({ file }) {
+function makeLaunchConfig({ file }: { file: string }) {
   const kind = path.basename(path.dirname(file));
   const name = path.basename(file);
 
@@ -34,7 +40,7 @@ const launchConfigPath = path.join(workspacePath, ".vscode/launch.json");
 const launchConfigContent = await fs.readFile(launchConfigPath, "utf-8");
 
 // Parse JSON with comments
-let errors = [];
+let errors: ParseError[] = [];
 const launchConfig = parse(launchConfigContent, errors, {
   allowTrailingComma: true,
 });
@@ -51,7 +57,7 @@ if (errors.length > 0) {
 // Filter out old test configurations
 const existingConfigs = launchConfig.configurations || [];
 const filteredConfigs = existingConfigs.filter(
-  (config) => !config.name.match(/ \[.*\]$/)
+  (config: any) => !config.name.match(/ \[.*\]$/)
 );
 
 // Append new configurations

@@ -96,6 +96,15 @@ async function main() {
   await zx.fs.mkdir(llvm_source_dir, { recursive: true });
   await zx.fs.writeFile(zx.path.join(llvm_source_dir, ".gitignore"), "*");
 
+  await zx.fs.writeFile(
+    zx.path.join(llvm_install_dir, "package.json"),
+    `{
+  "name": "mlir",
+  "version": "${version}",
+  "type": "commonjs"
+}`
+  );
+
   await downloadLLVM({ version, packages, outdir: llvm_source_dir });
 
   await $`emcmake cmake ${llvm_cmake_options} -S ${llvm_source_dir}/llvm -B ${llvm_build_dir}/llvm -DCMAKE_INSTALL_PREFIX=${llvm_install_dir}`;
@@ -120,7 +129,8 @@ async function main() {
 
     await zx.fs.writeFile(
       zx.path.join(llvm_install_dir, "bin", app),
-      `#!/usr/bin/env node\nrequire("./${app}.js");`
+      `#!/usr/bin/env node
+require("./${app}.js");`
     );
 
     await zx.fs.chmod(zx.path.join(llvm_install_dir, "bin", app), 0o755);
@@ -154,8 +164,4 @@ async function main() {
   }
 }
 
-try {
-  await main();
-} catch (e) {
-  console.error(e.message);
-}
+await await main();

@@ -20,9 +20,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import "zx/globals";
+import { $, which, argv } from "zx";
+import { fileURLToPath } from "url";
+import path from "path";
 
 $.verbose = true;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const workspacePath = path.join(__dirname, "../");
 const docker = await which("docker");
