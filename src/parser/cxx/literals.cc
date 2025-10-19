@@ -33,12 +33,12 @@ namespace {
 template <typename String>
 struct StringLiteralParser {
   std::string_view text;
-  DiagnosticsClient *diagnostics;
+  DiagnosticsClient* diagnostics;
   String value;
   int pos = 0;
 
   explicit StringLiteralParser(std::string_view text,
-                               DiagnosticsClient *diagnostics)
+                               DiagnosticsClient* diagnostics)
       : text(text), diagnostics(diagnostics) {}
 
   [[nodiscard]] auto LA(int n = 0) -> int {
@@ -355,7 +355,7 @@ void IntegerLiteral::initialize() const {
 }
 
 auto IntegerLiteral::Components::from(std::string_view text,
-                                      DiagnosticsClient *diagnostics)
+                                      DiagnosticsClient* diagnostics)
     -> Components {
   std::string integerPart;
   integerPart.reserve(text.size());
@@ -578,7 +578,7 @@ void FloatLiteral::initialize() const {
 }
 
 auto FloatLiteral::Components::from(std::string_view text,
-                                    DiagnosticsClient *diagnostics)
+                                    DiagnosticsClient* diagnostics)
     -> Components {
   std::size_t pos = 0;
 
@@ -737,7 +737,7 @@ auto FloatLiteral::Components::from(std::string_view text,
 }
 
 auto StringLiteral::Components::from(std::string_view text,
-                                     DiagnosticsClient *diagnostics)
+                                     DiagnosticsClient* diagnostics)
     -> Components {
   StringLiteralParser<std::string> parser(text, diagnostics);
 
@@ -754,7 +754,7 @@ void StringLiteral::initialize() const {
 }
 
 auto CharLiteral::Components::from(std::string_view text,
-                                   DiagnosticsClient *diagnostics)
+                                   DiagnosticsClient* diagnostics)
     -> Components {
   StringLiteralParser<std::string> parser(text, diagnostics);
 

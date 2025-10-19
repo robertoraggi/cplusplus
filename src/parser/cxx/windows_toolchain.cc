@@ -30,7 +30,7 @@
 
 namespace cxx {
 
-WindowsToolchain::WindowsToolchain(Preprocessor *preprocessor,
+WindowsToolchain::WindowsToolchain(Preprocessor* preprocessor,
                                    std::string arch = "x86_64")
     : Toolchain(preprocessor), arch_(std::move(arch)) {
   memoryLayout()->setSizeOfLong(4);

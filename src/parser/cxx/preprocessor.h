@@ -44,27 +44,27 @@ class CommentHandler {
  public:
   virtual ~CommentHandler() = default;
 
-  virtual void handleComment(Preprocessor *preprocessor,
-                             const Token &token) = 0;
+  virtual void handleComment(Preprocessor* preprocessor,
+                             const Token& token) = 0;
 };
 
 class Preprocessor {
  public:
-  Preprocessor(Preprocessor &&) noexcept = default;
-  auto operator=(Preprocessor &&) noexcept -> Preprocessor & = default;
+  Preprocessor(Preprocessor&&) noexcept = default;
+  auto operator=(Preprocessor&&) noexcept -> Preprocessor& = default;
 
-  explicit Preprocessor(Control *control, DiagnosticsClient *diagnosticsClient);
+  explicit Preprocessor(Control* control, DiagnosticsClient* diagnosticsClient);
   ~Preprocessor();
 
-  [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient *;
+  [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient*;
 
   [[nodiscard]] auto language() const -> LanguageKind;
   void setLanguage(LanguageKind lang);
 
-  [[nodiscard]] auto preprocessorDelegate() const -> PreprocessorDelegate *;
+  [[nodiscard]] auto preprocessorDelegate() const -> PreprocessorDelegate*;
 
-  [[nodiscard]] auto commentHandler() const -> CommentHandler *;
-  void setCommentHandler(CommentHandler *commentHandler);
+  [[nodiscard]] auto commentHandler() const -> CommentHandler*;
+  void setCommentHandler(CommentHandler* commentHandler);
 
   [[nodiscard]] auto canResolveFiles() const -> bool;
   void setCanResolveFiles(bool canResolveFiles);
@@ -76,37 +76,37 @@ class Preprocessor {
   void setOmitLineMarkers(bool omitLineMarkers);
 
   void setOnWillIncludeHeader(
-      std::function<void(const std::string &, int)> willIncludeHeader);
+      std::function<void(const std::string&, int)> willIncludeHeader);
 
   void beginPreprocessing(std::string source, std::string fileName,
-                          std::vector<Token> &outputTokens);
+                          std::vector<Token>& outputTokens);
 
-  void endPreprocessing(std::vector<Token> &outputTokens);
+  void endPreprocessing(std::vector<Token>& outputTokens);
 
-  [[nodiscard]] auto continuePreprocessing(std::vector<Token> &outputTokens)
+  [[nodiscard]] auto continuePreprocessing(std::vector<Token>& outputTokens)
       -> PreprocessingState;
 
   [[nodiscard]] auto sourceFileName(uint32_t sourceFileId) const
-      -> const std::string &;
+      -> const std::string&;
 
-  [[nodiscard]] auto source(uint32_t sourceFileId) const -> const std::string &;
+  [[nodiscard]] auto source(uint32_t sourceFileId) const -> const std::string&;
 
   void preprocess(std::string source, std::string fileName,
-                  std::vector<Token> &tokens);
+                  std::vector<Token>& tokens);
 
-  void getPreprocessedText(const std::vector<Token> &tokens,
-                           std::ostream &out) const;
+  void getPreprocessedText(const std::vector<Token>& tokens,
+                           std::ostream& out) const;
 
   [[nodiscard]] auto systemIncludePaths() const
-      -> const std::vector<std::string> &;
+      -> const std::vector<std::string>&;
 
   void addSystemIncludePath(std::string path);
 
-  void defineMacro(const std::string &name, const std::string &body);
+  void defineMacro(const std::string& name, const std::string& body);
 
-  void undefMacro(const std::string &name);
+  void undefMacro(const std::string& name);
 
-  void printMacros(std::ostream &out) const;
+  void printMacros(std::ostream& out) const;
 
   struct Source {
     std::string_view fileName;
@@ -115,17 +115,17 @@ class Preprocessor {
 
   [[nodiscard]] auto sources() const -> std::vector<Source>;
 
-  [[nodiscard]] auto tokenStartPosition(const Token &token) const
+  [[nodiscard]] auto tokenStartPosition(const Token& token) const
       -> SourcePosition;
 
-  [[nodiscard]] auto tokenEndPosition(const Token &token) const
+  [[nodiscard]] auto tokenEndPosition(const Token& token) const
       -> SourcePosition;
 
-  [[nodiscard]] auto getTextLine(const Token &token) const -> std::string_view;
+  [[nodiscard]] auto getTextLine(const Token& token) const -> std::string_view;
 
-  [[nodiscard]] auto getTokenText(const Token &token) const -> std::string_view;
+  [[nodiscard]] auto getTokenText(const Token& token) const -> std::string_view;
 
-  [[nodiscard]] auto resolve(const Include &include, bool isIncludeNext) const
+  [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
       -> std::optional<std::string>;
 
   void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column);
@@ -141,19 +141,19 @@ class Preprocessor {
 };
 
 class DefaultPreprocessorState {
-  Preprocessor &self;
+  Preprocessor& self;
   bool done = false;
 
  public:
-  explicit DefaultPreprocessorState(Preprocessor &self) : self(self) {}
+  explicit DefaultPreprocessorState(Preprocessor& self) : self(self) {}
 
   explicit operator bool() const { return !done; }
 
-  void operator()(const ProcessingComplete &);
-  void operator()(const CanContinuePreprocessing &);
-  void operator()(const PendingInclude &status);
-  void operator()(const PendingHasIncludes &status);
-  void operator()(const PendingFileContent &status);
+  void operator()(const ProcessingComplete&);
+  void operator()(const CanContinuePreprocessing&);
+  void operator()(const PendingInclude& status);
+  void operator()(const PendingHasIncludes& status);
+  void operator()(const PendingFileContent& status);
 };
 
 }  // namespace cxx

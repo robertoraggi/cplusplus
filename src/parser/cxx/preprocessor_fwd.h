@@ -53,10 +53,10 @@ struct QuoteInclude {
 using Include = std::variant<SystemInclude, QuoteInclude>;
 
 struct PendingInclude {
-  Preprocessor &preprocessor;
+  Preprocessor& preprocessor;
   Include include;
   bool isIncludeNext = false;
-  void *loc = nullptr;
+  void* loc = nullptr;
   std::function<auto()->std::vector<std::string>> candidates;
 
   void resolveWith(std::optional<std::string> fileName) const;
@@ -66,17 +66,17 @@ struct PendingHasIncludes {
   struct Request {
     Include include;
     bool isIncludeNext = false;
-    bool &exists;
+    bool& exists;
 
     void setExists(bool value) const { exists = value; }
   };
 
-  Preprocessor &preprocessor;
+  Preprocessor& preprocessor;
   std::vector<Request> requests;
 };
 
 struct PendingFileContent {
-  Preprocessor &preprocessor;
+  Preprocessor& preprocessor;
   std::string fileName;
 
   void setContent(std::optional<std::string> content) const;
