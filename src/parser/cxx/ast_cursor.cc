@@ -22,6 +22,8 @@
 #include <cxx/ast_cursor.h>
 #include <cxx/ast_slot.h>
 
+#include <vector>
+
 namespace cxx {
 
 ASTCursor::ASTCursor(AST* root, std::string_view name) {
