@@ -2428,6 +2428,17 @@ auto ASTDecoder::decodeLambdaExpression(const io::LambdaExpression* node)
   ast->greaterLoc = SourceLocation(node->greater_loc());
   ast->templateRequiresClause =
       decodeRequiresClause(node->template_requires_clause());
+  if (node->expression_attribute_list()) {
+    auto* inserter = &ast->expressionAttributeList;
+    for (std::uint32_t i = 0; i < node->expression_attribute_list()->size();
+         ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->expression_attribute_list()->Get(i),
+          io::AttributeSpecifier(
+              node->expression_attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->parameterDeclarationClause =
       decodeParameterDeclarationClause(node->parameter_declaration_clause());

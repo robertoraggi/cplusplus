@@ -945,6 +945,7 @@ table LambdaExpression /* ExpressionAST */ {
   capture_list: [LambdaCapture];
   template_parameter_list: [TemplateParameter];
   template_requires_clause: RequiresClause;
+  expression_attribute_list: [AttributeSpecifier];
   parameter_declaration_clause: ParameterDeclarationClause;
   gnu_atribute_list: [AttributeSpecifier];
   lambda_specifier_list: [LambdaSpecifier];

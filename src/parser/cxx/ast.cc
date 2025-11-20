@@ -1408,6 +1408,7 @@ auto LambdaExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(templateParameterList)) return loc;
   if (auto loc = cxx::firstSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(templateRequiresClause)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionAttributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(parameterDeclarationClause))
     return loc;
@@ -1434,6 +1435,7 @@ auto LambdaExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(parameterDeclarationClause))
     return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionAttributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateRequiresClause)) return loc;
   if (auto loc = cxx::lastSourceLocation(greaterLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(templateParameterList)) return loc;
