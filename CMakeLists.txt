@@ -99,8 +99,8 @@ FetchContent_GetProperties(utfcpp)
 #
 FetchContent_Declare(
     nlohmann_json
-    URL             https://github.com/nlohmann/json/releases/download/v3.11.3/include.zip
-    URL_HASH        SHA256=a22461d13119ac5c78f205d3df1db13403e58ce1bb1794edc9313677313f4a9d
+    URL             https://github.com/nlohmann/json/releases/download/v3.12.0/include.zip
+    URL_HASH        SHA256=b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372
 )
 
 FetchContent_MakeAvailable(nlohmann_json)
@@ -111,7 +111,8 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
 
 FetchContent_Declare(
     wasi_sysroot
-    URL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sysroot-27.0.tar.gz
+    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-29/wasi-sysroot-29.0.tar.gz
+    URL_HASH    SHA256=d99d5c4b277a725b7b56bf9d591609972ecac3207520a66408927280f191f6c7
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)
@@ -129,7 +130,8 @@ if (CXX_ENABLE_FLATBUFFERS)
 
     FetchContent_Declare(
         flatbuffers
-        URL https://github.com/google/flatbuffers/archive/refs/tags/v25.1.24.tar.gz
+        URL         https://github.com/google/flatbuffers/archive/refs/tags/v25.1.24.tar.gz
+        URL_HASH    SHA256=ffc668a310e77607d393f3c18b32715f223da1eac4c4d6e0579a11df8e6b59cf
     )
 
     FetchContent_MakeAvailable(flatbuffers)
