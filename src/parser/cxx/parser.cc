@@ -1146,6 +1146,8 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     (void)parse_requires_clause(ast->templateRequiresClause);
   }
 
+  parse_optional_attribute_specifier_seq(ast->expressionAttributeList);
+
   if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
     if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
       if (!parse_parameter_declaration_clause(

@@ -490,6 +490,9 @@ void ASTVisitor::visit(LambdaExpressionAST* ast) {
     accept(node);
   }
   accept(ast->templateRequiresClause);
+  for (auto node : ListView{ast->expressionAttributeList}) {
+    accept(node);
+  }
   accept(ast->parameterDeclarationClause);
   for (auto node : ListView{ast->gnuAtributeList}) {
     accept(node);

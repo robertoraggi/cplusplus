@@ -2560,6 +2560,22 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
 
   const auto templateRequiresClause = accept(ast->templateRequiresClause);
 
+  std::vector<flatbuffers::Offset<>> expressionAttributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      expressionAttributeListTypes;
+
+  for (auto node : ListView{ast->expressionAttributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    expressionAttributeListOffsets.push_back(offset);
+    expressionAttributeListTypes.push_back(type);
+  }
+
+  auto expressionAttributeListOffsetsVector =
+      fbb_.CreateVector(expressionAttributeListOffsets);
+  auto expressionAttributeListTypesVector =
+      fbb_.CreateVector(expressionAttributeListTypes);
+
   const auto parameterDeclarationClause =
       accept(ast->parameterDeclarationClause);
 
@@ -2621,6 +2637,9 @@ void ASTEncoder::visit(LambdaExpressionAST* ast) {
   builder.add_template_parameter_list_type(templateParameterListTypesVector);
   builder.add_greater_loc(ast->greaterLoc.index());
   builder.add_template_requires_clause(templateRequiresClause.o);
+  builder.add_expression_attribute_list(expressionAttributeListOffsetsVector);
+  builder.add_expression_attribute_list_type(
+      expressionAttributeListTypesVector);
   builder.add_lparen_loc(ast->lparenLoc.index());
   builder.add_parameter_declaration_clause(parameterDeclarationClause.o);
   builder.add_rparen_loc(ast->rparenLoc.index());

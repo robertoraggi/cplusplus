@@ -5680,10 +5680,36 @@ export class LambdaExpressionAST extends ExpressionAST {
   }
 
   /**
+   * Returns the expressionAttributeList of this node
+   */
+  getExpressionAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 9), this.parser);
   }
 
   /**
@@ -5691,7 +5717,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
     return AST.from<ParameterDeclarationClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 9),
+      cxx.getASTSlot(this.getHandle(), 10),
       this.parser,
     );
   }
@@ -5700,7 +5726,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 10), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 11), this.parser);
   }
 
   /**
@@ -5760,7 +5786,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getExceptionSpecifier(): ExceptionSpecifierAST | undefined {
     return AST.from<ExceptionSpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 13),
+      cxx.getASTSlot(this.getHandle(), 14),
       this.parser,
     );
   }
@@ -5796,7 +5822,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getTrailingReturnType(): TrailingReturnTypeAST | undefined {
     return AST.from<TrailingReturnTypeAST>(
-      cxx.getASTSlot(this.getHandle(), 15),
+      cxx.getASTSlot(this.getHandle(), 16),
       this.parser,
     );
   }
@@ -5806,7 +5832,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getRequiresClause(): RequiresClauseAST | undefined {
     return AST.from<RequiresClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 16),
+      cxx.getASTSlot(this.getHandle(), 17),
       this.parser,
     );
   }
@@ -5816,7 +5842,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    */
   getStatement(): CompoundStatementAST | undefined {
     return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 17),
+      cxx.getASTSlot(this.getHandle(), 18),
       this.parser,
     );
   }
@@ -5825,7 +5851,7 @@ export class LambdaExpressionAST extends ExpressionAST {
    * Returns the captureDefault attribute of this node
    */
   getCaptureDefault(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 18);
+    return cxx.getASTSlot(this.getHandle(), 19);
   }
 }
 

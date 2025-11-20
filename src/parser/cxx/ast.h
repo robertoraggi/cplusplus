@@ -1831,6 +1831,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   List<TemplateParameterAST*>* templateParameterList = nullptr;
   SourceLocation greaterLoc;
   RequiresClauseAST* templateRequiresClause = nullptr;
+  List<AttributeSpecifierAST*>* expressionAttributeList = nullptr;
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   SourceLocation rparenLoc;

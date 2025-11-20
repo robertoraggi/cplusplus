@@ -559,6 +559,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   copy->greaterLoc = ast->greaterLoc;
   copy->templateRequiresClause =
       rewrite.requiresClause(ast->templateRequiresClause);
+
+  for (auto expressionAttributeList = &copy->expressionAttributeList;
+       auto node : ListView{ast->expressionAttributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *expressionAttributeList = make_list_node(arena(), value);
+    expressionAttributeList = &(*expressionAttributeList)->next;
+  }
+
   copy->lparenLoc = ast->lparenLoc;
   copy->parameterDeclarationClause =
       rewrite.parameterDeclarationClause(ast->parameterDeclarationClause);

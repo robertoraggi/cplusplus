@@ -2416,6 +2416,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(LambdaExpressionAST* ast) {
     accept.writeToken(ast->greaterLoc);
   }
   accept(ast->templateRequiresClause);
+
+  for (auto it = ast->expressionAttributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->lparenLoc) {
     nospace();
     accept.writeToken(ast->lparenLoc);

@@ -1215,6 +1215,15 @@ void ASTPrinter::visit(LambdaExpressionAST* ast) {
     --indent_;
   }
   accept(ast->templateRequiresClause, "template-requires-clause");
+  if (ast->expressionAttributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "expression-attribute-list");
+    for (auto node : ListView{ast->expressionAttributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
   if (ast->gnuAtributeList) {
     ++indent_;
