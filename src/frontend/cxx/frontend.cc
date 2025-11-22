@@ -367,7 +367,7 @@ void Frontend::Private::prepare() {
     toolchain_ = std::move(windowsToolchain);
   }
 
-  unit_->control()->setMemoryLayout(toolchain_->memoryLayout());
+  toolchain_->initMemoryLayout();
 }
 
 void Frontend::Private::preparePreprocessor() {

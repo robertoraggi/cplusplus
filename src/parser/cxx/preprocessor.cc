@@ -2937,6 +2937,8 @@ Preprocessor::Preprocessor(Control* control,
 
 Preprocessor::~Preprocessor() = default;
 
+auto Preprocessor::control() const -> Control* { return d->control_; }
+
 auto Preprocessor::diagnosticsClient() const -> DiagnosticsClient* {
   return d->diagnosticsClient_;
 }
