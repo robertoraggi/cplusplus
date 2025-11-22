@@ -56,6 +56,8 @@ class Preprocessor {
   explicit Preprocessor(Control* control, DiagnosticsClient* diagnosticsClient);
   ~Preprocessor();
 
+  [[nodiscard]] auto control() const -> Control*;
+
   [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient*;
 
   [[nodiscard]] auto language() const -> LanguageKind;

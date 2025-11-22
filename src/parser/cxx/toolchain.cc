@@ -21,6 +21,7 @@
 #include <cxx/toolchain.h>
 
 // cxx
+#include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 
@@ -43,6 +44,10 @@ void Toolchain::setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout) {
 void Toolchain::defineMacro(const std::string& name,
                             const std::string& definition) {
   preprocessor_->defineMacro(name, definition);
+}
+
+void Toolchain::initMemoryLayout() {
+  preprocessor_->control()->setMemoryLayout(memoryLayout_.get());
 }
 
 void Toolchain::addSystemIncludePath(std::string path) {
