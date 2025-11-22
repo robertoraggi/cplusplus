@@ -72,8 +72,9 @@ if(CXX_BUILD_TESTS)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
     FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+        googletest
+        URL         https://github.com/google/googletest/archive/refs/tags/v1.17.0.tar.gz
+        URL_HASH    SHA256=65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
     )
 
     FetchContent_MakeAvailable(googletest)
@@ -87,12 +88,14 @@ endif()
 #
 FetchContent_Declare(
     utfcpp
-    URL                 https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.5.tar.gz
-    PATCH_COMMAND       patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/utfcpp.patch
+    URL                 https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.8.tar.gz
+    URL_HASH            SHA256=f808b26d8c3a59def27fea207182ece77a8930bd121a69f80d328ecf3cfef925
 )
 
 FetchContent_MakeAvailable(utfcpp)
 FetchContent_GetProperties(utfcpp)
+
+set(UTFCPP_INCLUDE_DIRS "${utfcpp_SOURCE_DIR}/source")
 
 #
 # nlohmann_json
