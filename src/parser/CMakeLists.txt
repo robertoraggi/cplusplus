@@ -102,8 +102,8 @@ if (EMSCRIPTEN)
     target_compile_options(cxx-parser PUBLIC -fno-exceptions)
 endif()
 
-target_link_libraries(cxx-parser
-    PUBLIC  $<BUILD_INTERFACE:utf8cpp>
+target_include_directories(cxx-parser PUBLIC
+    $<BUILD_INTERFACE:${UTFCPP_INCLUDE_DIRS}>
 )
 
 if (CXX_ENABLE_FLATBUFFERS)
