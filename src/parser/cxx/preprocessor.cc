@@ -26,6 +26,7 @@
 #include <cxx/diagnostics_client.h>
 #include <cxx/lexer.h>
 #include <cxx/literals.h>
+#include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/private/pp_directives-priv.h>
@@ -200,14 +201,15 @@ class Hideset {
 
   Hideset() = default;
 
-  explicit Hideset(std::set<std::string_view> names)
+  explicit Hideset(std::vector<const cxx::Identifier*> names)
       : names_(std::move(names)) {}
 
-  [[nodiscard]] auto contains(const std::string_view& name) const -> bool {
-    return names_.contains(name);
+  [[nodiscard]] auto contains(const cxx::Identifier* name) const -> bool {
+    return std::binary_search(names_.begin(), names_.end(), name);
   }
 
-  [[nodiscard]] auto names() const -> const std::set<std::string_view>& {
+  [[nodiscard]] auto names() const
+      -> const std::vector<const cxx::Identifier*>& {
     return names_;
   };
 
@@ -216,7 +218,7 @@ class Hideset {
   }
 
  private:
-  std::set<std::string_view> names_;
+  std::vector<const cxx::Identifier*> names_;
 };
 
 inline auto getHeaderName(const cxx::Include& include) -> std::string {
@@ -235,25 +237,14 @@ struct std::less<Hideset> {
   }
 
   auto operator()(const Hideset& hideset,
-                  const std::set<std::string_view>& names) const -> bool {
+                  const std::vector<const cxx::Identifier*>& names) const
+      -> bool {
     return hideset.names() < names;
   }
 
-  auto operator()(const std::set<std::string_view>& names,
+  auto operator()(const std::vector<const cxx::Identifier*>& names,
                   const Hideset& hideset) const -> bool {
     return names < hideset.names();
-  }
-
-  auto operator()(const Hideset& hideset, const std::string_view& name) const
-      -> bool {
-    return std::lexicographical_compare(begin(hideset.names()),
-                                        end(hideset.names()), &name, &name + 1);
-  }
-
-  auto operator()(const std::string_view& name, const Hideset& hideset) const
-      -> bool {
-    return std::lexicographical_compare(
-        &name, &name + 1, begin(hideset.names()), end(hideset.names()));
   }
 };
 
@@ -265,16 +256,10 @@ struct std::hash<Hideset> {
     return operator()(hideset.names());
   }
 
-  auto operator()(const std::set<std::string_view>& names) const
+  auto operator()(const std::vector<const cxx::Identifier*>& names) const
       -> std::size_t {
     std::size_t seed = 0;
     for (const auto& name : names) cxx::hash_combine(seed, name);
-    return seed;
-  }
-
-  auto operator()(const std::string_view& name) const -> std::size_t {
-    std::size_t seed = 0;
-    cxx::hash_combine(seed, name);
     return seed;
   }
 };
@@ -288,23 +273,14 @@ struct std::equal_to<Hideset> {
   }
 
   auto operator()(const Hideset& hideset,
-                  const std::set<std::string_view>& names) const -> bool {
+                  const std::vector<const cxx::Identifier*>& names) const
+      -> bool {
     return hideset.names() == names;
   }
 
-  auto operator()(const std::set<std::string_view>& names,
+  auto operator()(const std::vector<const cxx::Identifier*>& names,
                   const Hideset& hideset) const -> bool {
     return hideset.names() == names;
-  }
-
-  auto operator()(const Hideset& hideset, const std::string_view& name) const
-      -> bool {
-    return hideset.names().size() == 1 && *hideset.names().begin() == name;
-  }
-
-  auto operator()(const std::string_view& name, const Hideset& hideset) const
-      -> bool {
-    return hideset.names().size() == 1 && *hideset.names().begin() == name;
   }
 };
 
@@ -704,7 +680,7 @@ struct Preprocessor::Private {
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
-  std::set<Hideset> hidesets;
+  std::unordered_set<Hideset> hidesets;
   std::forward_list<std::string> scratchBuffer_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
@@ -923,10 +899,12 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto makeUnion(const Hideset* hs, const std::string_view& name)
       -> const Hideset* {
-    if (!hs) return get(name);
-    if (hs->names().contains(name)) return hs;
+    auto id = control_->getIdentifier(name);
+    if (!hs) return get(id);
+    if (hs->contains(id)) return hs;
     auto names = hs->names();
-    names.insert(name);
+    auto it = std::upper_bound(names.begin(), names.end(), id);
+    names.insert(it, id);
     return get(std::move(names));
   }
 
@@ -935,24 +913,27 @@ struct Preprocessor::Private {
     if (!other || !hs) return nullptr;
     if (other == hs) return hs;
 
-    std::set<std::string_view> names;
+    std::vector<const cxx::Identifier*> names;
 
     std::set_intersection(begin(hs->names()), end(hs->names()),
                           begin(other->names()), end(other->names()),
-                          std::inserter(names, names.begin()));
+                          std::back_inserter(names));
 
     return get(std::move(names));
   }
 
-  [[nodiscard]] auto get(std::set<std::string_view> names) -> const Hideset* {
+  [[nodiscard]] auto get(std::vector<const cxx::Identifier*> names)
+      -> const Hideset* {
     if (names.empty()) return nullptr;
     if (auto it = hidesets.find(names); it != hidesets.end()) return &*it;
     return &*hidesets.emplace(std::move(names)).first;
   }
 
-  [[nodiscard]] auto get(const std::string_view& name) -> const Hideset* {
-    if (auto it = hidesets.find(name); it != hidesets.end()) return &*it;
-    return &*hidesets.emplace(std::set{name}).first;
+  [[nodiscard]] auto get(const cxx::Identifier* name) -> const Hideset* {
+    std::vector<const cxx::Identifier*> names;
+    names.push_back(name);
+    if (auto it = hidesets.find(names); it != hidesets.end()) return &*it;
+    return &*hidesets.emplace(std::move(names)).first;
   }
 
   [[nodiscard]] auto isStringLiteral(TokenKind kind) const -> bool {
@@ -1140,20 +1121,21 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto parseMacroDefinition(TokList* ts) -> Macro;
 
-  [[nodiscard]] auto expand(const std::function<void(const Tok*)>& emitToken)
-      -> PreprocessingState;
+  using EmitToken = std::function<void(const Tok*)>;
+
+  [[nodiscard]] auto expand(const EmitToken& emitToken) -> PreprocessingState;
 
   [[nodiscard]] auto expandTokens(TokIterator it, TokIterator last,
                                   bool inConditionalExpression) -> TokIterator;
 
-  [[nodiscard]] auto expandOne(TokIterator first, TokIterator last,
+  [[nodiscard]] auto expandOne(TokIterator it, TokIterator last,
                                bool inConditionalExpression,
-                               const std::function<void(const Tok*)>& emitToken)
-      -> TokIterator;
+                               const EmitToken& emitToken) -> TokIterator;
 
-  [[nodiscard]] auto replaceIsDefinedMacro(
-      TokList* ts, bool inConditionalExpression,
-      const std::function<void(const Tok*)>& emitToken) -> TokList*;
+  [[nodiscard]] auto replaceIsDefinedMacro(TokList* ts,
+                                           bool inConditionalExpression,
+                                           const EmitToken& emitToken)
+      -> TokList*;
 
   [[nodiscard]] auto expandMacro(TokList* ts) -> TokList*;
 
@@ -1747,27 +1729,8 @@ auto Preprocessor::Private::tokenize(const std::string_view& source,
   return ts;
 }
 
-auto Preprocessor::Private::expandTokens(TokIterator it, TokIterator last,
-                                         bool inConditionalExpression)
-    -> TokIterator {
-  TokList* tokens = nullptr;
-  auto out = &tokens;
-
-  while (it != last) {
-    if (it->is(TokenKind::T_EOF_SYMBOL)) {
-      break;
-    }
-    it = expandOne(it, last, inConditionalExpression, [&](auto tok) {
-      *out = cons(tok);
-      out = (&(*out)->next);
-    });
-  }
-
-  return TokIterator{tokens};
-}
-
-auto Preprocessor::Private::expand(
-    const std::function<void(const Tok*)>& emitToken) -> PreprocessingState {
+auto Preprocessor::Private::expand(const EmitToken& emitToken)
+    -> PreprocessingState {
   if (buffers_.empty()) return ProcessingComplete{};
 
   auto buffer = buffers_.back();
@@ -1859,6 +1822,81 @@ auto Preprocessor::Private::expand(
   if (buffers_.empty()) return ProcessingComplete{};
 
   return CanContinuePreprocessing{};
+}
+
+auto Preprocessor::Private::expandTokens(TokIterator it, TokIterator last,
+                                         bool inConditionalExpression)
+    -> TokIterator {
+  TokList* tokens = nullptr;
+  auto out = &tokens;
+
+  while (it != last) {
+    if (it->is(TokenKind::T_EOF_SYMBOL)) {
+      break;
+    }
+    it = expandOne(it, last, inConditionalExpression, [&](auto tok) {
+      *out = cons(tok);
+      out = (&(*out)->next);
+    });
+  }
+
+  return TokIterator{tokens};
+}
+
+auto Preprocessor::Private::expandOne(TokIterator it, TokIterator last,
+                                      bool inConditionalExpression,
+                                      const EmitToken& emitToken)
+    -> TokIterator {
+  if (it == last) return last;
+
+  if (auto continuation = replaceIsDefinedMacro(
+          it.toTokList(), inConditionalExpression, emitToken)) {
+    return TokIterator{continuation};
+  }
+
+  if (auto continuation = expandMacro(it.toTokList())) {
+    return TokIterator{continuation};
+  }
+
+  emitToken(&*it);
+
+  ++it;
+
+  return it;
+}
+
+auto Preprocessor::Private::replaceIsDefinedMacro(TokList* ts,
+                                                  bool inConditionalExpression,
+                                                  const EmitToken& emitToken)
+    -> TokList* {
+  if (!inConditionalExpression) {
+    return nullptr;
+  }
+
+  auto start = ts->tok;
+
+  if (!matchId(ts, "defined")) {
+    return nullptr;
+  }
+
+  bool value = false;
+
+  if (match(ts, TokenKind::T_LPAREN)) {
+    value = isDefined(ts->tok);
+    ts = ts->next;
+    expect(ts, TokenKind::T_RPAREN);
+  } else {
+    value = isDefined(ts->tok);
+    ts = ts->next;
+  }
+
+  auto tk = gen(TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
+  tk->sourceFile = start->sourceFile;
+  tk->space = start->space;
+  tk->bol = start->bol;
+  emitToken(tk);
+
+  return ts;
 }
 
 auto Preprocessor::Private::parseDirective(SourceFile* source, TokList* start)
@@ -2134,60 +2172,6 @@ auto Preprocessor::Private::parseHeaderName(TokList* ts)
   }
 
   return {ts, std::nullopt};
-}
-
-auto Preprocessor::Private::expandOne(
-    TokIterator it, TokIterator last, bool inConditionalExpression,
-    const std::function<void(const Tok*)>& emitToken) -> TokIterator {
-  if (it == last) return last;
-
-  if (auto continuation = replaceIsDefinedMacro(
-          it.toTokList(), inConditionalExpression, emitToken)) {
-    return TokIterator{continuation};
-  }
-
-  if (auto continuation = expandMacro(it.toTokList())) {
-    return TokIterator{continuation};
-  }
-
-  emitToken(&*it);
-
-  ++it;
-
-  return it;
-}
-
-auto Preprocessor::Private::replaceIsDefinedMacro(
-    TokList* ts, bool inConditionalExpression,
-    const std::function<void(const Tok*)>& emitToken) -> TokList* {
-  if (!inConditionalExpression) {
-    return nullptr;
-  }
-
-  auto start = ts->tok;
-
-  if (!matchId(ts, "defined")) {
-    return nullptr;
-  }
-
-  bool value = false;
-
-  if (match(ts, TokenKind::T_LPAREN)) {
-    value = isDefined(ts->tok);
-    ts = ts->next;
-    expect(ts, TokenKind::T_RPAREN);
-  } else {
-    value = isDefined(ts->tok);
-    ts = ts->next;
-  }
-
-  auto tk = gen(TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
-  tk->sourceFile = start->sourceFile;
-  tk->space = start->space;
-  tk->bol = start->bol;
-  emitToken(tk);
-
-  return ts;
 }
 
 auto Preprocessor::Private::expandMacro(TokList* ts) -> TokList* {
@@ -2864,7 +2848,8 @@ auto Preprocessor::Private::lookupMacro(const Tok* tk) const -> const Macro* {
   }
 
   if (auto it = macros_.find(tk->text); it != macros_.end()) {
-    const auto disabled = tk->hideset && tk->hideset->contains(tk->text);
+    const auto disabled =
+        tk->hideset && tk->hideset->contains(control_->getIdentifier(tk->text));
     if (!disabled) {
       return &it->second;
     }
