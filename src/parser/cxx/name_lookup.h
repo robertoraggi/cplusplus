@@ -20,12 +20,18 @@
 
 #pragma once
 
+#include <cxx/ast.h>
 #include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
+#include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
+#include <algorithm>
 #include <functional>
-#include <unordered_set>
+#include <ranges>
+#include <vector>
 
 namespace cxx {
 
@@ -33,21 +39,58 @@ class Lookup {
  public:
   explicit Lookup(ScopeSymbol* scope);
 
-  [[nodiscard]] auto operator()(
-      const Name* name, const std::function<bool(Symbol*)>& accept = {}) const
-      -> Symbol*;
+  template <typename Predicate>
+    requires std::predicate<Predicate, Symbol*>
+  [[nodiscard]] auto operator()(const Name* name, Predicate accept) const
+      -> Symbol* {
+    return lookup(nullptr, name, accept);
+  }
 
-  [[nodiscard]] auto operator()(
-      NestedNameSpecifierAST* nestedNameSpecifier, const Name* name,
-      const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
+  [[nodiscard]] auto operator()(const Name* name) const -> Symbol* {
+    return operator()(name, [](Symbol*) { return true; });
+  }
 
-  [[nodiscard]] auto lookup(
-      NestedNameSpecifierAST* nestedNameSpecifier, const Name* name,
-      const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
+  template <typename Predicate>
+    requires std::predicate<Predicate, Symbol*>
+  [[nodiscard]] auto operator()(NestedNameSpecifierAST* nestedNameSpecifier,
+                                const Name* name, Predicate accept) const
+      -> Symbol* {
+    return lookup(nestedNameSpecifier, name, accept);
+  }
 
-  [[nodiscard]] auto qualifiedLookup(
-      ScopeSymbol* scope, const Name* name,
-      const std::function<bool(Symbol*)>& accept = {}) const -> Symbol*;
+  [[nodiscard]] auto operator()(NestedNameSpecifierAST* nestedNameSpecifier,
+                                const Name* name) const -> Symbol* {
+    return operator()(nestedNameSpecifier, name, [](Symbol*) { return true; });
+  }
+
+  template <typename Predicate>
+    requires std::predicate<Predicate, Symbol*>
+  [[nodiscard]] auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
+                            const Name* name, Predicate accept) const
+      -> Symbol* {
+    if (!name) return nullptr;
+    if (!nestedNameSpecifier) return unqualifiedLookup(name, accept);
+    if (!nestedNameSpecifier->symbol) return nullptr;
+    return qualifiedLookup(nestedNameSpecifier->symbol, name, accept);
+  }
+
+  [[nodiscard]] auto lookup(NestedNameSpecifierAST* nestedNameSpecifier,
+                            const Name* name) const -> Symbol* {
+    return lookup(nestedNameSpecifier, name, [](Symbol*) { return true; });
+  }
+
+  template <typename Predicate>
+    requires std::predicate<Predicate, Symbol*>
+  [[nodiscard]] auto qualifiedLookup(ScopeSymbol* scope, const Name* name,
+                                     Predicate accept) const -> Symbol* {
+    std::vector<ScopeSymbol*> cache;
+    return lookupHelper(scope, name, cache, accept);
+  }
+
+  [[nodiscard]] auto qualifiedLookup(ScopeSymbol* scope, const Name* name) const
+      -> Symbol* {
+    return qualifiedLookup(scope, name, [](Symbol*) { return true; });
+  }
 
   [[nodiscard]] auto lookupNamespace(
       NestedNameSpecifierAST* nestedNameSpecifier, const Identifier* id) const
@@ -57,26 +100,108 @@ class Lookup {
                                 const Identifier* id) const -> Symbol*;
 
  private:
-  [[nodiscard]] auto unqualifiedLookup(
-      const Name* name, const std::function<bool(Symbol*)>& accept) const
+  template <typename Predicate>
+  [[nodiscard]] auto unqualifiedLookup(const Name* name, Predicate accept) const
+      -> Symbol* {
+    std::vector<ScopeSymbol*> cache;
+    for (auto current = scope_; current; current = current->parent()) {
+      if (auto symbol = lookupHelper(current, name, cache, accept)) {
+        return symbol;
+      }
+    }
+    return nullptr;
+  }
+
+  template <typename Predicate>
+  [[nodiscard]] auto qualifiedLookup(Symbol* scopeSymbol, const Name* name,
+                                     Predicate accept) const -> Symbol* {
+    if (!scopeSymbol) return nullptr;
+
+    if (auto alias = symbol_cast<TypeAliasSymbol>(scopeSymbol)) {
+      if (auto classType = type_cast<ClassType>(alias->type())) {
+        return qualifiedLookup(classType->symbol(), name, accept);
+      }
+      if (auto enumType = type_cast<EnumType>(alias->type())) {
+        return qualifiedLookup(enumType->symbol(), name, accept);
+      }
+      if (auto scopedEnumType = type_cast<ScopedEnumType>(alias->type())) {
+        return qualifiedLookup(scopedEnumType->symbol(), name, accept);
+      }
+    }
+
+    switch (scopeSymbol->kind()) {
+      case SymbolKind::kNamespace:
+      case SymbolKind::kClass:
+      case SymbolKind::kEnum:
+      case SymbolKind::kScopedEnum:
+        return qualifiedLookup(scopeSymbol->asScopeSymbol(), name, accept);
+      default:
+        return nullptr;
+    }  // switch
+  }
+
+  template <typename Predicate>
+  [[nodiscard]] auto lookupHelper(ScopeSymbol* scope, const Name* name,
+                                  std::vector<ScopeSymbol*>& cache,
+                                  Predicate accept) const -> Symbol* {
+    if (std::ranges::contains(cache, scope)) {
+      return nullptr;
+    }
+
+    cache.push_back(scope);
+
+    for (auto symbol : scope->find(name)) {
+      if (auto u = symbol_cast<UsingDeclarationSymbol>(symbol);
+          u && u->target()) {
+        if (std::invoke(accept, u->target())) {
+          return u->target();
+        }
+      }
+
+      if (std::invoke(accept, symbol)) {
+        return symbol;
+      }
+    }
+
+    if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
+      // iterate over the anonymous symbols
+      for (auto member : classSymbol->find(/*unnamed=*/nullptr)) {
+        auto nestedClass = symbol_cast<ClassSymbol>(member);
+        if (!nestedClass) continue;
+
+        auto symbol = lookupHelper(nestedClass, name, cache, accept);
+        if (symbol) {
+          // found a match in an anonymous nested class
+          return symbol;
+        }
+      }
+
+      for (const auto& base : classSymbol->baseClasses()) {
+        auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+        if (!baseClass) continue;
+        if (auto symbol = lookupHelper(baseClass, name, cache, accept)) {
+          return symbol;
+        }
+      }
+    }
+
+    for (auto u : scope->usingDirectives()) {
+      if (auto symbol = lookupHelper(u, name, cache, accept)) {
+        return symbol;
+      }
+    }
+
+    return nullptr;
+  }
+
+  [[nodiscard]] auto lookupNamespaceHelper(ScopeSymbol* scope,
+                                           const Identifier* id,
+                                           std::vector<ScopeSymbol*>& set) const
+      -> NamespaceSymbol*;
+
+  [[nodiscard]] auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
+                                      std::vector<ScopeSymbol*>& set) const
       -> Symbol*;
-
-  [[nodiscard]] auto qualifiedLookup(
-      Symbol* scopeSymbol, const Name* name,
-      const std::function<bool(Symbol*)>& accept) const -> Symbol*;
-
-  [[nodiscard]] auto lookupHelper(
-      ScopeSymbol* scope, const Name* name,
-      std::unordered_set<ScopeSymbol*>& cache,
-      const std::function<bool(Symbol*)>& accept) const -> Symbol*;
-
-  [[nodiscard]] auto lookupNamespaceHelper(
-      ScopeSymbol* scope, const Identifier* id,
-      std::unordered_set<ScopeSymbol*>& set) const -> NamespaceSymbol*;
-
-  [[nodiscard]] auto lookupTypeHelper(
-      ScopeSymbol* scope, const Identifier* id,
-      std::unordered_set<ScopeSymbol*>& set) const -> Symbol*;
 
  private:
   ScopeSymbol* scope_ = nullptr;

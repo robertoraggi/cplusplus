@@ -31,152 +31,9 @@ namespace cxx {
 
 Lookup::Lookup(ScopeSymbol* scope) : scope_(scope) {}
 
-auto Lookup::operator()(const Name* name,
-                        const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  return lookup(nullptr, name, accept);
-}
-
-auto Lookup::operator()(NestedNameSpecifierAST* nestedNameSpecifier,
-                        const Name* name,
-                        const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  return lookup(nestedNameSpecifier, name, accept);
-}
-
-auto Lookup::unqualifiedLookup(const Name* name,
-                               const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  std::unordered_set<ScopeSymbol*> cache;
-  for (auto current = scope_; current; current = current->parent()) {
-    if (auto symbol = lookupHelper(current, name, cache, accept)) {
-      return symbol;
-    }
-  }
-  return nullptr;
-}
-
-auto Lookup::qualifiedLookup(ScopeSymbol* scope, const Name* name,
-                             const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  std::unordered_set<ScopeSymbol*> cache;
-  return lookupHelper(scope, name, cache, accept);
-}
-
-auto Lookup::qualifiedLookup(Symbol* scopeSymbol, const Name* name,
-                             const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  if (!scopeSymbol) return nullptr;
-  switch (scopeSymbol->kind()) {
-    case SymbolKind::kNamespace:
-      return qualifiedLookup(symbol_cast<NamespaceSymbol>(scopeSymbol), name,
-                             accept);
-
-    case SymbolKind::kClass:
-      return qualifiedLookup(symbol_cast<ClassSymbol>(scopeSymbol), name,
-                             accept);
-
-    case SymbolKind::kEnum:
-      return qualifiedLookup(symbol_cast<EnumSymbol>(scopeSymbol), name,
-                             accept);
-
-    case SymbolKind::kScopedEnum:
-      return qualifiedLookup(symbol_cast<ScopedEnumSymbol>(scopeSymbol), name,
-                             accept);
-
-    case SymbolKind::kTypeAlias: {
-      auto alias = symbol_cast<TypeAliasSymbol>(scopeSymbol);
-
-      if (auto classType = type_cast<ClassType>(alias->type())) {
-        auto classSymbol = classType->symbol();
-        return qualifiedLookup(classSymbol, name, accept);
-      }
-
-      if (auto enumType = type_cast<EnumType>(alias->type())) {
-        auto enumSymbol = enumType->symbol();
-        return qualifiedLookup(enumSymbol, name, accept);
-      }
-
-      if (auto scopedEnumType = type_cast<ScopedEnumType>(alias->type())) {
-        auto scopedEnumSymbol = scopedEnumType->symbol();
-        return qualifiedLookup(scopedEnumSymbol, name, accept);
-      }
-
-      return nullptr;
-    }
-
-    default:
-      return nullptr;
-  }  // switch
-}
-
-auto Lookup::lookup(NestedNameSpecifierAST* nestedNameSpecifier,
-                    const Name* name,
-                    const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  if (!name) return nullptr;
-  if (!nestedNameSpecifier) return unqualifiedLookup(name, accept);
-  if (!nestedNameSpecifier->symbol) return nullptr;
-  return qualifiedLookup(nestedNameSpecifier->symbol, name, accept);
-}
-
-auto Lookup::lookupHelper(ScopeSymbol* scope, const Name* name,
-                          std::unordered_set<ScopeSymbol*>& cache,
-                          const std::function<bool(Symbol*)>& accept) const
-    -> Symbol* {
-  if (cache.contains(scope)) {
-    return nullptr;
-  }
-
-  cache.insert(scope);
-
-  for (auto symbol : scope->find(name)) {
-    if (auto u = symbol_cast<UsingDeclarationSymbol>(symbol);
-        u && u->target()) {
-      if (!accept || accept(u->target())) {
-        return u->target();
-      }
-    }
-
-    if (!accept || accept(symbol)) {
-      return symbol;
-    }
-  }
-
-  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
-    // iterate over the annonymous symbols
-    for (auto member : classSymbol->find(/*unnamed=*/nullptr)) {
-      auto nestedClass = symbol_cast<ClassSymbol>(member);
-      if (!nestedClass) continue;
-
-      auto symbol = lookupHelper(nestedClass, name, cache, accept);
-      if (symbol) {
-        // found a match in an anonymous nested class
-        return symbol;
-      }
-    }
-
-    for (const auto& base : classSymbol->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      if (auto symbol = lookupHelper(baseClass, name, cache, accept)) {
-        return symbol;
-      }
-    }
-  }
-
-  for (auto u : scope->usingDirectives()) {
-    if (auto symbol = lookupHelper(u, name, cache, accept)) {
-      return symbol;
-    }
-  }
-
-  return nullptr;
-}
-
 auto Lookup::lookupNamespace(NestedNameSpecifierAST* nestedNameSpecifier,
                              const Identifier* id) const -> NamespaceSymbol* {
-  std::unordered_set<ScopeSymbol*> set;
+  std::vector<ScopeSymbol*> set;
 
   if (!nestedNameSpecifier) {
     // unqualified lookup, start with the current scope and go up.
@@ -197,11 +54,13 @@ auto Lookup::lookupNamespace(NestedNameSpecifierAST* nestedNameSpecifier,
 }
 
 auto Lookup::lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
-                                   std::unordered_set<ScopeSymbol*>& set) const
+                                   std::vector<ScopeSymbol*>& set) const
     -> NamespaceSymbol* {
-  if (!set.insert(scope).second) {
+  if (std::ranges::contains(set, scope)) {
     return nullptr;
   }
+
+  set.push_back(scope);
 
   for (auto candidate : scope->find(id) | views::namespaces) {
     return candidate;
@@ -218,7 +77,7 @@ auto Lookup::lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
 
 auto Lookup::lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
                         const Identifier* id) const -> Symbol* {
-  std::unordered_set<ScopeSymbol*> set;
+  std::vector<ScopeSymbol*> set;
 
   if (!nestedNameSpecifier) {
     // unqualified lookup, start with the current scope and go up.
@@ -282,11 +141,12 @@ auto Lookup::lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
 }
 
 auto Lookup::lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
-                              std::unordered_set<ScopeSymbol*>& set) const
-    -> Symbol* {
-  if (!set.insert(scope).second) {
+                              std::vector<ScopeSymbol*>& set) const -> Symbol* {
+  if (std::ranges::contains(set, scope)) {
     return nullptr;
   }
+
+  set.push_back(scope);
 
   for (auto candidate : scope->find(id)) {
     if (auto u = symbol_cast<UsingDeclarationSymbol>(candidate);
