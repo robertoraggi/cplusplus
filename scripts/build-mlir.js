@@ -73,6 +73,7 @@ async function main() {
     "-DCMAKE_CXX_FLAGS=-DLLVM_BUILD_STATIC",
     "-DCMAKE_EXE_LINKER_FLAGS=-sNODERAWFS -sEXIT_RUNTIME -sALLOW_MEMORY_GROWTH",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    "-DCMAKE_CXX_FLAGS=-Wno-c2y-extensions",
     "-DLLVM_BUILD_EXTERNAL_COMPILER_RT=OFF",
     "-DLLVM_BUILD_TOOLS=OFF",
     "-DLLVM_ENABLE_EH=OFF",
@@ -81,11 +82,12 @@ async function main() {
     "-DLLVM_ENABLE_RTTI=OFF",
     "-DLLVM_ENABLE_RUNTIMES=",
     "-DLLVM_ENABLE_Z3_SOLVER=OFF",
+    "-DLLVM_ENABLE_WERROR=OFF",
     "-DLLVM_INCLUDE_DOCS=OFF",
     "-DLLVM_INCLUDE_TESTS=OFF",
     "-DLLVM_INSTALL_UTILS=OFF",
     "-DLLVM_LINK_LLVM_DYLIB=OFF",
-    "-DLLVM_OPTIMIZED_TABLEGEN=OFF",
+    "-DLLVM_OPTIMIZED_TABLEGEN=ON",
     "-DLLVM_TARGETS_TO_BUILD=WebAssembly",
   ];
 
@@ -164,4 +166,11 @@ require("./${app}.js");`
   }
 }
 
-await await main();
+main().catch((err) => {
+  if (err instanceof Error) {
+    console.error(err.message);
+  } else {
+    console.error(err);
+  }
+  process.exit(1);
+});

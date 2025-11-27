@@ -115,14 +115,14 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   auto memoryLayout = gen.control()->memoryLayout();
 
-  auto triple = gen.control()->memoryLayout()->triple();
+  auto triple = llvm::Triple{gen.control()->memoryLayout()->triple()};
 
   std::string error;
   auto target = llvm::TargetRegistry::lookupTarget(triple, error);
 
   if (!target) {
     cxx_runtime_error(std::format("failed to find target for triple '{}': {}",
-                                  triple, error));
+                                  triple.getTriple(), error));
   }
 
   llvm::TargetOptions opt;

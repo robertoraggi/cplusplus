@@ -49,7 +49,7 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::FuncOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
 
@@ -75,10 +75,10 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
   }
 
   auto convertFunctionTyype(cxx::FuncOp funcOp,
-                            ConversionPatternRewriter &rewriter) const
+                            ConversionPatternRewriter& rewriter) const
       -> LogicalResult {
     auto type = funcOp.getFunctionType();
-    const auto &typeConverter = *getTypeConverter();
+    const auto& typeConverter = *getTypeConverter();
 
     TypeConverter::SignatureConversion result(type.getInputs().size());
     SmallVector<Type, 1> newResults;
@@ -103,7 +103,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::GlobalOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
 
@@ -122,7 +122,7 @@ class ReturnOpLowering : public OpConversionPattern<cxx::ReturnOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::ReturnOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     rewriter.replaceOpWithNewOp<LLVM::ReturnOp>(op, adaptor.getOperands());
     return success();
@@ -134,7 +134,7 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::CallOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
 
@@ -173,7 +173,7 @@ class AddressOfOpLowering : public OpConversionPattern<cxx::AddressOfOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::AddressOfOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
 
@@ -192,14 +192,14 @@ class AddressOfOpLowering : public OpConversionPattern<cxx::AddressOfOp> {
 
 class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
  public:
-  AllocaOpLowering(const TypeConverter &typeConverter,
-                   const DataLayout &dataLayout, MLIRContext *context,
+  AllocaOpLowering(const TypeConverter& typeConverter,
+                   const DataLayout& dataLayout, MLIRContext* context,
                    PatternBenefit benefit = 1)
       : OpConversionPattern<cxx::AllocaOp>(typeConverter, context, benefit),
         dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::AllocaOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -228,19 +228,19 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
   }
 
  private:
-  const DataLayout &dataLayout_;
+  const DataLayout& dataLayout_;
 };
 
 class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
  public:
-  LoadOpLowering(const TypeConverter &typeConverter,
-                 const DataLayout &dataLayout, MLIRContext *context,
+  LoadOpLowering(const TypeConverter& typeConverter,
+                 const DataLayout& dataLayout, MLIRContext* context,
                  PatternBenefit benefit = 1)
       : OpConversionPattern<cxx::LoadOp>(typeConverter, context, benefit),
         dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::LoadOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -254,19 +254,19 @@ class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
   }
 
  private:
-  const DataLayout &dataLayout_;
+  const DataLayout& dataLayout_;
 };
 
 class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
  public:
-  StoreOpLowering(const TypeConverter &typeConverter,
-                  const DataLayout &dataLayout, MLIRContext *context,
+  StoreOpLowering(const TypeConverter& typeConverter,
+                  const DataLayout& dataLayout, MLIRContext* context,
                   PatternBenefit benefit = 1)
       : OpConversionPattern<cxx::StoreOp>(typeConverter, context, benefit),
         dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::StoreOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -284,19 +284,19 @@ class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
   }
 
  private:
-  const DataLayout &dataLayout_;
+  const DataLayout& dataLayout_;
 };
 
 class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
  public:
-  SubscriptOpLowering(const TypeConverter &typeConverter,
-                      const DataLayout &dataLayout, MLIRContext *context,
+  SubscriptOpLowering(const TypeConverter& typeConverter,
+                      const DataLayout& dataLayout, MLIRContext* context,
                       PatternBenefit benefit = 1)
       : OpConversionPattern<cxx::SubscriptOp>(typeConverter, context, benefit),
         dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::SubscriptOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -308,14 +308,12 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
           op, "failed to convert subscript operation type");
     }
 
-    auto arrayType = dyn_cast<cxx::ArrayType>(ptrType.getElementType());
-    if (!arrayType) {
+    if (!llvm::isa<cxx::ArrayType>(ptrType.getElementType())) {
       return rewriter.notifyMatchFailure(
           op, "expected base type of subscript to be an array type");
     }
 
     SmallVector<LLVM::GEPArg> indices;
-
     indices.push_back(0);
     indices.push_back(adaptor.getIndex());
 
@@ -329,19 +327,55 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
   }
 
  private:
-  const DataLayout &dataLayout_;
+  const DataLayout& dataLayout_;
+};
+
+class PtrAddOpLowering : public OpConversionPattern<cxx::PtrAddOp> {
+ public:
+  PtrAddOpLowering(const TypeConverter& typeConverter,
+                   const DataLayout& dataLayout, MLIRContext* context,
+                   PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::PtrAddOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
+
+  auto matchAndRewrite(cxx::PtrAddOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert pointer addition result type");
+    }
+
+    auto elementType = typeConverter->convertType(
+        dyn_cast<cxx::PointerType>(op.getBase().getType()).getElementType());
+
+    SmallVector<LLVM::GEPArg> indices;
+    indices.push_back(adaptor.getOffset());
+
+    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
+                                             adaptor.getBase(), indices);
+
+    return success();
+  }
+
+ private:
+  const DataLayout& dataLayout_;
 };
 
 class MemberOpLowering : public OpConversionPattern<cxx::MemberOp> {
  public:
-  MemberOpLowering(const TypeConverter &typeConverter,
-                   const DataLayout &dataLayout, MLIRContext *context,
+  MemberOpLowering(const TypeConverter& typeConverter,
+                   const DataLayout& dataLayout, MLIRContext* context,
                    PatternBenefit benefit = 1)
       : OpConversionPattern<cxx::MemberOp>(typeConverter, context, benefit),
         dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::MemberOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -368,7 +402,7 @@ class MemberOpLowering : public OpConversionPattern<cxx::MemberOp> {
   }
 
  private:
-  const DataLayout &dataLayout_;
+  const DataLayout& dataLayout_;
 };
 
 class BoolConstantOpLowering : public OpConversionPattern<cxx::BoolConstantOp> {
@@ -376,7 +410,7 @@ class BoolConstantOpLowering : public OpConversionPattern<cxx::BoolConstantOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::BoolConstantOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -399,7 +433,7 @@ class IntConstantOpLowering : public OpConversionPattern<cxx::IntConstantOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::IntConstantOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -423,7 +457,7 @@ class FloatConstantOpLowering
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::FloatConstantOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -446,7 +480,7 @@ class IntegralCastOpLowering : public OpConversionPattern<cxx::IntegralCastOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::IntegralCastOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -498,7 +532,7 @@ class IntToBoolOpLowering : public OpConversionPattern<cxx::IntToBoolOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::IntToBoolOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -525,7 +559,7 @@ class ArrayToPointerOpLowering
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::ArrayToPointerOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -546,6 +580,7 @@ class ArrayToPointerOpLowering
     SmallVector<LLVM::GEPArg> indices;
 
     indices.push_back(0);
+    indices.push_back(0);
 
     auto resultType = LLVM::LLVMPointerType::get(context);
     auto elementType = typeConverter->convertType(ptrType.getElementType());
@@ -562,7 +597,7 @@ class BoolToIntOpLowering : public OpConversionPattern<cxx::BoolToIntOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::BoolToIntOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -585,7 +620,7 @@ class NotOpLowering : public OpConversionPattern<cxx::NotOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::NotOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -610,7 +645,7 @@ class AddIOpLowering : public OpConversionPattern<cxx::AddIOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::AddIOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -633,7 +668,7 @@ class SubIOpLowering : public OpConversionPattern<cxx::SubIOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::SubIOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -656,7 +691,7 @@ class MulIOpLowering : public OpConversionPattern<cxx::MulIOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::MulIOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -679,7 +714,7 @@ class DivIOpLowering : public OpConversionPattern<cxx::DivIOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::DivIOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -713,7 +748,7 @@ class ModIOpLowering : public OpConversionPattern<cxx::ModIOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::ModIOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -747,7 +782,7 @@ class ShiftLeftOpLowering : public OpConversionPattern<cxx::ShiftLeftOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::ShiftLeftOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -770,7 +805,7 @@ class ShiftRightOpLowering : public OpConversionPattern<cxx::ShiftRightOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::ShiftRightOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -804,7 +839,7 @@ class EqualOpLowering : public OpConversionPattern<cxx::EqualOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::EqualOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -828,7 +863,7 @@ class NotEquaOpLowering : public OpConversionPattern<cxx::NotEqualOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::NotEqualOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -852,7 +887,7 @@ class LessThanOpLowering : public OpConversionPattern<cxx::LessThanOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::LessThanOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -885,7 +920,7 @@ class LessEqualOpLowering : public OpConversionPattern<cxx::LessEqualOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::LessEqualOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -918,7 +953,7 @@ class GreaterThanOpLowering : public OpConversionPattern<cxx::GreaterThanOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::GreaterThanOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -951,7 +986,7 @@ class GreaterEqualOpLowering : public OpConversionPattern<cxx::GreaterEqualOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::GreaterEqualOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -988,7 +1023,7 @@ class AddFOpLowering : public OpConversionPattern<cxx::AddFOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::AddFOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1011,7 +1046,7 @@ class SubFOpLowering : public OpConversionPattern<cxx::SubFOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::SubFOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1034,7 +1069,7 @@ class MulFOpLowering : public OpConversionPattern<cxx::MulFOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::MulFOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1057,7 +1092,7 @@ class DivFOpLowering : public OpConversionPattern<cxx::DivFOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::DivFOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1081,7 +1116,7 @@ class FloatingPointCastOpLowering
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::FloatingPointCastOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1121,7 +1156,7 @@ class IntToFloatOpLowering : public OpConversionPattern<cxx::IntToFloatOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::IntToFloatOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1144,7 +1179,7 @@ class FloatToIntOpLowering : public OpConversionPattern<cxx::FloatToIntOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::FloatToIntOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1171,7 +1206,7 @@ class CondBranchOpLowering : public OpConversionPattern<cxx::CondBranchOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::CondBranchOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
@@ -1186,19 +1221,19 @@ class CondBranchOpLowering : public OpConversionPattern<cxx::CondBranchOp> {
 };
 
 struct LabelConverter {
-  DenseMap<StringRef, Block *> labels;
+  DenseMap<StringRef, Block*> labels;
 };
 
 class GotoOpLowering : public OpConversionPattern<cxx::GotoOp> {
  public:
-  GotoOpLowering(const TypeConverter &typeConverter,
-                 const LabelConverter &labelConverter, MLIRContext *context,
+  GotoOpLowering(const TypeConverter& typeConverter,
+                 const LabelConverter& labelConverter, MLIRContext* context,
                  PatternBenefit benefit = 1)
       : OpConversionPattern(typeConverter, context, benefit),
         labelConverter_(labelConverter) {}
 
   auto matchAndRewrite(cxx::GotoOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto context = getContext();
 
@@ -1214,7 +1249,7 @@ class GotoOpLowering : public OpConversionPattern<cxx::GotoOp> {
   }
 
  private:
-  const LabelConverter &labelConverter_;
+  const LabelConverter& labelConverter_;
 };
 
 class LabelOpLowering : public OpConversionPattern<cxx::LabelOp> {
@@ -1222,7 +1257,7 @@ class LabelOpLowering : public OpConversionPattern<cxx::LabelOp> {
   using OpConversionPattern::OpConversionPattern;
 
   auto matchAndRewrite(cxx::LabelOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter &rewriter) const
+                       ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto context = getContext();
 
@@ -1239,7 +1274,7 @@ class CxxToLLVMLoweringPass
 
   auto getArgument() const -> StringRef override { return "cxx-to-llvm"; }
 
-  void getDependentDialects(DialectRegistry &registry) const override {
+  void getDependentDialects(DialectRegistry& registry) const override {
     registry.insert<DLTIDialect>();
     registry.insert<LLVM::LLVMDialect>();
   }
@@ -1347,7 +1382,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   LabelConverter labelConverter;
 
-  module.walk([&](Operation *op) {
+  module.walk([&](Operation* op) {
     if (auto labelOp = dyn_cast<cxx::LabelOp>(op)) {
       labelConverter.labels[labelOp.getName()] = labelOp->getBlock();
     }
@@ -1386,6 +1421,9 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       .insert<AddIOpLowering, SubIOpLowering, MulIOpLowering, DivIOpLowering,
               ModIOpLowering, ShiftLeftOpLowering, ShiftRightOpLowering>(
           typeConverter, context);
+
+  // pointer arithmetic operations
+  patterns.insert<PtrAddOpLowering>(typeConverter, dataLayout, context);
 
   // comparison operations
   patterns.insert<EqualOpLowering, NotEquaOpLowering, LessThanOpLowering,
@@ -1456,7 +1494,7 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
   return mlir::success();
 }
 
-auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext &context)
+auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext& context)
     -> std::unique_ptr<llvm::Module> {
   mlir::registerBuiltinDialectTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());

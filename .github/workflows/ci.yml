@@ -72,10 +72,10 @@ jobs:
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 20
+          sudo ./llvm.sh 21
           rm llvm.sh
 
-          sudo apt-get install -y libmlir-20-dev mlir-20-tools
+          sudo apt-get install -y libmlir-21-dev mlir-21-tools
 
       - name: Install unit tests requirements
         run: |
@@ -86,7 +86,7 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          PATH=/usr/lib/llvm-20/bin:$PATH
+          PATH=/usr/lib/llvm-21/bin:$PATH
 
           cmake --preset default-mlir
 
