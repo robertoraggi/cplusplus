@@ -186,6 +186,12 @@ def Cxx_MemberOp : Cxx_Op<"member"> {
   let results = (outs Cxx_PointerType:$result);
 }
 
+def Cxx_PtrAddOp : Cxx_Op<"ptr_add"> {
+  let arguments = (ins Cxx_PointerType:$base, Cxx_IntegerType:$offset);
+
+  let results = (outs Cxx_PointerType:$result);
+}
+
 def Cxx_AddressOfOp : Cxx_Op<"addressof"> {
   let arguments = (ins FlatSymbolRefAttr:$sym_name);
 

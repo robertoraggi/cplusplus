@@ -549,14 +549,14 @@ void Frontend::Private::emitCode() {
 #ifdef CXX_WITH_MLIR
   llvm::InitializeAllAsmPrinters();
 
-  auto triple = toolchain_->memoryLayout()->triple();
+  auto triple = llvm::Triple{toolchain_->memoryLayout()->triple()};
 
   std::string error;
   auto target = llvm::TargetRegistry::lookupTarget(triple, error);
 
   if (!target) {
     std::cerr << std::format("cxx: cannot find target for triple '{}': {}\n",
-                             triple, error);
+                             triple.getTriple(), error);
     shouldExit_ = true;
     exitStatus_ = EXIT_FAILURE;
     return;
@@ -567,11 +567,11 @@ void Frontend::Private::emitCode() {
   auto RM = std::optional<llvm::Reloc::Model>();
 
   auto targetMachine =
-      target->createTargetMachine(triple, "generic", "", opt, RM);
+      target->createTargetMachine(llvm::Triple{triple}, "generic", "", opt, RM);
 
   if (!targetMachine) {
     std::cerr << std::format("cxx: cannot create target machine for '{}': {}\n",
-                             triple, error);
+                             triple.getTriple(), error);
     shouldExit_ = true;
     exitStatus_ = EXIT_FAILURE;
     return;

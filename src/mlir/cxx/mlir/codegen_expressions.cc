@@ -482,6 +482,14 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
   auto resultType = gen.convertType(control()->add_pointer(ast->type));
 
+  if (control()->is_pointer(ast->baseExpression->type)) {
+    auto op = gen.builder_.create<mlir::cxx::PtrAddOp>(
+        loc, resultType, baseExpressionResult.value,
+        indexExpressionResult.value);
+
+    return {op};
+  }
+
   auto op = gen.builder_.create<mlir::cxx::SubscriptOp>(
       loc, resultType, baseExpressionResult.value, indexExpressionResult.value);
 
