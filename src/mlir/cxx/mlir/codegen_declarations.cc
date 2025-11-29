@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -36,6 +37,17 @@
 #include <format>
 
 namespace cxx {
+
+namespace {
+
+[[nodiscard]] auto is_global_namespace(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (!symbol->isNamespace()) return false;
+  if (symbol->parent()) return false;
+  return true;
+}
+
+}  // namespace
 
 struct Codegen::DeclarationVisitor {
   Codegen& gen;
@@ -205,8 +217,8 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
     const auto elementType = gen.convertType(var->type());
 
-    gen.builder_.create<mlir::cxx::StoreOp>(loc, expressionResult.value,
-                                            local.value());
+    mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
+                               local.value());
   }
 
   return {};
@@ -365,7 +377,17 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         gen.getLocation(ast->functionBody->firstSourceLocation());
     auto exitValueType = gen.convertType(returnType);
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(exitValueType);
-    exitValue = gen.builder_.create<mlir::cxx::AllocaOp>(exitValueLoc, ptrType);
+    exitValue =
+        mlir::cxx::AllocaOp::create(gen.builder_, exitValueLoc, ptrType);
+
+    auto id = name_cast<Identifier>(functionSymbol->name());
+    if (id && id->name() == "main" &&
+        is_global_namespace(functionSymbol->parent())) {
+      auto zeroOp = mlir::cxx::IntConstantOp::create(
+          gen.builder_, loc, gen.convertType(gen.control()->getIntType()), 0);
+
+      mlir::cxx::StoreOp::create(gen.builder_, exitValueLoc, zeroOp, exitValue);
+    }
   }
 
   std::unordered_map<Symbol*, mlir::Value> locals;
@@ -389,8 +411,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     thisValue = gen.newTemp(classSymbol->type(), ast->firstSourceLocation());
 
     // store the `this` pointer in the entry block
-    gen.builder_.create<mlir::cxx::StoreOp>(
-        loc, gen.entryBlock_->getArgument(0), thisValue);
+    mlir::cxx::StoreOp::create(gen.builder_, loc,
+                               gen.entryBlock_->getArgument(0), thisValue);
   }
 
   FunctionParametersSymbol* params = nullptr;
@@ -408,11 +430,11 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(type);
 
       auto loc = gen.getLocation(arg->location());
-      auto allocaOp = gen.builder_.create<mlir::cxx::AllocaOp>(loc, ptrType);
+      auto allocaOp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType);
 
       auto value = args[argc];
       ++argc;
-      gen.builder_.create<mlir::cxx::StoreOp>(loc, value, allocaOp);
+      mlir::cxx::StoreOp::create(gen.builder_, loc, value, allocaOp);
 
       gen.locals_.emplace(arg, allocaOp);
     }
@@ -430,7 +452,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   const auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
   if (!gen.builder_.getBlock()->mightHaveTerminator()) {
-    gen.builder_.create<mlir::cf::BranchOp>(endLoc, gen.exitBlock_);
+    mlir::cf::BranchOp::create(gen.builder_, endLoc, gen.exitBlock_);
   }
 
   gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
@@ -439,13 +461,13 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     // We need to return a value of the correct type.
     auto elementType = gen.exitValue_.getType().getElementType();
 
-    auto value = gen.builder_.create<mlir::cxx::LoadOp>(endLoc, elementType,
-                                                        gen.exitValue_);
+    auto value = mlir::cxx::LoadOp::create(gen.builder_, endLoc, elementType,
+                                           gen.exitValue_);
 
-    gen.builder_.create<mlir::cxx::ReturnOp>(endLoc, value->getResults());
+    mlir::cxx::ReturnOp::create(gen.builder_, endLoc, value->getResults());
   } else {
     // If the function returns void, we don't need to return anything.
-    gen.builder_.create<mlir::cxx::ReturnOp>(endLoc);
+    mlir::cxx::ReturnOp::create(gen.builder_, endLoc);
   }
 
   // restore the state

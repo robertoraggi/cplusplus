@@ -92,12 +92,15 @@ auto Codegen::handler(HandlerAST* ast) -> HandlerResult {
 }
 
 void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
   auto targetBlock = gen.newBlock();
-  gen.branch(gen.getLocation(ast->firstSourceLocation()), targetBlock);
+
+  gen.branch(loc, targetBlock);
   gen.builder_.setInsertionPointToEnd(targetBlock);
 
-  gen.builder_.create<mlir::cxx::LabelOp>(
-      gen.getLocation(ast->firstSourceLocation()), ast->identifier->name());
+  mlir::cxx::LabelOp::create(gen.builder_, loc,
+                             mlir::StringRef{ast->identifier->name()});
 }
 
 void Codegen::StatementVisitor::operator()(CaseStatementAST* ast) {
@@ -263,8 +266,8 @@ void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(BreakStatementAST* ast) {
   if (auto target = gen.loop_.breakBlock) {
-    gen.builder_.create<mlir::cf::BranchOp>(
-        gen.getLocation(ast->firstSourceLocation()), target);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    mlir::cf::BranchOp::create(gen.builder_, loc, target, {});
     return;
   }
 
@@ -273,8 +276,8 @@ void Codegen::StatementVisitor::operator()(BreakStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(ContinueStatementAST* ast) {
   if (auto target = gen.loop_.continueBlock) {
-    gen.builder_.create<mlir::cf::BranchOp>(
-        gen.getLocation(ast->firstSourceLocation()), target);
+    mlir::cf::BranchOp::create(
+        gen.builder_, gen.getLocation(ast->firstSourceLocation()), target);
     return;
   }
 
@@ -287,11 +290,11 @@ void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   if (gen.exitValue_) {
-    gen.builder_.create<mlir::cxx::StoreOp>(loc, value.value,
-                                            gen.exitValue_.getResult());
+    mlir::cxx::StoreOp::create(gen.builder_, loc, value.value,
+                               gen.exitValue_.getResult());
   }
 
-  gen.builder_.create<mlir::cf::BranchOp>(loc, gen.exitBlock_);
+  mlir::cf::BranchOp::create(gen.builder_, loc, gen.exitBlock_);
 }
 
 void Codegen::StatementVisitor::operator()(CoroutineReturnStatementAST* ast) {
@@ -309,9 +312,9 @@ void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
     return;
   }
 
-  gen.builder_.create<mlir::cxx::GotoOp>(
-      gen.getLocation(ast->firstSourceLocation()), mlir::ValueRange{},
-      ast->identifier->name());
+  mlir::cxx::GotoOp::create(gen.builder_,
+                            gen.getLocation(ast->firstSourceLocation()),
+                            mlir::ValueRange{}, ast->identifier->name());
 
   auto nextBlock = gen.newBlock();
   gen.branch(gen.getLocation(ast->firstSourceLocation()), nextBlock);
