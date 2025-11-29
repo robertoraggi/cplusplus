@@ -68,7 +68,7 @@ auto Codegen::newUniqueSymbolName(std::string_view prefix) -> std::string {
 void Codegen::branch(mlir::Location loc, mlir::Block* block,
                      mlir::ValueRange operands) {
   if (currentBlockMightHaveTerminator()) return;
-  builder_.create<mlir::cf::BranchOp>(loc, block, operands);
+  mlir::cf::BranchOp::create(builder_, loc, block, operands);
 }
 
 auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
@@ -83,7 +83,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   auto ptrType = builder_.getType<mlir::cxx::PointerType>(type);
 
   auto loc = getLocation(var->location());
-  auto allocaOp = builder_.create<mlir::cxx::AllocaOp>(loc, ptrType);
+  auto allocaOp = mlir::cxx::AllocaOp::create(builder_, loc, ptrType);
 
   locals_.emplace(var, allocaOp);
 
@@ -93,7 +93,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
 auto Codegen::newTemp(const Type* type, SourceLocation loc)
     -> mlir::cxx::AllocaOp {
   auto ptrType = builder_.getType<mlir::cxx::PointerType>(convertType(type));
-  return builder_.create<mlir::cxx::AllocaOp>(getLocation(loc), ptrType);
+  return mlir::cxx::AllocaOp::create(builder_, getLocation(loc), ptrType);
 }
 
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
@@ -145,8 +145,8 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   builder_.setInsertionPointToStart(module_.getBody());
 
-  auto func = builder_.create<mlir::cxx::FuncOp>(
-      loc, name, funcType, mlir::ArrayAttr{}, mlir::ArrayAttr{});
+  auto func = mlir::cxx::FuncOp::create(builder_, loc, name, funcType,
+                                        mlir::ArrayAttr{}, mlir::ArrayAttr{});
 
   funcOps_.insert_or_assign(functionSymbol, func);
 
@@ -165,14 +165,14 @@ auto Codegen::getLocation(SourceLocation location) -> mlir::Location {
 auto Codegen::emitTodoStmt(SourceLocation location, std::string_view message)
     -> mlir::cxx::TodoStmtOp {
   const auto loc = getLocation(location);
-  auto op = builder_.create<mlir::cxx::TodoStmtOp>(loc, message);
+  auto op = mlir::cxx::TodoStmtOp::create(builder_, loc, message);
   return op;
 }
 
 auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
     -> mlir::cxx::TodoExprOp {
   const auto loc = getLocation(location);
-  auto op = builder_.create<mlir::cxx::TodoExprOp>(loc, message);
+  auto op = mlir::cxx::TodoExprOp::create(builder_, loc, message);
   return op;
 }
 

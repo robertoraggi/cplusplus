@@ -110,7 +110,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   auto loc = gen.builder_.getUnknownLoc();
   auto name = gen.unit_->fileName();
-  auto module = gen.builder_.create<mlir::ModuleOp>(loc, name);
+  auto module = mlir::ModuleOp::create(gen.builder_, loc, name);
   gen.builder_.setInsertionPointToStart(module.getBody());
 
   auto memoryLayout = gen.control()->memoryLayout();
@@ -173,7 +173,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 auto Codegen::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
   auto loc = gen.builder_.getUnknownLoc();
   auto name = gen.unit_->fileName();
-  auto module = gen.builder_.create<mlir::ModuleOp>(loc, name);
+  auto module = mlir::ModuleOp::create(gen.builder_, loc, name);
   gen.builder_.setInsertionPointToStart(module.getBody());
 
   std::swap(gen.module_, module);

@@ -60,8 +60,8 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     auto funcType = op.getFunctionType();
     auto llvmFuncType = typeConverter->convertType(funcType);
 
-    auto func = rewriter.create<LLVM::LLVMFuncOp>(op.getLoc(), op.getSymName(),
-                                                  llvmFuncType);
+    auto func = LLVM::LLVMFuncOp::create(rewriter, op.getLoc(), op.getSymName(),
+                                         llvmFuncType);
 
     if (op.getBody().empty()) {
       func.setLinkage(LLVM::linkage::Linkage::External);
@@ -154,8 +154,9 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
                                          "failed to convert call result types");
     }
 
-    auto llvmCallOp = rewriter.create<LLVM::CallOp>(
-        op.getLoc(), resultTypes, adaptor.getCallee(), adaptor.getInputs());
+    auto llvmCallOp =
+        LLVM::CallOp::create(rewriter, op.getLoc(), resultTypes,
+                             adaptor.getCallee(), adaptor.getInputs());
 
     if (op.getVarCalleeType().has_value()) {
       auto varCalleeType =
@@ -218,8 +219,9 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
           op, "failed to convert element type of alloca");
     }
 
-    auto size = rewriter.create<LLVM::ConstantOp>(
-        op.getLoc(), typeConverter->convertType(rewriter.getIndexType()),
+    auto size = LLVM::ConstantOp::create(
+        rewriter, op.getLoc(),
+        typeConverter->convertType(rewriter.getIndexType()),
         rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
 
     auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(op, resultType,
@@ -543,8 +545,8 @@ class IntToBoolOpLowering : public OpConversionPattern<cxx::IntToBoolOp> {
                                          "failed to convert int to bool type");
     }
 
-    auto c0 = rewriter.create<LLVM::ConstantOp>(
-        op.getLoc(), adaptor.getValue().getType(), 0);
+    auto c0 = LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                       adaptor.getValue().getType(), 0);
 
     rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
         op, resultType, LLVM::ICmpPredicate::ne, adaptor.getValue(), c0);
@@ -630,8 +632,8 @@ class NotOpLowering : public OpConversionPattern<cxx::NotOp> {
       return rewriter.notifyMatchFailure(op, "failed to convert not operation");
     }
 
-    auto c1 = rewriter.create<LLVM::ConstantOp>(
-        op.getLoc(), adaptor.getValue().getType(), -1);
+    auto c1 = LLVM::ConstantOp::create(rewriter, op.getLoc(),
+                                       adaptor.getValue().getType(), -1);
 
     rewriter.replaceOpWithNewOp<LLVM::XOrOp>(op, resultType, adaptor.getValue(),
                                              c1);
