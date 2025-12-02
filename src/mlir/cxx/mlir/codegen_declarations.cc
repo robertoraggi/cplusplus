@@ -160,6 +160,10 @@ void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
       allocateLocals(nestedBlock);
       continue;
     }
+    if (auto params = symbol_cast<FunctionParametersSymbol>(symbol)) {
+      allocateLocals(params);
+      continue;
+    }
 
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
       if (var->isStatic()) continue;
