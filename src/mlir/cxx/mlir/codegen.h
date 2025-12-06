@@ -286,6 +286,12 @@ class Codegen {
         : continueBlock(continueBlock), breakBlock(breakBlock) {}
   };
 
+  struct Switch {
+    std::vector<std::int64_t> caseValues;
+    std::vector<mlir::Block*> caseDestinations;
+    mlir::Block* defaultDestination = nullptr;
+  };
+
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;
@@ -324,6 +330,7 @@ class Codegen {
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;
   Loop loop_;
+  Switch switch_;
   int count_ = 0;
 };
 

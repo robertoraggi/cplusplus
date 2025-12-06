@@ -3414,6 +3414,15 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
   ast->expression = expression;
   ast->colonLoc = colonLoc;
 
+  if (value.has_value()) {
+    auto interp = ASTInterpreter{unit};
+    if (control()->is_unsigned(expression->type)) {
+      ast->caseValue = *interp.toUInt(*value);
+    } else {
+      ast->caseValue = *interp.toInt(*value);
+    }
+  }
+
   return true;
 }
 
