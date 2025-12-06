@@ -1300,6 +1300,7 @@ class CaseStatementAST final : public StatementAST {
   SourceLocation caseLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation colonLoc;
+  std::int64_t caseValue = 0;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

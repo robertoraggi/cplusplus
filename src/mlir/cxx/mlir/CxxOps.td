@@ -424,10 +424,50 @@ def Cxx_GotoOp : Cxx_Op<"goto"> {
   let arguments = (ins StringProp:$label);
 }
 
-def CondBranchOp : Cxx_Op<"cond_br", [ AttrSizedOperandSegments, Terminator ]> {
+def Cxx_CondBranchOp : Cxx_Op<"cond_br", [ AttrSizedOperandSegments, Terminator ]> {
   let arguments = (ins Cxx_BoolType:$condition, Variadic<AnyType>:$trueDestOperands, Variadic<AnyType>:$falseDestOperands);
 
   let successors = (successor AnySuccessor:$trueDest, AnySuccessor:$falseDest);
+}
+
+def Cxx_SwitchOp : Cxx_Op<"switch", [ AttrSizedOperandSegments, Terminator ]> {
+  let arguments = (ins
+    Cxx_IntegerType:$value,
+    Variadic<AnyType>:$defaultOperands,
+    VariadicOfVariadic<AnyType, "case_operand_segments">:$caseOperands,
+    OptionalAttr<AnyIntElementsAttr>:$case_values,
+    DenseI32ArrayAttr:$case_operand_segments
+  );
+
+  let successors = (successor
+    AnySuccessor:$defaultDestination,
+    VariadicSuccessor<AnySuccessor>:$caseDestinations
+  );
+
+  let builders = [
+    OpBuilder<(ins "Value":$value,
+      "Block *":$defaultDestination,
+      "ValueRange":$defaultOperands,
+      CArg<"ArrayRef<std::int64_t>", "{}">:$caseValues,
+      CArg<"BlockRange", "{}">:$caseDestinations,
+      CArg<"ArrayRef<ValueRange>", "{}">:$caseOperands)>,
+    OpBuilder<(ins "Value":$value,
+      "Block *":$defaultDestination,
+      "ValueRange":$defaultOperands,
+      CArg<"DenseIntElementsAttr", "{}">:$caseValues,
+      CArg<"BlockRange", "{}">:$caseDestinations,
+      CArg<"ArrayRef<ValueRange>", "{}">:$caseOperands)>
+  ];
+
+  let extraClassDeclaration = [{
+    auto getCaseOperands(unsigned index) -> OperandRange{
+      return getCaseOperands()[index];
+    }
+
+    auto getCaseOperandsMutable(unsigned index) -> MutableOperandRange {
+      return getCaseOperandsMutable()[index];
+    }
+  }];
 }
 
 //

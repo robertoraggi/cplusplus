@@ -1269,6 +1269,24 @@ class LabelOpLowering : public OpConversionPattern<cxx::LabelOp> {
   }
 };
 
+class SwitchOpLowering : public OpConversionPattern<cxx::SwitchOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::SwitchOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto context = getContext();
+
+    rewriter.replaceOpWithNewOp<cf::SwitchOp>(
+        op, adaptor.getValue(), op.getDefaultDestination(),
+        adaptor.getDefaultOperands(), *adaptor.getCaseValues(),
+        op.getCaseDestinations(), adaptor.getCaseOperands());
+
+    return success();
+  }
+};
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -1442,8 +1460,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                   FloatToIntOpLowering>(typeConverter, context);
 
   // control flow operations
-  patterns.insert<CondBranchOpLowering>(typeConverter, context);
-  patterns.insert<LabelOpLowering>(typeConverter, context);
+  patterns.insert<CondBranchOpLowering, LabelOpLowering, SwitchOpLowering>(
+      typeConverter, context);
   patterns.insert<GotoOpLowering>(typeConverter, labelConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,

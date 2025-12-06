@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 
 // mlir
@@ -69,7 +70,8 @@ struct Codegen::ExceptionDeclarationVisitor {
 void Codegen::statement(StatementAST* ast) {
   if (!ast) return;
 
-  if (currentBlockMightHaveTerminator()) return;
+  // TODO: move to the op visitors
+  // if (currentBlockMightHaveTerminator()) return;
 
   visit(StatementVisitor{*this}, ast);
 }
@@ -104,15 +106,21 @@ void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(CaseStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto block = gen.newBlock();
 
-#if false
-  auto expressionResult = gen.expression(ast->expression);
-#endif
+  gen.branch(gen.getLocation(ast->firstSourceLocation()), block);
+  gen.builder_.setInsertionPointToEnd(block);
+
+  gen.switch_.caseValues.push_back(ast->caseValue);
+  gen.switch_.caseDestinations.push_back(block);
 }
 
 void Codegen::StatementVisitor::operator()(DefaultStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto block = gen.newBlock();
+  gen.branch(gen.getLocation(ast->firstSourceLocation()), block);
+  gen.builder_.setInsertionPointToEnd(block);
+
+  gen.switch_.defaultDestination = block;
 }
 
 void Codegen::StatementVisitor::operator()(ExpressionStatementAST* ast) {
@@ -155,13 +163,41 @@ void Codegen::StatementVisitor::operator()(ConstevalIfStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
   gen.statement(ast->initializer);
-  auto conditionResult = gen.expression(ast->condition);
+
+  Switch previousSwitch;
+  std::swap(gen.switch_, previousSwitch);
+
+  auto beginSwitchBlock = gen.newBlock();
+  auto bodySwitchBlock = gen.newBlock();
+  auto endSwitchBlock = gen.newBlock();
+
+  gen.branch(gen.getLocation(ast->firstSourceLocation()), beginSwitchBlock);
+
+  gen.builder_.setInsertionPointToEnd(bodySwitchBlock);
+
+  Loop previousLoop{gen.loop_.continueBlock, endSwitchBlock};
+  std::swap(gen.loop_, previousLoop);
+
   gen.statement(ast->statement);
-#endif
+  gen.branch(gen.getLocation(ast->lastSourceLocation()), endSwitchBlock);
+
+  gen.builder_.setInsertionPointToEnd(beginSwitchBlock);
+
+  auto conditionResult = gen.expression(ast->condition);
+
+  mlir::cxx::SwitchOp::create(
+      gen.builder_, gen.getLocation(ast->firstSourceLocation()),
+      conditionResult.value, gen.switch_.defaultDestination, {},
+      gen.switch_.caseValues, gen.switch_.caseDestinations,
+      mlir::SmallVector<mlir::ValueRange>(gen.switch_.caseValues.size()));
+
+  std::swap(gen.switch_, previousSwitch);
+  std::swap(gen.loop_, previousLoop);
+
+  gen.builder_.setInsertionPointToEnd(endSwitchBlock);
+
+  bodySwitchBlock->erase();
 }
 
 void Codegen::StatementVisitor::operator()(WhileStatementAST* ast) {
