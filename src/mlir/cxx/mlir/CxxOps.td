@@ -458,16 +458,6 @@ def Cxx_SwitchOp : Cxx_Op<"switch", [ AttrSizedOperandSegments, Terminator ]> {
       CArg<"BlockRange", "{}">:$caseDestinations,
       CArg<"ArrayRef<ValueRange>", "{}">:$caseOperands)>
   ];
-
-  let extraClassDeclaration = [{
-    auto getCaseOperands(unsigned index) -> OperandRange{
-      return getCaseOperands()[index];
-    }
-
-    auto getCaseOperandsMutable(unsigned index) -> MutableOperandRange {
-      return getCaseOperandsMutable()[index];
-    }
-  }];
 }
 
 //

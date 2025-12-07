@@ -40,24 +40,24 @@ struct detail::ClassTypeStorage : public TypeStorage {
  public:
   using KeyTy = StringRef;
 
-  explicit ClassTypeStorage(const KeyTy &key) : name_(key) {}
+  explicit ClassTypeStorage(const KeyTy& key) : name_(key) {}
 
   auto getName() -> StringRef const { return name_; }
   auto getBody() const -> ArrayRef<Type> { return body_; }
 
-  auto operator==(const KeyTy &key) const -> bool { return name_ == key; };
+  auto operator==(const KeyTy& key) const -> bool { return name_ == key; };
 
-  static auto hashKey(const KeyTy &key) -> llvm::hash_code {
+  static auto hashKey(const KeyTy& key) -> llvm::hash_code {
     return llvm::hash_value(key);
   }
 
-  static ClassTypeStorage *construct(TypeStorageAllocator &allocator,
-                                     const KeyTy &key) {
+  static ClassTypeStorage* construct(TypeStorageAllocator& allocator,
+                                     const KeyTy& key) {
     return new (allocator.allocate<ClassTypeStorage>())
         ClassTypeStorage(allocator.copyInto(key));
   }
 
-  auto mutate(TypeStorageAllocator &allocator, ArrayRef<Type> body)
+  auto mutate(TypeStorageAllocator& allocator, ArrayRef<Type> body)
       -> LogicalResult {
     if (isInitialized_) return success(body == getBody());
 
@@ -79,7 +79,7 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
  public:
   using OpAsmDialectInterface::OpAsmDialectInterface;
 
-  auto getAlias(Type type, raw_ostream &os) const -> AliasResult override {
+  auto getAlias(Type type, raw_ostream& os) const -> AliasResult override {
     if (auto intType = dyn_cast<IntegerType>(type)) {
       os << 'i' << intType.getWidth() << (intType.getIsSigned() ? 's' : 'u');
       return AliasResult::FinalAlias;
@@ -126,18 +126,18 @@ void CxxDialect::initialize() {
   addInterface<CxxGenerateAliases>();
 }
 
-void FuncOp::print(OpAsmPrinter &p) {
+void FuncOp::print(OpAsmPrinter& p) {
   const auto isVariadic = getFunctionType().getVariadic();
   function_interface_impl::printFunctionOp(
       p, *this, isVariadic, getFunctionTypeAttrName(), getArgAttrsAttrName(),
       getResAttrsAttrName());
 }
 
-auto FuncOp::parse(OpAsmParser &parser, OperationState &result) -> ParseResult {
+auto FuncOp::parse(OpAsmParser& parser, OperationState& result) -> ParseResult {
   auto funcTypeBuilder =
-      [](Builder &builder, llvm::ArrayRef<Type> argTypes,
+      [](Builder& builder, llvm::ArrayRef<Type> argTypes,
          ArrayRef<Type> results, function_interface_impl::VariadicFlag,
-         std::string &) { return builder.getFunctionType(argTypes, results); };
+         std::string&) { return builder.getFunctionType(argTypes, results); };
 
   return function_interface_impl::parseFunctionOp(
       parser, result, false, getFunctionTypeAttrName(result.name),
@@ -163,8 +163,8 @@ auto StoreOp::verify() -> LogicalResult {
   return success();
 }
 
-void SwitchOp::build(OpBuilder &builder, OperationState &result, Value value,
-                     Block *defaultDestination, ValueRange defaultOperands,
+void SwitchOp::build(OpBuilder& builder, OperationState& result, Value value,
+                     Block* defaultDestination, ValueRange defaultOperands,
                      DenseIntElementsAttr caseValues,
                      BlockRange caseDestinations,
                      ArrayRef<ValueRange> caseOperands) {
@@ -172,8 +172,8 @@ void SwitchOp::build(OpBuilder &builder, OperationState &result, Value value,
         defaultDestination, caseDestinations);
 }
 
-void SwitchOp::build(OpBuilder &builder, OperationState &result, Value value,
-                     Block *defaultDestination, ValueRange defaultOperands,
+void SwitchOp::build(OpBuilder& builder, OperationState& result, Value value,
+                     Block* defaultDestination, ValueRange defaultOperands,
                      ArrayRef<std::int64_t> caseValues,
                      BlockRange caseDestinations,
                      ArrayRef<ValueRange> caseOperands) {
@@ -195,7 +195,8 @@ void SwitchOp::build(OpBuilder &builder, OperationState &result, Value value,
     caseValuesAttr = mlir::cast<DenseIntElementsAttr>(
         DenseIntElementsAttr::get(shapeType, caseValues)
             .mapValues(elementTy, [&](APInt v) {
-              return APInt(elementTy.getIntOrFloatBitWidth(), v.getZExtValue());
+              return APInt(elementTy.getIntOrFloatBitWidth(), v.getZExtValue(),
+                           false, true);
             }));
   }
 
@@ -209,7 +210,7 @@ auto FunctionType::clone(TypeRange inputs, TypeRange results) const
              getVariadic());
 }
 
-auto ClassType::getNamed(MLIRContext *context, StringRef name) -> ClassType {
+auto ClassType::getNamed(MLIRContext* context, StringRef name) -> ClassType {
   return Base::get(context, name);
 }
 
@@ -217,7 +218,7 @@ auto ClassType::setBody(llvm::ArrayRef<Type> body) -> LogicalResult {
   Base::mutate(body);
 }
 
-void ClassType::print(AsmPrinter &p) const {
+void ClassType::print(AsmPrinter& p) const {
   FailureOr<AsmPrinter::CyclicPrintReset> cyclicPrint;
 
   p << "<";
@@ -242,7 +243,7 @@ void ClassType::print(AsmPrinter &p) const {
   p << '>';
 }
 
-auto ClassType::parse(AsmParser &parser) -> Type {
+auto ClassType::parse(AsmParser& parser) -> Type {
   // todo: implement parsing for ClassType
   return {};
 }
