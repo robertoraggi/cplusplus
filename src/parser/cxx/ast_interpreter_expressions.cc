@@ -931,6 +931,33 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = interp.expression(ast->expression);
 
+  switch (ast->op) {
+    case TokenKind::T_MINUS: {
+      if (expressionResult.has_value() &&
+          control()->is_integral_or_unscoped_enum(ast->expression->type)) {
+        const auto sz = memoryLayout()->sizeOf(ast->expression->type);
+
+        if (sz <= 4) {
+          if (control()->is_unsigned(ast->expression->type)) {
+            return toValue(-toUInt32(expressionResult.value()));
+          }
+
+          return ExpressionResult(-toInt32(expressionResult.value()));
+        }
+
+        if (control()->is_unsigned(ast->expression->type)) {
+          return toValue(-toUInt64(expressionResult.value()));
+        }
+
+        return ExpressionResult(-toInt64(expressionResult.value()));
+      }
+      break;
+    }
+
+    default:
+      break;
+  }  // switch
+
   return ExpressionResult{std::nullopt};
 }
 
