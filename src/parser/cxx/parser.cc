@@ -43,6 +43,7 @@
 #include <cstring>
 #include <format>
 #include <iostream>
+#include <limits>
 #include <ranges>
 #include <unordered_set>
 
@@ -483,8 +484,12 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
         ast->type = control_->getLongIntType();
       else if (components.isUnsigned)
         ast->type = control_->getUnsignedIntType();
-      else
-        ast->type = control_->getIntType();
+      else {
+        if (ast->literal->integerValue() > std::numeric_limits<int>::max())
+          ast->type = control_->getLongIntType();
+        else
+          ast->type = control_->getIntType();
+      }
 
       return true;
     }
