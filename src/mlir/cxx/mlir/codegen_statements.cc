@@ -186,6 +186,10 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
 
   auto conditionResult = gen.expression(ast->condition);
 
+  if (!gen.switch_.defaultDestination) {
+    gen.switch_.defaultDestination = endSwitchBlock;
+  }
+
   mlir::cxx::SwitchOp::create(
       gen.builder_, gen.getLocation(ast->firstSourceLocation()),
       conditionResult.value, gen.switch_.defaultDestination, {},

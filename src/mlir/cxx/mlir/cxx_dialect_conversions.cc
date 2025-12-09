@@ -504,14 +504,8 @@ class IntegralCastOpLowering : public OpConversionPattern<cxx::IntegralCastOp> {
     }
 
     if (targetType.getWidth() < sourceType.getWidth()) {
-      // truncation
-      if (isSigned) {
-        rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, resultType,
-                                                   adaptor.getValue());
-      } else {
-        rewriter.replaceOpWithNewOp<LLVM::ZExtOp>(op, resultType,
-                                                  adaptor.getValue());
-      }
+      rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, resultType,
+                                                 adaptor.getValue());
       return success();
     }
 
