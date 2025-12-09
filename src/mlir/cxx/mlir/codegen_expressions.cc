@@ -741,6 +741,24 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
                                expressionResult.value);
     return {loadOp};
   }
+  if (control()->is_pointer(ast->baseExpression->type)) {
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto ptrTy =
+        mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
+    auto elementTy = ptrTy.getElementType();
+    auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
+                                            expressionResult.value);
+    auto resultTy = gen.convertType(ast->baseExpression->type);
+    auto intTy =
+        mlir::cxx::IntegerType::get(gen.builder_.getContext(), 32, true);
+    auto oneOp = mlir::cxx::IntConstantOp::create(
+        gen.builder_, loc, intTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
+    auto addOp =
+        mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultTy, loadOp, oneOp);
+    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
+                               expressionResult.value);
+    return {loadOp};
+  }
 
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
@@ -1310,6 +1328,11 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     }
 
     case ImplicitCastKind::kQualificationConversion: {
+      auto expressionResult = gen.expression(ast->expression);
+      return expressionResult;
+    }
+
+    case ImplicitCastKind::kPointerConversion: {
       auto expressionResult = gen.expression(ast->expression);
       return expressionResult;
     }
