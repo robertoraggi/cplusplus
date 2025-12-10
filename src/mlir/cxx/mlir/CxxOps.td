@@ -418,6 +418,25 @@ def Cxx_NotEqualFOp : Cxx_Op<"nef"> {
   let results = (outs Cxx_BoolType:$result);
 }
 
+// bitwise ops
+def Cxx_AndOp : Cxx_Op<"and"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_OrOp : Cxx_Op<"or"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
+def Cxx_XorOp : Cxx_Op<"xor"> {
+  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
 //
 // control flow ops
 //

@@ -1037,6 +1037,79 @@ class GreaterEqualOpLowering : public OpConversionPattern<cxx::GreaterEqualOp> {
 };
 
 //
+// bitwise operations
+//
+
+class AndOpLowering : public OpConversionPattern<cxx::AndOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::AndOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert and operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::AndOp>(op, resultType, adaptor.getLhs(),
+                                             adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class OrOpLowering : public OpConversionPattern<cxx::OrOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::OrOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert or operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::OrOp>(op, resultType, adaptor.getLhs(),
+                                            adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class XorOpLowering : public OpConversionPattern<cxx::XorOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::XorOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert xor operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::XOrOp>(op, resultType, adaptor.getLhs(),
+                                             adaptor.getRhs());
+
+    return success();
+  }
+};
+
+//
 // floating point operations
 //
 
@@ -1469,6 +1542,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   patterns.insert<EqualOpLowering, NotEquaOpLowering, LessThanOpLowering,
                   LessEqualOpLowering, GreaterThanOpLowering,
                   GreaterEqualOpLowering>(typeConverter, context);
+
+  // bitwise operations
+  patterns.insert<AndOpLowering, OrOpLowering, XorOpLowering>(typeConverter,
+                                                              context);
 
   // floating point operations
   patterns
