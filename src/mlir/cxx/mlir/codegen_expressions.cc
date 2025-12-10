@@ -1135,24 +1135,32 @@ auto Codegen::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionResult {
+  if (auto size = ast->value) {
+    auto resultlType = gen.convertType(ast->type);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto op = mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultlType,
+                                               size.value());
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto expressionResult = gen.expression(ast->expression);
-#endif
 
   return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionResult {
+  if (auto size = ast->value) {
+    auto resultlType = gen.convertType(ast->type);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto op = mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultlType,
+                                               size.value());
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto typeIdResult = gen.typeId(ast->typeId);
-#endif
 
   return {op};
 }

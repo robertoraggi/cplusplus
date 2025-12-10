@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -1040,10 +1041,18 @@ void TypeChecker::Visitor::operator()(AwaitExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(SizeofExpressionAST* ast) {
   ast->type = control()->getSizeType();
+
+  if (ast->expression) {
+    ast->value = control()->memoryLayout()->sizeOf(ast->expression->type);
+  }
 }
 
 void TypeChecker::Visitor::operator()(SizeofTypeExpressionAST* ast) {
   ast->type = control()->getSizeType();
+
+  if (ast->typeId) {
+    ast->value = control()->memoryLayout()->sizeOf(ast->typeId->type);
+  }
 }
 
 void TypeChecker::Visitor::operator()(SizeofPackExpressionAST* ast) {}
