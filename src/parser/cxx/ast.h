@@ -2300,6 +2300,7 @@ class SizeofExpressionAST final : public ExpressionAST {
 
   SourceLocation sizeofLoc;
   ExpressionAST* expression = nullptr;
+  std::optional<std::int64_t> value;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2317,6 +2318,7 @@ class SizeofTypeExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
   SourceLocation rparenLoc;
+  std::optional<std::int64_t> value;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
