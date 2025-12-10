@@ -1337,6 +1337,20 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
       return expressionResult;
     }
 
+    case ImplicitCastKind::kBooleanConversion: {
+      if (control()->is_pointer(ast->expression->type)) {
+        // generate a pointer to bool cast
+        auto expressionResult = gen.expression(ast->expression);
+        auto resultType = gen.convertType(ast->type);
+
+        auto op = mlir::cxx::PtrToBoolOp::create(gen.builder_, loc, resultType,
+                                                 expressionResult.value);
+
+        return {op};
+      }
+      break;
+    }
+
     default:
       break;
 

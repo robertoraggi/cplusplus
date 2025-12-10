@@ -228,6 +228,12 @@ def Cxx_IntToBoolOp : Cxx_Op<"int_to_bool"> {
   let results = (outs Cxx_BoolType:$result);
 }
 
+def Cxx_PtrToBoolOp : Cxx_Op<"ptr_to_bool"> {
+  let arguments = (ins Cxx_PointerType:$value);
+
+  let results = (outs Cxx_BoolType:$result);
+}
+
 def Cxx_BoolToIntOp : Cxx_Op<"bool_to_int"> {
   let arguments = (ins Cxx_BoolType:$value);
 
