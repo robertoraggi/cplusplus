@@ -477,6 +477,29 @@ class FloatConstantOpLowering
   }
 };
 
+class NullPtrConstantOpLowering
+    : public OpConversionPattern<cxx::NullPtrConstantOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::NullPtrConstantOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert nullptr constant type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::ZeroOp>(op, resultType);
+
+    return success();
+  }
+};
+
 class IntegralCastOpLowering : public OpConversionPattern<cxx::IntegralCastOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -1524,7 +1547,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   // constant operations
   patterns.insert<BoolConstantOpLowering, IntConstantOpLowering,
-                  FloatConstantOpLowering>(typeConverter, context);
+                  FloatConstantOpLowering, NullPtrConstantOpLowering>(
+      typeConverter, context);
 
   // unary operations
   patterns.insert<NotOpLowering>(typeConverter, context);
