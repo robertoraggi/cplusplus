@@ -222,6 +222,14 @@ def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
   let results = (outs Cxx_FloatType:$result);
 }
 
+def Cxx_NullPtrConstantOp : Cxx_Op<"constant.null", [
+  Pure
+]> {
+  let arguments = (ins);
+
+  let results = (outs Cxx_PointerType:$result);
+}
+
 def Cxx_IntToBoolOp : Cxx_Op<"int_to_bool"> {
   let arguments = (ins AnyType:$value);
 

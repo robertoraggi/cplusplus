@@ -240,8 +240,11 @@ auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(NullptrLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->literalLoc);
+  auto context = gen.builder_.getContext();
+  auto resultType =
+      mlir::cxx::PointerType::get(context, mlir::cxx::VoidType::get(context));
+  auto op = mlir::cxx::NullPtrConstantOp::create(gen.builder_, loc, resultType);
   return {op};
 }
 
