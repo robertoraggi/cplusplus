@@ -1849,18 +1849,57 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(LeftExpressionAST* ast)
     -> ExpressionResult {
-  return {};
+  auto op = gen.targetValue_;
+  return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(
     CompoundAssignmentExpressionAST* ast) -> ExpressionResult {
+  auto targetExpressionResult = gen.expression(ast->targetExpression);
+
+  auto targetValue = targetExpressionResult.value;
+
+  std::swap(gen.targetValue_, targetValue);
+  auto leftExpressionResult = gen.expression(ast->leftExpression);
+  std::swap(gen.targetValue_, targetValue);
+
+  auto rightExpressionResult = gen.expression(ast->rightExpression);
+
+  switch (ast->op) {
+    case TokenKind::T_PLUS_EQUAL: {
+      auto loc = gen.getLocation(ast->opLoc);
+      auto resultType = gen.convertType(ast->type);
+
+      if (control()->is_integral(ast->type)) {
+        auto addOp = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType,
+                                               leftExpressionResult.value,
+                                               rightExpressionResult.value);
+
+        mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
+                                   targetExpressionResult.value);
+
+        if (format == ExpressionFormat::kSideEffect) {
+          return {};
+        }
+
+        if (gen.unit_->language() == LanguageKind::kC) {
+          auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
+                                              targetExpressionResult.value);
+          return {op};
+        }
+
+        return targetExpressionResult;
+      }
+
+      break;
+    }
+
+    default:
+      break;
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto leftExpressionResult = gen.expression(ast->leftExpression);
-  auto rightExpressionResult = gen.expression(ast->rightExpression);
-#endif
 
   return {op};
 }

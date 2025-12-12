@@ -1372,6 +1372,9 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
   if (!ast->targetExpression) return;
   if (!ast->rightExpression) return;
 
+  ast->leftExpression->type = ast->targetExpression->type;
+  ast->leftExpression->valueCategory = ast->targetExpression->valueCategory;
+
   if (!is_lvalue(ast->targetExpression)) {
     error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
                                   to_string(ast->targetExpression->type)));
@@ -1383,14 +1386,15 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
       control()->is_pointer(ast->targetExpression->type) &&
       control()->is_integral_or_unscoped_enum(ast->rightExpression->type)) {
     // pointer addition/subtraction
+
+    (void)ensure_prvalue(ast->leftExpression);
+    adjust_cv(ast->leftExpression);
+
     (void)ensure_prvalue(ast->rightExpression);
     adjust_cv(ast->rightExpression);
 
     (void)integral_promotion(ast->rightExpression);
     ast->type = ast->targetExpression->type;
-
-    ast->leftCastKind = ImplicitCastKind::kIdentity;
-    ast->leftCastType = ast->targetExpression->type;
 
     if (is_parsing_cxx()) {
       ast->valueCategory = ValueCategory::kLValue;
@@ -1401,23 +1405,17 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
     return;
   }
 
-  auto lhs = ast->targetExpression;
-
-  auto targetType = usual_arithmetic_conversion(lhs, ast->rightExpression);
+  auto targetType =
+      usual_arithmetic_conversion(ast->leftExpression, ast->rightExpression);
 
   if (!targetType) {
     error(
         ast->opLoc,
         std::format("invalid compound assignment operator '{}' for types '{}' "
                     "and '{}'",
-                    Token::spell(ast->op), to_string(lhs->type),
+                    Token::spell(ast->op), to_string(ast->leftExpression->type),
                     to_string(ast->rightExpression->type)));
     return;
-  }
-
-  if (auto leftCastExpr = ast_cast<ImplicitCastExpressionAST>(lhs)) {
-    ast->leftCastKind = leftCastExpr->castKind;
-    ast->leftCastType = leftCastExpr->type;
   }
 
   // todo: clean up and generalize

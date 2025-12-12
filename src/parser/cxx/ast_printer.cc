@@ -1819,10 +1819,6 @@ void ASTPrinter::visit(CompoundAssignmentExpressionAST* ast) {
     out_ << std::format("op: {}\n", Token::spell(ast->op));
     --indent_;
   }
-  ++indent_;
-  out_ << std::format("{:{}}", "", indent_ * 2);
-  out_ << std::format("left-cast-kind: {}\n", to_string(ast->leftCastKind));
-  --indent_;
   accept(ast->targetExpression, "target-expression");
   accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
