@@ -36,7 +36,7 @@
 
 namespace cxx {
 
-struct Codegen::ExpressionVisitor {
+struct [[nodiscard]] Codegen::ExpressionVisitor {
   Codegen& gen;
   ExpressionFormat format = ExpressionFormat::kValue;
 
@@ -110,6 +110,13 @@ struct Codegen::ExpressionVisitor {
   auto operator()(EqualInitializerAST* ast) -> ExpressionResult;
   auto operator()(BracedInitListAST* ast) -> ExpressionResult;
   auto operator()(ParenInitializerAST* ast) -> ExpressionResult;
+
+  auto binaryExpression(SourceLocation opLoc, TokenKind op, const Type* type,
+                        ExpressionAST* leftExpression,
+                        ExpressionAST* rightExpression,
+                        ExpressionResult leftExpressionResult,
+                        ExpressionResult rightExpressionResult)
+      -> ExpressionResult;
 };
 
 struct Codegen::NewInitializerVisitor {
@@ -1484,29 +1491,40 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     return {loadOp};
   }
 
-  auto loc = gen.getLocation(ast->opLoc);
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
-  auto resultType = gen.convertType(ast->type);
 
-  switch (ast->op) {
+  return binaryExpression(ast->opLoc, ast->op, ast->type, ast->leftExpression,
+                          ast->rightExpression, leftExpressionResult,
+                          rightExpressionResult);
+}
+
+auto Codegen::ExpressionVisitor::binaryExpression(
+    SourceLocation opLoc, TokenKind op, const Type* type,
+    ExpressionAST* leftExpression, ExpressionAST* rightExpression,
+    ExpressionResult leftExpressionResult,
+    ExpressionResult rightExpressionResult) -> ExpressionResult {
+  auto loc = gen.getLocation(opLoc);
+  auto resultType = gen.convertType(type);
+
+  switch (op) {
     case TokenKind::T_PLUS: {
-      if (control()->is_integral(ast->type)) {
+      if (control()->is_integral(type)) {
         auto op = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->type)) {
+      if (control()->is_floating_point(type)) {
         auto op = mlir::cxx::AddFOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_pointer(ast->leftExpression->type) &&
-          control()->is_integer(ast->rightExpression->type)) {
+      if (control()->is_pointer(leftExpression->type) &&
+          control()->is_integer(rightExpression->type)) {
         auto op = mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultType,
                                               leftExpressionResult.value,
                                               rightExpressionResult.value);
@@ -1517,14 +1535,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_MINUS: {
-      if (control()->is_integral(ast->type)) {
+      if (control()->is_integral(type)) {
         auto op = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->type)) {
+      if (control()->is_floating_point(type)) {
         auto op = mlir::cxx::SubFOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
@@ -1535,14 +1553,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_STAR: {
-      if (control()->is_integral(ast->type)) {
+      if (control()->is_integral(type)) {
         auto op = mlir::cxx::MulIOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->type)) {
+      if (control()->is_floating_point(type)) {
         auto op = mlir::cxx::MulFOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
@@ -1553,14 +1571,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_SLASH: {
-      if (control()->is_integral(ast->type)) {
+      if (control()->is_integral(type)) {
         auto op = mlir::cxx::DivIOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->type)) {
+      if (control()->is_floating_point(type)) {
         auto op = mlir::cxx::DivFOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
@@ -1571,7 +1589,7 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_PERCENT: {
-      if (control()->is_integral(ast->type)) {
+      if (control()->is_integral(type)) {
         auto op = mlir::cxx::ModIOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
                                             rightExpressionResult.value);
@@ -1582,7 +1600,7 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_LESS_LESS: {
-      if (control()->is_integral_or_unscoped_enum(ast->type)) {
+      if (control()->is_integral_or_unscoped_enum(type)) {
         auto op = mlir::cxx::ShiftLeftOp::create(gen.builder_, loc, resultType,
                                                  leftExpressionResult.value,
                                                  rightExpressionResult.value);
@@ -1593,7 +1611,7 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_GREATER_GREATER: {
-      if (control()->is_integral_or_unscoped_enum(ast->type)) {
+      if (control()->is_integral_or_unscoped_enum(type)) {
         auto op = mlir::cxx::ShiftRightOp::create(gen.builder_, loc, resultType,
                                                   leftExpressionResult.value,
                                                   rightExpressionResult.value);
@@ -1604,14 +1622,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_EQUAL_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(ast->type)) {
+      if (control()->is_integral_or_unscoped_enum(type)) {
         auto op = mlir::cxx::EqualOp::create(gen.builder_, loc, resultType,
                                              leftExpressionResult.value,
                                              rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->type)) {
+      if (control()->is_floating_point(type)) {
         auto op = mlir::cxx::EqualFOp::create(gen.builder_, loc, resultType,
                                               leftExpressionResult.value,
                                               rightExpressionResult.value);
@@ -1622,14 +1640,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_EXCLAIM_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(ast->leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
         auto op = mlir::cxx::NotEqualOp::create(gen.builder_, loc, resultType,
                                                 leftExpressionResult.value,
                                                 rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->leftExpression->type)) {
+      if (control()->is_floating_point(leftExpression->type)) {
         auto op = mlir::cxx::NotEqualFOp::create(gen.builder_, loc, resultType,
                                                  leftExpressionResult.value,
                                                  rightExpressionResult.value);
@@ -1640,14 +1658,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_LESS: {
-      if (control()->is_integral_or_unscoped_enum(ast->leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
         auto op = mlir::cxx::LessThanOp::create(gen.builder_, loc, resultType,
                                                 leftExpressionResult.value,
                                                 rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->leftExpression->type)) {
+      if (control()->is_floating_point(leftExpression->type)) {
         auto op = mlir::cxx::LessThanFOp::create(gen.builder_, loc, resultType,
                                                  leftExpressionResult.value,
                                                  rightExpressionResult.value);
@@ -1658,14 +1676,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_LESS_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(ast->leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
         auto op = mlir::cxx::LessEqualOp::create(gen.builder_, loc, resultType,
                                                  leftExpressionResult.value,
                                                  rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->leftExpression->type)) {
+      if (control()->is_floating_point(leftExpression->type)) {
         auto op = mlir::cxx::LessEqualFOp::create(gen.builder_, loc, resultType,
                                                   leftExpressionResult.value,
                                                   rightExpressionResult.value);
@@ -1676,14 +1694,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_GREATER: {
-      if (control()->is_integral_or_unscoped_enum(ast->leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
         auto op = mlir::cxx::GreaterThanOp::create(
             gen.builder_, loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->leftExpression->type)) {
+      if (control()->is_floating_point(leftExpression->type)) {
         auto op = mlir::cxx::GreaterThanFOp::create(
             gen.builder_, loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
@@ -1694,14 +1712,14 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     }
 
     case TokenKind::T_GREATER_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(ast->leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
         auto op = mlir::cxx::GreaterEqualOp::create(
             gen.builder_, loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
         return {op};
       }
 
-      if (control()->is_floating_point(ast->leftExpression->type)) {
+      if (control()->is_floating_point(leftExpression->type)) {
         auto op = mlir::cxx::GreaterEqualFOp::create(
             gen.builder_, loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
@@ -1736,10 +1754,9 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
       break;
   }  // switch
 
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto resultOp = gen.emitTodoExpr(opLoc, to_string(BinaryExpressionAST::Kind));
 
-  return {op};
+  return {resultOp};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
@@ -1865,43 +1882,81 @@ auto Codegen::ExpressionVisitor::operator()(
 
   auto rightExpressionResult = gen.expression(ast->rightExpression);
 
+  auto resultType = gen.convertType(ast->type);
+
+  TokenKind binaryOp = TokenKind::T_EOF_SYMBOL;
+
   switch (ast->op) {
-    case TokenKind::T_PLUS_EQUAL: {
-      auto loc = gen.getLocation(ast->opLoc);
-      auto resultType = gen.convertType(ast->type);
-
-      if (control()->is_integral(ast->type)) {
-        auto addOp = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType,
-                                               leftExpressionResult.value,
-                                               rightExpressionResult.value);
-
-        mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                                   targetExpressionResult.value);
-
-        if (format == ExpressionFormat::kSideEffect) {
-          return {};
-        }
-
-        if (gen.unit_->language() == LanguageKind::kC) {
-          auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                              targetExpressionResult.value);
-          return {op};
-        }
-
-        return targetExpressionResult;
-      }
-
+    case TokenKind::T_PLUS_EQUAL:
+      binaryOp = TokenKind::T_PLUS;
       break;
-    }
+
+    case TokenKind::T_MINUS_EQUAL:
+      binaryOp = TokenKind::T_MINUS;
+      break;
+
+    case TokenKind::T_STAR_EQUAL:
+      binaryOp = TokenKind::T_STAR;
+      break;
+
+    case TokenKind::T_SLASH_EQUAL:
+      binaryOp = TokenKind::T_SLASH;
+      break;
+
+    case TokenKind::T_PERCENT_EQUAL:
+      binaryOp = TokenKind::T_PERCENT;
+      break;
+
+    case TokenKind::T_AMP_EQUAL:
+      binaryOp = TokenKind::T_AMP;
+      break;
+
+    case TokenKind::T_BAR_EQUAL:
+      binaryOp = TokenKind::T_BAR;
+      break;
+
+    case TokenKind::T_CARET_EQUAL:
+      binaryOp = TokenKind::T_CARET;
+      break;
+
+    case TokenKind::T_LESS_LESS_EQUAL:
+      binaryOp = TokenKind::T_LESS_LESS;
+      break;
+
+    case TokenKind::T_GREATER_GREATER_EQUAL:
+      binaryOp = TokenKind::T_GREATER_GREATER;
+      break;
 
     default:
       break;
   }
 
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  if (binaryOp == TokenKind::T_EOF_SYMBOL) {
+    auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "unsupported compound assignment operator");
+    return {op};
+  }
 
-  return {op};
+  auto loc = gen.getLocation(ast->opLoc);
+
+  auto compoundAssignmentOp = binaryExpression(
+      ast->opLoc, binaryOp, ast->type, ast->leftExpression,
+      ast->rightExpression, leftExpressionResult, rightExpressionResult);
+
+  mlir::cxx::StoreOp::create(gen.builder_, loc, compoundAssignmentOp.value,
+                             targetExpressionResult.value);
+
+  if (format == ExpressionFormat::kSideEffect) {
+    return {};
+  }
+
+  if (gen.unit_->language() == LanguageKind::kC) {
+    auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
+                                        targetExpressionResult.value);
+    return {op};
+  }
+
+  return targetExpressionResult;
 }
 
 auto Codegen::ExpressionVisitor::operator()(PackExpansionExpressionAST* ast)
