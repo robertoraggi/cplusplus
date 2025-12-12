@@ -207,6 +207,7 @@ struct TypeChecker::Visitor {
   void operator()(YieldExpressionAST* ast);
   void operator()(ThrowExpressionAST* ast);
   void operator()(AssignmentExpressionAST* ast);
+  void operator()(LeftExpressionAST* ast);
   void operator()(CompoundAssignmentExpressionAST* ast);
   void operator()(PackExpansionExpressionAST* ast);
   void operator()(DesignatedInitializerClauseAST* ast);
@@ -1364,6 +1365,8 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
 
   (void)implicit_conversion(ast->rightExpression, ast->type);
 }
+
+void TypeChecker::Visitor::operator()(LeftExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
   if (!ast->targetExpression) return;

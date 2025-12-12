@@ -101,6 +101,7 @@ struct Codegen::ExpressionVisitor {
   auto operator()(YieldExpressionAST* ast) -> ExpressionResult;
   auto operator()(ThrowExpressionAST* ast) -> ExpressionResult;
   auto operator()(AssignmentExpressionAST* ast) -> ExpressionResult;
+  auto operator()(LeftExpressionAST* ast) -> ExpressionResult;
   auto operator()(CompoundAssignmentExpressionAST* ast) -> ExpressionResult;
   auto operator()(PackExpansionExpressionAST* ast) -> ExpressionResult;
   auto operator()(DesignatedInitializerClauseAST* ast) -> ExpressionResult;
@@ -1844,6 +1845,11 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 #endif
 
   return {op};
+}
+
+auto Codegen::ExpressionVisitor::operator()(LeftExpressionAST* ast)
+    -> ExpressionResult {
+  return {};
 }
 
 auto Codegen::ExpressionVisitor::operator()(

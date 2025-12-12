@@ -158,6 +158,7 @@ export enum ASTKind {
   YieldExpression,
   ThrowExpression,
   AssignmentExpression,
+  LeftExpression,
   CompoundAssignmentExpression,
   PackExpansionExpression,
   DesignatedInitializerClause,

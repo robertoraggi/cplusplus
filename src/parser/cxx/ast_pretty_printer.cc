@@ -283,6 +283,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(AssignmentExpressionAST* ast);
 
+  void operator()(LeftExpressionAST* ast);
+
   void operator()(CompoundAssignmentExpressionAST* ast);
 
   void operator()(PackExpansionExpressionAST* ast);
@@ -3075,6 +3077,8 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   accept(ast->rightExpression);
 }
 
+void ASTPrettyPrinter::ExpressionVisitor::operator()(LeftExpressionAST* ast) {}
+
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     CompoundAssignmentExpressionAST* ast) {
   accept(ast->targetExpression);
@@ -3085,6 +3089,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     space();
     keepSpace();
   }
+  accept(ast->leftExpression);
   accept(ast->rightExpression);
 }
 

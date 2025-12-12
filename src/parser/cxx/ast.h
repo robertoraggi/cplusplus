@@ -2548,6 +2548,18 @@ class AssignmentExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
+class LeftExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::LeftExpression;
+
+  LeftExpressionAST() : ExpressionAST(Kind) {}
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
 class CompoundAssignmentExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CompoundAssignmentExpression;
@@ -2556,6 +2568,7 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
 
   ExpressionAST* targetExpression = nullptr;
   SourceLocation opLoc;
+  ExpressionAST* leftExpression = nullptr;
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   ImplicitCastKind leftCastKind = ImplicitCastKind::kIdentity;
@@ -4748,6 +4761,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case AssignmentExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<AssignmentExpressionAST*>(ast));
+    case LeftExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<LeftExpressionAST*>(ast));
     case CompoundAssignmentExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<CompoundAssignmentExpressionAST*>(ast));
@@ -4835,6 +4851,7 @@ template <>
     case YieldExpressionAST::Kind:
     case ThrowExpressionAST::Kind:
     case AssignmentExpressionAST::Kind:
+    case LeftExpressionAST::Kind:
     case CompoundAssignmentExpressionAST::Kind:
     case PackExpansionExpressionAST::Kind:
     case DesignatedInitializerClauseAST::Kind:
