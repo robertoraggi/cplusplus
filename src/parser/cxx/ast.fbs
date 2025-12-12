@@ -1251,7 +1251,7 @@ table AssignmentExpression /* ExpressionAST */ {
 }
 
 table CompoundAssignmentExpression /* ExpressionAST */ {
-  left_expression: Expression;
+  target_expression: Expression;
   right_expression: Expression;
   op: uint32;
   op_loc: uint32;

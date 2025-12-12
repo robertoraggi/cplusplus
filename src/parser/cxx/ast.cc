@@ -2074,7 +2074,7 @@ auto AssignmentExpressionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto CompoundAssignmentExpressionAST::firstSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(targetExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rightExpression)) return loc;
   return {};
@@ -2083,7 +2083,7 @@ auto CompoundAssignmentExpressionAST::firstSourceLocation() -> SourceLocation {
 auto CompoundAssignmentExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rightExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(leftExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(targetExpression)) return loc;
   return {};
 }
 

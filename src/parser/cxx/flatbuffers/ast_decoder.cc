@@ -3063,8 +3063,8 @@ auto ASTDecoder::decodeCompoundAssignmentExpression(
   if (!node) return nullptr;
 
   auto ast = new (pool_) CompoundAssignmentExpressionAST();
-  ast->leftExpression =
-      decodeExpression(node->left_expression(), node->left_expression_type());
+  ast->targetExpression = decodeExpression(node->target_expression(),
+                                           node->target_expression_type());
   ast->opLoc = SourceLocation(node->op_loc());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());

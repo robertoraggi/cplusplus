@@ -1223,7 +1223,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     CompoundAssignmentExpressionAST* ast) -> ExpressionResult {
-  auto leftExpressionResult = interp.expression(ast->leftExpression);
+  auto leftExpressionResult = interp.expression(ast->targetExpression);
   auto rightExpressionResult = interp.expression(ast->rightExpression);
 
   return ExpressionResult{std::nullopt};

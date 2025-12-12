@@ -3406,16 +3406,16 @@ void ASTEncoder::visit(AssignmentExpressionAST* ast) {
 }
 
 void ASTEncoder::visit(CompoundAssignmentExpressionAST* ast) {
-  const auto [leftExpression, leftExpressionType] =
-      acceptExpression(ast->leftExpression);
+  const auto [targetExpression, targetExpressionType] =
+      acceptExpression(ast->targetExpression);
 
   const auto [rightExpression, rightExpressionType] =
       acceptExpression(ast->rightExpression);
 
   io::CompoundAssignmentExpression::Builder builder{fbb_};
-  builder.add_left_expression(leftExpression);
-  builder.add_left_expression_type(
-      static_cast<io::Expression>(leftExpressionType));
+  builder.add_target_expression(targetExpression);
+  builder.add_target_expression_type(
+      static_cast<io::Expression>(targetExpressionType));
   builder.add_op_loc(ast->opLoc.index());
   builder.add_right_expression(rightExpression);
   builder.add_right_expression_type(

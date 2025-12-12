@@ -659,7 +659,7 @@ void ASTVisitor::visit(AssignmentExpressionAST* ast) {
 }
 
 void ASTVisitor::visit(CompoundAssignmentExpressionAST* ast) {
-  accept(ast->leftExpression);
+  accept(ast->targetExpression);
   accept(ast->rightExpression);
 }
 
