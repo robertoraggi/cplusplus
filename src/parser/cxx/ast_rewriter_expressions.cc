@@ -1276,7 +1276,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
-  copy->leftExpression = rewrite.expression(ast->leftExpression);
+  copy->targetExpression = rewrite.expression(ast->targetExpression);
   copy->opLoc = ast->opLoc;
   copy->rightExpression = rewrite.expression(ast->rightExpression);
   copy->op = ast->op;

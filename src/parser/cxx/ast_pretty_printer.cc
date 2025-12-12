@@ -3077,7 +3077,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
     CompoundAssignmentExpressionAST* ast) {
-  accept(ast->leftExpression);
+  accept(ast->targetExpression);
   if (ast->opLoc) {
     space();
     keepSpace();

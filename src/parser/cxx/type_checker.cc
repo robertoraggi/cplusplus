@@ -1366,28 +1366,28 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
-  if (!ast->leftExpression) return;
+  if (!ast->targetExpression) return;
   if (!ast->rightExpression) return;
 
-  if (!is_lvalue(ast->leftExpression)) {
+  if (!is_lvalue(ast->targetExpression)) {
     error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
-                                  to_string(ast->leftExpression->type)));
+                                  to_string(ast->targetExpression->type)));
     return;
   }
 
   if ((ast->op == TokenKind::T_PLUS_EQUAL ||
        ast->op == TokenKind::T_MINUS_EQUAL) &&
-      control()->is_pointer(ast->leftExpression->type) &&
+      control()->is_pointer(ast->targetExpression->type) &&
       control()->is_integral_or_unscoped_enum(ast->rightExpression->type)) {
     // pointer addition/subtraction
     (void)ensure_prvalue(ast->rightExpression);
     adjust_cv(ast->rightExpression);
 
     (void)integral_promotion(ast->rightExpression);
-    ast->type = ast->leftExpression->type;
+    ast->type = ast->targetExpression->type;
 
     ast->leftCastKind = ImplicitCastKind::kIdentity;
-    ast->leftCastType = ast->leftExpression->type;
+    ast->leftCastType = ast->targetExpression->type;
 
     if (is_parsing_cxx()) {
       ast->valueCategory = ValueCategory::kLValue;
@@ -1398,7 +1398,7 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
     return;
   }
 
-  auto lhs = ast->leftExpression;
+  auto lhs = ast->targetExpression;
 
   auto targetType = usual_arithmetic_conversion(lhs, ast->rightExpression);
 
@@ -1435,10 +1435,10 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
       ast->type = targetType;
       break;
     case TokenKind::T_LESS_LESS_EQUAL:
-      ast->type = ast->leftExpression->type;
+      ast->type = ast->targetExpression->type;
       break;
     case TokenKind::T_GREATER_GREATER_EQUAL:
-      ast->type = ast->leftExpression->type;
+      ast->type = ast->targetExpression->type;
       break;
     case TokenKind::T_AMP_EQUAL:
       ast->type = targetType;

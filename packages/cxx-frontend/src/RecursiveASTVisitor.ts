@@ -1725,7 +1725,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.CompoundAssignmentExpressionAST,
     context: Context,
   ): void {
-    this.accept(node.getLeftExpression(), context);
+    this.accept(node.getTargetExpression(), context);
     this.accept(node.getRightExpression(), context);
   }
 

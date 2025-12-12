@@ -8024,9 +8024,9 @@ export class CompoundAssignmentExpressionAST extends ExpressionAST {
   }
 
   /**
-   * Returns the leftExpression of this node
+   * Returns the targetExpression of this node
    */
-  getLeftExpression(): ExpressionAST | undefined {
+  getTargetExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
       cxx.getASTSlot(this.getHandle(), 0),
       this.parser,

@@ -2554,7 +2554,7 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
 
   CompoundAssignmentExpressionAST() : ExpressionAST(Kind) {}
 
-  ExpressionAST* leftExpression = nullptr;
+  ExpressionAST* targetExpression = nullptr;
   SourceLocation opLoc;
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
