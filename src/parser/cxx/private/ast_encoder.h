@@ -261,6 +261,7 @@ class ASTEncoder : ASTVisitor {
   void visit(YieldExpressionAST* ast) override;
   void visit(ThrowExpressionAST* ast) override;
   void visit(AssignmentExpressionAST* ast) override;
+  void visit(LeftExpressionAST* ast) override;
   void visit(CompoundAssignmentExpressionAST* ast) override;
   void visit(PackExpansionExpressionAST* ast) override;
   void visit(DesignatedInitializerClauseAST* ast) override;

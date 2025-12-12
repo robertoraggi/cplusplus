@@ -163,6 +163,7 @@ enum class ASTKind {
   YieldExpression,
   ThrowExpression,
   AssignmentExpression,
+  LeftExpression,
   CompoundAssignmentExpression,
   PackExpansionExpression,
   DesignatedInitializerClause,

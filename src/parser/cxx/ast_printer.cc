@@ -1797,6 +1797,15 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   accept(ast->rightExpression, "right-expression");
 }
 
+void ASTPrinter::visit(LeftExpressionAST* ast) {
+  out_ << "left-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+}
+
 void ASTPrinter::visit(CompoundAssignmentExpressionAST* ast) {
   out_ << "compound-assignment-expression";
   if (ast->type) {
@@ -1815,6 +1824,7 @@ void ASTPrinter::visit(CompoundAssignmentExpressionAST* ast) {
   out_ << std::format("left-cast-kind: {}\n", to_string(ast->leftCastKind));
   --indent_;
   accept(ast->targetExpression, "target-expression");
+  accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
 }
 

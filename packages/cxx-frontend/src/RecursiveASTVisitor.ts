@@ -1716,6 +1716,14 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a LeftExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitLeftExpression(node: ast.LeftExpressionAST, context: Context): void {}
+
+  /**
    * Visit a CompoundAssignmentExpression node.
    *
    * @param node The node to visit.
@@ -1726,6 +1734,7 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     context: Context,
   ): void {
     this.accept(node.getTargetExpression(), context);
+    this.accept(node.getLeftExpression(), context);
     this.accept(node.getRightExpression(), context);
   }
 
