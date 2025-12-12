@@ -2571,8 +2571,6 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
   ExpressionAST* leftExpression = nullptr;
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
-  ImplicitCastKind leftCastKind = ImplicitCastKind::kIdentity;
-  const Type* leftCastType = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

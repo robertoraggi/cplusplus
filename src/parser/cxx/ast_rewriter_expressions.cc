@@ -1291,8 +1291,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->leftExpression = rewrite.expression(ast->leftExpression);
   copy->rightExpression = rewrite.expression(ast->rightExpression);
   copy->op = ast->op;
-  copy->leftCastKind = ast->leftCastKind;
-  copy->leftCastType = ast->leftCastType;
 
   return copy;
 }
