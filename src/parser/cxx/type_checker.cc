@@ -1408,7 +1408,9 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
 
     (void)integral_promotion(ast->rightExpression);
 
-    (void)implicit_conversion(ast->adjustExpression, ast->leftExpression->type);
+    ast->adjustExpression->type = ast->leftExpression->type;
+
+    (void)implicit_conversion(ast->adjustExpression, ast->type);
 
     return;
   }
@@ -1426,11 +1428,7 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
     return;
   }
 
-  auto adjustExpression = make_node<RightExpressionAST>(arena());
-  adjustExpression->type = commonType;
-  adjustExpression->valueCategory = ValueCategory::kPrValue;
-
-  ast->adjustExpression = adjustExpression;
+  ast->adjustExpression->type = commonType;
 
   (void)implicit_conversion(ast->adjustExpression, ast->type);
 }

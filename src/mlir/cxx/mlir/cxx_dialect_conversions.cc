@@ -572,6 +572,32 @@ class IntToBoolOpLowering : public OpConversionPattern<cxx::IntToBoolOp> {
   }
 };
 
+class FloatToBoolOpLowering : public OpConversionPattern<cxx::FloatToBoolOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::FloatToBoolOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert float to bool type");
+    }
+
+    auto c0 = LLVM::ZeroOp::create(rewriter, op.getLoc(),
+                                   adaptor.getValue().getType());
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::une, adaptor.getValue(), c0);
+
+    return success();
+  }
+};
+
 class PtrToBoolOpLowering : public OpConversionPattern<cxx::PtrToBoolOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -1686,7 +1712,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                                                          dataLayout, context);
 
   // cast operations
-  patterns.insert<IntToBoolOpLowering, PtrToBoolOpLowering, BoolToIntOpLowering,
+  patterns.insert<IntToBoolOpLowering, FloatToBoolOpLowering,
+                  PtrToBoolOpLowering, BoolToIntOpLowering,
                   IntegralCastOpLowering, ArrayToPointerOpLowering>(
       typeConverter, context);
 
