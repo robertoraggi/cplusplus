@@ -1228,6 +1228,151 @@ class DivFOpLowering : public OpConversionPattern<cxx::DivFOp> {
   }
 };
 
+class LessThanFOpLowering : public OpConversionPattern<cxx::LessThanFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::LessThanFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert less thanf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::olt, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class LessEqualFOpLowering : public OpConversionPattern<cxx::LessEqualFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::LessEqualFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert less equalf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::ole, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class GreaterThanFOpLowering : public OpConversionPattern<cxx::GreaterThanFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::GreaterThanFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert greater thanf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::ogt, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class GreaterEqualFOpLowering
+    : public OpConversionPattern<cxx::GreaterEqualFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::GreaterEqualFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert greater equalf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::oge, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class EqualFOpLowering : public OpConversionPattern<cxx::EqualFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::EqualFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert equalf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::oeq, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
+class NotEqualFOpLowering : public OpConversionPattern<cxx::NotEqualFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::NotEqualFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert not equalf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FCmpOp>(
+        op, resultType, LLVM::FCmpPredicate::one, adaptor.getLhs(),
+        adaptor.getRhs());
+
+    return success();
+  }
+};
+
 class FloatingPointCastOpLowering
     : public OpConversionPattern<cxx::FloatingPointCastOp> {
  public:
@@ -1574,6 +1719,12 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   // floating point operations
   patterns
       .insert<AddFOpLowering, SubFOpLowering, MulFOpLowering, DivFOpLowering>(
+          typeConverter, context);
+
+  // floating point comparison operations
+  patterns
+      .insert<LessThanFOpLowering, LessEqualFOpLowering, GreaterThanFOpLowering,
+              GreaterEqualFOpLowering, EqualFOpLowering, NotEqualFOpLowering>(
           typeConverter, context);
 
   // floating point cast operations
