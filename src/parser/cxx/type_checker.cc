@@ -1408,6 +1408,8 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
 
     (void)integral_promotion(ast->rightExpression);
 
+    (void)implicit_conversion(ast->adjustExpression, ast->leftExpression->type);
+
     return;
   }
 
@@ -1421,6 +1423,7 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
                     "and '{}'",
                     Token::spell(ast->op), to_string(ast->leftExpression->type),
                     to_string(ast->rightExpression->type)));
+    return;
   }
 
   auto adjustExpression = make_node<RightExpressionAST>(arena());
