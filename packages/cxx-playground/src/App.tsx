@@ -72,7 +72,7 @@ function App() {
                     <ResizablePanel className="min-w-1/5">
                       <Editor />
                     </ResizablePanel>
-                    <ResizableHandle />
+                    <ResizableHandle className="cursor-col-resize" />
                     <ResizablePanel className="min-w-1/5" defaultSize={35}>
                       <AbstractSyntaxTree />
                     </ResizablePanel>
