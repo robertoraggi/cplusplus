@@ -2073,19 +2073,25 @@ auto AssignmentExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
-auto LeftExpressionAST::firstSourceLocation() -> SourceLocation { return {}; }
+auto TargetExpressionAST::firstSourceLocation() -> SourceLocation { return {}; }
 
-auto LeftExpressionAST::lastSourceLocation() -> SourceLocation { return {}; }
+auto TargetExpressionAST::lastSourceLocation() -> SourceLocation { return {}; }
+
+auto RightExpressionAST::firstSourceLocation() -> SourceLocation { return {}; }
+
+auto RightExpressionAST::lastSourceLocation() -> SourceLocation { return {}; }
 
 auto CompoundAssignmentExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(targetExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rightExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(adjustExpression)) return loc;
   return {};
 }
 
 auto CompoundAssignmentExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(adjustExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(rightExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(opLoc)) return loc;
@@ -3734,7 +3740,8 @@ std::string_view kASTKindNames[] = {
     "yield-expression",
     "throw-expression",
     "assignment-expression",
-    "left-expression",
+    "target-expression",
+    "right-expression",
     "compound-assignment-expression",
     "pack-expansion-expression",
     "designated-initializer-clause",

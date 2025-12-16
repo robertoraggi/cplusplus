@@ -2548,11 +2548,23 @@ class AssignmentExpressionAST final : public ExpressionAST {
   auto lastSourceLocation() -> SourceLocation override;
 };
 
-class LeftExpressionAST final : public ExpressionAST {
+class TargetExpressionAST final : public ExpressionAST {
  public:
-  static constexpr ASTKind Kind = ASTKind::LeftExpression;
+  static constexpr ASTKind Kind = ASTKind::TargetExpression;
 
-  LeftExpressionAST() : ExpressionAST(Kind) {}
+  TargetExpressionAST() : ExpressionAST(Kind) {}
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  auto firstSourceLocation() -> SourceLocation override;
+  auto lastSourceLocation() -> SourceLocation override;
+};
+
+class RightExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::RightExpression;
+
+  RightExpressionAST() : ExpressionAST(Kind) {}
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2570,6 +2582,7 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
   SourceLocation opLoc;
   ExpressionAST* leftExpression = nullptr;
   ExpressionAST* rightExpression = nullptr;
+  ExpressionAST* adjustExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -4759,9 +4772,12 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case AssignmentExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<AssignmentExpressionAST*>(ast));
-    case LeftExpressionAST::Kind:
+    case TargetExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
-                         static_cast<LeftExpressionAST*>(ast));
+                         static_cast<TargetExpressionAST*>(ast));
+    case RightExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<RightExpressionAST*>(ast));
     case CompoundAssignmentExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<CompoundAssignmentExpressionAST*>(ast));
@@ -4849,7 +4865,8 @@ template <>
     case YieldExpressionAST::Kind:
     case ThrowExpressionAST::Kind:
     case AssignmentExpressionAST::Kind:
-    case LeftExpressionAST::Kind:
+    case TargetExpressionAST::Kind:
+    case RightExpressionAST::Kind:
     case CompoundAssignmentExpressionAST::Kind:
     case PackExpansionExpressionAST::Kind:
     case DesignatedInitializerClauseAST::Kind:

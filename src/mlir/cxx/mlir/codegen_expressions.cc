@@ -101,7 +101,8 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto operator()(YieldExpressionAST* ast) -> ExpressionResult;
   auto operator()(ThrowExpressionAST* ast) -> ExpressionResult;
   auto operator()(AssignmentExpressionAST* ast) -> ExpressionResult;
-  auto operator()(LeftExpressionAST* ast) -> ExpressionResult;
+  auto operator()(TargetExpressionAST* ast) -> ExpressionResult;
+  auto operator()(RightExpressionAST* ast) -> ExpressionResult;
   auto operator()(CompoundAssignmentExpressionAST* ast) -> ExpressionResult;
   auto operator()(PackExpansionExpressionAST* ast) -> ExpressionResult;
   auto operator()(DesignatedInitializerClauseAST* ast) -> ExpressionResult;
@@ -1864,7 +1865,13 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
   return {op};
 }
 
-auto Codegen::ExpressionVisitor::operator()(LeftExpressionAST* ast)
+auto Codegen::ExpressionVisitor::operator()(TargetExpressionAST* ast)
+    -> ExpressionResult {
+  auto op = gen.targetValue_;
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::operator()(RightExpressionAST* ast)
     -> ExpressionResult {
   auto op = gen.targetValue_;
   return {op};
@@ -1943,7 +1950,12 @@ auto Codegen::ExpressionVisitor::operator()(
       ast->opLoc, binaryOp, ast->type, ast->leftExpression,
       ast->rightExpression, leftExpressionResult, rightExpressionResult);
 
-  mlir::cxx::StoreOp::create(gen.builder_, loc, compoundAssignmentOp.value,
+  targetValue = compoundAssignmentOp.value;
+  std::swap(gen.targetValue_, targetValue);
+  auto sourceExpressionResult = gen.expression(ast->adjustExpression);
+  std::swap(gen.targetValue_, targetValue);
+
+  mlir::cxx::StoreOp::create(gen.builder_, loc, sourceExpressionResult.value,
                              targetExpressionResult.value);
 
   if (format == ExpressionFormat::kSideEffect) {

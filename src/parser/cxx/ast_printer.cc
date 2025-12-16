@@ -1797,8 +1797,17 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
   accept(ast->rightExpression, "right-expression");
 }
 
-void ASTPrinter::visit(LeftExpressionAST* ast) {
-  out_ << "left-expression";
+void ASTPrinter::visit(TargetExpressionAST* ast) {
+  out_ << "target-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+}
+
+void ASTPrinter::visit(RightExpressionAST* ast) {
+  out_ << "right-expression";
   if (ast->type) {
     out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
                         to_string(ast->type));
@@ -1822,6 +1831,7 @@ void ASTPrinter::visit(CompoundAssignmentExpressionAST* ast) {
   accept(ast->targetExpression, "target-expression");
   accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
+  accept(ast->adjustExpression, "adjust-expression");
 }
 
 void ASTPrinter::visit(PackExpansionExpressionAST* ast) {

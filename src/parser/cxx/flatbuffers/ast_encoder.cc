@@ -3405,11 +3405,18 @@ void ASTEncoder::visit(AssignmentExpressionAST* ast) {
   type_ = io::Expression_AssignmentExpression;
 }
 
-void ASTEncoder::visit(LeftExpressionAST* ast) {
-  io::LeftExpression::Builder builder{fbb_};
+void ASTEncoder::visit(TargetExpressionAST* ast) {
+  io::TargetExpression::Builder builder{fbb_};
 
   offset_ = builder.Finish().Union();
-  type_ = io::Expression_LeftExpression;
+  type_ = io::Expression_TargetExpression;
+}
+
+void ASTEncoder::visit(RightExpressionAST* ast) {
+  io::RightExpression::Builder builder{fbb_};
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_RightExpression;
 }
 
 void ASTEncoder::visit(CompoundAssignmentExpressionAST* ast) {
@@ -3422,6 +3429,9 @@ void ASTEncoder::visit(CompoundAssignmentExpressionAST* ast) {
   const auto [rightExpression, rightExpressionType] =
       acceptExpression(ast->rightExpression);
 
+  const auto [adjustExpression, adjustExpressionType] =
+      acceptExpression(ast->adjustExpression);
+
   io::CompoundAssignmentExpression::Builder builder{fbb_};
   builder.add_target_expression(targetExpression);
   builder.add_target_expression_type(
@@ -3433,6 +3443,9 @@ void ASTEncoder::visit(CompoundAssignmentExpressionAST* ast) {
   builder.add_right_expression(rightExpression);
   builder.add_right_expression_type(
       static_cast<io::Expression>(rightExpressionType));
+  builder.add_adjust_expression(adjustExpression);
+  builder.add_adjust_expression_type(
+      static_cast<io::Expression>(adjustExpressionType));
   builder.add_op(static_cast<std::uint32_t>(ast->op));
 
   offset_ = builder.Finish().Union();

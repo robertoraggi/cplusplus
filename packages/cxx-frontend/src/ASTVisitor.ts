@@ -1539,14 +1539,26 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
-   * Visit LeftExpression node.
+   * Visit TargetExpression node.
    *
    * @param node The node to visit.
    * @param context The context.
    * @returns The result of the visit.
    */
-  abstract visitLeftExpression(
-    node: ast.LeftExpressionAST,
+  abstract visitTargetExpression(
+    node: ast.TargetExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit RightExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitRightExpression(
+    node: ast.RightExpressionAST,
     context: Context,
   ): Result;
 

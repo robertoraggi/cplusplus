@@ -174,7 +174,9 @@ struct ASTRewriter::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(AssignmentExpressionAST* ast) -> ExpressionAST*;
 
-  [[nodiscard]] auto operator()(LeftExpressionAST* ast) -> ExpressionAST*;
+  [[nodiscard]] auto operator()(TargetExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto operator()(RightExpressionAST* ast) -> ExpressionAST*;
 
   [[nodiscard]] auto operator()(CompoundAssignmentExpressionAST* ast)
       -> ExpressionAST*;
@@ -1272,9 +1274,17 @@ auto ASTRewriter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
   return copy;
 }
 
-auto ASTRewriter::ExpressionVisitor::operator()(LeftExpressionAST* ast)
+auto ASTRewriter::ExpressionVisitor::operator()(TargetExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<LeftExpressionAST>(arena());
+  auto copy = make_node<TargetExpressionAST>(arena());
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(RightExpressionAST* ast)
+    -> ExpressionAST* {
+  auto copy = make_node<RightExpressionAST>(arena());
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   return copy;

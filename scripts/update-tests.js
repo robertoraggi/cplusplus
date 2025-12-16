@@ -22,6 +22,12 @@
 
 import "zx/globals";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const workspacePath = path.join(__dirname, "../");
 const unitTestsPath = path.join(workspacePath, "tests/unit_tests/ast");
 const cxx = path.join(workspacePath, "build/src/frontend/cxx");

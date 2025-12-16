@@ -8007,9 +8007,9 @@ export class AssignmentExpressionAST extends ExpressionAST {
 }
 
 /**
- * LeftExpressionAST node.
+ * TargetExpressionAST node.
  */
-export class LeftExpressionAST extends ExpressionAST {
+export class TargetExpressionAST extends ExpressionAST {
   /**
    * Traverse this node using the given visitor.
    * @param visitor the visitor.
@@ -8020,7 +8020,25 @@ export class LeftExpressionAST extends ExpressionAST {
     visitor: ASTVisitor<Context, Result>,
     context: Context,
   ): Result {
-    return visitor.visitLeftExpression(this, context);
+    return visitor.visitTargetExpression(this, context);
+  }
+}
+
+/**
+ * RightExpressionAST node.
+ */
+export class RightExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitRightExpression(this, context);
   }
 }
 
@@ -8079,10 +8097,20 @@ export class CompoundAssignmentExpressionAST extends ExpressionAST {
   }
 
   /**
+   * Returns the adjustExpression of this node
+   */
+  getAdjustExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
    * Returns the op attribute of this node
    */
   getOp(): TokenKind {
-    return cxx.getASTSlot(this.getHandle(), 4);
+    return cxx.getASTSlot(this.getHandle(), 5);
   }
 }
 
@@ -13577,7 +13605,8 @@ const AST_CONSTRUCTORS: Array<
   YieldExpressionAST,
   ThrowExpressionAST,
   AssignmentExpressionAST,
-  LeftExpressionAST,
+  TargetExpressionAST,
+  RightExpressionAST,
   CompoundAssignmentExpressionAST,
   PackExpansionExpressionAST,
   DesignatedInitializerClauseAST,

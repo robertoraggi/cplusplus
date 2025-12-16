@@ -80,8 +80,11 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto array_to_pointer_conversion(ExpressionAST*& expr) -> bool;
   [[nodiscard]] auto function_to_pointer_conversion(ExpressionAST*& expr)
       -> bool;
-  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr) -> bool;
-  [[nodiscard]] auto floating_point_promotion(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto integral_promotion(ExpressionAST*& expr,
+                                        const Type* destinationType = nullptr)
+      -> bool;
+  [[nodiscard]] auto floating_point_promotion(
+      ExpressionAST*& expr, const Type* destinationType = nullptr) -> bool;
   [[nodiscard]] auto integral_conversion(ExpressionAST*& expr,
                                          const Type* destinationType) -> bool;
   [[nodiscard]] auto floating_point_conversion(ExpressionAST*& expr,
@@ -207,7 +210,8 @@ struct TypeChecker::Visitor {
   void operator()(YieldExpressionAST* ast);
   void operator()(ThrowExpressionAST* ast);
   void operator()(AssignmentExpressionAST* ast);
-  void operator()(LeftExpressionAST* ast);
+  void operator()(TargetExpressionAST* ast);
+  void operator()(RightExpressionAST* ast);
   void operator()(CompoundAssignmentExpressionAST* ast);
   void operator()(PackExpansionExpressionAST* ast);
   void operator()(DesignatedInitializerClauseAST* ast);
@@ -1366,19 +1370,28 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   (void)implicit_conversion(ast->rightExpression, ast->type);
 }
 
-void TypeChecker::Visitor::operator()(LeftExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(TargetExpressionAST* ast) {}
+
+void TypeChecker::Visitor::operator()(RightExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
   if (!ast->targetExpression) return;
   if (!ast->rightExpression) return;
 
-  ast->leftExpression->type = ast->targetExpression->type;
-  ast->leftExpression->valueCategory = ast->targetExpression->valueCategory;
-
   if (!is_lvalue(ast->targetExpression)) {
     error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
                                   to_string(ast->targetExpression->type)));
     return;
+  }
+
+  ast->leftExpression->type = ast->targetExpression->type;
+  ast->leftExpression->valueCategory = ast->targetExpression->valueCategory;
+  ast->type = ast->targetExpression->type;
+
+  if (is_parsing_cxx()) {
+    ast->valueCategory = ValueCategory::kLValue;
+  } else {
+    ast->valueCategory = ValueCategory::kPrValue;
   }
 
   if ((ast->op == TokenKind::T_PLUS_EQUAL ||
@@ -1394,66 +1407,29 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
     adjust_cv(ast->rightExpression);
 
     (void)integral_promotion(ast->rightExpression);
-    ast->type = ast->targetExpression->type;
-
-    if (is_parsing_cxx()) {
-      ast->valueCategory = ValueCategory::kLValue;
-    } else {
-      ast->valueCategory = ValueCategory::kPrValue;
-    }
 
     return;
   }
 
-  auto targetType =
+  auto commonType =
       usual_arithmetic_conversion(ast->leftExpression, ast->rightExpression);
 
-  if (!targetType) {
+  if (!commonType) {
     error(
         ast->opLoc,
         std::format("invalid compound assignment operator '{}' for types '{}' "
                     "and '{}'",
                     Token::spell(ast->op), to_string(ast->leftExpression->type),
                     to_string(ast->rightExpression->type)));
-    return;
   }
 
-  // todo: clean up and generalize
-  switch (ast->op) {
-    case TokenKind::T_PLUS_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_MINUS_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_STAR_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_SLASH_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_PERCENT_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_LESS_LESS_EQUAL:
-      ast->type = ast->targetExpression->type;
-      break;
-    case TokenKind::T_GREATER_GREATER_EQUAL:
-      ast->type = ast->targetExpression->type;
-      break;
-    case TokenKind::T_AMP_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_CARET_EQUAL:
-      ast->type = targetType;
-      break;
-    case TokenKind::T_BAR_EQUAL:
-      ast->type = targetType;
-      break;
+  auto adjustExpression = make_node<RightExpressionAST>(arena());
+  adjustExpression->type = commonType;
+  adjustExpression->valueCategory = ValueCategory::kPrValue;
 
-    default:
-      error(ast->opLoc, "invalid compound assignment operator");
-  }  // switch
+  ast->adjustExpression = adjustExpression;
+
+  (void)implicit_conversion(ast->adjustExpression, ast->type);
 }
 
 void TypeChecker::Visitor::operator()(PackExpansionExpressionAST* ast) {}
@@ -1559,7 +1535,9 @@ auto TypeChecker::Visitor::function_to_pointer_conversion(ExpressionAST*& expr)
   return true;
 }
 
-auto TypeChecker::Visitor::integral_promotion(ExpressionAST*& expr) -> bool {
+auto TypeChecker::Visitor::integral_promotion(ExpressionAST*& expr,
+                                              const Type* destinationType)
+    -> bool {
   if (!is_prvalue(expr)) return false;
 
   if (!control()->is_integral(expr->type) && !control()->is_enum(expr->type))
@@ -1582,21 +1560,40 @@ auto TypeChecker::Visitor::integral_promotion(ExpressionAST*& expr) -> bool {
     case TypeKind::kUnsignedChar:
     case TypeKind::kShortInt:
     case TypeKind::kUnsignedShortInt: {
-      make_implicit_cast(control()->getIntType());
-      return true;
+      if (!destinationType) destinationType = control()->getIntType();
+
+      if (destinationType->kind() == TypeKind::kInt ||
+          destinationType->kind() == TypeKind::kUnsignedInt) {
+        make_implicit_cast(destinationType);
+        return true;
+      }
+
+      return false;
     }
 
     case TypeKind::kChar8:
     case TypeKind::kChar16:
     case TypeKind::kChar32:
     case TypeKind::kWideChar: {
-      make_implicit_cast(control()->getIntType());
-      return true;
+      if (!destinationType) destinationType = control()->getIntType();
+
+      if (destinationType->kind() == TypeKind::kInt ||
+          destinationType->kind() == TypeKind::kUnsignedInt) {
+        make_implicit_cast(destinationType);
+        return true;
+      }
+
+      return false;
     }
 
     case TypeKind::kBool: {
-      make_implicit_cast(control()->getIntType());
-      return true;
+      if (!destinationType) destinationType = control()->getIntType();
+      if (destinationType->kind() == TypeKind::kInt) {
+        make_implicit_cast(destinationType);
+        return true;
+      }
+
+      return false;
     }
 
     default:
@@ -1619,11 +1616,16 @@ auto TypeChecker::Visitor::integral_promotion(ExpressionAST*& expr) -> bool {
   return false;
 }
 
-auto TypeChecker::Visitor::floating_point_promotion(ExpressionAST*& expr)
+auto TypeChecker::Visitor::floating_point_promotion(ExpressionAST*& expr,
+                                                    const Type* destinationType)
     -> bool {
   if (!is_prvalue(expr)) return false;
 
   if (!control()->is_floating_point(expr->type)) return false;
+
+  if (!destinationType) destinationType = control()->getDoubleType();
+
+  if (!control()->is_floating_point(destinationType)) return false;
 
   if (expr->type->kind() != TypeKind::kFloat) return false;
 
@@ -2017,8 +2019,8 @@ auto TypeChecker::Visitor::implicit_conversion(ExpressionAST*& expr,
   adjust_cv(expr);
 
   if (control()->is_same(expr->type, destinationType)) return true;
-  if (integral_promotion(expr)) return true;
-  if (floating_point_promotion(expr)) return true;
+  if (integral_promotion(expr, destinationType)) return true;
+  if (floating_point_promotion(expr, destinationType)) return true;
   if (integral_conversion(expr, destinationType)) return true;
   if (floating_point_conversion(expr, destinationType)) return true;
   if (floating_integral_conversion(expr, destinationType)) return true;
