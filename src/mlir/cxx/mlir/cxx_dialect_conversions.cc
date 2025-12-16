@@ -518,7 +518,7 @@ class IntegralCastOpLowering : public OpConversionPattern<cxx::IntegralCastOp> {
 
     const auto sourceType = dyn_cast<cxx::IntegerType>(op.getValue().getType());
     const auto targetType = dyn_cast<cxx::IntegerType>(op.getType());
-    const auto isSigned = targetType.getIsSigned();
+    const auto isSigned = sourceType.getIsSigned();
 
     if (sourceType.getWidth() == targetType.getWidth()) {
       // no conversion needed, just replace the op with the value
