@@ -20,16 +20,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { FixedSizeList } from "react-window";
+import { List, useListRef, type RowComponentProps } from "react-window";
 import { AST, ASTKind, ASTSlot, Parser, TokenKind } from "cxx-frontend";
-import {
-  type CSSProperties,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import AutoSizer from "react-virtualized-auto-sizer";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 interface SyntaxTreeProps {
@@ -50,7 +43,7 @@ export function SyntaxTree({
   cursorPosition,
   onNodeSelected,
 }: SyntaxTreeProps) {
-  const listRef = useRef<FixedSizeList>(null);
+  const listRef = useListRef(null);
   const [selectedNodeHandle, setSelectedNodeHandle] = useState(0);
   const [nodes, setNodes] = useState<SyntaxTreeNode[]>([]);
 
@@ -119,12 +112,20 @@ export function SyntaxTree({
       );
 
       if (index != -1) {
-        listRef.current?.scrollToItem(index, "smart");
+        listRef.current?.scrollToRow({
+          index,
+          align: "smart",
+          behavior: "auto",
+        });
       }
     }
   }, [parser, nodes, cursorPosition]);
 
-  function Item({ index, style }: { index: number; style: CSSProperties }) {
+  function Item({
+    index,
+    style,
+    nodes,
+  }: RowComponentProps<{ nodes: SyntaxTreeNode[] }>) {
     const { description, level, handle } = nodes[index];
     const indent = " ".repeat(level * 4);
     const isSelected = selectedNodeHandle === handle;
@@ -145,21 +146,14 @@ export function SyntaxTree({
   }
 
   return (
-    <div className="w-full h-full bg-background text-foreground ">
-      <AutoSizer>
-        {({ height, width }) => (
-          <FixedSizeList
-            ref={listRef}
-            height={height}
-            width={width}
-            itemCount={nodes.length}
-            itemSize={20}
-          >
-            {Item}
-          </FixedSizeList>
-        )}
-      </AutoSizer>
-    </div>
+    <List
+      className="w-full h-full bg-background text-foreground border border-white"
+      listRef={listRef}
+      rowCount={nodes.length}
+      rowHeight={20}
+      rowComponent={Item}
+      rowProps={{ nodes }}
+    />
   );
 }
 
