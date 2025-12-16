@@ -1319,6 +1319,12 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
       auto expressionResult = gen.expression(ast->expression);
       auto resultType = gen.convertType(ast->type);
 
+      if (is_bool(ast->type)) {
+        auto op = mlir::cxx::FloatToBoolOp::create(
+            gen.builder_, loc, resultType, expressionResult.value);
+        return {op};
+      }
+
       if (control()->is_floating_point(ast->type)) {
         // If the result type is a floating point, we can use a specialized
         // cast

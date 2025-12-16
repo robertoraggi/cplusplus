@@ -3153,9 +3153,11 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
       yyast = ast;
     } else {
       auto ast = make_node<CompoundAssignmentExpressionAST>(pool_);
+      ast->leftExpression = make_node<TargetExpressionAST>(pool_);
+      ast->adjustExpression = make_node<RightExpressionAST>(pool_);
+
       ast->targetExpression = yyast;
       ast->opLoc = opLoc;
-      ast->leftExpression = make_node<TargetExpressionAST>(pool_);
       ast->rightExpression = expression;
       ast->op = op;
       yyast = ast;
