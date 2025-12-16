@@ -51,9 +51,9 @@ function AppSidebar() {
             <SidebarMenu>
               {codeItems.map((item) => (
                 <SidebarMenuItem key={item.name}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton>
+                    <item.icon />
                     <a href={item.url}>
-                      <item.icon />
                       <span>{item.name}</span>
                     </a>
                   </SidebarMenuButton>

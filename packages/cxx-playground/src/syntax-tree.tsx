@@ -147,7 +147,7 @@ export function SyntaxTree({
 
   return (
     <List
-      className="w-full h-full bg-background text-foreground border border-white"
+      className="w-full h-full bg-background text-foreground"
       listRef={listRef}
       rowCount={nodes.length}
       rowHeight={20}
