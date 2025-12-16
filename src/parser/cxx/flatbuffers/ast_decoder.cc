@@ -369,9 +369,12 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_AssignmentExpression:
       return decodeAssignmentExpression(
           reinterpret_cast<const io::AssignmentExpression*>(ptr));
-    case io::Expression_LeftExpression:
-      return decodeLeftExpression(
-          reinterpret_cast<const io::LeftExpression*>(ptr));
+    case io::Expression_TargetExpression:
+      return decodeTargetExpression(
+          reinterpret_cast<const io::TargetExpression*>(ptr));
+    case io::Expression_RightExpression:
+      return decodeRightExpression(
+          reinterpret_cast<const io::RightExpression*>(ptr));
     case io::Expression_CompoundAssignmentExpression:
       return decodeCompoundAssignmentExpression(
           reinterpret_cast<const io::CompoundAssignmentExpression*>(ptr));
@@ -3060,11 +3063,19 @@ auto ASTDecoder::decodeAssignmentExpression(
   return ast;
 }
 
-auto ASTDecoder::decodeLeftExpression(const io::LeftExpression* node)
-    -> LeftExpressionAST* {
+auto ASTDecoder::decodeTargetExpression(const io::TargetExpression* node)
+    -> TargetExpressionAST* {
   if (!node) return nullptr;
 
-  auto ast = new (pool_) LeftExpressionAST();
+  auto ast = new (pool_) TargetExpressionAST();
+  return ast;
+}
+
+auto ASTDecoder::decodeRightExpression(const io::RightExpression* node)
+    -> RightExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) RightExpressionAST();
   return ast;
 }
 
@@ -3081,6 +3092,8 @@ auto ASTDecoder::decodeCompoundAssignmentExpression(
       decodeExpression(node->left_expression(), node->left_expression_type());
   ast->rightExpression =
       decodeExpression(node->right_expression(), node->right_expression_type());
+  ast->adjustExpression = decodeExpression(node->adjust_expression(),
+                                           node->adjust_expression_type());
   ast->op = static_cast<TokenKind>(node->op());
   return ast;
 }
