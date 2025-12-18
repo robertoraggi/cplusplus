@@ -145,7 +145,26 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   builder_.setInsertionPointToStart(module_.getBody());
 
+  mlir::cxx::InlineKind inlineKind = mlir::cxx::InlineKind::NoInline;
+
+  if (functionSymbol->isInline()) {
+    inlineKind = mlir::cxx::InlineKind::InlineHint;
+  }
+
+  auto inlineAttr =
+      mlir::cxx::InlineKindAttr::get(builder_.getContext(), inlineKind);
+
+  mlir::cxx::LinkageKind linkageKind = mlir::cxx::LinkageKind::External;
+
+  if (functionSymbol->isStatic()) {
+    linkageKind = mlir::cxx::LinkageKind::Internal;
+  }
+
+  auto linkageAttr =
+      mlir::cxx::LinkageKindAttr::get(builder_.getContext(), linkageKind);
+
   auto func = mlir::cxx::FuncOp::create(builder_, loc, name, funcType,
+                                        linkageAttr, inlineAttr,
                                         mlir::ArrayAttr{}, mlir::ArrayAttr{});
 
   funcOps_.insert_or_assign(functionSymbol, func);

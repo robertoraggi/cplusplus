@@ -48,6 +48,18 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
 
+  auto convertLinkage(mlir::cxx::LinkageKind kind) const
+      -> LLVM::linkage::Linkage {
+    switch (kind) {
+      case mlir::cxx::LinkageKind::External:
+        return LLVM::linkage::Linkage::External;
+      case mlir::cxx::LinkageKind::Internal:
+        return LLVM::linkage::Linkage::Internal;
+      default:
+        return LLVM::linkage::Linkage::External;
+    }  // switch
+  }
+
   auto matchAndRewrite(cxx::FuncOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
@@ -60,8 +72,15 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     auto funcType = op.getFunctionType();
     auto llvmFuncType = typeConverter->convertType(funcType);
 
+    auto linkage = convertLinkage(
+        op.getLinkageKind().value_or(cxx::LinkageKind::External));
+
     auto func = LLVM::LLVMFuncOp::create(rewriter, op.getLoc(), op.getSymName(),
-                                         llvmFuncType);
+                                         llvmFuncType, linkage);
+
+    if (op.getInlineKind() != cxx::InlineKind::InlineHint) {
+      func.setNoInline(true);
+    }
 
     if (op.getBody().empty()) {
       func.setLinkage(LLVM::linkage::Linkage::External);
