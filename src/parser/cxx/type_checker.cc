@@ -1219,12 +1219,27 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
       (void)lvalue_to_rvalue_conversion(ast->rightExpression);
       (void)function_to_pointer_conversion(ast->rightExpression);
 
+      auto is_null_pointer = [this](ExpressionAST* expr) -> bool {
+        if (control()->is_null_pointer(expr->type)) return true;
+
+        // strip nested expressions
+        while (auto nestedExpr = ast_cast<NestedExpressionAST>(expr)) {
+          expr = nestedExpr->expression;
+        }
+
+        if (auto intLiteral = ast_cast<IntLiteralExpressionAST>(expr)) {
+          if (intLiteral->literal->value() == "0") return true;
+        }
+
+        return false;
+      };
+
       // handle array-to-pointer conversion if needed
       if (control()->is_pointer(ast->leftExpression->type) ||
-          control()->is_null_pointer(ast->leftExpression->type)) {
+          is_null_pointer(ast->leftExpression)) {
         (void)array_to_pointer_conversion(ast->rightExpression);
       } else if (control()->is_pointer(ast->rightExpression->type) ||
-                 control()->is_null_pointer(ast->rightExpression->type)) {
+                 is_null_pointer(ast->rightExpression)) {
         (void)array_to_pointer_conversion(ast->leftExpression);
       }
 
@@ -1235,9 +1250,9 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
       }
 
       if ((control()->is_pointer(ast->leftExpression->type) ||
-           control()->is_null_pointer(ast->leftExpression->type)) &&
+           is_null_pointer(ast->leftExpression)) &&
           (control()->is_pointer(ast->rightExpression->type) ||
-           control()->is_null_pointer(ast->rightExpression->type))) {
+           is_null_pointer(ast->rightExpression))) {
         auto compositeType =
             composite_pointer_type(ast->leftExpression, ast->rightExpression);
         (void)implicit_conversion(ast->leftExpression, compositeType);
