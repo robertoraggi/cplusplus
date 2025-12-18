@@ -1266,6 +1266,11 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   switch (ast->castKind) {
+    case ImplicitCastKind::kFunctionToPointerConversion: {
+      auto expressionResult = gen.expression(ast->expression);
+      return expressionResult;
+    }
+
     case ImplicitCastKind::kLValueToRValueConversion: {
       // generate a load
       auto expressionResult = gen.expression(ast->expression);
@@ -1565,6 +1570,22 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_MINUS: {
+      if (control()->is_pointer(leftExpression->type) &&
+          control()->is_integer(rightExpression->type)) {
+        auto offsetType = gen.convertType(rightExpression->type);
+
+        auto zero =
+            mlir::cxx::IntConstantOp::create(gen.builder_, loc, offsetType, 0);
+
+        auto offset = mlir::cxx::SubIOp::create(
+            gen.builder_, loc, offsetType, zero, rightExpressionResult.value);
+
+        auto op = mlir::cxx::PtrAddOp::create(
+            gen.builder_, loc, resultType, leftExpressionResult.value, offset);
+
+        return {op};
+      }
+
       if (control()->is_integral(leftExpression->type)) {
         auto op = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType,
                                             leftExpressionResult.value,
