@@ -977,6 +977,8 @@ class LessThanOpLowering : public OpConversionPattern<cxx::LessThanOp> {
       } else {
         predicate = LLVM::ICmpPredicate::ult;
       }
+    } else if (isa<cxx::PointerType>(op.getLhs().getType())) {
+      predicate = LLVM::ICmpPredicate::ult;
     }
 
     rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
@@ -1010,6 +1012,8 @@ class LessEqualOpLowering : public OpConversionPattern<cxx::LessEqualOp> {
       } else {
         predicate = LLVM::ICmpPredicate::ule;
       }
+    } else if (isa<cxx::PointerType>(op.getLhs().getType())) {
+      predicate = LLVM::ICmpPredicate::ule;
     }
 
     rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
@@ -1043,6 +1047,8 @@ class GreaterThanOpLowering : public OpConversionPattern<cxx::GreaterThanOp> {
       } else {
         predicate = LLVM::ICmpPredicate::ugt;
       }
+    } else if (isa<cxx::PointerType>(op.getLhs().getType())) {
+      predicate = LLVM::ICmpPredicate::ugt;
     }
 
     rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
@@ -1076,6 +1082,8 @@ class GreaterEqualOpLowering : public OpConversionPattern<cxx::GreaterEqualOp> {
       } else {
         predicate = LLVM::ICmpPredicate::uge;
       }
+    } else if (isa<cxx::PointerType>(op.getLhs().getType())) {
+      predicate = LLVM::ICmpPredicate::uge;
     }
 
     rewriter.replaceOpWithNewOp<LLVM::ICmpOp>(
