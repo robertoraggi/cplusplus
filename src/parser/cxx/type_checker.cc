@@ -1166,7 +1166,47 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
     case TokenKind::T_LESS_EQUAL:
     case TokenKind::T_GREATER_EQUAL:
     case TokenKind::T_LESS:
-    case TokenKind::T_GREATER:
+    case TokenKind::T_GREATER: {
+      ast->type = control()->getBoolType();
+
+      // apply lvalue-to-rvalue and function-to-pointer con
+      // versions to both operands
+      (void)lvalue_to_rvalue_conversion(ast->leftExpression);
+      (void)function_to_pointer_conversion(ast->leftExpression);
+
+      (void)lvalue_to_rvalue_conversion(ast->rightExpression);
+      (void)function_to_pointer_conversion(ast->rightExpression);
+
+      // handle array-to-pointer conversion if needed
+      if (control()->is_pointer(ast->leftExpression->type)) {
+        (void)array_to_pointer_conversion(ast->rightExpression);
+      } else if (control()->is_pointer(ast->rightExpression->type)) {
+        (void)array_to_pointer_conversion(ast->leftExpression);
+      }
+
+      if (usual_arithmetic_conversion(ast->leftExpression,
+                                      ast->rightExpression)) {
+        ast->type = control()->getBoolType();
+        break;
+      }
+
+      if (control()->is_pointer(ast->leftExpression->type) &&
+          control()->is_pointer(ast->rightExpression->type)) {
+        auto compositeType =
+            composite_pointer_type(ast->leftExpression, ast->rightExpression);
+        (void)implicit_conversion(ast->leftExpression, compositeType);
+        (void)implicit_conversion(ast->rightExpression, compositeType);
+        break;
+      }
+
+      error(ast->firstSourceLocation(),
+            std::format("invalid operands to binary expression ('{}' and '{}')",
+                        to_string(ast->leftExpression->type),
+                        to_string(ast->rightExpression->type)));
+
+      break;
+    }
+
     case TokenKind::T_EQUAL_EQUAL:
     case TokenKind::T_EXCLAIM_EQUAL:
       (void)usual_arithmetic_conversion(ast->leftExpression,

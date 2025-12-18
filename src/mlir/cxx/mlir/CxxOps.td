@@ -108,6 +108,8 @@ def Cxx_FunctionType : Cxx_Type<"Function", "function"> {
   }];
 }
 
+def Cxx_IntOrPointerType : AnyTypeOf<[Cxx_IntegerType, Cxx_PointerType]>;
+
 // ops
 
 def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
@@ -327,25 +329,25 @@ def Cxx_NotEqualOp : Cxx_Op<"ne"> {
 }
 
 def Cxx_LessThanOp : Cxx_Op<"lt"> {
-  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+  let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
 }
 
 def Cxx_LessEqualOp : Cxx_Op<"le"> {
-  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+  let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
 }
 
 def Cxx_GreaterThanOp : Cxx_Op<"gt"> {
-  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+  let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
 }
 
 def Cxx_GreaterEqualOp : Cxx_Op<"ge"> {
-  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+  let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
 }

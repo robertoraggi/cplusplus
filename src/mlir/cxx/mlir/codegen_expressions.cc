@@ -1520,6 +1520,9 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     case TokenKind::T_GREATER:
     case TokenKind::T_LESS_EQUAL:
     case TokenKind::T_GREATER_EQUAL:
+      resultType = gen.convertType(control()->getBoolType());
+      break;
+
     case TokenKind::T_EQUAL_EQUAL:
     case TokenKind::T_EXCLAIM_EQUAL:
       resultType = gen.convertType(control()->getBoolType());
@@ -1685,7 +1688,8 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_LESS: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
+          control()->is_pointer(leftExpression->type)) {
         auto op = mlir::cxx::LessThanOp::create(gen.builder_, loc, resultType,
                                                 leftExpressionResult.value,
                                                 rightExpressionResult.value);
@@ -1703,7 +1707,8 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_LESS_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
+          control()->is_pointer(leftExpression->type)) {
         auto op = mlir::cxx::LessEqualOp::create(gen.builder_, loc, resultType,
                                                  leftExpressionResult.value,
                                                  rightExpressionResult.value);
@@ -1721,7 +1726,8 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_GREATER: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
+          control()->is_pointer(leftExpression->type)) {
         auto op = mlir::cxx::GreaterThanOp::create(
             gen.builder_, loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
@@ -1739,7 +1745,8 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_GREATER_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
+          control()->is_pointer(leftExpression->type)) {
         auto op = mlir::cxx::GreaterEqualOp::create(
             gen.builder_, loc, resultType, leftExpressionResult.value,
             rightExpressionResult.value);
