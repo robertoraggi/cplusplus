@@ -317,13 +317,13 @@ def Cxx_ShiftRightOp : Cxx_Op<"shr"> {
 }
 
 def Cxx_EqualOp : Cxx_Op<"eq"> {
-  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+  let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
 }
 
 def Cxx_NotEqualOp : Cxx_Op<"ne"> {
-  let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
+  let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
 }
