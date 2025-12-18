@@ -1652,7 +1652,9 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_EQUAL_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
+          control()->is_pointer(leftExpression->type) ||
+          control()->is_null_pointer(leftExpression->type)) {
         auto op = mlir::cxx::EqualOp::create(gen.builder_, loc, resultType,
                                              leftExpressionResult.value,
                                              rightExpressionResult.value);
@@ -1670,7 +1672,9 @@ auto Codegen::ExpressionVisitor::binaryExpression(
     }
 
     case TokenKind::T_EXCLAIM_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
+      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
+          control()->is_pointer(leftExpression->type) ||
+          control()->is_null_pointer(leftExpression->type)) {
         auto op = mlir::cxx::NotEqualOp::create(gen.builder_, loc, resultType,
                                                 leftExpressionResult.value,
                                                 rightExpressionResult.value);
