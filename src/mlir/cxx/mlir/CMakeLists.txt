@@ -1,6 +1,19 @@
 
 include_directories(${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS}) # for tablegen
 add_mlir_dialect(CxxOps cxx)
+set(LLVM_TARGET_DEFINITIONS CxxOps.td)
+
+mlir_tablegen(CxxOpsEnums.h.inc -gen-enum-decls)
+mlir_tablegen(CxxOpsEnums.cpp.inc -gen-enum-defs)
+mlir_tablegen(CxxOpsAttributes.h.inc -gen-attrdef-decls)
+mlir_tablegen(CxxOpsAttributes.cpp.inc -gen-attrdef-defs)
+
+target_sources(MLIRCxxOpsIncGen PRIVATE
+    CxxOpsEnums.h.inc
+    CxxOpsEnums.cpp.inc
+    CxxOpsAttributes.h.inc
+    CxxOpsAttributes.cpp.inc
+)
 
 set(SOURCES
     codegen.cc

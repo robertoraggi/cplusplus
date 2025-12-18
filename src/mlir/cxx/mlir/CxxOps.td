@@ -20,6 +20,7 @@
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/EnumAttr.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
@@ -40,6 +41,8 @@ class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
 
 class Cxx_Op<string mnemonic, list<Trait> traits = []>
     : Op<Cxx_Dialect, mnemonic, traits> {}
+
+// enums
 
 
 // types
