@@ -43,7 +43,20 @@ class Cxx_Op<string mnemonic, list<Trait> traits = []>
     : Op<Cxx_Dialect, mnemonic, traits> {}
 
 // enums
+class Cxx_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
+    : I32EnumAttr<name, summary, cases> {
+  let cppNamespace = "mlir::cxx";
+}
 
+def Cxx_InlineKind : Cxx_I32EnumAttr<"InlineKind", "inlineKind", [
+  I32EnumAttrCase<"NoInline", 0, "no_inline">,
+  I32EnumAttrCase<"InlineHint", 1, "inline">
+]>;
+
+def Cxx_LinkageKind : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
+  I32EnumAttrCase<"External", 0, "external">,
+  I32EnumAttrCase<"Internal", 1, "internal">
+]>;
 
 // types
 
@@ -118,6 +131,8 @@ def Cxx_IntOrPointerType : AnyTypeOf<[Cxx_IntegerType, Cxx_PointerType]>;
 def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   let arguments = (ins SymbolNameAttr:$sym_name,
       TypeAttrOf<Cxx_FunctionType>:$function_type,
+      OptionalAttr<Cxx_LinkageKind>:$linkage_kind,
+      OptionalAttr<Cxx_InlineKind>:$inline_kind,
       OptionalAttr<DictArrayAttr>:$arg_attrs,
       OptionalAttr<DictArrayAttr>:$res_attrs);
 
