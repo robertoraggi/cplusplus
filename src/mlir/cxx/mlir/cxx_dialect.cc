@@ -258,6 +258,12 @@ auto ClassType::getBody() const -> ArrayRef<Type> {
 
 #include <cxx/mlir/CxxOpsDialect.cpp.inc>
 
+// enums
+#include <cxx/mlir/CxxOpsEnums.cpp.inc>
+
+// attributes
+#include <cxx/mlir/CxxOpsAttributes.cpp.inc>
+
 #define GET_TYPEDEF_CLASSES
 #include <cxx/mlir/CxxOpsTypes.cpp.inc>
 
