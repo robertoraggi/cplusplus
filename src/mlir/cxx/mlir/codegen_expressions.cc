@@ -359,6 +359,23 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
+  if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
+    if (auto it = gen.funcOps_.find(func); it != gen.funcOps_.end()) {
+      auto loc = gen.getLocation(ast->firstSourceLocation());
+
+      auto ptrToVoidType = mlir::cxx::PointerType::get(
+          gen.builder_.getContext(),
+          mlir::cxx::VoidType::get(gen.builder_.getContext()));
+      auto resultType =
+          mlir::cxx::PointerType::get(gen.builder_.getContext(), ptrToVoidType);
+
+      auto op = mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType,
+                                               it->second.getSymName());
+
+      return {op};
+    }
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -511,104 +528,88 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
-  auto check_direct_call = [&]() -> std::optional<ExpressionResult> {
-    auto func = ast->baseExpression;
-
-    while (auto nested = ast_cast<NestedExpressionAST>(func)) {
-      func = nested->expression;
-    }
-
-    if (auto member = ast_cast<MemberExpressionAST>(func)) {
-      auto thisValue = gen.expression(member->baseExpression);
-      auto functionSymbol = symbol_cast<FunctionSymbol>(member->symbol);
-
-      auto funcOp = gen.findOrCreateFunction(functionSymbol);
-
-      mlir::SmallVector<mlir::Value> arguments;
-      arguments.push_back(thisValue.value);
-      for (auto node : ListView{ast->expressionList}) {
-        auto value = gen.expression(node);
-        arguments.push_back(value.value);
-      }
-
-      auto loc = gen.getLocation(ast->lparenLoc);
-
-      auto functionType = type_cast<FunctionType>(functionSymbol->type());
-      mlir::SmallVector<mlir::Type> resultTypes;
-      if (!control()->is_void(functionType->returnType())) {
-        resultTypes.push_back(gen.convertType(functionType->returnType()));
-      }
-
-      auto op = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
-                                          funcOp.getSymName(), arguments,
-                                          mlir::TypeAttr{});
-
-      if (functionType->isVariadic()) {
-        op.setVarCalleeType(
-            cast<mlir::cxx::FunctionType>(gen.convertType(functionType)));
-      }
-
-      return ExpressionResult{op.getResult()};
-    }
-
-    auto id = ast_cast<IdExpressionAST>(func);
-    if (!id) return {};
-
-    auto functionSymbol = symbol_cast<FunctionSymbol>(id->symbol);
-
-    if (!functionSymbol) return {};
-
-    auto funcOp = gen.findOrCreateFunction(functionSymbol);
-
-    mlir::SmallVector<mlir::Value> arguments;
-    for (auto node : ListView{ast->expressionList}) {
-      auto value = gen.expression(node);
-      arguments.push_back(value.value);
-    }
-
-    auto loc = gen.getLocation(ast->lparenLoc);
-
-    auto functionType = type_cast<FunctionType>(functionSymbol->type());
-    mlir::SmallVector<mlir::Type> resultTypes;
-    if (!control()->is_void(functionType->returnType())) {
-      resultTypes.push_back(gen.convertType(functionType->returnType()));
-    }
-
-    auto op = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
-                                        funcOp.getSymName(), arguments,
-                                        mlir::TypeAttr{});
-
-    if (functionType->isVariadic()) {
-      op.setVarCalleeType(
-          cast<mlir::cxx::FunctionType>(gen.convertType(functionType)));
-    }
-
-    return ExpressionResult{op.getResult()};
-  };
-
-  if (auto op = check_direct_call(); op.has_value()) {
-    return *op;
+  // strip nested expressions
+  auto func = ast->baseExpression;
+  while (auto nested = ast_cast<NestedExpressionAST>(func)) {
+    func = nested->expression;
   }
 
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  // check for direct calls
+  auto id = ast_cast<IdExpressionAST>(func);
+  auto member = ast_cast<MemberExpressionAST>(func);
+  ExpressionResult thisValue;
 
-#if false
-  auto baseExpressionResult = gen.expression(ast->baseExpression);
+  FunctionSymbol* functionSymbol = nullptr;
+  if (id) {
+    functionSymbol = symbol_cast<FunctionSymbol>(id->symbol);
+  } else if (member) {
+    functionSymbol = symbol_cast<FunctionSymbol>(member->symbol);
 
-  std::vector<mlir::Value> arguments;
+    if (functionSymbol) {
+      thisValue = gen.expression(member->baseExpression);
+    }
+  }
+
+  const FunctionType* functionType = nullptr;
+  bool isIndirectCall = false;
+
+  if (functionSymbol) {
+    // direct call.
+    functionType = type_cast<FunctionType>(functionSymbol->type());
+  } else if (control()->is_pointer(ast->baseExpression->type)) {
+    // indirect call
+    isIndirectCall = true;
+
+    thisValue = gen.expression(ast->baseExpression);
+
+    auto elementType = control()->get_element_type(ast->baseExpression->type);
+    functionType = type_cast<cxx::FunctionType>(elementType);
+  }
+
+  if (!functionType) {
+    auto op =
+        gen.emitTodoExpr(ast->firstSourceLocation(), "invalid function call");
+
+    return {op};
+  }
+
+  mlir::SmallVector<mlir::Value> arguments;
+
+  if (thisValue.value) {
+    arguments.push_back(thisValue.value);
+  }
 
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
     arguments.push_back(value.value);
   }
 
+  mlir::SmallVector<mlir::Type> resultTypes;
+  if (!control()->is_void(functionType->returnType())) {
+    resultTypes.push_back(gen.convertType(functionType->returnType()));
+  }
+
   auto loc = gen.getLocation(ast->lparenLoc);
 
-  auto op = mlir::cxx::CallOp::create(gen.builder_,
-      loc, baseExpressionResult.value, arguments);
-#endif
-  return {op};
+  mlir::cxx::CallOp callOp;
+
+  if (isIndirectCall) {
+    callOp = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
+                                       mlir::FlatSymbolRefAttr{}, arguments,
+                                       mlir::TypeAttr{});
+  } else {
+    auto funcOp = gen.findOrCreateFunction(functionSymbol);
+    callOp = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
+                                       funcOp.getSymName(), arguments,
+                                       mlir::TypeAttr{});
+  }
+
+  if (functionType->isVariadic()) {
+    callOp.setVarCalleeType(
+        cast<mlir::cxx::FunctionType>(gen.convertType(functionType)));
+  }
+
+  return {callOp.getResult()};
 }
 
 auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
