@@ -173,9 +173,21 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
                                          "failed to convert call result types");
     }
 
-    auto llvmCallOp =
-        LLVM::CallOp::create(rewriter, op.getLoc(), resultTypes,
-                             adaptor.getCallee(), adaptor.getInputs());
+    LLVM::CallOp llvmCallOp;
+    if (!op.getCalleeAttr()) {
+      // create an indirect call
+      auto llvmFuncType = LLVM::LLVMFunctionType::get(rewriter.getContext(),
+                                                      resultTypes.front(), {},
+                                                      /*isVarArg=*/false);
+
+      llvmCallOp = LLVM::CallOp::create(rewriter, op.getLoc(), llvmFuncType,
+                                        adaptor.getInputs());
+
+    } else {
+      llvmCallOp =
+          LLVM::CallOp::create(rewriter, op.getLoc(), resultTypes,
+                               adaptor.getCallee(), adaptor.getInputs());
+    }
 
     if (op.getVarCalleeType().has_value()) {
       auto varCalleeType =
