@@ -182,6 +182,20 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationResult {
   if (!gen.function_) {
     // skip for now, as we only look for local variable declarations
+
+    for (auto node : ListView{ast->initDeclaratorList}) {
+      auto var = symbol_cast<VariableSymbol>(node->symbol);
+      if (!var) continue;
+
+      auto glo = gen.findOrCreateGlobal(var);
+      if (!glo) {
+        gen.unit_->error(node->initializer->firstSourceLocation(),
+                         std::format("cannot create global variable '{}'",
+                                     to_string(var->name())));
+        continue;
+      }
+    }
+
     return {};
   }
 

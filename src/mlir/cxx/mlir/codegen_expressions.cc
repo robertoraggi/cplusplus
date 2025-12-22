@@ -376,6 +376,23 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
+  if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+    if (auto it = gen.globalOps_.find(var); it != gen.globalOps_.end()) {
+      auto loc = gen.getLocation(ast->firstSourceLocation());
+
+      auto ptrToVoidType = mlir::cxx::PointerType::get(
+          gen.builder_.getContext(), gen.convertType(var->type()));
+
+      auto resultType =
+          mlir::cxx::PointerType::get(gen.builder_.getContext(), ptrToVoidType);
+
+      auto op = mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType,
+                                               it->second.getSymName());
+
+      return {op};
+    }
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -694,9 +711,7 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 
   if (control()->is_integral_or_unscoped_enum(ast->baseExpression->type)) {
     auto loc = gen.getLocation(ast->firstSourceLocation());
-    auto ptrTy =
-        mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
-    auto elementTy = ptrTy.getElementType();
+    auto elementTy = gen.convertType(ast->baseExpression->type);
     auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
                                             expressionResult.value);
     auto resultTy = gen.convertType(ast->baseExpression->type);
@@ -944,8 +959,6 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       }
 
       if (control()->is_floating_point(ast->type)) {
-        resultType.dump();
-
         mlir::FloatAttr value;
         switch (ast->type->kind()) {
           case TypeKind::kFloat:

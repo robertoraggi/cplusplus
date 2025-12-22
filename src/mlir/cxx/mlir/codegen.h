@@ -262,6 +262,9 @@ class Codegen {
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;
 
+  [[nodiscard]] auto findOrCreateGlobal(VariableSymbol* var)
+      -> mlir::cxx::GlobalOp;
+
   [[nodiscard]] auto newTemp(const Type* type, SourceLocation loc)
       -> mlir::cxx::AllocaOp;
 
@@ -328,6 +331,7 @@ class Codegen {
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
+  std::unordered_map<VariableSymbol*, mlir::cxx::GlobalOp> globalOps_;
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;
   Loop loop_;
