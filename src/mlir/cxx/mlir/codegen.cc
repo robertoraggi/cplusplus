@@ -21,6 +21,7 @@
 #include <cxx/mlir/codegen.h>
 
 // cxx
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/symbols.h>
@@ -78,6 +79,9 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
 
   auto var = symbol_cast<VariableSymbol>(symbol);
   if (!var) return std::nullopt;
+
+  if (var->isStatic()) return std::nullopt;
+  if (!var->parent()->isBlock()) return std::nullopt;
 
   auto type = convertType(var->type());
   auto ptrType = builder_.getType<mlir::cxx::PointerType>(type);
@@ -170,6 +174,73 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   funcOps_.insert_or_assign(functionSymbol, func);
 
   return func;
+}
+
+auto Codegen::findOrCreateGlobal(VariableSymbol* variableSymbol)
+    -> mlir::cxx::GlobalOp {
+  if (auto it = globalOps_.find(variableSymbol); it != globalOps_.end()) {
+    return it->second;
+  }
+
+  auto varType = convertType(variableSymbol->type());
+
+  const auto loc = getLocation(variableSymbol->location());
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  mlir::cxx::InlineKind inlineKind = mlir::cxx::InlineKind::NoInline;
+
+  mlir::cxx::LinkageKind linkageKind = mlir::cxx::LinkageKind::External;
+
+  if (variableSymbol->isStatic()) {
+    linkageKind = mlir::cxx::LinkageKind::Internal;
+  }
+
+  auto linkageAttr =
+      mlir::cxx::LinkageKindAttr::get(builder_.getContext(), linkageKind);
+
+  std::string name;
+
+  name = to_string(variableSymbol->name());
+
+  llvm::SmallVector<mlir::Type> resultTypes;
+  resultTypes.push_back(varType);
+
+  mlir::Attribute initializer;
+
+  auto value = variableSymbol->constValue();
+
+  if (value.has_value()) {
+    auto interp = ASTInterpreter{unit_};
+
+    if (control()->is_integral_or_unscoped_enum(variableSymbol->type())) {
+      auto constValue = interp.toInt(*value);
+      initializer = builder_.getI64IntegerAttr(constValue.value_or(0));
+    } else if (control()->is_floating_point(variableSymbol->type())) {
+      auto ty = control()->remove_cv(variableSymbol->type());
+      if (type_cast<FloatType>(ty)) {
+        auto constValue = interp.toFloat(*value);
+        initializer = builder_.getF32FloatAttr(constValue.value_or(0));
+      } else if (type_cast<DoubleType>(ty)) {
+        auto constValue = interp.toDouble(*value);
+        initializer = builder_.getF64FloatAttr(constValue.value_or(0));
+      }
+    }
+  }
+
+  if (!initializer) {
+    // default initialize to zero
+    initializer = builder_.getZeroAttr(varType);
+  }
+
+  auto var = mlir::cxx::GlobalOp::create(builder_, loc, varType, false, name,
+                                         initializer);
+
+  globalOps_.insert_or_assign(variableSymbol, var);
+
+  return var;
 }
 
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {

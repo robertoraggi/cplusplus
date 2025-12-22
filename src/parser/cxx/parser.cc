@@ -5659,17 +5659,12 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                                 control()->remove_cv(var->type()));
     }
 
-    if (var->isConstexpr()) {
-      if (!var->initializer()) {
-        parse_error(var->location(), "constexpr variable must be initialized");
-      } else {
-        var->setConstValue(evaluate_constant_expression(var->initializer()));
+    if (var->initializer()) {
+      var->setConstValue(evaluate_constant_expression(var->initializer()));
+    }
 
-        if (!var->constValue().has_value()) {
-          type_error(var->location(),
-                     "initializer of constexpr variable is not a constant");
-        }
-      }
+    if (var->isConstexpr() && !var->constValue().has_value()) {
+      parse_error(var->location(), "constexpr variable must be initialized");
     }
   }
 

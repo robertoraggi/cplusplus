@@ -159,6 +159,10 @@ auto Lexer::readToken() -> TokenKind {
           (LA(1) == '+' || LA(1) == '-')) {
         consume(2);
         integer_literal = false;
+      } else if (pos_ + 1 < end_ && (ch == 'e' || ch == 'E') &&
+                 std::isdigit(LA(1))) {
+        consume(1);
+        integer_literal = false;
       } else if (pos_ + 1 < end_ && ch == '\'' && is_idcont(LA(1))) {
         consume();
       } else if (is_idcont(ch)) {
