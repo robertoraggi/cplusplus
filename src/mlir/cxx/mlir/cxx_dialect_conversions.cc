@@ -130,7 +130,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
 
     rewriter.replaceOpWithNewOp<LLVM::GlobalOp>(
         op, elementType, op.getConstant(), LLVM::linkage::Linkage::Private,
-        op.getSymName(), adaptor.getValue().value());
+        op.getSymName(), adaptor.getValueAttr());
 
     return success();
   }

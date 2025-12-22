@@ -438,6 +438,7 @@ class StaticAssertDeclarationAST final : public DeclarationAST {
   const Literal* literal = nullptr;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
+  std::optional<bool> value;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 

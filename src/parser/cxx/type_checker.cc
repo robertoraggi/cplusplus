@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -59,13 +60,11 @@ struct TypeChecker::Visitor {
   }
 
   void error(SourceLocation loc, std::string message) {
-    if (!check.reportErrors_) return;
-    check.unit_->error(loc, std::move(message));
+    check.error(loc, std::move(message));
   }
 
   void warning(SourceLocation loc, std::string message) {
-    if (!check.reportErrors_) return;
-    check.unit_->warning(loc, std::move(message));
+    check.warning(loc, std::move(message));
   }
 
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
@@ -155,6 +154,8 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto check_member_access(MemberExpressionAST* ast) -> bool;
   [[nodiscard]] auto check_pseudo_destructor_access(MemberExpressionAST* ast)
       -> bool;
+
+  void check_static_assert(StaticAssertDeclarationAST* ast);
 
   void operator()(CharLiteralExpressionAST* ast);
   void operator()(BoolLiteralExpressionAST* ast);
@@ -2432,6 +2433,104 @@ void TypeChecker::check(ExpressionAST* ast) {
   visit(Visitor{*this}, ast);
 }
 
+void TypeChecker::check(DeclarationAST* ast) {
+  if (!ast) return;
+
+  if (auto staticAssert = ast_cast<StaticAssertDeclarationAST>(ast)) {
+    Visitor{*this}.check_static_assert(staticAssert);
+    return;
+  }
+}
+
+void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
+  auto control = unit_->control();
+
+  if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+    var->setInitializer(ast->initializer);
+
+    if (auto ty = type_cast<UnboundedArrayType>(ast->symbol->type())) {
+      BracedInitListAST* bracedInitList = nullptr;
+
+      if (auto init = ast_cast<BracedInitListAST>(ast->initializer)) {
+        bracedInitList = init;
+      } else if (auto init = ast_cast<EqualInitializerAST>(ast->initializer)) {
+        bracedInitList = ast_cast<BracedInitListAST>(init->expression);
+      }
+
+      if (bracedInitList) {
+        const auto count =
+            std::ranges::distance(ListView{bracedInitList->expressionList});
+
+        if (count > 0) {
+          const auto arrayType =
+              control->getBoundedArrayType(ty->elementType(), count);
+
+          var->setType(arrayType);
+        }
+      }
+    }
+
+    if (type_cast<AutoType>(var->type())) {
+      if (!var->initializer()) {
+        error(var->location(), "variable with 'auto' type must be initialized");
+      } else {
+        var->setType(control->remove_cvref(var->initializer()->type));
+      }
+    }
+
+    if (var->isConstexpr()) {
+      var->setType(control->add_const(var->type()));
+    }
+
+    if (ast->initializer && !control->is_reference(var->type())) {
+      (void)implicit_conversion(ast->initializer,
+                                control->remove_cv(var->type()));
+    }
+
+    if (var->initializer()) {
+      auto interp = ASTInterpreter{unit_};
+      auto value = interp.evaluate(var->initializer());
+      var->setConstValue(value);
+    }
+
+    if (var->isConstexpr() && !var->constValue().has_value()) {
+      error(var->location(), "constexpr variable must be initialized");
+    }
+  }
+}
+
+void TypeChecker::Visitor::check_static_assert(
+    StaticAssertDeclarationAST* ast) {
+  auto loc = ast->firstSourceLocation();
+
+  auto interp = ASTInterpreter{check.unit_};
+
+  auto value = interp.evaluate(ast->expression);
+
+  if (value.has_value()) {
+    ast->value = interp.toBool(*value);
+  }
+
+  if (ast->value.has_value() && ast->value.value()) {
+    return;
+  }
+
+  if (!ast->value.has_value()) {
+    error(loc,
+          "static assertion expression is not an integral constant "
+          "expression");
+    return;
+  }
+
+  if (ast->literalLoc)
+    loc = ast->literalLoc;
+  else if (ast->expression)
+    loc = ast->expression->firstSourceLocation();
+
+  error(loc, ast->literal ? ast->literal->value()
+                          : std::string("static assert failed"));
+}
+
 void TypeChecker::Visitor::check_addition(BinaryExpressionAST* ast) {
   // ### TODO: check for user-defined conversion operators
   if (control()->is_class(ast->leftExpression->type)) return;
@@ -2680,6 +2779,16 @@ void TypeChecker::check_integral_condition(ExpressionAST*& expr) {
   Visitor visitor{*this};
   (void)visitor.lvalue_to_rvalue_conversion(expr);
   visitor.adjust_cv(expr);
+}
+
+void TypeChecker::error(SourceLocation loc, std::string message) {
+  if (!reportErrors_) return;
+  unit_->error(loc, std::move(message));
+}
+
+void TypeChecker::warning(SourceLocation loc, std::string message) {
+  if (!reportErrors_) return;
+  unit_->warning(loc, std::move(message));
 }
 
 }  // namespace cxx

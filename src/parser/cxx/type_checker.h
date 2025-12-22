@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -45,14 +46,20 @@ class TypeChecker {
 
   void check(ExpressionAST* ast);
 
+  void check(DeclarationAST* ast);
+
   // todo: remove
   void checkReturnStatement(ReturnStatementAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
+  void check_init_declarator(InitDeclaratorAST* initDecl);
 
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* targetType) -> bool;
+
+  void warning(SourceLocation loc, std::string message);
+  void error(SourceLocation loc, std::string message);
 
  private:
   struct Visitor;

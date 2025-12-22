@@ -687,7 +687,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return enumerator->value();
   }
 
-  if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+  if (auto var = symbol_cast<VariableSymbol>(ast->symbol);
+      var && var->isConstexpr()) {
     return var->constValue();
   }
 

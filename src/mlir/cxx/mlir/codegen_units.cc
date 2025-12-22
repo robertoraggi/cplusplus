@@ -70,6 +70,11 @@ struct Codegen::UnitVisitor {
 
     void operator()(NamespaceSymbol* symbol) {
       for (auto member : views::members(symbol)) {
+        if (auto var = symbol_cast<VariableSymbol>(member)) {
+          p.gen.findOrCreateGlobal(var);
+          continue;
+        }
+
         visit(*this, member);
       }
     }
