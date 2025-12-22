@@ -3237,6 +3237,13 @@ auto Parser::parse_constant_expression(ExpressionAST*& yyast,
   return true;
 }
 
+auto Parser::parse_constant_expression(ExpressionAST*& yyast) -> bool {
+  ExprContext exprContext;
+  exprContext.isConstantEvaluated = true;
+  if (!parse_conditional_expression(yyast, exprContext)) return false;
+  return true;
+}
+
 auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
     -> bool {
   ExprContext exprContext;
@@ -4560,9 +4567,7 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
-  std::optional<ConstValue> constValue;
-
-  if (!parse_constant_expression(ast->expression, constValue)) {
+  if (!parse_constant_expression(ast->expression)) {
     parse_error("expected an expression");
   }
 
@@ -4575,36 +4580,7 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
-  if (!binder_.inTemplate()) {
-    // not in a template context
-
-    bool value = false;
-
-    if (constValue.has_value()) {
-      auto interp = ASTInterpreter{unit};
-      value = interp.toBool(constValue.value()).value_or(false);
-    }
-
-    if (!value) {
-      SourceLocation loc = ast->firstSourceLocation();
-
-      if (!ast->expression || !constValue.has_value()) {
-        type_error(loc,
-                   "static assertion expression is not an integral constant "
-                   "expression");
-      } else {
-        if (ast->literalLoc)
-          loc = ast->literalLoc;
-        else if (ast->expression)
-          ast->expression->firstSourceLocation();
-
-        std::string message =
-            ast->literal ? ast->literal->value() : "static assert failed";
-
-        type_error(loc, std::move(message));
-      }
-    }
-  }
+  check(ast);
 
   return true;
 }
@@ -5616,62 +5592,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   ast->initializer = initializer;
   ast->symbol = symbol;
 
-  if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
-    var->setInitializer(initializer);
-
-    if (auto ty = type_cast<UnboundedArrayType>(ast->symbol->type())) {
-      BracedInitListAST* bracedInitList = nullptr;
-
-      if (auto init = ast_cast<BracedInitListAST>(ast->initializer)) {
-        bracedInitList = init;
-      } else if (auto init = ast_cast<EqualInitializerAST>(ast->initializer)) {
-        bracedInitList = ast_cast<BracedInitListAST>(init->expression);
-      }
-
-      if (bracedInitList) {
-        const auto count =
-            std::ranges::distance(ListView{bracedInitList->expressionList});
-
-        if (count > 0) {
-          const auto arrayType =
-              control()->getBoundedArrayType(ty->elementType(), count);
-
-          symbol->setType(arrayType);
-        }
-      }
-    }
-
-    if (type_cast<AutoType>(var->type())) {
-      if (!var->initializer()) {
-        parse_error(var->location(),
-                    "variable with 'auto' type must be initialized");
-      } else {
-        var->setType(control()->remove_cvref(var->initializer()->type));
-      }
-    }
-
-    if (var->isConstexpr()) {
-      var->setType(control()->add_const(var->type()));
-    }
-
-    if (ast->initializer && !control()->is_reference(var->type())) {
-      (void)implicit_conversion(ast->initializer,
-                                control()->remove_cv(var->type()));
-    }
-
-    if (var->isConstexpr()) {
-      if (!var->initializer()) {
-        parse_error(var->location(), "constexpr variable must be initialized");
-      } else {
-        var->setConstValue(evaluate_constant_expression(var->initializer()));
-
-        if (!var->constValue().has_value()) {
-          type_error(var->location(),
-                     "initializer of constexpr variable is not a constant");
-        }
-      }
-    }
-  }
+  check_init_declarator(ast);
 
   return true;
 }
@@ -10091,6 +10012,23 @@ void Parser::check(StatementAST* ast) {
   check.setScope(scope());
   check.setReportErrors(config().checkTypes);
   check.checkReturnStatement(returnStatement);
+}
+
+void Parser::check(DeclarationAST* ast) {
+  if (binder_.inTemplate()) return;
+
+  TypeChecker check{unit};
+  check.setScope(scope());
+  check.setReportErrors(config().checkTypes);
+  check.check(ast);
+}
+
+void Parser::check_init_declarator(InitDeclaratorAST* ast) {
+  if (binder_.inTemplate()) return;
+  TypeChecker check{unit};
+  check.setScope(scope());
+  check.setReportErrors(config().checkTypes);
+  check.check_init_declarator(ast);
 }
 
 void Parser::check_bool_condition(ExpressionAST*& ast) {

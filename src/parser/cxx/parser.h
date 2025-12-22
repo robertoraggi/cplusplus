@@ -34,6 +34,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "cxx/ast.h"
+
 namespace cxx {
 
 class Decl;
@@ -346,6 +348,7 @@ class Parser final {
   [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast,
                                                std::optional<ConstValue>& value)
       -> bool;
+  [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
   void parse_statement(StatementAST*& yyast);
@@ -799,9 +802,11 @@ class Parser final {
 
   void check(ExpressionAST* ast);
   void check(StatementAST* ast);
+  void check(DeclarationAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
+  void check_init_declarator(InitDeclaratorAST* initDecl);
 
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& yyast,
                                          const Type* targetType) -> bool;
