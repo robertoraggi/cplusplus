@@ -231,9 +231,20 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
       continue;
     }
 
-    auto expressionResult = gen.expression(node->initializer);
+    if (gen.control()->is_array(var->type())) {
+      gen.arrayInit(local.value(), var->type(), node->initializer);
+      continue;
+    }
 
-    const auto elementType = gen.convertType(var->type());
+    if (gen.control()->is_class(var->type())) {
+      if (auto equal = ast_cast<EqualInitializerAST>(node->initializer)) {
+        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
+          braced->type = var->type();
+        }
+      }
+    }
+
+    auto expressionResult = gen.expression(node->initializer);
 
     mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
                                local.value());

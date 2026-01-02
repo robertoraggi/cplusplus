@@ -28,14 +28,23 @@
 
 #include <cstdint>
 #include <memory>
+#include <tuple>
 #include <variant>
+#include <vector>
 
 namespace cxx {
 
 class Meta;
+class InitializerList;
 
 using ConstValue = std::variant<std::intmax_t, const StringLiteral*, float,
-                                double, long double, std::shared_ptr<Meta>>;
+                                double, long double, std::shared_ptr<Meta>,
+                                std::shared_ptr<InitializerList>>;
+
+class InitializerList {
+ public:
+  std::vector<std::tuple<ConstValue, const Type*>> elements;
+};
 
 class Meta {
  public:

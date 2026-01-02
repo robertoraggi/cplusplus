@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast_interpreter.h>
+#include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/symbols.h>
@@ -64,6 +65,34 @@ auto Codegen::newUniqueSymbolName(std::string_view prefix) -> std::string {
     return std::format("{}{}", prefix, uniqueName);
   }
   return std::format("{}{}", prefix, ++uniqueName);
+}
+
+auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
+                           const Type* type) -> std::optional<mlir::FloatAttr> {
+  if (value.has_value()) {
+    auto ty = control()->remove_cvref(type);
+
+    auto interp = ASTInterpreter{unit_};
+
+    switch (ty->kind()) {
+      case TypeKind::kFloat:
+        return interp.toFloat(*value).transform(
+            [&](float value) { return builder_.getF32FloatAttr(value); });
+
+      case TypeKind::kDouble:
+        return interp.toDouble(*value).transform(
+            [&](double value) { return builder_.getF64FloatAttr(value); });
+
+      case TypeKind::kLongDouble:
+        return interp.toDouble(*value).transform(
+            [&](double value) { return builder_.getF64FloatAttr(value); });
+
+      default:
+        break;
+    }  // switch
+  }
+
+  return {};
 }
 
 void Codegen::branch(mlir::Location loc, mlir::Block* block,
@@ -218,19 +247,37 @@ auto Codegen::findOrCreateGlobal(VariableSymbol* variableSymbol)
     if (control()->is_integral_or_unscoped_enum(variableSymbol->type())) {
       auto constValue = interp.toInt(*value);
       initializer = builder_.getI64IntegerAttr(constValue.value_or(0));
-    } else if (control()->is_floating_point(variableSymbol->type())) {
-      auto ty = control()->remove_cv(variableSymbol->type());
-      if (type_cast<FloatType>(ty)) {
-        auto constValue = interp.toFloat(*value);
-        initializer = builder_.getF32FloatAttr(constValue.value_or(0));
-      } else if (type_cast<DoubleType>(ty)) {
-        auto constValue = interp.toDouble(*value);
-        initializer = builder_.getF64FloatAttr(constValue.value_or(0));
+    } else if (auto attr = getFloatAttr(value, variableSymbol->type())) {
+      initializer = attr.value();
+    } else if (control()->is_array(variableSymbol->type())) {
+      if (auto constArrayPtr =
+              std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
+        auto constArray = *constArrayPtr;
+        std::vector<mlir::Attribute> elements;
+
+        // todo: fill elements
+        for (const auto& element : constArray->elements) {
+          // convert each element to mlir::Attribute and push to elements
+        }
+        initializer = builder_.getArrayAttr(elements);
+      }
+    } else if (control()->is_class(variableSymbol->type())) {
+      if (auto constArrayPtr =
+              std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
+        auto constArray = *constArrayPtr;
+        std::vector<mlir::Attribute> elements;
+
+        // todo: fill elements
+        for (const auto& element : constArray->elements) {
+          // convert each element to mlir::Attribute and push to elements
+        }
+
+        initializer = builder_.getArrayAttr(elements);
       }
     }
   }
 
-  if (!initializer) {
+  if (!variableSymbol->initializer() && !variableSymbol->isExtern()) {
     // default initialize to zero
     initializer = builder_.getZeroAttr(varType);
   }

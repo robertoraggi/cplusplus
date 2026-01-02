@@ -61,6 +61,14 @@ struct ConstValueHash {
     }
     return 0;
   }
+  auto operator()(const std::shared_ptr<InitializerList>& value) const
+      -> std::size_t {
+    std::size_t seed = 0;
+    for (const auto& [element, elementType] : value->elements) {
+      hash_combine(seed, std::visit(ConstValueHash{}, element));
+    }
+    return seed;
+  }
 };
 
 struct TemplateArgumentHash {

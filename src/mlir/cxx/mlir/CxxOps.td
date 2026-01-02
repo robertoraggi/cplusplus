@@ -212,6 +212,12 @@ def Cxx_PtrAddOp : Cxx_Op<"ptr_add"> {
   let results = (outs Cxx_PointerType:$result);
 }
 
+def Cxx_PtrDiffOp : Cxx_Op<"ptr_diff"> {
+  let arguments = (ins Cxx_PointerType:$lhs, Cxx_PointerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
+}
+
 def Cxx_AddressOfOp : Cxx_Op<"addressof"> {
   let arguments = (ins FlatSymbolRefAttr:$sym_name);
 
