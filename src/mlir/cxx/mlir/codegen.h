@@ -245,6 +245,7 @@ class Codegen {
   void asmQualifier(AsmQualifierAST* ast);
   void asmClobber(AsmClobberAST* ast);
   void asmGotoLabel(AsmGotoLabelAST* ast);
+  void arrayInit(mlir::Value address, const Type* type, ExpressionAST* init);
 
  private:
   [[nodiscard]] auto getLocation(SourceLocation loc) -> mlir::Location;
@@ -275,6 +276,10 @@ class Codegen {
 
   [[nodiscard]] auto newUniqueSymbolName(std::string_view prefix)
       -> std::string;
+
+  [[nodiscard]] auto getFloatAttr(const std::optional<ConstValue>& value,
+                                  const Type* type)
+      -> std::optional<mlir::FloatAttr>;
 
   void branch(mlir::Location loc, mlir::Block* block,
               mlir::ValueRange operands = {});

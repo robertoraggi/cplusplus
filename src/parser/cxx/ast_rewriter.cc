@@ -261,6 +261,7 @@ auto ASTRewriter::make_substitution(
         type = control->add_pointer(expr->type);
       }
       templArg->setType(expr->type);
+      templArg->setConstexpr(true);
       templArg->setConstValue(value);
       templateArguments.push_back(templArg);
     } else if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {

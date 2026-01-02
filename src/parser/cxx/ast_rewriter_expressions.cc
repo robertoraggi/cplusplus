@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/binder.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -521,14 +522,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
 
     copy->symbol = *symbolPtr;
-    copy->type = copy->symbol->type();
+
   } else {
-    // copy->symbol = ast->symbol;
-    if (copy->nestedNameSpecifier) {
-      auto id = get_name(control(), copy->unqualifiedId);
-      auto resolved = Lookup(binder()->scope())(copy->nestedNameSpecifier, id);
-      copy->symbol = resolved;
-    }
+    binder()->bind(copy);
   }
 
   return copy;

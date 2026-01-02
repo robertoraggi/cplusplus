@@ -55,6 +55,12 @@ class TypeChecker {
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
 
+  void deduce_array_size(VariableSymbol* var);
+  void deduce_auto_type(VariableSymbol* var);
+  void check_initialization(VariableSymbol* var, InitDeclaratorAST* ast);
+
+  void check_braced_init_list(const Type* type, BracedInitListAST* ast);
+
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* targetType) -> bool;
 

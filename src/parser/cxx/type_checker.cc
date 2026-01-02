@@ -30,6 +30,7 @@
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <format>
@@ -470,9 +471,142 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     }
   }
 
+  // overload resolution
   if (auto ovl = type_cast<OverloadSetType>(ast->baseExpression->type)) {
-    // TODO: check overload set
-    return;
+    enum class ConversionKind {
+      kExactMatch,
+      kPromotion,
+      kConversion,
+      kNoMatch,
+    };
+
+    struct ImplicitConversionSequence {
+      ConversionKind kind = ConversionKind::kNoMatch;
+
+      bool isBetterThan(const ImplicitConversionSequence& other) const {
+        return kind < other.kind;
+      }
+    };
+
+    auto classifyConversion =
+        [&](const Type* from, const Type* to) -> ImplicitConversionSequence {
+      if (!from || !to) return {ConversionKind::kNoMatch};
+
+      if (from == to) return {ConversionKind::kExactMatch};
+
+      if (control()->is_same(control()->remove_cv(from),
+                             control()->remove_cv(to))) {
+        // Qualification conversion (e.g. T -> const T)
+        return {ConversionKind::kExactMatch};
+      }
+
+      if (control()->is_array(from)) {
+        auto elem = control()->get_element_type(from);
+        auto ptrType = control()->getPointerType(elem);
+        if (ptrType == to) return {ConversionKind::kExactMatch};
+      }
+
+      if (control()->is_pointer(from) && control()->is_pointer(to)) {
+        // TODO: check is_base_of
+        return {ConversionKind::kConversion};
+      }
+
+      if (control()->is_arithmetic(from) && control()->is_arithmetic(to)) {
+        return {ConversionKind::kConversion};
+      }
+
+      return {ConversionKind::kNoMatch};
+    };
+
+    struct Candidate {
+      FunctionSymbol* symbol;
+      std::vector<ImplicitConversionSequence> conversions;
+      bool viable = false;
+    };
+
+    std::vector<Candidate> candidates;
+
+    int argCount = 0;
+    for (auto it = ast->expressionList; it; it = it->next) ++argCount;
+
+    for (auto func : ovl->symbol()->functions()) {
+      auto type = type_cast<FunctionType>(func->type());
+      if (!type) continue;
+
+      if (type->parameterTypes().size() != argCount) continue;
+
+      Candidate cand{func};
+      cand.viable = true;
+
+      auto paramIt = type->parameterTypes().begin();
+      for (auto argIt = ast->expressionList; argIt;
+           argIt = argIt->next, ++paramIt) {
+        auto argType = argIt->value->type;
+        auto paramType = *paramIt;
+
+        paramType = control()->remove_reference(paramType);
+
+        if (control()->is_array(argType) && control()->is_pointer(paramType)) {
+          auto elem = control()->get_element_type(argType);
+          argType = control()->getPointerType(elem);
+        }
+
+        auto conv = classifyConversion(argType, paramType);
+        if (conv.kind == ConversionKind::kNoMatch) {
+          cand.viable = false;
+          break;
+        }
+        cand.conversions.push_back(conv);
+      }
+
+      if (cand.viable) candidates.push_back(cand);
+    }
+
+    std::vector<Candidate*> bestCandidates;
+    if (!candidates.empty()) {
+      bestCandidates.push_back(&candidates[0]);
+      for (size_t i = 1; i < candidates.size(); ++i) {
+        auto& curr = candidates[i];
+        auto& best = *bestCandidates[0];
+
+        bool currBetter = false;
+        bool bestBetter = false;
+
+        for (size_t j = 0; j < argCount; ++j) {
+          if (curr.conversions[j].isBetterThan(best.conversions[j]))
+            currBetter = true;
+          if (best.conversions[j].isBetterThan(curr.conversions[j]))
+            bestBetter = true;
+        }
+
+        if (currBetter && !bestBetter) {
+          bestCandidates.clear();
+          bestCandidates.push_back(&curr);
+        } else if (bestBetter && !currBetter) {
+          // best remains best
+        } else {
+          bestCandidates.push_back(&curr);
+        }
+      }
+    }
+
+    if (bestCandidates.empty()) {
+      error(ast->firstSourceLocation(), "no matching function for call");
+      return;
+    } else if (bestCandidates.size() > 1) {
+      error(ast->firstSourceLocation(), "call to function is ambiguous");
+      return;
+    }
+
+    auto function = bestCandidates.front()->symbol;
+    ast->baseExpression->type = function->type();
+
+    if (auto id = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+      id->symbol = function;
+    } else if (auto member =
+                   ast_cast<MemberExpressionAST>(ast->baseExpression)) {
+      member->symbol = function;
+    }
   }
 
   auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
@@ -500,45 +634,48 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     return;
   }
 
-  // TODO: check the arguments
-  if (is_parsing_c()) {
-    const auto& argumentTypes = functionType->parameterTypes();
+  // Check the arguments
+  const auto& parameterTypes = functionType->parameterTypes();
 
-    int argc = 0;
-    for (auto it = ast->expressionList; it; it = it->next) {
-      if (!it->value) {
-        error(ast->firstSourceLocation(),
-              "invalid call with null argument expression");
+  int argc = 0;
+  for (auto it = ast->expressionList; it; it = it->next) {
+    if (!it->value) {
+      error(ast->firstSourceLocation(),
+            "invalid call with null argument expression");
+      continue;
+    }
+
+    if (argc >= parameterTypes.size()) {
+      if (functionType->isVariadic()) {
+        // do the promotion for the variadic arguments
+        (void)ensure_prvalue(it->value);
+        adjust_cv(it->value);
+
+        if (integral_promotion(it->value)) continue;
+        if (floating_point_promotion(it->value)) continue;
+
         continue;
       }
 
-      if (argc >= argumentTypes.size()) {
-        if (functionType->isVariadic()) {
-          // do the promotion for the variadic arguments
-          (void)ensure_prvalue(it->value);
-          adjust_cv(it->value);
+      error(it->value->firstSourceLocation(),
+            std::format("too many arguments for function of type '{}'",
+                        to_string(functionType)));
+      break;
+    }
 
-          if (integral_promotion(it->value)) continue;
-          if (floating_point_promotion(it->value)) continue;
+    auto targetType = parameterTypes[argc];
+    ++argc;
 
-          continue;
-        }
+    if (is_parsing_cxx() && control()->is_reference(targetType)) {
+      // TODO: check reference binding
+      continue;
+    }
 
-        error(it->value->firstSourceLocation(),
-              std::format("too many arguments for function of type '{}'",
-                          to_string(functionType)));
-        break;
-      }
-
-      auto targetType = argumentTypes[argc];
-      ++argc;
-
-      if (!implicit_conversion(it->value, targetType)) {
-        error(it->value->firstSourceLocation(),
-              std::format("invalid argument of type '{}' for parameter of type "
-                          "'{}'",
-                          to_string(it->value->type), to_string(targetType)));
-      }
+    if (!implicit_conversion(it->value, targetType)) {
+      error(it->value->firstSourceLocation(),
+            std::format("invalid argument of type '{}' for parameter of type "
+                        "'{}'",
+                        to_string(it->value->type), to_string(targetType)));
     }
   }
 
@@ -2443,59 +2580,116 @@ void TypeChecker::check(DeclarationAST* ast) {
 }
 
 void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
+  auto var = symbol_cast<VariableSymbol>(ast->symbol);
+  if (!var) return;
+
+  var->setInitializer(ast->initializer);
+
+  deduce_array_size(var);
+  deduce_auto_type(var);
+
+  if (var->isConstexpr()) {
+    var->setType(unit_->control()->add_const(var->type()));
+  }
+
+  check_initialization(var, ast);
+
+  if (var->initializer()) {
+    auto interp = ASTInterpreter{unit_};
+    auto value = interp.evaluate(var->initializer());
+    var->setConstValue(value);
+  }
+
+  if (var->isConstexpr() && !var->constValue().has_value()) {
+    error(var->location(), "constexpr variable must be initialized");
+  }
+}
+
+void TypeChecker::deduce_array_size(VariableSymbol* var) {
+  auto ty = type_cast<UnboundedArrayType>(var->type());
+  if (!ty) return;
+
+  auto initializer = var->initializer();
+  if (!initializer) return;
+
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (auto init = ast_cast<BracedInitListAST>(initializer)) {
+    bracedInitList = init;
+  } else if (auto init = ast_cast<EqualInitializerAST>(initializer)) {
+    bracedInitList = ast_cast<BracedInitListAST>(init->expression);
+  }
+
+  if (bracedInitList) {
+    const auto count =
+        std::ranges::distance(ListView{bracedInitList->expressionList});
+
+    if (count > 0) {
+      const auto arrayType =
+          unit_->control()->getBoundedArrayType(ty->elementType(), count);
+
+      var->setType(arrayType);
+    }
+  }
+}
+
+void TypeChecker::deduce_auto_type(VariableSymbol* var) {
+  if (!type_cast<AutoType>(var->type())) return;
+
+  if (!var->initializer()) {
+    error(var->location(), "variable with 'auto' type must be initialized");
+  } else {
+    var->setType(unit_->control()->remove_cvref(var->initializer()->type));
+  }
+}
+
+void TypeChecker::check_initialization(VariableSymbol* var,
+                                       InitDeclaratorAST* ast) {
   auto control = unit_->control();
+  if (!ast->initializer || control->is_reference(var->type())) return;
 
-  if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+  auto targetType = control->remove_cv(var->type());
+  BracedInitListAST* bracedInitList = nullptr;
+
+  if (auto init = ast_cast<BracedInitListAST>(ast->initializer)) {
+    bracedInitList = init;
+  } else if (auto init = ast_cast<EqualInitializerAST>(ast->initializer)) {
+    bracedInitList = ast_cast<BracedInitListAST>(init->expression);
+  }
+
+  if (bracedInitList) {
+    check_braced_init_list(targetType, bracedInitList);
+  } else {
+    (void)implicit_conversion(ast->initializer, targetType);
     var->setInitializer(ast->initializer);
+  }
+}
 
-    if (auto ty = type_cast<UnboundedArrayType>(ast->symbol->type())) {
-      BracedInitListAST* bracedInitList = nullptr;
-
-      if (auto init = ast_cast<BracedInitListAST>(ast->initializer)) {
-        bracedInitList = init;
-      } else if (auto init = ast_cast<EqualInitializerAST>(ast->initializer)) {
-        bracedInitList = ast_cast<BracedInitListAST>(init->expression);
-      }
-
-      if (bracedInitList) {
-        const auto count =
-            std::ranges::distance(ListView{bracedInitList->expressionList});
-
-        if (count > 0) {
-          const auto arrayType =
-              control->getBoundedArrayType(ty->elementType(), count);
-
-          var->setType(arrayType);
+void TypeChecker::check_braced_init_list(const Type* type,
+                                         BracedInitListAST* ast) {
+  auto control = unit_->control();
+  if (control->is_array(type)) {
+    auto elementType = control->remove_cv(control->get_element_type(type));
+    size_t index = 0;
+    for (auto it = ast->expressionList; it; it = it->next) {
+      if (auto boundedArrayType = type_cast<BoundedArrayType>(type)) {
+        if (index >= boundedArrayType->size()) {
+          error(it->value->firstSourceLocation(),
+                "excess elements in array initializer");
+          break;
         }
       }
-    }
-
-    if (type_cast<AutoType>(var->type())) {
-      if (!var->initializer()) {
-        error(var->location(), "variable with 'auto' type must be initialized");
-      } else {
-        var->setType(control->remove_cvref(var->initializer()->type));
+      if (!implicit_conversion(it->value, elementType) ||
+          !control->is_same(it->value->type, elementType)) {
+        error(it->value->firstSourceLocation(),
+              std::format("cannot initialize array element of type '{}' with "
+                          "expression of type '{}'",
+                          to_string(elementType), to_string(it->value->type)));
       }
+      ++index;
     }
-
-    if (var->isConstexpr()) {
-      var->setType(control->add_const(var->type()));
-    }
-
-    if (ast->initializer && !control->is_reference(var->type())) {
-      (void)implicit_conversion(ast->initializer,
-                                control->remove_cv(var->type()));
-    }
-
-    if (var->initializer()) {
-      auto interp = ASTInterpreter{unit_};
-      auto value = interp.evaluate(var->initializer());
-      var->setConstValue(value);
-    }
-
-    if (var->isConstexpr() && !var->constValue().has_value()) {
-      error(var->location(), "constexpr variable must be initialized");
-    }
+  } else {
+    // todo: check scalar
   }
 }
 
