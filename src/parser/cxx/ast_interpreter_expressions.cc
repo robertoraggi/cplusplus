@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -1478,11 +1479,15 @@ auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionResult {
+  auto values = std::vector<std::tuple<ConstValue, const Type*>>();
+
   for (auto node : ListView{ast->expressionList}) {
-    auto value = interp.expression(node);
+    auto value = interp.evaluate(node);
+    if (!value) return std::nullopt;
+    values.emplace_back(*value, node->type);
   }
 
-  return ExpressionResult{std::nullopt};
+  return std::make_shared<InitializerList>(std::move(values));
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ParenInitializerAST* ast)

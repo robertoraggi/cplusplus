@@ -79,13 +79,33 @@ struct Codegen::UnitVisitor {
       }
     }
 
+    void operator()(OverloadSetSymbol* symbol) {
+      for (auto member : symbol->functions()) {
+        visit(*this, member);
+      }
+    }
+
     void operator()(FunctionSymbol* symbol) {
+      if (symbol->templateDeclaration()) {
+        for (auto specialization : symbol->specializations()) {
+          visit(*this, specialization.symbol);
+        }
+        return;
+      }
+
       if (auto funcDecl = symbol->declaration()) {
         p.gen.declaration(funcDecl);
       }
     }
 
     void operator()(ClassSymbol* symbol) {
+      if (symbol->templateDeclaration()) {
+        for (auto specialization : symbol->specializations()) {
+          visit(*this, specialization.symbol);
+        }
+        return;
+      }
+
       for (auto specialization : symbol->specializations()) {
         visit(*this, specialization.symbol);
       }

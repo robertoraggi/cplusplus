@@ -27,6 +27,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>

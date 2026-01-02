@@ -250,12 +250,14 @@ auto Codegen::ConvertType::operator()(const PointerType* type) -> mlir::Type {
 
 auto Codegen::ConvertType::operator()(const LvalueReferenceType* type)
     -> mlir::Type {
-  return getExprType();
+  auto elementType = gen.convertType(type->elementType());
+  return gen.builder_.getType<mlir::cxx::PointerType>(elementType);
 }
 
 auto Codegen::ConvertType::operator()(const RvalueReferenceType* type)
     -> mlir::Type {
-  return getExprType();
+  auto elementType = gen.convertType(type->elementType());
+  return gen.builder_.getType<mlir::cxx::PointerType>(elementType);
 }
 
 auto Codegen::ConvertType::operator()(const FunctionType* type) -> mlir::Type {
@@ -295,6 +297,16 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   std::vector<mlir::Type> memberTypes;
 
+  // Layout of parent classes
+  for (auto base : classSymbol->baseClasses()) {
+    const Type* baseType = base->type();
+    if (!baseType && base->symbol()) {
+      baseType = base->symbol()->type();
+    }
+    memberTypes.push_back(gen.convertType(baseType));
+  }
+
+  // Layout of members
   for (auto member : views::members(classSymbol)) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field) continue;
