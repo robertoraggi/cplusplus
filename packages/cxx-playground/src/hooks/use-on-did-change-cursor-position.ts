@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ export default function useOnDidChangeCursorPosition({
   editor: monaco.editor.IStandaloneCodeEditor | null;
   onDidChangeCursorPosition?: (
     editor: monaco.editor.IStandaloneCodeEditor,
-    event: monaco.Position,
+    event: monaco.Position
   ) => void;
 }) {
   useEffect(() => {
