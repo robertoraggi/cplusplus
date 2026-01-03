@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -72,6 +72,11 @@ struct ArithmeticCast {
   }
 
   auto operator()(const std::shared_ptr<Meta>&) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
+  auto operator()(const std::shared_ptr<InitializerList>&) const -> T {
     cxx_runtime_error("invalid artihmetic cast");
     return T{};
   }

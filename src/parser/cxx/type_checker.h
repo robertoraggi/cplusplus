@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,6 +54,12 @@ class TypeChecker {
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
+
+  void deduce_array_size(VariableSymbol* var);
+  void deduce_auto_type(VariableSymbol* var);
+  void check_initialization(VariableSymbol* var, InitDeclaratorAST* ast);
+
+  void check_braced_init_list(const Type* type, BracedInitListAST* ast);
 
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* targetType) -> bool;

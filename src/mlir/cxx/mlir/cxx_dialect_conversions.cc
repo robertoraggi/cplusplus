@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -391,6 +391,55 @@ class PtrAddOpLowering : public OpConversionPattern<cxx::PtrAddOp> {
 
     rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
                                              adaptor.getBase(), indices);
+
+    return success();
+  }
+
+ private:
+  const DataLayout& dataLayout_;
+};
+
+class PtrDiffOpLowering : public OpConversionPattern<cxx::PtrDiffOp> {
+ public:
+  PtrDiffOpLowering(const TypeConverter& typeConverter,
+                    const DataLayout& dataLayout, MLIRContext* context,
+                    PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::PtrDiffOp>(typeConverter, context, benefit),
+        dataLayout_(dataLayout) {}
+
+  auto matchAndRewrite(cxx::PtrDiffOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert pointer difference result type");
+    }
+
+    auto lhsType = typeConverter->convertType(adaptor.getLhs().getType());
+    if (!lhsType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert pointer difference left-hand side type");
+    }
+
+    auto rhsType = typeConverter->convertType(adaptor.getRhs().getType());
+    if (!rhsType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert pointer difference right-hand side type");
+    }
+
+    auto loc = op->getLoc();
+
+    auto lhs =
+        LLVM::PtrToIntOp::create(rewriter, loc, resultType, adaptor.getLhs());
+
+    auto rhs =
+        LLVM::PtrToIntOp::create(rewriter, loc, resultType, adaptor.getRhs());
+
+    rewriter.replaceOpWithNewOp<LLVM::SubOp>(op, resultType, lhs, rhs);
 
     return success();
   }
@@ -1771,7 +1820,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
           typeConverter, context);
 
   // pointer arithmetic operations
-  patterns.insert<PtrAddOpLowering>(typeConverter, dataLayout, context);
+  patterns.insert<PtrAddOpLowering, PtrDiffOpLowering>(typeConverter,
+                                                       dataLayout, context);
 
   // comparison operations
   patterns.insert<EqualOpLowering, NotEquaOpLowering, LessThanOpLowering,

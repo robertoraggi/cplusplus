@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -231,9 +231,20 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
       continue;
     }
 
-    auto expressionResult = gen.expression(node->initializer);
+    if (gen.control()->is_array(var->type())) {
+      gen.arrayInit(local.value(), var->type(), node->initializer);
+      continue;
+    }
 
-    const auto elementType = gen.convertType(var->type());
+    if (gen.control()->is_class(var->type())) {
+      if (auto equal = ast_cast<EqualInitializerAST>(node->initializer)) {
+        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
+          braced->type = var->type();
+        }
+      }
+    }
+
+    auto expressionResult = gen.expression(node->initializer);
 
     mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
                                local.value());

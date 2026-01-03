@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,9 +40,8 @@ int main() {
 `;
 
 async function main() {
-  const wasmBinaryUrl = import.meta.resolve(
-    "cxx-frontend/dist/wasm/cxx-js.wasm"
-  );
+  const wasmBinaryUrl = import.meta
+    .resolve("cxx-frontend/dist/wasm/cxx-js.wasm");
   const wasmBinaryFile = fileURLToPath(wasmBinaryUrl);
   const wasmBinary = await readFile(wasmBinaryFile);
 

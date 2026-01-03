@@ -125,6 +125,6 @@ npm run dev
 
 ## License
 
-Copyright (c) 2025 Roberto Raggi roberto.raggi@gmail.com
+Copyright (c) 2026 Roberto Raggi roberto.raggi@gmail.com
 
 Licensed under the [MIT](LICENSE) license.

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,14 +28,23 @@
 
 #include <cstdint>
 #include <memory>
+#include <tuple>
 #include <variant>
+#include <vector>
 
 namespace cxx {
 
 class Meta;
+class InitializerList;
 
 using ConstValue = std::variant<std::intmax_t, const StringLiteral*, float,
-                                double, long double, std::shared_ptr<Meta>>;
+                                double, long double, std::shared_ptr<Meta>,
+                                std::shared_ptr<InitializerList>>;
+
+class InitializerList {
+ public:
+  std::vector<std::tuple<ConstValue, const Type*>> elements;
+};
 
 class Meta {
  public:

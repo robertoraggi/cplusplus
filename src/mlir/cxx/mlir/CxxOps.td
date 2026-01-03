@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Roberto Raggi <roberto.raggi@gmail.com>
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -210,6 +210,12 @@ def Cxx_PtrAddOp : Cxx_Op<"ptr_add"> {
   let arguments = (ins Cxx_PointerType:$base, Cxx_IntegerType:$offset);
 
   let results = (outs Cxx_PointerType:$result);
+}
+
+def Cxx_PtrDiffOp : Cxx_Op<"ptr_diff"> {
+  let arguments = (ins Cxx_PointerType:$lhs, Cxx_PointerType:$rhs);
+
+  let results = (outs Cxx_IntegerType:$result);
 }
 
 def Cxx_AddressOfOp : Cxx_Op<"addressof"> {
