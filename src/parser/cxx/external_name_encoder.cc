@@ -29,13 +29,6 @@ namespace cxx {
 
 namespace {
 
-[[nodiscard]] auto is_global_namespace(Symbol* symbol) -> bool {
-  if (!symbol) return false;
-  if (!symbol->isNamespace()) return false;
-  if (symbol->parent()) return false;
-  return true;
-}
-
 [[nodiscard]] auto enclosing_class_or_namespace(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
   auto parent = symbol->parent();
@@ -643,8 +636,19 @@ auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
   if (is_std_namespace(parent)) return false;
 
   out("N");
-  // todo: encode cv qualifiers
-  // todo: encode ref qualifier
+
+  if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
+    auto functionType = type_cast<FunctionType>(functionSymbol->type());
+    if (is_const(functionType->cvQualifiers())) out("K");
+    if (is_volatile(functionType->cvQualifiers())) out("V");
+
+    // encore ref qualifier
+    if (functionType->refQualifier() == RefQualifier::kLvalue)
+      out("R");
+    else if (functionType->refQualifier() == RefQualifier::kRvalue)
+      out("O");
+  }
+
   encodePrefix(parent);
   encodeUnqualifiedName(symbol);
   out("E");

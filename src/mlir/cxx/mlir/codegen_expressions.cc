@@ -347,12 +347,12 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     if (auto local = gen.findOrCreateLocal(ast->symbol)) {
       val = local.value();
       found = true;
-    } else if (auto it = gen.globalOps_.find(var); it != gen.globalOps_.end()) {
+    } else if (auto global = gen.findOrCreateGlobal(ast->symbol)) {
       auto loc = gen.getLocation(ast->firstSourceLocation());
       auto resultType = mlir::cxx::PointerType::get(
           gen.builder_.getContext(), gen.convertType(var->type()));
       val = mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType,
-                                           it->second.getSymName());
+                                           global->getSymName());
       found = true;
     }
 
@@ -585,7 +585,12 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   FunctionSymbol* functionSymbol = nullptr;
   if (id) {
-    functionSymbol = symbol_cast<FunctionSymbol>(id->symbol);
+    if (functionSymbol = symbol_cast<FunctionSymbol>(id->symbol)) {
+      if (functionSymbol->parent()->isClass() && !functionSymbol->isStatic()) {
+        thisValue = {gen.thisValue_};
+      }
+    }
+
   } else if (member) {
     functionSymbol = symbol_cast<FunctionSymbol>(member->symbol);
 
