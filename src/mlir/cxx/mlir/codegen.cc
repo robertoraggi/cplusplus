@@ -205,10 +205,18 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   return func;
 }
 
-auto Codegen::findOrCreateGlobal(VariableSymbol* variableSymbol)
-    -> mlir::cxx::GlobalOp {
+auto Codegen::findOrCreateGlobal(Symbol* symbol)
+    -> std::optional<mlir::cxx::GlobalOp> {
+  auto variableSymbol = symbol_cast<VariableSymbol>(symbol);
+  if (!variableSymbol) return {};
+
   if (auto it = globalOps_.find(variableSymbol); it != globalOps_.end()) {
     return it->second;
+  }
+
+  if (!variableSymbol->isStatic() &&
+      !is_global_namespace(variableSymbol->parent())) {
+    return {};
   }
 
   auto varType = convertType(variableSymbol->type());

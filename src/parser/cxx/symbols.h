@@ -863,4 +863,11 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   return nullptr;
 }
 
+[[nodiscard]] inline auto is_global_namespace(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (!symbol->isNamespace()) return false;
+  if (symbol->parent()) return false;
+  return true;
+}
+
 }  // namespace cxx
