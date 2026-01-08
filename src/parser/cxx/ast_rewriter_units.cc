@@ -50,7 +50,7 @@ auto ASTRewriter::globalModuleFragment(GlobalModuleFragmentAST* ast)
     -> GlobalModuleFragmentAST* {
   if (!ast) return {};
 
-  auto copy = make_node<GlobalModuleFragmentAST>(arena());
+  auto copy = GlobalModuleFragmentAST::create(arena());
 
   copy->moduleLoc = ast->moduleLoc;
   copy->semicolonLoc = ast->semicolonLoc;
@@ -69,7 +69,7 @@ auto ASTRewriter::privateModuleFragment(PrivateModuleFragmentAST* ast)
     -> PrivateModuleFragmentAST* {
   if (!ast) return {};
 
-  auto copy = make_node<PrivateModuleFragmentAST>(arena());
+  auto copy = PrivateModuleFragmentAST::create(arena());
 
   copy->moduleLoc = ast->moduleLoc;
   copy->colonLoc = ast->colonLoc;
@@ -90,7 +90,7 @@ auto ASTRewriter::moduleDeclaration(ModuleDeclarationAST* ast)
     -> ModuleDeclarationAST* {
   if (!ast) return {};
 
-  auto copy = make_node<ModuleDeclarationAST>(arena());
+  auto copy = ModuleDeclarationAST::create(arena());
 
   copy->exportLoc = ast->exportLoc;
   copy->moduleLoc = ast->moduleLoc;
@@ -112,7 +112,7 @@ auto ASTRewriter::moduleDeclaration(ModuleDeclarationAST* ast)
 auto ASTRewriter::moduleName(ModuleNameAST* ast) -> ModuleNameAST* {
   if (!ast) return {};
 
-  auto copy = make_node<ModuleNameAST>(arena());
+  auto copy = ModuleNameAST::create(arena());
 
   copy->moduleQualifier = moduleQualifier(ast->moduleQualifier);
   copy->identifierLoc = ast->identifierLoc;
@@ -125,7 +125,7 @@ auto ASTRewriter::moduleQualifier(ModuleQualifierAST* ast)
     -> ModuleQualifierAST* {
   if (!ast) return {};
 
-  auto copy = make_node<ModuleQualifierAST>(arena());
+  auto copy = ModuleQualifierAST::create(arena());
 
   copy->moduleQualifier = moduleQualifier(ast->moduleQualifier);
   copy->identifierLoc = ast->identifierLoc;
@@ -139,7 +139,7 @@ auto ASTRewriter::modulePartition(ModulePartitionAST* ast)
     -> ModulePartitionAST* {
   if (!ast) return {};
 
-  auto copy = make_node<ModulePartitionAST>(arena());
+  auto copy = ModulePartitionAST::create(arena());
 
   copy->colonLoc = ast->colonLoc;
   copy->moduleName = moduleName(ast->moduleName);
@@ -150,7 +150,7 @@ auto ASTRewriter::modulePartition(ModulePartitionAST* ast)
 auto ASTRewriter::importName(ImportNameAST* ast) -> ImportNameAST* {
   if (!ast) return {};
 
-  auto copy = make_node<ImportNameAST>(arena());
+  auto copy = ImportNameAST::create(arena());
 
   copy->headerLoc = ast->headerLoc;
   copy->modulePartition = modulePartition(ast->modulePartition);
@@ -160,7 +160,7 @@ auto ASTRewriter::importName(ImportNameAST* ast) -> ImportNameAST* {
 }
 
 auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
-  auto copy = make_node<TranslationUnitAST>(arena());
+  auto copy = TranslationUnitAST::create(arena());
 
   for (auto declarationList = &copy->declarationList;
        auto node : ListView{ast->declarationList}) {
@@ -173,7 +173,7 @@ auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
 }
 
 auto ASTRewriter::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitAST* {
-  auto copy = make_node<ModuleUnitAST>(arena());
+  auto copy = ModuleUnitAST::create(arena());
 
   copy->globalModuleFragment =
       rewrite.globalModuleFragment(ast->globalModuleFragment);

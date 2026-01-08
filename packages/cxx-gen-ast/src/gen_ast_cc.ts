@@ -71,6 +71,126 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
   emit(`  return kASTKindNames[int(kind)];`);
   emit(`}`);
 
+  by_bases.forEach((nodes) => {
+    nodes.forEach(({ name, base, members: classMembers }) => {
+
+      const members = [...classMembers, ...ast.baseMembers.get(base) ?? []]
+
+      let params: string[] = []
+      let paramsNoLoc: string[] = []
+      members.forEach((m) => {
+        switch (m.kind) {
+          case "node":
+            params.push(`${m.type}* ${m.name}`)
+            paramsNoLoc.push(`${m.type}* ${m.name}`)
+            break;
+          case "node-list":
+            params.push(`List<${m.type}*>* ${m.name}`)
+            paramsNoLoc.push(`List<${m.type}*>* ${m.name}`)
+            break;
+          case "token":
+            params.push(`SourceLocation ${m.name}`);
+            break;
+          case "token-list":
+            params.push(`List<SourceLocation>* ${m.name}`);
+            break;
+          case "attribute": {
+            let s = "  ";
+            if (m.cv) s = `${s}${m.cv} `;
+            s = `${s}${m.type}${m.ptrOps} ${m.name}`;
+            params.push(s);
+            paramsNoLoc.push(s);
+            break;
+          }
+        }
+      });
+
+      emit();
+      emit(`auto ${name}::clone(Arena* arena) -> ${name}* {`);
+      emit(`  auto node = create(arena);`);
+      emit();
+      members.forEach((m) => {
+        switch (m.kind) {
+          case "node":
+            emit();
+            emit(`  if (${m.name}) node->${m.name} = ${m.name}->clone(arena);`)
+            emit();
+            break;
+          case "node-list":
+            emit();
+            emit(`  if (${m.name}) {`)
+            emit(`    auto it = &node->${m.name};`)
+            emit(`    for (auto node : ListView{${m.name}}) {`)
+            emit(`      *it = make_list_node<${m.type}>(arena, node->clone(arena));`)
+            emit(`      it = &(*it)->next;`)
+            emit(`    }`)
+            emit(`  }`)
+            emit();
+            break;
+          case "token":
+            emit(`  node->${m.name} = ${m.name};`)
+            break;
+          case "token-list":
+            throw new Error("not implemented");
+          case "attribute": {
+            emit(`  node->${m.name} = ${m.name};`)
+            break;
+          }
+        }
+      });
+      emit();
+      emit(`  return node;`)
+      emit(`}`);
+
+      emit();
+      emit(`auto ${name}::create(Arena* arena) -> ${name}* {`);
+      emit(`  auto node = new (arena) ${name}();`);
+      emit(`  return node;`);
+      emit(`}`);
+
+      if (params.length > 0) {
+        const signature = params.join(", ");
+        emit();
+        emit(`auto ${name}::create(Arena* arena, ${signature}) -> ${name}* {`);
+        emit(`  auto node = new (arena) ${name}();`);
+        members.forEach((m) => {
+          switch (m.kind) {
+            case "node":
+            case "node-list":
+            case "token":
+            case "token-list":
+            case "attribute": {
+              emit(`  node->${m.name} = ${m.name};`)
+              break;
+            }
+          }
+        });
+        emit(`  return node;`);
+        emit(`}`);
+      }
+
+      if (paramsNoLoc.length && paramsNoLoc.length != params.length) {
+        const signature = paramsNoLoc.join(", ");
+        emit();
+        emit(`auto ${name}::create(Arena* arena, ${signature}) -> ${name}* {`);
+        emit(`  auto node = new (arena) ${name}();`);
+        members.forEach((m) => {
+          switch (m.kind) {
+            case "node":
+            case "node-list":
+            case "attribute":
+              emit(`  node->${m.name} = ${m.name};`)
+              break;
+            default:
+              break;
+          } // switch
+        });
+        emit(`  return node;`);
+        emit(`}`);
+      }
+    });
+  });
+
   const out = `// Generated file by: gen_ast_cc.ts
 ${cpy_header}
 #include <cxx/ast.h>

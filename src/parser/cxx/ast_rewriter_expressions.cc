@@ -288,7 +288,7 @@ auto ASTRewriter::lambdaCapture(LambdaCaptureAST* ast) -> LambdaCaptureAST* {
 auto ASTRewriter::newPlacement(NewPlacementAST* ast) -> NewPlacementAST* {
   if (!ast) return {};
 
-  auto copy = make_node<NewPlacementAST>(arena());
+  auto copy = NewPlacementAST::create(arena());
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -308,7 +308,7 @@ auto ASTRewriter::lambdaSpecifier(LambdaSpecifierAST* ast)
     -> LambdaSpecifierAST* {
   if (!ast) return {};
 
-  auto copy = make_node<LambdaSpecifierAST>(arena());
+  auto copy = LambdaSpecifierAST::create(arena());
 
   copy->specifierLoc = ast->specifierLoc;
   copy->specifier = ast->specifier;
@@ -318,7 +318,7 @@ auto ASTRewriter::lambdaSpecifier(LambdaSpecifierAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<CharLiteralExpressionAST>(arena());
+  auto copy = CharLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -330,7 +330,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(BoolLiteralExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<BoolLiteralExpressionAST>(arena());
+  auto copy = BoolLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -342,7 +342,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(BoolLiteralExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<IntLiteralExpressionAST>(arena());
+  auto copy = IntLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -354,7 +354,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<FloatLiteralExpressionAST>(arena());
+  auto copy = FloatLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -366,7 +366,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     NullptrLiteralExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<NullptrLiteralExpressionAST>(arena());
+  auto copy = NullptrLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -378,7 +378,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<StringLiteralExpressionAST>(arena());
+  auto copy = StringLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -390,7 +390,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     UserDefinedStringLiteralExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<UserDefinedStringLiteralExpressionAST>(arena());
+  auto copy = UserDefinedStringLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -402,7 +402,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ObjectLiteralExpressionAST>(arena());
+  auto copy = ObjectLiteralExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -417,7 +417,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ThisExpressionAST>(arena());
+  auto copy = ThisExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -428,7 +428,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     GenericSelectionExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<GenericSelectionExpressionAST>(arena());
+  auto copy = GenericSelectionExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -452,7 +452,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     NestedStatementExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<NestedStatementExpressionAST>(arena());
+  auto copy = NestedStatementExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -466,7 +466,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<NestedExpressionAST>(arena());
+  auto copy = NestedExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -501,7 +501,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
-  auto copy = make_node<IdExpressionAST>(arena());
+  auto copy = IdExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -532,7 +532,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<LambdaExpressionAST>(arena());
+  auto copy = LambdaExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -619,7 +619,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<FoldExpressionAST>(arena());
+  auto copy = FoldExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -638,7 +638,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<RightFoldExpressionAST>(arena());
+  auto copy = RightFoldExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -670,7 +670,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
       if (!current) {
         current = expression;
       } else {
-        auto binop = make_node<BinaryExpressionAST>(arena());
+        auto binop = BinaryExpressionAST::create(arena());
         binop->valueCategory = current->valueCategory;
         binop->type = current->type;
         binop->leftExpression = current;
@@ -689,7 +689,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     return current;
   }
 
-  auto copy = make_node<LeftFoldExpressionAST>(arena());
+  auto copy = LeftFoldExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -705,7 +705,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<RequiresExpressionAST>(arena());
+  auto copy = RequiresExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -730,7 +730,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<VaArgExpressionAST>(arena());
+  auto copy = VaArgExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -746,7 +746,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<SubscriptExpressionAST>(arena());
+  auto copy = SubscriptExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -760,7 +760,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<CallExpressionAST>(arena());
+  auto copy = CallExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -781,7 +781,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<TypeConstructionAST>(arena());
+  auto copy = TypeConstructionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -802,7 +802,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<BracedTypeConstructionAST>(arena());
+  auto copy = BracedTypeConstructionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -815,7 +815,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<SpliceMemberExpressionAST>(arena());
+  auto copy = SpliceMemberExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -832,7 +832,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<MemberExpressionAST>(arena());
+  auto copy = MemberExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -851,7 +851,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<PostIncrExpressionAST>(arena());
+  auto copy = PostIncrExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -864,7 +864,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<CppCastExpressionAST>(arena());
+  auto copy = CppCastExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -881,7 +881,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     BuiltinBitCastExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<BuiltinBitCastExpressionAST>(arena());
+  auto copy = BuiltinBitCastExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -897,7 +897,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     BuiltinOffsetofExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<BuiltinOffsetofExpressionAST>(arena());
+  auto copy = BuiltinOffsetofExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -923,7 +923,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<TypeidExpressionAST>(arena());
+  auto copy = TypeidExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -937,7 +937,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(TypeidOfTypeExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<TypeidOfTypeExpressionAST>(arena());
+  auto copy = TypeidOfTypeExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -951,7 +951,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeidOfTypeExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SpliceExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<SpliceExpressionAST>(arena());
+  auto copy = SpliceExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -962,7 +962,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SpliceExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     GlobalScopeReflectExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<GlobalScopeReflectExpressionAST>(arena());
+  auto copy = GlobalScopeReflectExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -974,7 +974,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     NamespaceReflectExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<NamespaceReflectExpressionAST>(arena());
+  auto copy = NamespaceReflectExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -988,7 +988,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(TypeIdReflectExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<TypeIdReflectExpressionAST>(arena());
+  auto copy = TypeIdReflectExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1000,7 +1000,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeIdReflectExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ReflectExpressionAST>(arena());
+  auto copy = ReflectExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1012,7 +1012,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<LabelAddressExpressionAST>(arena());
+  auto copy = LabelAddressExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1025,7 +1025,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<UnaryExpressionAST>(arena());
+  auto copy = UnaryExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1038,7 +1038,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<AwaitExpressionAST>(arena());
+  auto copy = AwaitExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1050,7 +1050,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<SizeofExpressionAST>(arena());
+  auto copy = SizeofExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1062,7 +1062,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<SizeofTypeExpressionAST>(arena());
+  auto copy = SizeofTypeExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1076,7 +1076,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<SizeofPackExpressionAST>(arena());
+  auto copy = SizeofPackExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1092,7 +1092,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<AlignofTypeExpressionAST>(arena());
+  auto copy = AlignofTypeExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1106,7 +1106,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<AlignofExpressionAST>(arena());
+  auto copy = AlignofExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1118,7 +1118,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<NoexceptExpressionAST>(arena());
+  auto copy = NoexceptExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1132,7 +1132,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<NewExpressionAST>(arena());
+  auto copy = NewExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1164,7 +1164,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<DeleteExpressionAST>(arena());
+  auto copy = DeleteExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1179,7 +1179,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(CastExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<CastExpressionAST>(arena());
+  auto copy = CastExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1193,7 +1193,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CastExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ImplicitCastExpressionAST>(arena());
+  auto copy = ImplicitCastExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1205,7 +1205,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<BinaryExpressionAST>(arena());
+  auto copy = BinaryExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1219,7 +1219,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ConditionalExpressionAST>(arena());
+  auto copy = ConditionalExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1234,7 +1234,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(YieldExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<YieldExpressionAST>(arena());
+  auto copy = YieldExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1246,7 +1246,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(YieldExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ThrowExpressionAST>(arena());
+  auto copy = ThrowExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1258,7 +1258,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<AssignmentExpressionAST>(arena());
+  auto copy = AssignmentExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1272,7 +1272,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(TargetExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<TargetExpressionAST>(arena());
+  auto copy = TargetExpressionAST::create(arena());
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   return copy;
@@ -1280,7 +1280,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TargetExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(RightExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<RightExpressionAST>(arena());
+  auto copy = RightExpressionAST::create(arena());
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   return copy;
@@ -1288,7 +1288,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(RightExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     CompoundAssignmentExpressionAST* ast) -> ExpressionAST* {
-  auto copy = make_node<CompoundAssignmentExpressionAST>(arena());
+  auto copy = CompoundAssignmentExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1303,7 +1303,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(PackExpansionExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<PackExpansionExpressionAST>(arena());
+  auto copy = PackExpansionExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1315,7 +1315,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(PackExpansionExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(
     DesignatedInitializerClauseAST* ast) -> ExpressionAST* {
-  auto copy = make_node<DesignatedInitializerClauseAST>(arena());
+  auto copy = DesignatedInitializerClauseAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1334,7 +1334,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<TypeTraitExpressionAST>(arena());
+  auto copy = TypeTraitExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1356,7 +1356,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ConditionExpressionAST>(arena());
+  auto copy = ConditionExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1391,7 +1391,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<EqualInitializerAST>(arena());
+  auto copy = EqualInitializerAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1403,7 +1403,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<BracedInitListAST>(arena());
+  auto copy = BracedInitListAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1424,7 +1424,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
     -> ExpressionAST* {
-  auto copy = make_node<ParenInitializerAST>(arena());
+  auto copy = ParenInitializerAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
@@ -1444,7 +1444,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
 
 auto ASTRewriter::NewInitializerVisitor::operator()(NewParenInitializerAST* ast)
     -> NewInitializerAST* {
-  auto copy = make_node<NewParenInitializerAST>(arena());
+  auto copy = NewParenInitializerAST::create(arena());
 
   copy->lparenLoc = ast->lparenLoc;
 
@@ -1462,7 +1462,7 @@ auto ASTRewriter::NewInitializerVisitor::operator()(NewParenInitializerAST* ast)
 
 auto ASTRewriter::NewInitializerVisitor::operator()(
     NewBracedInitializerAST* ast) -> NewInitializerAST* {
-  auto copy = make_node<NewBracedInitializerAST>(arena());
+  auto copy = NewBracedInitializerAST::create(arena());
 
   copy->bracedInitList =
       ast_cast<BracedInitListAST>(rewrite.expression(ast->bracedInitList));
@@ -1472,7 +1472,7 @@ auto ASTRewriter::NewInitializerVisitor::operator()(
 
 auto ASTRewriter::GenericAssociationVisitor::operator()(
     DefaultGenericAssociationAST* ast) -> GenericAssociationAST* {
-  auto copy = make_node<DefaultGenericAssociationAST>(arena());
+  auto copy = DefaultGenericAssociationAST::create(arena());
 
   copy->defaultLoc = ast->defaultLoc;
   copy->colonLoc = ast->colonLoc;
@@ -1483,7 +1483,7 @@ auto ASTRewriter::GenericAssociationVisitor::operator()(
 
 auto ASTRewriter::GenericAssociationVisitor::operator()(
     TypeGenericAssociationAST* ast) -> GenericAssociationAST* {
-  auto copy = make_node<TypeGenericAssociationAST>(arena());
+  auto copy = TypeGenericAssociationAST::create(arena());
 
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->colonLoc = ast->colonLoc;
@@ -1494,7 +1494,7 @@ auto ASTRewriter::GenericAssociationVisitor::operator()(
 
 auto ASTRewriter::LambdaCaptureVisitor::operator()(ThisLambdaCaptureAST* ast)
     -> LambdaCaptureAST* {
-  auto copy = make_node<ThisLambdaCaptureAST>(arena());
+  auto copy = ThisLambdaCaptureAST::create(arena());
 
   copy->thisLoc = ast->thisLoc;
 
@@ -1503,7 +1503,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(ThisLambdaCaptureAST* ast)
 
 auto ASTRewriter::LambdaCaptureVisitor::operator()(
     DerefThisLambdaCaptureAST* ast) -> LambdaCaptureAST* {
-  auto copy = make_node<DerefThisLambdaCaptureAST>(arena());
+  auto copy = DerefThisLambdaCaptureAST::create(arena());
 
   copy->starLoc = ast->starLoc;
   copy->thisLoc = ast->thisLoc;
@@ -1513,7 +1513,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(
 
 auto ASTRewriter::LambdaCaptureVisitor::operator()(SimpleLambdaCaptureAST* ast)
     -> LambdaCaptureAST* {
-  auto copy = make_node<SimpleLambdaCaptureAST>(arena());
+  auto copy = SimpleLambdaCaptureAST::create(arena());
 
   copy->identifierLoc = ast->identifierLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
@@ -1524,7 +1524,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(SimpleLambdaCaptureAST* ast)
 
 auto ASTRewriter::LambdaCaptureVisitor::operator()(RefLambdaCaptureAST* ast)
     -> LambdaCaptureAST* {
-  auto copy = make_node<RefLambdaCaptureAST>(arena());
+  auto copy = RefLambdaCaptureAST::create(arena());
 
   copy->ampLoc = ast->ampLoc;
   copy->identifierLoc = ast->identifierLoc;
@@ -1536,7 +1536,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(RefLambdaCaptureAST* ast)
 
 auto ASTRewriter::LambdaCaptureVisitor::operator()(RefInitLambdaCaptureAST* ast)
     -> LambdaCaptureAST* {
-  auto copy = make_node<RefInitLambdaCaptureAST>(arena());
+  auto copy = RefInitLambdaCaptureAST::create(arena());
 
   copy->ampLoc = ast->ampLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
@@ -1549,7 +1549,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(RefInitLambdaCaptureAST* ast)
 
 auto ASTRewriter::LambdaCaptureVisitor::operator()(InitLambdaCaptureAST* ast)
     -> LambdaCaptureAST* {
-  auto copy = make_node<InitLambdaCaptureAST>(arena());
+  auto copy = InitLambdaCaptureAST::create(arena());
 
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->identifierLoc = ast->identifierLoc;

@@ -133,7 +133,7 @@ auto ASTRewriter::exceptionDeclaration(ExceptionDeclarationAST* ast)
 }
 
 auto ASTRewriter::asmOperand(AsmOperandAST* ast) -> AsmOperandAST* {
-  auto copy = make_node<AsmOperandAST>(arena());
+  auto copy = AsmOperandAST::create(arena());
 
   copy->lbracketLoc = ast->lbracketLoc;
   copy->symbolicNameLoc = ast->symbolicNameLoc;
@@ -149,7 +149,7 @@ auto ASTRewriter::asmOperand(AsmOperandAST* ast) -> AsmOperandAST* {
 }
 
 auto ASTRewriter::asmQualifier(AsmQualifierAST* ast) -> AsmQualifierAST* {
-  auto copy = make_node<AsmQualifierAST>(arena());
+  auto copy = AsmQualifierAST::create(arena());
 
   copy->qualifierLoc = ast->qualifierLoc;
   copy->qualifier = ast->qualifier;
@@ -158,7 +158,7 @@ auto ASTRewriter::asmQualifier(AsmQualifierAST* ast) -> AsmQualifierAST* {
 }
 
 auto ASTRewriter::asmClobber(AsmClobberAST* ast) -> AsmClobberAST* {
-  auto copy = make_node<AsmClobberAST>(arena());
+  auto copy = AsmClobberAST::create(arena());
 
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
@@ -167,7 +167,7 @@ auto ASTRewriter::asmClobber(AsmClobberAST* ast) -> AsmClobberAST* {
 }
 
 auto ASTRewriter::asmGotoLabel(AsmGotoLabelAST* ast) -> AsmGotoLabelAST* {
-  auto copy = make_node<AsmGotoLabelAST>(arena());
+  auto copy = AsmGotoLabelAST::create(arena());
 
   copy->identifierLoc = ast->identifierLoc;
   copy->identifier = ast->identifier;
@@ -178,7 +178,7 @@ auto ASTRewriter::asmGotoLabel(AsmGotoLabelAST* ast) -> AsmGotoLabelAST* {
 auto ASTRewriter::handler(HandlerAST* ast) -> HandlerAST* {
   if (!ast) return {};
 
-  auto copy = make_node<HandlerAST>(arena());
+  auto copy = HandlerAST::create(arena());
 
   copy->catchLoc = ast->catchLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -191,7 +191,7 @@ auto ASTRewriter::handler(HandlerAST* ast) -> HandlerAST* {
 
 auto ASTRewriter::StatementVisitor::operator()(LabeledStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<LabeledStatementAST>(arena());
+  auto copy = LabeledStatementAST::create(arena());
 
   copy->identifierLoc = ast->identifierLoc;
   copy->colonLoc = ast->colonLoc;
@@ -202,7 +202,7 @@ auto ASTRewriter::StatementVisitor::operator()(LabeledStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(CaseStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<CaseStatementAST>(arena());
+  auto copy = CaseStatementAST::create(arena());
 
   copy->caseLoc = ast->caseLoc;
   copy->expression = rewrite.expression(ast->expression);
@@ -213,7 +213,7 @@ auto ASTRewriter::StatementVisitor::operator()(CaseStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(DefaultStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<DefaultStatementAST>(arena());
+  auto copy = DefaultStatementAST::create(arena());
 
   copy->defaultLoc = ast->defaultLoc;
   copy->colonLoc = ast->colonLoc;
@@ -223,7 +223,7 @@ auto ASTRewriter::StatementVisitor::operator()(DefaultStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(ExpressionStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<ExpressionStatementAST>(arena());
+  auto copy = ExpressionStatementAST::create(arena());
 
   copy->expression = rewrite.expression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
@@ -233,7 +233,7 @@ auto ASTRewriter::StatementVisitor::operator()(ExpressionStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<CompoundStatementAST>(arena());
+  auto copy = CompoundStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -257,7 +257,7 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<IfStatementAST>(arena());
+  auto copy = IfStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -280,7 +280,7 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(ConstevalIfStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<ConstevalIfStatementAST>(arena());
+  auto copy = ConstevalIfStatementAST::create(arena());
 
   copy->ifLoc = ast->ifLoc;
   copy->exclaimLoc = ast->exclaimLoc;
@@ -295,7 +295,7 @@ auto ASTRewriter::StatementVisitor::operator()(ConstevalIfStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<SwitchStatementAST>(arena());
+  auto copy = SwitchStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -315,7 +315,7 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<WhileStatementAST>(arena());
+  auto copy = WhileStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -334,7 +334,7 @@ auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<DoStatementAST>(arena());
+  auto copy = DoStatementAST::create(arena());
 
   copy->doLoc = ast->doLoc;
   copy->statement = rewrite.statement(ast->statement);
@@ -349,7 +349,7 @@ auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<ForRangeStatementAST>(arena());
+  auto copy = ForRangeStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -371,7 +371,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<ForStatementAST>(arena());
+  auto copy = ForStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -393,7 +393,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(BreakStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<BreakStatementAST>(arena());
+  auto copy = BreakStatementAST::create(arena());
 
   copy->breakLoc = ast->breakLoc;
   copy->semicolonLoc = ast->semicolonLoc;
@@ -403,7 +403,7 @@ auto ASTRewriter::StatementVisitor::operator()(BreakStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(ContinueStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<ContinueStatementAST>(arena());
+  auto copy = ContinueStatementAST::create(arena());
 
   copy->continueLoc = ast->continueLoc;
   copy->semicolonLoc = ast->semicolonLoc;
@@ -413,7 +413,7 @@ auto ASTRewriter::StatementVisitor::operator()(ContinueStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(ReturnStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<ReturnStatementAST>(arena());
+  auto copy = ReturnStatementAST::create(arena());
 
   copy->returnLoc = ast->returnLoc;
   copy->expression = rewrite.expression(ast->expression);
@@ -424,7 +424,7 @@ auto ASTRewriter::StatementVisitor::operator()(ReturnStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(CoroutineReturnStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<CoroutineReturnStatementAST>(arena());
+  auto copy = CoroutineReturnStatementAST::create(arena());
 
   copy->coreturnLoc = ast->coreturnLoc;
   copy->expression = rewrite.expression(ast->expression);
@@ -435,7 +435,7 @@ auto ASTRewriter::StatementVisitor::operator()(CoroutineReturnStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(GotoStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<GotoStatementAST>(arena());
+  auto copy = GotoStatementAST::create(arena());
 
   copy->gotoLoc = ast->gotoLoc;
   copy->starLoc = ast->starLoc;
@@ -449,7 +449,7 @@ auto ASTRewriter::StatementVisitor::operator()(GotoStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(DeclarationStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<DeclarationStatementAST>(arena());
+  auto copy = DeclarationStatementAST::create(arena());
 
   copy->declaration = rewrite.declaration(ast->declaration);
 
@@ -458,7 +458,7 @@ auto ASTRewriter::StatementVisitor::operator()(DeclarationStatementAST* ast)
 
 auto ASTRewriter::StatementVisitor::operator()(TryBlockStatementAST* ast)
     -> StatementAST* {
-  auto copy = make_node<TryBlockStatementAST>(arena());
+  auto copy = TryBlockStatementAST::create(arena());
 
   copy->tryLoc = ast->tryLoc;
   copy->statement =
@@ -476,7 +476,7 @@ auto ASTRewriter::StatementVisitor::operator()(TryBlockStatementAST* ast)
 
 auto ASTRewriter::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
     -> MemInitializerAST* {
-  auto copy = make_node<ParenMemInitializerAST>(arena());
+  auto copy = ParenMemInitializerAST::create(arena());
 
   copy->nestedNameSpecifier =
       rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
@@ -498,7 +498,7 @@ auto ASTRewriter::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
 
 auto ASTRewriter::MemInitializerVisitor::operator()(
     BracedMemInitializerAST* ast) -> MemInitializerAST* {
-  auto copy = make_node<BracedMemInitializerAST>(arena());
+  auto copy = BracedMemInitializerAST::create(arena());
 
   copy->nestedNameSpecifier =
       rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
@@ -512,7 +512,7 @@ auto ASTRewriter::MemInitializerVisitor::operator()(
 
 auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
     EllipsisExceptionDeclarationAST* ast) -> ExceptionDeclarationAST* {
-  auto copy = make_node<EllipsisExceptionDeclarationAST>(arena());
+  auto copy = EllipsisExceptionDeclarationAST::create(arena());
 
   copy->ellipsisLoc = ast->ellipsisLoc;
 
@@ -521,7 +521,7 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
 
 auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
     TypeExceptionDeclarationAST* ast) -> ExceptionDeclarationAST* {
-  auto copy = make_node<TypeExceptionDeclarationAST>(arena());
+  auto copy = TypeExceptionDeclarationAST::create(arena());
 
   for (auto attributeList = &copy->attributeList;
        auto node : ListView{ast->attributeList}) {

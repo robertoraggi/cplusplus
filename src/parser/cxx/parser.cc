@@ -410,7 +410,7 @@ auto Parser::parse_name_id(NameIdAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto ast = make_node<NameIdAST>(pool_);
+  auto ast = NameIdAST::create(pool_);
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
@@ -422,7 +422,7 @@ auto Parser::parse_name_id(NameIdAST*& yyast) -> bool {
 auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
   switch (TokenKind(LA())) {
     case TokenKind::T_CHARACTER_LITERAL: {
-      auto ast = make_node<CharLiteralExpressionAST>(pool_);
+      auto ast = CharLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       ast->literalLoc = consumeToken();
@@ -451,7 +451,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
     case TokenKind::T_TRUE:
     case TokenKind::T_FALSE: {
-      auto ast = make_node<BoolLiteralExpressionAST>(pool_);
+      auto ast = BoolLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       const auto isTrue = lookat(TokenKind::T_TRUE);
@@ -464,7 +464,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     }
 
     case TokenKind::T_INTEGER_LITERAL: {
-      auto ast = make_node<IntLiteralExpressionAST>(pool_);
+      auto ast = IntLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       ast->literalLoc = consumeToken();
@@ -495,7 +495,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     }
 
     case TokenKind::T_FLOATING_POINT_LITERAL: {
-      auto ast = make_node<FloatLiteralExpressionAST>(pool_);
+      auto ast = FloatLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       ast->literalLoc = consumeToken();
@@ -518,7 +518,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     }
 
     case TokenKind::T_NULLPTR: {
-      auto ast = make_node<NullptrLiteralExpressionAST>(pool_);
+      auto ast = NullptrLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       ast->literalLoc = consumeToken();
@@ -529,7 +529,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     }
 
     case TokenKind::T_USER_DEFINED_STRING_LITERAL: {
-      auto ast = make_node<UserDefinedStringLiteralExpressionAST>(pool_);
+      auto ast = UserDefinedStringLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       ast->literalLoc = consumeToken();
@@ -547,7 +547,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     case TokenKind::T_STRING_LITERAL: {
       auto literalLoc = consumeToken();
 
-      auto ast = make_node<StringLiteralExpressionAST>(pool_);
+      auto ast = StringLiteralExpressionAST::create(pool_);
       yyast = ast;
 
       ast->literalLoc = literalLoc;
@@ -599,7 +599,7 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
 
   if (!parse_module_head()) return false;
 
-  auto ast = make_node<ModuleUnitAST>(pool_);
+  auto ast = ModuleUnitAST::create(pool_);
   yyast = ast;
 
   parse_global_module_fragment(ast->globalModuleFragment);
@@ -620,7 +620,7 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
 }
 
 void Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
-  auto ast = make_node<TranslationUnitAST>(pool_);
+  auto ast = TranslationUnitAST::create(pool_);
   yyast = ast;
 
   moduleUnit_ = false;
@@ -725,7 +725,7 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
 auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
 
-  auto ast = make_node<SplicerAST>(pool_);
+  auto ast = SplicerAST::create(pool_);
   yyast = ast;
   ast->lbracketLoc = consumeToken();
   ast->colonLoc = consumeToken();
@@ -743,7 +743,7 @@ auto Parser::parse_splicer_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
   SplicerAST* splicer = nullptr;
   if (!parse_splicer(splicer)) return false;
-  auto ast = make_node<SpliceExpressionAST>(pool_);
+  auto ast = SpliceExpressionAST::create(pool_);
   yyast = ast;
   ast->splicer = splicer;
   check(ast);
@@ -765,7 +765,7 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
     if (!symbol) return false;
     lookahead.commit();
 
-    auto ast = make_node<NamespaceReflectExpressionAST>(pool_);
+    auto ast = NamespaceReflectExpressionAST::create(pool_);
     yyast = ast;
     ast->caretCaretLoc = caretCaretLoc;
     ast->identifierLoc = identifierLoc;
@@ -781,7 +781,7 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
     if (!parse_type_id(typeId)) return false;
     lookahead.commit();
 
-    auto ast = make_node<TypeIdReflectExpressionAST>(pool_);
+    auto ast = TypeIdReflectExpressionAST::create(pool_);
     yyast = ast;
     ast->caretCaretLoc = caretCaretLoc;
     ast->typeId = typeId;
@@ -795,7 +795,7 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
     if (!parse_cast_expression(expression, ctx)) return false;
     lookahead.commit();
 
-    auto ast = make_node<ReflectExpressionAST>(pool_);
+    auto ast = ReflectExpressionAST::create(pool_);
     yyast = ast;
     ast->caretCaretLoc = caretCaretLoc;
     ast->expression = expression;
@@ -804,7 +804,7 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
   };
 
   if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
-    auto ast = make_node<GlobalScopeReflectExpressionAST>(pool_);
+    auto ast = GlobalScopeReflectExpressionAST::create(pool_);
     yyast = ast;
     ast->caretCaretLoc = caretCaretLoc;
     ast->scopeLoc = scopeLoc;
@@ -841,7 +841,7 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<IdExpressionAST>(pool_);
+  auto ast = IdExpressionAST::create(pool_);
   yyast = ast;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -867,10 +867,10 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
     if (SourceLocation tildeLoc; match(TokenKind::T_TILDE, tildeLoc)) {
       if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
           parse_decltype_specifier(decltypeSpecifier)) {
-        auto decltypeName = make_node<DecltypeIdAST>(pool_);
+        auto decltypeName = DecltypeIdAST::create(pool_);
         decltypeName->decltypeSpecifier = decltypeSpecifier;
 
-        auto ast = make_node<DestructorIdAST>(pool_);
+        auto ast = DestructorIdAST::create(pool_);
         yyast = ast;
         ast->tildeLoc = tildeLoc;
         ast->id = decltypeName;
@@ -882,7 +882,7 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
       if (!parse_type_name(name, nestedNameSpecifier, isTemplateIntroduced))
         return false;
 
-      auto ast = make_node<DestructorIdAST>(pool_);
+      auto ast = DestructorIdAST::create(pool_);
       yyast = ast;
       ast->tildeLoc = tildeLoc;
       ast->id = name;
@@ -959,7 +959,7 @@ auto Parser::parse_decltype_nested_name_specifier(
 
   lookahead.commit();
 
-  auto ast = make_node<DecltypeNestedNameSpecifierAST>(pool_);
+  auto ast = DecltypeNestedNameSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->decltypeSpecifier = decltypeSpecifier;
@@ -989,7 +989,7 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   auto scopeLoc = consumeToken();
   auto symbol = Lookup{scope()}.lookupType(yyast, identifier);
 
-  auto ast = make_node<SimpleNestedNameSpecifierAST>(pool_);
+  auto ast = SimpleNestedNameSpecifierAST::create(pool_);
   ast->nestedNameSpecifier = yyast;
   yyast = ast;
 
@@ -1050,7 +1050,7 @@ auto Parser::parse_template_nested_name_specifier(
 
   lookahead.commit();
 
-  auto ast = make_node<TemplateNestedNameSpecifierAST>(pool_);
+  auto ast = TemplateNestedNameSpecifierAST::create(pool_);
   ast->nestedNameSpecifier = yyast;
   yyast = ast;
 
@@ -1084,7 +1084,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   if (!is_parsing_cxx()) return false;
 
   if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
-    auto ast = make_node<GlobalNestedNameSpecifierAST>(pool_);
+    auto ast = GlobalNestedNameSpecifierAST::create(pool_);
     yyast = ast;
     ast->scopeLoc = scopeLoc;
     ast->symbol = globalScope_;
@@ -1123,7 +1123,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
   TemplateHeadContext templateHeadContext{this};
 
-  auto ast = make_node<LambdaExpressionAST>(pool_);
+  auto ast = LambdaExpressionAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
@@ -1209,7 +1209,7 @@ auto Parser::parse_lambda_specifier_seq(List<LambdaSpecifierAST*>*& yyast,
     else
       break;
 
-    auto specifier = make_node<LambdaSpecifierAST>(pool_);
+    auto specifier = LambdaSpecifierAST::create(pool_);
     specifier->specifierLoc = consumeToken();
     specifier->specifier = unit->tokenKind(specifier->specifierLoc);
     *it = make_list_node(pool_, specifier);
@@ -1277,14 +1277,14 @@ auto Parser::parse_capture(LambdaCaptureAST*& yyast) -> bool {
 
 auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
   if (SourceLocation thisLoc; match(TokenKind::T_THIS, thisLoc)) {
-    auto ast = make_node<ThisLambdaCaptureAST>(pool_);
+    auto ast = ThisLambdaCaptureAST::create(pool_);
     yyast = ast;
 
     ast->thisLoc = thisLoc;
 
     return true;
   } else if (lookat(TokenKind::T_STAR, TokenKind::T_THIS)) {
-    auto ast = make_node<DerefThisLambdaCaptureAST>(pool_);
+    auto ast = DerefThisLambdaCaptureAST::create(pool_);
     yyast = ast;
 
     ast->starLoc = consumeToken();
@@ -1304,7 +1304,7 @@ auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
 
     if (!LA().isOneOf(TokenKind::T_COMMA, TokenKind::T_RBRACKET)) return false;
 
-    auto ast = make_node<SimpleLambdaCaptureAST>(pool_);
+    auto ast = SimpleLambdaCaptureAST::create(pool_);
     yyast = ast;
 
     ast->identifierLoc = identifierLoc;
@@ -1333,7 +1333,7 @@ auto Parser::parse_simple_capture(LambdaCaptureAST*& yyast) -> bool {
 
   lookahead.commit();
 
-  auto ast = make_node<RefLambdaCaptureAST>(pool_);
+  auto ast = RefLambdaCaptureAST::create(pool_);
   yyast = ast;
 
   ast->ampLoc = ampLoc;
@@ -1374,7 +1374,7 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
       parse_error("expected an initializer");
     }
 
-    auto ast = make_node<RefInitLambdaCaptureAST>(pool_);
+    auto ast = RefInitLambdaCaptureAST::create(pool_);
     yyast = ast;
 
     ast->ampLoc = ampLoc;
@@ -1400,7 +1400,7 @@ auto Parser::parse_init_capture(LambdaCaptureAST*& yyast) -> bool {
     parse_error("expected an initializer");
   }
 
-  auto ast = make_node<InitLambdaCaptureAST>(pool_);
+  auto ast = InitLambdaCaptureAST::create(pool_);
   yyast = ast;
 
   ast->ellipsisLoc = ellipsisLoc;
@@ -1415,7 +1415,7 @@ auto Parser::parse_left_fold_expression(ExpressionAST*& yyast,
                                         const ExprContext& ctx) -> bool {
   if (!lookat(TokenKind::T_LPAREN, TokenKind::T_DOT_DOT_DOT)) return false;
 
-  auto ast = make_node<LeftFoldExpressionAST>(pool_);
+  auto ast = LeftFoldExpressionAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
@@ -1439,7 +1439,7 @@ auto Parser::parse_this_expression(ExpressionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_THIS, thisLoc)) return false;
 
-  auto ast = make_node<ThisExpressionAST>(pool_);
+  auto ast = ThisExpressionAST::create(pool_);
   yyast = ast;
   ast->thisLoc = thisLoc;
   ast->valueCategory = ValueCategory::kPrValue;
@@ -1454,7 +1454,7 @@ auto Parser::parse_generic_selection_expression(ExpressionAST*& yyast,
   SourceLocation genericLoc;
   if (!match(TokenKind::T__GENERIC, genericLoc)) return false;
 
-  auto ast = make_node<GenericSelectionExpressionAST>(pool_);
+  auto ast = GenericSelectionExpressionAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
@@ -1494,7 +1494,7 @@ auto Parser::parse_generic_selection_expression(ExpressionAST*& yyast,
 
 void Parser::parse_generic_association(GenericAssociationAST*& yyast) {
   if (SourceLocation defaultLoc; match(TokenKind::T_DEFAULT, defaultLoc)) {
-    auto ast = make_node<DefaultGenericAssociationAST>(pool_);
+    auto ast = DefaultGenericAssociationAST::create(pool_);
     yyast = ast;
 
     ast->defaultLoc = defaultLoc;
@@ -1504,7 +1504,7 @@ void Parser::parse_generic_association(GenericAssociationAST*& yyast) {
     return;
   }
 
-  auto ast = make_node<TypeGenericAssociationAST>(pool_);
+  auto ast = TypeGenericAssociationAST::create(pool_);
   yyast = ast;
 
   if (!parse_type_id(ast->typeId)) {
@@ -1523,7 +1523,7 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
   if (lookat(TokenKind::T_LBRACE)) {
-    auto ast = make_node<NestedStatementExpressionAST>(pool_);
+    auto ast = NestedStatementExpressionAST::create(pool_);
     yyast = ast;
 
     ast->lparenLoc = lparenLoc;
@@ -1536,7 +1536,7 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
     return ast;
   }
 
-  auto ast = make_node<NestedExpressionAST>(pool_);
+  auto ast = NestedExpressionAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -1583,7 +1583,7 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast,
   if (!lookat_fold_or_nested_expression()) return false;
 
   if (isNestedExpression) {
-    auto ast = make_node<NestedExpressionAST>(pool_);
+    auto ast = NestedExpressionAST::create(pool_);
     yyast = ast;
     ast->lparenLoc = lparenLoc;
     ast->expression = expression;
@@ -1593,7 +1593,7 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast,
   }
 
   if (SourceLocation rparenLoc; match(TokenKind::T_RPAREN, rparenLoc)) {
-    auto ast = make_node<RightFoldExpressionAST>(pool_);
+    auto ast = RightFoldExpressionAST::create(pool_);
     yyast = ast;
 
     ast->lparenLoc = lparenLoc;
@@ -1606,7 +1606,7 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast,
     return true;
   }
 
-  auto ast = make_node<FoldExpressionAST>(pool_);
+  auto ast = FoldExpressionAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -1691,7 +1691,7 @@ auto Parser::parse_requires_expression(ExpressionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_REQUIRES, requiresLoc)) return false;
 
-  auto ast = make_node<RequiresExpressionAST>(pool_);
+  auto ast = RequiresExpressionAST::create(pool_);
   yyast = ast;
 
   ast->requiresLoc = requiresLoc;
@@ -1770,7 +1770,7 @@ void Parser::parse_simple_requirement(RequirementAST*& yyast) {
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
-  auto ast = make_node<SimpleRequirementAST>(pool_);
+  auto ast = SimpleRequirementAST::create(pool_);
   yyast = ast;
 
   ast->expression = expression;
@@ -1782,7 +1782,7 @@ auto Parser::parse_type_requirement(RequirementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_TYPENAME, typenameLoc)) return false;
 
-  auto ast = make_node<TypeRequirementAST>(pool_);
+  auto ast = TypeRequirementAST::create(pool_);
   yyast = ast;
 
   ast->typenameLoc = typenameLoc;
@@ -1817,7 +1817,7 @@ auto Parser::parse_compound_requirement(RequirementAST*& yyast) -> bool {
 
   expect(TokenKind::T_RBRACE, rbraceLoc);
 
-  auto ast = make_node<CompoundRequirementAST>(pool_);
+  auto ast = CompoundRequirementAST::create(pool_);
   yyast = ast;
 
   ast->lbraceLoc = lbraceLoc;
@@ -1855,7 +1855,7 @@ auto Parser::parse_nested_requirement(RequirementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_REQUIRES, requiresLoc)) return false;
 
-  auto ast = make_node<NestedRequirementAST>(pool_);
+  auto ast = NestedRequirementAST::create(pool_);
   yyast = ast;
 
   ast->requiresLoc = requiresLoc;
@@ -1926,7 +1926,7 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
     if (!parse_splicer(splicer)) return false;
     lookahead.commit();
 
-    auto ast = make_node<SpliceMemberExpressionAST>(pool_);
+    auto ast = SpliceMemberExpressionAST::create(pool_);
     ast->baseExpression = yyast;
     ast->accessLoc = accessLoc;
     ast->accessOp = unit->tokenKind(ast->accessLoc);
@@ -1942,7 +1942,7 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
 
   if (lookat_splice_member()) return true;
 
-  auto ast = make_node<MemberExpressionAST>(pool_);
+  auto ast = MemberExpressionAST::create(pool_);
   ast->baseExpression = yyast;
   ast->accessLoc = accessLoc;
   ast->accessOp = unit->tokenKind(accessLoc);
@@ -1983,7 +1983,7 @@ auto Parser::parse_subscript_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_LBRACKET, lbracketLoc)) return false;
 
-  auto ast = make_node<SubscriptExpressionAST>(pool_);
+  auto ast = SubscriptExpressionAST::create(pool_);
 
   ast->baseExpression = yyast;
   ast->lbracketLoc = lbracketLoc;
@@ -2005,7 +2005,7 @@ auto Parser::parse_call_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  auto ast = make_node<CallExpressionAST>(pool_);
+  auto ast = CallExpressionAST::create(pool_);
   ast->baseExpression = yyast;
   ast->lparenLoc = lparenLoc;
 
@@ -2033,7 +2033,7 @@ auto Parser::parse_postincr_expression(ExpressionAST*& yyast,
     return false;
   }
 
-  auto ast = make_node<PostIncrExpressionAST>(pool_);
+  auto ast = PostIncrExpressionAST::create(pool_);
   ast->baseExpression = yyast;
   ast->opLoc = opLoc;
   ast->op = unit->tokenKind(ast->opLoc);
@@ -2059,7 +2059,7 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
 
   if (!parse_cpp_cast_head(castLoc)) return false;
 
-  auto ast = make_node<CppCastExpressionAST>(pool_);
+  auto ast = CppCastExpressionAST::create(pool_);
   yyast = ast;
 
   ast->castLoc = castLoc;
@@ -2086,7 +2086,7 @@ auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
   SourceLocation castLoc;
   if (!match(TokenKind::T___BUILTIN_BIT_CAST, castLoc)) return false;
 
-  auto ast = make_node<BuiltinBitCastExpressionAST>(pool_);
+  auto ast = BuiltinBitCastExpressionAST::create(pool_);
   yyast = ast;
 
   ast->castLoc = castLoc;
@@ -2108,7 +2108,7 @@ auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
   SourceLocation offsetofLoc;
   if (!match(TokenKind::T___BUILTIN_OFFSETOF, offsetofLoc)) return false;
 
-  auto ast = make_node<BuiltinOffsetofExpressionAST>(pool_);
+  auto ast = BuiltinOffsetofExpressionAST::create(pool_);
   yyast = ast;
 
   ast->offsetofLoc = offsetofLoc;
@@ -2171,7 +2171,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
 
     lookahead.commit();
 
-    auto ast = make_node<BracedTypeConstructionAST>(pool_);
+    auto ast = BracedTypeConstructionAST::create(pool_);
     yyast = ast;
 
     ast->typeSpecifier = typeSpecifier;
@@ -2208,7 +2208,7 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<TypeConstructionAST>(pool_);
+  auto ast = TypeConstructionAST::create(pool_);
   yyast = ast;
 
   ast->typeSpecifier = typeSpecifier;
@@ -2241,7 +2241,7 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
 
     lookahead.commit();
 
-    auto ast = make_node<TypeidOfTypeExpressionAST>(pool_);
+    auto ast = TypeidOfTypeExpressionAST::create(pool_);
     yyast = ast;
 
     ast->typeidLoc = typeidLoc;
@@ -2256,7 +2256,7 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
 
   if (lookat_typeid_of_type()) return true;
 
-  auto ast = make_node<TypeidExpressionAST>(pool_);
+  auto ast = TypeidExpressionAST::create(pool_);
   yyast = ast;
 
   ast->typeidLoc = typeidLoc;
@@ -2283,7 +2283,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
       parse_braced_init_list(bracedInitList, ctx)) {
     lookahead.commit();
 
-    auto ast = make_node<BracedTypeConstructionAST>(pool_);
+    auto ast = BracedTypeConstructionAST::create(pool_);
     yyast = ast;
 
     ast->typeSpecifier = typenameSpecifier;
@@ -2310,7 +2310,7 @@ auto Parser::parse_typename_expression(ExpressionAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<TypeConstructionAST>(pool_);
+  auto ast = TypeConstructionAST::create(pool_);
   yyast = ast;
 
   ast->typeSpecifier = typenameSpecifier;
@@ -2358,7 +2358,7 @@ auto Parser::parse_va_arg_expression(ExpressionAST*& yyast,
                                      const ExprContext& ctx) -> bool {
   SourceLocation vaArgLoc;
   if (!match(TokenKind::T___BUILTIN_VA_ARG, vaArgLoc)) return false;
-  auto ast = make_node<VaArgExpressionAST>(pool_);
+  auto ast = VaArgExpressionAST::create(pool_);
   yyast = ast;
   ast->vaArgLoc = vaArgLoc;
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
@@ -2378,7 +2378,7 @@ auto Parser::parse_builtin_call_expression(ExpressionAST*& yyast,
   BuiltinTypeTraitKind builtinKind = BuiltinTypeTraitKind::T_NONE;
   if (!parse_type_traits_op(typeTraitLoc, builtinKind)) return false;
 
-  auto ast = make_node<TypeTraitExpressionAST>(pool_);
+  auto ast = TypeTraitExpressionAST::create(pool_);
   yyast = ast;
 
   ast->typeTraitLoc = typeTraitLoc;
@@ -2459,7 +2459,7 @@ auto Parser::parse_label_address(ExpressionAST*& yyast, const ExprContext& ctx)
 
   lookahead.commit();
 
-  auto ast = make_node<LabelAddressExpressionAST>(pool_);
+  auto ast = LabelAddressExpressionAST::create(pool_);
   yyast = ast;
   ast->ampAmpLoc = ampAmpLoc;
   ast->identifierLoc = identifierLoc;
@@ -2482,7 +2482,7 @@ auto Parser::parse_unop_expression(ExpressionAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<UnaryExpressionAST>(pool_);
+  auto ast = UnaryExpressionAST::create(pool_);
   yyast = ast;
 
   ast->opLoc = opLoc;
@@ -2508,7 +2508,7 @@ auto Parser::parse_complex_expression(ExpressionAST*& yyast,
   if (!parse_cast_expression(expression, ctx))
     parse_error("expected an expression");
 
-  auto ast = make_node<UnaryExpressionAST>(pool_);
+  auto ast = UnaryExpressionAST::create(pool_);
   yyast = ast;
 
   ast->opLoc = opLoc;
@@ -2528,7 +2528,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
   if (SourceLocation ellipsisLoc;
       match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    auto ast = make_node<SizeofPackExpressionAST>(pool_);
+    auto ast = SizeofPackExpressionAST::create(pool_);
     yyast = ast;
 
     ast->sizeofLoc = sizeofLoc;
@@ -2560,7 +2560,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
     lookahead.commit();
 
-    auto ast = make_node<SizeofTypeExpressionAST>(pool_);
+    auto ast = SizeofTypeExpressionAST::create(pool_);
     yyast = ast;
 
     ast->sizeofLoc = sizeofLoc;
@@ -2575,7 +2575,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
   if (lookat_sizeof_type_id()) return true;
 
-  auto ast = make_node<SizeofExpressionAST>(pool_);
+  auto ast = SizeofExpressionAST::create(pool_);
   yyast = ast;
 
   ast->sizeofLoc = sizeofLoc;
@@ -2609,7 +2609,7 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
 
     lookahead.commit();
 
-    auto ast = make_node<AlignofTypeExpressionAST>(pool_);
+    auto ast = AlignofTypeExpressionAST::create(pool_);
     yyast = ast;
 
     ast->alignofLoc = alignofLoc;
@@ -2624,7 +2624,7 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
 
   if (lookat_alignof_type_id()) return true;
 
-  auto ast = make_node<AlignofExpressionAST>(pool_);
+  auto ast = AlignofExpressionAST::create(pool_);
   yyast = ast;
 
   ast->alignofLoc = alignofLoc;
@@ -2662,7 +2662,7 @@ auto Parser::parse_await_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_CO_AWAIT, awaitLoc)) return false;
 
-  auto ast = make_node<AwaitExpressionAST>(pool_);
+  auto ast = AwaitExpressionAST::create(pool_);
   yyast = ast;
 
   ast->awaitLoc = awaitLoc;
@@ -2681,7 +2681,7 @@ auto Parser::parse_noexcept_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_NOEXCEPT, noexceptLoc)) return false;
 
-  auto ast = make_node<NoexceptExpressionAST>(pool_);
+  auto ast = NoexceptExpressionAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
@@ -2701,7 +2701,7 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
       !lookat(TokenKind::T_COLON_COLON, TokenKind::T_NEW))
     return false;
 
-  auto ast = make_node<NewExpressionAST>(pool_);
+  auto ast = NewExpressionAST::create(pool_);
   yyast = ast;
 
   match(TokenKind::T_COLON_COLON, ast->scopeLoc);
@@ -2779,7 +2779,7 @@ void Parser::parse_optional_new_placement(NewPlacementAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<NewPlacementAST>(pool_);
+  auto ast = NewPlacementAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -2792,7 +2792,7 @@ void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast,
                                             const ExprContext& ctx) {
   if (BracedInitListAST* bracedInitList = nullptr;
       parse_braced_init_list(bracedInitList, ctx)) {
-    auto ast = make_node<NewBracedInitializerAST>(pool_);
+    auto ast = NewBracedInitializerAST::create(pool_);
     yyast = ast;
 
     ast->bracedInitList = bracedInitList;
@@ -2813,7 +2813,7 @@ void Parser::parse_optional_new_initializer(NewInitializerAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<NewParenInitializerAST>(pool_);
+  auto ast = NewParenInitializerAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -2827,7 +2827,7 @@ auto Parser::parse_delete_expression(ExpressionAST*& yyast,
       !lookat(TokenKind::T_COLON_COLON, TokenKind::T_DELETE))
     return false;
 
-  auto ast = make_node<DeleteExpressionAST>(pool_);
+  auto ast = DeleteExpressionAST::create(pool_);
   yyast = ast;
 
   match(TokenKind::T_COLON_COLON, ast->scopeLoc);
@@ -2880,7 +2880,7 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
   if (BracedInitListAST* bracedInitList = nullptr;
       parse_braced_init_list(bracedInitList, ctx)) {
     // TODO: should be parsed as a primary expression
-    auto ast = make_node<ObjectLiteralExpressionAST>(pool_);
+    auto ast = ObjectLiteralExpressionAST::create(pool_);
     yyast = ast;
 
     ast->lparenLoc = lparenLoc;
@@ -2899,7 +2899,7 @@ auto Parser::parse_cast_expression_helper(ExpressionAST*& yyast,
     return false;
   }
 
-  auto ast = make_node<CastExpressionAST>(pool_);
+  auto ast = CastExpressionAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -3025,7 +3025,7 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
       }
     }
 
-    auto ast = make_node<BinaryExpressionAST>(pool_);
+    auto ast = BinaryExpressionAST::create(pool_);
     ast->leftExpression = yyast;
     ast->opLoc = opLoc;
     ast->rightExpression = rhs;
@@ -3055,7 +3055,7 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
 
   check_bool_condition(yyast);
 
-  auto ast = make_node<ConditionalExpressionAST>(pool_);
+  auto ast = ConditionalExpressionAST::create(pool_);
   ast->condition = yyast;
   ast->questionLoc = questionLoc;
 
@@ -3084,7 +3084,7 @@ auto Parser::parse_yield_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_CO_YIELD, yieldLoc)) return false;
 
-  auto ast = make_node<YieldExpressionAST>(pool_);
+  auto ast = YieldExpressionAST::create(pool_);
   yyast = ast;
 
   ast->yieldLoc = yieldLoc;
@@ -3101,7 +3101,7 @@ auto Parser::parse_throw_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_THROW, throwLoc)) return false;
 
-  auto ast = make_node<ThrowExpressionAST>(pool_);
+  auto ast = ThrowExpressionAST::create(pool_);
   yyast = ast;
 
   ast->throwLoc = throwLoc;
@@ -3144,7 +3144,7 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
     }
 
     if (op == TokenKind::T_EQUAL) {
-      auto ast = make_node<AssignmentExpressionAST>(pool_);
+      auto ast = AssignmentExpressionAST::create(pool_);
 
       ast->leftExpression = yyast;
       ast->opLoc = opLoc;
@@ -3152,9 +3152,9 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
       ast->op = op;
       yyast = ast;
     } else {
-      auto ast = make_node<CompoundAssignmentExpressionAST>(pool_);
-      ast->leftExpression = make_node<TargetExpressionAST>(pool_);
-      ast->adjustExpression = make_node<RightExpressionAST>(pool_);
+      auto ast = CompoundAssignmentExpressionAST::create(pool_);
+      ast->leftExpression = TargetExpressionAST::create(pool_);
+      ast->adjustExpression = RightExpressionAST::create(pool_);
 
       ast->targetExpression = yyast;
       ast->opLoc = opLoc;
@@ -3210,7 +3210,7 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
 
     parse_assignment_expression(expression, ctx);
 
-    auto ast = make_node<BinaryExpressionAST>(pool_);
+    auto ast = BinaryExpressionAST::create(pool_);
     ast->leftExpression = yyast;
     ast->opLoc = commaLoc;
     ast->op = TokenKind::T_COMMA;
@@ -3320,7 +3320,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
 
     lookahead.commit();
 
-    auto ast = make_node<DeclarationStatementAST>(pool_);
+    auto ast = DeclarationStatementAST::create(pool_);
     yyast = ast;
     ast->declaration = declaration;
     return true;
@@ -3338,7 +3338,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
 
   lookahead.commit();
 
-  auto ast = make_node<ExpressionStatementAST>(pool_);
+  auto ast = ExpressionStatementAST::create(pool_);
   yyast = ast;
   ast->expression = expression;
   ast->semicolonLoc = semicolonLoc;
@@ -3374,7 +3374,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
 
     lookahead.commit();
 
-    auto ast = make_node<ConditionExpressionAST>(pool_);
+    auto ast = ConditionExpressionAST::create(pool_);
     yyast = ast;
     ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
@@ -3395,7 +3395,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
 auto Parser::parse_labeled_statement(StatementAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON)) return false;
 
-  auto ast = make_node<LabeledStatementAST>(pool_);
+  auto ast = LabeledStatementAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
@@ -3422,7 +3422,7 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_COLON, colonLoc);
 
-  auto ast = make_node<CaseStatementAST>(pool_);
+  auto ast = CaseStatementAST::create(pool_);
   yyast = ast;
 
   ast->caseLoc = caseLoc;
@@ -3450,7 +3450,7 @@ auto Parser::parse_default_statement(StatementAST*& yyast) -> bool {
 
   expect(TokenKind::T_COLON, colonLoc);
 
-  auto ast = make_node<DefaultStatementAST>(pool_);
+  auto ast = DefaultStatementAST::create(pool_);
   yyast = ast;
 
   ast->defaultLoc = defaultLoc;
@@ -3470,7 +3470,7 @@ auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
     expect(TokenKind::T_SEMICOLON, semicolonLoc);
   }
 
-  auto ast = make_node<ExpressionStatementAST>(pool_);
+  auto ast = ExpressionStatementAST::create(pool_);
   yyast = ast;
 
   ast->expression = expression;
@@ -3517,7 +3517,7 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
     scope()->addSymbol(func);
   }
 
-  auto ast = make_node<CompoundStatementAST>(pool_);
+  auto ast = CompoundStatementAST::create(pool_);
   yyast = ast;
 
   ast->symbol = blockSymbol;
@@ -3600,7 +3600,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
   auto blockSymbol = binder_.enterBlock(ifLoc);
 
   if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
-    auto ast = make_node<ConstevalIfStatementAST>(pool_);
+    auto ast = ConstevalIfStatementAST::create(pool_);
     yyast = ast;
     ast->ifLoc = ifLoc;
 
@@ -3622,7 +3622,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
     return true;
   }
 
-  auto ast = make_node<IfStatementAST>(pool_);
+  auto ast = IfStatementAST::create(pool_);
   yyast = ast;
 
   ast->ifLoc = ifLoc;
@@ -3658,7 +3658,7 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
 
   auto blockSymbol = binder_.enterBlock(switchLoc);
 
-  auto ast = make_node<SwitchStatementAST>(pool_);
+  auto ast = SwitchStatementAST::create(pool_);
   yyast = ast;
 
   ast->switchLoc = switchLoc;
@@ -3688,7 +3688,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
 
   auto blockSymbol = binder_.enterBlock(whileLoc);
 
-  auto ast = make_node<WhileStatementAST>(pool_);
+  auto ast = WhileStatementAST::create(pool_);
   yyast = ast;
 
   ast->whileLoc = whileLoc;
@@ -3714,7 +3714,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  auto ast = make_node<DoStatementAST>(pool_);
+  auto ast = DoStatementAST::create(pool_);
   yyast = ast;
 
   ast->doLoc = doLoc;
@@ -3769,7 +3769,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   };
 
   if (lookat_for_range_declaration()) {
-    auto ast = make_node<ForRangeStatementAST>(pool_);
+    auto ast = ForRangeStatementAST::create(pool_);
     yyast = ast;
 
     ast->forLoc = forLoc;
@@ -3789,7 +3789,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
     return true;
   }
 
-  auto ast = make_node<ForStatementAST>(pool_);
+  auto ast = ForStatementAST::create(pool_);
   yyast = ast;
 
   ast->forLoc = forLoc;
@@ -3834,10 +3834,10 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
-  auto initDeclarator = make_node<InitDeclaratorAST>(pool_);
+  auto initDeclarator = InitDeclaratorAST::create(pool_);
   initDeclarator->declarator = declarator;
 
-  auto ast = make_node<SimpleDeclarationAST>(pool_);
+  auto ast = SimpleDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributeList;
@@ -3856,7 +3856,7 @@ auto Parser::parse_break_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_BREAK, breakLoc)) return false;
 
-  auto ast = make_node<BreakStatementAST>(pool_);
+  auto ast = BreakStatementAST::create(pool_);
   yyast = ast;
 
   ast->breakLoc = breakLoc;
@@ -3871,7 +3871,7 @@ auto Parser::parse_continue_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_CONTINUE, continueLoc)) return false;
 
-  auto ast = make_node<ContinueStatementAST>(pool_);
+  auto ast = ContinueStatementAST::create(pool_);
   yyast = ast;
 
   ast->continueLoc = continueLoc;
@@ -3886,7 +3886,7 @@ auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_RETURN, returnLoc)) return false;
 
-  auto ast = make_node<ReturnStatementAST>(pool_);
+  auto ast = ReturnStatementAST::create(pool_);
   yyast = ast;
 
   ast->returnLoc = returnLoc;
@@ -3907,7 +3907,7 @@ auto Parser::parse_goto_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_GOTO, gotoLoc)) return false;
 
-  auto ast = make_node<GotoStatementAST>(pool_);
+  auto ast = GotoStatementAST::create(pool_);
   yyast = ast;
 
   ast->gotoLoc = gotoLoc;
@@ -3928,7 +3928,7 @@ auto Parser::parse_coroutine_return_statement(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_CO_RETURN, coreturnLoc)) return false;
 
-  auto ast = make_node<CoroutineReturnStatementAST>(pool_);
+  auto ast = CoroutineReturnStatementAST::create(pool_);
   yyast = ast;
 
   ast->coreturnLoc = coreturnLoc;
@@ -3948,7 +3948,7 @@ auto Parser::parse_declaration_statement(StatementAST*& yyast) -> bool {
   if (!parse_block_declaration(declaration, BindingContext::kBlock))
     return false;
 
-  auto ast = make_node<DeclarationStatementAST>(pool_);
+  auto ast = DeclarationStatementAST::create(pool_);
   yyast = ast;
 
   ast->declaration = declaration;
@@ -4064,7 +4064,7 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast,
     mark_maybe_template_name(identifier);
   }
 
-  auto ast = make_node<AliasDeclarationAST>(pool_);
+  auto ast = AliasDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->usingLoc = usingLoc;
@@ -4138,14 +4138,14 @@ auto Parser::parse_empty_or_attribute_declaration(
   lookahead.commit();
 
   if (attributes) {
-    auto ast = make_node<AttributeDeclarationAST>(pool_);
+    auto ast = AttributeDeclarationAST::create(pool_);
     yyast = ast;
     ast->attributeList = attributes;
     ast->semicolonLoc = semicolonLoc;
     return true;
   }
 
-  auto ast = make_node<EmptyDeclarationAST>(pool_);
+  auto ast = EmptyDeclarationAST::create(pool_);
   yyast = ast;
   ast->semicolonLoc = semicolonLoc;
   return true;
@@ -4203,7 +4203,7 @@ auto Parser::parse_type_or_forward_declaration(
 
   if (!declSpecifierList) cxx_runtime_error("no specs");
 
-  auto ast = make_node<SimpleDeclarationAST>(pool_);
+  auto ast = SimpleDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributes;
@@ -4248,7 +4248,7 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<StructuredBindingDeclarationAST>(pool_);
+  auto ast = StructuredBindingDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributes;
@@ -4278,7 +4278,7 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
       ctx != BindingContext::kTemplate && attributes &&
       match(TokenKind::T_SEMICOLON, semicolonLoc)) {
     // Found an attribute declaration instead of a simple declaration.
-    auto ast = make_node<AttributeDeclarationAST>(pool_);
+    auto ast = AttributeDeclarationAST::create(pool_);
     yyast = ast;
 
     ast->attributeList = attributes;
@@ -4386,7 +4386,7 @@ auto Parser::parse_simple_declaration(
 
     functionSymbol->setDefined(true);
 
-    auto ast = make_node<FunctionDefinitionAST>(pool_);
+    auto ast = FunctionDefinitionAST::create(pool_);
     yyast = ast;
 
     ast->attributeList = attributes;
@@ -4436,7 +4436,7 @@ auto Parser::parse_simple_declaration(
   SourceLocation semicolonLoc;
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
-  auto ast = make_node<SimpleDeclarationAST>(pool_);
+  auto ast = SimpleDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributes;
@@ -4470,7 +4470,7 @@ auto Parser::parse_notypespec_function_definition(
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
   if (!parse_function_declarator(functionDeclarator)) return false;
 
-  auto declarator = make_node<DeclaratorAST>(pool_);
+  auto declarator = DeclaratorAST::create(pool_);
   declarator->coreDeclarator = declaratorId;
 
   declarator->declaratorChunkList =
@@ -4512,10 +4512,10 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   if (isDeclaration) {
-    auto initDeclarator = make_node<InitDeclaratorAST>(pool_);
+    auto initDeclarator = InitDeclaratorAST::create(pool_);
     initDeclarator->declarator = declarator;
 
-    auto ast = make_node<SimpleDeclarationAST>(pool_);
+    auto ast = SimpleDeclarationAST::create(pool_);
     yyast = ast;
     ast->declSpecifierList = declSpecifierList;
     ast->initDeclaratorList = make_list_node(pool_, initDeclarator);
@@ -4541,7 +4541,7 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!parse_function_body(functionBody)) parse_error("expected function body");
 
-  auto ast = make_node<FunctionDefinitionAST>(pool_);
+  auto ast = FunctionDefinitionAST::create(pool_);
   yyast = ast;
 
   ast->declSpecifierList = declSpecifierList;
@@ -4560,7 +4560,7 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_STATIC_ASSERT, staticAssertLoc)) return false;
 
-  auto ast = make_node<StaticAssertDeclarationAST>(pool_);
+  auto ast = StaticAssertDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->staticAssertLoc = staticAssertLoc;
@@ -4604,7 +4604,7 @@ auto Parser::parse_empty_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
 
-  auto ast = make_node<EmptyDeclarationAST>(pool_);
+  auto ast = EmptyDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->semicolonLoc = semicolonLoc;
@@ -4628,7 +4628,7 @@ auto Parser::parse_attribute_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!lookat_attribute_declaration()) return false;
 
-  auto ast = make_node<AttributeDeclarationAST>(pool_);
+  auto ast = AttributeDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributes;
@@ -4641,7 +4641,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   switch (TokenKind(LA())) {
     case TokenKind::T_TYPEDEF: {
-      auto ast = make_node<TypedefSpecifierAST>(pool_);
+      auto ast = TypedefSpecifierAST::create(pool_);
       yyast = ast;
       ast->typedefLoc = consumeToken();
       specs.isTypedef = true;
@@ -4649,7 +4649,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
 
     case TokenKind::T_FRIEND: {
-      auto ast = make_node<FriendSpecifierAST>(pool_);
+      auto ast = FriendSpecifierAST::create(pool_);
       yyast = ast;
       ast->friendLoc = consumeToken();
       specs.isFriend = true;
@@ -4657,7 +4657,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
 
     case TokenKind::T_CONSTEXPR: {
-      auto ast = make_node<ConstexprSpecifierAST>(pool_);
+      auto ast = ConstexprSpecifierAST::create(pool_);
       yyast = ast;
       ast->constexprLoc = consumeToken();
       specs.isConstexpr = true;
@@ -4665,7 +4665,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
 
     case TokenKind::T_CONSTEVAL: {
-      auto ast = make_node<ConstevalSpecifierAST>(pool_);
+      auto ast = ConstevalSpecifierAST::create(pool_);
       yyast = ast;
       ast->constevalLoc = consumeToken();
       specs.isConsteval = true;
@@ -4673,7 +4673,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
 
     case TokenKind::T_CONSTINIT: {
-      auto ast = make_node<ConstinitSpecifierAST>(pool_);
+      auto ast = ConstinitSpecifierAST::create(pool_);
       yyast = ast;
       ast->constinitLoc = consumeToken();
       specs.isConstinit = true;
@@ -4681,7 +4681,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
 
     case TokenKind::T_INLINE: {
-      auto ast = make_node<InlineSpecifierAST>(pool_);
+      auto ast = InlineSpecifierAST::create(pool_);
       yyast = ast;
       ast->inlineLoc = consumeToken();
       specs.isInline = true;
@@ -4689,7 +4689,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     }
 
     case TokenKind::T__NORETURN: {
-      auto ast = make_node<NoreturnSpecifierAST>(pool_);
+      auto ast = NoreturnSpecifierAST::create(pool_);
       yyast = ast;
       ast->noreturnLoc = consumeToken();
       specs.isNoreturn = true;
@@ -4779,42 +4779,42 @@ auto Parser::parse_storage_class_specifier(SpecifierAST*& yyast,
   SourceLocation loc;
 
   if (match(TokenKind::T_STATIC, loc)) {
-    auto ast = make_node<StaticSpecifierAST>(pool_);
+    auto ast = StaticSpecifierAST::create(pool_);
     yyast = ast;
     ast->staticLoc = loc;
     specs.isStatic = true;
     return true;
   }
   if (match(TokenKind::T_THREAD_LOCAL, loc)) {
-    auto ast = make_node<ThreadLocalSpecifierAST>(pool_);
+    auto ast = ThreadLocalSpecifierAST::create(pool_);
     yyast = ast;
     ast->threadLocalLoc = loc;
     specs.isThreadLocal = true;
     return true;
   }
   if (match(TokenKind::T_EXTERN, loc)) {
-    auto ast = make_node<ExternSpecifierAST>(pool_);
+    auto ast = ExternSpecifierAST::create(pool_);
     yyast = ast;
     ast->externLoc = loc;
     specs.isExtern = true;
     return true;
   }
   if (match(TokenKind::T_REGISTER, loc)) {
-    auto ast = make_node<RegisterSpecifierAST>(pool_);
+    auto ast = RegisterSpecifierAST::create(pool_);
     yyast = ast;
     ast->registerLoc = loc;
     specs.isRegister = true;
     return true;
   }
   if (match(TokenKind::T_MUTABLE, loc)) {
-    auto ast = make_node<MutableSpecifierAST>(pool_);
+    auto ast = MutableSpecifierAST::create(pool_);
     yyast = ast;
     ast->mutableLoc = loc;
     specs.isMutable = true;
     return true;
   }
   if (match(TokenKind::T___THREAD, loc)) {
-    auto ast = make_node<ThreadSpecifierAST>(pool_);
+    auto ast = ThreadSpecifierAST::create(pool_);
     yyast = ast;
     ast->threadLoc = loc;
     specs.isThread = true;
@@ -4829,7 +4829,7 @@ auto Parser::parse_function_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation virtualLoc;
 
   if (match(TokenKind::T_VIRTUAL, virtualLoc)) {
-    auto ast = make_node<VirtualSpecifierAST>(pool_);
+    auto ast = VirtualSpecifierAST::create(pool_);
     yyast = ast;
     ast->virtualLoc = virtualLoc;
     specs.isVirtual = true;
@@ -4847,7 +4847,7 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   specs.isExplicit = true;
 
-  auto ast = make_node<ExplicitSpecifierAST>(pool_);
+  auto ast = ExplicitSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->explicitLoc = explicitLoc;
@@ -4932,7 +4932,7 @@ void Parser::parse_optional_type_qualifier_seq(List<SpecifierAST*>*& yyast,
       it = &(*it)->next;
     } else if (SourceLocation staticLoc;
                match(TokenKind::T_STATIC, staticLoc)) {
-      auto spec = make_node<StaticSpecifierAST>(pool_);
+      auto spec = StaticSpecifierAST::create(pool_);
       *it = make_list_node<SpecifierAST>(pool_, spec);
       it = &(*it)->next;
     } else {
@@ -5036,7 +5036,7 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 auto Parser::parse_size_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   if (SourceLocation specifierLoc; match(TokenKind::T_LONG, specifierLoc)) {
-    auto ast = make_node<SizeTypeSpecifierAST>(pool_);
+    auto ast = SizeTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->specifierLoc = specifierLoc;
     ast->specifier = unit->tokenKind(specifierLoc);
@@ -5050,7 +5050,7 @@ auto Parser::parse_size_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (SourceLocation specifierLoc; match(TokenKind::T_SHORT, specifierLoc)) {
-    auto ast = make_node<SizeTypeSpecifierAST>(pool_);
+    auto ast = SizeTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->specifierLoc = specifierLoc;
     ast->specifier = unit->tokenKind(specifierLoc);
@@ -5066,7 +5066,7 @@ auto Parser::parse_size_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 auto Parser::parse_sign_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   if (SourceLocation specifierLoc; match(TokenKind::T_UNSIGNED, specifierLoc)) {
-    auto ast = make_node<SignTypeSpecifierAST>(pool_);
+    auto ast = SignTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->specifierLoc = specifierLoc;
     ast->specifier = unit->tokenKind(specifierLoc);
@@ -5077,7 +5077,7 @@ auto Parser::parse_sign_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (SourceLocation specifierLoc; match(TokenKind::T_SIGNED, specifierLoc)) {
-    auto ast = make_node<SignTypeSpecifierAST>(pool_);
+    auto ast = SignTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->specifierLoc = specifierLoc;
     ast->specifier = unit->tokenKind(specifierLoc);
@@ -5094,7 +5094,7 @@ auto Parser::parse_complex_type_specifier(SpecifierAST*& yyast,
                                           DeclSpecs& specs) -> bool {
   if (!LA().isOneOf(TokenKind::T__COMPLEX, TokenKind::T___COMPLEX__))
     return false;
-  auto ast = make_node<ComplexTypeSpecifierAST>(pool_);
+  auto ast = ComplexTypeSpecifierAST::create(pool_);
   yyast = ast;
   ast->complexLoc = consumeToken();
   specs.isComplex = true;
@@ -5146,7 +5146,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   lookahead.commit();
 
-  auto ast = make_node<NamedTypeSpecifierAST>(pool_);
+  auto ast = NamedTypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -5177,7 +5177,7 @@ auto Parser::parse_underlying_type_specifier(SpecifierAST*& yyast,
   SourceLocation underlyingTypeLoc;
   if (!match(TokenKind::T___UNDERLYING_TYPE, underlyingTypeLoc)) return false;
 
-  auto ast = make_node<UnderlyingTypeSpecifierAST>(pool_);
+  auto ast = UnderlyingTypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->underlyingTypeLoc = underlyingTypeLoc;
@@ -5200,7 +5200,7 @@ auto Parser::parse_unary_builtin_type_specifier(SpecifierAST*& yyast,
 
   if (!parse_unary_builtin_type_op(builtinLoc, builtinKind)) return false;
 
-  auto ast = make_node<UnaryBuiltinTypeSpecifierAST>(pool_);
+  auto ast = UnaryBuiltinTypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->builtinLoc = builtinLoc;
@@ -5222,7 +5222,7 @@ auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SourceLocation atomicLoc;
   if (!match(TokenKind::T__ATOMIC, atomicLoc)) return false;
 
-  auto ast = make_node<AtomicTypeSpecifierAST>(pool_);
+  auto ast = AtomicTypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->atomicLoc = atomicLoc;
@@ -5241,14 +5241,14 @@ auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
                                             DeclSpecs& specs) -> bool {
   auto makeIntegralTypeSpecifier = [&] {
-    auto ast = make_node<IntegralTypeSpecifierAST>(pool_);
+    auto ast = IntegralTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->specifierLoc = consumeToken();
     ast->specifier = unit->tokenKind(ast->specifierLoc);
   };
 
   auto makeFloatingPointTypeSpecifier = [&] {
-    auto ast = make_node<FloatingPointTypeSpecifierAST>(pool_);
+    auto ast = FloatingPointTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->specifierLoc = consumeToken();
     ast->specifier = unit->tokenKind(ast->specifierLoc);
@@ -5257,7 +5257,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   switch (auto tk = LA(); tk.kind()) {
     case TokenKind::T___BUILTIN_VA_LIST:
     case TokenKind::T___BUILTIN_META_INFO: {
-      auto ast = make_node<BuiltinTypeSpecifierAST>(pool_);
+      auto ast = BuiltinTypeSpecifierAST::create(pool_);
       yyast = ast;
       ast->specifierLoc = consumeToken();
       ast->specifier = unit->tokenKind(ast->specifierLoc);
@@ -5289,7 +5289,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
       return true;
 
     case TokenKind::T_VOID: {
-      auto ast = make_node<VoidTypeSpecifierAST>(pool_);
+      auto ast = VoidTypeSpecifierAST::create(pool_);
       yyast = ast;
       ast->voidLoc = consumeToken();
       specs.accept(ast);
@@ -5383,7 +5383,7 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
                                     &Symbol::isEnum);
   }
 
-  auto ast = make_node<ElaboratedTypeSpecifierAST>(pool_);
+  auto ast = ElaboratedTypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->classLoc = enumLoc;
@@ -5426,7 +5426,7 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   const auto classKey = unit->tokenKind(classLoc);
 
-  auto ast = make_node<ElaboratedTypeSpecifierAST>(pool_);
+  auto ast = ElaboratedTypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->classLoc = classLoc;
@@ -5476,7 +5476,7 @@ auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
 
   if (lookat(TokenKind::T_AUTO)) return false;  // placeholder type specifier
 
-  auto ast = make_node<DecltypeSpecifierAST>(pool_);
+  auto ast = DecltypeSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->decltypeLoc = decltypeLoc;
@@ -5512,13 +5512,13 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
   if (!lookat_placeholder_type_specifier()) return false;
 
   if (SourceLocation autoLoc; match(TokenKind::T_AUTO, autoLoc)) {
-    auto ast = make_node<AutoTypeSpecifierAST>(pool_);
+    auto ast = AutoTypeSpecifierAST::create(pool_);
     yyast = ast;
     ast->autoLoc = autoLoc;
 
     specs.accept(ast);
   } else {
-    auto ast = make_node<DecltypeAutoSpecifierAST>(pool_);
+    auto ast = DecltypeAutoSpecifierAST::create(pool_);
     yyast = ast;
 
     expect(TokenKind::T_DECLTYPE, ast->decltypeLoc);
@@ -5530,7 +5530,7 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
   }
 
   if (typeConstraint) {
-    auto ast = make_node<PlaceholderTypeSpecifierAST>(pool_);
+    auto ast = PlaceholderTypeSpecifierAST::create(pool_);
 
     ast->typeConstraint = typeConstraint;
     ast->specifier = yyast;
@@ -5584,7 +5584,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     lookahead.commit();
   }
 
-  auto ast = make_node<InitDeclaratorAST>(pool_);
+  auto ast = InitDeclaratorAST::create(pool_);
   yyast = ast;
 
   ast->declarator = declarator;
@@ -5677,7 +5677,7 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
 
   lookahead.commit();
 
-  yyast = make_node<DeclaratorAST>(pool_);
+  yyast = DeclaratorAST::create(pool_);
   yyast->ptrOpList = ptrOpList;
   yyast->coreDeclarator = coreDeclarator;
   yyast->declaratorChunkList = declaratorChunkList;
@@ -5746,7 +5746,7 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
 
   lookahead.commit();
 
-  auto modifier = make_node<ArrayDeclaratorChunkAST>(pool_);
+  auto modifier = ArrayDeclaratorChunkAST::create(pool_);
   yyast = modifier;
 
   modifier->lbracketLoc = lbracketLoc;
@@ -5782,7 +5782,7 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
 
   lookahead.commit();
 
-  auto ast = make_node<FunctionDeclaratorChunkAST>(pool_);
+  auto ast = FunctionDeclaratorChunkAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -5835,7 +5835,7 @@ auto Parser::parse_trailing_return_type(TrailingReturnTypeAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_MINUS_GREATER, minusGreaterLoc)) return false;
 
-  auto ast = make_node<TrailingReturnTypeAST>(pool_);
+  auto ast = TrailingReturnTypeAST::create(pool_);
   yyast = ast;
 
   ast->minusGreaterLoc = minusGreaterLoc;
@@ -5847,7 +5847,7 @@ auto Parser::parse_trailing_return_type(TrailingReturnTypeAST*& yyast) -> bool {
 
 auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
   if (SourceLocation starLoc; match(TokenKind::T_STAR, starLoc)) {
-    auto ast = make_node<PointerOperatorAST>(pool_);
+    auto ast = PointerOperatorAST::create(pool_);
     yyast = ast;
 
     ast->starLoc = starLoc;
@@ -5859,7 +5859,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
     return true;
   } else if (SourceLocation refLoc; parse_ref_qualifier(refLoc)) {
-    auto ast = make_node<ReferenceOperatorAST>(pool_);
+    auto ast = ReferenceOperatorAST::create(pool_);
     yyast = ast;
 
     ast->refLoc = refLoc;
@@ -5882,7 +5882,7 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
   lookahead.commit();
 
-  auto ast = make_node<PtrToMemberOperatorAST>(pool_);
+  auto ast = PtrToMemberOperatorAST::create(pool_);
   yyast = ast;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -5901,21 +5901,21 @@ auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
   SourceLocation loc;
 
   if (match(TokenKind::T_CONST, loc)) {
-    auto ast = make_node<ConstQualifierAST>(pool_);
+    auto ast = ConstQualifierAST::create(pool_);
     yyast = ast;
     ast->constLoc = loc;
     declSpecs.isConst = true;
     return true;
   }
   if (match(TokenKind::T_VOLATILE, loc)) {
-    auto ast = make_node<VolatileQualifierAST>(pool_);
+    auto ast = VolatileQualifierAST::create(pool_);
     yyast = ast;
     ast->volatileLoc = loc;
     declSpecs.isVolatile = true;
     return true;
   }
   if (match(TokenKind::T___RESTRICT__, loc)) {
-    auto ast = make_node<RestrictQualifierAST>(pool_);
+    auto ast = RestrictQualifierAST::create(pool_);
     yyast = ast;
     ast->restrictLoc = loc;
     declSpecs.isRestrict = true;
@@ -5923,7 +5923,7 @@ auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
   }
   if (is_parsing_c() && lookat(TokenKind::T__ATOMIC) &&
       LA(1).isNot(TokenKind::T_LPAREN)) {
-    auto ast = make_node<AtomicQualifierAST>(pool_);
+    auto ast = AtomicQualifierAST::create(pool_);
     yyast = ast;
     ast->atomicLoc = consumeToken();
     declSpecs.isAtomic = true;
@@ -5954,7 +5954,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
 
     decl.isPack = isPack;
 
-    auto ast = make_node<ParameterPackAST>(pool_);
+    auto ast = ParameterPackAST::create(pool_);
     ast->ellipsisLoc = ellipsisLoc;
     yyast = ast;
 
@@ -5980,7 +5980,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
 
   lookahead.commit();
 
-  auto ast = make_node<IdDeclaratorAST>(pool_);
+  auto ast = IdDeclaratorAST::create(pool_);
   yyast = ast;
 
   decl.declaratorId = ast;
@@ -5995,7 +5995,7 @@ auto Parser::parse_declarator_id(CoreDeclaratorAST*& yyast, Decl& decl,
                                          AllowedAttributes::kAll);
 
   if (isPack) {
-    auto ast = make_node<ParameterPackAST>(pool_);
+    auto ast = ParameterPackAST::create(pool_);
     ast->ellipsisLoc = ellipsisLoc;
     ast->coreDeclarator = yyast;
     yyast = ast;
@@ -6009,7 +6009,7 @@ auto Parser::parse_type_id(TypeIdAST*& yyast) -> bool {
   DeclSpecs specs{unit};
   if (!parse_type_specifier_seq(specifierList, specs)) return false;
 
-  yyast = make_node<TypeIdAST>(pool_);
+  yyast = TypeIdAST::create(pool_);
   yyast->typeSpecifierList = specifierList;
 
   Decl decl{specs};
@@ -6037,7 +6037,7 @@ auto Parser::parse_defining_type_id(TypeIdAST*& yyast) -> bool {
   Decl decl{specs};
   parse_optional_abstract_declarator(declarator, decl);
 
-  auto ast = make_node<TypeIdAST>(pool_);
+  auto ast = TypeIdAST::create(pool_);
   yyast = ast;
 
   ast->typeSpecifierList = typeSpecifierList;
@@ -6064,7 +6064,7 @@ auto Parser::parse_nested_declarator(CoreDeclaratorAST*& yyast, Decl& decl,
 
   lookahead.commit();
 
-  auto ast = make_node<NestedDeclaratorAST>(pool_);
+  auto ast = NestedDeclaratorAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -6087,7 +6087,7 @@ auto Parser::parse_parameter_declaration_clause(
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  auto ast = make_node<ParameterDeclarationClauseAST>(pool_);
+  auto ast = ParameterDeclarationClauseAST::create(pool_);
 
   binder_.bind(ast);
 
@@ -6150,7 +6150,7 @@ auto Parser::parse_parameter_declaration_list(
 
 auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
                                          bool templParam) -> bool {
-  auto ast = make_node<ParameterDeclarationAST>(pool_);
+  auto ast = ParameterDeclarationAST::create(pool_);
   yyast = ast;
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
@@ -6190,7 +6190,7 @@ auto Parser::parse_initializer(ExpressionAST*& yyast, const ExprContext& ctx)
   if (match(TokenKind::T_LPAREN, lparenLoc)) {
     if (lookat(TokenKind::T_RPAREN)) return false;
 
-    auto ast = make_node<ParenInitializerAST>(pool_);
+    auto ast = ParenInitializerAST::create(pool_);
     yyast = ast;
 
     ast->lparenLoc = lparenLoc;
@@ -6220,7 +6220,7 @@ auto Parser::parse_brace_or_equal_initializer(ExpressionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_EQUAL, equalLoc)) return false;
 
-  auto ast = make_node<EqualInitializerAST>(pool_);
+  auto ast = EqualInitializerAST::create(pool_);
   yyast = ast;
 
   ast->equalLoc = equalLoc;
@@ -6252,7 +6252,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
 
   if (!ast) {
-    ast = make_node<BracedInitListAST>(pool_);
+    ast = BracedInitListAST::create(pool_);
   }
 
   ast->lbraceLoc = lbraceLoc;
@@ -6327,7 +6327,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
   SourceLocation ellipsisLoc;
 
   if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    auto pack = make_node<PackExpansionExpressionAST>(pool_);
+    auto pack = PackExpansionExpressionAST::create(pool_);
     pack->expression = expression;
     pack->ellipsisLoc = ellipsisLoc;
     expression = pack;
@@ -6358,7 +6358,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
     SourceLocation ellipsisLoc;
 
     if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-      auto pack = make_node<PackExpansionExpressionAST>(pool_);
+      auto pack = PackExpansionExpressionAST::create(pool_);
       pack->expression = expression;
       pack->ellipsisLoc = ellipsisLoc;
       expression = pack;
@@ -6388,7 +6388,7 @@ void Parser::parse_designator(DesignatorAST*& yyast) {
 }
 
 void Parser::parse_dot_designator(DesignatorAST*& yyast) {
-  auto ast = make_node<DotDesignatorAST>(pool_);
+  auto ast = DotDesignatorAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_DOT, ast->dotLoc);
@@ -6397,7 +6397,7 @@ void Parser::parse_dot_designator(DesignatorAST*& yyast) {
 }
 
 void Parser::parse_subscript_designator(DesignatorAST*& yyast) {
-  auto ast = make_node<SubscriptDesignatorAST>(pool_);
+  auto ast = SubscriptDesignatorAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
@@ -6412,7 +6412,7 @@ void Parser::parse_subscript_designator(DesignatorAST*& yyast) {
 
 auto Parser::parse_designated_initializer_clause(
     DesignatedInitializerClauseAST*& yyast) -> bool {
-  auto ast = make_node<DesignatedInitializerClauseAST>(pool_);
+  auto ast = DesignatedInitializerClauseAST::create(pool_);
   yyast = ast;
 
   auto it = &ast->designatorList;
@@ -6487,7 +6487,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
     SourceLocation defaultLoc;
 
     if (match(TokenKind::T_DEFAULT, defaultLoc)) {
-      auto ast = make_node<DefaultFunctionBodyAST>(pool_);
+      auto ast = DefaultFunctionBodyAST::create(pool_);
       yyast = ast;
 
       ast->equalLoc = equalLoc;
@@ -6501,7 +6501,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
     SourceLocation deleteLoc;
 
     if (match(TokenKind::T_DELETE, deleteLoc)) {
-      auto ast = make_node<DeleteFunctionBodyAST>(pool_);
+      auto ast = DeleteFunctionBodyAST::create(pool_);
       yyast = ast;
 
       ast->equalLoc = equalLoc;
@@ -6522,7 +6522,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
 
   if (!lookat(TokenKind::T_LBRACE)) return false;
 
-  auto ast = make_node<CompoundStatementFunctionBodyAST>(pool_);
+  auto ast = CompoundStatementFunctionBodyAST::create(pool_);
   yyast = ast;
 
   ast->colonLoc = colonLoc;
@@ -6574,7 +6574,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  auto ast = make_node<EnumSpecifierAST>(pool_);
+  auto ast = EnumSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->enumLoc = enumLoc;
@@ -6608,7 +6608,7 @@ auto Parser::parse_enum_head_name(NestedNameSpecifierAST*& nestedNameSpecifier,
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto id = make_node<NameIdAST>(pool_);
+  auto id = NameIdAST::create(pool_);
   id->identifierLoc = identifierLoc;
   id->identifier = unit->identifier(id->identifierLoc);
 
@@ -6643,7 +6643,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast,
 
   if (!lookat_opaque_enum_declaration()) return false;
 
-  auto ast = make_node<OpaqueEnumDeclarationAST>(pool_);
+  auto ast = OpaqueEnumDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->enumLoc = enumLoc;
@@ -6749,7 +6749,7 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
 }
 
 void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* type) {
-  auto ast = make_node<EnumeratorAST>(pool_);
+  auto ast = EnumeratorAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
@@ -6772,7 +6772,7 @@ void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* type) {
 auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_USING, TokenKind::T_ENUM)) return false;
 
-  auto ast = make_node<UsingEnumDeclarationAST>(pool_);
+  auto ast = UsingEnumDeclarationAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_USING, ast->usingLoc);
@@ -6805,7 +6805,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
 
   auto _ = Binder::ScopeGuard{&binder_};
 
-  auto ast = make_node<NamespaceDefinitionAST>(pool_);
+  auto ast = NamespaceDefinitionAST::create(pool_);
   yyast = ast;
 
   ast->isInline = match(TokenKind::T_INLINE, ast->inlineLoc);
@@ -6817,7 +6817,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
   if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) {
     auto it = &ast->nestedNamespaceSpecifierList;
 
-    auto name = make_node<NestedNamespaceSpecifierAST>(pool_);
+    auto name = NestedNamespaceSpecifierAST::create(pool_);
 
     expect(TokenKind::T_IDENTIFIER, name->identifierLoc);
     expect(TokenKind::T_COLON_COLON, name->scopeLoc);
@@ -6860,7 +6860,7 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
       auto namepaceSymbol =
           enterOrCreateNamespace(namespaceName, identifierLoc, isInline);
 
-      auto name = make_node<NestedNamespaceSpecifierAST>(pool_);
+      auto name = NestedNamespaceSpecifierAST::create(pool_);
       name->inlineLoc = inlineLoc;
       name->identifierLoc = identifierLoc;
       name->scopeLoc = scopeLoc;
@@ -6930,7 +6930,7 @@ auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
     return false;
   }
 
-  auto ast = make_node<NamespaceAliasDefinitionAST>(pool_);
+  auto ast = NamespaceAliasDefinitionAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_NAMESPACE, ast->namespaceLoc);
@@ -6958,7 +6958,7 @@ auto Parser::parse_qualified_namespace_specifier(
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto id = make_node<NameIdAST>(pool_);
+  auto id = NameIdAST::create(pool_);
   id->identifierLoc = identifierLoc;
   id->identifier = unit->identifier(id->identifierLoc);
 
@@ -6988,7 +6988,7 @@ auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
 
   if (!lookat_using_directive()) return false;
 
-  auto ast = make_node<UsingDirectiveAST>(pool_);
+  auto ast = UsingDirectiveAST::create(pool_);
   yyast = ast;
 
   ast->usingLoc = usingLoc;
@@ -7013,7 +7013,7 @@ auto Parser::parse_using_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_USING, usingLoc)) return false;
 
-  auto ast = make_node<UsingDeclarationAST>(pool_);
+  auto ast = UsingDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->usingLoc = usingLoc;
@@ -7076,7 +7076,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
   SourceLocation ellipsisLoc;
   auto isPack = match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
 
-  yyast = make_node<UsingDeclaratorAST>(pool_);
+  yyast = UsingDeclaratorAST::create(pool_);
   yyast->typenameLoc = typenameLoc;
   yyast->nestedNameSpecifier = nestedNameSpecifier;
   yyast->unqualifiedId = unqualifiedId;
@@ -7092,7 +7092,7 @@ auto Parser::parse_asm_operand(AsmOperandAST*& yyast) -> bool {
   if (!LA().isOneOf(TokenKind::T_LBRACKET, TokenKind::T_STRING_LITERAL))
     return false;
 
-  auto ast = make_node<AsmOperandAST>(pool_);
+  auto ast = AsmOperandAST::create(pool_);
   yyast = ast;
 
   if (match(TokenKind::T_LBRACKET, ast->lbracketLoc)) {
@@ -7131,7 +7131,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!lookat_asm_declaration()) return false;
 
-  auto ast = make_node<AsmDeclarationAST>(pool_);
+  auto ast = AsmDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributes;
@@ -7140,7 +7140,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
   auto it = &ast->asmQualifierList;
   while (LA().isOneOf(TokenKind::T_INLINE, TokenKind::T_VOLATILE,
                       TokenKind::T_GOTO)) {
-    auto qualifier = make_node<AsmQualifierAST>(pool_);
+    auto qualifier = AsmQualifierAST::create(pool_);
     qualifier->qualifierLoc = consumeToken();
     *it = make_list_node(pool_, qualifier);
     it = &(*it)->next;
@@ -7186,7 +7186,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
     if (SourceLocation literalLoc;
         match(TokenKind::T_STRING_LITERAL, literalLoc)) {
       auto it = &ast->clobberList;
-      auto clobber = make_node<AsmClobberAST>(pool_);
+      auto clobber = AsmClobberAST::create(pool_);
       clobber->literalLoc = literalLoc;
       clobber->literal =
           static_cast<const StringLiteral*>(unit->literal(literalLoc));
@@ -7197,7 +7197,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
         SourceLocation literalLoc;
         expect(TokenKind::T_STRING_LITERAL, literalLoc);
         if (!literalLoc) continue;
-        auto clobber = make_node<AsmClobberAST>(pool_);
+        auto clobber = AsmClobberAST::create(pool_);
         clobber->literalLoc = literalLoc;
         clobber->literal =
             static_cast<const StringLiteral*>(unit->literal(literalLoc));
@@ -7211,7 +7211,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
     if (SourceLocation identifierLoc;
         match(TokenKind::T_IDENTIFIER, identifierLoc)) {
       auto it = &ast->gotoLabelList;
-      auto label = make_node<AsmGotoLabelAST>(pool_);
+      auto label = AsmGotoLabelAST::create(pool_);
       label->identifierLoc = identifierLoc;
       label->identifier = unit->identifier(label->identifierLoc);
       *it = make_list_node(pool_, label);
@@ -7221,7 +7221,7 @@ auto Parser::parse_asm_declaration(DeclarationAST*& yyast) -> bool {
         SourceLocation identifierLoc;
         expect(TokenKind::T_IDENTIFIER, identifierLoc);
         if (!identifierLoc) continue;
-        auto label = make_node<AsmGotoLabelAST>(pool_);
+        auto label = AsmGotoLabelAST::create(pool_);
         label->identifierLoc = identifierLoc;
         label->identifier = unit->identifier(label->identifierLoc);
         *it = make_list_node(pool_, label);
@@ -7287,7 +7287,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
   if (match(TokenKind::T_LBRACE, lbraceLoc)) {
     SourceLocation rbraceLoc;
 
-    auto ast = make_node<LinkageSpecificationAST>(pool_);
+    auto ast = LinkageSpecificationAST::create(pool_);
     yyast = ast;
 
     ast->externLoc = externLoc;
@@ -7314,7 +7314,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
   update_linkage(declaration);
 
-  auto ast = make_node<LinkageSpecificationAST>(pool_);
+  auto ast = LinkageSpecificationAST::create(pool_);
   yyast = ast;
 
   ast->externLoc = externLoc;
@@ -7391,7 +7391,7 @@ auto Parser::parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast)
     -> bool {
   if (!lookat_cxx_attribute_specifier()) return false;
 
-  auto ast = make_node<CxxAttributeAST>(pool_);
+  auto ast = CxxAttributeAST::create(pool_);
   yyast = ast;
   ast->lbracketLoc = consumeToken();
   ast->lbracket2Loc = consumeToken();
@@ -7407,7 +7407,7 @@ auto Parser::parse_asm_specifier(AttributeSpecifierAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_ASM, asmLoc)) return false;
 
-  auto ast = make_node<AsmAttributeAST>(pool_);
+  auto ast = AsmAttributeAST::create(pool_);
   yyast = ast;
 
   ast->asmLoc = asmLoc;
@@ -7427,7 +7427,7 @@ auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
 
   SourceLocation attributeLoc;
 
-  auto ast = make_node<GccAttributeAST>(pool_);
+  auto ast = GccAttributeAST::create(pool_);
   yyast = ast;
 
   ast->attributeLoc = consumeToken();
@@ -7499,7 +7499,7 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
 
     lookahead.commit();
 
-    auto ast = make_node<AlignasTypeAttributeAST>(pool_);
+    auto ast = AlignasTypeAttributeAST::create(pool_);
     yyast = ast;
 
     ast->alignasLoc = alignasLoc;
@@ -7515,7 +7515,7 @@ auto Parser::parse_alignment_specifier(AttributeSpecifierAST*& yyast) -> bool {
 
   if (lookat_type_id()) return true;
 
-  auto ast = make_node<AlignasAttributeAST>(pool_);
+  auto ast = AlignasAttributeAST::create(pool_);
   yyast = ast;
 
   ast->alignasLoc = alignasLoc;
@@ -7550,7 +7550,7 @@ auto Parser::parse_attribute_using_prefix(AttributeUsingPrefixAST*& yyast)
 
   expect(TokenKind::T_COLON, colonLoc);
 
-  auto ast = make_node<AttributeUsingPrefixAST>(pool_);
+  auto ast = AttributeUsingPrefixAST::create(pool_);
   yyast = ast;
 
   ast->usingLoc = usingLoc;
@@ -7605,7 +7605,7 @@ auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
 
   (void)parse_attribute_argument_clause(attributeArgumentClause);
 
-  auto ast = make_node<AttributeAST>(pool_);
+  auto ast = AttributeAST::create(pool_);
   yyast = ast;
 
   ast->attributeToken = attributeToken;
@@ -7621,7 +7621,7 @@ auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
 
-  auto ast = make_node<SimpleAttributeTokenAST>(pool_);
+  auto ast = SimpleAttributeTokenAST::create(pool_);
   yyast = ast;
 
   ast->identifierLoc = identifierLoc;
@@ -7647,7 +7647,7 @@ auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
 
   expect(TokenKind::T_IDENTIFIER, identifierLoc);
 
-  auto ast = make_node<ScopedAttributeTokenAST>(pool_);
+  auto ast = ScopedAttributeTokenAST::create(pool_);
   yyast = ast;
 
   ast->attributeNamespaceLoc = attributeNamespaceLoc;
@@ -7679,7 +7679,7 @@ auto Parser::parse_attribute_argument_clause(AttributeArgumentClauseAST*& yyast)
     expect(TokenKind::T_RPAREN, rparenLoc);
   }
 
-  auto ast = make_node<AttributeArgumentClauseAST>(pool_);
+  auto ast = AttributeArgumentClauseAST::create(pool_);
   yyast = ast;
 
   ast->lparenLoc = lparenLoc;
@@ -7705,7 +7705,7 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
 
   if (!lookat_module_declaration()) return false;
 
-  yyast = make_node<ModuleDeclarationAST>(pool_);
+  yyast = ModuleDeclarationAST::create(pool_);
 
   yyast->exportLoc = exportLoc;
   yyast->moduleLoc = moduleLoc;
@@ -7721,11 +7721,11 @@ auto Parser::parse_module_declaration(ModuleDeclarationAST*& yyast) -> bool {
 }
 
 void Parser::parse_module_name(ModuleNameAST*& yyast) {
-  auto ast = make_node<ModuleNameAST>(pool_);
+  auto ast = ModuleNameAST::create(pool_);
   yyast = ast;
 
   if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT)) {
-    ast->moduleQualifier = make_node<ModuleQualifierAST>(pool_);
+    ast->moduleQualifier = ModuleQualifierAST::create(pool_);
     ast->moduleQualifier->identifierLoc = consumeToken();
     ast->moduleQualifier->identifier =
         unit->identifier(ast->moduleQualifier->identifierLoc);
@@ -7733,7 +7733,7 @@ void Parser::parse_module_name(ModuleNameAST*& yyast) {
 
     while (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT)) {
       auto baseModuleQualifier = ast->moduleQualifier;
-      ast->moduleQualifier = make_node<ModuleQualifierAST>(pool_);
+      ast->moduleQualifier = ModuleQualifierAST::create(pool_);
       ast->moduleQualifier->moduleQualifier = baseModuleQualifier;
       ast->moduleQualifier->identifierLoc = consumeToken();
       ast->moduleQualifier->identifier =
@@ -7751,7 +7751,7 @@ auto Parser::parse_module_partition(ModulePartitionAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_COLON, colonLoc)) return false;
 
-  yyast = make_node<ModulePartitionAST>(pool_);
+  yyast = ModulePartitionAST::create(pool_);
 
   yyast->colonLoc = colonLoc;
 
@@ -7770,7 +7770,7 @@ auto Parser::parse_export_declaration(DeclarationAST*& yyast,
   SourceLocation lbraceLoc;
 
   if (match(TokenKind::T_LBRACE, lbraceLoc)) {
-    auto ast = make_node<ExportCompoundDeclarationAST>(pool_);
+    auto ast = ExportCompoundDeclarationAST::create(pool_);
     yyast = ast;
 
     ast->exportLoc = exportLoc;
@@ -7784,7 +7784,7 @@ auto Parser::parse_export_declaration(DeclarationAST*& yyast,
     return true;
   }
 
-  auto ast = make_node<ExportDeclarationAST>(pool_);
+  auto ast = ExportDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->exportLoc = exportLoc;
@@ -7819,7 +7819,7 @@ auto Parser::parse_module_import_declaration(DeclarationAST*& yyast) -> bool {
 
   if (!parse_import_keyword(importLoc)) return false;
 
-  auto ast = make_node<ModuleImportDeclarationAST>(pool_);
+  auto ast = ModuleImportDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->importLoc = importLoc;
@@ -7840,7 +7840,7 @@ auto Parser::parse_import_name(ImportNameAST*& yyast) -> bool {
 
   if (parse_header_name(headerLoc)) return true;
 
-  yyast = make_node<ImportNameAST>(pool_);
+  yyast = ImportNameAST::create(pool_);
 
   yyast->headerLoc = headerLoc;
 
@@ -7867,7 +7867,7 @@ void Parser::parse_global_module_fragment(GlobalModuleFragmentAST*& yyast) {
 
   if (!lookat_global_module_fragment()) return;
 
-  yyast = make_node<GlobalModuleFragmentAST>(pool_);
+  yyast = GlobalModuleFragmentAST::create(pool_);
   yyast->moduleLoc = moduleLoc;
   yyast->semicolonLoc = semicolonLoc;
 
@@ -7891,7 +7891,7 @@ void Parser::parse_private_module_fragment(PrivateModuleFragmentAST*& yyast) {
 
   if (!lookat_private_module_fragment()) return;
 
-  yyast = make_node<PrivateModuleFragmentAST>(pool_);
+  yyast = PrivateModuleFragmentAST::create(pool_);
 
   yyast->moduleLoc = moduleLoc;
   yyast->colonLoc = colonLoc;
@@ -7958,7 +7958,7 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
     }
   }
 
-  auto ast = make_node<ClassSpecifierAST>(pool_);
+  auto ast = ClassSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->classLoc = classLoc;
@@ -8050,7 +8050,7 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
   SourceLocation accessLoc;
 
   if (parse_access_specifier(accessLoc)) {
-    auto ast = make_node<AccessDeclarationAST>(pool_);
+    auto ast = AccessDeclarationAST::create(pool_);
     yyast = ast;
 
     ast->accessLoc = accessLoc;
@@ -8123,7 +8123,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   if (SourceLocation semicolonLoc;
       match(TokenKind::T_SEMICOLON, semicolonLoc)) {
-    auto ast = make_node<SimpleDeclarationAST>(pool_);
+    auto ast = SimpleDeclarationAST::create(pool_);
     ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
     ast->semicolonLoc = semicolonLoc;
@@ -8175,7 +8175,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
       parse_error("expected function body");
     }
 
-    auto ast = make_node<FunctionDefinitionAST>(pool_);
+    auto ast = FunctionDefinitionAST::create(pool_);
     yyast = ast;
 
     ast->declSpecifierList = declSpecifierList;
@@ -8192,7 +8192,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   if (lookat_function_definition()) return true;
 
-  auto ast = make_node<SimpleDeclarationAST>(pool_);
+  auto ast = SimpleDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->attributeList = attributes;
@@ -8255,16 +8255,16 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast,
     parse_error("expected an expression");
   }
 
-  auto nameId = make_node<NameIdAST>(pool_);
+  auto nameId = NameIdAST::create(pool_);
   nameId->identifierLoc = identifierLoc;
   nameId->identifier = identifier;
 
-  auto bitfieldDeclarator = make_node<BitfieldDeclaratorAST>(pool_);
+  auto bitfieldDeclarator = BitfieldDeclaratorAST::create(pool_);
   bitfieldDeclarator->unqualifiedId = nameId;
   bitfieldDeclarator->colonLoc = colonLoc;
   bitfieldDeclarator->sizeExpression = sizeExpression;
 
-  auto declarator = make_node<DeclaratorAST>(pool_);
+  auto declarator = DeclaratorAST::create(pool_);
   declarator->coreDeclarator = bitfieldDeclarator;
 
   Decl decl{declSpecs, declarator};
@@ -8277,7 +8277,7 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast,
   ExpressionAST* initializer = nullptr;
   (void)parse_brace_or_equal_initializer(initializer);
 
-  auto ast = make_node<InitDeclaratorAST>(pool_);
+  auto ast = InitDeclaratorAST::create(pool_);
   yyast = ast;
 
   ast->declarator = declarator;
@@ -8313,7 +8313,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   auto symbol = binder_.declareMemberSymbol(declarator, decl);
 
-  auto ast = make_node<InitDeclaratorAST>(pool_);
+  auto ast = InitDeclaratorAST::create(pool_);
   yyast = ast;
 
   ast->declarator = declarator;
@@ -8398,11 +8398,11 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
 
   lookahead.commit();
 
-  auto declarator = make_node<DeclaratorAST>(pool_);
+  auto declarator = DeclaratorAST::create(pool_);
 
   (void)parse_ptr_operator_seq(declarator->ptrOpList);
 
-  auto typeId = make_node<TypeIdAST>(pool_);
+  auto typeId = TypeIdAST::create(pool_);
   typeId->typeSpecifierList = typeSpecifierList;
   typeId->declarator = declarator;
 
@@ -8410,7 +8410,7 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
 
   binder_.bind(typeId, decl);
 
-  auto ast = make_node<ConversionFunctionIdAST>(pool_);
+  auto ast = ConversionFunctionIdAST::create(pool_);
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -8482,7 +8482,7 @@ auto Parser::parse_base_specifier_list(ClassSpecifierAST* ast) -> bool {
 }
 
 void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
-  auto ast = make_node<BaseSpecifierAST>(pool_);
+  auto ast = BaseSpecifierAST::create(pool_);
   yyast = ast;
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
@@ -8527,7 +8527,7 @@ auto Parser::parse_class_or_decltype(
   if (!nestedNameSpecifier) {
     DecltypeSpecifierAST* decltypeSpecifier = nullptr;
     if (parse_decltype_specifier(decltypeSpecifier)) {
-      DecltypeIdAST* decltypeName = make_node<DecltypeIdAST>(pool_);
+      DecltypeIdAST* decltypeName = DecltypeIdAST::create(pool_);
       decltypeName->decltypeSpecifier = decltypeSpecifier;
       yynestedNameSpecifier = nullptr;
       yyast = decltypeName;
@@ -8600,14 +8600,14 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
   parse_mem_initializer_id(nestedNameSpecifier, name);
 
   if (lookat(TokenKind::T_LBRACE)) {
-    auto ast = make_node<BracedMemInitializerAST>(pool_);
+    auto ast = BracedMemInitializerAST::create(pool_);
     yyast = ast;
 
     ast->nestedNameSpecifier = nestedNameSpecifier;
     ast->unqualifiedId = name;
 
     if (classDepth_) {
-      ast->bracedInitList = make_node<BracedInitListAST>(pool_);
+      ast->bracedInitList = BracedInitListAST::create(pool_);
       ast->bracedInitList->lbraceLoc = currentLocation();
       if (parse_skip_balanced()) {
         ast->bracedInitList->rbraceLoc = currentLocation().previous();
@@ -8623,7 +8623,7 @@ void Parser::parse_mem_initializer(MemInitializerAST*& yyast) {
     return;
   }
 
-  auto ast = make_node<ParenMemInitializerAST>(pool_);
+  auto ast = ParenMemInitializerAST::create(pool_);
   yyast = ast;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -8688,7 +8688,7 @@ auto Parser::parse_operator_function_id(OperatorFunctionIdAST*& yyast) -> bool {
 
   if (!parse_operator(op, opLoc, openLoc, closeLoc)) return false;
 
-  auto ast = make_node<OperatorFunctionIdAST>(pool_);
+  auto ast = OperatorFunctionIdAST::create(pool_);
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -8805,7 +8805,7 @@ auto Parser::parse_literal_operator_id(LiteralOperatorIdAST*& yyast) -> bool {
 
   if (!lookat_literal_operator_id()) return false;
 
-  auto ast = make_node<LiteralOperatorIdAST>(pool_);
+  auto ast = LiteralOperatorIdAST::create(pool_);
   yyast = ast;
 
   ast->operatorLoc = operatorLoc;
@@ -8830,7 +8830,7 @@ auto Parser::parse_template_declaration(TemplateDeclarationAST*& yyast,
   auto _ = Binder::ScopeGuard{&binder_};
   TemplateHeadContext templateHeadContext{this};
 
-  auto ast = make_node<TemplateDeclarationAST>(pool_);
+  auto ast = TemplateDeclarationAST::create(pool_);
   yyast = ast;
 
   ast->depth = templateParameterDepth_;
@@ -8912,7 +8912,7 @@ auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_REQUIRES, requiresLoc)) return false;
 
-  yyast = make_node<RequiresClauseAST>(pool_);
+  yyast = RequiresClauseAST::create(pool_);
 
   yyast->requiresLoc = requiresLoc;
 
@@ -8940,7 +8940,7 @@ auto Parser::parse_constraint_logical_or_expression(ExpressionAST*& yyast,
       parse_error("expected a requirement expression");
     }
 
-    auto ast = make_node<BinaryExpressionAST>(pool_);
+    auto ast = BinaryExpressionAST::create(pool_);
     ast->leftExpression = yyast;
     ast->opLoc = opLoc;
     ast->op = TokenKind::T_BAR_BAR;
@@ -8967,7 +8967,7 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast,
       parse_error("expected an expression");
     }
 
-    auto ast = make_node<BinaryExpressionAST>(pool_);
+    auto ast = BinaryExpressionAST::create(pool_);
     ast->leftExpression = yyast;
     ast->opLoc = opLoc;
     ast->op = TokenKind::T_AMP_AMP;
@@ -9014,7 +9014,7 @@ void Parser::parse_template_parameter(TemplateParameterAST*& yyast) {
 
   lookahead.commit();
 
-  auto ast = make_node<NonTypeTemplateParameterAST>(pool_);
+  auto ast = NonTypeTemplateParameterAST::create(pool_);
   yyast = ast;
 
   ast->declaration = parameter;
@@ -9050,7 +9050,7 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
 
   if (!parse_type_parameter_key(classKeyLoc)) return false;
 
-  auto ast = make_node<TypenameTypeParameterAST>(pool_);
+  auto ast = TypenameTypeParameterAST::create(pool_);
   yyast = ast;
 
   ast->classKeyLoc = classKeyLoc;
@@ -9075,7 +9075,7 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
 void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
   auto _ = Binder::ScopeGuard{&binder_};
 
-  auto ast = make_node<TemplateTypeParameterAST>(pool_);
+  auto ast = TemplateTypeParameterAST::create(pool_);
   yyast = ast;
 
   expect(TokenKind::T_TEMPLATE, ast->templateLoc);
@@ -9144,7 +9144,7 @@ auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
     }
   }
 
-  auto ast = make_node<ConstraintTypeParameterAST>(pool_);
+  auto ast = ConstraintTypeParameterAST::create(pool_);
   yyast = ast;
 
   ast->typeConstraint = typeConstraint;
@@ -9193,7 +9193,7 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
 
   if (!lookat_type_constraint()) return false;
 
-  auto ast = make_node<TypeConstraintAST>(pool_);
+  auto ast = TypeConstraintAST::create(pool_);
   yyast = ast;
 
   ast->nestedNameSpecifier = nestedNameSpecifier;
@@ -9214,7 +9214,7 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
 auto Parser::parse_simple_template_id(SimpleTemplateIdAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS)) return false;
 
-  auto ast = make_node<SimpleTemplateIdAST>(pool_);
+  auto ast = SimpleTemplateIdAST::create(pool_);
   yyast = ast;
 
   ast->identifierLoc = consumeToken();
@@ -9290,7 +9290,7 @@ auto Parser::parse_literal_operator_template_id(
 
   lookahead.commit();
 
-  auto ast = make_node<LiteralOperatorTemplateIdAST>(pool_);
+  auto ast = LiteralOperatorTemplateIdAST::create(pool_);
   yyast = ast;
 
   ast->literalOperatorId = literalOperatorName;
@@ -9318,7 +9318,7 @@ auto Parser::parse_function_operator_template_id(
 
   lookahead.commit();
 
-  auto ast = make_node<OperatorFunctionTemplateIdAST>(pool_);
+  auto ast = OperatorFunctionTemplateIdAST::create(pool_);
   yyast = ast;
 
   ast->operatorFunctionId = operatorFunctionName;
@@ -9412,7 +9412,7 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
 
     lookahead.commit();
 
-    auto ast = make_node<TypeTemplateArgumentAST>(pool_);
+    auto ast = TypeTemplateArgumentAST::create(pool_);
     yyast = ast;
 
     ast->typeId = typeId;
@@ -9433,13 +9433,13 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
 
     if (SourceLocation ellipsisLoc;
         match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-      auto pack = make_node<PackExpansionExpressionAST>(pool_);
+      auto pack = PackExpansionExpressionAST::create(pool_);
       pack->expression = expression;
       pack->ellipsisLoc = ellipsisLoc;
       expression = pack;
     }
 
-    auto ast = make_node<ExpressionTemplateArgumentAST>(pool_);
+    auto ast = ExpressionTemplateArgumentAST::create(pool_);
     yyast = ast;
 
     ast->expression = expression;
@@ -9518,7 +9518,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
-  auto ast = make_node<DeductionGuideAST>(pool_);
+  auto ast = DeductionGuideAST::create(pool_);
   yyast = ast;
   ast->explicitSpecifier = explicitSpecifier;
   ast->identifierLoc = identifierLoc;
@@ -9538,7 +9538,7 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_CONCEPT, conceptLoc)) return false;
 
-  auto ast = make_node<ConceptDefinitionAST>(pool_);
+  auto ast = ConceptDefinitionAST::create(pool_);
   yyast = ast;
 
   ast->conceptLoc = conceptLoc;
@@ -9572,7 +9572,7 @@ auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   SplicerAST* splicer = nullptr;
   if (!parse_splicer(splicer)) return false;
   lookahead.commit();
-  auto ast = make_node<SplicerTypeSpecifierAST>(pool_);
+  auto ast = SplicerTypeSpecifierAST::create(pool_);
   yyast = ast;
   ast->typenameLoc = typenameLoc;
   ast->splicer = splicer;
@@ -9619,7 +9619,7 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     unqualifiedId = nameId;
   }
 
-  auto ast = make_node<TypenameSpecifierAST>(pool_);
+  auto ast = TypenameSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->typenameLoc = typenameLoc;
@@ -9650,7 +9650,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
 
   if (!lookat_explicit_instantiation()) return false;
 
-  auto ast = make_node<ExplicitInstantiationAST>(pool_);
+  auto ast = ExplicitInstantiationAST::create(pool_);
   yyast = ast;
 
   match(TokenKind::T_EXTERN, ast->externLoc);
@@ -9745,7 +9745,7 @@ auto Parser::parse_try_block(StatementAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_TRY, tryLoc)) return false;
 
-  auto ast = make_node<TryBlockStatementAST>(pool_);
+  auto ast = TryBlockStatementAST::create(pool_);
   yyast = ast;
 
   ast->tryLoc = tryLoc;
@@ -9766,7 +9766,7 @@ auto Parser::parse_function_try_block(FunctionBodyAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_TRY, tryLoc)) return false;
 
-  auto ast = make_node<TryStatementFunctionBodyAST>(pool_);
+  auto ast = TryStatementFunctionBodyAST::create(pool_);
   yyast = ast;
 
   ast->tryLoc = tryLoc;
@@ -9793,7 +9793,7 @@ auto Parser::parse_handler(HandlerAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_CATCH, catchLoc)) return false;
 
-  yyast = make_node<HandlerAST>(pool_);
+  yyast = HandlerAST::create(pool_);
 
   yyast->catchLoc = catchLoc;
 
@@ -9831,14 +9831,14 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
   SourceLocation ellipsisLoc;
 
   if (match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) {
-    auto ast = make_node<EllipsisExceptionDeclarationAST>(pool_);
+    auto ast = EllipsisExceptionDeclarationAST::create(pool_);
     yyast = ast;
 
     ast->ellipsisLoc = ellipsisLoc;
     return true;
   }
 
-  auto ast = make_node<TypeExceptionDeclarationAST>(pool_);
+  auto ast = TypeExceptionDeclarationAST::create(pool_);
   yyast = ast;
 
   parse_optional_attribute_specifier_seq(ast->attributeList);
@@ -9860,7 +9860,7 @@ auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
   SourceLocation throwLoc;
 
   if (match(TokenKind::T_THROW, throwLoc)) {
-    auto ast = make_node<ThrowExceptionSpecifierAST>(pool_);
+    auto ast = ThrowExceptionSpecifierAST::create(pool_);
     yyast = ast;
 
     ast->throwLoc = throwLoc;
@@ -9874,7 +9874,7 @@ auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
 
   if (!match(TokenKind::T_NOEXCEPT, noexceptLoc)) return false;
 
-  auto ast = make_node<NoexceptSpecifierAST>(pool_);
+  auto ast = NoexceptSpecifierAST::create(pool_);
   yyast = ast;
 
   ast->noexceptLoc = noexceptLoc;

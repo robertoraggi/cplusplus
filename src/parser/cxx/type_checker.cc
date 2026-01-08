@@ -1733,7 +1733,7 @@ auto TypeChecker::Visitor::lvalue_to_rvalue_conversion(ExpressionAST*& expr)
   if (control()->is_function(expr->type)) return false;
   if (control()->is_array(expr->type)) return false;
   if (!control()->is_complete(expr->type)) return false;
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
   cast->expression = expr;
   cast->type = control()->remove_reference(expr->type);
@@ -1746,7 +1746,7 @@ auto TypeChecker::Visitor::array_to_pointer_conversion(ExpressionAST*& expr)
     -> bool {
   auto unref = control()->remove_reference(expr->type);
   if (!control()->is_array(unref)) return false;
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
   cast->expression = expr;
   cast->type = control()->add_pointer(control()->remove_extent(unref));
@@ -1759,7 +1759,7 @@ auto TypeChecker::Visitor::function_to_pointer_conversion(ExpressionAST*& expr)
     -> bool {
   auto unref = control()->remove_reference(expr->type);
   if (!control()->is_function(unref)) return false;
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kFunctionToPointerConversion;
   cast->expression = expr;
   cast->type = control()->add_pointer(unref);
@@ -1777,7 +1777,7 @@ auto TypeChecker::Visitor::integral_promotion(ExpressionAST*& expr,
     return false;
 
   auto make_implicit_cast = [&](const Type* type) {
-    auto cast = make_node<ImplicitCastExpressionAST>(arena());
+    auto cast = ImplicitCastExpressionAST::create(arena());
     cast->castKind = ImplicitCastKind::kIntegralPromotion;
     cast->expression = expr;
     cast->type = type;
@@ -1862,7 +1862,7 @@ auto TypeChecker::Visitor::floating_point_promotion(ExpressionAST*& expr,
 
   if (expr->type->kind() != TypeKind::kFloat) return false;
 
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kFloatingPointPromotion;
   cast->expression = expr;
   cast->type = control()->getDoubleType();
@@ -1880,7 +1880,7 @@ auto TypeChecker::Visitor::integral_conversion(ExpressionAST*& expr,
   if (!control()->is_integral_or_unscoped_enum(expr->type)) return false;
   if (!control()->is_integer(destinationType)) return false;
 
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kIntegralConversion;
   cast->expression = expr;
   cast->type = destinationType;
@@ -1898,7 +1898,7 @@ auto TypeChecker::Visitor::floating_point_conversion(
   if (!control()->is_floating_point(expr->type)) return false;
   if (!control()->is_floating_point(destinationType)) return false;
 
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kFloatingPointConversion;
   cast->expression = expr;
   cast->type = destinationType;
@@ -1913,7 +1913,7 @@ auto TypeChecker::Visitor::floating_integral_conversion(
   if (!is_prvalue(expr)) return false;
 
   auto make_integral_conversion = [&] {
-    auto cast = make_node<ImplicitCastExpressionAST>(arena());
+    auto cast = ImplicitCastExpressionAST::create(arena());
     cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
     cast->expression = expr;
     cast->type = destinationType;
@@ -1942,7 +1942,7 @@ auto TypeChecker::Visitor::pointer_to_member_conversion(
   if (!control()->is_member_pointer(destinationType)) return false;
 
   auto make_implicit_cast = [&] {
-    auto cast = make_node<ImplicitCastExpressionAST>(arena());
+    auto cast = ImplicitCastExpressionAST::create(arena());
     cast->castKind = ImplicitCastKind::kPointerToMemberConversion;
     cast->expression = expr;
     cast->type = destinationType;
@@ -2022,7 +2022,7 @@ auto TypeChecker::Visitor::pointer_conversion(ExpressionAST*& expr,
   if (!is_prvalue(expr)) return false;
 
   auto make_implicit_cast = [&] {
-    auto cast = make_node<ImplicitCastExpressionAST>(arena());
+    auto cast = ImplicitCastExpressionAST::create(arena());
     cast->castKind = ImplicitCastKind::kPointerConversion;
     cast->expression = expr;
     cast->type = destinationType;
@@ -2118,7 +2118,7 @@ auto TypeChecker::Visitor::function_pointer_conversion(
                             destinationFunctionType))
       return false;
 
-    auto cast = make_node<ImplicitCastExpressionAST>(arena());
+    auto cast = ImplicitCastExpressionAST::create(arena());
     cast->castKind = ImplicitCastKind::kFunctionPointerConversion;
     cast->expression = expr;
     cast->type = destinationType;
@@ -2149,7 +2149,7 @@ auto TypeChecker::Visitor::function_pointer_conversion(
             destinationMemberFunctionPointer->functionType()))
       return false;
 
-    auto cast = make_node<ImplicitCastExpressionAST>(arena());
+    auto cast = ImplicitCastExpressionAST::create(arena());
     cast->castKind = ImplicitCastKind::kFunctionPointerConversion;
     cast->expression = expr;
     cast->type = destinationType;
@@ -2177,7 +2177,7 @@ auto TypeChecker::Visitor::boolean_conversion(ExpressionAST*& expr,
       !control()->is_member_pointer(expr->type))
     return false;
 
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kBooleanConversion;
   cast->expression = expr;
   cast->type = control()->getBoolType();
@@ -2191,7 +2191,7 @@ auto TypeChecker::Visitor::temporary_materialization_conversion(
     ExpressionAST*& expr) -> bool {
   if (!is_prvalue(expr)) return false;
 
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kTemporaryMaterializationConversion;
   cast->expression = expr;
   cast->type = control()->remove_reference(expr->type);
@@ -2209,7 +2209,7 @@ auto TypeChecker::Visitor::qualification_conversion(ExpressionAST*& expr,
 
   if (!control()->is_same(destinationType, type)) return false;
 
-  auto cast = make_node<ImplicitCastExpressionAST>(arena());
+  auto cast = ImplicitCastExpressionAST::create(arena());
   cast->castKind = ImplicitCastKind::kQualificationConversion;
   cast->expression = expr;
   cast->type = destinationType;
