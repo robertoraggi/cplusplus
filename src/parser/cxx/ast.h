@@ -98,8 +98,9 @@ class AST : public Managed {
 
   virtual void accept(ASTVisitor* visitor) = 0;
 
-  virtual auto firstSourceLocation() -> SourceLocation = 0;
-  virtual auto lastSourceLocation() -> SourceLocation = 0;
+  [[nodiscard]] virtual auto clone(Arena* arena) -> AST* = 0;
+  [[nodiscard]] virtual auto firstSourceLocation() -> SourceLocation = 0;
+  [[nodiscard]] virtual auto lastSourceLocation() -> SourceLocation = 0;
 
   [[nodiscard]] auto sourceLocationRange() -> SourceLocationRange {
     return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
@@ -108,12 +109,6 @@ class AST : public Managed {
  private:
   ASTKind kind_;
 };
-
-template <typename T>
-auto make_node(Arena* arena) -> T* {
-  auto node = new (arena) T();
-  return node;
-}
 
 template <typename T>
 auto make_list_node(Arena* arena, T* element = nullptr) -> List<T*>* {
@@ -161,143 +156,201 @@ template <typename T>
 class AttributeSpecifierAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> AttributeSpecifierAST* override = 0;
 };
 
 class AttributeTokenAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> AttributeTokenAST* override = 0;
 };
 
 class CoreDeclaratorAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> CoreDeclaratorAST* override = 0;
 };
 
 class DeclarationAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> DeclarationAST* override = 0;
 };
 
 class DeclaratorChunkAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> DeclaratorChunkAST* override = 0;
 };
 
 class DesignatorAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> DesignatorAST* override = 0;
 };
 
 class ExceptionDeclarationAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ExceptionDeclarationAST* override = 0;
 };
 
 class ExceptionSpecifierAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> ExceptionSpecifierAST* override = 0;
 };
 
 class ExpressionAST : public AST {
  public:
   using AST::AST;
+
   ValueCategory valueCategory = ValueCategory::kPrValue;
   const Type* type = nullptr;
+
+  [[nodiscard]] auto clone(Arena* arena) -> ExpressionAST* override = 0;
 };
 
 class FunctionBodyAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> FunctionBodyAST* override = 0;
 };
 
 class GenericAssociationAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> GenericAssociationAST* override = 0;
 };
 
 class LambdaCaptureAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> LambdaCaptureAST* override = 0;
 };
 
 class MemInitializerAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> MemInitializerAST* override = 0;
 };
 
 class NestedNameSpecifierAST : public AST {
  public:
   using AST::AST;
+
   ScopeSymbol* symbol = nullptr;
+
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NestedNameSpecifierAST* override = 0;
 };
 
 class NewInitializerAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> NewInitializerAST* override = 0;
 };
 
 class PtrOperatorAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> PtrOperatorAST* override = 0;
 };
 
 class RequirementAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> RequirementAST* override = 0;
 };
 
 class SpecifierAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> SpecifierAST* override = 0;
 };
 
 class StatementAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> StatementAST* override = 0;
 };
 
 class TemplateArgumentAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> TemplateArgumentAST* override = 0;
 };
 
 class TemplateParameterAST : public AST {
  public:
   using AST::AST;
+
   Symbol* symbol = nullptr;
   int depth = 0;
   int index = 0;
+
+  [[nodiscard]] auto clone(Arena* arena) -> TemplateParameterAST* override = 0;
 };
 
 class UnitAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> UnitAST* override = 0;
 };
 
 class UnqualifiedIdAST : public AST {
  public:
   using AST::AST;
+
+  [[nodiscard]] auto clone(Arena* arena) -> UnqualifiedIdAST* override = 0;
 };
 
 class TranslationUnitAST final : public UnitAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TranslationUnit;
 
-  TranslationUnitAST() : UnitAST(Kind) {}
-
   List<DeclarationAST*>* declarationList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TranslationUnitAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TranslationUnitAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<DeclarationAST*>* declarationList)
+      -> TranslationUnitAST*;
+
+ protected:
+  TranslationUnitAST() : UnitAST(Kind) {}
 };
 
 class ModuleUnitAST final : public UnitAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ModuleUnit;
-
-  ModuleUnitAST() : UnitAST(Kind) {}
 
   GlobalModuleFragmentAST* globalModuleFragment = nullptr;
   ModuleDeclarationAST* moduleDeclaration = nullptr;
@@ -306,15 +359,26 @@ class ModuleUnitAST final : public UnitAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ModuleUnitAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ModuleUnitAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, GlobalModuleFragmentAST* globalModuleFragment,
+      ModuleDeclarationAST* moduleDeclaration,
+      List<DeclarationAST*>* declarationList,
+      PrivateModuleFragmentAST* privateModuleFragment) -> ModuleUnitAST*;
+
+ protected:
+  ModuleUnitAST() : UnitAST(Kind) {}
 };
 
 class SimpleDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SimpleDeclaration;
-
-  SimpleDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -324,15 +388,35 @@ class SimpleDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SimpleDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SimpleDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* declSpecifierList,
+                                   List<InitDeclaratorAST*>* initDeclaratorList,
+                                   RequiresClauseAST* requiresClause,
+                                   SourceLocation semicolonLoc)
+      -> SimpleDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* declSpecifierList,
+                                   List<InitDeclaratorAST*>* initDeclaratorList,
+                                   RequiresClauseAST* requiresClause)
+      -> SimpleDeclarationAST*;
+
+ protected:
+  SimpleDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class AsmDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmDeclaration;
-
-  AsmDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<AsmQualifierAST*>* asmQualifierList = nullptr;
@@ -349,15 +433,40 @@ class AsmDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AsmDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AsmDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<AsmQualifierAST*>* asmQualifierList, SourceLocation asmLoc,
+      SourceLocation lparenLoc, SourceLocation literalLoc,
+      List<AsmOperandAST*>* outputOperandList,
+      List<AsmOperandAST*>* inputOperandList, List<AsmClobberAST*>* clobberList,
+      List<AsmGotoLabelAST*>* gotoLabelList, SourceLocation rparenLoc,
+      SourceLocation semicolonLoc, const Literal* literal)
+      -> AsmDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<AsmQualifierAST*>* asmQualifierList,
+                                   List<AsmOperandAST*>* outputOperandList,
+                                   List<AsmOperandAST*>* inputOperandList,
+                                   List<AsmClobberAST*>* clobberList,
+                                   List<AsmGotoLabelAST*>* gotoLabelList,
+                                   const Literal* literal)
+      -> AsmDeclarationAST*;
+
+ protected:
+  AsmDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class NamespaceAliasDefinitionAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NamespaceAliasDefinition;
-
-  NamespaceAliasDefinitionAST() : DeclarationAST(Kind) {}
 
   SourceLocation namespaceLoc;
   SourceLocation identifierLoc;
@@ -369,15 +478,34 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NamespaceAliasDefinitionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> NamespaceAliasDefinitionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation namespaceLoc, SourceLocation identifierLoc,
+      SourceLocation equalLoc, NestedNameSpecifierAST* nestedNameSpecifier,
+      NameIdAST* unqualifiedId, SourceLocation semicolonLoc,
+      const Identifier* identifier) -> NamespaceAliasDefinitionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   NameIdAST* unqualifiedId,
+                                   const Identifier* identifier)
+      -> NamespaceAliasDefinitionAST*;
+
+ protected:
+  NamespaceAliasDefinitionAST() : DeclarationAST(Kind) {}
 };
 
 class UsingDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UsingDeclaration;
-
-  UsingDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation usingLoc;
   List<UsingDeclaratorAST*>* usingDeclaratorList = nullptr;
@@ -385,15 +513,29 @@ class UsingDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> UsingDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> UsingDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation usingLoc,
+      List<UsingDeclaratorAST*>* usingDeclaratorList,
+      SourceLocation semicolonLoc) -> UsingDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<UsingDeclaratorAST*>* usingDeclaratorList)
+      -> UsingDeclarationAST*;
+
+ protected:
+  UsingDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class UsingEnumDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UsingEnumDeclaration;
-
-  UsingEnumDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation usingLoc;
   ElaboratedTypeSpecifierAST* enumTypeSpecifier = nullptr;
@@ -401,15 +543,29 @@ class UsingEnumDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> UsingEnumDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> UsingEnumDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation usingLoc,
+      ElaboratedTypeSpecifierAST* enumTypeSpecifier,
+      SourceLocation semicolonLoc) -> UsingEnumDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ElaboratedTypeSpecifierAST* enumTypeSpecifier)
+      -> UsingEnumDeclarationAST*;
+
+ protected:
+  UsingEnumDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class UsingDirectiveAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UsingDirective;
-
-  UsingDirectiveAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation usingLoc;
@@ -420,15 +576,32 @@ class UsingDirectiveAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> UsingDirectiveAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> UsingDirectiveAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation usingLoc, SourceLocation namespaceLoc,
+      NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
+      SourceLocation semicolonLoc) -> UsingDirectiveAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   NameIdAST* unqualifiedId)
+      -> UsingDirectiveAST*;
+
+ protected:
+  UsingDirectiveAST() : DeclarationAST(Kind) {}
 };
 
 class StaticAssertDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::StaticAssertDeclaration;
-
-  StaticAssertDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation staticAssertLoc;
   SourceLocation lparenLoc;
@@ -442,15 +615,33 @@ class StaticAssertDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> StaticAssertDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> StaticAssertDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation staticAssertLoc, SourceLocation lparenLoc,
+      ExpressionAST* expression, SourceLocation commaLoc,
+      SourceLocation literalLoc, const Literal* literal,
+      SourceLocation rparenLoc, SourceLocation semicolonLoc,
+      std::optional<bool> value) -> StaticAssertDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   const Literal* literal,
+                                   std::optional<bool> value)
+      -> StaticAssertDeclarationAST*;
+
+ protected:
+  StaticAssertDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class AliasDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AliasDeclaration;
-
-  AliasDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation usingLoc;
   SourceLocation identifierLoc;
@@ -464,15 +655,33 @@ class AliasDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AliasDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AliasDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation usingLoc, SourceLocation identifierLoc,
+      List<AttributeSpecifierAST*>* attributeList, SourceLocation equalLoc,
+      List<AttributeSpecifierAST*>* gnuAttributeList, TypeIdAST* typeId,
+      SourceLocation semicolonLoc, const Identifier* identifier,
+      TypeAliasSymbol* symbol) -> AliasDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<AttributeSpecifierAST*>* gnuAttributeList, TypeIdAST* typeId,
+      const Identifier* identifier, TypeAliasSymbol* symbol)
+      -> AliasDeclarationAST*;
+
+ protected:
+  AliasDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class OpaqueEnumDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::OpaqueEnumDeclaration;
-
-  OpaqueEnumDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation enumLoc;
   SourceLocation classLoc;
@@ -485,15 +694,34 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> OpaqueEnumDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> OpaqueEnumDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation enumLoc, SourceLocation classLoc,
+      List<AttributeSpecifierAST*>* attributeList,
+      NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
+      SourceLocation colonLoc, List<SpecifierAST*>* typeSpecifierList,
+      SourceLocation emicolonLoc) -> OpaqueEnumDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   NameIdAST* unqualifiedId,
+                                   List<SpecifierAST*>* typeSpecifierList)
+      -> OpaqueEnumDeclarationAST*;
+
+ protected:
+  OpaqueEnumDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class FunctionDefinitionAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::FunctionDefinition;
-
-  FunctionDefinitionAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -504,15 +732,26 @@ class FunctionDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> FunctionDefinitionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> FunctionDefinitionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<SpecifierAST*>* declSpecifierList, DeclaratorAST* declarator,
+      RequiresClauseAST* requiresClause, FunctionBodyAST* functionBody,
+      FunctionSymbol* symbol) -> FunctionDefinitionAST*;
+
+ protected:
+  FunctionDefinitionAST() : DeclarationAST(Kind) {}
 };
 
 class TemplateDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TemplateDeclaration;
-
-  TemplateDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation templateLoc;
   SourceLocation lessLoc;
@@ -525,15 +764,32 @@ class TemplateDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TemplateDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TemplateDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation templateLoc, SourceLocation lessLoc,
+      List<TemplateParameterAST*>* templateParameterList,
+      SourceLocation greaterLoc, RequiresClauseAST* requiresClause,
+      DeclarationAST* declaration, TemplateParametersSymbol* symbol, int depth)
+      -> TemplateDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<TemplateParameterAST*>* templateParameterList,
+      RequiresClauseAST* requiresClause, DeclarationAST* declaration,
+      TemplateParametersSymbol* symbol, int depth) -> TemplateDeclarationAST*;
+
+ protected:
+  TemplateDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class ConceptDefinitionAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConceptDefinition;
-
-  ConceptDefinitionAST() : DeclarationAST(Kind) {}
 
   SourceLocation conceptLoc;
   SourceLocation identifierLoc;
@@ -545,15 +801,31 @@ class ConceptDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConceptDefinitionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConceptDefinitionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation conceptLoc, SourceLocation identifierLoc,
+      SourceLocation equalLoc, ExpressionAST* expression,
+      SourceLocation semicolonLoc, const Identifier* identifier,
+      ConceptSymbol* symbol) -> ConceptDefinitionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   const Identifier* identifier,
+                                   ConceptSymbol* symbol)
+      -> ConceptDefinitionAST*;
+
+ protected:
+  ConceptDefinitionAST() : DeclarationAST(Kind) {}
 };
 
 class DeductionGuideAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DeductionGuide;
-
-  DeductionGuideAST() : DeclarationAST(Kind) {}
 
   SpecifierAST* explicitSpecifier = nullptr;
   SourceLocation identifierLoc;
@@ -567,15 +839,34 @@ class DeductionGuideAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DeductionGuideAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DeductionGuideAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SpecifierAST* explicitSpecifier,
+      SourceLocation identifierLoc, SourceLocation lparenLoc,
+      ParameterDeclarationClauseAST* parameterDeclarationClause,
+      SourceLocation rparenLoc, SourceLocation arrowLoc,
+      SimpleTemplateIdAST* templateId, SourceLocation semicolonLoc,
+      const Identifier* identifier) -> DeductionGuideAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SpecifierAST* explicitSpecifier,
+      ParameterDeclarationClauseAST* parameterDeclarationClause,
+      SimpleTemplateIdAST* templateId, const Identifier* identifier)
+      -> DeductionGuideAST*;
+
+ protected:
+  DeductionGuideAST() : DeclarationAST(Kind) {}
 };
 
 class ExplicitInstantiationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExplicitInstantiation;
-
-  ExplicitInstantiationAST() : DeclarationAST(Kind) {}
 
   SourceLocation externLoc;
   SourceLocation templateLoc;
@@ -583,30 +874,55 @@ class ExplicitInstantiationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ExplicitInstantiationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ExplicitInstantiationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation externLoc,
+                                   SourceLocation templateLoc,
+                                   DeclarationAST* declaration)
+      -> ExplicitInstantiationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, DeclarationAST* declaration)
+      -> ExplicitInstantiationAST*;
+
+ protected:
+  ExplicitInstantiationAST() : DeclarationAST(Kind) {}
 };
 
 class ExportDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExportDeclaration;
 
-  ExportDeclarationAST() : DeclarationAST(Kind) {}
-
   SourceLocation exportLoc;
   DeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ExportDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ExportDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation exportLoc,
+                                   DeclarationAST* declaration)
+      -> ExportDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, DeclarationAST* declaration)
+      -> ExportDeclarationAST*;
+
+ protected:
+  ExportDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class ExportCompoundDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExportCompoundDeclaration;
-
-  ExportCompoundDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation exportLoc;
   SourceLocation lbraceLoc;
@@ -615,15 +931,32 @@ class ExportCompoundDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ExportCompoundDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> ExportCompoundDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation exportLoc,
+                                   SourceLocation lbraceLoc,
+                                   List<DeclarationAST*>* declarationList,
+                                   SourceLocation rbraceLoc)
+      -> ExportCompoundDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<DeclarationAST*>* declarationList)
+      -> ExportCompoundDeclarationAST*;
+
+ protected:
+  ExportCompoundDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class LinkageSpecificationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LinkageSpecification;
-
-  LinkageSpecificationAST() : DeclarationAST(Kind) {}
 
   SourceLocation externLoc;
   SourceLocation stringliteralLoc;
@@ -634,15 +967,33 @@ class LinkageSpecificationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LinkageSpecificationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LinkageSpecificationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation externLoc,
+                                   SourceLocation stringliteralLoc,
+                                   SourceLocation lbraceLoc,
+                                   List<DeclarationAST*>* declarationList,
+                                   SourceLocation rbraceLoc,
+                                   const StringLiteral* stringLiteral)
+      -> LinkageSpecificationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<DeclarationAST*>* declarationList,
+                                   const StringLiteral* stringLiteral)
+      -> LinkageSpecificationAST*;
+
+ protected:
+  LinkageSpecificationAST() : DeclarationAST(Kind) {}
 };
 
 class NamespaceDefinitionAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NamespaceDefinition;
-
-  NamespaceDefinitionAST() : DeclarationAST(Kind) {}
 
   SourceLocation inlineLoc;
   SourceLocation namespaceLoc;
@@ -658,44 +1009,88 @@ class NamespaceDefinitionAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NamespaceDefinitionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NamespaceDefinitionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation inlineLoc, SourceLocation namespaceLoc,
+      List<AttributeSpecifierAST*>* attributeList,
+      List<NestedNamespaceSpecifierAST*>* nestedNamespaceSpecifierList,
+      SourceLocation identifierLoc,
+      List<AttributeSpecifierAST*>* extraAttributeList,
+      SourceLocation lbraceLoc, List<DeclarationAST*>* declarationList,
+      SourceLocation rbraceLoc, const Identifier* identifier, bool isInline)
+      -> NamespaceDefinitionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<NestedNamespaceSpecifierAST*>* nestedNamespaceSpecifierList,
+      List<AttributeSpecifierAST*>* extraAttributeList,
+      List<DeclarationAST*>* declarationList, const Identifier* identifier,
+      bool isInline) -> NamespaceDefinitionAST*;
+
+ protected:
+  NamespaceDefinitionAST() : DeclarationAST(Kind) {}
 };
 
 class EmptyDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::EmptyDeclaration;
 
-  EmptyDeclarationAST() : DeclarationAST(Kind) {}
-
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> EmptyDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> EmptyDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation semicolonLoc)
+      -> EmptyDeclarationAST*;
+
+ protected:
+  EmptyDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class AttributeDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AttributeDeclaration;
 
-  AttributeDeclarationAST() : DeclarationAST(Kind) {}
-
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AttributeDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AttributeDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation semicolonLoc)
+      -> AttributeDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList)
+      -> AttributeDeclarationAST*;
+
+ protected:
+  AttributeDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class ModuleImportDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ModuleImportDeclaration;
-
-  ModuleImportDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation importLoc;
   ImportNameAST* importName = nullptr;
@@ -704,15 +1099,31 @@ class ModuleImportDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ModuleImportDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ModuleImportDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation importLoc,
+                                   ImportNameAST* importName,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation semicolonLoc)
+      -> ModuleImportDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ImportNameAST* importName,
+                                   List<AttributeSpecifierAST*>* attributeList)
+      -> ModuleImportDeclarationAST*;
+
+ protected:
+  ModuleImportDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class ParameterDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ParameterDeclaration;
-
-  ParameterDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation thisLoc;
@@ -727,15 +1138,33 @@ class ParameterDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ParameterDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ParameterDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation thisLoc, List<SpecifierAST*>* typeSpecifierList,
+      DeclaratorAST* declarator, SourceLocation equalLoc,
+      ExpressionAST* expression, const Type* type, const Identifier* identifier,
+      bool isThisIntroduced, bool isPack) -> ParameterDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
+      ExpressionAST* expression, const Type* type, const Identifier* identifier,
+      bool isThisIntroduced, bool isPack) -> ParameterDeclarationAST*;
+
+ protected:
+  ParameterDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class AccessDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AccessDeclaration;
-
-  AccessDeclarationAST() : DeclarationAST(Kind) {}
 
   SourceLocation accessLoc;
   SourceLocation colonLoc;
@@ -743,27 +1172,45 @@ class AccessDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AccessDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AccessDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation accessLoc,
+                                   SourceLocation colonLoc,
+                                   TokenKind accessSpecifier)
+      -> AccessDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind accessSpecifier)
+      -> AccessDeclarationAST*;
+
+ protected:
+  AccessDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class ForRangeDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ForRangeDeclaration;
 
-  ForRangeDeclarationAST() : DeclarationAST(Kind) {}
-
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ForRangeDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ForRangeDeclarationAST*;
+
+ protected:
+  ForRangeDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class StructuredBindingDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::StructuredBindingDeclaration;
-
-  StructuredBindingDeclarationAST() : DeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -776,15 +1223,36 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> StructuredBindingDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> StructuredBindingDeclarationAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<SpecifierAST*>* declSpecifierList, SourceLocation refQualifierLoc,
+      SourceLocation lbracketLoc, List<NameIdAST*>* bindingList,
+      SourceLocation rbracketLoc, ExpressionAST* initializer,
+      SourceLocation semicolonLoc) -> StructuredBindingDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* declSpecifierList,
+                                   List<NameIdAST*>* bindingList,
+                                   ExpressionAST* initializer)
+      -> StructuredBindingDeclarationAST*;
+
+ protected:
+  StructuredBindingDeclarationAST() : DeclarationAST(Kind) {}
 };
 
 class AsmOperandAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmOperand;
-
-  AsmOperandAST() : AST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation symbolicNameLoc;
@@ -798,60 +1266,112 @@ class AsmOperandAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AsmOperandAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AsmOperandAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation lbracketLoc, SourceLocation symbolicNameLoc,
+      SourceLocation rbracketLoc, SourceLocation constraintLiteralLoc,
+      SourceLocation lparenLoc, ExpressionAST* expression,
+      SourceLocation rparenLoc, const Identifier* symbolicName,
+      const Literal* constraintLiteral) -> AsmOperandAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   const Identifier* symbolicName,
+                                   const Literal* constraintLiteral)
+      -> AsmOperandAST*;
+
+ protected:
+  AsmOperandAST() : AST(Kind) {}
 };
 
 class AsmQualifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmQualifier;
 
-  AsmQualifierAST() : AST(Kind) {}
-
   SourceLocation qualifierLoc;
   TokenKind qualifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AsmQualifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AsmQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation qualifierLoc,
+                                   TokenKind qualifier) -> AsmQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind qualifier)
+      -> AsmQualifierAST*;
+
+ protected:
+  AsmQualifierAST() : AST(Kind) {}
 };
 
 class AsmClobberAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmClobber;
 
-  AsmClobberAST() : AST(Kind) {}
-
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AsmClobberAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AsmClobberAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   const StringLiteral* literal)
+      -> AsmClobberAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const StringLiteral* literal)
+      -> AsmClobberAST*;
+
+ protected:
+  AsmClobberAST() : AST(Kind) {}
 };
 
 class AsmGotoLabelAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmGotoLabel;
 
-  AsmGotoLabelAST() : AST(Kind) {}
-
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AsmGotoLabelAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AsmGotoLabelAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
+                                   const Identifier* identifier)
+      -> AsmGotoLabelAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> AsmGotoLabelAST*;
+
+ protected:
+  AsmGotoLabelAST() : AST(Kind) {}
 };
 
 class SplicerAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::Splicer;
-
-  SplicerAST() : AST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation colonLoc;
@@ -862,15 +1382,30 @@ class SplicerAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SplicerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SplicerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lbracketLoc,
+                                   SourceLocation colonLoc,
+                                   SourceLocation ellipsisLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation secondColonLoc,
+                                   SourceLocation rbracketLoc) -> SplicerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> SplicerAST*;
+
+ protected:
+  SplicerAST() : AST(Kind) {}
 };
 
 class GlobalModuleFragmentAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::GlobalModuleFragment;
-
-  GlobalModuleFragmentAST() : AST(Kind) {}
 
   SourceLocation moduleLoc;
   SourceLocation semicolonLoc;
@@ -878,15 +1413,29 @@ class GlobalModuleFragmentAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> GlobalModuleFragmentAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> GlobalModuleFragmentAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation moduleLoc,
+                                   SourceLocation semicolonLoc,
+                                   List<DeclarationAST*>* declarationList)
+      -> GlobalModuleFragmentAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<DeclarationAST*>* declarationList)
+      -> GlobalModuleFragmentAST*;
+
+ protected:
+  GlobalModuleFragmentAST() : AST(Kind) {}
 };
 
 class PrivateModuleFragmentAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::PrivateModuleFragment;
-
-  PrivateModuleFragmentAST() : AST(Kind) {}
 
   SourceLocation moduleLoc;
   SourceLocation colonLoc;
@@ -896,15 +1445,31 @@ class PrivateModuleFragmentAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> PrivateModuleFragmentAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PrivateModuleFragmentAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation moduleLoc,
+                                   SourceLocation colonLoc,
+                                   SourceLocation privateLoc,
+                                   SourceLocation semicolonLoc,
+                                   List<DeclarationAST*>* declarationList)
+      -> PrivateModuleFragmentAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<DeclarationAST*>* declarationList)
+      -> PrivateModuleFragmentAST*;
+
+ protected:
+  PrivateModuleFragmentAST() : AST(Kind) {}
 };
 
 class ModuleDeclarationAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::ModuleDeclaration;
-
-  ModuleDeclarationAST() : AST(Kind) {}
 
   SourceLocation exportLoc;
   SourceLocation moduleLoc;
@@ -915,15 +1480,33 @@ class ModuleDeclarationAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ModuleDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ModuleDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation exportLoc,
+                                   SourceLocation moduleLoc,
+                                   ModuleNameAST* moduleName,
+                                   ModulePartitionAST* modulePartition,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation semicolonLoc)
+      -> ModuleDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ModuleNameAST* moduleName,
+                                   ModulePartitionAST* modulePartition,
+                                   List<AttributeSpecifierAST*>* attributeList)
+      -> ModuleDeclarationAST*;
+
+ protected:
+  ModuleDeclarationAST() : AST(Kind) {}
 };
 
 class ModuleNameAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::ModuleName;
-
-  ModuleNameAST() : AST(Kind) {}
 
   ModuleQualifierAST* moduleQualifier = nullptr;
   SourceLocation identifierLoc;
@@ -931,15 +1514,31 @@ class ModuleNameAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ModuleNameAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ModuleNameAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ModuleQualifierAST* moduleQualifier,
+                                   SourceLocation identifierLoc,
+                                   const Identifier* identifier)
+      -> ModuleNameAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ModuleQualifierAST* moduleQualifier,
+                                   const Identifier* identifier)
+      -> ModuleNameAST*;
+
+ protected:
+  ModuleNameAST() : AST(Kind) {}
 };
 
 class ModuleQualifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::ModuleQualifier;
-
-  ModuleQualifierAST() : AST(Kind) {}
 
   ModuleQualifierAST* moduleQualifier = nullptr;
   SourceLocation identifierLoc;
@@ -948,30 +1547,59 @@ class ModuleQualifierAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ModuleQualifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ModuleQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ModuleQualifierAST* moduleQualifier,
+                                   SourceLocation identifierLoc,
+                                   SourceLocation dotLoc,
+                                   const Identifier* identifier)
+      -> ModuleQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ModuleQualifierAST* moduleQualifier,
+                                   const Identifier* identifier)
+      -> ModuleQualifierAST*;
+
+ protected:
+  ModuleQualifierAST() : AST(Kind) {}
 };
 
 class ModulePartitionAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::ModulePartition;
 
-  ModulePartitionAST() : AST(Kind) {}
-
   SourceLocation colonLoc;
   ModuleNameAST* moduleName = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ModulePartitionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ModulePartitionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation colonLoc,
+                                   ModuleNameAST* moduleName)
+      -> ModulePartitionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ModuleNameAST* moduleName)
+      -> ModulePartitionAST*;
+
+ protected:
+  ModulePartitionAST() : AST(Kind) {}
 };
 
 class ImportNameAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::ImportName;
-
-  ImportNameAST() : AST(Kind) {}
 
   SourceLocation headerLoc;
   ModulePartitionAST* modulePartition = nullptr;
@@ -979,15 +1607,28 @@ class ImportNameAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ImportNameAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ImportNameAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation headerLoc,
+                                   ModulePartitionAST* modulePartition,
+                                   ModuleNameAST* moduleName) -> ImportNameAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ModulePartitionAST* modulePartition,
+                                   ModuleNameAST* moduleName) -> ImportNameAST*;
+
+ protected:
+  ImportNameAST() : AST(Kind) {}
 };
 
 class InitDeclaratorAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::InitDeclarator;
-
-  InitDeclaratorAST() : AST(Kind) {}
 
   DeclaratorAST* declarator = nullptr;
   RequiresClauseAST* requiresClause = nullptr;
@@ -996,15 +1637,25 @@ class InitDeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> InitDeclaratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> InitDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, DeclaratorAST* declarator,
+                                   RequiresClauseAST* requiresClause,
+                                   ExpressionAST* initializer, Symbol* symbol)
+      -> InitDeclaratorAST*;
+
+ protected:
+  InitDeclaratorAST() : AST(Kind) {}
 };
 
 class DeclaratorAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::Declarator;
-
-  DeclaratorAST() : AST(Kind) {}
 
   List<PtrOperatorAST*>* ptrOpList = nullptr;
   CoreDeclaratorAST* coreDeclarator = nullptr;
@@ -1012,15 +1663,25 @@ class DeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DeclaratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DeclaratorAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<PtrOperatorAST*>* ptrOpList,
+      CoreDeclaratorAST* coreDeclarator,
+      List<DeclaratorChunkAST*>* declaratorChunkList) -> DeclaratorAST*;
+
+ protected:
+  DeclaratorAST() : AST(Kind) {}
 };
 
 class UsingDeclaratorAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::UsingDeclarator;
-
-  UsingDeclaratorAST() : AST(Kind) {}
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -1031,15 +1692,33 @@ class UsingDeclaratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> UsingDeclaratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> UsingDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typenameLoc,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   SourceLocation ellipsisLoc,
+                                   UsingDeclarationSymbol* symbol, bool isPack)
+      -> UsingDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   UsingDeclarationSymbol* symbol, bool isPack)
+      -> UsingDeclaratorAST*;
+
+ protected:
+  UsingDeclaratorAST() : AST(Kind) {}
 };
 
 class EnumeratorAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::Enumerator;
-
-  EnumeratorAST() : AST(Kind) {}
 
   SourceLocation identifierLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -1050,15 +1729,33 @@ class EnumeratorAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> EnumeratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> EnumeratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation equalLoc,
+                                   ExpressionAST* expression,
+                                   const Identifier* identifier,
+                                   EnumeratorSymbol* symbol) -> EnumeratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* expression,
+                                   const Identifier* identifier,
+                                   EnumeratorSymbol* symbol) -> EnumeratorAST*;
+
+ protected:
+  EnumeratorAST() : AST(Kind) {}
 };
 
 class TypeIdAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeId;
-
-  TypeIdAST() : AST(Kind) {}
 
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
@@ -1066,15 +1763,25 @@ class TypeIdAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<SpecifierAST*>* typeSpecifierList,
+                                   DeclaratorAST* declarator, const Type* type)
+      -> TypeIdAST*;
+
+ protected:
+  TypeIdAST() : AST(Kind) {}
 };
 
 class HandlerAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::Handler;
-
-  HandlerAST() : AST(Kind) {}
 
   SourceLocation catchLoc;
   SourceLocation lparenLoc;
@@ -1084,15 +1791,29 @@ class HandlerAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> HandlerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> HandlerAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation catchLoc, SourceLocation lparenLoc,
+      ExceptionDeclarationAST* exceptionDeclaration, SourceLocation rparenLoc,
+      CompoundStatementAST* statement) -> HandlerAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ExceptionDeclarationAST* exceptionDeclaration,
+      CompoundStatementAST* statement) -> HandlerAST*;
+
+ protected:
+  HandlerAST() : AST(Kind) {}
 };
 
 class BaseSpecifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::BaseSpecifier;
-
-  BaseSpecifierAST() : AST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation virtualOrAccessLoc;
@@ -1109,30 +1830,64 @@ class BaseSpecifierAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BaseSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BaseSpecifierAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation virtualOrAccessLoc, SourceLocation otherVirtualOrAccessLoc,
+      NestedNameSpecifierAST* nestedNameSpecifier, SourceLocation templateLoc,
+      UnqualifiedIdAST* unqualifiedId, SourceLocation ellipsisLoc,
+      bool isTemplateIntroduced, bool isVirtual, bool isVariadic,
+      TokenKind accessSpecifier, BaseClassSymbol* symbol) -> BaseSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   bool isTemplateIntroduced, bool isVirtual,
+                                   bool isVariadic, TokenKind accessSpecifier,
+                                   BaseClassSymbol* symbol)
+      -> BaseSpecifierAST*;
+
+ protected:
+  BaseSpecifierAST() : AST(Kind) {}
 };
 
 class RequiresClauseAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::RequiresClause;
 
-  RequiresClauseAST() : AST(Kind) {}
-
   SourceLocation requiresLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RequiresClauseAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RequiresClauseAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation requiresLoc,
+                                   ExpressionAST* expression)
+      -> RequiresClauseAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> RequiresClauseAST*;
+
+ protected:
+  RequiresClauseAST() : AST(Kind) {}
 };
 
 class ParameterDeclarationClauseAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::ParameterDeclarationClause;
-
-  ParameterDeclarationClauseAST() : AST(Kind) {}
 
   List<ParameterDeclarationAST*>* parameterDeclarationList = nullptr;
   SourceLocation commaLoc;
@@ -1142,45 +1897,85 @@ class ParameterDeclarationClauseAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ParameterDeclarationClauseAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> ParameterDeclarationClauseAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<ParameterDeclarationAST*>* parameterDeclarationList,
+      SourceLocation commaLoc, SourceLocation ellipsisLoc,
+      FunctionParametersSymbol* functionParametersSymbol, bool isVariadic)
+      -> ParameterDeclarationClauseAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<ParameterDeclarationAST*>* parameterDeclarationList,
+      FunctionParametersSymbol* functionParametersSymbol, bool isVariadic)
+      -> ParameterDeclarationClauseAST*;
+
+ protected:
+  ParameterDeclarationClauseAST() : AST(Kind) {}
 };
 
 class TrailingReturnTypeAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::TrailingReturnType;
 
-  TrailingReturnTypeAST() : AST(Kind) {}
-
   SourceLocation minusGreaterLoc;
   TypeIdAST* typeId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TrailingReturnTypeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TrailingReturnTypeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation minusGreaterLoc,
+                                   TypeIdAST* typeId) -> TrailingReturnTypeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId)
+      -> TrailingReturnTypeAST*;
+
+ protected:
+  TrailingReturnTypeAST() : AST(Kind) {}
 };
 
 class LambdaSpecifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::LambdaSpecifier;
 
-  LambdaSpecifierAST() : AST(Kind) {}
-
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LambdaSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LambdaSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation specifierLoc,
+                                   TokenKind specifier) -> LambdaSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind specifier)
+      -> LambdaSpecifierAST*;
+
+ protected:
+  LambdaSpecifierAST() : AST(Kind) {}
 };
 
 class TypeConstraintAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeConstraint;
-
-  TypeConstraintAST() : AST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation identifierLoc;
@@ -1191,30 +1986,57 @@ class TypeConstraintAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeConstraintAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeConstraintAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
+      SourceLocation identifierLoc, SourceLocation lessLoc,
+      List<TemplateArgumentAST*>* templateArgumentList,
+      SourceLocation greaterLoc, const Identifier* identifier)
+      -> TypeConstraintAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
+      List<TemplateArgumentAST*>* templateArgumentList,
+      const Identifier* identifier) -> TypeConstraintAST*;
+
+ protected:
+  TypeConstraintAST() : AST(Kind) {}
 };
 
 class AttributeArgumentClauseAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AttributeArgumentClause;
 
-  AttributeArgumentClauseAST() : AST(Kind) {}
-
   SourceLocation lparenLoc;
   SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> AttributeArgumentClauseAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AttributeArgumentClauseAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   SourceLocation rparenLoc)
+      -> AttributeArgumentClauseAST*;
+
+ protected:
+  AttributeArgumentClauseAST() : AST(Kind) {}
 };
 
 class AttributeAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::Attribute;
-
-  AttributeAST() : AST(Kind) {}
 
   AttributeTokenAST* attributeToken = nullptr;
   AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
@@ -1222,15 +2044,29 @@ class AttributeAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AttributeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AttributeAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, AttributeTokenAST* attributeToken,
+      AttributeArgumentClauseAST* attributeArgumentClause,
+      SourceLocation ellipsisLoc) -> AttributeAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, AttributeTokenAST* attributeToken,
+      AttributeArgumentClauseAST* attributeArgumentClause) -> AttributeAST*;
+
+ protected:
+  AttributeAST() : AST(Kind) {}
 };
 
 class AttributeUsingPrefixAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::AttributeUsingPrefix;
-
-  AttributeUsingPrefixAST() : AST(Kind) {}
 
   SourceLocation usingLoc;
   SourceLocation attributeNamespaceLoc;
@@ -1238,15 +2074,25 @@ class AttributeUsingPrefixAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AttributeUsingPrefixAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AttributeUsingPrefixAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation usingLoc,
+                                   SourceLocation attributeNamespaceLoc,
+                                   SourceLocation colonLoc)
+      -> AttributeUsingPrefixAST*;
+
+ protected:
+  AttributeUsingPrefixAST() : AST(Kind) {}
 };
 
 class NewPlacementAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::NewPlacement;
-
-  NewPlacementAST() : AST(Kind) {}
 
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -1254,15 +2100,29 @@ class NewPlacementAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NewPlacementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NewPlacementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   List<ExpressionAST*>* expressionList,
+                                   SourceLocation rparenLoc)
+      -> NewPlacementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<ExpressionAST*>* expressionList)
+      -> NewPlacementAST*;
+
+ protected:
+  NewPlacementAST() : AST(Kind) {}
 };
 
 class NestedNamespaceSpecifierAST final : public AST {
  public:
   static constexpr ASTKind Kind = ASTKind::NestedNamespaceSpecifier;
-
-  NestedNamespaceSpecifierAST() : AST(Kind) {}
 
   SourceLocation inlineLoc;
   SourceLocation identifierLoc;
@@ -1272,15 +2132,32 @@ class NestedNamespaceSpecifierAST final : public AST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NestedNamespaceSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> NestedNamespaceSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation inlineLoc,
+                                   SourceLocation identifierLoc,
+                                   SourceLocation scopeLoc,
+                                   const Identifier* identifier, bool isInline)
+      -> NestedNamespaceSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   bool isInline)
+      -> NestedNamespaceSpecifierAST*;
+
+ protected:
+  NestedNamespaceSpecifierAST() : AST(Kind) {}
 };
 
 class LabeledStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LabeledStatement;
-
-  LabeledStatementAST() : StatementAST(Kind) {}
 
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
@@ -1288,15 +2165,28 @@ class LabeledStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LabeledStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LabeledStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
+                                   SourceLocation colonLoc,
+                                   const Identifier* identifier)
+      -> LabeledStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> LabeledStatementAST*;
+
+ protected:
+  LabeledStatementAST() : StatementAST(Kind) {}
 };
 
 class CaseStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CaseStatement;
-
-  CaseStatementAST() : StatementAST(Kind) {}
 
   SourceLocation caseLoc;
   ExpressionAST* expression = nullptr;
@@ -1305,45 +2195,79 @@ class CaseStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CaseStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CaseStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation caseLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation colonLoc,
+                                   std::int64_t caseValue) -> CaseStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   std::int64_t caseValue) -> CaseStatementAST*;
+
+ protected:
+  CaseStatementAST() : StatementAST(Kind) {}
 };
 
 class DefaultStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DefaultStatement;
 
-  DefaultStatementAST() : StatementAST(Kind) {}
-
   SourceLocation defaultLoc;
   SourceLocation colonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DefaultStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DefaultStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation defaultLoc,
+                                   SourceLocation colonLoc)
+      -> DefaultStatementAST*;
+
+ protected:
+  DefaultStatementAST() : StatementAST(Kind) {}
 };
 
 class ExpressionStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExpressionStatement;
 
-  ExpressionStatementAST() : StatementAST(Kind) {}
-
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ExpressionStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ExpressionStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   SourceLocation semicolonLoc)
+      -> ExpressionStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> ExpressionStatementAST*;
+
+ protected:
+  ExpressionStatementAST() : StatementAST(Kind) {}
 };
 
 class CompoundStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CompoundStatement;
-
-  CompoundStatementAST() : StatementAST(Kind) {}
 
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
@@ -1352,15 +2276,31 @@ class CompoundStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CompoundStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CompoundStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lbraceLoc,
+                                   List<StatementAST*>* statementList,
+                                   SourceLocation rbraceLoc,
+                                   BlockSymbol* symbol)
+      -> CompoundStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<StatementAST*>* statementList,
+                                   BlockSymbol* symbol)
+      -> CompoundStatementAST*;
+
+ protected:
+  CompoundStatementAST() : StatementAST(Kind) {}
 };
 
 class IfStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IfStatement;
-
-  IfStatementAST() : StatementAST(Kind) {}
 
   SourceLocation ifLoc;
   SourceLocation constexprLoc;
@@ -1375,15 +2315,33 @@ class IfStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> IfStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> IfStatementAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation ifLoc, SourceLocation constexprLoc,
+      SourceLocation lparenLoc, StatementAST* initializer,
+      ExpressionAST* condition, SourceLocation rparenLoc,
+      StatementAST* statement, SourceLocation elseLoc,
+      StatementAST* elseStatement, BlockSymbol* symbol) -> IfStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+                                   ExpressionAST* condition,
+                                   StatementAST* statement,
+                                   StatementAST* elseStatement,
+                                   BlockSymbol* symbol) -> IfStatementAST*;
+
+ protected:
+  IfStatementAST() : StatementAST(Kind) {}
 };
 
 class ConstevalIfStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstevalIfStatement;
-
-  ConstevalIfStatementAST() : StatementAST(Kind) {}
 
   SourceLocation ifLoc;
   SourceLocation exclaimLoc;
@@ -1395,15 +2353,32 @@ class ConstevalIfStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConstevalIfStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstevalIfStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ifLoc,
+                                   SourceLocation exclaimLoc,
+                                   SourceLocation constvalLoc,
+                                   StatementAST* statement,
+                                   SourceLocation elseLoc,
+                                   StatementAST* elseStatement, bool isNot)
+      -> ConstevalIfStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* statement,
+                                   StatementAST* elseStatement, bool isNot)
+      -> ConstevalIfStatementAST*;
+
+ protected:
+  ConstevalIfStatementAST() : StatementAST(Kind) {}
 };
 
 class SwitchStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SwitchStatement;
-
-  SwitchStatementAST() : StatementAST(Kind) {}
 
   SourceLocation switchLoc;
   SourceLocation lparenLoc;
@@ -1415,15 +2390,33 @@ class SwitchStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SwitchStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SwitchStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation switchLoc,
+                                   SourceLocation lparenLoc,
+                                   StatementAST* initializer,
+                                   ExpressionAST* condition,
+                                   SourceLocation rparenLoc,
+                                   StatementAST* statement, BlockSymbol* symbol)
+      -> SwitchStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+                                   ExpressionAST* condition,
+                                   StatementAST* statement, BlockSymbol* symbol)
+      -> SwitchStatementAST*;
+
+ protected:
+  SwitchStatementAST() : StatementAST(Kind) {}
 };
 
 class WhileStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::WhileStatement;
-
-  WhileStatementAST() : StatementAST(Kind) {}
 
   SourceLocation whileLoc;
   SourceLocation lparenLoc;
@@ -1434,15 +2427,31 @@ class WhileStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> WhileStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> WhileStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation whileLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* condition,
+                                   SourceLocation rparenLoc,
+                                   StatementAST* statement, BlockSymbol* symbol)
+      -> WhileStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* condition,
+                                   StatementAST* statement, BlockSymbol* symbol)
+      -> WhileStatementAST*;
+
+ protected:
+  WhileStatementAST() : StatementAST(Kind) {}
 };
 
 class DoStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DoStatement;
-
-  DoStatementAST() : StatementAST(Kind) {}
 
   SourceLocation doLoc;
   StatementAST* statement = nullptr;
@@ -1454,15 +2463,30 @@ class DoStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DoStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DoStatementAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation doLoc, StatementAST* statement,
+      SourceLocation whileLoc, SourceLocation lparenLoc,
+      ExpressionAST* expression, SourceLocation rparenLoc,
+      SourceLocation semicolonLoc) -> DoStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* statement,
+                                   ExpressionAST* expression)
+      -> DoStatementAST*;
+
+ protected:
+  DoStatementAST() : StatementAST(Kind) {}
 };
 
 class ForRangeStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ForRangeStatement;
-
-  ForRangeStatementAST() : StatementAST(Kind) {}
 
   SourceLocation forLoc;
   SourceLocation lparenLoc;
@@ -1476,15 +2500,33 @@ class ForRangeStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ForRangeStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ForRangeStatementAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation forLoc, SourceLocation lparenLoc,
+      StatementAST* initializer, DeclarationAST* rangeDeclaration,
+      SourceLocation colonLoc, ExpressionAST* rangeInitializer,
+      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
+      -> ForRangeStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+                                   DeclarationAST* rangeDeclaration,
+                                   ExpressionAST* rangeInitializer,
+                                   StatementAST* statement, BlockSymbol* symbol)
+      -> ForRangeStatementAST*;
+
+ protected:
+  ForRangeStatementAST() : StatementAST(Kind) {}
 };
 
 class ForStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ForStatement;
-
-  ForStatementAST() : StatementAST(Kind) {}
 
   SourceLocation forLoc;
   SourceLocation lparenLoc;
@@ -1498,45 +2540,81 @@ class ForStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ForStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ForStatementAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation forLoc, SourceLocation lparenLoc,
+      StatementAST* initializer, ExpressionAST* condition,
+      SourceLocation semicolonLoc, ExpressionAST* expression,
+      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
+      -> ForStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+                                   ExpressionAST* condition,
+                                   ExpressionAST* expression,
+                                   StatementAST* statement, BlockSymbol* symbol)
+      -> ForStatementAST*;
+
+ protected:
+  ForStatementAST() : StatementAST(Kind) {}
 };
 
 class BreakStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BreakStatement;
 
-  BreakStatementAST() : StatementAST(Kind) {}
-
   SourceLocation breakLoc;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BreakStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BreakStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation breakLoc,
+                                   SourceLocation semicolonLoc)
+      -> BreakStatementAST*;
+
+ protected:
+  BreakStatementAST() : StatementAST(Kind) {}
 };
 
 class ContinueStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ContinueStatement;
 
-  ContinueStatementAST() : StatementAST(Kind) {}
-
   SourceLocation continueLoc;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ContinueStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ContinueStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation continueLoc,
+                                   SourceLocation semicolonLoc)
+      -> ContinueStatementAST*;
+
+ protected:
+  ContinueStatementAST() : StatementAST(Kind) {}
 };
 
 class ReturnStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ReturnStatement;
-
-  ReturnStatementAST() : StatementAST(Kind) {}
 
   SourceLocation returnLoc;
   ExpressionAST* expression = nullptr;
@@ -1544,15 +2622,28 @@ class ReturnStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ReturnStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ReturnStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation returnLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation semicolonLoc)
+      -> ReturnStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> ReturnStatementAST*;
+
+ protected:
+  ReturnStatementAST() : StatementAST(Kind) {}
 };
 
 class CoroutineReturnStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CoroutineReturnStatement;
-
-  CoroutineReturnStatementAST() : StatementAST(Kind) {}
 
   SourceLocation coreturnLoc;
   ExpressionAST* expression = nullptr;
@@ -1560,15 +2651,30 @@ class CoroutineReturnStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> CoroutineReturnStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> CoroutineReturnStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation coreturnLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation semicolonLoc)
+      -> CoroutineReturnStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> CoroutineReturnStatementAST*;
+
+ protected:
+  CoroutineReturnStatementAST() : StatementAST(Kind) {}
 };
 
 class GotoStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GotoStatement;
-
-  GotoStatementAST() : StatementAST(Kind) {}
 
   SourceLocation gotoLoc;
   SourceLocation starLoc;
@@ -1579,29 +2685,52 @@ class GotoStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> GotoStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> GotoStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation gotoLoc,
+                                   SourceLocation starLoc,
+                                   SourceLocation identifierLoc,
+                                   SourceLocation semicolonLoc,
+                                   const Identifier* identifier,
+                                   bool isIndirect) -> GotoStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   bool isIndirect) -> GotoStatementAST*;
+
+ protected:
+  GotoStatementAST() : StatementAST(Kind) {}
 };
 
 class DeclarationStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DeclarationStatement;
 
-  DeclarationStatementAST() : StatementAST(Kind) {}
-
   DeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DeclarationStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DeclarationStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, DeclarationAST* declaration)
+      -> DeclarationStatementAST*;
+
+ protected:
+  DeclarationStatementAST() : StatementAST(Kind) {}
 };
 
 class TryBlockStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TryBlockStatement;
-
-  TryBlockStatementAST() : StatementAST(Kind) {}
 
   SourceLocation tryLoc;
   CompoundStatementAST* statement = nullptr;
@@ -1609,120 +2738,251 @@ class TryBlockStatementAST final : public StatementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TryBlockStatementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TryBlockStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation tryLoc,
+                                   CompoundStatementAST* statement,
+                                   List<HandlerAST*>* handlerList)
+      -> TryBlockStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   CompoundStatementAST* statement,
+                                   List<HandlerAST*>* handlerList)
+      -> TryBlockStatementAST*;
+
+ protected:
+  TryBlockStatementAST() : StatementAST(Kind) {}
 };
 
 class CharLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CharLiteralExpression;
 
-  CharLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   const CharLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CharLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CharLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   const CharLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> CharLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const CharLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> CharLiteralExpressionAST*;
+
+ protected:
+  CharLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class BoolLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BoolLiteralExpression;
 
-  BoolLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   bool isTrue = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BoolLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BoolLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   bool isTrue, ValueCategory valueCategory,
+                                   const Type* type)
+      -> BoolLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, bool isTrue,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> BoolLiteralExpressionAST*;
+
+ protected:
+  BoolLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class IntLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IntLiteralExpression;
 
-  IntLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   const IntegerLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> IntLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> IntLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   const IntegerLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> IntLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const IntegerLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> IntLiteralExpressionAST*;
+
+ protected:
+  IntLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class FloatLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::FloatLiteralExpression;
 
-  FloatLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   const FloatLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> FloatLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> FloatLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   const FloatLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> FloatLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const FloatLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> FloatLiteralExpressionAST*;
+
+ protected:
+  FloatLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class NullptrLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NullptrLiteralExpression;
 
-  NullptrLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   TokenKind literal = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NullptrLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> NullptrLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   TokenKind literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> NullptrLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> NullptrLiteralExpressionAST*;
+
+ protected:
+  NullptrLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class StringLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::StringLiteralExpression;
 
-  StringLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> StringLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> StringLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   const StringLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> StringLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const StringLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> StringLiteralExpressionAST*;
+
+ protected:
+  StringLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UserDefinedStringLiteralExpression;
 
-  UserDefinedStringLiteralExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> UserDefinedStringLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> UserDefinedStringLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
+                                   const StringLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> UserDefinedStringLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const StringLiteral* literal,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> UserDefinedStringLiteralExpressionAST*;
+
+ protected:
+  UserDefinedStringLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ObjectLiteralExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ObjectLiteralExpression;
-
-  ObjectLiteralExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
@@ -1731,29 +2991,60 @@ class ObjectLiteralExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ObjectLiteralExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ObjectLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   TypeIdAST* typeId, SourceLocation rparenLoc,
+                                   BracedInitListAST* bracedInitList,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> ObjectLiteralExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   BracedInitListAST* bracedInitList,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> ObjectLiteralExpressionAST*;
+
+ protected:
+  ObjectLiteralExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ThisExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThisExpression;
 
-  ThisExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation thisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ThisExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ThisExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation thisLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ThisExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ValueCategory valueCategory,
+                                   const Type* type) -> ThisExpressionAST*;
+
+ protected:
+  ThisExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class GenericSelectionExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GenericSelectionExpression;
-
-  GenericSelectionExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation genericLoc;
   SourceLocation lparenLoc;
@@ -1765,15 +3056,36 @@ class GenericSelectionExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> GenericSelectionExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> GenericSelectionExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation genericLoc, SourceLocation lparenLoc,
+      ExpressionAST* expression, SourceLocation commaLoc,
+      List<GenericAssociationAST*>* genericAssociationList,
+      SourceLocation rparenLoc, int matchedAssocIndex,
+      ValueCategory valueCategory, const Type* type)
+      -> GenericSelectionExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* expression,
+      List<GenericAssociationAST*>* genericAssociationList,
+      int matchedAssocIndex, ValueCategory valueCategory, const Type* type)
+      -> GenericSelectionExpressionAST*;
+
+ protected:
+  GenericSelectionExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class NestedStatementExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NestedStatementExpression;
-
-  NestedStatementExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   CompoundStatementAST* statement = nullptr;
@@ -1781,15 +3093,35 @@ class NestedStatementExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NestedStatementExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> NestedStatementExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   CompoundStatementAST* statement,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> NestedStatementExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   CompoundStatementAST* statement,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> NestedStatementExpressionAST*;
+
+ protected:
+  NestedStatementExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class NestedExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NestedExpression;
-
-  NestedExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
@@ -1797,15 +3129,30 @@ class NestedExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NestedExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NestedExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> NestedExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> NestedExpressionAST*;
+
+ protected:
+  NestedExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class IdExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IdExpression;
-
-  IdExpressionAST() : ExpressionAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -1815,15 +3162,35 @@ class IdExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> IdExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> IdExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   Symbol* symbol, bool isTemplateIntroduced,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> IdExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   Symbol* symbol, bool isTemplateIntroduced,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> IdExpressionAST*;
+
+ protected:
+  IdExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class LambdaExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LambdaExpression;
-
-  LambdaExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation captureDefaultLoc;
@@ -1849,15 +3216,53 @@ class LambdaExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LambdaExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LambdaExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation lbracketLoc,
+      SourceLocation captureDefaultLoc, List<LambdaCaptureAST*>* captureList,
+      SourceLocation rbracketLoc, SourceLocation lessLoc,
+      List<TemplateParameterAST*>* templateParameterList,
+      SourceLocation greaterLoc, RequiresClauseAST* templateRequiresClause,
+      List<AttributeSpecifierAST*>* expressionAttributeList,
+      SourceLocation lparenLoc,
+      ParameterDeclarationClauseAST* parameterDeclarationClause,
+      SourceLocation rparenLoc, List<AttributeSpecifierAST*>* gnuAtributeList,
+      List<LambdaSpecifierAST*>* lambdaSpecifierList,
+      ExceptionSpecifierAST* exceptionSpecifier,
+      List<AttributeSpecifierAST*>* attributeList,
+      TrailingReturnTypeAST* trailingReturnType,
+      RequiresClauseAST* requiresClause, CompoundStatementAST* statement,
+      TokenKind captureDefault, LambdaSymbol* symbol,
+      ValueCategory valueCategory, const Type* type) -> LambdaExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<LambdaCaptureAST*>* captureList,
+      List<TemplateParameterAST*>* templateParameterList,
+      RequiresClauseAST* templateRequiresClause,
+      List<AttributeSpecifierAST*>* expressionAttributeList,
+      ParameterDeclarationClauseAST* parameterDeclarationClause,
+      List<AttributeSpecifierAST*>* gnuAtributeList,
+      List<LambdaSpecifierAST*>* lambdaSpecifierList,
+      ExceptionSpecifierAST* exceptionSpecifier,
+      List<AttributeSpecifierAST*>* attributeList,
+      TrailingReturnTypeAST* trailingReturnType,
+      RequiresClauseAST* requiresClause, CompoundStatementAST* statement,
+      TokenKind captureDefault, LambdaSymbol* symbol,
+      ValueCategory valueCategory, const Type* type) -> LambdaExpressionAST*;
+
+ protected:
+  LambdaExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class FoldExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::FoldExpression;
-
-  FoldExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   ExpressionAST* leftExpression = nullptr;
@@ -1871,16 +3276,34 @@ class FoldExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> FoldExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> FoldExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation lparenLoc, ExpressionAST* leftExpression,
+      SourceLocation opLoc, SourceLocation ellipsisLoc,
+      SourceLocation foldOpLoc, ExpressionAST* rightExpression,
+      SourceLocation rparenLoc, TokenKind op, TokenKind foldOp,
+      ValueCategory valueCategory, const Type* type) -> FoldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
+                                   ExpressionAST* rightExpression, TokenKind op,
+                                   TokenKind foldOp,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> FoldExpressionAST*;
+
+ protected:
+  FoldExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class RightFoldExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RightFoldExpression;
 
-  RightFoldExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation opLoc;
@@ -1890,16 +3313,33 @@ class RightFoldExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RightFoldExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RightFoldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation opLoc,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation rparenLoc, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> RightFoldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   TokenKind op, ValueCategory valueCategory,
+                                   const Type* type) -> RightFoldExpressionAST*;
+
+ protected:
+  RightFoldExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class LeftFoldExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LeftFoldExpression;
 
-  LeftFoldExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation lparenLoc;
   SourceLocation ellipsisLoc;
   SourceLocation opLoc;
@@ -1909,15 +3349,32 @@ class LeftFoldExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LeftFoldExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LeftFoldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation opLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> LeftFoldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   TokenKind op, ValueCategory valueCategory,
+                                   const Type* type) -> LeftFoldExpressionAST*;
+
+ protected:
+  LeftFoldExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class RequiresExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RequiresExpression;
-
-  RequiresExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation requiresLoc;
   SourceLocation lparenLoc;
@@ -1929,15 +3386,32 @@ class RequiresExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RequiresExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RequiresExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation requiresLoc, SourceLocation lparenLoc,
+      ParameterDeclarationClauseAST* parameterDeclarationClause,
+      SourceLocation rparenLoc, SourceLocation lbraceLoc,
+      List<RequirementAST*>* requirementList, SourceLocation rbraceLoc,
+      ValueCategory valueCategory, const Type* type) -> RequiresExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ParameterDeclarationClauseAST* parameterDeclarationClause,
+      List<RequirementAST*>* requirementList, ValueCategory valueCategory,
+      const Type* type) -> RequiresExpressionAST*;
+
+ protected:
+  RequiresExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class VaArgExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::VaArgExpression;
-
-  VaArgExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation vaArgLoc;
   SourceLocation lparenLoc;
@@ -1948,15 +3422,33 @@ class VaArgExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> VaArgExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> VaArgExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation vaArgLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation commaLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> VaArgExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   TypeIdAST* typeId,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> VaArgExpressionAST*;
+
+ protected:
+  VaArgExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class SubscriptExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SubscriptExpression;
-
-  SubscriptExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation lbracketLoc;
@@ -1965,15 +3457,32 @@ class SubscriptExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SubscriptExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SubscriptExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   SourceLocation lbracketLoc,
+                                   ExpressionAST* indexExpression,
+                                   SourceLocation rbracketLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> SubscriptExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   ExpressionAST* indexExpression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> SubscriptExpressionAST*;
+
+ protected:
+  SubscriptExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class CallExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CallExpression;
-
-  CallExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation lparenLoc;
@@ -1982,15 +3491,32 @@ class CallExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CallExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CallExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   SourceLocation lparenLoc,
+                                   List<ExpressionAST*>* expressionList,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> CallExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   List<ExpressionAST*>* expressionList,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> CallExpressionAST*;
+
+ protected:
+  CallExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class TypeConstructionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeConstruction;
-
-  TypeConstructionAST() : ExpressionAST(Kind) {}
 
   SpecifierAST* typeSpecifier = nullptr;
   SourceLocation lparenLoc;
@@ -1999,30 +3525,58 @@ class TypeConstructionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeConstructionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeConstructionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
+                                   SourceLocation lparenLoc,
+                                   List<ExpressionAST*>* expressionList,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> TypeConstructionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
+                                   List<ExpressionAST*>* expressionList,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> TypeConstructionAST*;
+
+ protected:
+  TypeConstructionAST() : ExpressionAST(Kind) {}
 };
 
 class BracedTypeConstructionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BracedTypeConstruction;
 
-  BracedTypeConstructionAST() : ExpressionAST(Kind) {}
-
   SpecifierAST* typeSpecifier = nullptr;
   BracedInitListAST* bracedInitList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BracedTypeConstructionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BracedTypeConstructionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
+                                   BracedInitListAST* bracedInitList,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> BracedTypeConstructionAST*;
+
+ protected:
+  BracedTypeConstructionAST() : ExpressionAST(Kind) {}
 };
 
 class SpliceMemberExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SpliceMemberExpression;
-
-  SpliceMemberExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
@@ -2034,15 +3588,35 @@ class SpliceMemberExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SpliceMemberExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SpliceMemberExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* baseExpression, SourceLocation accessLoc,
+      SourceLocation templateLoc, SplicerAST* splicer, Symbol* symbol,
+      TokenKind accessOp, bool isTemplateIntroduced,
+      ValueCategory valueCategory, const Type* type)
+      -> SpliceMemberExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   SplicerAST* splicer, Symbol* symbol,
+                                   TokenKind accessOp,
+                                   bool isTemplateIntroduced,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> SpliceMemberExpressionAST*;
+
+ protected:
+  SpliceMemberExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class MemberExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::MemberExpression;
-
-  MemberExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation accessLoc;
@@ -2055,15 +3629,35 @@ class MemberExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> MemberExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> MemberExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* baseExpression, SourceLocation accessLoc,
+      NestedNameSpecifierAST* nestedNameSpecifier, SourceLocation templateLoc,
+      UnqualifiedIdAST* unqualifiedId, Symbol* symbol, TokenKind accessOp,
+      bool isTemplateIntroduced, ValueCategory valueCategory, const Type* type)
+      -> MemberExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   Symbol* symbol, TokenKind accessOp,
+                                   bool isTemplateIntroduced,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> MemberExpressionAST*;
+
+ protected:
+  MemberExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class PostIncrExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::PostIncrExpression;
-
-  PostIncrExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation opLoc;
@@ -2071,15 +3665,29 @@ class PostIncrExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> PostIncrExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PostIncrExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   SourceLocation opLoc, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> PostIncrExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
+                                   TokenKind op, ValueCategory valueCategory,
+                                   const Type* type) -> PostIncrExpressionAST*;
+
+ protected:
+  PostIncrExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class CppCastExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CppCastExpression;
-
-  CppCastExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation castLoc;
   SourceLocation lessLoc;
@@ -2091,15 +3699,31 @@ class CppCastExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CppCastExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CppCastExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation castLoc, SourceLocation lessLoc,
+      TypeIdAST* typeId, SourceLocation greaterLoc, SourceLocation lparenLoc,
+      ExpressionAST* expression, SourceLocation rparenLoc,
+      ValueCategory valueCategory, const Type* type) -> CppCastExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> CppCastExpressionAST*;
+
+ protected:
+  CppCastExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class BuiltinBitCastExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BuiltinBitCastExpression;
-
-  BuiltinBitCastExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation castLoc;
   SourceLocation lparenLoc;
@@ -2110,15 +3734,34 @@ class BuiltinBitCastExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> BuiltinBitCastExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> BuiltinBitCastExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation castLoc, SourceLocation lparenLoc,
+      TypeIdAST* typeId, SourceLocation commaLoc, ExpressionAST* expression,
+      SourceLocation rparenLoc, ValueCategory valueCategory, const Type* type)
+      -> BuiltinBitCastExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> BuiltinBitCastExpressionAST*;
+
+ protected:
+  BuiltinBitCastExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class BuiltinOffsetofExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BuiltinOffsetofExpression;
-
-  BuiltinOffsetofExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation offsetofLoc;
   SourceLocation lparenLoc;
@@ -2132,15 +3775,38 @@ class BuiltinOffsetofExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> BuiltinOffsetofExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> BuiltinOffsetofExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation offsetofLoc, SourceLocation lparenLoc,
+      TypeIdAST* typeId, SourceLocation commaLoc, SourceLocation identifierLoc,
+      List<DesignatorAST*>* designatorList, SourceLocation rparenLoc,
+      const Identifier* identifier, FieldSymbol* symbol,
+      ValueCategory valueCategory, const Type* type)
+      -> BuiltinOffsetofExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   List<DesignatorAST*>* designatorList,
+                                   const Identifier* identifier,
+                                   FieldSymbol* symbol,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> BuiltinOffsetofExpressionAST*;
+
+ protected:
+  BuiltinOffsetofExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class TypeidExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeidExpression;
-
-  TypeidExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation typeidLoc;
   SourceLocation lparenLoc;
@@ -2149,15 +3815,31 @@ class TypeidExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeidExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeidExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typeidLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> TypeidExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> TypeidExpressionAST*;
+
+ protected:
+  TypeidExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class TypeidOfTypeExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeidOfTypeExpression;
-
-  TypeidOfTypeExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation typeidLoc;
   SourceLocation lparenLoc;
@@ -2166,44 +3848,87 @@ class TypeidOfTypeExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeidOfTypeExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeidOfTypeExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typeidLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> TypeidOfTypeExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> TypeidOfTypeExpressionAST*;
+
+ protected:
+  TypeidOfTypeExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class SpliceExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SpliceExpression;
 
-  SpliceExpressionAST() : ExpressionAST(Kind) {}
-
   SplicerAST* splicer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SpliceExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SpliceExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SplicerAST* splicer,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> SpliceExpressionAST*;
+
+ protected:
+  SpliceExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class GlobalScopeReflectExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GlobalScopeReflectExpression;
 
-  GlobalScopeReflectExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation caretCaretLoc;
   SourceLocation scopeLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> GlobalScopeReflectExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> GlobalScopeReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation caretCaretLoc,
+                                   SourceLocation scopeLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> GlobalScopeReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ValueCategory valueCategory,
+                                   const Type* type)
+      -> GlobalScopeReflectExpressionAST*;
+
+ protected:
+  GlobalScopeReflectExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class NamespaceReflectExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NamespaceReflectExpression;
-
-  NamespaceReflectExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation caretCaretLoc;
   SourceLocation identifierLoc;
@@ -2212,45 +3937,97 @@ class NamespaceReflectExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NamespaceReflectExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> NamespaceReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation caretCaretLoc,
+                                   SourceLocation identifierLoc,
+                                   const Identifier* identifier,
+                                   NamespaceSymbol* symbol,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> NamespaceReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   NamespaceSymbol* symbol,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> NamespaceReflectExpressionAST*;
+
+ protected:
+  NamespaceReflectExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class TypeIdReflectExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeIdReflectExpression;
 
-  TypeIdReflectExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation caretCaretLoc;
   TypeIdAST* typeId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> TypeIdReflectExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeIdReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation caretCaretLoc,
+                                   TypeIdAST* typeId,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> TypeIdReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> TypeIdReflectExpressionAST*;
+
+ protected:
+  TypeIdReflectExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ReflectExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ReflectExpression;
 
-  ReflectExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation caretCaretLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ReflectExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation caretCaretLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ReflectExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ReflectExpressionAST*;
+
+ protected:
+  ReflectExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class LabelAddressExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LabelAddressExpression;
-
-  LabelAddressExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation ampAmpLoc;
   SourceLocation identifierLoc;
@@ -2258,15 +4035,32 @@ class LabelAddressExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LabelAddressExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LabelAddressExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ampAmpLoc,
+                                   SourceLocation identifierLoc,
+                                   const Identifier* identifier,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> LabelAddressExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> LabelAddressExpressionAST*;
+
+ protected:
+  LabelAddressExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class UnaryExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UnaryExpression;
-
-  UnaryExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation opLoc;
   ExpressionAST* expression = nullptr;
@@ -2274,30 +4068,58 @@ class UnaryExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> UnaryExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> UnaryExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation opLoc,
+                                   ExpressionAST* expression, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> UnaryExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   TokenKind op, ValueCategory valueCategory,
+                                   const Type* type) -> UnaryExpressionAST*;
+
+ protected:
+  UnaryExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class AwaitExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AwaitExpression;
 
-  AwaitExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation awaitLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AwaitExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AwaitExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation awaitLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> AwaitExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> AwaitExpressionAST*;
+
+ protected:
+  AwaitExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class SizeofExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SizeofExpression;
-
-  SizeofExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation sizeofLoc;
   ExpressionAST* expression = nullptr;
@@ -2305,15 +4127,31 @@ class SizeofExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SizeofExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SizeofExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation sizeofLoc,
+                                   ExpressionAST* expression,
+                                   std::optional<std::int64_t> value,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> SizeofExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   std::optional<std::int64_t> value,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> SizeofExpressionAST*;
+
+ protected:
+  SizeofExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class SizeofTypeExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SizeofTypeExpression;
-
-  SizeofTypeExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation sizeofLoc;
   SourceLocation lparenLoc;
@@ -2323,15 +4161,34 @@ class SizeofTypeExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SizeofTypeExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SizeofTypeExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation sizeofLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc,
+                                   std::optional<std::int64_t> value,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> SizeofTypeExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   std::optional<std::int64_t> value,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> SizeofTypeExpressionAST*;
+
+ protected:
+  SizeofTypeExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class SizeofPackExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SizeofPackExpression;
-
-  SizeofPackExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation sizeofLoc;
   SourceLocation ellipsisLoc;
@@ -2342,15 +4199,32 @@ class SizeofPackExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SizeofPackExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SizeofPackExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation sizeofLoc, SourceLocation ellipsisLoc,
+      SourceLocation lparenLoc, SourceLocation identifierLoc,
+      SourceLocation rparenLoc, const Identifier* identifier,
+      ValueCategory valueCategory, const Type* type)
+      -> SizeofPackExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> SizeofPackExpressionAST*;
+
+ protected:
+  SizeofPackExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class AlignofTypeExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AlignofTypeExpression;
-
-  AlignofTypeExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation alignofLoc;
   SourceLocation lparenLoc;
@@ -2359,30 +4233,61 @@ class AlignofTypeExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AlignofTypeExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AlignofTypeExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation alignofLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> AlignofTypeExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> AlignofTypeExpressionAST*;
+
+ protected:
+  AlignofTypeExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class AlignofExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AlignofExpression;
 
-  AlignofExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation alignofLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AlignofExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AlignofExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation alignofLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> AlignofExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> AlignofExpressionAST*;
+
+ protected:
+  AlignofExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class NoexceptExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NoexceptExpression;
-
-  NoexceptExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation noexceptLoc;
   SourceLocation lparenLoc;
@@ -2391,15 +4296,31 @@ class NoexceptExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NoexceptExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NoexceptExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation noexceptLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> NoexceptExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> NoexceptExpressionAST*;
+
+ protected:
+  NoexceptExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class NewExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NewExpression;
-
-  NewExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation scopeLoc;
   SourceLocation newLoc;
@@ -2413,15 +4334,36 @@ class NewExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NewExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NewExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation scopeLoc, SourceLocation newLoc,
+      NewPlacementAST* newPlacement, SourceLocation lparenLoc,
+      List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
+      SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
+      const Type* objectType, ValueCategory valueCategory, const Type* type)
+      -> NewExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, NewPlacementAST* newPlacement,
+                                   List<SpecifierAST*>* typeSpecifierList,
+                                   DeclaratorAST* declarator,
+                                   NewInitializerAST* newInitalizer,
+                                   const Type* objectType,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> NewExpressionAST*;
+
+ protected:
+  NewExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class DeleteExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DeleteExpression;
-
-  DeleteExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation scopeLoc;
   SourceLocation deleteLoc;
@@ -2431,15 +4373,32 @@ class DeleteExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DeleteExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DeleteExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation scopeLoc,
+                                   SourceLocation deleteLoc,
+                                   SourceLocation lbracketLoc,
+                                   SourceLocation rbracketLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> DeleteExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> DeleteExpressionAST*;
+
+ protected:
+  DeleteExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class CastExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CastExpression;
-
-  CastExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   TypeIdAST* typeId = nullptr;
@@ -2448,30 +4407,57 @@ class CastExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CastExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CastExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   TypeIdAST* typeId, SourceLocation rparenLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> CastExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> CastExpressionAST*;
+
+ protected:
+  CastExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ImplicitCastExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ImplicitCastExpression;
 
-  ImplicitCastExpressionAST() : ExpressionAST(Kind) {}
-
   ExpressionAST* expression = nullptr;
   ImplicitCastKind castKind = ImplicitCastKind::kIdentity;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ImplicitCastExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ImplicitCastExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ImplicitCastKind castKind,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> ImplicitCastExpressionAST*;
+
+ protected:
+  ImplicitCastExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class BinaryExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BinaryExpression;
-
-  BinaryExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
@@ -2480,15 +4466,31 @@ class BinaryExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BinaryExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BinaryExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
+                                   SourceLocation opLoc,
+                                   ExpressionAST* rightExpression, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> BinaryExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
+                                   ExpressionAST* rightExpression, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> BinaryExpressionAST*;
+
+ protected:
+  BinaryExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ConditionalExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConditionalExpression;
-
-  ConditionalExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* condition = nullptr;
   SourceLocation questionLoc;
@@ -2498,45 +4500,91 @@ class ConditionalExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConditionalExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConditionalExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* condition, SourceLocation questionLoc,
+      ExpressionAST* iftrueExpression, SourceLocation colonLoc,
+      ExpressionAST* iffalseExpression, ValueCategory valueCategory,
+      const Type* type) -> ConditionalExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* condition,
+                                   ExpressionAST* iftrueExpression,
+                                   ExpressionAST* iffalseExpression,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> ConditionalExpressionAST*;
+
+ protected:
+  ConditionalExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class YieldExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::YieldExpression;
 
-  YieldExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation yieldLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> YieldExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> YieldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation yieldLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> YieldExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> YieldExpressionAST*;
+
+ protected:
+  YieldExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ThrowExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThrowExpression;
 
-  ThrowExpressionAST() : ExpressionAST(Kind) {}
-
   SourceLocation throwLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ThrowExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ThrowExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation throwLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ThrowExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ThrowExpressionAST*;
+
+ protected:
+  ThrowExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class AssignmentExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AssignmentExpression;
-
-  AssignmentExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* leftExpression = nullptr;
   SourceLocation opLoc;
@@ -2545,39 +4593,73 @@ class AssignmentExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AssignmentExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AssignmentExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
+                                   SourceLocation opLoc,
+                                   ExpressionAST* rightExpression, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> AssignmentExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
+                                   ExpressionAST* rightExpression, TokenKind op,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> AssignmentExpressionAST*;
+
+ protected:
+  AssignmentExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class TargetExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TargetExpression;
 
-  TargetExpressionAST() : ExpressionAST(Kind) {}
-
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TargetExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TargetExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ValueCategory valueCategory,
+                                   const Type* type) -> TargetExpressionAST*;
+
+ protected:
+  TargetExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class RightExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RightExpression;
 
-  RightExpressionAST() : ExpressionAST(Kind) {}
-
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RightExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RightExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ValueCategory valueCategory,
+                                   const Type* type) -> RightExpressionAST*;
+
+ protected:
+  RightExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class CompoundAssignmentExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CompoundAssignmentExpression;
-
-  CompoundAssignmentExpressionAST() : ExpressionAST(Kind) {}
 
   ExpressionAST* targetExpression = nullptr;
   SourceLocation opLoc;
@@ -2588,45 +4670,99 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> CompoundAssignmentExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> CompoundAssignmentExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* targetExpression, SourceLocation opLoc,
+      ExpressionAST* leftExpression, ExpressionAST* rightExpression,
+      ExpressionAST* adjustExpression, TokenKind op,
+      ValueCategory valueCategory, const Type* type)
+      -> CompoundAssignmentExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ExpressionAST* targetExpression,
+                                   ExpressionAST* leftExpression,
+                                   ExpressionAST* rightExpression,
+                                   ExpressionAST* adjustExpression,
+                                   TokenKind op, ValueCategory valueCategory,
+                                   const Type* type)
+      -> CompoundAssignmentExpressionAST*;
+
+ protected:
+  CompoundAssignmentExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class PackExpansionExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::PackExpansionExpression;
 
-  PackExpansionExpressionAST() : ExpressionAST(Kind) {}
-
   ExpressionAST* expression = nullptr;
   SourceLocation ellipsisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> PackExpansionExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PackExpansionExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   SourceLocation ellipsisLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> PackExpansionExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> PackExpansionExpressionAST*;
+
+ protected:
+  PackExpansionExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class DesignatedInitializerClauseAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DesignatedInitializerClause;
 
-  DesignatedInitializerClauseAST() : ExpressionAST(Kind) {}
-
   List<DesignatorAST*>* designatorList = nullptr;
   ExpressionAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> DesignatedInitializerClauseAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> DesignatedInitializerClauseAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<DesignatorAST*>* designatorList,
+                                   ExpressionAST* initializer,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> DesignatedInitializerClauseAST*;
+
+ protected:
+  DesignatedInitializerClauseAST() : ExpressionAST(Kind) {}
 };
 
 class TypeTraitExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeTraitExpression;
-
-  TypeTraitExpressionAST() : ExpressionAST(Kind) {}
 
   SourceLocation typeTraitLoc;
   SourceLocation lparenLoc;
@@ -2636,15 +4772,33 @@ class TypeTraitExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeTraitExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeTraitExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typeTraitLoc,
+                                   SourceLocation lparenLoc,
+                                   List<TypeIdAST*>* typeIdList,
+                                   SourceLocation rparenLoc,
+                                   BuiltinTypeTraitKind typeTrait,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> TypeTraitExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, List<TypeIdAST*>* typeIdList,
+                                   BuiltinTypeTraitKind typeTrait,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> TypeTraitExpressionAST*;
+
+ protected:
+  TypeTraitExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class ConditionExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConditionExpression;
-
-  ConditionExpressionAST() : ExpressionAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* declSpecifierList = nullptr;
@@ -2654,30 +4808,55 @@ class ConditionExpressionAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConditionExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConditionExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<SpecifierAST*>* declSpecifierList, DeclaratorAST* declarator,
+      ExpressionAST* initializer, VariableSymbol* symbol,
+      ValueCategory valueCategory, const Type* type) -> ConditionExpressionAST*;
+
+ protected:
+  ConditionExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class EqualInitializerAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::EqualInitializer;
 
-  EqualInitializerAST() : ExpressionAST(Kind) {}
-
   SourceLocation equalLoc;
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> EqualInitializerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> EqualInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation equalLoc,
+                                   ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> EqualInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> EqualInitializerAST*;
+
+ protected:
+  EqualInitializerAST() : ExpressionAST(Kind) {}
 };
 
 class BracedInitListAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BracedInitList;
-
-  BracedInitListAST() : ExpressionAST(Kind) {}
 
   SourceLocation lbraceLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -2686,15 +4865,32 @@ class BracedInitListAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BracedInitListAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BracedInitListAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lbraceLoc,
+                                   List<ExpressionAST*>* expressionList,
+                                   SourceLocation commaLoc,
+                                   SourceLocation rbraceLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> BracedInitListAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<ExpressionAST*>* expressionList,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> BracedInitListAST*;
+
+ protected:
+  BracedInitListAST() : ExpressionAST(Kind) {}
 };
 
 class ParenInitializerAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ParenInitializer;
-
-  ParenInitializerAST() : ExpressionAST(Kind) {}
 
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
@@ -2702,15 +4898,31 @@ class ParenInitializerAST final : public ExpressionAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ParenInitializerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ParenInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   List<ExpressionAST*>* expressionList,
+                                   SourceLocation rparenLoc,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ParenInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<ExpressionAST*>* expressionList,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ParenInitializerAST*;
+
+ protected:
+  ParenInitializerAST() : ExpressionAST(Kind) {}
 };
 
 class DefaultGenericAssociationAST final : public GenericAssociationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DefaultGenericAssociation;
-
-  DefaultGenericAssociationAST() : GenericAssociationAST(Kind) {}
 
   SourceLocation defaultLoc;
   SourceLocation colonLoc;
@@ -2718,15 +4930,30 @@ class DefaultGenericAssociationAST final : public GenericAssociationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> DefaultGenericAssociationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> DefaultGenericAssociationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation defaultLoc,
+                                   SourceLocation colonLoc,
+                                   ExpressionAST* expression)
+      -> DefaultGenericAssociationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> DefaultGenericAssociationAST*;
+
+ protected:
+  DefaultGenericAssociationAST() : GenericAssociationAST(Kind) {}
 };
 
 class TypeGenericAssociationAST final : public GenericAssociationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeGenericAssociation;
-
-  TypeGenericAssociationAST() : GenericAssociationAST(Kind) {}
 
   TypeIdAST* typeId = nullptr;
   SourceLocation colonLoc;
@@ -2734,15 +4961,29 @@ class TypeGenericAssociationAST final : public GenericAssociationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeGenericAssociationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeGenericAssociationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   SourceLocation colonLoc,
+                                   ExpressionAST* expression)
+      -> TypeGenericAssociationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   ExpressionAST* expression)
+      -> TypeGenericAssociationAST*;
+
+ protected:
+  TypeGenericAssociationAST() : GenericAssociationAST(Kind) {}
 };
 
 class DotDesignatorAST final : public DesignatorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DotDesignator;
-
-  DotDesignatorAST() : DesignatorAST(Kind) {}
 
   SourceLocation dotLoc;
   SourceLocation identifierLoc;
@@ -2750,15 +4991,28 @@ class DotDesignatorAST final : public DesignatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DotDesignatorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DotDesignatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation dotLoc,
+                                   SourceLocation identifierLoc,
+                                   const Identifier* identifier)
+      -> DotDesignatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> DotDesignatorAST*;
+
+ protected:
+  DotDesignatorAST() : DesignatorAST(Kind) {}
 };
 
 class SubscriptDesignatorAST final : public DesignatorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SubscriptDesignator;
-
-  SubscriptDesignatorAST() : DesignatorAST(Kind) {}
 
   SourceLocation lbracketLoc;
   ExpressionAST* expression = nullptr;
@@ -2766,15 +5020,28 @@ class SubscriptDesignatorAST final : public DesignatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SubscriptDesignatorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SubscriptDesignatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lbracketLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rbracketLoc)
+      -> SubscriptDesignatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> SubscriptDesignatorAST*;
+
+ protected:
+  SubscriptDesignatorAST() : DesignatorAST(Kind) {}
 };
 
 class TemplateTypeParameterAST final : public TemplateParameterAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TemplateTypeParameter;
-
-  TemplateTypeParameterAST() : TemplateParameterAST(Kind) {}
 
   SourceLocation templateLoc;
   SourceLocation lessLoc;
@@ -2791,29 +5058,61 @@ class TemplateTypeParameterAST final : public TemplateParameterAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TemplateTypeParameterAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TemplateTypeParameterAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation templateLoc, SourceLocation lessLoc,
+      List<TemplateParameterAST*>* templateParameterList,
+      SourceLocation greaterLoc, RequiresClauseAST* requiresClause,
+      SourceLocation classKeyLoc, SourceLocation ellipsisLoc,
+      SourceLocation identifierLoc, SourceLocation equalLoc,
+      IdExpressionAST* idExpression, const Identifier* identifier, bool isPack,
+      Symbol* symbol, int depth, int index) -> TemplateTypeParameterAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<TemplateParameterAST*>* templateParameterList,
+      RequiresClauseAST* requiresClause, IdExpressionAST* idExpression,
+      const Identifier* identifier, bool isPack, Symbol* symbol, int depth,
+      int index) -> TemplateTypeParameterAST*;
+
+ protected:
+  TemplateTypeParameterAST() : TemplateParameterAST(Kind) {}
 };
 
 class NonTypeTemplateParameterAST final : public TemplateParameterAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NonTypeTemplateParameter;
 
-  NonTypeTemplateParameterAST() : TemplateParameterAST(Kind) {}
-
   ParameterDeclarationAST* declaration = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> NonTypeTemplateParameterAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> NonTypeTemplateParameterAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   ParameterDeclarationAST* declaration,
+                                   Symbol* symbol, int depth, int index)
+      -> NonTypeTemplateParameterAST*;
+
+ protected:
+  NonTypeTemplateParameterAST() : TemplateParameterAST(Kind) {}
 };
 
 class TypenameTypeParameterAST final : public TemplateParameterAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypenameTypeParameter;
-
-  TypenameTypeParameterAST() : TemplateParameterAST(Kind) {}
 
   SourceLocation classKeyLoc;
   SourceLocation ellipsisLoc;
@@ -2825,15 +5124,33 @@ class TypenameTypeParameterAST final : public TemplateParameterAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypenameTypeParameterAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypenameTypeParameterAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation classKeyLoc,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation identifierLoc,
+                                   SourceLocation equalLoc, TypeIdAST* typeId,
+                                   const Identifier* identifier, bool isPack,
+                                   Symbol* symbol, int depth, int index)
+      -> TypenameTypeParameterAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   const Identifier* identifier, bool isPack,
+                                   Symbol* symbol, int depth, int index)
+      -> TypenameTypeParameterAST*;
+
+ protected:
+  TypenameTypeParameterAST() : TemplateParameterAST(Kind) {}
 };
 
 class ConstraintTypeParameterAST final : public TemplateParameterAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstraintTypeParameter;
-
-  ConstraintTypeParameterAST() : TemplateParameterAST(Kind) {}
 
   TypeConstraintAST* typeConstraint = nullptr;
   SourceLocation ellipsisLoc;
@@ -2844,211 +5161,342 @@ class ConstraintTypeParameterAST final : public TemplateParameterAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ConstraintTypeParameterAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstraintTypeParameterAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, TypeConstraintAST* typeConstraint,
+      SourceLocation ellipsisLoc, SourceLocation identifierLoc,
+      SourceLocation equalLoc, TypeIdAST* typeId, const Identifier* identifier,
+      Symbol* symbol, int depth, int index) -> ConstraintTypeParameterAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   TypeConstraintAST* typeConstraint,
+                                   TypeIdAST* typeId,
+                                   const Identifier* identifier, Symbol* symbol,
+                                   int depth, int index)
+      -> ConstraintTypeParameterAST*;
+
+ protected:
+  ConstraintTypeParameterAST() : TemplateParameterAST(Kind) {}
 };
 
 class TypedefSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypedefSpecifier;
 
-  TypedefSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation typedefLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypedefSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypedefSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typedefLoc)
+      -> TypedefSpecifierAST*;
+
+ protected:
+  TypedefSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class FriendSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::FriendSpecifier;
 
-  FriendSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation friendLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> FriendSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> FriendSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation friendLoc)
+      -> FriendSpecifierAST*;
+
+ protected:
+  FriendSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ConstevalSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstevalSpecifier;
 
-  ConstevalSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation constevalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConstevalSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstevalSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation constevalLoc)
+      -> ConstevalSpecifierAST*;
+
+ protected:
+  ConstevalSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ConstinitSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstinitSpecifier;
 
-  ConstinitSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation constinitLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConstinitSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstinitSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation constinitLoc)
+      -> ConstinitSpecifierAST*;
+
+ protected:
+  ConstinitSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ConstexprSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstexprSpecifier;
 
-  ConstexprSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation constexprLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConstexprSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstexprSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation constexprLoc)
+      -> ConstexprSpecifierAST*;
+
+ protected:
+  ConstexprSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class InlineSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::InlineSpecifier;
 
-  InlineSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation inlineLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> InlineSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> InlineSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation inlineLoc)
+      -> InlineSpecifierAST*;
+
+ protected:
+  InlineSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class NoreturnSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NoreturnSpecifier;
 
-  NoreturnSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation noreturnLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NoreturnSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NoreturnSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation noreturnLoc)
+      -> NoreturnSpecifierAST*;
+
+ protected:
+  NoreturnSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class StaticSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::StaticSpecifier;
 
-  StaticSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation staticLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> StaticSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> StaticSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation staticLoc)
+      -> StaticSpecifierAST*;
+
+ protected:
+  StaticSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ExternSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExternSpecifier;
 
-  ExternSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation externLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ExternSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ExternSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation externLoc)
+      -> ExternSpecifierAST*;
+
+ protected:
+  ExternSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class RegisterSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RegisterSpecifier;
 
-  RegisterSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation registerLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RegisterSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RegisterSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation registerLoc)
+      -> RegisterSpecifierAST*;
+
+ protected:
+  RegisterSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ThreadLocalSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThreadLocalSpecifier;
 
-  ThreadLocalSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation threadLocalLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ThreadLocalSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ThreadLocalSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation threadLocalLoc)
+      -> ThreadLocalSpecifierAST*;
+
+ protected:
+  ThreadLocalSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ThreadSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThreadSpecifier;
 
-  ThreadSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation threadLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ThreadSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ThreadSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation threadLoc)
+      -> ThreadSpecifierAST*;
+
+ protected:
+  ThreadSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class MutableSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::MutableSpecifier;
 
-  MutableSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation mutableLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> MutableSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> MutableSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation mutableLoc)
+      -> MutableSpecifierAST*;
+
+ protected:
+  MutableSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class VirtualSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::VirtualSpecifier;
 
-  VirtualSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation virtualLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> VirtualSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> VirtualSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation virtualLoc)
+      -> VirtualSpecifierAST*;
+
+ protected:
+  VirtualSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ExplicitSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExplicitSpecifier;
-
-  ExplicitSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation explicitLoc;
   SourceLocation lparenLoc;
@@ -3057,88 +5505,154 @@ class ExplicitSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ExplicitSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ExplicitSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation explicitLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc)
+      -> ExplicitSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> ExplicitSpecifierAST*;
+
+ protected:
+  ExplicitSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class AutoTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AutoTypeSpecifier;
 
-  AutoTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation autoLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AutoTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AutoTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation autoLoc)
+      -> AutoTypeSpecifierAST*;
+
+ protected:
+  AutoTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class VoidTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::VoidTypeSpecifier;
 
-  VoidTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation voidLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> VoidTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> VoidTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation voidLoc)
+      -> VoidTypeSpecifierAST*;
+
+ protected:
+  VoidTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class SizeTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SizeTypeSpecifier;
 
-  SizeTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SizeTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SizeTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation specifierLoc,
+                                   TokenKind specifier)
+      -> SizeTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind specifier)
+      -> SizeTypeSpecifierAST*;
+
+ protected:
+  SizeTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class SignTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SignTypeSpecifier;
 
-  SignTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SignTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SignTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation specifierLoc,
+                                   TokenKind specifier)
+      -> SignTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind specifier)
+      -> SignTypeSpecifierAST*;
+
+ protected:
+  SignTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class BuiltinTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BuiltinTypeSpecifier;
 
-  BuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BuiltinTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BuiltinTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation specifierLoc,
+                                   TokenKind specifier)
+      -> BuiltinTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind specifier)
+      -> BuiltinTypeSpecifierAST*;
+
+ protected:
+  BuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class UnaryBuiltinTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UnaryBuiltinTypeSpecifier;
-
-  UnaryBuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation builtinLoc;
   SourceLocation lparenLoc;
@@ -3148,15 +5662,32 @@ class UnaryBuiltinTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> UnaryBuiltinTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> UnaryBuiltinTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation builtinLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc,
+                                   UnaryBuiltinTypeKind builtinKind)
+      -> UnaryBuiltinTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
+                                   UnaryBuiltinTypeKind builtinKind)
+      -> UnaryBuiltinTypeSpecifierAST*;
+
+ protected:
+  UnaryBuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class BinaryBuiltinTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BinaryBuiltinTypeSpecifier;
-
-  BinaryBuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation builtinLoc;
   SourceLocation lparenLoc;
@@ -3168,59 +5699,111 @@ class BinaryBuiltinTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> BinaryBuiltinTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> BinaryBuiltinTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation builtinLoc, SourceLocation lparenLoc,
+      TypeIdAST* leftTypeId, SourceLocation commaLoc, TypeIdAST* rightTypeId,
+      SourceLocation rparenLoc, BinaryBuiltinTypeKind builtinKind)
+      -> BinaryBuiltinTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* leftTypeId,
+                                   TypeIdAST* rightTypeId,
+                                   BinaryBuiltinTypeKind builtinKind)
+      -> BinaryBuiltinTypeSpecifierAST*;
+
+ protected:
+  BinaryBuiltinTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class IntegralTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IntegralTypeSpecifier;
 
-  IntegralTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> IntegralTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> IntegralTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation specifierLoc,
+                                   TokenKind specifier)
+      -> IntegralTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind specifier)
+      -> IntegralTypeSpecifierAST*;
+
+ protected:
+  IntegralTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class FloatingPointTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::FloatingPointTypeSpecifier;
 
-  FloatingPointTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation specifierLoc;
   TokenKind specifier = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> FloatingPointTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> FloatingPointTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation specifierLoc,
+                                   TokenKind specifier)
+      -> FloatingPointTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind specifier)
+      -> FloatingPointTypeSpecifierAST*;
+
+ protected:
+  FloatingPointTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ComplexTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ComplexTypeSpecifier;
 
-  ComplexTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation complexLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ComplexTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ComplexTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation complexLoc)
+      -> ComplexTypeSpecifierAST*;
+
+ protected:
+  ComplexTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class NamedTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NamedTypeSpecifier;
-
-  NamedTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -3230,15 +5813,33 @@ class NamedTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NamedTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NamedTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   bool isTemplateIntroduced, Symbol* symbol)
+      -> NamedTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   bool isTemplateIntroduced, Symbol* symbol)
+      -> NamedTypeSpecifierAST*;
+
+ protected:
+  NamedTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class AtomicTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AtomicTypeSpecifier;
-
-  AtomicTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation atomicLoc;
   SourceLocation lparenLoc;
@@ -3247,15 +5848,28 @@ class AtomicTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AtomicTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AtomicTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation atomicLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc)
+      -> AtomicTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId)
+      -> AtomicTypeSpecifierAST*;
+
+ protected:
+  AtomicTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class UnderlyingTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UnderlyingTypeSpecifier;
-
-  UnderlyingTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation underlyingTypeLoc;
   SourceLocation lparenLoc;
@@ -3264,15 +5878,30 @@ class UnderlyingTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> UnderlyingTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> UnderlyingTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   SourceLocation underlyingTypeLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation rparenLoc)
+      -> UnderlyingTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId)
+      -> UnderlyingTypeSpecifierAST*;
+
+ protected:
+  UnderlyingTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ElaboratedTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ElaboratedTypeSpecifier;
-
-  ElaboratedTypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3285,15 +5914,38 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ElaboratedTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ElaboratedTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation classLoc,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   TokenKind classKey,
+                                   bool isTemplateIntroduced, Symbol* symbol)
+      -> ElaboratedTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   TokenKind classKey,
+                                   bool isTemplateIntroduced, Symbol* symbol)
+      -> ElaboratedTypeSpecifierAST*;
+
+ protected:
+  ElaboratedTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class DecltypeAutoSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DecltypeAutoSpecifier;
-
-  DecltypeAutoSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation decltypeLoc;
   SourceLocation lparenLoc;
@@ -3302,15 +5954,26 @@ class DecltypeAutoSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DecltypeAutoSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DecltypeAutoSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation decltypeLoc,
+                                   SourceLocation lparenLoc,
+                                   SourceLocation autoLoc,
+                                   SourceLocation rparenLoc)
+      -> DecltypeAutoSpecifierAST*;
+
+ protected:
+  DecltypeAutoSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class DecltypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DecltypeSpecifier;
-
-  DecltypeSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation decltypeLoc;
   SourceLocation lparenLoc;
@@ -3320,86 +5983,144 @@ class DecltypeSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DecltypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DecltypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation decltypeLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc, const Type* type)
+      -> DecltypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   const Type* type) -> DecltypeSpecifierAST*;
+
+ protected:
+  DecltypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class PlaceholderTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::PlaceholderTypeSpecifier;
 
-  PlaceholderTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   TypeConstraintAST* typeConstraint = nullptr;
   SpecifierAST* specifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> PlaceholderTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> PlaceholderTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   TypeConstraintAST* typeConstraint,
+                                   SpecifierAST* specifier)
+      -> PlaceholderTypeSpecifierAST*;
+
+ protected:
+  PlaceholderTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ConstQualifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstQualifier;
 
-  ConstQualifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation constLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConstQualifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation constLoc)
+      -> ConstQualifierAST*;
+
+ protected:
+  ConstQualifierAST() : SpecifierAST(Kind) {}
 };
 
 class VolatileQualifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::VolatileQualifier;
 
-  VolatileQualifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation volatileLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> VolatileQualifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> VolatileQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation volatileLoc)
+      -> VolatileQualifierAST*;
+
+ protected:
+  VolatileQualifierAST() : SpecifierAST(Kind) {}
 };
 
 class AtomicQualifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AtomicQualifier;
 
-  AtomicQualifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation atomicLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AtomicQualifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AtomicQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation atomicLoc)
+      -> AtomicQualifierAST*;
+
+ protected:
+  AtomicQualifierAST() : SpecifierAST(Kind) {}
 };
 
 class RestrictQualifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RestrictQualifier;
 
-  RestrictQualifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation restrictLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RestrictQualifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RestrictQualifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation restrictLoc)
+      -> RestrictQualifierAST*;
+
+ protected:
+  RestrictQualifierAST() : SpecifierAST(Kind) {}
 };
 
 class EnumSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::EnumSpecifier;
-
-  EnumSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation enumLoc;
   SourceLocation classLoc;
@@ -3416,15 +6137,37 @@ class EnumSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> EnumSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> EnumSpecifierAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation enumLoc, SourceLocation classLoc,
+      List<AttributeSpecifierAST*>* attributeList,
+      NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
+      SourceLocation colonLoc, List<SpecifierAST*>* typeSpecifierList,
+      SourceLocation lbraceLoc, List<EnumeratorAST*>* enumeratorList,
+      SourceLocation commaLoc, SourceLocation rbraceLoc, Symbol* symbol)
+      -> EnumSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   NameIdAST* unqualifiedId,
+                                   List<SpecifierAST*>* typeSpecifierList,
+                                   List<EnumeratorAST*>* enumeratorList,
+                                   Symbol* symbol) -> EnumSpecifierAST*;
+
+ protected:
+  EnumSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class ClassSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ClassSpecifier;
-
-  ClassSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation classLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3442,15 +6185,39 @@ class ClassSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ClassSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ClassSpecifierAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation classLoc,
+      List<AttributeSpecifierAST*>* attributeList,
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId, SourceLocation finalLoc,
+      SourceLocation colonLoc, List<BaseSpecifierAST*>* baseSpecifierList,
+      SourceLocation lbraceLoc, List<DeclarationAST*>* declarationList,
+      SourceLocation rbraceLoc, TokenKind classKey, ClassSymbol* symbol,
+      bool isFinal) -> ClassSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   List<BaseSpecifierAST*>* baseSpecifierList,
+                                   List<DeclarationAST*>* declarationList,
+                                   TokenKind classKey, ClassSymbol* symbol,
+                                   bool isFinal) -> ClassSpecifierAST*;
+
+ protected:
+  ClassSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class TypenameSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypenameSpecifier;
-
-  TypenameSpecifierAST() : SpecifierAST(Kind) {}
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -3460,30 +6227,60 @@ class TypenameSpecifierAST final : public SpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypenameSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypenameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typenameLoc,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   bool isTemplateIntroduced)
+      -> TypenameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   bool isTemplateIntroduced)
+      -> TypenameSpecifierAST*;
+
+ protected:
+  TypenameSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class SplicerTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SplicerTypeSpecifier;
 
-  SplicerTypeSpecifierAST() : SpecifierAST(Kind) {}
-
   SourceLocation typenameLoc;
   SplicerAST* splicer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SplicerTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SplicerTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typenameLoc,
+                                   SplicerAST* splicer)
+      -> SplicerTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SplicerAST* splicer)
+      -> SplicerTypeSpecifierAST*;
+
+ protected:
+  SplicerTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
 class PointerOperatorAST final : public PtrOperatorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::PointerOperator;
-
-  PointerOperatorAST() : PtrOperatorAST(Kind) {}
 
   SourceLocation starLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3491,15 +6288,30 @@ class PointerOperatorAST final : public PtrOperatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> PointerOperatorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PointerOperatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation starLoc,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* cvQualifierList)
+      -> PointerOperatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* cvQualifierList)
+      -> PointerOperatorAST*;
+
+ protected:
+  PointerOperatorAST() : PtrOperatorAST(Kind) {}
 };
 
 class ReferenceOperatorAST final : public PtrOperatorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ReferenceOperator;
-
-  ReferenceOperatorAST() : PtrOperatorAST(Kind) {}
 
   SourceLocation refLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
@@ -3507,15 +6319,28 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ReferenceOperatorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ReferenceOperatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation refLoc,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   TokenKind refOp) -> ReferenceOperatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   TokenKind refOp) -> ReferenceOperatorAST*;
+
+ protected:
+  ReferenceOperatorAST() : PtrOperatorAST(Kind) {}
 };
 
 class PtrToMemberOperatorAST final : public PtrOperatorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::PtrToMemberOperator;
-
-  PtrToMemberOperatorAST() : PtrOperatorAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation starLoc;
@@ -3524,15 +6349,33 @@ class PtrToMemberOperatorAST final : public PtrOperatorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> PtrToMemberOperatorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PtrToMemberOperatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation starLoc,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* cvQualifierList)
+      -> PtrToMemberOperatorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* cvQualifierList)
+      -> PtrToMemberOperatorAST*;
+
+ protected:
+  PtrToMemberOperatorAST() : PtrOperatorAST(Kind) {}
 };
 
 class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BitfieldDeclarator;
-
-  BitfieldDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
   NameIdAST* unqualifiedId = nullptr;
   SourceLocation colonLoc;
@@ -3540,30 +6383,57 @@ class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BitfieldDeclaratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BitfieldDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, NameIdAST* unqualifiedId,
+                                   SourceLocation colonLoc,
+                                   ExpressionAST* sizeExpression)
+      -> BitfieldDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, NameIdAST* unqualifiedId,
+                                   ExpressionAST* sizeExpression)
+      -> BitfieldDeclaratorAST*;
+
+ protected:
+  BitfieldDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 };
 
 class ParameterPackAST final : public CoreDeclaratorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ParameterPack;
 
-  ParameterPackAST() : CoreDeclaratorAST(Kind) {}
-
   SourceLocation ellipsisLoc;
   CoreDeclaratorAST* coreDeclarator = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ParameterPackAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ParameterPackAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ellipsisLoc,
+                                   CoreDeclaratorAST* coreDeclarator)
+      -> ParameterPackAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   CoreDeclaratorAST* coreDeclarator)
+      -> ParameterPackAST*;
+
+ protected:
+  ParameterPackAST() : CoreDeclaratorAST(Kind) {}
 };
 
 class IdDeclaratorAST final : public CoreDeclaratorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IdDeclarator;
-
-  IdDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -3573,15 +6443,35 @@ class IdDeclaratorAST final : public CoreDeclaratorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> IdDeclaratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> IdDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   bool isTemplateIntroduced)
+      -> IdDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   bool isTemplateIntroduced)
+      -> IdDeclaratorAST*;
+
+ protected:
+  IdDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 };
 
 class NestedDeclaratorAST final : public CoreDeclaratorAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NestedDeclarator;
-
-  NestedDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 
   SourceLocation lparenLoc;
   DeclaratorAST* declarator = nullptr;
@@ -3589,15 +6479,28 @@ class NestedDeclaratorAST final : public CoreDeclaratorAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NestedDeclaratorAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NestedDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   DeclaratorAST* declarator,
+                                   SourceLocation rparenLoc)
+      -> NestedDeclaratorAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, DeclaratorAST* declarator)
+      -> NestedDeclaratorAST*;
+
+ protected:
+  NestedDeclaratorAST() : CoreDeclaratorAST(Kind) {}
 };
 
 class FunctionDeclaratorChunkAST final : public DeclaratorChunkAST {
  public:
   static constexpr ASTKind Kind = ASTKind::FunctionDeclaratorChunk;
-
-  FunctionDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 
   SourceLocation lparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
@@ -3613,15 +6516,38 @@ class FunctionDeclaratorChunkAST final : public DeclaratorChunkAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> FunctionDeclaratorChunkAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> FunctionDeclaratorChunkAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation lparenLoc,
+      ParameterDeclarationClauseAST* parameterDeclarationClause,
+      SourceLocation rparenLoc, List<SpecifierAST*>* cvQualifierList,
+      SourceLocation refLoc, ExceptionSpecifierAST* exceptionSpecifier,
+      List<AttributeSpecifierAST*>* attributeList,
+      TrailingReturnTypeAST* trailingReturnType, bool isFinal, bool isOverride,
+      bool isPure) -> FunctionDeclaratorChunkAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, ParameterDeclarationClauseAST* parameterDeclarationClause,
+      List<SpecifierAST*>* cvQualifierList,
+      ExceptionSpecifierAST* exceptionSpecifier,
+      List<AttributeSpecifierAST*>* attributeList,
+      TrailingReturnTypeAST* trailingReturnType, bool isFinal, bool isOverride,
+      bool isPure) -> FunctionDeclaratorChunkAST*;
+
+ protected:
+  FunctionDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 };
 
 class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ArrayDeclaratorChunk;
-
-  ArrayDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 
   SourceLocation lbracketLoc;
   List<SpecifierAST*>* typeQualifierList = nullptr;
@@ -3631,59 +6557,108 @@ class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ArrayDeclaratorChunkAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ArrayDeclaratorChunkAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lbracketLoc,
+                                   List<SpecifierAST*>* typeQualifierList,
+                                   ExpressionAST* expression,
+                                   SourceLocation rbracketLoc,
+                                   List<AttributeSpecifierAST*>* attributeList)
+      -> ArrayDeclaratorChunkAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<SpecifierAST*>* typeQualifierList,
+                                   ExpressionAST* expression,
+                                   List<AttributeSpecifierAST*>* attributeList)
+      -> ArrayDeclaratorChunkAST*;
+
+ protected:
+  ArrayDeclaratorChunkAST() : DeclaratorChunkAST(Kind) {}
 };
 
 class NameIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NameId;
 
-  NameIdAST() : UnqualifiedIdAST(Kind) {}
-
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NameIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NameIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
+                                   const Identifier* identifier) -> NameIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> NameIdAST*;
+
+ protected:
+  NameIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class DestructorIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DestructorId;
 
-  DestructorIdAST() : UnqualifiedIdAST(Kind) {}
-
   SourceLocation tildeLoc;
   UnqualifiedIdAST* id = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DestructorIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DestructorIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation tildeLoc,
+                                   UnqualifiedIdAST* id) -> DestructorIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, UnqualifiedIdAST* id)
+      -> DestructorIdAST*;
+
+ protected:
+  DestructorIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class DecltypeIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DecltypeId;
 
-  DecltypeIdAST() : UnqualifiedIdAST(Kind) {}
-
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DecltypeIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DecltypeIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   DecltypeSpecifierAST* decltypeSpecifier)
+      -> DecltypeIdAST*;
+
+ protected:
+  DecltypeIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class OperatorFunctionIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::OperatorFunctionId;
-
-  OperatorFunctionIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation operatorLoc;
   SourceLocation opLoc;
@@ -3693,15 +6668,28 @@ class OperatorFunctionIdAST final : public UnqualifiedIdAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> OperatorFunctionIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> OperatorFunctionIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation operatorLoc,
+                                   SourceLocation opLoc, SourceLocation openLoc,
+                                   SourceLocation closeLoc, TokenKind op)
+      -> OperatorFunctionIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TokenKind op)
+      -> OperatorFunctionIdAST*;
+
+ protected:
+  OperatorFunctionIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class LiteralOperatorIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LiteralOperatorId;
-
-  LiteralOperatorIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation operatorLoc;
   SourceLocation literalLoc;
@@ -3711,30 +6699,58 @@ class LiteralOperatorIdAST final : public UnqualifiedIdAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> LiteralOperatorIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> LiteralOperatorIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation operatorLoc,
+                                   SourceLocation literalLoc,
+                                   SourceLocation identifierLoc,
+                                   const Literal* literal,
+                                   const Identifier* identifier)
+      -> LiteralOperatorIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Literal* literal,
+                                   const Identifier* identifier)
+      -> LiteralOperatorIdAST*;
+
+ protected:
+  LiteralOperatorIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class ConversionFunctionIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConversionFunctionId;
 
-  ConversionFunctionIdAST() : UnqualifiedIdAST(Kind) {}
-
   SourceLocation operatorLoc;
   TypeIdAST* typeId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ConversionFunctionIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConversionFunctionIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation operatorLoc,
+                                   TypeIdAST* typeId)
+      -> ConversionFunctionIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId)
+      -> ConversionFunctionIdAST*;
+
+ protected:
+  ConversionFunctionIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class SimpleTemplateIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SimpleTemplateId;
-
-  SimpleTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 
   SourceLocation identifierLoc;
   SourceLocation lessLoc;
@@ -3745,15 +6761,30 @@ class SimpleTemplateIdAST final : public UnqualifiedIdAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SimpleTemplateIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SimpleTemplateIdAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation identifierLoc, SourceLocation lessLoc,
+      List<TemplateArgumentAST*>* templateArgumentList,
+      SourceLocation greaterLoc, const Identifier* identifier, Symbol* symbol)
+      -> SimpleTemplateIdAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, List<TemplateArgumentAST*>* templateArgumentList,
+      const Identifier* identifier, Symbol* symbol) -> SimpleTemplateIdAST*;
+
+ protected:
+  SimpleTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class LiteralOperatorTemplateIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::LiteralOperatorTemplateId;
-
-  LiteralOperatorTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 
   LiteralOperatorIdAST* literalOperatorId = nullptr;
   SourceLocation lessLoc;
@@ -3762,15 +6793,32 @@ class LiteralOperatorTemplateIdAST final : public UnqualifiedIdAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> LiteralOperatorTemplateIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> LiteralOperatorTemplateIdAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, LiteralOperatorIdAST* literalOperatorId,
+      SourceLocation lessLoc, List<TemplateArgumentAST*>* templateArgumentList,
+      SourceLocation greaterLoc) -> LiteralOperatorTemplateIdAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, LiteralOperatorIdAST* literalOperatorId,
+      List<TemplateArgumentAST*>* templateArgumentList)
+      -> LiteralOperatorTemplateIdAST*;
+
+ protected:
+  LiteralOperatorTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class OperatorFunctionTemplateIdAST final : public UnqualifiedIdAST {
  public:
   static constexpr ASTKind Kind = ASTKind::OperatorFunctionTemplateId;
-
-  OperatorFunctionTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 
   OperatorFunctionIdAST* operatorFunctionId = nullptr;
   SourceLocation lessLoc;
@@ -3779,29 +6827,60 @@ class OperatorFunctionTemplateIdAST final : public UnqualifiedIdAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> OperatorFunctionTemplateIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> OperatorFunctionTemplateIdAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, OperatorFunctionIdAST* operatorFunctionId,
+      SourceLocation lessLoc, List<TemplateArgumentAST*>* templateArgumentList,
+      SourceLocation greaterLoc) -> OperatorFunctionTemplateIdAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, OperatorFunctionIdAST* operatorFunctionId,
+      List<TemplateArgumentAST*>* templateArgumentList)
+      -> OperatorFunctionTemplateIdAST*;
+
+ protected:
+  OperatorFunctionTemplateIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class GlobalNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GlobalNestedNameSpecifier;
 
-  GlobalNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
-
   SourceLocation scopeLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> GlobalNestedNameSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> GlobalNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation scopeLoc,
+                                   ScopeSymbol* symbol)
+      -> GlobalNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ScopeSymbol* symbol)
+      -> GlobalNestedNameSpecifierAST*;
+
+ protected:
+  GlobalNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 };
 
 class SimpleNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SimpleNestedNameSpecifier;
-
-  SimpleNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation identifierLoc;
@@ -3810,30 +6889,67 @@ class SimpleNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> SimpleNestedNameSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> SimpleNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation identifierLoc,
+                                   const Identifier* identifier,
+                                   SourceLocation scopeLoc, ScopeSymbol* symbol)
+      -> SimpleNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   const Identifier* identifier,
+                                   ScopeSymbol* symbol)
+      -> SimpleNestedNameSpecifierAST*;
+
+ protected:
+  SimpleNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 };
 
 class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DecltypeNestedNameSpecifier;
 
-  DecltypeNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
-
   DecltypeSpecifierAST* decltypeSpecifier = nullptr;
   SourceLocation scopeLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> DecltypeNestedNameSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> DecltypeNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   DecltypeSpecifierAST* decltypeSpecifier,
+                                   SourceLocation scopeLoc, ScopeSymbol* symbol)
+      -> DecltypeNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   DecltypeSpecifierAST* decltypeSpecifier,
+                                   ScopeSymbol* symbol)
+      -> DecltypeNestedNameSpecifierAST*;
+
+ protected:
+  DecltypeNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 };
 
 class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TemplateNestedNameSpecifier;
-
-  TemplateNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   SourceLocation templateLoc;
@@ -3843,15 +6959,35 @@ class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> TemplateNestedNameSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> TemplateNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
+      SourceLocation templateLoc, SimpleTemplateIdAST* templateId,
+      SourceLocation scopeLoc, bool isTemplateIntroduced, ScopeSymbol* symbol)
+      -> TemplateNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SimpleTemplateIdAST* templateId,
+                                   bool isTemplateIntroduced,
+                                   ScopeSymbol* symbol)
+      -> TemplateNestedNameSpecifierAST*;
+
+ protected:
+  TemplateNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 };
 
 class DefaultFunctionBodyAST final : public FunctionBodyAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DefaultFunctionBody;
-
-  DefaultFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation equalLoc;
   SourceLocation defaultLoc;
@@ -3859,15 +6995,25 @@ class DefaultFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DefaultFunctionBodyAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DefaultFunctionBodyAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation equalLoc,
+                                   SourceLocation defaultLoc,
+                                   SourceLocation semicolonLoc)
+      -> DefaultFunctionBodyAST*;
+
+ protected:
+  DefaultFunctionBodyAST() : FunctionBodyAST(Kind) {}
 };
 
 class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CompoundStatementFunctionBody;
-
-  CompoundStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation colonLoc;
   List<MemInitializerAST*>* memInitializerList = nullptr;
@@ -3875,15 +7021,32 @@ class CompoundStatementFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> CompoundStatementFunctionBodyAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> CompoundStatementFunctionBodyAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation colonLoc,
+                                   List<MemInitializerAST*>* memInitializerList,
+                                   CompoundStatementAST* statement)
+      -> CompoundStatementFunctionBodyAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<MemInitializerAST*>* memInitializerList,
+                                   CompoundStatementAST* statement)
+      -> CompoundStatementFunctionBodyAST*;
+
+ protected:
+  CompoundStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 };
 
 class TryStatementFunctionBodyAST final : public FunctionBodyAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TryStatementFunctionBody;
-
-  TryStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation tryLoc;
   SourceLocation colonLoc;
@@ -3893,15 +7056,35 @@ class TryStatementFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> TryStatementFunctionBodyAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> TryStatementFunctionBodyAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation tryLoc,
+                                   SourceLocation colonLoc,
+                                   List<MemInitializerAST*>* memInitializerList,
+                                   CompoundStatementAST* statement,
+                                   List<HandlerAST*>* handlerList)
+      -> TryStatementFunctionBodyAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<MemInitializerAST*>* memInitializerList,
+                                   CompoundStatementAST* statement,
+                                   List<HandlerAST*>* handlerList)
+      -> TryStatementFunctionBodyAST*;
+
+ protected:
+  TryStatementFunctionBodyAST() : FunctionBodyAST(Kind) {}
 };
 
 class DeleteFunctionBodyAST final : public FunctionBodyAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DeleteFunctionBody;
-
-  DeleteFunctionBodyAST() : FunctionBodyAST(Kind) {}
 
   SourceLocation equalLoc;
   SourceLocation deleteLoc;
@@ -3909,43 +7092,71 @@ class DeleteFunctionBodyAST final : public FunctionBodyAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DeleteFunctionBodyAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DeleteFunctionBodyAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation equalLoc,
+                                   SourceLocation deleteLoc,
+                                   SourceLocation semicolonLoc)
+      -> DeleteFunctionBodyAST*;
+
+ protected:
+  DeleteFunctionBodyAST() : FunctionBodyAST(Kind) {}
 };
 
 class TypeTemplateArgumentAST final : public TemplateArgumentAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeTemplateArgument;
 
-  TypeTemplateArgumentAST() : TemplateArgumentAST(Kind) {}
-
   TypeIdAST* typeId = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeTemplateArgumentAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeTemplateArgumentAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId)
+      -> TypeTemplateArgumentAST*;
+
+ protected:
+  TypeTemplateArgumentAST() : TemplateArgumentAST(Kind) {}
 };
 
 class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExpressionTemplateArgument;
 
-  ExpressionTemplateArgumentAST() : TemplateArgumentAST(Kind) {}
-
   ExpressionAST* expression = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ExpressionTemplateArgumentAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> ExpressionTemplateArgumentAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> ExpressionTemplateArgumentAST*;
+
+ protected:
+  ExpressionTemplateArgumentAST() : TemplateArgumentAST(Kind) {}
 };
 
 class ThrowExceptionSpecifierAST final : public ExceptionSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThrowExceptionSpecifier;
-
-  ThrowExceptionSpecifierAST() : ExceptionSpecifierAST(Kind) {}
 
   SourceLocation throwLoc;
   SourceLocation lparenLoc;
@@ -3953,15 +7164,26 @@ class ThrowExceptionSpecifierAST final : public ExceptionSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ThrowExceptionSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ThrowExceptionSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation throwLoc,
+                                   SourceLocation lparenLoc,
+                                   SourceLocation rparenLoc)
+      -> ThrowExceptionSpecifierAST*;
+
+ protected:
+  ThrowExceptionSpecifierAST() : ExceptionSpecifierAST(Kind) {}
 };
 
 class NoexceptSpecifierAST final : public ExceptionSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NoexceptSpecifier;
-
-  NoexceptSpecifierAST() : ExceptionSpecifierAST(Kind) {}
 
   SourceLocation noexceptLoc;
   SourceLocation lparenLoc;
@@ -3970,30 +7192,56 @@ class NoexceptSpecifierAST final : public ExceptionSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NoexceptSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NoexceptSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation noexceptLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation rparenLoc)
+      -> NoexceptSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> NoexceptSpecifierAST*;
+
+ protected:
+  NoexceptSpecifierAST() : ExceptionSpecifierAST(Kind) {}
 };
 
 class SimpleRequirementAST final : public RequirementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SimpleRequirement;
 
-  SimpleRequirementAST() : RequirementAST(Kind) {}
-
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SimpleRequirementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SimpleRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   SourceLocation semicolonLoc)
+      -> SimpleRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> SimpleRequirementAST*;
+
+ protected:
+  SimpleRequirementAST() : RequirementAST(Kind) {}
 };
 
 class CompoundRequirementAST final : public RequirementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CompoundRequirement;
-
-  CompoundRequirementAST() : RequirementAST(Kind) {}
 
   SourceLocation lbraceLoc;
   ExpressionAST* expression = nullptr;
@@ -4005,15 +7253,30 @@ class CompoundRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CompoundRequirementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CompoundRequirementAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation lbraceLoc, ExpressionAST* expression,
+      SourceLocation rbraceLoc, SourceLocation noexceptLoc,
+      SourceLocation minusGreaterLoc, TypeConstraintAST* typeConstraint,
+      SourceLocation semicolonLoc) -> CompoundRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   TypeConstraintAST* typeConstraint)
+      -> CompoundRequirementAST*;
+
+ protected:
+  CompoundRequirementAST() : RequirementAST(Kind) {}
 };
 
 class TypeRequirementAST final : public RequirementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeRequirement;
-
-  TypeRequirementAST() : RequirementAST(Kind) {}
 
   SourceLocation typenameLoc;
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -4024,15 +7287,34 @@ class TypeRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> TypeRequirementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> TypeRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation typenameLoc,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   SourceLocation semicolonLoc,
+                                   bool isTemplateIntroduced)
+      -> TypeRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   bool isTemplateIntroduced)
+      -> TypeRequirementAST*;
+
+ protected:
+  TypeRequirementAST() : RequirementAST(Kind) {}
 };
 
 class NestedRequirementAST final : public RequirementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NestedRequirement;
-
-  NestedRequirementAST() : RequirementAST(Kind) {}
 
   SourceLocation requiresLoc;
   ExpressionAST* expression = nullptr;
@@ -4040,45 +7322,81 @@ class NestedRequirementAST final : public RequirementAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NestedRequirementAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NestedRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation requiresLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation semicolonLoc)
+      -> NestedRequirementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+      -> NestedRequirementAST*;
+
+ protected:
+  NestedRequirementAST() : RequirementAST(Kind) {}
 };
 
 class NewParenInitializerAST final : public NewInitializerAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NewParenInitializer;
 
-  NewParenInitializerAST() : NewInitializerAST(Kind) {}
-
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NewParenInitializerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NewParenInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
+                                   List<ExpressionAST*>* expressionList,
+                                   SourceLocation rparenLoc)
+      -> NewParenInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<ExpressionAST*>* expressionList)
+      -> NewParenInitializerAST*;
+
+ protected:
+  NewParenInitializerAST() : NewInitializerAST(Kind) {}
 };
 
 class NewBracedInitializerAST final : public NewInitializerAST {
  public:
   static constexpr ASTKind Kind = ASTKind::NewBracedInitializer;
 
-  NewBracedInitializerAST() : NewInitializerAST(Kind) {}
-
   BracedInitListAST* bracedInitList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> NewBracedInitializerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> NewBracedInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   BracedInitListAST* bracedInitList)
+      -> NewBracedInitializerAST*;
+
+ protected:
+  NewBracedInitializerAST() : NewInitializerAST(Kind) {}
 };
 
 class ParenMemInitializerAST final : public MemInitializerAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ParenMemInitializer;
-
-  ParenMemInitializerAST() : MemInitializerAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
@@ -4089,15 +7407,32 @@ class ParenMemInitializerAST final : public MemInitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ParenMemInitializerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ParenMemInitializerAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId, SourceLocation lparenLoc,
+      List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
+      SourceLocation ellipsisLoc) -> ParenMemInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   List<ExpressionAST*>* expressionList)
+      -> ParenMemInitializerAST*;
+
+ protected:
+  ParenMemInitializerAST() : MemInitializerAST(Kind) {}
 };
 
 class BracedMemInitializerAST final : public MemInitializerAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BracedMemInitializer;
-
-  BracedMemInitializerAST() : MemInitializerAST(Kind) {}
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
   UnqualifiedIdAST* unqualifiedId = nullptr;
@@ -4106,61 +7441,109 @@ class BracedMemInitializerAST final : public MemInitializerAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> BracedMemInitializerAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BracedMemInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   BracedInitListAST* bracedInitList,
+                                   SourceLocation ellipsisLoc)
+      -> BracedMemInitializerAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   UnqualifiedIdAST* unqualifiedId,
+                                   BracedInitListAST* bracedInitList)
+      -> BracedMemInitializerAST*;
+
+ protected:
+  BracedMemInitializerAST() : MemInitializerAST(Kind) {}
 };
 
 class ThisLambdaCaptureAST final : public LambdaCaptureAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ThisLambdaCapture;
 
-  ThisLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
-
   SourceLocation thisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ThisLambdaCaptureAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ThisLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation thisLoc)
+      -> ThisLambdaCaptureAST*;
+
+ protected:
+  ThisLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 };
 
 class DerefThisLambdaCaptureAST final : public LambdaCaptureAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DerefThisLambdaCapture;
 
-  DerefThisLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
-
   SourceLocation starLoc;
   SourceLocation thisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> DerefThisLambdaCaptureAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> DerefThisLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation starLoc,
+                                   SourceLocation thisLoc)
+      -> DerefThisLambdaCaptureAST*;
+
+ protected:
+  DerefThisLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 };
 
 class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SimpleLambdaCapture;
 
-  SimpleLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
-
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SimpleLambdaCaptureAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SimpleLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
+                                   SourceLocation ellipsisLoc,
+                                   const Identifier* identifier)
+      -> SimpleLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> SimpleLambdaCaptureAST*;
+
+ protected:
+  SimpleLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 };
 
 class RefLambdaCaptureAST final : public LambdaCaptureAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RefLambdaCapture;
 
-  RefLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
-
   SourceLocation ampLoc;
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
@@ -4168,16 +7551,30 @@ class RefLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RefLambdaCaptureAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RefLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ampLoc,
+                                   SourceLocation identifierLoc,
+                                   SourceLocation ellipsisLoc,
+                                   const Identifier* identifier)
+      -> RefLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> RefLambdaCaptureAST*;
+
+ protected:
+  RefLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 };
 
 class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
  public:
   static constexpr ASTKind Kind = ASTKind::RefInitLambdaCapture;
 
-  RefInitLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
-
   SourceLocation ampLoc;
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
@@ -4186,15 +7583,31 @@ class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> RefInitLambdaCaptureAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> RefInitLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ampLoc,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation identifierLoc,
+                                   ExpressionAST* initializer,
+                                   const Identifier* identifier)
+      -> RefInitLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* initializer,
+                                   const Identifier* identifier)
+      -> RefInitLambdaCaptureAST*;
+
+ protected:
+  RefInitLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 };
 
 class InitLambdaCaptureAST final : public LambdaCaptureAST {
  public:
   static constexpr ASTKind Kind = ASTKind::InitLambdaCapture;
-
-  InitLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 
   SourceLocation ellipsisLoc;
   SourceLocation identifierLoc;
@@ -4203,29 +7616,54 @@ class InitLambdaCaptureAST final : public LambdaCaptureAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> InitLambdaCaptureAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> InitLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ellipsisLoc,
+                                   SourceLocation identifierLoc,
+                                   ExpressionAST* initializer,
+                                   const Identifier* identifier)
+      -> InitLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* initializer,
+                                   const Identifier* identifier)
+      -> InitLambdaCaptureAST*;
+
+ protected:
+  InitLambdaCaptureAST() : LambdaCaptureAST(Kind) {}
 };
 
 class EllipsisExceptionDeclarationAST final : public ExceptionDeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::EllipsisExceptionDeclaration;
 
-  EllipsisExceptionDeclarationAST() : ExceptionDeclarationAST(Kind) {}
-
   SourceLocation ellipsisLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> EllipsisExceptionDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> EllipsisExceptionDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation ellipsisLoc)
+      -> EllipsisExceptionDeclarationAST*;
+
+ protected:
+  EllipsisExceptionDeclarationAST() : ExceptionDeclarationAST(Kind) {}
 };
 
 class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TypeExceptionDeclaration;
-
-  TypeExceptionDeclarationAST() : ExceptionDeclarationAST(Kind) {}
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
@@ -4233,15 +7671,28 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena)
+      -> TypeExceptionDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> TypeExceptionDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* typeSpecifierList,
+                                   DeclaratorAST* declarator)
+      -> TypeExceptionDeclarationAST*;
+
+ protected:
+  TypeExceptionDeclarationAST() : ExceptionDeclarationAST(Kind) {}
 };
 
 class CxxAttributeAST final : public AttributeSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CxxAttribute;
-
-  CxxAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation lbracketLoc;
   SourceLocation lbracket2Loc;
@@ -4252,15 +7703,30 @@ class CxxAttributeAST final : public AttributeSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> CxxAttributeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> CxxAttributeAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation lbracketLoc, SourceLocation lbracket2Loc,
+      AttributeUsingPrefixAST* attributeUsingPrefix,
+      List<AttributeAST*>* attributeList, SourceLocation rbracketLoc,
+      SourceLocation rbracket2Loc) -> CxxAttributeAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, AttributeUsingPrefixAST* attributeUsingPrefix,
+      List<AttributeAST*>* attributeList) -> CxxAttributeAST*;
+
+ protected:
+  CxxAttributeAST() : AttributeSpecifierAST(Kind) {}
 };
 
 class GccAttributeAST final : public AttributeSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GccAttribute;
-
-  GccAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation attributeLoc;
   SourceLocation lparenLoc;
@@ -4270,15 +7736,27 @@ class GccAttributeAST final : public AttributeSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> GccAttributeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> GccAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation attributeLoc,
+                                   SourceLocation lparenLoc,
+                                   SourceLocation lparen2Loc,
+                                   SourceLocation rparenLoc,
+                                   SourceLocation rparen2Loc)
+      -> GccAttributeAST*;
+
+ protected:
+  GccAttributeAST() : AttributeSpecifierAST(Kind) {}
 };
 
 class AlignasAttributeAST final : public AttributeSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AlignasAttribute;
-
-  AlignasAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation alignasLoc;
   SourceLocation lparenLoc;
@@ -4289,15 +7767,30 @@ class AlignasAttributeAST final : public AttributeSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AlignasAttributeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AlignasAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation alignasLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* expression,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation rparenLoc, bool isPack)
+      -> AlignasAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   bool isPack) -> AlignasAttributeAST*;
+
+ protected:
+  AlignasAttributeAST() : AttributeSpecifierAST(Kind) {}
 };
 
 class AlignasTypeAttributeAST final : public AttributeSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AlignasTypeAttribute;
-
-  AlignasTypeAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation alignasLoc;
   SourceLocation lparenLoc;
@@ -4308,15 +7801,29 @@ class AlignasTypeAttributeAST final : public AttributeSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AlignasTypeAttributeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AlignasTypeAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation alignasLoc,
+                                   SourceLocation lparenLoc, TypeIdAST* typeId,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation rparenLoc, bool isPack)
+      -> AlignasTypeAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId, bool isPack)
+      -> AlignasTypeAttributeAST*;
+
+ protected:
+  AlignasTypeAttributeAST() : AttributeSpecifierAST(Kind) {}
 };
 
 class AsmAttributeAST final : public AttributeSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AsmAttribute;
-
-  AsmAttributeAST() : AttributeSpecifierAST(Kind) {}
 
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
@@ -4326,15 +7833,29 @@ class AsmAttributeAST final : public AttributeSpecifierAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> AsmAttributeAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> AsmAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation asmLoc,
+                                   SourceLocation lparenLoc,
+                                   SourceLocation literalLoc,
+                                   SourceLocation rparenLoc,
+                                   const Literal* literal) -> AsmAttributeAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Literal* literal)
+      -> AsmAttributeAST*;
+
+ protected:
+  AsmAttributeAST() : AttributeSpecifierAST(Kind) {}
 };
 
 class ScopedAttributeTokenAST final : public AttributeTokenAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ScopedAttributeToken;
-
-  ScopedAttributeTokenAST() : AttributeTokenAST(Kind) {}
 
   SourceLocation attributeNamespaceLoc;
   SourceLocation scopeLoc;
@@ -4344,23 +7865,55 @@ class ScopedAttributeTokenAST final : public AttributeTokenAST {
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> ScopedAttributeTokenAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ScopedAttributeTokenAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   SourceLocation attributeNamespaceLoc,
+                                   SourceLocation scopeLoc,
+                                   SourceLocation identifierLoc,
+                                   const Identifier* attributeNamespace,
+                                   const Identifier* identifier)
+      -> ScopedAttributeTokenAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   const Identifier* attributeNamespace,
+                                   const Identifier* identifier)
+      -> ScopedAttributeTokenAST*;
+
+ protected:
+  ScopedAttributeTokenAST() : AttributeTokenAST(Kind) {}
 };
 
 class SimpleAttributeTokenAST final : public AttributeTokenAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SimpleAttributeToken;
 
-  SimpleAttributeTokenAST() : AttributeTokenAST(Kind) {}
-
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
-  auto firstSourceLocation() -> SourceLocation override;
-  auto lastSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto clone(Arena* arena) -> SimpleAttributeTokenAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> SimpleAttributeTokenAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
+                                   const Identifier* identifier)
+      -> SimpleAttributeTokenAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+      -> SimpleAttributeTokenAST*;
+
+ protected:
+  SimpleAttributeTokenAST() : AttributeTokenAST(Kind) {}
 };
 
 template <typename T>

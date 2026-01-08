@@ -302,7 +302,7 @@ export function new_ast_rewriter_cc({
 
     emit(`  if (!ast) return {};`);
     emit();
-    emit(`  auto copy = make_node<${name}>(arena());`);
+    emit(`  auto copy = ${name}::create(arena());`);
     emit();
     emitRewriterBody({ name, members, visitor: "operator()" });
     emit();
@@ -363,7 +363,7 @@ if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
       if (!current) {
         current = expression;
       } else {
-        auto binop = make_node<BinaryExpressionAST>(arena());
+        auto binop = BinaryExpressionAST::create(arena());
         binop->valueCategory = current->valueCategory;
         binop->type = current->type;
         binop->leftExpression = current;
@@ -384,7 +384,7 @@ if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
 `);
       }
 
-      emit(`  auto copy = make_node<${name}>(arena());`);
+      emit(`  auto copy = ${name}::create(arena());`);
       emit();
       ast.baseMembers.get(base)?.forEach((m) => {
         emit(`  copy->${m.name} = ast->${m.name};`);

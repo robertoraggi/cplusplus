@@ -36,6 +36,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
     emit(`class ${base} : public AST {`);
     emit(`public:`);
     emit(`  using AST::AST;`);
+    emit();
     ast.baseMembers.get(base)?.forEach((m) => {
       let s = "  ";
       if (m.cv) s = `${s}${m.cv} `;
@@ -44,6 +45,9 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
       s = `${s};`;
       emit(s);
     });
+
+    emit();
+    emit(`  [[nodiscard]] auto clone(Arena* arena) -> ${base}* override = 0;`);
     emit(`};`);
     emit();
   }
@@ -52,11 +56,12 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
 
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name, base, members }) => {
+
+      const allMembers = [...members, ...ast.baseMembers.get(base) ?? []];
+
       emit(`class ${name} final : public ${base} {`);
       emit(`public:`);
       emit(`  static constexpr ASTKind Kind = ASTKind::${enumName(name)};`);
-      emit();
-      emit(`  ${name}(): ${base}(Kind) {}`);
       emit();
 
       members.forEach((m) => {
@@ -89,12 +94,59 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
         emit();
       }
 
-      emit(
-        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`,
-      );
+      emit(`  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`);
       emit();
-      emit(`  auto firstSourceLocation() -> SourceLocation override;`);
-      emit(`  auto lastSourceLocation() -> SourceLocation override;`);
+      emit(`  [[nodiscard]] auto clone(Arena* arena) -> ${name}* override;`);
+      emit();
+      emit(`  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;`);
+      emit(`  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;`);
+      emit();
+      emit(`  [[nodiscard]] static auto create(Arena* arena) -> ${name}*;`);
+
+      let params: string[] = []
+      let paramsNoLoc: string[] = []
+      allMembers.forEach((m) => {
+        switch (m.kind) {
+          case "node":
+            params.push(`${m.type}* ${m.name}`)
+            paramsNoLoc.push(`${m.type}* ${m.name}`)
+            break;
+          case "node-list":
+            params.push(`List<${m.type}*>* ${m.name}`)
+            paramsNoLoc.push(`List<${m.type}*>* ${m.name}`)
+            break;
+          case "token":
+            params.push(`SourceLocation ${m.name}`);
+            break;
+          case "token-list":
+            params.push(`List<SourceLocation>* ${m.name}`);
+            break;
+          case "attribute": {
+            let s = "  ";
+            if (m.cv) s = `${s}${m.cv} `;
+            s = `${s}${m.type}${m.ptrOps} ${m.name}`;
+            params.push(s);
+            paramsNoLoc.push(s);
+            break;
+          }
+        }
+      });
+
+      if (params.length > 0) {
+        const signature = params.join(", ");
+        emit();
+        emit(`  [[nodiscard]] static auto create(Arena* arena, ${signature}) -> ${name}*;`);
+      }
+
+      if (paramsNoLoc.length && paramsNoLoc.length != params.length) {
+        const signature = paramsNoLoc.join(", ");
+        emit();
+        emit(`  [[nodiscard]] static auto create(Arena* arena, ${signature}) -> ${name}*;`);
+      }
+
+      emit();
+      emit(`protected:`);
+      emit(`  ${name}(): ${base}(Kind) {}`);
       emit(`};`);
       emit();
     });
@@ -218,8 +270,9 @@ public:
 
   virtual void accept(ASTVisitor* visitor) = 0;
 
-  virtual auto firstSourceLocation() -> SourceLocation = 0;
-  virtual auto lastSourceLocation() -> SourceLocation = 0;
+  [[nodiscard]] virtual auto clone(Arena* arena) -> AST* = 0;
+  [[nodiscard]] virtual auto firstSourceLocation() -> SourceLocation = 0;
+  [[nodiscard]] virtual auto lastSourceLocation() -> SourceLocation = 0;
 
   [[nodiscard]] auto sourceLocationRange() -> SourceLocationRange {
       return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
@@ -228,12 +281,6 @@ public:
 private:
     ASTKind kind_;
 };
-
-template <typename T>
-auto make_node(Arena* arena) -> T* {
-  auto node = new (arena) T();
-  return node;
-}
 
 template <typename T>
 auto make_list_node(Arena* arena, T* element = nullptr) -> List<T*>* {

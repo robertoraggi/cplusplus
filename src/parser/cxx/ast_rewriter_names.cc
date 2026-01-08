@@ -129,7 +129,7 @@ auto ASTRewriter::templateArgument(TemplateArgumentAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(NameIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<NameIdAST>(arena());
+  auto copy = NameIdAST::create(arena());
 
   copy->identifierLoc = ast->identifierLoc;
   copy->identifier = ast->identifier;
@@ -139,7 +139,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(NameIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(DestructorIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<DestructorIdAST>(arena());
+  auto copy = DestructorIdAST::create(arena());
 
   copy->tildeLoc = ast->tildeLoc;
   copy->id = rewrite.unqualifiedId(ast->id);
@@ -149,7 +149,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(DestructorIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(DecltypeIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<DecltypeIdAST>(arena());
+  auto copy = DecltypeIdAST::create(arena());
 
   copy->decltypeSpecifier =
       ast_cast<DecltypeSpecifierAST>(rewrite.specifier(ast->decltypeSpecifier));
@@ -159,7 +159,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(DecltypeIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(OperatorFunctionIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<OperatorFunctionIdAST>(arena());
+  auto copy = OperatorFunctionIdAST::create(arena());
 
   copy->operatorLoc = ast->operatorLoc;
   copy->opLoc = ast->opLoc;
@@ -172,7 +172,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(OperatorFunctionIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(LiteralOperatorIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<LiteralOperatorIdAST>(arena());
+  auto copy = LiteralOperatorIdAST::create(arena());
 
   copy->operatorLoc = ast->operatorLoc;
   copy->literalLoc = ast->literalLoc;
@@ -185,7 +185,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(LiteralOperatorIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<ConversionFunctionIdAST>(arena());
+  auto copy = ConversionFunctionIdAST::create(arena());
 
   copy->operatorLoc = ast->operatorLoc;
   copy->typeId = rewrite.typeId(ast->typeId);
@@ -195,7 +195,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
     -> UnqualifiedIdAST* {
-  auto copy = make_node<SimpleTemplateIdAST>(arena());
+  auto copy = SimpleTemplateIdAST::create(arena());
 
   copy->identifierLoc = ast->identifierLoc;
   copy->lessLoc = ast->lessLoc;
@@ -216,7 +216,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(
     LiteralOperatorTemplateIdAST* ast) -> UnqualifiedIdAST* {
-  auto copy = make_node<LiteralOperatorTemplateIdAST>(arena());
+  auto copy = LiteralOperatorTemplateIdAST::create(arena());
 
   copy->literalOperatorId = ast_cast<LiteralOperatorIdAST>(
       rewrite.unqualifiedId(ast->literalOperatorId));
@@ -236,7 +236,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(
 
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(
     OperatorFunctionTemplateIdAST* ast) -> UnqualifiedIdAST* {
-  auto copy = make_node<OperatorFunctionTemplateIdAST>(arena());
+  auto copy = OperatorFunctionTemplateIdAST::create(arena());
 
   copy->operatorFunctionId = ast_cast<OperatorFunctionIdAST>(
       rewrite.unqualifiedId(ast->operatorFunctionId));
@@ -256,7 +256,7 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     GlobalNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
-  auto copy = make_node<GlobalNestedNameSpecifierAST>(arena());
+  auto copy = GlobalNestedNameSpecifierAST::create(arena());
 
   copy->symbol = ast->symbol;
   copy->scopeLoc = ast->scopeLoc;
@@ -266,7 +266,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     SimpleNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
-  auto copy = make_node<SimpleNestedNameSpecifierAST>(arena());
+  auto copy = SimpleNestedNameSpecifierAST::create(arena());
 
   copy->symbol = ast->symbol;
   copy->nestedNameSpecifier =
@@ -280,7 +280,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     DecltypeNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
-  auto copy = make_node<DecltypeNestedNameSpecifierAST>(arena());
+  auto copy = DecltypeNestedNameSpecifierAST::create(arena());
 
   copy->symbol = ast->symbol;
   copy->decltypeSpecifier =
@@ -292,7 +292,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     TemplateNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
-  auto copy = make_node<TemplateNestedNameSpecifierAST>(arena());
+  auto copy = TemplateNestedNameSpecifierAST::create(arena());
 
   copy->symbol = ast->symbol;
   copy->nestedNameSpecifier =
@@ -315,7 +315,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
 auto ASTRewriter::TemplateArgumentVisitor::operator()(
     TypeTemplateArgumentAST* ast) -> TemplateArgumentAST* {
-  auto copy = make_node<TypeTemplateArgumentAST>(arena());
+  auto copy = TypeTemplateArgumentAST::create(arena());
 
   copy->typeId = rewrite.typeId(ast->typeId);
 
@@ -324,7 +324,7 @@ auto ASTRewriter::TemplateArgumentVisitor::operator()(
 
 auto ASTRewriter::TemplateArgumentVisitor::operator()(
     ExpressionTemplateArgumentAST* ast) -> TemplateArgumentAST* {
-  auto copy = make_node<ExpressionTemplateArgumentAST>(arena());
+  auto copy = ExpressionTemplateArgumentAST::create(arena());
 
   copy->expression = rewrite.expression(ast->expression);
 
