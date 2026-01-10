@@ -748,7 +748,10 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
 auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
     -> FunctionSymbol* {
   auto name = decl.getName();
-  auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
+
+  auto returnType = decl.getReturnType(scope());
+
+  auto type = getDeclaratorType(unit_, declarator, returnType);
 
   auto parentScope = scope();
 
@@ -766,7 +769,7 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   functionSymbol->setName(name);
   functionSymbol->setType(type);
 
-  if (isConstructor(functionSymbol)) {
+  if (functionSymbol->isConstructor()) {
     auto enclosingClass = symbol_cast<ClassSymbol>(scope());
 
     if (enclosingClass) {
@@ -873,16 +876,6 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
   symbol->setConstexpr(specs.isConstexpr);
   symbol->setConstinit(specs.isConstinit);
   symbol->setInline(specs.isInline);
-}
-
-auto Binder::isConstructor(Symbol* symbol) const -> bool {
-  auto functionSymbol = symbol_cast<FunctionSymbol>(symbol);
-  if (!functionSymbol) return false;
-  if (!functionSymbol->parent()) return false;
-  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
-  if (!classSymbol) return false;
-  if (classSymbol->name() != functionSymbol->name()) return false;
-  return true;
 }
 
 auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {

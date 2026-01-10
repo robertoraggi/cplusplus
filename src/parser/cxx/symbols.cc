@@ -577,15 +577,16 @@ auto FunctionSymbol::isConstructor() const -> bool {
   if (!p) return false;
 
   auto functionType = type_cast<FunctionType>(type());
-  if (functionType->returnType()) {
-    // constructors don't have a return type
+  if (!functionType) return false;
+  if (!functionType->returnType()) return false;
+  if (functionType->returnType()->kind() != TypeKind::kVoid) {
     return false;
   }
 
-  if (name() != p->name()) {
-    // constructors have the same name as the class
-    return false;
-  }
+  auto id = name_cast<Identifier>(name());
+  if (!id) return false;
+
+  if (p->name() != id) return false;
 
   return true;
 }

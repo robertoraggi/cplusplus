@@ -93,8 +93,6 @@ class Binder {
   void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
 
-  [[nodiscard]] auto isConstructor(Symbol* symbol) const -> bool;
-
   void bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpec);
 
   void bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,

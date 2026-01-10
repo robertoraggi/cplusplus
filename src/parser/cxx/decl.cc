@@ -386,4 +386,25 @@ auto Decl::getScope() const -> ScopeSymbol* {
   return nullptr;
 }
 
+auto Decl::getReturnType(ScopeSymbol* currentScope) const -> const Type* {
+  auto control = specs.control();
+
+  auto name = getName();
+
+  auto returnType = specs.type();
+  if (!returnType) {
+    if (name_cast<DestructorId>(name)) {
+      returnType = control->getVoidType();
+    } else if (auto castId = name_cast<ConversionFunctionId>(name)) {
+      returnType = castId->type();
+    } else if (auto id = name_cast<Identifier>(name);
+               id && currentScope && currentScope->isClass() &&
+               id == currentScope->name()) {
+      returnType = control->getVoidType();
+    }
+  }
+
+  return returnType;
+}
+
 }  // namespace cxx

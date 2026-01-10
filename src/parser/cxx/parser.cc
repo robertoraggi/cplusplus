@@ -4484,7 +4484,9 @@ auto Parser::parse_notypespec_function_definition(
 
   parse_optional_attribute_specifier_seq(functionDeclarator->attributeList);
 
-  auto functionType = getDeclaratorType(unit, declarator, decl.specs.type());
+  auto returnType = decl.getReturnType(scope());
+
+  auto functionType = getDeclaratorType(unit, declarator, returnType);
 
   SourceLocation equalLoc;
   SourceLocation zeroLoc;

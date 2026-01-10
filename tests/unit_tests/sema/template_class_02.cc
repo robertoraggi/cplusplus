@@ -39,8 +39,8 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:    typealias unsigned long size_t
 // CHECK-NEXT:    template class basic_string<type-param<0, 0>>
 // CHECK-NEXT:      parameter typename<0, 0> T
-// CHECK-NEXT:      constructor  basic_string()
-// CHECK-NEXT:      constructor explicit  basic_string(const type-param<0, 0>*)
+// CHECK-NEXT:      constructor void basic_string()
+// CHECK-NEXT:      constructor explicit void basic_string(const type-param<0, 0>*)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const type-param<0, 0>* p
 // CHECK-NEXT:          block
@@ -60,8 +60,8 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:      function std::basic_string::iterator end()
 // CHECK-NEXT:      [specializations]
 // CHECK-NEXT:        class basic_string<char>
-// CHECK-NEXT:          constructor  basic_string()
-// CHECK-NEXT:          constructor explicit  basic_string(const char*)
+// CHECK-NEXT:          constructor void basic_string()
+// CHECK-NEXT:          constructor explicit void basic_string(const char*)
 // CHECK-NEXT:            block
 // CHECK-NEXT:          function void append(const char*)
 // CHECK-NEXT:          function const char* c_str() const
@@ -78,8 +78,8 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:          function std::basic_string<char>::iterator begin()
 // CHECK-NEXT:          function std::basic_string<char>::iterator end()
 // CHECK-NEXT:        class basic_string<char8_t>
-// CHECK-NEXT:          constructor  basic_string()
-// CHECK-NEXT:          constructor explicit  basic_string(const char8_t*)
+// CHECK-NEXT:          constructor void basic_string()
+// CHECK-NEXT:          constructor explicit void basic_string(const char8_t*)
 // CHECK-NEXT:            block
 // CHECK-NEXT:          function void append(const char8_t*)
 // CHECK-NEXT:          function const char8_t* c_str() const
