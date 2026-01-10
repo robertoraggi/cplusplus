@@ -34,8 +34,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "cxx/ast.h"
-
 namespace cxx {
 
 class Decl;

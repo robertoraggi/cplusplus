@@ -29,9 +29,9 @@ auto X<T>::self() -> X* {
 //      CHECK:namespace
 // CHECK-NEXT:  template class X
 // CHECK-NEXT:    parameter typename<0, 0> T
-// CHECK-NEXT:    constructor  X()
+// CHECK-NEXT:    constructor void X()
 // CHECK-NEXT:      block
-// CHECK-NEXT:    constructor  X(int)
+// CHECK-NEXT:    constructor void X(int)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter int
 // CHECK-NEXT:        block

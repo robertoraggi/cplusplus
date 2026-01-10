@@ -33,11 +33,11 @@ auto main() -> int {
 // CHECK-NEXT:    using int printf(const char*...)
 // CHECK-NEXT:    typealias decltype(nullptr) nullptr_t
 // CHECK-NEXT:  class Base
-// CHECK-NEXT:    function  operator bool() const
+// CHECK-NEXT:    function bool operator bool() const
 // CHECK-NEXT:    function void f()
 // CHECK-NEXT:  class Derived
 // CHECK-NEXT:    base class Base
-// CHECK-NEXT:    using  operator bool() const
+// CHECK-NEXT:    using bool operator bool() const
 // CHECK-NEXT:    using void f()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block

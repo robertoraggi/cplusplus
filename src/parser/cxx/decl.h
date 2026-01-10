@@ -44,6 +44,9 @@ class Decl {
   [[nodiscard]] auto getName() const -> const Name*;
   [[nodiscard]] auto getNestedNameSpecifier() const -> NestedNameSpecifierAST*;
   [[nodiscard]] auto getScope() const -> ScopeSymbol*;
+
+  [[nodiscard]] auto getReturnType(ScopeSymbol* currentScope) const
+      -> const Type*;
 };
 
 [[nodiscard]] auto getDeclaratorId(DeclaratorAST* declarator)
