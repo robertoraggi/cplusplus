@@ -344,10 +344,10 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     mlir::Value val;
     bool found = false;
 
-    if (auto local = gen.findOrCreateLocal(ast->symbol)) {
+    if (auto local = gen.findOrCreateLocal(var)) {
       val = local.value();
       found = true;
-    } else if (auto global = gen.findOrCreateGlobal(ast->symbol)) {
+    } else if (auto global = gen.findOrCreateGlobal(var)) {
       auto loc = gen.getLocation(ast->firstSourceLocation());
       auto resultType = mlir::cxx::PointerType::get(
           gen.builder_.getContext(), gen.convertType(var->type()));
@@ -2160,6 +2160,14 @@ auto initializerResult = gen.expression(ast->initializer);
 
 auto Codegen::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->value.has_value()) {
+    auto resultType = gen.convertType(ast->type);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto op = mlir::cxx::BoolConstantOp::create(gen.builder_, loc, resultType,
+                                                ast->value.value());
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 

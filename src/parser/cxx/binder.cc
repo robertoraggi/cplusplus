@@ -108,7 +108,7 @@ void Binder::setScope(ScopeSymbol* scope) {
   inTemplate_ = false;
 
   for (auto current = scope_; current; current = current->parent()) {
-    if (auto params = current->templateParameters()) {
+    if (current->isTemplateParameters()) {
       inTemplate_ = true;
       break;
     }

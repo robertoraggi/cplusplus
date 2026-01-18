@@ -214,8 +214,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     return it->second;
   }
 
-  if (!variableSymbol->isStatic() &&
-      !is_global_namespace(variableSymbol->parent())) {
+  if (!variableSymbol->isStatic() && !variableSymbol->parent()->isNamespace()) {
     return {};
   }
 
@@ -240,7 +239,13 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   std::string name;
 
-  name = to_string(variableSymbol->name());
+  if (variableSymbol->isStatic() ||
+      !is_global_namespace(variableSymbol->parent())) {
+    ExternalNameEncoder encoder;
+    name = encoder.encode(symbol);
+  } else {
+    name = to_string(symbol->name());
+  }
 
   llvm::SmallVector<mlir::Type> resultTypes;
   resultTypes.push_back(varType);

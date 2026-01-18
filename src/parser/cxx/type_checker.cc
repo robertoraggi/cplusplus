@@ -1671,6 +1671,11 @@ void TypeChecker::Visitor::operator()(DesignatedInitializerClauseAST* ast) {}
 
 void TypeChecker::Visitor::operator()(TypeTraitExpressionAST* ast) {
   ast->type = control()->getBoolType();
+  auto interp = ASTInterpreter{check.unit_};
+  auto value = interp.evaluate(ast);
+  if (value.has_value()) {
+    ast->value = interp.toBool(*value);
+  }
 }
 
 void TypeChecker::Visitor::operator()(ConditionExpressionAST* ast) {
