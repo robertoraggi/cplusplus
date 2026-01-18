@@ -10204,6 +10204,7 @@ auto TypeTraitExpressionAST::clone(Arena* arena) -> TypeTraitExpressionAST* {
 
   node->rparenLoc = rparenLoc;
   node->typeTrait = typeTrait;
+  node->value = value;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10218,14 +10219,15 @@ auto TypeTraitExpressionAST::create(Arena* arena) -> TypeTraitExpressionAST* {
 auto TypeTraitExpressionAST::create(
     Arena* arena, SourceLocation typeTraitLoc, SourceLocation lparenLoc,
     List<TypeIdAST*>* typeIdList, SourceLocation rparenLoc,
-    BuiltinTypeTraitKind typeTrait, ValueCategory valueCategory,
-    const Type* type) -> TypeTraitExpressionAST* {
+    BuiltinTypeTraitKind typeTrait, std::optional<bool> value,
+    ValueCategory valueCategory, const Type* type) -> TypeTraitExpressionAST* {
   auto node = new (arena) TypeTraitExpressionAST();
   node->typeTraitLoc = typeTraitLoc;
   node->lparenLoc = lparenLoc;
   node->typeIdList = typeIdList;
   node->rparenLoc = rparenLoc;
   node->typeTrait = typeTrait;
+  node->value = value;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10233,12 +10235,14 @@ auto TypeTraitExpressionAST::create(
 
 auto TypeTraitExpressionAST::create(Arena* arena, List<TypeIdAST*>* typeIdList,
                                     BuiltinTypeTraitKind typeTrait,
+                                    std::optional<bool> value,
                                     ValueCategory valueCategory,
                                     const Type* type)
     -> TypeTraitExpressionAST* {
   auto node = new (arena) TypeTraitExpressionAST();
   node->typeIdList = typeIdList;
   node->typeTrait = typeTrait;
+  node->value = value;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;

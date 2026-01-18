@@ -334,6 +334,10 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
     if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
       args = classSymbol->templateArguments();
+    } else if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
+      args = functionSymbol->templateArguments();
+    } else if (auto variableSymbol = symbol_cast<VariableSymbol>(symbol)) {
+      args = variableSymbol->templateArguments();
     }
 
     if (args.empty()) return;
