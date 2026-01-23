@@ -26,6 +26,8 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 
 namespace cxx {
 
@@ -33,6 +35,12 @@ struct ASTRewriter::StatementVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return rewrite.unit_;
+  }
+
+  [[nodiscard]] auto typeChecker() -> TypeChecker {
+    auto typeChecker = TypeChecker{translationUnit()};
+    typeChecker.setScope(binder()->scope());
+    return typeChecker;
   }
 
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
@@ -270,6 +278,7 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
   copy->condition = rewrite.expression(ast->condition);
+  typeChecker().check_bool_condition(copy->condition);
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
   copy->elseLoc = ast->elseLoc;
@@ -307,6 +316,7 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
   copy->condition = rewrite.expression(ast->condition);
+  typeChecker().check_integral_condition(ast->condition);
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
 
@@ -326,6 +336,7 @@ auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
   copy->whileLoc = ast->whileLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->condition = rewrite.expression(ast->condition);
+  typeChecker().check_bool_condition(copy->condition);
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
 
@@ -383,6 +394,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
   copy->condition = rewrite.expression(ast->condition);
+  typeChecker().check_bool_condition(ast->condition);
   copy->semicolonLoc = ast->semicolonLoc;
   copy->expression = rewrite.expression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
@@ -418,6 +430,8 @@ auto ASTRewriter::StatementVisitor::operator()(ReturnStatementAST* ast)
   copy->returnLoc = ast->returnLoc;
   copy->expression = rewrite.expression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
+
+  typeChecker().check_return_statement(copy);
 
   return copy;
 }

@@ -229,7 +229,9 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
 
   rewriter.binder().setInstantiatingSymbol(symbol);
 
-  return visit(Instantiate{rewriter}, symbol);
+  auto instance = visit(Instantiate{rewriter}, symbol);
+
+  return instance;
 }
 
 auto ASTRewriter::make_substitution(

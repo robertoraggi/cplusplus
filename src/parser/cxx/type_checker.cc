@@ -2942,7 +2942,7 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
   return true;
 }
 
-void TypeChecker::checkReturnStatement(ReturnStatementAST* ast) {
+void TypeChecker::check_return_statement(ReturnStatementAST* ast) {
   const Type* targetType = nullptr;
   for (auto current = scope_; current; current = current->parent()) {
     if (!current) continue;

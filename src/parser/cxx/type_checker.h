@@ -49,7 +49,7 @@ class TypeChecker {
   void check(DeclarationAST* ast);
 
   // todo: remove
-  void checkReturnStatement(ReturnStatementAST* ast);
+  void check_return_statement(ReturnStatementAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);

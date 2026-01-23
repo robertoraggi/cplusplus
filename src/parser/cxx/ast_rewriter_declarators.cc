@@ -168,6 +168,12 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
 
   auto copy = ParameterDeclarationClauseAST::create(arena());
 
+  binder().bind(copy);
+
+  auto _ = Binder::ScopeGuard(&binder_);
+
+  binder().setScope(copy->functionParametersSymbol);
+
   for (auto parameterDeclarationList = &copy->parameterDeclarationList;
        auto node : ListView{ast->parameterDeclarationList}) {
     auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
@@ -177,7 +183,6 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
 
   copy->commaLoc = ast->commaLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
-  copy->functionParametersSymbol = ast->functionParametersSymbol;
   copy->isVariadic = ast->isVariadic;
 
   return copy;

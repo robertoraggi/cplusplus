@@ -10013,7 +10013,7 @@ void Parser::check(StatementAST* ast) {
   TypeChecker check{unit};
   check.setScope(scope());
   check.setReportErrors(config().checkTypes);
-  check.checkReturnStatement(returnStatement);
+  check.check_return_statement(returnStatement);
 }
 
 void Parser::check(DeclarationAST* ast) {

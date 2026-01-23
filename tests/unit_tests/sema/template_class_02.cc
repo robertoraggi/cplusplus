@@ -62,7 +62,9 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:        class basic_string<char>
 // CHECK-NEXT:          constructor void basic_string()
 // CHECK-NEXT:          constructor explicit void basic_string(const char*)
-// CHECK-NEXT:            block
+// CHECK-NEXT:            parameters
+// CHECK-NEXT:              parameter const char* p
+// CHECK-NEXT:              block
 // CHECK-NEXT:          function void append(const char*)
 // CHECK-NEXT:          function const char* c_str() const
 // CHECK-NEXT:          function unsigned long size() const
@@ -80,7 +82,9 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:        class basic_string<char8_t>
 // CHECK-NEXT:          constructor void basic_string()
 // CHECK-NEXT:          constructor explicit void basic_string(const char8_t*)
-// CHECK-NEXT:            block
+// CHECK-NEXT:            parameters
+// CHECK-NEXT:              parameter const char8_t* p
+// CHECK-NEXT:              block
 // CHECK-NEXT:          function void append(const char8_t*)
 // CHECK-NEXT:          function const char8_t* c_str() const
 // CHECK-NEXT:          function unsigned long size() const
