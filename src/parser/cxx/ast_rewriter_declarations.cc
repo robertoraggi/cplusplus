@@ -546,7 +546,14 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto _ = Binder::ScopeGuard{binder()};
 
-  binder()->setScope(functionSymbol);
+  auto functionDeclarator = getFunctionPrototype(copy->declarator);
+
+  if (auto params = functionDeclarator->parameterDeclarationClause) {
+    functionSymbol->addSymbol(params->functionParametersSymbol);
+    binder()->setScope(params->functionParametersSymbol);
+  } else {
+    binder()->setScope(functionSymbol);
+  }
 
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
@@ -804,10 +811,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
                                           typeSpecifierListCtx.type());
   copy->type = declaratorType;
   copy->equalLoc = ast->equalLoc;
-  copy->expression = rewrite.expression(ast->expression);
   copy->identifier = ast->identifier;
   copy->isThisIntroduced = ast->isThisIntroduced;
   copy->isPack = ast->isPack;
+
+  const bool inTemplateParameters = binder()->scope()->isTemplateParameters();
+
+  binder()->bind(copy, declaratorDecl, inTemplateParameters);
+
+  copy->expression = rewrite.expression(ast->expression);
 
   return copy;
 }
