@@ -968,6 +968,7 @@ auto DefaultStatementAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto ExpressionStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -976,10 +977,12 @@ auto ExpressionStatementAST::firstSourceLocation() -> SourceLocation {
 auto ExpressionStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto CompoundStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statementList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
@@ -990,10 +993,12 @@ auto CompoundStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(statementList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto IfStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(ifLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(constexprLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -1016,10 +1021,12 @@ auto IfStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(constexprLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ifLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto ConstevalIfStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(ifLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(exclaimLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(constvalLoc)) return loc;
@@ -1036,10 +1043,12 @@ auto ConstevalIfStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(constvalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(exclaimLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ifLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto SwitchStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(switchLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
@@ -1056,10 +1065,12 @@ auto SwitchStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(switchLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto WhileStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(whileLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(condition)) return loc;
@@ -1074,10 +1085,12 @@ auto WhileStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(condition)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(whileLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto DoStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(doLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(whileLoc)) return loc;
@@ -1096,10 +1109,12 @@ auto DoStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(whileLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(doLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto ForRangeStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(forLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
@@ -1120,10 +1135,12 @@ auto ForRangeStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(forLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto ForStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(forLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
@@ -1144,10 +1161,12 @@ auto ForStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(forLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto BreakStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(breakLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -1156,10 +1175,12 @@ auto BreakStatementAST::firstSourceLocation() -> SourceLocation {
 auto BreakStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(breakLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto ContinueStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(continueLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
@@ -1168,10 +1189,12 @@ auto ContinueStatementAST::firstSourceLocation() -> SourceLocation {
 auto ContinueStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(continueLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto ReturnStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(returnLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
@@ -1182,10 +1205,12 @@ auto ReturnStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(returnLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto CoroutineReturnStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(coreturnLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
@@ -1196,10 +1221,12 @@ auto CoroutineReturnStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(coreturnLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
 auto GotoStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(gotoLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
@@ -1212,6 +1239,7 @@ auto GotoStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(gotoLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
@@ -1226,6 +1254,7 @@ auto DeclarationStatementAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto TryBlockStatementAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(tryLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   if (auto loc = cxx::firstSourceLocation(handlerList)) return loc;
@@ -1236,6 +1265,7 @@ auto TryBlockStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(handlerList)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(tryLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
@@ -6582,6 +6612,14 @@ auto DefaultStatementAST::create(Arena* arena, SourceLocation defaultLoc,
 auto ExpressionStatementAST::clone(Arena* arena) -> ExpressionStatementAST* {
   auto node = create(arena);
 
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   if (expression) node->expression = expression->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
@@ -6594,24 +6632,38 @@ auto ExpressionStatementAST::create(Arena* arena) -> ExpressionStatementAST* {
   return node;
 }
 
-auto ExpressionStatementAST::create(Arena* arena, ExpressionAST* expression,
+auto ExpressionStatementAST::create(Arena* arena,
+                                    List<AttributeSpecifierAST*>* attributeList,
+                                    ExpressionAST* expression,
                                     SourceLocation semicolonLoc)
     -> ExpressionStatementAST* {
   auto node = new (arena) ExpressionStatementAST();
+  node->attributeList = attributeList;
   node->expression = expression;
   node->semicolonLoc = semicolonLoc;
   return node;
 }
 
-auto ExpressionStatementAST::create(Arena* arena, ExpressionAST* expression)
+auto ExpressionStatementAST::create(Arena* arena,
+                                    List<AttributeSpecifierAST*>* attributeList,
+                                    ExpressionAST* expression)
     -> ExpressionStatementAST* {
   auto node = new (arena) ExpressionStatementAST();
+  node->attributeList = attributeList;
   node->expression = expression;
   return node;
 }
 
 auto CompoundStatementAST::clone(Arena* arena) -> CompoundStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->lbraceLoc = lbraceLoc;
 
@@ -6634,11 +6686,14 @@ auto CompoundStatementAST::create(Arena* arena) -> CompoundStatementAST* {
   return node;
 }
 
-auto CompoundStatementAST::create(Arena* arena, SourceLocation lbraceLoc,
+auto CompoundStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList,
+                                  SourceLocation lbraceLoc,
                                   List<StatementAST*>* statementList,
                                   SourceLocation rbraceLoc, BlockSymbol* symbol)
     -> CompoundStatementAST* {
   auto node = new (arena) CompoundStatementAST();
+  node->attributeList = attributeList;
   node->lbraceLoc = lbraceLoc;
   node->statementList = statementList;
   node->rbraceLoc = rbraceLoc;
@@ -6647,10 +6702,12 @@ auto CompoundStatementAST::create(Arena* arena, SourceLocation lbraceLoc,
 }
 
 auto CompoundStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList,
                                   List<StatementAST*>* statementList,
                                   BlockSymbol* symbol)
     -> CompoundStatementAST* {
   auto node = new (arena) CompoundStatementAST();
+  node->attributeList = attributeList;
   node->statementList = statementList;
   node->symbol = symbol;
   return node;
@@ -6658,6 +6715,14 @@ auto CompoundStatementAST::create(Arena* arena,
 
 auto IfStatementAST::clone(Arena* arena) -> IfStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->ifLoc = ifLoc;
   node->constexprLoc = constexprLoc;
@@ -6685,14 +6750,16 @@ auto IfStatementAST::create(Arena* arena) -> IfStatementAST* {
   return node;
 }
 
-auto IfStatementAST::create(Arena* arena, SourceLocation ifLoc,
-                            SourceLocation constexprLoc,
+auto IfStatementAST::create(Arena* arena,
+                            List<AttributeSpecifierAST*>* attributeList,
+                            SourceLocation ifLoc, SourceLocation constexprLoc,
                             SourceLocation lparenLoc, StatementAST* initializer,
                             ExpressionAST* condition, SourceLocation rparenLoc,
                             StatementAST* statement, SourceLocation elseLoc,
                             StatementAST* elseStatement, BlockSymbol* symbol)
     -> IfStatementAST* {
   auto node = new (arena) IfStatementAST();
+  node->attributeList = attributeList;
   node->ifLoc = ifLoc;
   node->constexprLoc = constexprLoc;
   node->lparenLoc = lparenLoc;
@@ -6706,11 +6773,14 @@ auto IfStatementAST::create(Arena* arena, SourceLocation ifLoc,
   return node;
 }
 
-auto IfStatementAST::create(Arena* arena, StatementAST* initializer,
-                            ExpressionAST* condition, StatementAST* statement,
+auto IfStatementAST::create(Arena* arena,
+                            List<AttributeSpecifierAST*>* attributeList,
+                            StatementAST* initializer, ExpressionAST* condition,
+                            StatementAST* statement,
                             StatementAST* elseStatement, BlockSymbol* symbol)
     -> IfStatementAST* {
   auto node = new (arena) IfStatementAST();
+  node->attributeList = attributeList;
   node->initializer = initializer;
   node->condition = condition;
   node->statement = statement;
@@ -6721,6 +6791,14 @@ auto IfStatementAST::create(Arena* arena, StatementAST* initializer,
 
 auto ConstevalIfStatementAST::clone(Arena* arena) -> ConstevalIfStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->ifLoc = ifLoc;
   node->exclaimLoc = exclaimLoc;
@@ -6743,10 +6821,12 @@ auto ConstevalIfStatementAST::create(Arena* arena) -> ConstevalIfStatementAST* {
 }
 
 auto ConstevalIfStatementAST::create(
-    Arena* arena, SourceLocation ifLoc, SourceLocation exclaimLoc,
-    SourceLocation constvalLoc, StatementAST* statement, SourceLocation elseLoc,
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SourceLocation ifLoc, SourceLocation exclaimLoc, SourceLocation constvalLoc,
+    StatementAST* statement, SourceLocation elseLoc,
     StatementAST* elseStatement, bool isNot) -> ConstevalIfStatementAST* {
   auto node = new (arena) ConstevalIfStatementAST();
+  node->attributeList = attributeList;
   node->ifLoc = ifLoc;
   node->exclaimLoc = exclaimLoc;
   node->constvalLoc = constvalLoc;
@@ -6757,10 +6837,12 @@ auto ConstevalIfStatementAST::create(
   return node;
 }
 
-auto ConstevalIfStatementAST::create(Arena* arena, StatementAST* statement,
-                                     StatementAST* elseStatement, bool isNot)
+auto ConstevalIfStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    StatementAST* statement, StatementAST* elseStatement, bool isNot)
     -> ConstevalIfStatementAST* {
   auto node = new (arena) ConstevalIfStatementAST();
+  node->attributeList = attributeList;
   node->statement = statement;
   node->elseStatement = elseStatement;
   node->isNot = isNot;
@@ -6769,6 +6851,14 @@ auto ConstevalIfStatementAST::create(Arena* arena, StatementAST* statement,
 
 auto SwitchStatementAST::clone(Arena* arena) -> SwitchStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->switchLoc = switchLoc;
   node->lparenLoc = lparenLoc;
@@ -6791,14 +6881,14 @@ auto SwitchStatementAST::create(Arena* arena) -> SwitchStatementAST* {
   return node;
 }
 
-auto SwitchStatementAST::create(Arena* arena, SourceLocation switchLoc,
-                                SourceLocation lparenLoc,
-                                StatementAST* initializer,
-                                ExpressionAST* condition,
-                                SourceLocation rparenLoc,
-                                StatementAST* statement, BlockSymbol* symbol)
+auto SwitchStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SourceLocation switchLoc, SourceLocation lparenLoc,
+    StatementAST* initializer, ExpressionAST* condition,
+    SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
     -> SwitchStatementAST* {
   auto node = new (arena) SwitchStatementAST();
+  node->attributeList = attributeList;
   node->switchLoc = switchLoc;
   node->lparenLoc = lparenLoc;
   node->initializer = initializer;
@@ -6809,11 +6899,14 @@ auto SwitchStatementAST::create(Arena* arena, SourceLocation switchLoc,
   return node;
 }
 
-auto SwitchStatementAST::create(Arena* arena, StatementAST* initializer,
+auto SwitchStatementAST::create(Arena* arena,
+                                List<AttributeSpecifierAST*>* attributeList,
+                                StatementAST* initializer,
                                 ExpressionAST* condition,
                                 StatementAST* statement, BlockSymbol* symbol)
     -> SwitchStatementAST* {
   auto node = new (arena) SwitchStatementAST();
+  node->attributeList = attributeList;
   node->initializer = initializer;
   node->condition = condition;
   node->statement = statement;
@@ -6823,6 +6916,14 @@ auto SwitchStatementAST::create(Arena* arena, StatementAST* initializer,
 
 auto WhileStatementAST::clone(Arena* arena) -> WhileStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->whileLoc = whileLoc;
   node->lparenLoc = lparenLoc;
@@ -6843,13 +6944,13 @@ auto WhileStatementAST::create(Arena* arena) -> WhileStatementAST* {
   return node;
 }
 
-auto WhileStatementAST::create(Arena* arena, SourceLocation whileLoc,
-                               SourceLocation lparenLoc,
-                               ExpressionAST* condition,
-                               SourceLocation rparenLoc,
-                               StatementAST* statement, BlockSymbol* symbol)
+auto WhileStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SourceLocation whileLoc, SourceLocation lparenLoc, ExpressionAST* condition,
+    SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
     -> WhileStatementAST* {
   auto node = new (arena) WhileStatementAST();
+  node->attributeList = attributeList;
   node->whileLoc = whileLoc;
   node->lparenLoc = lparenLoc;
   node->condition = condition;
@@ -6859,10 +6960,13 @@ auto WhileStatementAST::create(Arena* arena, SourceLocation whileLoc,
   return node;
 }
 
-auto WhileStatementAST::create(Arena* arena, ExpressionAST* condition,
+auto WhileStatementAST::create(Arena* arena,
+                               List<AttributeSpecifierAST*>* attributeList,
+                               ExpressionAST* condition,
                                StatementAST* statement, BlockSymbol* symbol)
     -> WhileStatementAST* {
   auto node = new (arena) WhileStatementAST();
+  node->attributeList = attributeList;
   node->condition = condition;
   node->statement = statement;
   node->symbol = symbol;
@@ -6871,6 +6975,14 @@ auto WhileStatementAST::create(Arena* arena, ExpressionAST* condition,
 
 auto DoStatementAST::clone(Arena* arena) -> DoStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->doLoc = doLoc;
 
@@ -6892,12 +7004,14 @@ auto DoStatementAST::create(Arena* arena) -> DoStatementAST* {
   return node;
 }
 
-auto DoStatementAST::create(Arena* arena, SourceLocation doLoc,
-                            StatementAST* statement, SourceLocation whileLoc,
-                            SourceLocation lparenLoc, ExpressionAST* expression,
-                            SourceLocation rparenLoc,
+auto DoStatementAST::create(Arena* arena,
+                            List<AttributeSpecifierAST*>* attributeList,
+                            SourceLocation doLoc, StatementAST* statement,
+                            SourceLocation whileLoc, SourceLocation lparenLoc,
+                            ExpressionAST* expression, SourceLocation rparenLoc,
                             SourceLocation semicolonLoc) -> DoStatementAST* {
   auto node = new (arena) DoStatementAST();
+  node->attributeList = attributeList;
   node->doLoc = doLoc;
   node->statement = statement;
   node->whileLoc = whileLoc;
@@ -6908,9 +7022,12 @@ auto DoStatementAST::create(Arena* arena, SourceLocation doLoc,
   return node;
 }
 
-auto DoStatementAST::create(Arena* arena, StatementAST* statement,
-                            ExpressionAST* expression) -> DoStatementAST* {
+auto DoStatementAST::create(Arena* arena,
+                            List<AttributeSpecifierAST*>* attributeList,
+                            StatementAST* statement, ExpressionAST* expression)
+    -> DoStatementAST* {
   auto node = new (arena) DoStatementAST();
+  node->attributeList = attributeList;
   node->statement = statement;
   node->expression = expression;
   return node;
@@ -6918,6 +7035,14 @@ auto DoStatementAST::create(Arena* arena, StatementAST* statement,
 
 auto ForRangeStatementAST::clone(Arena* arena) -> ForRangeStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->forLoc = forLoc;
   node->lparenLoc = lparenLoc;
@@ -6945,12 +7070,13 @@ auto ForRangeStatementAST::create(Arena* arena) -> ForRangeStatementAST* {
 }
 
 auto ForRangeStatementAST::create(
-    Arena* arena, SourceLocation forLoc, SourceLocation lparenLoc,
-    StatementAST* initializer, DeclarationAST* rangeDeclaration,
-    SourceLocation colonLoc, ExpressionAST* rangeInitializer,
-    SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
-    -> ForRangeStatementAST* {
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SourceLocation forLoc, SourceLocation lparenLoc, StatementAST* initializer,
+    DeclarationAST* rangeDeclaration, SourceLocation colonLoc,
+    ExpressionAST* rangeInitializer, SourceLocation rparenLoc,
+    StatementAST* statement, BlockSymbol* symbol) -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
+  node->attributeList = attributeList;
   node->forLoc = forLoc;
   node->lparenLoc = lparenLoc;
   node->initializer = initializer;
@@ -6963,12 +7089,15 @@ auto ForRangeStatementAST::create(
   return node;
 }
 
-auto ForRangeStatementAST::create(Arena* arena, StatementAST* initializer,
+auto ForRangeStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList,
+                                  StatementAST* initializer,
                                   DeclarationAST* rangeDeclaration,
                                   ExpressionAST* rangeInitializer,
                                   StatementAST* statement, BlockSymbol* symbol)
     -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
+  node->attributeList = attributeList;
   node->initializer = initializer;
   node->rangeDeclaration = rangeDeclaration;
   node->rangeInitializer = rangeInitializer;
@@ -6979,6 +7108,14 @@ auto ForRangeStatementAST::create(Arena* arena, StatementAST* initializer,
 
 auto ForStatementAST::clone(Arena* arena) -> ForStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->forLoc = forLoc;
   node->lparenLoc = lparenLoc;
@@ -7005,15 +7142,14 @@ auto ForStatementAST::create(Arena* arena) -> ForStatementAST* {
   return node;
 }
 
-auto ForStatementAST::create(Arena* arena, SourceLocation forLoc,
-                             SourceLocation lparenLoc,
-                             StatementAST* initializer,
-                             ExpressionAST* condition,
-                             SourceLocation semicolonLoc,
-                             ExpressionAST* expression,
-                             SourceLocation rparenLoc, StatementAST* statement,
-                             BlockSymbol* symbol) -> ForStatementAST* {
+auto ForStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SourceLocation forLoc, SourceLocation lparenLoc, StatementAST* initializer,
+    ExpressionAST* condition, SourceLocation semicolonLoc,
+    ExpressionAST* expression, SourceLocation rparenLoc,
+    StatementAST* statement, BlockSymbol* symbol) -> ForStatementAST* {
   auto node = new (arena) ForStatementAST();
+  node->attributeList = attributeList;
   node->forLoc = forLoc;
   node->lparenLoc = lparenLoc;
   node->initializer = initializer;
@@ -7026,11 +7162,14 @@ auto ForStatementAST::create(Arena* arena, SourceLocation forLoc,
   return node;
 }
 
-auto ForStatementAST::create(Arena* arena, StatementAST* initializer,
+auto ForStatementAST::create(Arena* arena,
+                             List<AttributeSpecifierAST*>* attributeList,
+                             StatementAST* initializer,
                              ExpressionAST* condition,
                              ExpressionAST* expression, StatementAST* statement,
                              BlockSymbol* symbol) -> ForStatementAST* {
   auto node = new (arena) ForStatementAST();
+  node->attributeList = attributeList;
   node->initializer = initializer;
   node->condition = condition;
   node->expression = expression;
@@ -7041,6 +7180,14 @@ auto ForStatementAST::create(Arena* arena, StatementAST* initializer,
 
 auto BreakStatementAST::clone(Arena* arena) -> BreakStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->breakLoc = breakLoc;
   node->semicolonLoc = semicolonLoc;
@@ -7053,17 +7200,36 @@ auto BreakStatementAST::create(Arena* arena) -> BreakStatementAST* {
   return node;
 }
 
-auto BreakStatementAST::create(Arena* arena, SourceLocation breakLoc,
+auto BreakStatementAST::create(Arena* arena,
+                               List<AttributeSpecifierAST*>* attributeList,
+                               SourceLocation breakLoc,
                                SourceLocation semicolonLoc)
     -> BreakStatementAST* {
   auto node = new (arena) BreakStatementAST();
+  node->attributeList = attributeList;
   node->breakLoc = breakLoc;
   node->semicolonLoc = semicolonLoc;
   return node;
 }
 
+auto BreakStatementAST::create(Arena* arena,
+                               List<AttributeSpecifierAST*>* attributeList)
+    -> BreakStatementAST* {
+  auto node = new (arena) BreakStatementAST();
+  node->attributeList = attributeList;
+  return node;
+}
+
 auto ContinueStatementAST::clone(Arena* arena) -> ContinueStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->continueLoc = continueLoc;
   node->semicolonLoc = semicolonLoc;
@@ -7076,17 +7242,36 @@ auto ContinueStatementAST::create(Arena* arena) -> ContinueStatementAST* {
   return node;
 }
 
-auto ContinueStatementAST::create(Arena* arena, SourceLocation continueLoc,
+auto ContinueStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList,
+                                  SourceLocation continueLoc,
                                   SourceLocation semicolonLoc)
     -> ContinueStatementAST* {
   auto node = new (arena) ContinueStatementAST();
+  node->attributeList = attributeList;
   node->continueLoc = continueLoc;
   node->semicolonLoc = semicolonLoc;
   return node;
 }
 
+auto ContinueStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList)
+    -> ContinueStatementAST* {
+  auto node = new (arena) ContinueStatementAST();
+  node->attributeList = attributeList;
+  return node;
+}
+
 auto ReturnStatementAST::clone(Arena* arena) -> ReturnStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->returnLoc = returnLoc;
 
@@ -7102,20 +7287,26 @@ auto ReturnStatementAST::create(Arena* arena) -> ReturnStatementAST* {
   return node;
 }
 
-auto ReturnStatementAST::create(Arena* arena, SourceLocation returnLoc,
+auto ReturnStatementAST::create(Arena* arena,
+                                List<AttributeSpecifierAST*>* attributeList,
+                                SourceLocation returnLoc,
                                 ExpressionAST* expression,
                                 SourceLocation semicolonLoc)
     -> ReturnStatementAST* {
   auto node = new (arena) ReturnStatementAST();
+  node->attributeList = attributeList;
   node->returnLoc = returnLoc;
   node->expression = expression;
   node->semicolonLoc = semicolonLoc;
   return node;
 }
 
-auto ReturnStatementAST::create(Arena* arena, ExpressionAST* expression)
+auto ReturnStatementAST::create(Arena* arena,
+                                List<AttributeSpecifierAST*>* attributeList,
+                                ExpressionAST* expression)
     -> ReturnStatementAST* {
   auto node = new (arena) ReturnStatementAST();
+  node->attributeList = attributeList;
   node->expression = expression;
   return node;
 }
@@ -7123,6 +7314,14 @@ auto ReturnStatementAST::create(Arena* arena, ExpressionAST* expression)
 auto CoroutineReturnStatementAST::clone(Arena* arena)
     -> CoroutineReturnStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->coreturnLoc = coreturnLoc;
 
@@ -7139,28 +7338,37 @@ auto CoroutineReturnStatementAST::create(Arena* arena)
   return node;
 }
 
-auto CoroutineReturnStatementAST::create(Arena* arena,
-                                         SourceLocation coreturnLoc,
-                                         ExpressionAST* expression,
-                                         SourceLocation semicolonLoc)
-    -> CoroutineReturnStatementAST* {
+auto CoroutineReturnStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SourceLocation coreturnLoc, ExpressionAST* expression,
+    SourceLocation semicolonLoc) -> CoroutineReturnStatementAST* {
   auto node = new (arena) CoroutineReturnStatementAST();
+  node->attributeList = attributeList;
   node->coreturnLoc = coreturnLoc;
   node->expression = expression;
   node->semicolonLoc = semicolonLoc;
   return node;
 }
 
-auto CoroutineReturnStatementAST::create(Arena* arena,
-                                         ExpressionAST* expression)
-    -> CoroutineReturnStatementAST* {
+auto CoroutineReturnStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    ExpressionAST* expression) -> CoroutineReturnStatementAST* {
   auto node = new (arena) CoroutineReturnStatementAST();
+  node->attributeList = attributeList;
   node->expression = expression;
   return node;
 }
 
 auto GotoStatementAST::clone(Arena* arena) -> GotoStatementAST* {
   auto node = create(arena);
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->gotoLoc = gotoLoc;
   node->starLoc = starLoc;
@@ -7177,13 +7385,15 @@ auto GotoStatementAST::create(Arena* arena) -> GotoStatementAST* {
   return node;
 }
 
-auto GotoStatementAST::create(Arena* arena, SourceLocation gotoLoc,
-                              SourceLocation starLoc,
+auto GotoStatementAST::create(Arena* arena,
+                              List<AttributeSpecifierAST*>* attributeList,
+                              SourceLocation gotoLoc, SourceLocation starLoc,
                               SourceLocation identifierLoc,
                               SourceLocation semicolonLoc,
                               const Identifier* identifier, bool isIndirect)
     -> GotoStatementAST* {
   auto node = new (arena) GotoStatementAST();
+  node->attributeList = attributeList;
   node->gotoLoc = gotoLoc;
   node->starLoc = starLoc;
   node->identifierLoc = identifierLoc;
@@ -7193,9 +7403,12 @@ auto GotoStatementAST::create(Arena* arena, SourceLocation gotoLoc,
   return node;
 }
 
-auto GotoStatementAST::create(Arena* arena, const Identifier* identifier,
-                              bool isIndirect) -> GotoStatementAST* {
+auto GotoStatementAST::create(Arena* arena,
+                              List<AttributeSpecifierAST*>* attributeList,
+                              const Identifier* identifier, bool isIndirect)
+    -> GotoStatementAST* {
   auto node = new (arena) GotoStatementAST();
+  node->attributeList = attributeList;
   node->identifier = identifier;
   node->isIndirect = isIndirect;
   return node;
@@ -7224,6 +7437,14 @@ auto DeclarationStatementAST::create(Arena* arena, DeclarationAST* declaration)
 auto TryBlockStatementAST::clone(Arena* arena) -> TryBlockStatementAST* {
   auto node = create(arena);
 
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   node->tryLoc = tryLoc;
 
   if (statement) node->statement = statement->clone(arena);
@@ -7244,21 +7465,27 @@ auto TryBlockStatementAST::create(Arena* arena) -> TryBlockStatementAST* {
   return node;
 }
 
-auto TryBlockStatementAST::create(Arena* arena, SourceLocation tryLoc,
+auto TryBlockStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList,
+                                  SourceLocation tryLoc,
                                   CompoundStatementAST* statement,
                                   List<HandlerAST*>* handlerList)
     -> TryBlockStatementAST* {
   auto node = new (arena) TryBlockStatementAST();
+  node->attributeList = attributeList;
   node->tryLoc = tryLoc;
   node->statement = statement;
   node->handlerList = handlerList;
   return node;
 }
 
-auto TryBlockStatementAST::create(Arena* arena, CompoundStatementAST* statement,
+auto TryBlockStatementAST::create(Arena* arena,
+                                  List<AttributeSpecifierAST*>* attributeList,
+                                  CompoundStatementAST* statement,
                                   List<HandlerAST*>* handlerList)
     -> TryBlockStatementAST* {
   auto node = new (arena) TryBlockStatementAST();
+  node->attributeList = attributeList;
   node->statement = statement;
   node->handlerList = handlerList;
   return node;

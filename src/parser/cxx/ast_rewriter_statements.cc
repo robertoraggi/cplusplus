@@ -233,6 +233,13 @@ auto ASTRewriter::StatementVisitor::operator()(ExpressionStatementAST* ast)
     -> StatementAST* {
   auto copy = ExpressionStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->expression = rewrite.expression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -244,6 +251,13 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
   auto copy = CompoundStatementAST::create(arena());
 
   auto _ = Binder::ScopeGuard(binder());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   if (ast->symbol) {
     copy->symbol = binder()->enterBlock(ast->symbol->location());
@@ -269,6 +283,13 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
 
   auto _ = Binder::ScopeGuard(binder());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   if (ast->symbol) {
     copy->symbol = binder()->enterBlock(ast->symbol->location());
   }
@@ -291,6 +312,13 @@ auto ASTRewriter::StatementVisitor::operator()(ConstevalIfStatementAST* ast)
     -> StatementAST* {
   auto copy = ConstevalIfStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->ifLoc = ast->ifLoc;
   copy->exclaimLoc = ast->exclaimLoc;
   copy->constvalLoc = ast->constvalLoc;
@@ -305,6 +333,13 @@ auto ASTRewriter::StatementVisitor::operator()(ConstevalIfStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
     -> StatementAST* {
   auto copy = SwitchStatementAST::create(arena());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -327,6 +362,13 @@ auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
     -> StatementAST* {
   auto copy = WhileStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   auto _ = Binder::ScopeGuard(binder());
 
   if (ast->symbol) {
@@ -347,6 +389,13 @@ auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
     -> StatementAST* {
   auto copy = DoStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->doLoc = ast->doLoc;
   copy->statement = rewrite.statement(ast->statement);
   copy->whileLoc = ast->whileLoc;
@@ -361,6 +410,13 @@ auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
     -> StatementAST* {
   auto copy = ForRangeStatementAST::create(arena());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -383,6 +439,13 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
     -> StatementAST* {
   auto copy = ForStatementAST::create(arena());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   auto _ = Binder::ScopeGuard(binder());
 
@@ -407,6 +470,13 @@ auto ASTRewriter::StatementVisitor::operator()(BreakStatementAST* ast)
     -> StatementAST* {
   auto copy = BreakStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->breakLoc = ast->breakLoc;
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -417,6 +487,13 @@ auto ASTRewriter::StatementVisitor::operator()(ContinueStatementAST* ast)
     -> StatementAST* {
   auto copy = ContinueStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->continueLoc = ast->continueLoc;
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -426,6 +503,13 @@ auto ASTRewriter::StatementVisitor::operator()(ContinueStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(ReturnStatementAST* ast)
     -> StatementAST* {
   auto copy = ReturnStatementAST::create(arena());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   copy->returnLoc = ast->returnLoc;
   copy->expression = rewrite.expression(ast->expression);
@@ -440,6 +524,13 @@ auto ASTRewriter::StatementVisitor::operator()(CoroutineReturnStatementAST* ast)
     -> StatementAST* {
   auto copy = CoroutineReturnStatementAST::create(arena());
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->coreturnLoc = ast->coreturnLoc;
   copy->expression = rewrite.expression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
@@ -450,6 +541,13 @@ auto ASTRewriter::StatementVisitor::operator()(CoroutineReturnStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(GotoStatementAST* ast)
     -> StatementAST* {
   auto copy = GotoStatementAST::create(arena());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   copy->gotoLoc = ast->gotoLoc;
   copy->starLoc = ast->starLoc;
@@ -473,6 +571,13 @@ auto ASTRewriter::StatementVisitor::operator()(DeclarationStatementAST* ast)
 auto ASTRewriter::StatementVisitor::operator()(TryBlockStatementAST* ast)
     -> StatementAST* {
   auto copy = TryBlockStatementAST::create(arena());
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
 
   copy->tryLoc = ast->tryLoc;
   copy->statement =

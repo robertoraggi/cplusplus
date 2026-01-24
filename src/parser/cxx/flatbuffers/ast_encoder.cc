@@ -2001,9 +2001,25 @@ void ASTEncoder::visit(DefaultStatementAST* ast) {
 }
 
 void ASTEncoder::visit(ExpressionStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   io::ExpressionStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_semicolon_loc(ast->semicolonLoc.index());
@@ -2013,6 +2029,20 @@ void ASTEncoder::visit(ExpressionStatementAST* ast) {
 }
 
 void ASTEncoder::visit(CompoundStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   std::vector<flatbuffers::Offset<>> statementListOffsets;
   std::vector<std::underlying_type_t<io::Statement>> statementListTypes;
 
@@ -2027,6 +2057,8 @@ void ASTEncoder::visit(CompoundStatementAST* ast) {
   auto statementListTypesVector = fbb_.CreateVector(statementListTypes);
 
   io::CompoundStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_lbrace_loc(ast->lbraceLoc.index());
   builder.add_statement_list(statementListOffsetsVector);
   builder.add_statement_list_type(statementListTypesVector);
@@ -2037,6 +2069,20 @@ void ASTEncoder::visit(CompoundStatementAST* ast) {
 }
 
 void ASTEncoder::visit(IfStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [initializer, initializerType] = acceptStatement(ast->initializer);
 
   const auto [condition, conditionType] = acceptExpression(ast->condition);
@@ -2047,6 +2093,8 @@ void ASTEncoder::visit(IfStatementAST* ast) {
       acceptStatement(ast->elseStatement);
 
   io::IfStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_if_loc(ast->ifLoc.index());
   builder.add_constexpr_loc(ast->constexprLoc.index());
   builder.add_lparen_loc(ast->lparenLoc.index());
@@ -2067,12 +2115,28 @@ void ASTEncoder::visit(IfStatementAST* ast) {
 }
 
 void ASTEncoder::visit(ConstevalIfStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
   const auto [elseStatement, elseStatementType] =
       acceptStatement(ast->elseStatement);
 
   io::ConstevalIfStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_if_loc(ast->ifLoc.index());
   builder.add_exclaim_loc(ast->exclaimLoc.index());
   builder.add_constval_loc(ast->constvalLoc.index());
@@ -2088,6 +2152,20 @@ void ASTEncoder::visit(ConstevalIfStatementAST* ast) {
 }
 
 void ASTEncoder::visit(SwitchStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [initializer, initializerType] = acceptStatement(ast->initializer);
 
   const auto [condition, conditionType] = acceptExpression(ast->condition);
@@ -2095,6 +2173,8 @@ void ASTEncoder::visit(SwitchStatementAST* ast) {
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
   io::SwitchStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_switch_loc(ast->switchLoc.index());
   builder.add_lparen_loc(ast->lparenLoc.index());
   builder.add_initializer(initializer);
@@ -2110,11 +2190,27 @@ void ASTEncoder::visit(SwitchStatementAST* ast) {
 }
 
 void ASTEncoder::visit(WhileStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [condition, conditionType] = acceptExpression(ast->condition);
 
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
   io::WhileStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_while_loc(ast->whileLoc.index());
   builder.add_lparen_loc(ast->lparenLoc.index());
   builder.add_condition(condition);
@@ -2128,11 +2224,27 @@ void ASTEncoder::visit(WhileStatementAST* ast) {
 }
 
 void ASTEncoder::visit(DoStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   io::DoStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_do_loc(ast->doLoc.index());
   builder.add_statement(statement);
   builder.add_statement_type(static_cast<io::Statement>(statementType));
@@ -2148,6 +2260,20 @@ void ASTEncoder::visit(DoStatementAST* ast) {
 }
 
 void ASTEncoder::visit(ForRangeStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [initializer, initializerType] = acceptStatement(ast->initializer);
 
   const auto [rangeDeclaration, rangeDeclarationType] =
@@ -2159,6 +2285,8 @@ void ASTEncoder::visit(ForRangeStatementAST* ast) {
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
   io::ForRangeStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_for_loc(ast->forLoc.index());
   builder.add_lparen_loc(ast->lparenLoc.index());
   builder.add_initializer(initializer);
@@ -2179,6 +2307,20 @@ void ASTEncoder::visit(ForRangeStatementAST* ast) {
 }
 
 void ASTEncoder::visit(ForStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [initializer, initializerType] = acceptStatement(ast->initializer);
 
   const auto [condition, conditionType] = acceptExpression(ast->condition);
@@ -2188,6 +2330,8 @@ void ASTEncoder::visit(ForStatementAST* ast) {
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
   io::ForStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_for_loc(ast->forLoc.index());
   builder.add_lparen_loc(ast->lparenLoc.index());
   builder.add_initializer(initializer);
@@ -2206,7 +2350,23 @@ void ASTEncoder::visit(ForStatementAST* ast) {
 }
 
 void ASTEncoder::visit(BreakStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   io::BreakStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_break_loc(ast->breakLoc.index());
   builder.add_semicolon_loc(ast->semicolonLoc.index());
 
@@ -2215,7 +2375,23 @@ void ASTEncoder::visit(BreakStatementAST* ast) {
 }
 
 void ASTEncoder::visit(ContinueStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   io::ContinueStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_continue_loc(ast->continueLoc.index());
   builder.add_semicolon_loc(ast->semicolonLoc.index());
 
@@ -2224,9 +2400,25 @@ void ASTEncoder::visit(ContinueStatementAST* ast) {
 }
 
 void ASTEncoder::visit(ReturnStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   io::ReturnStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_return_loc(ast->returnLoc.index());
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
@@ -2237,9 +2429,25 @@ void ASTEncoder::visit(ReturnStatementAST* ast) {
 }
 
 void ASTEncoder::visit(CoroutineReturnStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 
   io::CoroutineReturnStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_coreturn_loc(ast->coreturnLoc.index());
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
@@ -2250,6 +2458,20 @@ void ASTEncoder::visit(CoroutineReturnStatementAST* ast) {
 }
 
 void ASTEncoder::visit(GotoStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   flatbuffers::Offset<flatbuffers::String> identifier;
   if (ast->identifier) {
     if (identifiers_.contains(ast->identifier)) {
@@ -2261,6 +2483,8 @@ void ASTEncoder::visit(GotoStatementAST* ast) {
   }
 
   io::GotoStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_goto_loc(ast->gotoLoc.index());
   builder.add_star_loc(ast->starLoc.index());
   builder.add_identifier_loc(ast->identifierLoc.index());
@@ -2286,6 +2510,20 @@ void ASTEncoder::visit(DeclarationStatementAST* ast) {
 }
 
 void ASTEncoder::visit(TryBlockStatementAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto statement = accept(ast->statement);
 
   std::vector<flatbuffers::Offset<io::Handler>> handlerListOffsets;
@@ -2297,6 +2535,8 @@ void ASTEncoder::visit(TryBlockStatementAST* ast) {
   auto handlerListOffsetsVector = fbb_.CreateVector(handlerListOffsets);
 
   io::TryBlockStatement::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_try_loc(ast->tryLoc.index());
   builder.add_statement(statement.o);
   builder.add_handler_list(handlerListOffsetsVector);

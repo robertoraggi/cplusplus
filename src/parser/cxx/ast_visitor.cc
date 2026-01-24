@@ -370,15 +370,26 @@ void ASTVisitor::visit(CaseStatementAST* ast) { accept(ast->expression); }
 
 void ASTVisitor::visit(DefaultStatementAST* ast) {}
 
-void ASTVisitor::visit(ExpressionStatementAST* ast) { accept(ast->expression); }
+void ASTVisitor::visit(ExpressionStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+  accept(ast->expression);
+}
 
 void ASTVisitor::visit(CompoundStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   for (auto node : ListView{ast->statementList}) {
     accept(node);
   }
 }
 
 void ASTVisitor::visit(IfStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->initializer);
   accept(ast->condition);
   accept(ast->statement);
@@ -386,27 +397,42 @@ void ASTVisitor::visit(IfStatementAST* ast) {
 }
 
 void ASTVisitor::visit(ConstevalIfStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->statement);
   accept(ast->elseStatement);
 }
 
 void ASTVisitor::visit(SwitchStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->initializer);
   accept(ast->condition);
   accept(ast->statement);
 }
 
 void ASTVisitor::visit(WhileStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->condition);
   accept(ast->statement);
 }
 
 void ASTVisitor::visit(DoStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->statement);
   accept(ast->expression);
 }
 
 void ASTVisitor::visit(ForRangeStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->initializer);
   accept(ast->rangeDeclaration);
   accept(ast->rangeInitializer);
@@ -414,29 +440,55 @@ void ASTVisitor::visit(ForRangeStatementAST* ast) {
 }
 
 void ASTVisitor::visit(ForStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->initializer);
   accept(ast->condition);
   accept(ast->expression);
   accept(ast->statement);
 }
 
-void ASTVisitor::visit(BreakStatementAST* ast) {}
+void ASTVisitor::visit(BreakStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+}
 
-void ASTVisitor::visit(ContinueStatementAST* ast) {}
+void ASTVisitor::visit(ContinueStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+}
 
-void ASTVisitor::visit(ReturnStatementAST* ast) { accept(ast->expression); }
-
-void ASTVisitor::visit(CoroutineReturnStatementAST* ast) {
+void ASTVisitor::visit(ReturnStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->expression);
 }
 
-void ASTVisitor::visit(GotoStatementAST* ast) {}
+void ASTVisitor::visit(CoroutineReturnStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+  accept(ast->expression);
+}
+
+void ASTVisitor::visit(GotoStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+}
 
 void ASTVisitor::visit(DeclarationStatementAST* ast) {
   accept(ast->declaration);
 }
 
 void ASTVisitor::visit(TryBlockStatementAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->statement);
   for (auto node : ListView{ast->handlerList}) {
     accept(node);

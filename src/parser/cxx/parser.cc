@@ -1184,7 +1184,8 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
   binder_.complete(ast);
 
-  if (!parse_compound_statement(ast->statement)) {
+  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr,
+                                /*skip=*/false)) {
     parse_error("expected a compound statement");
   }
 
@@ -1528,7 +1529,8 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
     ast->lparenLoc = lparenLoc;
 
-    if (!parse_compound_statement(ast->statement)) {
+    if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr,
+                                  /*skip=*/false)) {
       parse_error("expected a compound statement");
     }
 
@@ -3262,28 +3264,9 @@ auto Parser::parse_maybe_statement(StatementAST*& yyast) -> bool {
 
   match(TokenKind::T___EXTENSION__, extensionLoc);
 
-  List<AttributeSpecifierAST*>* attributes = nullptr;
-  parse_optional_attribute_specifier_seq(attributes);
-
-  if (!extensionLoc) {
-    match(TokenKind::T___EXTENSION__, extensionLoc);
-  }
-
+  if (parse_labeled_statement(yyast)) return true;
   if (parse_case_statement(yyast)) return true;
   if (parse_default_statement(yyast)) return true;
-  if (parse_while_statement(yyast)) return true;
-  if (parse_do_statement(yyast)) return true;
-  if (parse_for_statement(yyast)) return true;
-  if (parse_if_statement(yyast)) return true;
-  if (parse_switch_statement(yyast)) return true;
-  if (parse_break_statement(yyast)) return true;
-  if (parse_continue_statement(yyast)) return true;
-  if (parse_return_statement(yyast)) return true;
-  if (parse_goto_statement(yyast)) return true;
-  if (parse_coroutine_return_statement(yyast)) return true;
-  if (parse_try_block(yyast)) return true;
-  if (parse_maybe_compound_statement(yyast)) return true;
-  if (parse_labeled_statement(yyast)) return true;
 
   auto lookat_declaration_statement = [&] {
     LookaheadParser lookahead{this};
@@ -3294,7 +3277,27 @@ auto Parser::parse_maybe_statement(StatementAST*& yyast) -> bool {
 
   if (lookat_declaration_statement()) return true;
 
-  return parse_expression_statement(yyast);
+  List<AttributeSpecifierAST*>* attributes = nullptr;
+  parse_optional_attribute_specifier_seq(attributes);
+
+  if (!extensionLoc) {
+    match(TokenKind::T___EXTENSION__, extensionLoc);
+  }
+
+  if (parse_while_statement(yyast, attributes)) return true;
+  if (parse_do_statement(yyast, attributes)) return true;
+  if (parse_for_statement(yyast, attributes)) return true;
+  if (parse_if_statement(yyast, attributes)) return true;
+  if (parse_switch_statement(yyast, attributes)) return true;
+  if (parse_break_statement(yyast, attributes)) return true;
+  if (parse_continue_statement(yyast, attributes)) return true;
+  if (parse_return_statement(yyast, attributes)) return true;
+  if (parse_goto_statement(yyast, attributes)) return true;
+  if (parse_coroutine_return_statement(yyast, attributes)) return true;
+  if (parse_try_block(yyast, attributes)) return true;
+  if (parse_maybe_compound_statement(yyast, attributes)) return true;
+
+  return parse_expression_statement(yyast, attributes);
 }
 
 void Parser::parse_init_statement(StatementAST*& yyast) {
@@ -3459,7 +3462,8 @@ auto Parser::parse_default_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_expression_statement(
+    StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool {
   SourceLocation semicolonLoc;
 
   ExpressionAST* expression = nullptr;
@@ -3473,23 +3477,26 @@ auto Parser::parse_expression_statement(StatementAST*& yyast) -> bool {
   auto ast = ExpressionStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->expression = expression;
   ast->semicolonLoc = semicolonLoc;
 
   return true;
 }
 
-auto Parser::parse_maybe_compound_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_maybe_compound_statement(
+    StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool {
   CompoundStatementAST* statement = nullptr;
-  if (parse_compound_statement(statement)) {
+  if (parse_compound_statement(statement, attributes, /*skip=*/false)) {
     yyast = statement;
     return true;
   }
   return false;
 }
 
-auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
-    -> bool {
+auto Parser::parse_compound_statement(CompoundStatementAST*& yyast,
+                                      List<AttributeSpecifierAST*>* attributes,
+                                      bool skip) -> bool {
   SourceLocation lbraceLoc;
 
   if (!match(TokenKind::T_LBRACE, lbraceLoc)) return false;
@@ -3519,6 +3526,8 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast, bool skip)
 
   auto ast = CompoundStatementAST::create(pool_);
   yyast = ast;
+
+  ast->attributeList = attributes;
 
   ast->symbol = blockSymbol;
   ast->lbraceLoc = lbraceLoc;
@@ -3590,7 +3599,9 @@ void Parser::parse_skip_statement(bool& skipping) {
   skipping = true;
 }
 
-auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_if_statement(StatementAST*& yyast,
+                                List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation ifLoc;
 
   if (!match(TokenKind::T_IF, ifLoc)) return false;
@@ -3602,14 +3613,16 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
   if (LA().isOneOf(TokenKind::T_EXCLAIM, TokenKind::T_CONSTEVAL)) {
     auto ast = ConstevalIfStatementAST::create(pool_);
     yyast = ast;
+
+    ast->attributeList = attributes;
     ast->ifLoc = ifLoc;
 
     ast->isNot = match(TokenKind::T_EXCLAIM, ast->exclaimLoc);
 
     expect(TokenKind::T_CONSTEVAL, ast->constvalLoc);
 
-    if (CompoundStatementAST* statement = nullptr;
-        parse_compound_statement(statement)) {
+    if (CompoundStatementAST* statement = nullptr; parse_compound_statement(
+            statement, /*sattributes*/ nullptr, /*skip=*/false)) {
       ast->statement = statement;
     } else {
       parse_error("expected compound statement");
@@ -3625,6 +3638,7 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
   auto ast = IfStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->ifLoc = ifLoc;
 
   match(TokenKind::T_CONSTEXPR, ast->constexprLoc);
@@ -3649,7 +3663,9 @@ auto Parser::parse_if_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_switch_statement(StatementAST*& yyast,
+                                    List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation switchLoc;
 
   if (!match(TokenKind::T_SWITCH, switchLoc)) return false;
@@ -3661,6 +3677,7 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
   auto ast = SwitchStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->switchLoc = switchLoc;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
@@ -3679,7 +3696,9 @@ auto Parser::parse_switch_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_while_statement(StatementAST*& yyast,
+                                   List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation whileLoc;
 
   if (!match(TokenKind::T_WHILE, whileLoc)) return false;
@@ -3691,6 +3710,7 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
   auto ast = WhileStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->whileLoc = whileLoc;
 
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
@@ -3707,7 +3727,9 @@ auto Parser::parse_while_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_do_statement(StatementAST*& yyast,
+                                List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation doLoc;
 
   if (!match(TokenKind::T_DO, doLoc)) return false;
@@ -3717,6 +3739,7 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
   auto ast = DoStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->doLoc = doLoc;
 
   parse_statement(ast->statement);
@@ -3735,7 +3758,9 @@ auto Parser::parse_do_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_for_statement(StatementAST*& yyast,
+                                 List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation forLoc;
   if (!match(TokenKind::T_FOR, forLoc)) return false;
 
@@ -3772,6 +3797,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
     auto ast = ForRangeStatementAST::create(pool_);
     yyast = ast;
 
+    ast->attributeList = attributes;
     ast->forLoc = forLoc;
     ast->rangeDeclaration = rangeDeclaration;
     ast->lparenLoc = lparenLoc;
@@ -3792,6 +3818,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast) -> bool {
   auto ast = ForStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->forLoc = forLoc;
   ast->lparenLoc = lparenLoc;
   ast->initializer = initializer;
@@ -3851,7 +3878,9 @@ void Parser::parse_for_range_initializer(ExpressionAST*& yyast) {
   parse_expr_or_braced_init_list(yyast, ExprContext{});
 }
 
-auto Parser::parse_break_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_break_statement(StatementAST*& yyast,
+                                   List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation breakLoc;
 
   if (!match(TokenKind::T_BREAK, breakLoc)) return false;
@@ -3859,6 +3888,7 @@ auto Parser::parse_break_statement(StatementAST*& yyast) -> bool {
   auto ast = BreakStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->breakLoc = breakLoc;
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
@@ -3866,7 +3896,9 @@ auto Parser::parse_break_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_continue_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_continue_statement(StatementAST*& yyast,
+                                      List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation continueLoc;
 
   if (!match(TokenKind::T_CONTINUE, continueLoc)) return false;
@@ -3874,6 +3906,7 @@ auto Parser::parse_continue_statement(StatementAST*& yyast) -> bool {
   auto ast = ContinueStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->continueLoc = continueLoc;
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
@@ -3881,7 +3914,9 @@ auto Parser::parse_continue_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_return_statement(StatementAST*& yyast,
+                                    List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation returnLoc;
 
   if (!match(TokenKind::T_RETURN, returnLoc)) return false;
@@ -3889,6 +3924,7 @@ auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
   auto ast = ReturnStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->returnLoc = returnLoc;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
@@ -3902,7 +3938,9 @@ auto Parser::parse_return_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_goto_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_goto_statement(StatementAST*& yyast,
+                                  List<AttributeSpecifierAST*>* attributes)
+    -> bool {
   SourceLocation gotoLoc;
 
   if (!match(TokenKind::T_GOTO, gotoLoc)) return false;
@@ -3910,6 +3948,7 @@ auto Parser::parse_goto_statement(StatementAST*& yyast) -> bool {
   auto ast = GotoStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->gotoLoc = gotoLoc;
 
   ast->isIndirect = match(TokenKind::T_STAR, ast->starLoc);
@@ -3923,7 +3962,8 @@ auto Parser::parse_goto_statement(StatementAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_coroutine_return_statement(StatementAST*& yyast) -> bool {
+auto Parser::parse_coroutine_return_statement(
+    StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool {
   SourceLocation coreturnLoc;
 
   if (!match(TokenKind::T_CO_RETURN, coreturnLoc)) return false;
@@ -3931,6 +3971,7 @@ auto Parser::parse_coroutine_return_statement(StatementAST*& yyast) -> bool {
   auto ast = CoroutineReturnStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->coreturnLoc = coreturnLoc;
 
   if (!match(TokenKind::T_SEMICOLON, ast->semicolonLoc)) {
@@ -6532,7 +6573,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
 
   const bool skip = skipFunctionBody_ || classDepth_ > 0;
 
-  if (!parse_compound_statement(ast->statement, skip)) {
+  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr, skip)) {
     parse_error("expected a compound statement");
   }
 
@@ -9759,7 +9800,8 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_try_block(StatementAST*& yyast) -> bool {
+auto Parser::parse_try_block(StatementAST*& yyast,
+                             List<AttributeSpecifierAST*>* attributes) -> bool {
   SourceLocation tryLoc;
 
   if (!match(TokenKind::T_TRY, tryLoc)) return false;
@@ -9767,9 +9809,11 @@ auto Parser::parse_try_block(StatementAST*& yyast) -> bool {
   auto ast = TryBlockStatementAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributes;
   ast->tryLoc = tryLoc;
 
-  if (!parse_compound_statement(ast->statement)) {
+  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr,
+                                /*skip=*/false)) {
     parse_error("expected a compound statement");
   }
 
@@ -9796,7 +9840,8 @@ auto Parser::parse_function_try_block(FunctionBodyAST*& yyast) -> bool {
     }
   }
 
-  if (!parse_compound_statement(ast->statement)) {
+  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr,
+                                /*skip=*/false)) {
     parse_error("expected a compound statement");
   }
 
@@ -9824,7 +9869,8 @@ auto Parser::parse_handler(HandlerAST*& yyast) -> bool {
 
   expect(TokenKind::T_RPAREN, yyast->rparenLoc);
 
-  if (!parse_compound_statement(yyast->statement)) {
+  if (!parse_compound_statement(yyast->statement, /*attributes=*/nullptr,
+                                /*skip=*/false)) {
     parse_error("expected a compound statement");
   }
 
