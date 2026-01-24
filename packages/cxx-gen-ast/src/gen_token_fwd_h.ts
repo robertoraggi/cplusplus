@@ -69,6 +69,11 @@ export function gen_token_fwd_h({ output }: { output: string }) {
     emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
   );
 
+  const firstKeyword = tokens.C_AND_CXX_KEYWORDS[0];
+
+  const lastKeyword =
+    tokens.C_AND_CXX_KEYWORDS[tokens.C_AND_CXX_KEYWORDS.length - 1];
+
   const out = `// Generated file by: gen_token_fwd_h.ts
 ${cpy_header}
 #pragma once
@@ -115,6 +120,11 @@ enum class BinaryBuiltinTypeKind {
 #undef TOKEN_ENUM
 #undef TOKEN_ALIAS_ENUM
 // clang-format on
+
+[[nodiscard]] inline auto is_keyword(TokenKind tk) -> bool {
+  return tk >= TokenKind::T_${firstKeyword.toUpperCase()} &&
+         tk <= TokenKind::T_${lastKeyword.toUpperCase()};
+}
 
 [[nodiscard]] inline auto get_underlying_binary_op(TokenKind op) -> TokenKind {
   switch (op) {
