@@ -1050,8 +1050,14 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       // unary minus
       auto expressionResult = gen.expression(ast->expression);
       auto resultType = gen.convertType(ast->type);
-
       auto loc = gen.getLocation(ast->opLoc);
+
+      if (control()->is_floating_point(ast->type)) {
+        auto op = mlir::cxx::NegFOp::create(gen.builder_, loc, resultType,
+                                            expressionResult.value);
+
+        return {op};
+      }
 
       if (control()->is_integral_or_unscoped_enum(ast->type)) {
         auto zero =

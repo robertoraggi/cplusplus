@@ -380,6 +380,12 @@ def Cxx_GreaterEqualOp : Cxx_Op<"ge"> {
 // float operations
 //
 
+def Cxx_NegFOp : Cxx_Op<"negf"> {
+  let arguments = (ins Cxx_FloatType:$value);
+
+  let results = (outs Cxx_FloatType:$result);
+}
+
 def Cxx_AddFOp : Cxx_Op<"addf"> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 

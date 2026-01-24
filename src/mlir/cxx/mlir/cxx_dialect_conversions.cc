@@ -1249,6 +1249,28 @@ class XorOpLowering : public OpConversionPattern<cxx::XorOp> {
 //
 // floating point operations
 //
+class NegFOpLowering : public OpConversionPattern<cxx::NegFOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::NegFOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert negf operation type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::FNegOp>(op, resultType,
+                                              adaptor.getValue());
+
+    return success();
+  }
+};
 
 class AddFOpLowering : public OpConversionPattern<cxx::AddFOp> {
  public:
@@ -1833,9 +1855,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                                                               context);
 
   // floating point operations
-  patterns
-      .insert<AddFOpLowering, SubFOpLowering, MulFOpLowering, DivFOpLowering>(
-          typeConverter, context);
+  patterns.insert<NegFOpLowering, AddFOpLowering, SubFOpLowering,
+                  MulFOpLowering, DivFOpLowering>(typeConverter, context);
 
   // floating point comparison operations
   patterns
