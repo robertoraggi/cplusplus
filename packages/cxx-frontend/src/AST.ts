@@ -4129,11 +4129,37 @@ export class ExpressionStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the expression of this node
    */
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
+      cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
   }
@@ -4142,7 +4168,7 @@ export class ExpressionStatementAST extends StatementAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
 
@@ -4164,10 +4190,36 @@ export class CompoundStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the lbrace token in this node
    */
   getLbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
@@ -4200,7 +4252,7 @@ export class CompoundStatementAST extends StatementAST {
    * Returns the location of the rbrace token in this node
    */
   getRbraceToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 }
 
@@ -4222,16 +4274,253 @@ export class IfStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the if token in this node
    */
   getIfToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the constexpr token in this node
    */
   getConstexprToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the condition of this node
+   */
+  getCondition(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 5),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+  }
+
+  /**
+   * Returns the statement of this node
+   */
+  getStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 7),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the else token in this node
+   */
+  getElseToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
+  }
+
+  /**
+   * Returns the elseStatement of this node
+   */
+  getElseStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 9),
+      this.parser,
+    );
+  }
+}
+
+/**
+ * ConstevalIfStatementAST node.
+ */
+export class ConstevalIfStatementAST extends StatementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConstevalIfStatement(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
+   * Returns the location of the if token in this node
+   */
+  getIfToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the exclaim token in this node
+   */
+  getExclaimToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the location of the constval token in this node
+   */
+  getConstvalToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the statement of this node
+   */
+  getStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the else token in this node
+   */
+  getElseToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+  }
+
+  /**
+   * Returns the elseStatement of this node
+   */
+  getElseStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 6),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the isNot attribute of this node
+   */
+  getIsNot(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 7) !== 0;
+  }
+}
+
+/**
+ * SwitchStatementAST node.
+ */
+export class SwitchStatementAST extends StatementAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitSwitchStatement(this, context);
+  }
+
+  /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
+   * Returns the location of the switch token in this node
+   */
+  getSwitchToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
@@ -4278,165 +4567,6 @@ export class IfStatementAST extends StatementAST {
       this.parser,
     );
   }
-
-  /**
-   * Returns the location of the else token in this node
-   */
-  getElseToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
-  }
-
-  /**
-   * Returns the elseStatement of this node
-   */
-  getElseStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 8),
-      this.parser,
-    );
-  }
-}
-
-/**
- * ConstevalIfStatementAST node.
- */
-export class ConstevalIfStatementAST extends StatementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitConstevalIfStatement(this, context);
-  }
-
-  /**
-   * Returns the location of the if token in this node
-   */
-  getIfToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the exclaim token in this node
-   */
-  getExclaimToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the location of the constval token in this node
-   */
-  getConstvalToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
-  }
-
-  /**
-   * Returns the statement of this node
-   */
-  getStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the else token in this node
-   */
-  getElseToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the elseStatement of this node
-   */
-  getElseStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the isNot attribute of this node
-   */
-  getIsNot(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
-  }
-}
-
-/**
- * SwitchStatementAST node.
- */
-export class SwitchStatementAST extends StatementAST {
-  /**
-   * Traverse this node using the given visitor.
-   * @param visitor the visitor.
-   * @param context the context.
-   * @returns the result of the visit.
-   */
-  accept<Context, Result>(
-    visitor: ASTVisitor<Context, Result>,
-    context: Context,
-  ): Result {
-    return visitor.visitSwitchStatement(this, context);
-  }
-
-  /**
-   * Returns the location of the switch token in this node
-   */
-  getSwitchToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
-  }
-
-  /**
-   * Returns the location of the lparen token in this node
-   */
-  getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
-  }
-
-  /**
-   * Returns the initializer of this node
-   */
-  getInitializer(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the condition of this node
-   */
-  getCondition(): ExpressionAST | undefined {
-    return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
-      this.parser,
-    );
-  }
-
-  /**
-   * Returns the location of the rparen token in this node
-   */
-  getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
-  }
-
-  /**
-   * Returns the statement of this node
-   */
-  getStatement(): StatementAST | undefined {
-    return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
-      this.parser,
-    );
-  }
 }
 
 /**
@@ -4457,17 +4587,43 @@ export class WhileStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the while token in this node
    */
   getWhileToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
@@ -4475,7 +4631,7 @@ export class WhileStatementAST extends StatementAST {
    */
   getCondition(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -4484,7 +4640,7 @@ export class WhileStatementAST extends StatementAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
@@ -4492,7 +4648,7 @@ export class WhileStatementAST extends StatementAST {
    */
   getStatement(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
   }
@@ -4516,10 +4672,36 @@ export class DoStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the do token in this node
    */
   getDoToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
@@ -4527,7 +4709,7 @@ export class DoStatementAST extends StatementAST {
    */
   getStatement(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -4536,14 +4718,14 @@ export class DoStatementAST extends StatementAST {
    * Returns the location of the while token in this node
    */
   getWhileToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
@@ -4551,7 +4733,7 @@ export class DoStatementAST extends StatementAST {
    */
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 4),
+      cxx.getASTSlot(this.getHandle(), 5),
       this.parser,
     );
   }
@@ -4560,14 +4742,14 @@ export class DoStatementAST extends StatementAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 }
 
@@ -4589,17 +4771,43 @@ export class ForRangeStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the for token in this node
    */
   getForToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
@@ -4607,7 +4815,7 @@ export class ForRangeStatementAST extends StatementAST {
    */
   getInitializer(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -4617,7 +4825,7 @@ export class ForRangeStatementAST extends StatementAST {
    */
   getRangeDeclaration(): DeclarationAST | undefined {
     return AST.from<DeclarationAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
   }
@@ -4626,7 +4834,7 @@ export class ForRangeStatementAST extends StatementAST {
    * Returns the location of the colon token in this node
    */
   getColonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
   }
 
   /**
@@ -4634,7 +4842,7 @@ export class ForRangeStatementAST extends StatementAST {
    */
   getRangeInitializer(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
+      cxx.getASTSlot(this.getHandle(), 6),
       this.parser,
     );
   }
@@ -4643,7 +4851,7 @@ export class ForRangeStatementAST extends StatementAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 
   /**
@@ -4651,7 +4859,7 @@ export class ForRangeStatementAST extends StatementAST {
    */
   getStatement(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 7),
+      cxx.getASTSlot(this.getHandle(), 8),
       this.parser,
     );
   }
@@ -4675,17 +4883,43 @@ export class ForStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the for token in this node
    */
   getForToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
@@ -4693,7 +4927,7 @@ export class ForStatementAST extends StatementAST {
    */
   getInitializer(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 2),
+      cxx.getASTSlot(this.getHandle(), 3),
       this.parser,
     );
   }
@@ -4703,7 +4937,7 @@ export class ForStatementAST extends StatementAST {
    */
   getCondition(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
   }
@@ -4712,7 +4946,7 @@ export class ForStatementAST extends StatementAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
   }
 
   /**
@@ -4720,7 +4954,7 @@ export class ForStatementAST extends StatementAST {
    */
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 5),
+      cxx.getASTSlot(this.getHandle(), 6),
       this.parser,
     );
   }
@@ -4729,7 +4963,7 @@ export class ForStatementAST extends StatementAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
 
   /**
@@ -4737,7 +4971,7 @@ export class ForStatementAST extends StatementAST {
    */
   getStatement(): StatementAST | undefined {
     return AST.from<StatementAST>(
-      cxx.getASTSlot(this.getHandle(), 7),
+      cxx.getASTSlot(this.getHandle(), 8),
       this.parser,
     );
   }
@@ -4761,17 +4995,43 @@ export class BreakStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the break token in this node
    */
   getBreakToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
 
@@ -4793,17 +5053,43 @@ export class ContinueStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the continue token in this node
    */
   getContinueToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 }
 
@@ -4825,10 +5111,36 @@ export class ReturnStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the return token in this node
    */
   getReturnToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
@@ -4836,7 +5148,7 @@ export class ReturnStatementAST extends StatementAST {
    */
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -4845,7 +5157,7 @@ export class ReturnStatementAST extends StatementAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 }
 
@@ -4867,10 +5179,36 @@ export class CoroutineReturnStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the coreturn token in this node
    */
   getCoreturnToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
@@ -4878,7 +5216,7 @@ export class CoroutineReturnStatementAST extends StatementAST {
    */
   getExpression(): ExpressionAST | undefined {
     return AST.from<ExpressionAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }
@@ -4887,7 +5225,7 @@ export class CoroutineReturnStatementAST extends StatementAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 }
 
@@ -4909,38 +5247,64 @@ export class GotoStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the goto token in this node
    */
   getGotoToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
    * Returns the location of the star token in this node
    */
   getStarToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
    * Returns the location of the identifier token in this node
    */
   getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 4);
+    const slot = cxx.getASTSlot(this.getHandle(), 5);
     return cxx.getIdentifierValue(slot);
   }
 
@@ -4948,7 +5312,7 @@ export class GotoStatementAST extends StatementAST {
    * Returns the isIndirect attribute of this node
    */
   getIsIndirect(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 5) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
   }
 }
 
@@ -4998,10 +5362,36 @@ export class TryBlockStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the location of the try token in this node
    */
   getTryToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
   }
 
   /**
@@ -5009,7 +5399,7 @@ export class TryBlockStatementAST extends StatementAST {
    */
   getStatement(): CompoundStatementAST | undefined {
     return AST.from<CompoundStatementAST>(
-      cxx.getASTSlot(this.getHandle(), 1),
+      cxx.getASTSlot(this.getHandle(), 2),
       this.parser,
     );
   }

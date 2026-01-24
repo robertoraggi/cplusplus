@@ -1983,6 +1983,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(DefaultStatementAST* ast) {
 
 void ASTPrettyPrinter::StatementVisitor::operator()(
     ExpressionStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   accept(ast->expression);
   if (ast->semicolonLoc) {
     nospace();
@@ -1993,6 +1997,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(CompoundStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->lbraceLoc) {
     space();
     accept.writeToken(ast->lbraceLoc);
@@ -2013,6 +2021,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(CompoundStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(IfStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->ifLoc) {
     accept.writeToken(ast->ifLoc);
   }
@@ -2039,6 +2051,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(IfStatementAST* ast) {
 
 void ASTPrettyPrinter::StatementVisitor::operator()(
     ConstevalIfStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->ifLoc) {
     accept.writeToken(ast->ifLoc);
   }
@@ -2056,6 +2072,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(SwitchStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->switchLoc) {
     accept.writeToken(ast->switchLoc);
   }
@@ -2074,6 +2094,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(SwitchStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(WhileStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->whileLoc) {
     accept.writeToken(ast->whileLoc);
   }
@@ -2091,6 +2115,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(WhileStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(DoStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->doLoc) {
     accept.writeToken(ast->doLoc);
   }
@@ -2117,6 +2145,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(DoStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(ForRangeStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->forLoc) {
     accept.writeToken(ast->forLoc);
   }
@@ -2140,6 +2172,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(ForStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->forLoc) {
     accept.writeToken(ast->forLoc);
   }
@@ -2164,6 +2200,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(ForStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(BreakStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->breakLoc) {
     accept.writeToken(ast->breakLoc);
   }
@@ -2176,6 +2216,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(BreakStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(ContinueStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->continueLoc) {
     accept.writeToken(ast->continueLoc);
   }
@@ -2188,6 +2232,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(ContinueStatementAST* ast) {
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(ReturnStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->returnLoc) {
     accept.writeToken(ast->returnLoc);
   }
@@ -2202,6 +2250,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(ReturnStatementAST* ast) {
 
 void ASTPrettyPrinter::StatementVisitor::operator()(
     CoroutineReturnStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->coreturnLoc) {
     accept.writeToken(ast->coreturnLoc);
   }
@@ -2215,6 +2267,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(GotoStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->gotoLoc) {
     accept.writeToken(ast->gotoLoc);
   }
@@ -2238,6 +2294,10 @@ void ASTPrettyPrinter::StatementVisitor::operator()(
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(TryBlockStatementAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->tryLoc) {
     accept.writeToken(ast->tryLoc);
   }

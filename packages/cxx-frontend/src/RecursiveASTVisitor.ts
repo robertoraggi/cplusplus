@@ -851,6 +851,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.ExpressionStatementAST,
     context: Context,
   ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getExpression(), context);
   }
 
@@ -864,6 +867,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.CompoundStatementAST,
     context: Context,
   ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     for (const element of node.getStatementList()) {
       this.accept(element, context);
     }
@@ -876,6 +882,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitIfStatement(node: ast.IfStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getInitializer(), context);
     this.accept(node.getCondition(), context);
     this.accept(node.getStatement(), context);
@@ -892,6 +901,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.ConstevalIfStatementAST,
     context: Context,
   ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getStatement(), context);
     this.accept(node.getElseStatement(), context);
   }
@@ -903,6 +915,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitSwitchStatement(node: ast.SwitchStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getInitializer(), context);
     this.accept(node.getCondition(), context);
     this.accept(node.getStatement(), context);
@@ -915,6 +930,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitWhileStatement(node: ast.WhileStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getCondition(), context);
     this.accept(node.getStatement(), context);
   }
@@ -926,6 +944,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitDoStatement(node: ast.DoStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getStatement(), context);
     this.accept(node.getExpression(), context);
   }
@@ -940,6 +961,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.ForRangeStatementAST,
     context: Context,
   ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getInitializer(), context);
     this.accept(node.getRangeDeclaration(), context);
     this.accept(node.getRangeInitializer(), context);
@@ -953,6 +977,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitForStatement(node: ast.ForStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getInitializer(), context);
     this.accept(node.getCondition(), context);
     this.accept(node.getExpression(), context);
@@ -965,7 +992,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param node The node to visit.
    * @param context The context.
    */
-  visitBreakStatement(node: ast.BreakStatementAST, context: Context): void {}
+  visitBreakStatement(node: ast.BreakStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+  }
 
   /**
    * Visit a ContinueStatement node.
@@ -976,7 +1007,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitContinueStatement(
     node: ast.ContinueStatementAST,
     context: Context,
-  ): void {}
+  ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+  }
 
   /**
    * Visit a ReturnStatement node.
@@ -985,6 +1020,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitReturnStatement(node: ast.ReturnStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getExpression(), context);
   }
 
@@ -998,6 +1036,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.CoroutineReturnStatementAST,
     context: Context,
   ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getExpression(), context);
   }
 
@@ -1007,7 +1048,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param node The node to visit.
    * @param context The context.
    */
-  visitGotoStatement(node: ast.GotoStatementAST, context: Context): void {}
+  visitGotoStatement(node: ast.GotoStatementAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
+  }
 
   /**
    * Visit a DeclarationStatement node.
@@ -1032,6 +1077,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     node: ast.TryBlockStatementAST,
     context: Context,
   ): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getStatement(), context);
     for (const element of node.getHandlerList()) {
       this.accept(element, context);

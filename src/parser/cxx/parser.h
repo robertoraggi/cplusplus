@@ -349,35 +349,67 @@ class Parser final {
   [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
+
   void parse_statement(StatementAST*& yyast);
   [[nodiscard]] auto parse_maybe_statement(StatementAST*& yyast) -> bool;
+
   void parse_init_statement(StatementAST*& yyast);
   void parse_condition(ExpressionAST*& yyast, const ExprContext& ctx);
+
   [[nodiscard]] auto parse_labeled_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_case_statement(StatementAST*& yyast) -> bool;
   [[nodiscard]] auto parse_default_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_expression_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_maybe_compound_statement(StatementAST*& yyast)
-      -> bool;
-  [[nodiscard]] auto parse_compound_statement(CompoundStatementAST*& yyast,
-                                              bool skip = false) -> bool;
+
+  [[nodiscard]] auto parse_expression_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_maybe_compound_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_compound_statement(
+      CompoundStatementAST*& yyast, List<AttributeSpecifierAST*>* attributes,
+      bool skip /* = false*/) -> bool;
+
   void finish_compound_statement(CompoundStatementAST* yyast);
   void parse_skip_statement(bool& skipping);
-  [[nodiscard]] auto parse_if_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_switch_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_while_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_do_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_for_statement(StatementAST*& yyast) -> bool;
+
+  [[nodiscard]] auto parse_if_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_switch_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_while_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_do_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_for_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
   [[nodiscard]] auto parse_for_range_declaration(DeclarationAST*& yyast)
       -> bool;
+
   void parse_for_range_initializer(ExpressionAST*& yyast);
-  [[nodiscard]] auto parse_break_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_continue_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_return_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_goto_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_coroutine_return_statement(StatementAST*& yyast)
-      -> bool;
+
+  [[nodiscard]] auto parse_break_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_continue_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_return_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_goto_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
+  [[nodiscard]] auto parse_coroutine_return_statement(
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+
   [[nodiscard]] auto parse_declaration_statement(StatementAST*& yyast) -> bool;
+
   [[nodiscard]] auto parse_maybe_module() -> bool;
   [[nodiscard]] auto parse_template_declaration_body(
       DeclarationAST*& yyast, TemplateDeclarationAST* templateHead) -> bool;
@@ -752,7 +784,11 @@ class Parser final {
                                               DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_explicit_instantiation(DeclarationAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_try_block(StatementAST*& yyast) -> bool;
+
+  [[nodiscard]] auto parse_try_block(StatementAST*& yyast,
+                                     List<AttributeSpecifierAST*>* attributes)
+      -> bool;
+
   [[nodiscard]] auto parse_function_try_block(FunctionBodyAST*& yyast) -> bool;
   [[nodiscard]] auto parse_handler(HandlerAST*& yyast) -> bool;
   [[nodiscard]] auto parse_handler_seq(List<HandlerAST*>*& yyast) -> bool;

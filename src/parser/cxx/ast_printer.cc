@@ -877,11 +877,29 @@ void ASTPrinter::visit(DefaultStatementAST* ast) {
 
 void ASTPrinter::visit(ExpressionStatementAST* ast) {
   out_ << std::format("{}\n", "expression-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(CompoundStatementAST* ast) {
   out_ << std::format("{}\n", "compound-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   if (ast->statementList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -895,6 +913,15 @@ void ASTPrinter::visit(CompoundStatementAST* ast) {
 
 void ASTPrinter::visit(IfStatementAST* ast) {
   out_ << std::format("{}\n", "if-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->initializer, "initializer");
   accept(ast->condition, "condition");
   accept(ast->statement, "statement");
@@ -909,12 +936,30 @@ void ASTPrinter::visit(ConstevalIfStatementAST* ast) {
     out_ << std::format("is-not: {}\n", ast->isNot);
     --indent_;
   }
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->statement, "statement");
   accept(ast->elseStatement, "else-statement");
 }
 
 void ASTPrinter::visit(SwitchStatementAST* ast) {
   out_ << std::format("{}\n", "switch-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->initializer, "initializer");
   accept(ast->condition, "condition");
   accept(ast->statement, "statement");
@@ -922,18 +967,45 @@ void ASTPrinter::visit(SwitchStatementAST* ast) {
 
 void ASTPrinter::visit(WhileStatementAST* ast) {
   out_ << std::format("{}\n", "while-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->condition, "condition");
   accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(DoStatementAST* ast) {
   out_ << std::format("{}\n", "do-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->statement, "statement");
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(ForRangeStatementAST* ast) {
   out_ << std::format("{}\n", "for-range-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->initializer, "initializer");
   accept(ast->rangeDeclaration, "range-declaration");
   accept(ast->rangeInitializer, "range-initializer");
@@ -942,6 +1014,15 @@ void ASTPrinter::visit(ForRangeStatementAST* ast) {
 
 void ASTPrinter::visit(ForStatementAST* ast) {
   out_ << std::format("{}\n", "for-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->initializer, "initializer");
   accept(ast->condition, "condition");
   accept(ast->expression, "expression");
@@ -950,19 +1031,55 @@ void ASTPrinter::visit(ForStatementAST* ast) {
 
 void ASTPrinter::visit(BreakStatementAST* ast) {
   out_ << std::format("{}\n", "break-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ContinueStatementAST* ast) {
   out_ << std::format("{}\n", "continue-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ReturnStatementAST* ast) {
   out_ << std::format("{}\n", "return-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(CoroutineReturnStatementAST* ast) {
   out_ << std::format("{}\n", "coroutine-return-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
@@ -975,6 +1092,15 @@ void ASTPrinter::visit(GotoStatementAST* ast) {
     out_ << std::format("is-indirect: {}\n", ast->isIndirect);
     --indent_;
   }
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(DeclarationStatementAST* ast) {
@@ -984,6 +1110,15 @@ void ASTPrinter::visit(DeclarationStatementAST* ast) {
 
 void ASTPrinter::visit(TryBlockStatementAST* ast) {
   out_ << std::format("{}\n", "try-block-statement");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->statement, "statement");
   if (ast->handlerList) {
     ++indent_;

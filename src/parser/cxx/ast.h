@@ -2242,6 +2242,7 @@ class ExpressionStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ExpressionStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
 
@@ -2254,11 +2255,15 @@ class ExpressionStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ExpressionStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* expression,
                                    SourceLocation semicolonLoc)
       -> ExpressionStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* expression)
       -> ExpressionStatementAST*;
 
  protected:
@@ -2269,6 +2274,7 @@ class CompoundStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CompoundStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation lbraceLoc;
   List<StatementAST*>* statementList = nullptr;
   SourceLocation rbraceLoc;
@@ -2283,13 +2289,13 @@ class CompoundStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> CompoundStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation lbraceLoc,
-                                   List<StatementAST*>* statementList,
-                                   SourceLocation rbraceLoc,
-                                   BlockSymbol* symbol)
-      -> CompoundStatementAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation lbraceLoc, List<StatementAST*>* statementList,
+      SourceLocation rbraceLoc, BlockSymbol* symbol) -> CompoundStatementAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
                                    List<StatementAST*>* statementList,
                                    BlockSymbol* symbol)
       -> CompoundStatementAST*;
@@ -2302,6 +2308,7 @@ class IfStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::IfStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation ifLoc;
   SourceLocation constexprLoc;
   SourceLocation lparenLoc;
@@ -2323,13 +2330,16 @@ class IfStatementAST final : public StatementAST {
   [[nodiscard]] static auto create(Arena* arena) -> IfStatementAST*;
 
   [[nodiscard]] static auto create(
-      Arena* arena, SourceLocation ifLoc, SourceLocation constexprLoc,
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation ifLoc, SourceLocation constexprLoc,
       SourceLocation lparenLoc, StatementAST* initializer,
       ExpressionAST* condition, SourceLocation rparenLoc,
       StatementAST* statement, SourceLocation elseLoc,
       StatementAST* elseStatement, BlockSymbol* symbol) -> IfStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* initializer,
                                    ExpressionAST* condition,
                                    StatementAST* statement,
                                    StatementAST* elseStatement,
@@ -2343,6 +2353,7 @@ class ConstevalIfStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ConstevalIfStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation ifLoc;
   SourceLocation exclaimLoc;
   SourceLocation constvalLoc;
@@ -2360,15 +2371,16 @@ class ConstevalIfStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ConstevalIfStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation ifLoc,
-                                   SourceLocation exclaimLoc,
-                                   SourceLocation constvalLoc,
-                                   StatementAST* statement,
-                                   SourceLocation elseLoc,
-                                   StatementAST* elseStatement, bool isNot)
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation ifLoc, SourceLocation exclaimLoc,
+      SourceLocation constvalLoc, StatementAST* statement,
+      SourceLocation elseLoc, StatementAST* elseStatement, bool isNot)
       -> ConstevalIfStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, StatementAST* statement,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* statement,
                                    StatementAST* elseStatement, bool isNot)
       -> ConstevalIfStatementAST*;
 
@@ -2380,6 +2392,7 @@ class SwitchStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::SwitchStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation switchLoc;
   SourceLocation lparenLoc;
   StatementAST* initializer = nullptr;
@@ -2397,15 +2410,16 @@ class SwitchStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> SwitchStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation switchLoc,
-                                   SourceLocation lparenLoc,
-                                   StatementAST* initializer,
-                                   ExpressionAST* condition,
-                                   SourceLocation rparenLoc,
-                                   StatementAST* statement, BlockSymbol* symbol)
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation switchLoc, SourceLocation lparenLoc,
+      StatementAST* initializer, ExpressionAST* condition,
+      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
       -> SwitchStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* initializer,
                                    ExpressionAST* condition,
                                    StatementAST* statement, BlockSymbol* symbol)
       -> SwitchStatementAST*;
@@ -2418,6 +2432,7 @@ class WhileStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::WhileStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation whileLoc;
   SourceLocation lparenLoc;
   ExpressionAST* condition = nullptr;
@@ -2434,14 +2449,15 @@ class WhileStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> WhileStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation whileLoc,
-                                   SourceLocation lparenLoc,
-                                   ExpressionAST* condition,
-                                   SourceLocation rparenLoc,
-                                   StatementAST* statement, BlockSymbol* symbol)
-      -> WhileStatementAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation whileLoc, SourceLocation lparenLoc,
+      ExpressionAST* condition, SourceLocation rparenLoc,
+      StatementAST* statement, BlockSymbol* symbol) -> WhileStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* condition,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* condition,
                                    StatementAST* statement, BlockSymbol* symbol)
       -> WhileStatementAST*;
 
@@ -2453,6 +2469,7 @@ class DoStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DoStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation doLoc;
   StatementAST* statement = nullptr;
   SourceLocation whileLoc;
@@ -2471,12 +2488,14 @@ class DoStatementAST final : public StatementAST {
   [[nodiscard]] static auto create(Arena* arena) -> DoStatementAST*;
 
   [[nodiscard]] static auto create(
-      Arena* arena, SourceLocation doLoc, StatementAST* statement,
-      SourceLocation whileLoc, SourceLocation lparenLoc,
-      ExpressionAST* expression, SourceLocation rparenLoc,
-      SourceLocation semicolonLoc) -> DoStatementAST*;
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation doLoc, StatementAST* statement, SourceLocation whileLoc,
+      SourceLocation lparenLoc, ExpressionAST* expression,
+      SourceLocation rparenLoc, SourceLocation semicolonLoc) -> DoStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, StatementAST* statement,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* statement,
                                    ExpressionAST* expression)
       -> DoStatementAST*;
 
@@ -2488,6 +2507,7 @@ class ForRangeStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ForRangeStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation forLoc;
   SourceLocation lparenLoc;
   StatementAST* initializer = nullptr;
@@ -2508,13 +2528,16 @@ class ForRangeStatementAST final : public StatementAST {
   [[nodiscard]] static auto create(Arena* arena) -> ForRangeStatementAST*;
 
   [[nodiscard]] static auto create(
-      Arena* arena, SourceLocation forLoc, SourceLocation lparenLoc,
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation forLoc, SourceLocation lparenLoc,
       StatementAST* initializer, DeclarationAST* rangeDeclaration,
       SourceLocation colonLoc, ExpressionAST* rangeInitializer,
       SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
       -> ForRangeStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* initializer,
                                    DeclarationAST* rangeDeclaration,
                                    ExpressionAST* rangeInitializer,
                                    StatementAST* statement, BlockSymbol* symbol)
@@ -2528,6 +2551,7 @@ class ForStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ForStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation forLoc;
   SourceLocation lparenLoc;
   StatementAST* initializer = nullptr;
@@ -2548,13 +2572,16 @@ class ForStatementAST final : public StatementAST {
   [[nodiscard]] static auto create(Arena* arena) -> ForStatementAST*;
 
   [[nodiscard]] static auto create(
-      Arena* arena, SourceLocation forLoc, SourceLocation lparenLoc,
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation forLoc, SourceLocation lparenLoc,
       StatementAST* initializer, ExpressionAST* condition,
       SourceLocation semicolonLoc, ExpressionAST* expression,
       SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
       -> ForStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, StatementAST* initializer,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* initializer,
                                    ExpressionAST* condition,
                                    ExpressionAST* expression,
                                    StatementAST* statement, BlockSymbol* symbol)
@@ -2568,6 +2595,7 @@ class BreakStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BreakStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation breakLoc;
   SourceLocation semicolonLoc;
 
@@ -2580,8 +2608,14 @@ class BreakStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> BreakStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation breakLoc,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation breakLoc,
                                    SourceLocation semicolonLoc)
+      -> BreakStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList)
       -> BreakStatementAST*;
 
  protected:
@@ -2592,6 +2626,7 @@ class ContinueStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ContinueStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation continueLoc;
   SourceLocation semicolonLoc;
 
@@ -2604,8 +2639,14 @@ class ContinueStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ContinueStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation continueLoc,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation continueLoc,
                                    SourceLocation semicolonLoc)
+      -> ContinueStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList)
       -> ContinueStatementAST*;
 
  protected:
@@ -2616,6 +2657,7 @@ class ReturnStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ReturnStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation returnLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
@@ -2629,12 +2671,16 @@ class ReturnStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ReturnStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation returnLoc,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation returnLoc,
                                    ExpressionAST* expression,
                                    SourceLocation semicolonLoc)
       -> ReturnStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* expression)
       -> ReturnStatementAST*;
 
  protected:
@@ -2645,6 +2691,7 @@ class CoroutineReturnStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::CoroutineReturnStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation coreturnLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation semicolonLoc;
@@ -2660,12 +2707,16 @@ class CoroutineReturnStatementAST final : public StatementAST {
   [[nodiscard]] static auto create(Arena* arena)
       -> CoroutineReturnStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation coreturnLoc,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation coreturnLoc,
                                    ExpressionAST* expression,
                                    SourceLocation semicolonLoc)
       -> CoroutineReturnStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* expression)
       -> CoroutineReturnStatementAST*;
 
  protected:
@@ -2676,6 +2727,7 @@ class GotoStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GotoStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation gotoLoc;
   SourceLocation starLoc;
   SourceLocation identifierLoc;
@@ -2692,14 +2744,15 @@ class GotoStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> GotoStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation gotoLoc,
-                                   SourceLocation starLoc,
-                                   SourceLocation identifierLoc,
-                                   SourceLocation semicolonLoc,
-                                   const Identifier* identifier,
-                                   bool isIndirect) -> GotoStatementAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SourceLocation gotoLoc, SourceLocation starLoc,
+      SourceLocation identifierLoc, SourceLocation semicolonLoc,
+      const Identifier* identifier, bool isIndirect) -> GotoStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   const Identifier* identifier,
                                    bool isIndirect) -> GotoStatementAST*;
 
  protected:
@@ -2732,6 +2785,7 @@ class TryBlockStatementAST final : public StatementAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TryBlockStatement;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation tryLoc;
   CompoundStatementAST* statement = nullptr;
   List<HandlerAST*>* handlerList = nullptr;
@@ -2745,12 +2799,15 @@ class TryBlockStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> TryBlockStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation tryLoc,
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   SourceLocation tryLoc,
                                    CompoundStatementAST* statement,
                                    List<HandlerAST*>* handlerList)
       -> TryBlockStatementAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
                                    CompoundStatementAST* statement,
                                    List<HandlerAST*>* handlerList)
       -> TryBlockStatementAST*;

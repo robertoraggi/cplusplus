@@ -1719,17 +1719,20 @@ table DefaultStatement /* StatementAST */ {
 }
 
 table ExpressionStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   expression: Expression;
   semicolon_loc: uint32;
 }
 
 table CompoundStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   statement_list: [Statement];
   lbrace_loc: uint32;
   rbrace_loc: uint32;
 }
 
 table IfStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   initializer: Statement;
   condition: Expression;
   statement: Statement;
@@ -1742,6 +1745,7 @@ table IfStatement /* StatementAST */ {
 }
 
 table ConstevalIfStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   statement: Statement;
   else_statement: Statement;
   if_loc: uint32;
@@ -1751,6 +1755,7 @@ table ConstevalIfStatement /* StatementAST */ {
 }
 
 table SwitchStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   initializer: Statement;
   condition: Expression;
   statement: Statement;
@@ -1760,6 +1765,7 @@ table SwitchStatement /* StatementAST */ {
 }
 
 table WhileStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   condition: Expression;
   statement: Statement;
   while_loc: uint32;
@@ -1768,6 +1774,7 @@ table WhileStatement /* StatementAST */ {
 }
 
 table DoStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   statement: Statement;
   expression: Expression;
   do_loc: uint32;
@@ -1778,6 +1785,7 @@ table DoStatement /* StatementAST */ {
 }
 
 table ForRangeStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   initializer: Statement;
   range_declaration: Declaration;
   range_initializer: Expression;
@@ -1789,6 +1797,7 @@ table ForRangeStatement /* StatementAST */ {
 }
 
 table ForStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   initializer: Statement;
   condition: Expression;
   expression: Expression;
@@ -1800,28 +1809,33 @@ table ForStatement /* StatementAST */ {
 }
 
 table BreakStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   break_loc: uint32;
   semicolon_loc: uint32;
 }
 
 table ContinueStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   continue_loc: uint32;
   semicolon_loc: uint32;
 }
 
 table ReturnStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   expression: Expression;
   return_loc: uint32;
   semicolon_loc: uint32;
 }
 
 table CoroutineReturnStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   expression: Expression;
   coreturn_loc: uint32;
   semicolon_loc: uint32;
 }
 
 table GotoStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   identifier: string;
   goto_loc: uint32;
   star_loc: uint32;
@@ -1834,6 +1848,7 @@ table DeclarationStatement /* StatementAST */ {
 }
 
 table TryBlockStatement /* StatementAST */ {
+  attribute_list: [AttributeSpecifier];
   statement: CompoundStatement;
   handler_list: [Handler];
   try_loc: uint32;
