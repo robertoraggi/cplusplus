@@ -234,6 +234,7 @@ class Token;
   V(__IS_CLASS, "__is_class")                                     \
   V(__IS_COMPOUND, "__is_compound")                               \
   V(__IS_CONST, "__is_const")                                     \
+  V(__IS_CONVERTIBLE_TO, "__is_convertible_to")                   \
   V(__IS_EMPTY, "__is_empty")                                     \
   V(__IS_ENUM, "__is_enum")                                       \
   V(__IS_FINAL, "__is_final")                                     \

@@ -25,6 +25,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/memory_layout.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -241,7 +242,10 @@ void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
       break;
 
     case TokenKind::T___INT64:
-      // ### todo
+      if (control()->memoryLayout()->sizeOfLong() == 8)
+        specs.type_ = control()->getLongIntType();
+      else if (control()->memoryLayout()->sizeOfLongLong() == 8)
+        specs.type_ = control()->getLongLongIntType();
       break;
 
     case TokenKind::T___INT128_T:
