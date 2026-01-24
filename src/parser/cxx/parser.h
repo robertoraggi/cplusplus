@@ -607,6 +607,8 @@ class Parser final {
     kAll = kCxxAttribute | kGnuAttribute | kAsmSpecifier | kAlignasSpecifier,
   };
 
+  void rewrite_keyword_as_identifier();
+
   void parse_optional_attribute_specifier_seq(
       List<AttributeSpecifierAST*>*& yyast,
       AllowedAttributes allowedAttributes = AllowedAttributes::kIgnoreAsm);

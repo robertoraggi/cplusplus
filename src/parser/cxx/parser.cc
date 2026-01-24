@@ -7328,6 +7328,14 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
+void Parser::rewrite_keyword_as_identifier() {
+  if (!is_keyword(LA().kind())) return;
+  auto id = control()->getIdentifier(Token::spell(LA().kind()));
+  auto loc = currentLocation();
+  unit->setTokenKind(loc, TokenKind::T_IDENTIFIER);
+  unit->setTokenValue(loc, {id});
+}
+
 void Parser::parse_optional_attribute_specifier_seq(
     List<AttributeSpecifierAST*>*& yyast, AllowedAttributes allowedAttributes) {
   if (!parse_attribute_specifier_seq(yyast, allowedAttributes)) {
@@ -7619,6 +7627,9 @@ auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
 auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
   if (parse_attribute_scoped_token(yyast)) return true;
 
+  // Allow keywords as attribute token
+  rewrite_keyword_as_identifier();
+
   SourceLocation identifierLoc;
 
   if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
@@ -7645,6 +7656,9 @@ auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
 
   lookahead.commit();
 
+  // Allow keywords as attribute token
+  rewrite_keyword_as_identifier();
+
   SourceLocation identifierLoc;
 
   expect(TokenKind::T_IDENTIFIER, identifierLoc);
@@ -7663,6 +7677,9 @@ auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
 
 auto Parser::parse_attribute_namespace(SourceLocation& attributeNamespaceLoc)
     -> bool {
+  // Allow keywords as attribute namespace
+  rewrite_keyword_as_identifier();
+
   if (!match(TokenKind::T_IDENTIFIER, attributeNamespaceLoc)) return false;
 
   return true;

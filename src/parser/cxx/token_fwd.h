@@ -355,6 +355,10 @@ enum class BinaryBuiltinTypeKind {
 #undef TOKEN_ALIAS_ENUM
 // clang-format on
 
+[[nodiscard]] inline auto is_keyword(TokenKind tk) -> bool {
+  return tk >= TokenKind::T__ATOMIC && tk <= TokenKind::T_WHILE;
+}
+
 [[nodiscard]] inline auto get_underlying_binary_op(TokenKind op) -> TokenKind {
   switch (op) {
     case TokenKind::T_STAR_EQUAL:
