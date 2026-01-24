@@ -1395,6 +1395,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
         break;
       }
 
+      case BuiltinTypeTraitKind::T___IS_CONVERTIBLE_TO: {
+        break;
+      }
+
       case BuiltinTypeTraitKind::T___IS_EMPTY: {
         break;
       }

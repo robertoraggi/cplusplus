@@ -101,6 +101,10 @@ void WindowsToolchain::addPredefinedMacros() {
   defineMacro("__unaligned", "");
   defineMacro("_Pragma(a)", "");
 
+  defineMacro("__int8", "char");
+  defineMacro("__int16", "short");
+  defineMacro("__int32", "int");
+
   addCommonMacros();
   addCommonWindowsMacros();
 

@@ -215,6 +215,7 @@ export const BUILTIN_TYPE_TRAITS: string[] = [
   "__is_class",
   "__is_compound",
   "__is_const",
+  "__is_convertible_to",
   "__is_empty",
   "__is_enum",
   "__is_final",
