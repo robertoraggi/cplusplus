@@ -110,10 +110,12 @@ struct Codegen::UnitVisitor {
         visit(*this, specialization.symbol);
       }
 
-      if (!symbol->templateParameters()) {
-        for (auto member : views::members(symbol)) {
-          visit(*this, member);
-        }
+      for (auto ctor : symbol->constructors()) {
+        visit(*this, ctor);
+      }
+
+      for (auto member : views::members(symbol)) {
+        visit(*this, member);
       }
     }
 
