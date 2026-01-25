@@ -7285,7 +7285,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
   SourceLocation externLoc;
   List<AttributeSpecifierAST*>* attributes = nullptr;
   SourceLocation stringLiteralLoc;
-  bool isExternC = false;
+  LanguageKind languageLinkage = LanguageKind::kCXX;
 
   auto lookat_linkage_specification = [&] {
     LookaheadParser lookahead{this};
@@ -7298,36 +7298,22 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
     lookahead.commit();
 
-    isExternC = unit->literal(stringLiteralLoc)->value() == "\"C\"";
+    if (unit->literal(stringLiteralLoc)->value() == "\"C\"") {
+      languageLinkage = LanguageKind::kC;
+    } else if (unit->literal(stringLiteralLoc)->value() != "\"C++\"") {
+      parse_error(stringLiteralLoc,
+                  std::format("unknown language linkage: {}",
+                              unit->literal(stringLiteralLoc)->value()));
+    }
 
     return true;
   };
 
-  auto update_linkage = [&](DeclarationAST* declaration) {
-    if (!declaration) return;
-    if (!isExternC) return;
-
-    if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(declaration)) {
-      for (auto declarator : ListView{simpleDecl->initDeclaratorList}) {
-        auto func = symbol_cast<FunctionSymbol>(declarator->symbol);
-        if (!func) continue;
-        func->setHasCxxLinkage(false);
-      }
-      return;
-    }
-
-    if (auto functionDecl = ast_cast<FunctionDefinitionAST>(declaration)) {
-      if (auto func = symbol_cast<FunctionSymbol>(functionDecl->symbol)) {
-        func->setHasCxxLinkage(false);
-      }
-    }
-  };
-
   if (!lookat_linkage_specification()) return false;
 
-  SourceLocation lbraceLoc;
+  auto savedLanguageLinkage = binder_.changeLanguageLinkage(languageLinkage);
 
-  if (match(TokenKind::T_LBRACE, lbraceLoc)) {
+  if (SourceLocation lbraceLoc; match(TokenKind::T_LBRACE, lbraceLoc)) {
     SourceLocation rbraceLoc;
 
     auto ast = LinkageSpecificationAST::create(pool_);
@@ -7344,27 +7330,23 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
       expect(TokenKind::T_RBRACE, ast->rbraceLoc);
     }
 
-    for (auto declaration : ListView{ast->declarationList}) {
-      update_linkage(declaration);
-    }
+  } else {
+    DeclarationAST* declaration = nullptr;
 
-    return true;
+    if (!parse_declaration(declaration, BindingContext::kNamespace))
+      return false;
+
+    auto ast = LinkageSpecificationAST::create(pool_);
+    yyast = ast;
+
+    ast->externLoc = externLoc;
+    ast->stringliteralLoc = stringLiteralLoc;
+    ast->stringLiteral =
+        static_cast<const StringLiteral*>(unit->literal(ast->stringliteralLoc));
+    ast->declarationList = make_list_node(pool_, declaration);
   }
 
-  DeclarationAST* declaration = nullptr;
-
-  if (!parse_declaration(declaration, BindingContext::kNamespace)) return false;
-
-  update_linkage(declaration);
-
-  auto ast = LinkageSpecificationAST::create(pool_);
-  yyast = ast;
-
-  ast->externLoc = externLoc;
-  ast->stringliteralLoc = stringLiteralLoc;
-  ast->stringLiteral =
-      static_cast<const StringLiteral*>(unit->literal(ast->stringliteralLoc));
-  ast->declarationList = make_list_node(pool_, declaration);
+  (void)binder_.changeLanguageLinkage(savedLanguageLinkage);
 
   return true;
 }

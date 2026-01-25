@@ -591,13 +591,15 @@ auto FunctionSymbol::isConstructor() const -> bool {
   return true;
 }
 
-auto FunctionSymbol::hasCLinkage() const -> bool { return isExternC_; }
-
-auto FunctionSymbol::hasCxxLinkage() const -> bool { return !isExternC_; }
-
-void FunctionSymbol::setHasCxxLinkage(bool hasCxxLinkage) {
-  isExternC_ = !hasCxxLinkage;
+auto FunctionSymbol::languageLinkage() const -> LanguageKind {
+  return hasCLinkage_ ? LanguageKind::kC : LanguageKind::kCXX;
 }
+
+void FunctionSymbol::setLanguageLinkage(LanguageKind linkage) {
+  hasCLinkage_ = (linkage == LanguageKind::kC);
+}
+
+auto FunctionSymbol::hasCLinkage() const -> bool { return hasCLinkage_; }
 
 OverloadSetSymbol::OverloadSetSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
