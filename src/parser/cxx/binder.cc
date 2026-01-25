@@ -40,7 +40,10 @@
 
 namespace cxx {
 
-Binder::Binder(TranslationUnit* unit) : unit_(unit) {}
+Binder::Binder(TranslationUnit* unit) : unit_(unit) {
+  languageLinkage_ = unit->language() == LanguageKind::kC ? LanguageKind::kC
+                                                          : LanguageKind::kCXX;
+}
 
 auto Binder::translationUnit() const -> TranslationUnit* { return unit_; }
 
@@ -113,6 +116,19 @@ void Binder::setScope(ScopeSymbol* scope) {
       break;
     }
   }
+}
+
+auto Binder::languageLinkage() const -> LanguageKind {
+  return languageLinkage_;
+}
+
+void Binder::setLanguageLinkage(LanguageKind linkage) {
+  languageLinkage_ = linkage;
+}
+
+auto Binder::changeLanguageLinkage(LanguageKind linkage) -> LanguageKind {
+  std::swap(languageLinkage_, linkage);
+  return linkage;
 }
 
 auto Binder::enterBlock(SourceLocation loc) -> BlockSymbol* {
@@ -761,13 +777,20 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
 
   auto functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
 
-  if (is_parsing_c()) {
-    functionSymbol->setHasCxxLinkage(false);
-  }
-
   applySpecifiers(functionSymbol, decl.specs);
   functionSymbol->setName(name);
   functionSymbol->setType(type);
+
+  if (is_parsing_c()) {
+    // in C mode, functions have C linkage
+    functionSymbol->setLanguageLinkage(LanguageKind::kC);
+  } else {
+    if (!scope()->isNamespace()) {
+      functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
+    } else {
+      functionSymbol->setLanguageLinkage(languageLinkage_);
+    }
+  }
 
   if (functionSymbol->isConstructor()) {
     auto enclosingClass = symbol_cast<ClassSymbol>(scope());

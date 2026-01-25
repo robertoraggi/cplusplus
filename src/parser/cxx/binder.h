@@ -54,6 +54,12 @@ class Binder {
   [[nodiscard]] auto scope() const -> ScopeSymbol*;
   void setScope(ScopeSymbol* scope);
 
+  [[nodiscard]] auto languageLinkage() const -> LanguageKind;
+  void setLanguageLinkage(LanguageKind linkage);
+
+  [[nodiscard]] auto changeLanguageLinkage(LanguageKind linkage)
+      -> LanguageKind;
+
   [[nodiscard]] auto isInstantiating() const -> bool;
   [[nodiscard]] auto instantiatingSymbol() const -> Symbol*;
   void setInstantiatingSymbol(Symbol* symbol);
@@ -170,6 +176,7 @@ class Binder {
   TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;
   Symbol* instantiatingSymbol_ = nullptr;
+  LanguageKind languageLinkage_ = LanguageKind::kCXX;
   bool inTemplate_ = false;
   bool reportErrors_ = true;
 };
