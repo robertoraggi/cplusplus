@@ -177,19 +177,19 @@ def Cxx_CallOp : Cxx_Op<"call"> {
 }
 
 def Cxx_AllocaOp : Cxx_Op<"alloca"> {
-  let arguments = (ins);
+  let arguments = (ins I64Prop:$alignment);
 
   let results = (outs Cxx_PointerType:$result);
 }
 
 def Cxx_LoadOp : Cxx_Op<"load"> {
-  let arguments = (ins Cxx_PointerType:$addr);
+  let arguments = (ins Cxx_PointerType:$addr, I64Prop:$alignment);
 
   let results = (outs AnyType:$result);
 }
 
 def Cxx_StoreOp : Cxx_Op<"store"> {
-  let arguments = (ins AnyType:$value, Cxx_PointerType:$addr);
+  let arguments = (ins AnyType:$value, Cxx_PointerType:$addr, I64Prop:$alignment);
 
   let hasVerifier = 1;
 }

@@ -331,7 +331,8 @@ void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
 
   if (gen.exitValue_) {
     mlir::cxx::StoreOp::create(gen.builder_, loc, value.value,
-                               gen.exitValue_.getResult());
+                               gen.exitValue_.getResult(),
+                               gen.getAlignment(gen.returnType_));
   }
 
   mlir::cf::BranchOp::create(gen.builder_, loc, gen.exitBlock_);

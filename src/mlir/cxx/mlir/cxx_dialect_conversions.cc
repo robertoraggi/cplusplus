@@ -255,8 +255,8 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
         typeConverter->convertType(rewriter.getIndexType()),
         rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
 
-    auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(op, resultType,
-                                                         elementType, size);
+    auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(
+        op, resultType, elementType, size, op.getAlignment());
 
     if (auto diLocal =
             op->getAttrOfType<LLVM::DILocalVariableAttr>("cxx.di_local")) {
@@ -287,8 +287,8 @@ class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
 
     auto resultType = typeConverter->convertType(op.getType());
 
-    rewriter.replaceOpWithNewOp<LLVM::LoadOp>(op, resultType,
-                                              adaptor.getAddr());
+    rewriter.replaceOpWithNewOp<LLVM::LoadOp>(op, resultType, adaptor.getAddr(),
+                                              op.getAlignment());
 
     return success();
   }
@@ -317,8 +317,8 @@ class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
                                          "failed to convert store value type");
     }
 
-    rewriter.replaceOpWithNewOp<LLVM::StoreOp>(op, adaptor.getValue(),
-                                               adaptor.getAddr());
+    rewriter.replaceOpWithNewOp<LLVM::StoreOp>(
+        op, adaptor.getValue(), adaptor.getAddr(), op.getAlignment());
 
     return success();
   }
