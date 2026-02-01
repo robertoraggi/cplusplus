@@ -710,25 +710,6 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
       field && !field->isStatic()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(field->parent());
-
-    // Find the field index in the class layout
-    const auto& layout = gen.getLayout(classSymbol);
-    uint32_t fieldIndex = 0;
-    bool foundField = false;
-    for (const auto& info : layout.fields) {
-      if (info.symbol == field) {
-        fieldIndex = info.index;
-        foundField = true;
-        break;
-      }
-    }
-
-    if (!foundField) {
-      return {gen.emitTodoExpr(ast->firstSourceLocation(),
-                               "field not found in layout")};
-    }
-
     auto baseExpressionResult = gen.expression(ast->baseExpression);
 
     auto baseType = gen.control()->remove_cv(ast->baseExpression->type);
@@ -747,50 +728,25 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     }
 
     auto startClass = classType->symbol();
+    auto layout = startClass->layout();
+    if (!layout) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "class layout not computed")};
+    }
 
-    mlir::Value currentPtr = baseExpressionResult.value;
-
-    if (startClass != classSymbol) {
-      std::vector<uint32_t> path;
-
-      if (gen.findPath(startClass, classSymbol, path)) {
-        // Apply path
-        auto current = startClass;
-        for (auto baseIndex : path) {
-          const auto& currentLayout = gen.getLayout(current);
-          ClassSymbol* nextClass = nullptr;
-          for (const auto& base : currentLayout.bases) {
-            if (base.index == baseIndex) {
-              nextClass = base.symbol;
-              break;
-            }
-          }
-
-          if (!nextClass) {
-            return {gen.emitTodoExpr(ast->firstSourceLocation(),
-                                     "base symbol not found")};
-          }
-
-          auto ptrType =
-              gen.convertType(gen.control()->add_pointer(nextClass->type()));
-          auto loc = gen.getLocation(ast->firstSourceLocation());
-          currentPtr = mlir::cxx::MemberOp::create(gen.builder_, loc, ptrType,
-                                                   currentPtr, baseIndex);
-          current = nextClass;
-        }
-      } else {
-        return {gen.emitTodoExpr(ast->firstSourceLocation(),
-                                 "cannot find base path")};
-      }
+    auto fieldInfo = layout->getFieldInfo(field);
+    if (!fieldInfo) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "field not found in layout")};
     }
 
     auto loc = gen.getLocation(ast->firstSourceLocation());
-
     auto resultType =
         gen.convertType(gen.control()->add_pointer(field->type()));
 
     auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, resultType,
-                                          currentPtr, fieldIndex);
+                                          baseExpressionResult.value,
+                                          fieldInfo->index);
     return {op};
   }
 
@@ -920,6 +876,36 @@ auto Codegen::ExpressionVisitor::operator()(BuiltinBitCastExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(BuiltinOffsetofExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->symbol) {
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto resultType = gen.convertType(ast->type);
+
+    // Get the class type from typeId
+    auto classType = type_cast<ClassType>(ast->typeId->type);
+    if (!classType) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "__builtin_offsetof requires a class type")};
+    }
+
+    auto classSymbol = classType->symbol();
+    auto layout = classSymbol->layout();
+    if (!layout) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "class layout not computed")};
+    }
+
+    auto fieldInfo = layout->getFieldInfo(ast->symbol);
+    if (!fieldInfo) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "field not found in layout")};
+    }
+
+    auto op = mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultType,
+                                               fieldInfo->offset);
+
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -1310,6 +1296,17 @@ auto Codegen::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->typeId && ast->typeId->type) {
+    auto memoryLayout = control()->memoryLayout();
+    auto alignment = memoryLayout->alignmentOf(ast->typeId->type).value();
+
+    auto resultlType = gen.convertType(ast->type);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto op = mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultlType,
+                                               alignment);
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -1322,6 +1319,16 @@ auto Codegen::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->expression && ast->expression->type) {
+    auto memoryLayout = control()->memoryLayout();
+    auto alignment = memoryLayout->alignmentOf(ast->expression->type).value();
+    auto resultlType = gen.convertType(ast->type);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto op = mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultlType,
+                                               alignment);
+    return {op};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 

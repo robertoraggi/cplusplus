@@ -302,9 +302,8 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
   std::vector<mlir::Type> memberTypes;
 
   if (classSymbol->isUnion()) {
-    auto& layout = gen.getLayout(classSymbol);
-    auto size = layout.size;
-    auto alignment = layout.alignment;
+    auto size = classSymbol->sizeInBytes();
+    auto alignment = classSymbol->alignment();
     if (alignment == 0) alignment = 1;
 
     auto byteType = gen.builder_.getType<mlir::cxx::IntegerType>(8, false);
