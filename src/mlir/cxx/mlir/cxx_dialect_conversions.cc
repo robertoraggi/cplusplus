@@ -257,6 +257,13 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
 
     auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(op, resultType,
                                                          elementType, size);
+
+    if (auto diLocal =
+            op->getAttrOfType<LLVM::DILocalVariableAttr>("cxx.di_local")) {
+      auto expr = LLVM::DIExpressionAttr::get(context, {});
+      LLVM::DbgDeclareOp::create(rewriter, op.getLoc(), x, diLocal, expr);
+    }
+
     return success();
   }
 

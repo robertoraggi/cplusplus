@@ -247,6 +247,31 @@ class Codegen {
   void asmGotoLabel(AsmGotoLabelAST* ast);
   void arrayInit(mlir::Value address, const Type* type, ExpressionAST* init);
 
+  struct ClassLayout {
+    uint64_t size = 0;
+    uint64_t alignment = 0;
+
+    struct BaseInfo {
+      ClassSymbol* symbol = nullptr;
+      uint64_t offset = 0;
+      uint32_t index = 0;
+    };
+
+    struct FieldInfo {
+      FieldSymbol* symbol = nullptr;
+      uint64_t offset = 0;
+      uint32_t index = 0;
+    };
+
+    std::vector<BaseInfo> bases;
+    std::vector<FieldInfo> fields;
+  };
+
+  [[nodiscard]] auto getLayout(ClassSymbol* symbol) -> const ClassLayout&;
+
+  [[nodiscard]] auto findPath(ClassSymbol* current, ClassSymbol* target,
+                              std::vector<uint32_t>& path) -> bool;
+
  private:
   [[nodiscard]] auto getCompileUnitAttr(std::string_view filename)
       -> mlir::LLVM::DICompileUnitAttr;
@@ -337,6 +362,9 @@ class Codegen {
   struct ConvertType;
   struct ConvertDebugType;
 
+  void attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
+                       std::string_view name = {}, unsigned arg = 0);
+
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp function_;
@@ -358,6 +386,8 @@ class Codegen {
   Loop loop_;
   Switch switch_;
   int count_ = 0;
+  std::unordered_map<ClassSymbol*, ClassLayout> classLayouts_;
+  std::unordered_map<const Type*, mlir::LLVM::DITypeAttr> debugTypeCache_;
 };
 
 }  // namespace cxx

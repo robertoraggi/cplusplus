@@ -34,6 +34,8 @@
 // mlir
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/Config/llvm-config.h>
+#include <llvm/Support/raw_ostream.h>
+#include <mlir/IR/BuiltinAttributes.h>
 
 #include <format>
 
@@ -102,12 +104,14 @@ struct Codegen::ConvertDebugType {
       -> mlir::LLVM::DITypeAttr;
 
   auto derivedType(unsigned tag, const Type* type,
-                   mlir::LLVM::DITypeAttr baseType) -> mlir::LLVM::DITypeAttr;
+                   mlir::LLVM::DITypeAttr baseType, uint64_t offsetInBits = 0,
+                   const llvm::Twine& name = {}) -> mlir::LLVM::DITypeAttr;
 
   auto compositeType(unsigned tag, const llvm::Twine& name,
                      mlir::LLVM::DITypeAttr baseType,
                      llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements,
-                     const Type* type = nullptr) -> mlir::LLVM::DITypeAttr;
+                     const Type* type = nullptr, mlir::DistinctAttr recId = {},
+                     bool isRecSelf = false) -> mlir::LLVM::DITypeAttr;
 
   [[nodiscard]] auto context() const -> mlir::MLIRContext* {
     return gen.builder_.getContext();
@@ -119,7 +123,18 @@ auto Codegen::convertDebugType(const Type* type) -> mlir::LLVM::DITypeAttr {
     return {};
   }
 
-  return visit(ConvertDebugType{*this}, type);
+  if (auto it = debugTypeCache_.find(type); it != debugTypeCache_.end()) {
+    return it->second;
+  }
+
+  // Pre-insert null to handle infinite recursion if not handled by visitors
+  // But strictly, visitors for recursive types should handle it.
+  // We can't insert null because we need a return value.
+  // So we rely on specific visitors (ClassType) to insert FwdDecl.
+
+  auto result = visit(ConvertDebugType{*this}, type);
+  debugTypeCache_.insert({type, result});
+  return result;
 }
 
 auto Codegen::ConvertDebugType::basicType(const llvm::Twine& name,
@@ -131,24 +146,35 @@ auto Codegen::ConvertDebugType::basicType(const llvm::Twine& name,
 }
 
 auto Codegen::ConvertDebugType::derivedType(unsigned tag, const Type* type,
-                                            mlir::LLVM::DITypeAttr baseType)
+                                            mlir::LLVM::DITypeAttr baseType,
+                                            uint64_t offsetInBits,
+                                            const llvm::Twine& name)
     -> mlir::LLVM::DITypeAttr {
-  auto sizeInBits = memoryLayout()->sizeOf(type).value() * 8;
-  auto alignInBits = memoryLayout()->alignmentOf(type).value() * 8;
-  return mlir::LLVM::DIDerivedTypeAttr::get(context(), tag, {}, baseType,
-                                            sizeInBits, alignInBits, {}, {},
+  auto sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
+  auto alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
+
+  if (!baseType && tag != llvm::dwarf::DW_TAG_pointer_type &&
+      tag != llvm::dwarf::DW_TAG_structure_type) {
+    return {};
+  }
+
+  return mlir::LLVM::DIDerivedTypeAttr::get(
+      context(), tag,
+      name.isTriviallyEmpty() ? mlir::StringAttr::get(context(), "")
+                              : mlir::StringAttr::get(context(), name.str()),
+      baseType, sizeInBits, alignInBits, offsetInBits, {},
 #if LLVM_VERSION_MAJOR < 22
-                                            /*extraData=*/{}
+      /*extraData=*/{}
 #else
-                                            /*flags=*/{}, /*extraData=*/{}
+      /*flags=*/{}, /*extraData=*/{}
 #endif
   );
 }
 
 auto Codegen::ConvertDebugType::compositeType(
     unsigned tag, const llvm::Twine& name, mlir::LLVM::DITypeAttr baseType,
-    llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements, const Type* type)
-    -> mlir::LLVM::DITypeAttr {
+    llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements, const Type* type,
+    mlir::DistinctAttr recId, bool isRecSelf) -> mlir::LLVM::DITypeAttr {
   mlir::LLVM::DIFileAttr file{};
   uint32_t line{};
   mlir::LLVM::DIScopeAttr scope{};
@@ -156,13 +182,36 @@ auto Codegen::ConvertDebugType::compositeType(
   uint64_t sizeInBits{};
   uint64_t alignInBits{};
   if (type) {
-    sizeInBits = memoryLayout()->sizeOf(type).value() * 8;
-    alignInBits = memoryLayout()->alignmentOf(type).value() * 8;
+    sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
+    alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
+
+    if (auto classType = type_cast<ClassType>(type)) {
+      if (auto symbol = classType->symbol()) {
+        auto loc = symbol->location();
+        auto [filename, l, c] = gen.unit_->tokenStartPosition(loc);
+        file = gen.getFileAttr(filename);
+        line = l;
+        scope = gen.getCompileUnitAttr(filename);
+      }
+    }
   }
   mlir::LLVM::DIExpressionAttr dataLocation{};
   mlir::LLVM::DIExpressionAttr rank{};
   mlir::LLVM::DIExpressionAttr allocated{};
   mlir::LLVM::DIExpressionAttr associated{};
+
+  if (recId) {
+    return mlir::LLVM::DICompositeTypeAttr::get(
+        context(), recId, isRecSelf, tag,
+        mlir::StringAttr::get(context(), name.str()), file, line, scope,
+        baseType, flags, sizeInBits, alignInBits,
+#if LLVM_VERSION_MAJOR < 22
+        elements, dataLocation, rank, allocated, associated
+#else
+        dataLocation, rank, allocated, associated, elements
+#endif
+    );
+  }
 
   return mlir::LLVM::DICompositeTypeAttr::get(
       context(), tag, mlir::StringAttr::get(context(), name.str()), file, line,
@@ -177,7 +226,8 @@ auto Codegen::ConvertDebugType::compositeType(
 
 auto Codegen::ConvertDebugType::operator()(const VoidType* type)
     -> mlir::LLVM::DITypeAttr {
-  return {};
+  return mlir::LLVM::DIBasicTypeAttr::get(
+      context(), llvm::dwarf::DW_TAG_unspecified_type, "void", 0, 0);
 }
 
 auto Codegen::ConvertDebugType::operator()(const NullptrType* type)
@@ -341,18 +391,6 @@ auto Codegen::ConvertDebugType::operator()(const BoundedArrayType* type)
   auto subrange = mlir::LLVM::DISubrangeAttr::get(context(), count, lowerBound,
                                                   upperBound, stride);
 
-  mlir::StringAttr name{};
-  mlir::LLVM::DIFileAttr file{};
-  uint32_t line{};
-  mlir::LLVM::DIScopeAttr scope{};
-  mlir::LLVM::DITypeAttr baseType{};
-  mlir::LLVM::DIFlags flags{};
-  uint64_t sizeInBits = memoryLayout()->sizeOf(type).value() * 8;
-  uint64_t alignInBits = memoryLayout()->alignmentOf(type).value() * 8;
-  mlir::LLVM::DIExpressionAttr dataLocation{};
-  mlir::LLVM::DIExpressionAttr rank{};
-  mlir::LLVM::DIExpressionAttr allocated{};
-  mlir::LLVM::DIExpressionAttr associated{};
   mlir::SmallVector<mlir::LLVM::DINodeAttr> elements{
       subrange,
   };
@@ -398,12 +436,69 @@ auto Codegen::ConvertDebugType::operator()(const FunctionType* type)
 
 auto Codegen::ConvertDebugType::operator()(const ClassType* type)
     -> mlir::LLVM::DITypeAttr {
-  return {};
+  auto symbol = type->symbol();
+  if (!symbol) return {};
+
+  // Check cache again because recursive calls might have populated it
+  if (auto it = gen.debugTypeCache_.find(type);
+      it != gen.debugTypeCache_.end()) {
+    return it->second;
+  }
+
+  auto recId = mlir::DistinctAttr::create(mlir::UnitAttr::get(context()));
+
+  auto tag = symbol->isUnion() ? llvm::dwarf::DW_TAG_union_type
+                               : llvm::dwarf::DW_TAG_structure_type;
+
+  // Create Recursive Self Reference
+  auto name = to_string(symbol->name());
+  auto recSelf = compositeType(tag, name, {}, {}, type, recId,
+                               /*isRecSelf=*/true);
+
+  // Insert RecSelf into cache
+  gen.debugTypeCache_[type] = recSelf;
+
+  // Copy layout to avoid reference invalidation during recursion
+  auto layout = gen.getLayout(symbol);
+
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> elements;
+
+  // Add bases
+  for (const auto& base : layout.bases) {
+    if (!base.symbol) continue;
+    auto baseTypeAttr = gen.convertDebugType(base.symbol->type());
+    if (!baseTypeAttr) continue;
+    auto inheritanceAttr =
+        derivedType(llvm::dwarf::DW_TAG_inheritance, base.symbol->type(),
+                    baseTypeAttr, base.offset * 8);
+    if (inheritanceAttr) elements.push_back(inheritanceAttr);
+  }
+
+  // Add fields
+  for (const auto& field : layout.fields) {
+    if (!field.symbol) continue;
+    auto fieldTypeAttr = gen.convertDebugType(field.symbol->type());
+    if (!fieldTypeAttr) continue;
+    auto memberAttr = derivedType(
+        llvm::dwarf::DW_TAG_member, field.symbol->type(), fieldTypeAttr,
+        field.offset * 8, to_string(field.symbol->name()));
+    if (memberAttr) elements.push_back(memberAttr);
+  }
+
+  // Create Full Definition using the SAME recId
+  auto fullDef = compositeType(tag, name, {}, elements, type, recId,
+                               /*isRecSelf=*/false);
+
+  // Update Cache with Full Definition (optional, but good for consistency)
+  gen.debugTypeCache_[type] = fullDef;
+
+  return fullDef;
 }
 
 auto Codegen::ConvertDebugType::operator()(const EnumType* type)
     -> mlir::LLVM::DITypeAttr {
-  return {};
+  return basicType(to_string(type->symbol()->name()), type,
+                   llvm::dwarf::DW_ATE_signed);
 }
 
 auto Codegen::ConvertDebugType::operator()(const ScopedEnumType* type)

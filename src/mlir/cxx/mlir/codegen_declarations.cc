@@ -490,7 +490,13 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(thisType);
 
-    thisValue = gen.newTemp(classSymbol->type(), ast->firstSourceLocation());
+    auto allocaOp =
+        gen.newTemp(classSymbol->type(), ast->firstSourceLocation());
+    thisValue = allocaOp;
+
+    if (gen.unit_->language() == LanguageKind::kCXX) {
+      gen.attachDebugInfo(allocaOp, classSymbol, "this", 1);
+    }
 
     // store the `this` pointer in the entry block
     mlir::cxx::StoreOp::create(gen.builder_, loc,
@@ -516,6 +522,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
       auto loc = gen.getLocation(arg->location());
       auto allocaOp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType);
+
+      gen.attachDebugInfo(allocaOp, arg, {}, argc + 1);
 
       auto value = args[argc];
       ++argc;
