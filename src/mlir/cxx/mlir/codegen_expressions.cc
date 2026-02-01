@@ -703,45 +703,27 @@ auto Codegen::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
   return {op};
 }
 
-namespace {
-
-[[nodiscard]] auto findPath(ClassSymbol* current, ClassSymbol* target,
-                            std::vector<int>& path) -> bool {
-  if (!current) return false;
-  if (current == target) return true;
-  int baseIndex = 0;
-  for (auto base : current->baseClasses()) {
-    auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseSym) {
-      if (const auto* baseType = type_cast<ClassType>(base->type())) {
-        baseSym = symbol_cast<ClassSymbol>(baseType->symbol());
-      }
-    }
-
-    if (baseSym) {
-      path.push_back(baseIndex);
-      if (findPath(baseSym, target, path)) return true;
-      path.pop_back();
-    }
-    baseIndex++;
-  }
-  return false;
-}
-
-}  // namespace
-
 auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
       field && !field->isStatic()) {
-    int fieldIndex = 0;
     auto classSymbol = symbol_cast<ClassSymbol>(field->parent());
-    for (auto member : cxx::views::members(classSymbol)) {
-      auto f = symbol_cast<FieldSymbol>(member);
-      if (!f) continue;
-      if (f->isStatic()) continue;
-      if (member == field) break;
-      ++fieldIndex;
+
+    // Find the field index in the class layout
+    const auto& layout = gen.getLayout(classSymbol);
+    uint32_t fieldIndex = 0;
+    bool foundField = false;
+    for (const auto& info : layout.fields) {
+      if (info.symbol == field) {
+        fieldIndex = info.index;
+        foundField = true;
+        break;
+      }
+    }
+
+    if (!foundField) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "field not found in layout")};
     }
 
     auto baseExpressionResult = gen.expression(ast->baseExpression);
@@ -766,29 +748,32 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     mlir::Value currentPtr = baseExpressionResult.value;
 
     if (startClass != classSymbol) {
-      std::vector<int> path;
+      std::vector<uint32_t> path;
 
-      if (findPath(startClass, classSymbol, path)) {
+      if (gen.findPath(startClass, classSymbol, path)) {
         // Apply path
         auto current = startClass;
-        for (int baseIdx : path) {
-          auto base = current->baseClasses()[baseIdx];
-          const Type* baseType = base->type();
-          if (!baseType && base->symbol()) baseType = base->symbol()->type();
+        for (auto baseIndex : path) {
+          const auto& currentLayout = gen.getLayout(current);
+          ClassSymbol* nextClass = nullptr;
+          for (const auto& base : currentLayout.bases) {
+            if (base.index == baseIndex) {
+              nextClass = base.symbol;
+              break;
+            }
+          }
 
-          if (!baseType) break;
+          if (!nextClass) {
+            return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                                     "base symbol not found")};
+          }
 
-          auto ptrType = gen.convertType(gen.control()->add_pointer(baseType));
+          auto ptrType =
+              gen.convertType(gen.control()->add_pointer(nextClass->type()));
           auto loc = gen.getLocation(ast->firstSourceLocation());
           currentPtr = mlir::cxx::MemberOp::create(gen.builder_, loc, ptrType,
-                                                   currentPtr, baseIdx);
-
-          if (base->symbol()) {
-            current = symbol_cast<ClassSymbol>(base->symbol());
-          } else {
-            current = symbol_cast<ClassSymbol>(
-                type_cast<ClassType>(baseType)->symbol());
-          }
+                                                   currentPtr, baseIndex);
+          current = nextClass;
         }
       } else {
         return {gen.emitTodoExpr(ast->firstSourceLocation(),
@@ -796,16 +781,13 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
       }
     }
 
-    // Adjust fieldIndex to account for bases in the target class
-    fieldIndex += classSymbol->baseClasses().size();
+    auto loc = gen.getLocation(ast->firstSourceLocation());
 
-    auto loc = gen.getLocation(ast->unqualifiedId->firstSourceLocation());
-
-    auto resultType = gen.convertType(control()->add_pointer(ast->type));
+    auto resultType =
+        gen.convertType(gen.control()->add_pointer(field->type()));
 
     auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, resultType,
                                           currentPtr, fieldIndex);
-
     return {op};
   }
 

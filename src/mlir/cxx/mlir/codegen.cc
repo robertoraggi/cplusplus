@@ -21,13 +21,17 @@
 #include <cxx/mlir/codegen.h>
 
 // cxx
+#include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
+#include <cxx/memory_layout.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
+#include <cxx/views/symbols.h>
 
 // mlir
 #include <llvm/BinaryFormat/Dwarf.h>
@@ -36,6 +40,8 @@
 
 #include <filesystem>
 #include <format>
+
+#include "cxx/cxx_fwd.h"
 
 namespace cxx {
 
@@ -121,9 +127,38 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   auto loc = getLocation(var->location());
   auto allocaOp = mlir::cxx::AllocaOp::create(builder_, loc, ptrType);
 
+  attachDebugInfo(allocaOp, var);
+
   locals_.emplace(var, allocaOp);
 
   return allocaOp;
+}
+
+void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
+                              std::string_view name, unsigned arg) {
+  if (!function_) return;
+
+  auto funcLoc = mlir::dyn_cast<mlir::FusedLoc>(function_.getLoc());
+  if (!funcLoc) return;
+
+  auto metadata = funcLoc.getMetadata();
+  auto subprogram =
+      mlir::dyn_cast_or_null<mlir::LLVM::DISubprogramAttr>(metadata);
+  if (!subprogram) return;
+
+  auto ctx = builder_.getContext();
+  auto nameAttr = mlir::StringAttr::get(
+      ctx, name.empty() ? to_string(symbol->name()) : name);
+  auto file =
+      getFileAttr(unit_->tokenStartPosition(symbol->location()).fileName);
+  unsigned line = unit_->tokenStartPosition(symbol->location()).line;
+  auto typeAttr = convertDebugType(symbol->type());
+
+  auto localVar = mlir::LLVM::DILocalVariableAttr::get(
+      ctx, subprogram, nameAttr, file, line, arg, 0, typeAttr,
+      mlir::LLVM::DIFlags::Zero);
+
+  allocaOp->setAttr("cxx.di_local", localVar);
 }
 
 auto Codegen::newTemp(const Type* type, SourceLocation loc)
@@ -146,8 +181,6 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   std::vector<mlir::Type> resultTypes;
 
   if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
-    // if it is a non static member function, we need to add the `this` pointer
-
     auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
     inputTypes.push_back(builder_.getType<mlir::cxx::PointerType>(
@@ -316,7 +349,11 @@ auto Codegen::getCompileUnitAttr(std::string_view filename)
   auto ctx = builder_.getContext();
 
   auto distinct = mlir::DistinctAttr::create(builder_.getUnitAttr());
-  auto sourceLanguage = llvm::dwarf::DW_LANG_C_plus_plus_20;
+
+  auto sourceLanguage = unit_->language() == LanguageKind::kCXX
+                            ? llvm::dwarf::DW_LANG_C_plus_plus_20
+                            : llvm::dwarf::DW_LANG_C;
+
   auto fileAttr = getFileAttr(filename);
   auto producer = mlir::StringAttr::get(ctx, "cxx");
   auto isOptimized = false;
@@ -379,6 +416,114 @@ auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
   const auto loc = getLocation(location);
   auto op = mlir::cxx::TodoExprOp::create(builder_, loc, message);
   return op;
+}
+
+auto Codegen::getLayout(ClassSymbol* symbol) -> const ClassLayout& {
+  if (auto it = classLayouts_.find(symbol); it != classLayouts_.end()) {
+    return it->second;
+  }
+
+  const bool isUnion = symbol->isUnion();
+
+  ClassLayout layout;
+  uint64_t currentOffset = 0;
+  uint64_t alignment = 1;
+
+  // Process base classes
+  if (!isUnion) {
+    for (auto* base : symbol->baseClasses()) {
+      ClassSymbol* baseSym = nullptr;
+      if (base->symbol()) {
+        baseSym = symbol_cast<ClassSymbol>(base->symbol());
+      } else if (auto baseType = type_cast<ClassType>(base->type())) {
+        baseSym = symbol_cast<ClassSymbol>(baseType->symbol());
+      }
+
+      if (!baseSym) continue;
+
+      const auto& baseLayout = getLayout(baseSym);
+
+      // Apply alignment
+      if (baseLayout.alignment > 0) {
+        currentOffset = cxx::align_to(currentOffset, baseLayout.alignment);
+      }
+
+      layout.alignment = std::max(layout.alignment, baseLayout.alignment);
+
+      ClassLayout::BaseInfo info;
+      info.symbol = baseSym;
+      info.offset = currentOffset;
+      info.index = static_cast<uint32_t>(layout.bases.size());
+
+      layout.bases.push_back(info);
+      currentOffset += baseLayout.size;
+    }
+  }
+
+  // Process fields
+  for (auto member : cxx::views::members(symbol)) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field) continue;
+    if (field->isStatic()) continue;
+
+    auto type = field->type();
+    uint64_t fieldSize = control()->memoryLayout()->sizeOf(type).value_or(0);
+    uint64_t fieldAlign =
+        control()->memoryLayout()->alignmentOf(type).value_or(1);
+
+    if (isUnion) {
+      layout.alignment = std::max(layout.alignment, fieldAlign);
+      currentOffset = std::max(currentOffset, fieldSize);
+
+      ClassLayout::FieldInfo info;
+      info.symbol = field;
+      info.offset = 0;
+      info.index = 0;
+
+      layout.fields.push_back(info);
+    } else {
+      if (fieldAlign > 0) {
+        currentOffset = cxx::align_to(currentOffset, fieldAlign);
+      }
+
+      layout.alignment = std::max(layout.alignment, fieldAlign);
+
+      ClassLayout::FieldInfo info;
+      info.symbol = field;
+      info.offset = currentOffset;
+      info.index =
+          static_cast<uint32_t>(layout.bases.size() + layout.fields.size());
+
+      layout.fields.push_back(info);
+      currentOffset += fieldSize;
+    }
+  }
+
+  // Align struct size
+  if (layout.alignment > 0) {
+    currentOffset = cxx::align_to(currentOffset, layout.alignment);
+  }
+
+  layout.size = currentOffset;
+  if (layout.size == 0) layout.size = 1;
+
+  return classLayouts_.insert({symbol, std::move(layout)}).first->second;
+}
+
+auto Codegen::findPath(ClassSymbol* current, ClassSymbol* target,
+                       std::vector<uint32_t>& path) -> bool {
+  if (!current) return false;
+  if (current == target) return true;
+
+  const auto& layout = getLayout(current);
+
+  for (const auto& base : layout.bases) {
+    path.push_back(base.index);
+    if (findPath(base.symbol, target, path)) return true;
+    path.pop_back();
+  }
+
+  return false;
 }
 
 }  // namespace cxx

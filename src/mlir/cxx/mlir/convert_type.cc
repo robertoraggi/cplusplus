@@ -289,6 +289,10 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     name = std::format("$class_{}", loc.index());
   }
 
+  if (classSymbol->isUnion()) {
+    name = std::format("union.{}", name);
+  }
+
   mlir::cxx::ClassType classType = mlir::cxx::ClassType::getNamed(ctx, name);
 
   gen.classNames_[classSymbol] = classType;
@@ -297,22 +301,34 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   std::vector<mlir::Type> memberTypes;
 
-  // Layout of parent classes
-  for (auto base : classSymbol->baseClasses()) {
-    const Type* baseType = base->type();
-    if (!baseType && base->symbol()) {
-      baseType = base->symbol()->type();
-    }
-    memberTypes.push_back(gen.convertType(baseType));
-  }
+  if (classSymbol->isUnion()) {
+    auto& layout = gen.getLayout(classSymbol);
+    auto size = layout.size;
+    auto alignment = layout.alignment;
+    if (alignment == 0) alignment = 1;
 
-  // Layout of members
-  for (auto member : views::members(classSymbol)) {
-    auto field = symbol_cast<FieldSymbol>(member);
-    if (!field) continue;
-    if (field->isStatic()) continue;
-    auto memberType = gen.convertType(member->type());
-    memberTypes.push_back(memberType);
+    auto byteType = gen.builder_.getType<mlir::cxx::IntegerType>(8, false);
+    auto arrayType = gen.builder_.getType<mlir::cxx::ArrayType>(byteType, size);
+    memberTypes.push_back(arrayType);
+
+  } else {
+    // Layout of parent classes
+    for (auto base : classSymbol->baseClasses()) {
+      const Type* baseType = base->type();
+      if (!baseType && base->symbol()) {
+        baseType = base->symbol()->type();
+      }
+      memberTypes.push_back(gen.convertType(baseType));
+    }
+
+    // Layout of members
+    for (auto member : views::members(classSymbol)) {
+      auto field = symbol_cast<FieldSymbol>(member);
+      if (!field) continue;
+      if (field->isStatic()) continue;
+      auto memberType = gen.convertType(member->type());
+      memberTypes.push_back(memberType);
+    }
   }
 
   classType.setBody(memberTypes);
