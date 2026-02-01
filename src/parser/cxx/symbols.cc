@@ -329,6 +329,129 @@ auto BaseClassSymbol::symbol() const -> Symbol* { return symbol_; }
 
 void BaseClassSymbol::setSymbol(Symbol* symbol) { symbol_ = symbol; }
 
+// ClassLayout implementation
+
+void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
+  fields_.clear();
+  bases_.clear();
+  size_ = 0;
+  alignment_ = 1;
+
+  const bool isUnion = classSymbol->isUnion();
+  std::uint64_t currentOffset = 0;
+  std::uint32_t currentIndex = 0;
+
+  auto memoryLayout = control->memoryLayout();
+
+  // Process base classes
+  if (!isUnion) {
+    for (auto* base : classSymbol->baseClasses()) {
+      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClassSymbol) continue;
+
+      auto baseAlignment = baseClassSymbol->alignment();
+      if (baseAlignment > 0) {
+        currentOffset = align_to(currentOffset, baseAlignment);
+      }
+
+      MemberInfo baseInfo;
+      baseInfo.offset = currentOffset;
+      baseInfo.index = currentIndex++;
+      bases_[baseClassSymbol] = baseInfo;
+
+      currentOffset += baseClassSymbol->sizeInBytes();
+      alignment_ =
+          std::max(alignment_, static_cast<std::uint64_t>(baseAlignment));
+    }
+  }
+
+  // Process direct fields
+  for (auto member : views::members(classSymbol)) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field) continue;
+    if (field->isStatic()) continue;
+
+    auto type = field->type();
+    auto fieldSize = memoryLayout->sizeOf(type).value_or(0);
+    auto fieldAlign = memoryLayout->alignmentOf(type).value_or(1);
+
+    if (isUnion) {
+      MemberInfo fieldInfo;
+      fieldInfo.offset = 0;
+      fieldInfo.index = 0;
+      fields_[field] = fieldInfo;
+
+      alignment_ = std::max(alignment_, static_cast<std::uint64_t>(fieldAlign));
+      currentOffset =
+          std::max(currentOffset, static_cast<std::uint64_t>(fieldSize));
+    } else {
+      if (fieldAlign > 0) {
+        currentOffset = align_to(currentOffset, fieldAlign);
+      }
+
+      MemberInfo fieldInfo;
+      fieldInfo.offset = currentOffset;
+      fieldInfo.index = currentIndex++;
+      fields_[field] = fieldInfo;
+
+      alignment_ = std::max(alignment_, static_cast<std::uint64_t>(fieldAlign));
+      currentOffset += fieldSize;
+    }
+  }
+
+  for (auto* base : classSymbol->baseClasses()) {
+    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClassSymbol) continue;
+
+    auto baseLayout = baseClassSymbol->layout();
+    if (!baseLayout) continue;
+
+    auto baseInfo = getBaseInfo(baseClassSymbol);
+    if (!baseInfo) continue;
+
+    // Add all fields from the base class with adjusted offsets
+    for (auto member : views::members(baseClassSymbol)) {
+      auto field = symbol_cast<FieldSymbol>(member);
+      if (!field) continue;
+      if (field->isStatic()) continue;
+
+      auto baseFieldInfo = baseLayout->getFieldInfo(field);
+      if (baseFieldInfo) {
+        MemberInfo adjustedInfo;
+        adjustedInfo.offset = baseInfo->offset + baseFieldInfo->offset;
+        adjustedInfo.index = baseFieldInfo->index;  // Index within the base
+        fields_[field] = adjustedInfo;
+      }
+    }
+  }
+
+  // Align struct size
+  if (alignment_ > 0) {
+    currentOffset = align_to(currentOffset, alignment_);
+  }
+
+  size_ = currentOffset;
+  if (size_ == 0) size_ = 1;
+}
+
+auto ClassLayout::getFieldInfo(FieldSymbol* field) const
+    -> std::optional<MemberInfo> {
+  auto it = fields_.find(field);
+  if (it != fields_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+auto ClassLayout::getBaseInfo(ClassSymbol* base) const
+    -> std::optional<MemberInfo> {
+  auto it = bases_.find(base);
+  if (it != bases_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
 ClassSymbol::ClassSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
 
@@ -409,25 +532,33 @@ void ClassSymbol::addConversionFunction(FunctionSymbol* conversionFunction) {
 
 auto ClassSymbol::buildClassLayout(Control* control)
     -> std::expected<bool, std::string> {
-  int offset = 0;
-  int alignment = 1;
-
-  auto memoryLayout = control->memoryLayout();
-
+  // Validate that all base classes are complete
   for (auto base : baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-
     if (!baseClassSymbol) {
       return std::unexpected(
           std::format("base class '{}' not found", to_string(base->name())));
     }
-
-    offset = align_to(offset, baseClassSymbol->alignment());
-    offset += baseClassSymbol->sizeInBytes();
-    alignment = std::max(alignment, baseClassSymbol->alignment());
+    if (!baseClassSymbol->isComplete()) {
+      return std::unexpected(std::format("base class '{}' is incomplete",
+                                         to_string(baseClassSymbol->name())));
+    }
   }
 
+  auto memoryLayout = control->memoryLayout();
   FieldSymbol* lastField = nullptr;
+  int calculatedSize = 0;
+  int calculatedAlignment = 1;
+
+  for (auto base : baseClasses()) {
+    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClassSymbol) continue;
+
+    calculatedSize = align_to(calculatedSize, baseClassSymbol->alignment());
+    calculatedSize += baseClassSymbol->sizeInBytes();
+    calculatedAlignment =
+        std::max(calculatedAlignment, baseClassSymbol->alignment());
+  }
 
   for (auto member : members()) {
     auto field = symbol_cast<FieldSymbol>(member);
@@ -435,8 +566,6 @@ auto ClassSymbol::buildClassLayout(Control* control)
     if (field->isStatic()) continue;
 
     if (lastField && control->is_unbounded_array(lastField->type())) {
-      // If the last field is an unbounded array, we cannot compute the offset
-      // of the next field, so we report an error.
       return std::unexpected(
           std::format("size of incomplete type '{}'",
                       to_string(lastField->type(), lastField->name())));
@@ -449,7 +578,6 @@ auto ClassSymbol::buildClassLayout(Control* control)
     }
 
     std::optional<std::size_t> size;
-
     if (control->is_unbounded_array(field->type())) {
       size = 0;
     } else {
@@ -463,25 +591,33 @@ auto ClassSymbol::buildClassLayout(Control* control)
     }
 
     if (isUnion()) {
-      offset = std::max(offset, int(size.value()));
+      field->setLocalOffset(0);
+      calculatedSize = std::max(calculatedSize, int(size.value()));
     } else {
-      offset = align_to(offset, field->alignment());
-      field->setOffset(offset);
-      offset += size.value();
+      calculatedSize = align_to(calculatedSize, field->alignment());
+      field->setLocalOffset(calculatedSize);
+      calculatedSize += size.value();
     }
 
-    alignment = std::max(alignment, field->alignment());
-
+    calculatedAlignment = std::max(calculatedAlignment, field->alignment());
     lastField = field;
   }
 
-  offset = align_to(offset, alignment);
+  calculatedSize = align_to(calculatedSize, calculatedAlignment);
 
-  setAlignment(alignment);
-  setSizeInBytes(offset);
+  setAlignment(calculatedAlignment);
+  setSizeInBytes(calculatedSize);
+
+  if (!layout_) {
+    layout_ = std::make_unique<ClassLayout>();
+  }
+
+  layout_->computeLayout(this, control);
 
   return true;
 }
+
+auto ClassSymbol::layout() const -> const ClassLayout* { return layout_.get(); }
 
 EnumSymbol::EnumSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
@@ -774,9 +910,9 @@ auto FieldSymbol::isMutable() const -> bool { return isMutable_; }
 
 void FieldSymbol::setMutable(bool isMutable) { isMutable_ = isMutable; }
 
-auto FieldSymbol::offset() const -> int { return offset_; }
+auto FieldSymbol::localOffset() const -> int { return localOffset_; }
 
-void FieldSymbol::setOffset(int offset) { offset_ = offset; }
+void FieldSymbol::setLocalOffset(int offset) { localOffset_ = offset; }
 
 auto FieldSymbol::alignment() const -> int { return alignment_; }
 

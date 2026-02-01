@@ -317,6 +317,37 @@ class ConceptSymbol final : public Symbol {
  private:
 };
 
+class ClassLayout {
+ public:
+  struct MemberInfo {
+    std::uint64_t offset = 0;
+    std::uint32_t index = 0;
+  };
+
+  ClassLayout() = default;
+
+  void computeLayout(ClassSymbol* classSymbol, Control* control);
+
+  [[nodiscard]] auto getFieldInfo(FieldSymbol* field) const
+      -> std::optional<MemberInfo>;
+
+  [[nodiscard]] auto getBaseInfo(ClassSymbol* base) const
+      -> std::optional<MemberInfo>;
+
+  [[nodiscard]] auto size() const -> std::uint64_t { return size_; }
+  [[nodiscard]] auto alignment() const -> std::uint64_t { return alignment_; }
+
+  [[nodiscard]] auto empty() const -> bool {
+    return fields_.empty() && bases_.empty();
+  }
+
+ private:
+  std::unordered_map<FieldSymbol*, MemberInfo> fields_;
+  std::unordered_map<ClassSymbol*, MemberInfo> bases_;
+  std::uint64_t size_ = 0;
+  std::uint64_t alignment_ = 1;
+};
+
 class BaseClassSymbol final : public Symbol {
  public:
   constexpr static auto Kind = SymbolKind::kBaseClass;
@@ -385,6 +416,8 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto buildClassLayout(Control* control)
       -> std::expected<bool, std::string>;
 
+  [[nodiscard]] auto layout() const -> const ClassLayout*;
+
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
@@ -394,6 +427,7 @@ class ClassSymbol final : public ScopeSymbol,
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
   std::vector<FunctionSymbol*> conversionFunctions_;
+  std::unique_ptr<ClassLayout> layout_;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
   union {
@@ -683,8 +717,8 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto isMutable() const -> bool;
   void setMutable(bool isMutable);
 
-  [[nodiscard]] auto offset() const -> int;
-  void setOffset(int offset);
+  [[nodiscard]] auto localOffset() const -> int;
+  void setLocalOffset(int offset);
 
   [[nodiscard]] auto alignment() const -> int;
   void setAlignment(int alignment);
@@ -702,7 +736,7 @@ class FieldSymbol final : public Symbol {
       std::uint32_t isMutable_ : 1;
     };
   };
-  int offset_{};
+  int localOffset_{};
   int alignment_{};
   int bitFieldOffset_{};
   std::optional<ConstValue> bitFieldWidth_;

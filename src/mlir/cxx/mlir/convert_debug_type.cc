@@ -458,30 +458,48 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
   // Insert RecSelf into cache
   gen.debugTypeCache_[type] = recSelf;
 
-  // Copy layout to avoid reference invalidation during recursion
-  auto layout = gen.getLayout(symbol);
-
   mlir::SmallVector<mlir::LLVM::DINodeAttr> elements;
 
+  auto layout = symbol->layout();
+
   // Add bases
-  for (const auto& base : layout.bases) {
-    if (!base.symbol) continue;
-    auto baseTypeAttr = gen.convertDebugType(base.symbol->type());
+  for (auto* base : symbol->baseClasses()) {
+    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClassSymbol) continue;
+    auto baseTypeAttr = gen.convertDebugType(baseClassSymbol->type());
     if (!baseTypeAttr) continue;
+
+    uint64_t baseOffset = 0;
+    if (layout) {
+      if (auto baseInfo = layout->getBaseInfo(baseClassSymbol)) {
+        baseOffset = baseInfo->offset;
+      }
+    }
+
     auto inheritanceAttr =
-        derivedType(llvm::dwarf::DW_TAG_inheritance, base.symbol->type(),
-                    baseTypeAttr, base.offset * 8);
+        derivedType(llvm::dwarf::DW_TAG_inheritance, baseClassSymbol->type(),
+                    baseTypeAttr, baseOffset * 8);
     if (inheritanceAttr) elements.push_back(inheritanceAttr);
   }
 
   // Add fields
-  for (const auto& field : layout.fields) {
-    if (!field.symbol) continue;
-    auto fieldTypeAttr = gen.convertDebugType(field.symbol->type());
+  for (auto member : cxx::views::members(symbol)) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field) continue;
+    if (field->isStatic()) continue;
+    auto fieldTypeAttr = gen.convertDebugType(field->type());
     if (!fieldTypeAttr) continue;
-    auto memberAttr = derivedType(
-        llvm::dwarf::DW_TAG_member, field.symbol->type(), fieldTypeAttr,
-        field.offset * 8, to_string(field.symbol->name()));
+
+    uint64_t fieldOffset = 0;
+    if (layout) {
+      if (auto fieldInfo = layout->getFieldInfo(field)) {
+        fieldOffset = fieldInfo->offset;
+      }
+    }
+
+    auto memberAttr =
+        derivedType(llvm::dwarf::DW_TAG_member, field->type(), fieldTypeAttr,
+                    fieldOffset * 8, to_string(field->name()));
     if (memberAttr) elements.push_back(memberAttr);
   }
 

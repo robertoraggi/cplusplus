@@ -860,9 +860,19 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     BuiltinOffsetofExpressionAST* ast) -> ExpressionResult {
   auto typeIdResult = interp.typeId(ast->typeId);
 
-  if (ast->symbol) return ast->symbol->offset();
+  if (!ast->symbol) return std::nullopt;
 
-  return std::nullopt;
+  auto classType = type_cast<ClassType>(ast->typeId->type);
+  if (!classType) return std::nullopt;
+
+  auto classSymbol = classType->symbol();
+  auto layout = classSymbol->layout();
+  if (!layout) return std::nullopt;
+
+  auto fieldInfo = layout->getFieldInfo(ast->symbol);
+  if (!fieldInfo) return std::nullopt;
+
+  return static_cast<int>(fieldInfo->offset);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
