@@ -297,6 +297,8 @@ class Codegen {
 
   [[nodiscard]] auto currentBlockMightHaveTerminator() -> bool;
 
+  [[nodiscard]] auto getAlignment(const Type* type) -> uint64_t;
+
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;
 
@@ -372,6 +374,7 @@ class Codegen {
   mlir::Block* entryBlock_ = nullptr;
   mlir::Block* exitBlock_ = nullptr;
   mlir::cxx::AllocaOp exitValue_;
+  const Type* returnType_ = nullptr;
   mlir::Value thisValue_;
   mlir::Value targetValue_;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;

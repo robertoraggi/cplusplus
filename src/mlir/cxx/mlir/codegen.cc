@@ -41,8 +41,6 @@
 #include <filesystem>
 #include <format>
 
-#include "cxx/cxx_fwd.h"
-
 namespace cxx {
 
 Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit)
@@ -51,6 +49,10 @@ Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit)
 Codegen::~Codegen() {}
 
 auto Codegen::control() const -> Control* { return unit_->control(); }
+
+auto Codegen::getAlignment(const Type* type) -> uint64_t {
+  return control()->memoryLayout()->alignmentOf(type).value_or(1);
+}
 
 auto Codegen::currentBlockMightHaveTerminator() -> bool {
   auto block = builder_.getInsertionBlock();
@@ -125,7 +127,8 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   auto ptrType = builder_.getType<mlir::cxx::PointerType>(type);
 
   auto loc = getLocation(var->location());
-  auto allocaOp = mlir::cxx::AllocaOp::create(builder_, loc, ptrType);
+  auto allocaOp = mlir::cxx::AllocaOp::create(builder_, loc, ptrType,
+                                              getAlignment(var->type()));
 
   attachDebugInfo(allocaOp, var);
 
@@ -164,7 +167,8 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
 auto Codegen::newTemp(const Type* type, SourceLocation loc)
     -> mlir::cxx::AllocaOp {
   auto ptrType = builder_.getType<mlir::cxx::PointerType>(convertType(type));
-  return mlir::cxx::AllocaOp::create(builder_, getLocation(loc), ptrType);
+  return mlir::cxx::AllocaOp::create(builder_, getLocation(loc), ptrType,
+                                     getAlignment(type));
 }
 
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)

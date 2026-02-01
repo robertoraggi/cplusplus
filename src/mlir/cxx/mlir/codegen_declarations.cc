@@ -243,7 +243,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     auto expressionResult = gen.expression(node->initializer);
 
     mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
-                               local.value());
+                               local.value(), gen.getAlignment(var->type()));
   }
 
   return {};
@@ -440,6 +440,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
   func->setLoc(mlir::FusedLoc::get({loc}, subprogram, ctx));
 
+  gen.returnType_ = returnType;
+
   // Add the function body.
   auto entryBlock = gen.builder_.createBlock(&func.getBody());
   auto inputs = func.getFunctionType().getInputs();
@@ -459,8 +461,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         gen.getLocation(ast->functionBody->firstSourceLocation());
     auto exitValueType = gen.convertType(returnType);
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(exitValueType);
-    exitValue =
-        mlir::cxx::AllocaOp::create(gen.builder_, exitValueLoc, ptrType);
+    exitValue = mlir::cxx::AllocaOp::create(gen.builder_, exitValueLoc, ptrType,
+                                            gen.getAlignment(returnType));
 
     auto id = name_cast<Identifier>(functionSymbol->name());
     if (id && id->name() == "main" &&
@@ -468,7 +470,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       auto zeroOp = mlir::cxx::IntConstantOp::create(
           gen.builder_, loc, gen.convertType(gen.control()->getIntType()), 0);
 
-      mlir::cxx::StoreOp::create(gen.builder_, exitValueLoc, zeroOp, exitValue);
+      mlir::cxx::StoreOp::create(gen.builder_, exitValueLoc, zeroOp, exitValue,
+                                 gen.getAlignment(gen.control()->getIntType()));
     }
   }
 
@@ -499,8 +502,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     }
 
     // store the `this` pointer in the entry block
-    mlir::cxx::StoreOp::create(gen.builder_, loc,
-                               gen.entryBlock_->getArgument(0), thisValue);
+    mlir::cxx::StoreOp::create(
+        gen.builder_, loc, gen.entryBlock_->getArgument(0), thisValue,
+        gen.getAlignment(gen.control()->add_pointer(classSymbol->type())));
   }
 
   FunctionParametersSymbol* params = nullptr;
@@ -521,13 +525,15 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(type);
 
       auto loc = gen.getLocation(arg->location());
-      auto allocaOp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType);
+      auto allocaOp = mlir::cxx::AllocaOp::create(
+          gen.builder_, loc, ptrType, gen.getAlignment(arg->type()));
 
       gen.attachDebugInfo(allocaOp, arg, {}, argc + 1);
 
       auto value = args[argc];
       ++argc;
-      mlir::cxx::StoreOp::create(gen.builder_, loc, value, allocaOp);
+      mlir::cxx::StoreOp::create(gen.builder_, loc, value, allocaOp,
+                                 gen.getAlignment(arg->type()));
 
       gen.locals_.emplace(arg, allocaOp);
     }
@@ -554,8 +560,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     // We need to return a value of the correct type.
     auto elementType = gen.exitValue_.getType().getElementType();
 
-    auto value = mlir::cxx::LoadOp::create(gen.builder_, endLoc, elementType,
-                                           gen.exitValue_);
+    auto value =
+        mlir::cxx::LoadOp::create(gen.builder_, endLoc, elementType,
+                                  gen.exitValue_, gen.getAlignment(returnType));
 
     mlir::cxx::ReturnOp::create(gen.builder_, endLoc, value->getResults());
   } else {

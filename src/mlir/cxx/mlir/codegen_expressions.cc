@@ -308,8 +308,8 @@ auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
   auto type = gen.convertType(ast->type);
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
-  auto loadOp =
-      mlir::cxx::LoadOp::create(gen.builder_, loc, type, gen.thisValue_);
+  auto loadOp = mlir::cxx::LoadOp::create(
+      gen.builder_, loc, type, gen.thisValue_, gen.getAlignment(ast->type));
 
   return {loadOp};
 }
@@ -360,7 +360,8 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
       if (gen.control()->is_reference(var->type())) {
         auto loc = gen.getLocation(ast->firstSourceLocation());
         auto type = gen.convertType(var->type());  // pointer type
-        val = mlir::cxx::LoadOp::create(gen.builder_, loc, type, val);
+        val = mlir::cxx::LoadOp::create(gen.builder_, loc, type, val,
+                                        gen.getAlignment(var->type()));
       }
       return {val};
     }
@@ -370,7 +371,8 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
       if (gen.control()->is_reference(param->type())) {
         auto loc = gen.getLocation(ast->firstSourceLocation());
         auto type = gen.convertType(param->type());  // pointer type
-        val = mlir::cxx::LoadOp::create(gen.builder_, loc, type, val);
+        val = mlir::cxx::LoadOp::create(gen.builder_, loc, type, val,
+                                        gen.getAlignment(param->type()));
       }
       return {val};
     }
@@ -398,8 +400,9 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
       auto thisPtrType =
           gen.convertType(gen.control()->getPointerType(classSymbol->type()));
 
-      auto thisPtr = mlir::cxx::LoadOp::create(gen.builder_, loc, thisPtrType,
-                                               gen.thisValue_);
+      auto thisPtr = mlir::cxx::LoadOp::create(
+          gen.builder_, loc, thisPtrType, gen.thisValue_,
+          gen.getAlignment(gen.control()->getPointerType(classSymbol->type())));
 
       auto resultType =
           gen.convertType(gen.control()->add_pointer(field->type()));
@@ -804,16 +807,17 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
   if (control()->is_integral_or_unscoped_enum(ast->baseExpression->type)) {
     auto loc = gen.getLocation(ast->firstSourceLocation());
     auto elementTy = gen.convertType(ast->baseExpression->type);
-    auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
-                                            expressionResult.value);
+    auto loadOp = mlir::cxx::LoadOp::create(
+        gen.builder_, loc, elementTy, expressionResult.value,
+        gen.getAlignment(ast->baseExpression->type));
     auto resultTy = gen.convertType(ast->baseExpression->type);
     auto oneOp = mlir::cxx::IntConstantOp::create(
         gen.builder_, loc, resultTy,
         ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
     auto addOp =
         mlir::cxx::AddIOp::create(gen.builder_, loc, resultTy, loadOp, oneOp);
-    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                               expressionResult.value);
+    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp, expressionResult.value,
+                               gen.getAlignment(ast->baseExpression->type));
     return {loadOp};
   }
   if (control()->is_floating_point(ast->baseExpression->type)) {
@@ -821,8 +825,9 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     auto ptrTy =
         mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
     auto elementTy = ptrTy.getElementType();
-    auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
-                                            expressionResult.value);
+    auto loadOp = mlir::cxx::LoadOp::create(
+        gen.builder_, loc, elementTy, expressionResult.value,
+        gen.getAlignment(ast->baseExpression->type));
     auto resultTy = gen.convertType(ast->baseExpression->type);
 
     mlir::Value one;
@@ -859,8 +864,8 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 
     auto addOp =
         mlir::cxx::AddFOp::create(gen.builder_, loc, resultTy, loadOp, one);
-    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                               expressionResult.value);
+    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp, expressionResult.value,
+                               gen.getAlignment(ast->baseExpression->type));
     return {loadOp};
   }
   if (control()->is_pointer(ast->baseExpression->type)) {
@@ -868,8 +873,9 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     auto ptrTy =
         mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
     auto elementTy = ptrTy.getElementType();
-    auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
-                                            expressionResult.value);
+    auto loadOp = mlir::cxx::LoadOp::create(
+        gen.builder_, loc, elementTy, expressionResult.value,
+        gen.getAlignment(ast->baseExpression->type));
     auto resultTy = gen.convertType(ast->baseExpression->type);
     auto intTy =
         mlir::cxx::IntegerType::get(gen.builder_.getContext(), 32, true);
@@ -877,8 +883,8 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
         gen.builder_, loc, intTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
     auto addOp =
         mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultTy, loadOp, oneOp);
-    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                               expressionResult.value);
+    mlir::cxx::StoreOp::create(gen.builder_, loc, addOp, expressionResult.value,
+                               gen.getAlignment(ast->baseExpression->type));
     return {loadOp};
   }
 
@@ -1142,8 +1148,9 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
 
         auto resultType = gen.convertType(ast->type);
 
-        auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                                expressionResult.value);
+        auto loadOp = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, resultType, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
 
         mlir::Value addOp;
 
@@ -1154,15 +1161,17 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
           addOp = mlir::cxx::AddFOp::create(gen.builder_, loc, resultType,
                                             loadOp, one);
 
-        auto storeOp = mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                                                  expressionResult.value);
+        auto storeOp = mlir::cxx::StoreOp::create(
+            gen.builder_, loc, addOp, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
 
         if (is_glvalue(ast)) {
           return expressionResult;
         }
 
-        auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                            expressionResult.value);
+        auto op = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, resultType, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
 
         return {op};
       } else if (control()->is_arithmetic(ast->expression->type)) {
@@ -1176,8 +1185,9 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
 
         auto resultType = gen.convertType(ast->type);
 
-        auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                                expressionResult.value);
+        auto loadOp = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, resultType, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
 
         mlir::Value addOp;
 
@@ -1188,15 +1198,17 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
           addOp = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType,
                                             loadOp, castOneOp);
 
-        auto storeOp = mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                                                  expressionResult.value);
+        auto storeOp = mlir::cxx::StoreOp::create(
+            gen.builder_, loc, addOp, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
 
         if (is_glvalue(ast)) {
           return expressionResult;
         }
 
-        auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                            expressionResult.value);
+        auto op = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, resultType, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
 
         return {op};
       } else if (control()->is_pointer(ast->expression->type)) {
@@ -1209,19 +1221,22 @@ auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
         auto ptrTy = mlir::cast<mlir::cxx::PointerType>(
             expressionResult.value.getType());
         auto elementTy = ptrTy.getElementType();
-        auto loadOp = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
-                                                expressionResult.value);
+        auto loadOp = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, elementTy, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
         auto addOp = mlir::cxx::PtrAddOp::create(gen.builder_, loc, elementTy,
                                                  loadOp, one);
         mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                                   expressionResult.value);
+                                   expressionResult.value,
+                                   gen.getAlignment(ast->expression->type));
 
         if (is_glvalue(ast)) {
           return expressionResult;
         }
 
-        auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
-                                            expressionResult.value);
+        auto op = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, elementTy, expressionResult.value,
+            gen.getAlignment(ast->expression->type));
         return {op};
       }
 
@@ -1383,7 +1398,8 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
       auto resultType = gen.convertType(ast->type);
 
       auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                          expressionResult.value);
+                                          expressionResult.value,
+                                          gen.getAlignment(ast->type));
 
       return {op};
     }
@@ -1541,7 +1557,8 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         gen.builder_, gen.getLocation(ast->opLoc), i1type, true);
 
     mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->opLoc),
-                               trueValue, t);
+                               trueValue, t,
+                               gen.getAlignment(control()->getBoolType()));
 
     auto endLoc = gen.getLocation(ast->lastSourceLocation());
     gen.branch(endLoc, endBlock);
@@ -1551,7 +1568,8 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     auto falseValue = mlir::cxx::BoolConstantOp::create(
         gen.builder_, gen.getLocation(ast->opLoc), i1type, false);
     mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->opLoc),
-                               falseValue, t);
+                               falseValue, t,
+                               gen.getAlignment(control()->getBoolType()));
     gen.branch(gen.getLocation(ast->lastSourceLocation()), endBlock);
 
     // place the end block
@@ -1561,7 +1579,8 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
     auto resultType = gen.convertType(ast->type);
     auto loadOp = mlir::cxx::LoadOp::create(
-        gen.builder_, gen.getLocation(ast->opLoc), resultType, t);
+        gen.builder_, gen.getLocation(ast->opLoc), resultType, t,
+        gen.getAlignment(control()->getBoolType()));
     return {loadOp};
   }
 
@@ -1587,7 +1606,8 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
         gen.builder_, gen.getLocation(ast->opLoc), i1type, true);
 
     mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->opLoc),
-                               trueValue, t);
+                               trueValue, t,
+                               gen.getAlignment(control()->getBoolType()));
 
     auto endLoc = gen.getLocation(ast->lastSourceLocation());
     gen.branch(endLoc, endBlock);
@@ -1597,7 +1617,8 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     auto falseValue = mlir::cxx::BoolConstantOp::create(
         gen.builder_, gen.getLocation(ast->opLoc), i1type, false);
     mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->opLoc),
-                               falseValue, t);
+                               falseValue, t,
+                               gen.getAlignment(control()->getBoolType()));
     gen.branch(gen.getLocation(ast->lastSourceLocation()), endBlock);
 
     // place the end block
@@ -1607,7 +1628,8 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
     auto resultType = gen.convertType(ast->type);
     auto loadOp = mlir::cxx::LoadOp::create(
-        gen.builder_, gen.getLocation(ast->opLoc), resultType, t);
+        gen.builder_, gen.getLocation(ast->opLoc), resultType, t,
+        gen.getAlignment(control()->getBoolType()));
     return {loadOp};
   }
 
@@ -1926,17 +1948,17 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   // place the true block
   gen.builder_.setInsertionPointToEnd(trueBlock);
   auto trueExpressionResult = gen.expression(ast->iftrueExpression);
-  auto trueValue = mlir::cxx::StoreOp::create(gen.builder_,
-                                              gen.getLocation(ast->questionLoc),
-                                              trueExpressionResult.value, t);
+  auto trueValue = mlir::cxx::StoreOp::create(
+      gen.builder_, gen.getLocation(ast->questionLoc),
+      trueExpressionResult.value, t, gen.getAlignment(ast->type));
   gen.branch(endLoc, endBlock);
 
   // place the false block
   gen.builder_.setInsertionPointToEnd(falseBlock);
   auto falseExpressionResult = gen.expression(ast->iffalseExpression);
-  auto falseValue =
-      mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->colonLoc),
-                                 falseExpressionResult.value, t);
+  auto falseValue = mlir::cxx::StoreOp::create(
+      gen.builder_, gen.getLocation(ast->colonLoc), falseExpressionResult.value,
+      t, gen.getAlignment(ast->type));
   gen.branch(endLoc, endBlock);
 
   // place the end block
@@ -1945,8 +1967,9 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   if (format == ExpressionFormat::kSideEffect) return {};
 
   auto resultType = gen.convertType(ast->type);
-  auto loadOp = mlir::cxx::LoadOp::create(
-      gen.builder_, gen.getLocation(ast->colonLoc), resultType, t);
+  auto loadOp =
+      mlir::cxx::LoadOp::create(gen.builder_, gen.getLocation(ast->colonLoc),
+                                resultType, t, gen.getAlignment(ast->type));
   return {loadOp};
 }
 
@@ -1984,7 +2007,8 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     const auto loc = gen.getLocation(ast->opLoc);
 
     mlir::cxx::StoreOp::create(gen.builder_, loc, rightExpressionResult.value,
-                               leftExpressionResult.value);
+                               leftExpressionResult.value,
+                               gen.getAlignment(ast->leftExpression->type));
 
     if (format == ExpressionFormat::kSideEffect) {
       return {};
@@ -1996,8 +2020,9 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
       auto resultType = gen.convertType(ast->leftExpression->type);
 
       // generate a load
-      auto op = mlir::cxx::LoadOp::create(gen.builder_, resultLoc, resultType,
-                                          leftExpressionResult.value);
+      auto op = mlir::cxx::LoadOp::create(
+          gen.builder_, resultLoc, resultType, leftExpressionResult.value,
+          gen.getAlignment(ast->leftExpression->type));
 
       return {op};
     }
@@ -2107,7 +2132,8 @@ auto Codegen::ExpressionVisitor::operator()(
   std::swap(gen.targetValue_, targetValue);
 
   mlir::cxx::StoreOp::create(gen.builder_, loc, sourceExpressionResult.value,
-                             targetExpressionResult.value);
+                             targetExpressionResult.value,
+                             gen.getAlignment(ast->type));
 
   if (format == ExpressionFormat::kSideEffect) {
     return {};
@@ -2115,7 +2141,8 @@ auto Codegen::ExpressionVisitor::operator()(
 
   if (gen.unit_->language() == LanguageKind::kC) {
     auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                        targetExpressionResult.value);
+                                        targetExpressionResult.value,
+                                        gen.getAlignment(ast->type));
     return {op};
   }
 
@@ -2209,7 +2236,8 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto type = gen.convertType(ast->type);
   auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(type);
-  auto temp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType);
+  auto temp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType,
+                                          gen.getAlignment(ast->type));
 
   int index = 0;
   for (auto node : ListView{ast->expressionList}) {
@@ -2274,12 +2302,33 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
     }
 
     auto val = gen.expression(node).value;
-    mlir::cxx::StoreOp::create(gen.builder_, loc, val, memberAddr);
+    const Type* memberType = nullptr;
+    if (gen.control()->is_class(ast->type)) {
+      auto classType =
+          type_cast<ClassType>(gen.control()->remove_cv(ast->type));
+      auto classSymbol = symbol_cast<ClassSymbol>(classType->symbol());
+      int fieldCount = 0;
+      for (auto member : views::members(classSymbol)) {
+        if (auto f = symbol_cast<FieldSymbol>(member)) {
+          if (f->isStatic()) continue;
+          if (fieldCount == index) {
+            memberType = f->type();
+            break;
+          }
+          fieldCount++;
+        }
+      }
+    } else if (gen.control()->is_array(ast->type)) {
+      memberType = gen.control()->get_element_type(ast->type);
+    }
+    mlir::cxx::StoreOp::create(gen.builder_, loc, val, memberAddr,
+                               gen.getAlignment(memberType));
 
     index++;
   }
 
-  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, type, temp);
+  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, type, temp,
+                                      gen.getAlignment(ast->type));
   return {op};
 }
 
@@ -2344,7 +2393,8 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
       arrayInit(elementAddress, elementType, node);
     } else {
       auto value = expression(node);
-      mlir::cxx::StoreOp::create(builder_, loc, value.value, elementAddress);
+      mlir::cxx::StoreOp::create(builder_, loc, value.value, elementAddress,
+                                 getAlignment(elementType));
     }
   }
 }
