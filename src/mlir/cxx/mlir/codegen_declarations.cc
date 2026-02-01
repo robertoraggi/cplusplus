@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -31,9 +32,15 @@
 #include <cxx/views/symbols.h>
 
 // mlir
+#include <llvm/BinaryFormat/Dwarf.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
+#include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/Block.h>
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/Support/LLVM.h>
 
+#include <filesystem>
 #include <format>
 
 namespace cxx {
@@ -367,14 +374,71 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
-  auto functionSymbol = ast->symbol;
+  auto ctx = gen.builder_.getContext();
 
-  auto func = gen.findOrCreateFunction(functionSymbol);
+  auto functionSymbol = ast->symbol;
   const auto functionType = type_cast<FunctionType>(functionSymbol->type());
   const auto returnType = functionType->returnType();
+
+  auto func = gen.findOrCreateFunction(functionSymbol);
+
+  mlir::DistinctAttr id =
+      mlir::DistinctAttr::create(gen.builder_.getUnitAttr());
+
+  mlir::LLVM::DIScopeAttr scope;
+
+  mlir::StringAttr name = mlir::StringAttr::get(ctx, func.getSymName());
+
+  mlir::StringAttr linkageName = name;
+
+  auto declaratorId = getDeclaratorId(ast->declarator);
+
+  auto funcLoc =
+      gen.unit_->tokenStartPosition(declaratorId->firstSourceLocation());
+
+  auto fileAttr = gen.getFileAttr(funcLoc.fileName);
+
+  unsigned line = funcLoc.line;
+
+  unsigned scopeLine =
+      gen.unit_->tokenStartPosition(ast->functionBody->firstSourceLocation())
+          .line;
+
+  mlir::LLVM::DISubprogramFlags subprogramFlags =
+      mlir::LLVM::DISubprogramFlags::Definition;
+
+  mlir::SmallVector<mlir::LLVM::DITypeAttr> signatureType;
+  signatureType.push_back(gen.convertDebugType(functionType->returnType()));
+  if (auto classType = type_cast<ClassType>(functionSymbol->parent()->type());
+      classType && !functionSymbol->isStatic()) {
+    signatureType.push_back(
+        gen.convertDebugType(gen.control()->add_pointer(classType)));
+  }
+  for (auto paramType : functionType->parameterTypes()) {
+    signatureType.push_back(gen.convertDebugType(paramType));
+  }
+
+  mlir::LLVM::DISubroutineTypeAttr type =
+      mlir::LLVM::DISubroutineTypeAttr::get(ctx, signatureType);
+
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
+
+  auto fileName =
+      gen.unit_->tokenStartPosition(declaratorId->firstSourceLocation())
+          .fileName;
+
+  auto compileUnitAttr = gen.getCompileUnitAttr(fileName);
+
+  auto subprogram = mlir::LLVM::DISubprogramAttr::get(
+      ctx, id, compileUnitAttr, scope, name, linkageName,
+      compileUnitAttr.getFile(), line, scopeLine, subprogramFlags, type,
+      retainedNodes, annotations);
+
   const auto needsExitValue = !gen.control()->is_void(returnType);
 
   auto loc = gen.getLocation(ast->firstSourceLocation());
+  func->setLoc(mlir::FusedLoc::get({loc}, subprogram, ctx));
 
   // Add the function body.
   auto entryBlock = gen.builder_.createBlock(&func.getBody());

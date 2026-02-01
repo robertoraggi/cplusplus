@@ -30,14 +30,18 @@
 #include <cxx/views/symbols.h>
 
 // mlir
+#include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
+#include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/Target/LLVMIR/Import.h>
 
+#include <filesystem>
 #include <format>
 
 namespace cxx {
@@ -135,9 +139,15 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
 
-  auto loc = gen.builder_.getUnknownLoc();
-  auto name = gen.unit_->fileName();
-  auto module = mlir::ModuleOp::create(gen.builder_, loc, name);
+  auto ctx = gen.builder_.getContext();
+
+  auto compileUnit = gen.getCompileUnitAttr(gen.unit_->fileName());
+
+  auto loc = mlir::FileLineColLoc::get(ctx, gen.unit_->fileName(), 0, 0);
+
+  auto module =
+      mlir::ModuleOp::create(gen.builder_, loc, gen.unit_->fileName());
+
   gen.builder_.setInsertionPointToStart(module.getBody());
 
   auto memoryLayout = gen.control()->memoryLayout();

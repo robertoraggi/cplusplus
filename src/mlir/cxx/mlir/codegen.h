@@ -28,7 +28,7 @@
 #include <cxx/types_fwd.h>
 
 // mlir
-#include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 
@@ -248,6 +248,15 @@ class Codegen {
   void arrayInit(mlir::Value address, const Type* type, ExpressionAST* init);
 
  private:
+  [[nodiscard]] auto getCompileUnitAttr(std::string_view filename)
+      -> mlir::LLVM::DICompileUnitAttr;
+
+  [[nodiscard]] auto getFileAttr(const std::string& filename)
+      -> mlir::LLVM::DIFileAttr;
+
+  [[nodiscard]] auto getFileAttr(std::string_view filename)
+      -> mlir::LLVM::DIFileAttr;
+
   [[nodiscard]] auto getLocation(SourceLocation loc) -> mlir::Location;
 
   [[nodiscard]] auto emitTodoStmt(SourceLocation loc, std::string_view message)
@@ -257,6 +266,9 @@ class Codegen {
       -> mlir::cxx::TodoExprOp;
 
   [[nodiscard]] auto convertType(const Type* type) -> mlir::Type;
+
+  [[nodiscard]] auto convertDebugType(const Type* type)
+      -> mlir::LLVM::DITypeAttr;
 
   [[nodiscard]] auto currentBlockMightHaveTerminator() -> bool;
 
@@ -323,6 +335,7 @@ class Codegen {
   struct AttributeTokenVisitor;
 
   struct ConvertType;
+  struct ConvertDebugType;
 
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
@@ -339,6 +352,9 @@ class Codegen {
   std::unordered_map<VariableSymbol*, mlir::cxx::GlobalOp> globalOps_;
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;
+  std::unordered_map<std::string, mlir::LLVM::DIFileAttr> fileAttrs_;
+  std::unordered_map<std::string_view, mlir::LLVM::DICompileUnitAttr>
+      compileUnitAttrs_;
   Loop loop_;
   Switch switch_;
   int count_ = 0;

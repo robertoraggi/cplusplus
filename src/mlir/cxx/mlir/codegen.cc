@@ -30,8 +30,11 @@
 #include <cxx/types.h>
 
 // mlir
+#include <llvm/BinaryFormat/Dwarf.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
+#include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 
+#include <filesystem>
 #include <format>
 
 namespace cxx {
@@ -301,6 +304,58 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   globalOps_.insert_or_assign(variableSymbol, var);
 
   return var;
+}
+
+auto Codegen::getCompileUnitAttr(std::string_view filename)
+    -> mlir::LLVM::DICompileUnitAttr {
+  if (auto it = compileUnitAttrs_.find(filename);
+      it != compileUnitAttrs_.end()) {
+    return it->second;
+  }
+
+  auto ctx = builder_.getContext();
+
+  auto distinct = mlir::DistinctAttr::create(builder_.getUnitAttr());
+  auto sourceLanguage = llvm::dwarf::DW_LANG_C_plus_plus_20;
+  auto fileAttr = getFileAttr(filename);
+  auto producer = mlir::StringAttr::get(ctx, "cxx");
+  auto isOptimized = false;
+  auto emissionKind = mlir::LLVM::DIEmissionKind::Full;
+
+  mlir::LLVM::DINameTableKind nameTableKind =
+      mlir::LLVM::DINameTableKind::Default;
+
+  // for apple triple
+  nameTableKind = mlir::LLVM::DINameTableKind::Apple;
+
+  auto compileUnit = mlir::LLVM::DICompileUnitAttr::get(
+      distinct, sourceLanguage, fileAttr, producer, isOptimized, emissionKind,
+      nameTableKind);
+
+  compileUnitAttrs_.insert_or_assign(filename, compileUnit);
+
+  return compileUnit;
+}
+
+auto Codegen::getFileAttr(const std::string& filename)
+    -> mlir::LLVM::DIFileAttr {
+  if (auto it = fileAttrs_.find(filename); it != fileAttrs_.end()) {
+    return it->second;
+  }
+
+  auto filePath = absolute(std::filesystem::path{filename});
+
+  auto attr = mlir::LLVM::DIFileAttr::get(builder_.getContext(),
+                                          filePath.filename().string(),
+                                          filePath.parent_path().string());
+
+  fileAttrs_.insert_or_assign(filename, attr);
+
+  return attr;
+}
+
+auto Codegen::getFileAttr(std::string_view filename) -> mlir::LLVM::DIFileAttr {
+  return getFileAttr(std::string{filename});
 }
 
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {

@@ -508,7 +508,8 @@ void Frontend::Private::emitIR() {
 
   mlir::OpPrintingFlags flags;
   if (cli.opt_g) {
-    flags.enableDebugInfo(true, true);
+    auto prettyForm = true;
+    flags.enableDebugInfo(true, prettyForm);
   }
 
   withRawOutputStream(std::nullopt, [&](llvm::raw_ostream& out) {
