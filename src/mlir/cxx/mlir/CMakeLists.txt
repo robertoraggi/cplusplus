@@ -25,6 +25,7 @@ set(SOURCES
     codegen_statements.cc
     codegen_units.cc
     convert_type.cc
+    convert_debug_type.cc
     cxx_dialect.cc
     cxx_dialect_conversions.cc
 )

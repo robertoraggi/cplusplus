@@ -359,7 +359,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   void operator()(const Identifier* id) {
     if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
       if (function->isConstructor()) {
-        out("C2");
+        out("C1");
         return;
       }
     }
