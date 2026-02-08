@@ -4,19 +4,37 @@ extern "C" int printf(const char*, ...);
 
 namespace ns {
 
-struct Point {
-  int x;
-  int y;
+struct Vec2 {
+  double x;
+  double y;
 };
 
-int distance(const Point& a, const Point& b) { return a.x - b.x + a.y - b.y; }
+constexpr auto dot(const Vec2& a, const Vec2& b) -> double {
+  return a.x * b.x + a.y * b.y;
+}
 
 }  // namespace ns
 
+void f1() {
+  ns::Vec2 p1{1.0, 2.0};
+  ns::Vec2 p2{3.0, 4.0};
+  printf("dot product: %f\n", dot(p1, p2));
+}
+
+#ifdef FIX_TYPE_CONSTRUCTION
+void f2() {
+  ns::Vec2 p1 = ns::Vec2{1.0, 2.0};
+  ns::Vec2 p2 = ns::Vec2{3.0, 4.0};
+  printf("dot product: %f\n", ns::dot(p1, p2));
+}
+#endif
+
 auto main() -> int {
-  ns::Point p1{1, 2};
-  ns::Point p2{3, 4};
-  int d = distance(p1, p2);
-  printf("Distance: %d\n", d);
+  f1();
+
+#ifdef FIX_TYPE_CONSTRUCTION
+  f2();
+#endif
+
   return 0;
 }
