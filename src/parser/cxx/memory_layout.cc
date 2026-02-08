@@ -153,6 +153,10 @@ struct SizeOf {
     return memoryLayout.sizeOfLongDouble();
   }
 
+  auto operator()(const Float16Type* type) const -> std::optional<std::size_t> {
+    return 2;
+  }
+
   auto operator()(const QualType* type) const -> std::optional<std::size_t> {
     return visit(*this, type->elementType());
   }
@@ -261,6 +265,11 @@ struct AlignmentOf {
   }
 
   auto operator()(const UnboundedArrayType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.alignmentOf(type->elementType());
+  }
+
+  auto operator()(const BoundedArrayType* type) const
       -> std::optional<std::size_t> {
     return memoryLayout.alignmentOf(type->elementType());
   }

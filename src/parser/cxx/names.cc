@@ -69,6 +69,15 @@ struct ConstValueHash {
     }
     return seed;
   }
+  auto operator()(const std::shared_ptr<ConstObject>& value) const
+      -> std::size_t {
+    std::size_t seed = std::hash<const void*>{}(value->type());
+    for (const auto& field : value->fields()) {
+      hash_combine(seed, std::hash<const void*>{}(field.symbol));
+      hash_combine(seed, std::visit(ConstValueHash{}, field.value));
+    }
+    return seed;
+  }
 };
 
 struct TemplateArgumentHash {

@@ -73,6 +73,7 @@ struct Codegen::ConvertDebugType {
   auto operator()(const FloatType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const DoubleType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const LongDoubleType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const Float16Type* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const QualType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const BoundedArrayType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const UnboundedArrayType* type) -> mlir::LLVM::DITypeAttr;
@@ -110,8 +111,7 @@ struct Codegen::ConvertDebugType {
   auto compositeType(unsigned tag, const llvm::Twine& name,
                      mlir::LLVM::DITypeAttr baseType,
                      llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements,
-                     const Type* type = nullptr, mlir::DistinctAttr recId = {},
-                     bool isRecSelf = false) -> mlir::LLVM::DITypeAttr;
+                     const Type* type = nullptr) -> mlir::LLVM::DITypeAttr;
 
   [[nodiscard]] auto context() const -> mlir::MLIRContext* {
     return gen.builder_.getContext();
@@ -173,8 +173,8 @@ auto Codegen::ConvertDebugType::derivedType(unsigned tag, const Type* type,
 
 auto Codegen::ConvertDebugType::compositeType(
     unsigned tag, const llvm::Twine& name, mlir::LLVM::DITypeAttr baseType,
-    llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements, const Type* type,
-    mlir::DistinctAttr recId, bool isRecSelf) -> mlir::LLVM::DITypeAttr {
+    llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements, const Type* type)
+    -> mlir::LLVM::DITypeAttr {
   mlir::LLVM::DIFileAttr file{};
   uint32_t line{};
   mlir::LLVM::DIScopeAttr scope{};
@@ -199,19 +199,6 @@ auto Codegen::ConvertDebugType::compositeType(
   mlir::LLVM::DIExpressionAttr rank{};
   mlir::LLVM::DIExpressionAttr allocated{};
   mlir::LLVM::DIExpressionAttr associated{};
-
-  if (recId) {
-    return mlir::LLVM::DICompositeTypeAttr::get(
-        context(), recId, isRecSelf, tag,
-        mlir::StringAttr::get(context(), name.str()), file, line, scope,
-        baseType, flags, sizeInBits, alignInBits,
-#if LLVM_VERSION_MAJOR < 22
-        elements, dataLocation, rank, allocated, associated
-#else
-        dataLocation, rank, allocated, associated, elements
-#endif
-    );
-  }
 
   return mlir::LLVM::DICompositeTypeAttr::get(
       context(), tag, mlir::StringAttr::get(context(), name.str()), file, line,
@@ -359,10 +346,15 @@ auto Codegen::ConvertDebugType::operator()(const LongDoubleType* type)
   return basicType("long double", type, llvm::dwarf::DW_ATE_float);
 }
 
+auto Codegen::ConvertDebugType::operator()(const Float16Type* type)
+    -> mlir::LLVM::DITypeAttr {
+  return basicType("_Float16", type, llvm::dwarf::DW_ATE_float);
+}
+
 auto Codegen::ConvertDebugType::operator()(const QualType* type)
     -> mlir::LLVM::DITypeAttr {
   auto resultType = gen.convertDebugType(type->elementType());
-  auto sizeInBytes = memoryLayout()->sizeOf(type).value() * 8;
+
   if (type->isVolatile()) {
     resultType =
         derivedType(llvm::dwarf::DW_TAG_volatile_type, type, resultType);
@@ -452,8 +444,7 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
 
   // Create Recursive Self Reference
   auto name = to_string(symbol->name());
-  auto recSelf = compositeType(tag, name, {}, {}, type, recId,
-                               /*isRecSelf=*/true);
+  auto recSelf = compositeType(tag, name, {}, {}, type);
 
   // Insert RecSelf into cache
   gen.debugTypeCache_[type] = recSelf;
@@ -483,10 +474,8 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
   }
 
   // Add fields
-  for (auto member : cxx::views::members(symbol)) {
-    auto field = symbol_cast<FieldSymbol>(member);
-    if (!field) continue;
-    if (field->isStatic()) continue;
+  for (auto field :
+       cxx::views::members(symbol) | cxx::views::non_static_fields) {
     auto fieldTypeAttr = gen.convertDebugType(field->type());
     if (!fieldTypeAttr) continue;
 
@@ -503,25 +492,81 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
     if (memberAttr) elements.push_back(memberAttr);
   }
 
-  // Create Full Definition using the SAME recId
-  auto fullDef = compositeType(tag, name, {}, elements, type, recId,
-                               /*isRecSelf=*/false);
+  auto fullDef = compositeType(tag, name, {}, elements, type);
 
-  // Update Cache with Full Definition (optional, but good for consistency)
-  gen.debugTypeCache_[type] = fullDef;
+  gen.debugTypeCache_.insert_or_assign(type, fullDef);
 
   return fullDef;
 }
 
 auto Codegen::ConvertDebugType::operator()(const EnumType* type)
     -> mlir::LLVM::DITypeAttr {
-  return basicType(to_string(type->symbol()->name()), type,
-                   llvm::dwarf::DW_ATE_signed);
+  auto symbol = type->symbol();
+  auto name = to_string(symbol->name());
+  auto underlyingTy = type->underlyingType();
+  auto baseType = underlyingTy ? gen.convertDebugType(underlyingTy)
+                               : mlir::LLVM::DITypeAttr{};
+
+  auto sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
+  auto alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
+
+  mlir::LLVM::DIFileAttr file{};
+  uint32_t line{};
+  mlir::LLVM::DIScopeAttr scope{};
+  if (symbol->location()) {
+    auto [filename, l, c] = gen.unit_->tokenStartPosition(symbol->location());
+    file = gen.getFileAttr(filename);
+    line = l;
+    scope = gen.getCompileUnitAttr(filename);
+  }
+
+  return mlir::LLVM::DICompositeTypeAttr::get(
+      context(), llvm::dwarf::DW_TAG_enumeration_type,
+      mlir::StringAttr::get(context(), name), file, line, scope, baseType,
+      mlir::LLVM::DIFlags{}, sizeInBits, alignInBits,
+#if LLVM_VERSION_MAJOR < 22
+      /*elements=*/{}, /*dataLocation=*/{}, /*rank=*/{}, /*allocated=*/{},
+      /*associated=*/{}
+#else
+      /*dataLocation=*/{}, /*rank=*/{}, /*allocated=*/{}, /*associated=*/{},
+      /*elements=*/{}
+#endif
+  );
 }
 
 auto Codegen::ConvertDebugType::operator()(const ScopedEnumType* type)
     -> mlir::LLVM::DITypeAttr {
-  return {};
+  auto symbol = type->symbol();
+  auto name = to_string(symbol->name());
+  auto underlyingTy = type->underlyingType();
+  auto baseType = underlyingTy ? gen.convertDebugType(underlyingTy)
+                               : mlir::LLVM::DITypeAttr{};
+
+  auto sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
+  auto alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
+
+  mlir::LLVM::DIFileAttr file{};
+  uint32_t line{};
+  mlir::LLVM::DIScopeAttr scope{};
+  if (symbol->location()) {
+    auto [filename, l, c] = gen.unit_->tokenStartPosition(symbol->location());
+    file = gen.getFileAttr(filename);
+    line = l;
+    scope = gen.getCompileUnitAttr(filename);
+  }
+
+  return mlir::LLVM::DICompositeTypeAttr::get(
+      context(), llvm::dwarf::DW_TAG_enumeration_type,
+      mlir::StringAttr::get(context(), name), file, line, scope, baseType,
+      mlir::LLVM::DIFlags::EnumClass, sizeInBits, alignInBits,
+#if LLVM_VERSION_MAJOR < 22
+      /*elements=*/{}, /*dataLocation=*/{}, /*rank=*/{}, /*allocated=*/{},
+      /*associated=*/{}
+#else
+      /*dataLocation=*/{}, /*rank=*/{}, /*allocated=*/{}, /*associated=*/{},
+      /*elements=*/{}
+#endif
+  );
 }
 
 auto Codegen::ConvertDebugType::operator()(const MemberObjectPointerType* type)
@@ -571,7 +616,9 @@ auto Codegen::ConvertDebugType::operator()(const OverloadSetType* type)
 
 auto Codegen::ConvertDebugType::operator()(const BuiltinVaListType* type)
     -> mlir::LLVM::DITypeAttr {
-  return {};
+  auto elementType = mlir::LLVM::DIBasicTypeAttr::get(
+      context(), llvm::dwarf::DW_TAG_unspecified_type, "void", 0, 0);
+  return derivedType(llvm::dwarf::DW_TAG_pointer_type, type, elementType);
 }
 
 auto Codegen::ConvertDebugType::operator()(const BuiltinMetaInfoType* type)

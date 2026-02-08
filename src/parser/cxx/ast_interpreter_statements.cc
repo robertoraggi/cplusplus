@@ -138,6 +138,7 @@ auto ASTInterpreter::StatementVisitor::operator()(CompoundStatementAST* ast)
     -> StatementResult {
   for (auto node : ListView{ast->statementList}) {
     auto value = interp.statement(node);
+    if (interp.hasReturnValue()) break;
   }
 
   return {};
@@ -147,6 +148,20 @@ auto ASTInterpreter::StatementVisitor::operator()(IfStatementAST* ast)
     -> StatementResult {
   auto initializerResult = interp.statement(ast->initializer);
   auto conditionResult = interp.expression(ast->condition);
+
+  if (conditionResult.has_value()) {
+    auto boolVal = interp.toBool(*conditionResult);
+    if (boolVal.has_value()) {
+      if (*boolVal) {
+        (void)interp.statement(ast->statement);
+      } else {
+        (void)interp.statement(ast->elseStatement);
+      }
+      return {};
+    }
+  }
+
+  // Fallback: visit both branches (as before).
   auto statementResult = interp.statement(ast->statement);
   auto elseStatementResult = interp.statement(ast->elseStatement);
 
@@ -219,6 +234,9 @@ auto ASTInterpreter::StatementVisitor::operator()(ContinueStatementAST* ast)
 auto ASTInterpreter::StatementVisitor::operator()(ReturnStatementAST* ast)
     -> StatementResult {
   auto expressionResult = interp.expression(ast->expression);
+  if (expressionResult.has_value()) {
+    interp.setReturnValue(*expressionResult);
+  }
 
   return {};
 }
@@ -238,6 +256,52 @@ auto ASTInterpreter::StatementVisitor::operator()(GotoStatementAST* ast)
 auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
     -> StatementResult {
   auto declarationResult = interp.declaration(ast->declaration);
+
+  if (auto* simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration)) {
+    for (auto initDecl : ListView{simpleDecl->initDeclaratorList}) {
+      if (!initDecl->symbol) continue;
+
+      auto initVal = interp.expression(initDecl->initializer);
+
+      if (!initVal.has_value()) {
+        if (auto* parenInit =
+                ast_cast<ParenInitializerAST>(initDecl->initializer)) {
+          auto* var = symbol_cast<VariableSymbol>(initDecl->symbol);
+          if (var) {
+            auto varType = interp.control()->remove_cv(var->type());
+            if (auto* classType = type_cast<ClassType>(varType)) {
+              std::vector<ConstValue> args;
+              bool argsOk = true;
+              for (auto node : ListView{parenInit->expressionList}) {
+                auto val = interp.evaluate(node);
+                if (!val) {
+                  argsOk = false;
+                  break;
+                }
+                args.push_back(std::move(*val));
+              }
+              if (argsOk) {
+                auto* classSym = classType->symbol();
+                if (classSym) {
+                  for (auto* ctor : classSym->constructors()) {
+                    if (ctor->isConstexpr()) {
+                      initVal = interp.evaluateConstructor(ctor, varType,
+                                                           std::move(args));
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (initVal.has_value()) {
+        interp.setLocal(initDecl->symbol, *initVal);
+      }
+    }
+  }
 
   return {};
 }

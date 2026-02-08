@@ -8551,6 +8551,7 @@ auto SubscriptExpressionAST::clone(Arena* arena) -> SubscriptExpressionAST* {
   if (indexExpression) node->indexExpression = indexExpression->clone(arena);
 
   node->rbracketLoc = rbracketLoc;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8565,12 +8566,14 @@ auto SubscriptExpressionAST::create(Arena* arena) -> SubscriptExpressionAST* {
 auto SubscriptExpressionAST::create(
     Arena* arena, ExpressionAST* baseExpression, SourceLocation lbracketLoc,
     ExpressionAST* indexExpression, SourceLocation rbracketLoc,
-    ValueCategory valueCategory, const Type* type) -> SubscriptExpressionAST* {
+    FunctionSymbol* symbol, ValueCategory valueCategory, const Type* type)
+    -> SubscriptExpressionAST* {
   auto node = new (arena) SubscriptExpressionAST();
   node->baseExpression = baseExpression;
   node->lbracketLoc = lbracketLoc;
   node->indexExpression = indexExpression;
   node->rbracketLoc = rbracketLoc;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8578,12 +8581,14 @@ auto SubscriptExpressionAST::create(
 
 auto SubscriptExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                     ExpressionAST* indexExpression,
+                                    FunctionSymbol* symbol,
                                     ValueCategory valueCategory,
                                     const Type* type)
     -> SubscriptExpressionAST* {
   auto node = new (arena) SubscriptExpressionAST();
   node->baseExpression = baseExpression;
   node->indexExpression = indexExpression;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8916,6 +8921,7 @@ auto CppCastExpressionAST::clone(Arena* arena) -> CppCastExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
+  node->castOp = castOp;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8930,7 +8936,7 @@ auto CppCastExpressionAST::create(Arena* arena) -> CppCastExpressionAST* {
 auto CppCastExpressionAST::create(
     Arena* arena, SourceLocation castLoc, SourceLocation lessLoc,
     TypeIdAST* typeId, SourceLocation greaterLoc, SourceLocation lparenLoc,
-    ExpressionAST* expression, SourceLocation rparenLoc,
+    ExpressionAST* expression, SourceLocation rparenLoc, TokenKind castOp,
     ValueCategory valueCategory, const Type* type) -> CppCastExpressionAST* {
   auto node = new (arena) CppCastExpressionAST();
   node->castLoc = castLoc;
@@ -8940,18 +8946,20 @@ auto CppCastExpressionAST::create(
   node->lparenLoc = lparenLoc;
   node->expression = expression;
   node->rparenLoc = rparenLoc;
+  node->castOp = castOp;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto CppCastExpressionAST::create(Arena* arena, TypeIdAST* typeId,
-                                  ExpressionAST* expression,
+                                  ExpressionAST* expression, TokenKind castOp,
                                   ValueCategory valueCategory, const Type* type)
     -> CppCastExpressionAST* {
   auto node = new (arena) CppCastExpressionAST();
   node->typeId = typeId;
   node->expression = expression;
+  node->castOp = castOp;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9436,6 +9444,7 @@ auto UnaryExpressionAST::clone(Arena* arena) -> UnaryExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9449,23 +9458,27 @@ auto UnaryExpressionAST::create(Arena* arena) -> UnaryExpressionAST* {
 
 auto UnaryExpressionAST::create(Arena* arena, SourceLocation opLoc,
                                 ExpressionAST* expression, TokenKind op,
+                                FunctionSymbol* symbol,
                                 ValueCategory valueCategory, const Type* type)
     -> UnaryExpressionAST* {
   auto node = new (arena) UnaryExpressionAST();
   node->opLoc = opLoc;
   node->expression = expression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto UnaryExpressionAST::create(Arena* arena, ExpressionAST* expression,
-                                TokenKind op, ValueCategory valueCategory,
-                                const Type* type) -> UnaryExpressionAST* {
+                                TokenKind op, FunctionSymbol* symbol,
+                                ValueCategory valueCategory, const Type* type)
+    -> UnaryExpressionAST* {
   auto node = new (arena) UnaryExpressionAST();
   node->expression = expression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9812,6 +9825,7 @@ auto NewExpressionAST::clone(Arena* arena) -> NewExpressionAST* {
   if (newInitalizer) node->newInitalizer = newInitalizer->clone(arena);
 
   node->objectType = objectType;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9828,8 +9842,8 @@ auto NewExpressionAST::create(
     NewPlacementAST* newPlacement, SourceLocation lparenLoc,
     List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
     SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
-    const Type* objectType, ValueCategory valueCategory, const Type* type)
-    -> NewExpressionAST* {
+    const Type* objectType, FunctionSymbol* constructorSymbol,
+    ValueCategory valueCategory, const Type* type) -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->scopeLoc = scopeLoc;
   node->newLoc = newLoc;
@@ -9840,6 +9854,7 @@ auto NewExpressionAST::create(
   node->rparenLoc = rparenLoc;
   node->newInitalizer = newInitalizer;
   node->objectType = objectType;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9850,6 +9865,7 @@ auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
                               DeclaratorAST* declarator,
                               NewInitializerAST* newInitalizer,
                               const Type* objectType,
+                              FunctionSymbol* constructorSymbol,
                               ValueCategory valueCategory, const Type* type)
     -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
@@ -9858,6 +9874,7 @@ auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
   node->declarator = declarator;
   node->newInitalizer = newInitalizer;
   node->objectType = objectType;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10003,6 +10020,7 @@ auto BinaryExpressionAST::clone(Arena* arena) -> BinaryExpressionAST* {
   if (rightExpression) node->rightExpression = rightExpression->clone(arena);
 
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10017,6 +10035,7 @@ auto BinaryExpressionAST::create(Arena* arena) -> BinaryExpressionAST* {
 auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
                                  SourceLocation opLoc,
                                  ExpressionAST* rightExpression, TokenKind op,
+                                 FunctionSymbol* symbol,
                                  ValueCategory valueCategory, const Type* type)
     -> BinaryExpressionAST* {
   auto node = new (arena) BinaryExpressionAST();
@@ -10024,6 +10043,7 @@ auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
   node->opLoc = opLoc;
   node->rightExpression = rightExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10031,12 +10051,14 @@ auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
 
 auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
                                  ExpressionAST* rightExpression, TokenKind op,
+                                 FunctionSymbol* symbol,
                                  ValueCategory valueCategory, const Type* type)
     -> BinaryExpressionAST* {
   auto node = new (arena) BinaryExpressionAST();
   node->leftExpression = leftExpression;
   node->rightExpression = rightExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10190,6 +10212,7 @@ auto AssignmentExpressionAST::clone(Arena* arena) -> AssignmentExpressionAST* {
   if (rightExpression) node->rightExpression = rightExpression->clone(arena);
 
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10203,28 +10226,28 @@ auto AssignmentExpressionAST::create(Arena* arena) -> AssignmentExpressionAST* {
 
 auto AssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* leftExpression, SourceLocation opLoc,
-    ExpressionAST* rightExpression, TokenKind op, ValueCategory valueCategory,
-    const Type* type) -> AssignmentExpressionAST* {
+    ExpressionAST* rightExpression, TokenKind op, FunctionSymbol* symbol,
+    ValueCategory valueCategory, const Type* type) -> AssignmentExpressionAST* {
   auto node = new (arena) AssignmentExpressionAST();
   node->leftExpression = leftExpression;
   node->opLoc = opLoc;
   node->rightExpression = rightExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
-auto AssignmentExpressionAST::create(Arena* arena,
-                                     ExpressionAST* leftExpression,
-                                     ExpressionAST* rightExpression,
-                                     TokenKind op, ValueCategory valueCategory,
-                                     const Type* type)
-    -> AssignmentExpressionAST* {
+auto AssignmentExpressionAST::create(
+    Arena* arena, ExpressionAST* leftExpression, ExpressionAST* rightExpression,
+    TokenKind op, FunctionSymbol* symbol, ValueCategory valueCategory,
+    const Type* type) -> AssignmentExpressionAST* {
   auto node = new (arena) AssignmentExpressionAST();
   node->leftExpression = leftExpression;
   node->rightExpression = rightExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10289,6 +10312,7 @@ auto CompoundAssignmentExpressionAST::clone(Arena* arena)
   if (adjustExpression) node->adjustExpression = adjustExpression->clone(arena);
 
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10304,8 +10328,9 @@ auto CompoundAssignmentExpressionAST::create(Arena* arena)
 auto CompoundAssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* targetExpression, SourceLocation opLoc,
     ExpressionAST* leftExpression, ExpressionAST* rightExpression,
-    ExpressionAST* adjustExpression, TokenKind op, ValueCategory valueCategory,
-    const Type* type) -> CompoundAssignmentExpressionAST* {
+    ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
+    ValueCategory valueCategory, const Type* type)
+    -> CompoundAssignmentExpressionAST* {
   auto node = new (arena) CompoundAssignmentExpressionAST();
   node->targetExpression = targetExpression;
   node->opLoc = opLoc;
@@ -10313,6 +10338,7 @@ auto CompoundAssignmentExpressionAST::create(
   node->rightExpression = rightExpression;
   node->adjustExpression = adjustExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10321,14 +10347,16 @@ auto CompoundAssignmentExpressionAST::create(
 auto CompoundAssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* targetExpression,
     ExpressionAST* leftExpression, ExpressionAST* rightExpression,
-    ExpressionAST* adjustExpression, TokenKind op, ValueCategory valueCategory,
-    const Type* type) -> CompoundAssignmentExpressionAST* {
+    ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
+    ValueCategory valueCategory, const Type* type)
+    -> CompoundAssignmentExpressionAST* {
   auto node = new (arena) CompoundAssignmentExpressionAST();
   node->targetExpression = targetExpression;
   node->leftExpression = leftExpression;
   node->rightExpression = rightExpression;
   node->adjustExpression = adjustExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10752,6 +10780,7 @@ auto DotDesignatorAST::clone(Arena* arena) -> DotDesignatorAST* {
   node->dotLoc = dotLoc;
   node->identifierLoc = identifierLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
 
   return node;
 }
@@ -10763,19 +10792,21 @@ auto DotDesignatorAST::create(Arena* arena) -> DotDesignatorAST* {
 
 auto DotDesignatorAST::create(Arena* arena, SourceLocation dotLoc,
                               SourceLocation identifierLoc,
-                              const Identifier* identifier)
+                              const Identifier* identifier, FieldSymbol* symbol)
     -> DotDesignatorAST* {
   auto node = new (arena) DotDesignatorAST();
   node->dotLoc = dotLoc;
   node->identifierLoc = identifierLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
-auto DotDesignatorAST::create(Arena* arena, const Identifier* identifier)
-    -> DotDesignatorAST* {
+auto DotDesignatorAST::create(Arena* arena, const Identifier* identifier,
+                              FieldSymbol* symbol) -> DotDesignatorAST* {
   auto node = new (arena) DotDesignatorAST();
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
@@ -13804,6 +13835,8 @@ auto ParenMemInitializerAST::clone(Arena* arena) -> ParenMemInitializerAST* {
 
   node->rparenLoc = rparenLoc;
   node->ellipsisLoc = ellipsisLoc;
+  node->symbol = symbol;
+  node->constructor = constructor;
 
   return node;
 }
@@ -13817,7 +13850,8 @@ auto ParenMemInitializerAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, SourceLocation lparenLoc,
     List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
-    SourceLocation ellipsisLoc) -> ParenMemInitializerAST* {
+    SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor)
+    -> ParenMemInitializerAST* {
   auto node = new (arena) ParenMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
@@ -13825,18 +13859,23 @@ auto ParenMemInitializerAST::create(
   node->expressionList = expressionList;
   node->rparenLoc = rparenLoc;
   node->ellipsisLoc = ellipsisLoc;
+  node->symbol = symbol;
+  node->constructor = constructor;
   return node;
 }
 
 auto ParenMemInitializerAST::create(Arena* arena,
                                     NestedNameSpecifierAST* nestedNameSpecifier,
                                     UnqualifiedIdAST* unqualifiedId,
-                                    List<ExpressionAST*>* expressionList)
+                                    List<ExpressionAST*>* expressionList,
+                                    Symbol* symbol, FunctionSymbol* constructor)
     -> ParenMemInitializerAST* {
   auto node = new (arena) ParenMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->expressionList = expressionList;
+  node->symbol = symbol;
+  node->constructor = constructor;
   return node;
 }
 
@@ -13851,6 +13890,8 @@ auto BracedMemInitializerAST::clone(Arena* arena) -> BracedMemInitializerAST* {
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
   node->ellipsisLoc = ellipsisLoc;
+  node->symbol = symbol;
+  node->constructor = constructor;
 
   return node;
 }
@@ -13863,23 +13904,28 @@ auto BracedMemInitializerAST::create(Arena* arena) -> BracedMemInitializerAST* {
 auto BracedMemInitializerAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, BracedInitListAST* bracedInitList,
-    SourceLocation ellipsisLoc) -> BracedMemInitializerAST* {
-  auto node = new (arena) BracedMemInitializerAST();
-  node->nestedNameSpecifier = nestedNameSpecifier;
-  node->unqualifiedId = unqualifiedId;
-  node->bracedInitList = bracedInitList;
-  node->ellipsisLoc = ellipsisLoc;
-  return node;
-}
-
-auto BracedMemInitializerAST::create(
-    Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
-    UnqualifiedIdAST* unqualifiedId, BracedInitListAST* bracedInitList)
+    SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor)
     -> BracedMemInitializerAST* {
   auto node = new (arena) BracedMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->bracedInitList = bracedInitList;
+  node->ellipsisLoc = ellipsisLoc;
+  node->symbol = symbol;
+  node->constructor = constructor;
+  return node;
+}
+
+auto BracedMemInitializerAST::create(
+    Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId, BracedInitListAST* bracedInitList,
+    Symbol* symbol, FunctionSymbol* constructor) -> BracedMemInitializerAST* {
+  auto node = new (arena) BracedMemInitializerAST();
+  node->nestedNameSpecifier = nestedNameSpecifier;
+  node->unqualifiedId = unqualifiedId;
+  node->bracedInitList = bracedInitList;
+  node->symbol = symbol;
+  node->constructor = constructor;
   return node;
 }
 

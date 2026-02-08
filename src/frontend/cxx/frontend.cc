@@ -35,6 +35,7 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
@@ -83,7 +84,8 @@ struct Frontend::Private {
   ~Private();
 
   [[nodiscard]] auto needsIR() const -> bool {
-    return cli.opt_emit_ir || cli.opt_emit_llvm || cli.opt_S || cli.opt_c;
+    return cli.opt_emit_cxx_ir || cli.opt_emit_mlir || cli.opt_emit_llvm ||
+           cli.opt_S || cli.opt_c;
   }
 
   [[nodiscard]] auto needsLLVMIR() const -> bool {
@@ -97,11 +99,14 @@ struct Frontend::Private {
   void showSearchPaths(std::ostream& out);
   void dumpTokens(std::ostream& out);
   void dumpSymbols(std::ostream& out);
+  void dumpRecordLayouts(std::ostream& out);
   void serializeAst();
   void dumpAst();
   void printAstIfNeeded();
   void generateIR();
-  void emitIR();
+  void emitCxxIR();
+  void lowerIR();
+  void emitMLIR();
   void emitLLVMIR();
   void emitCode();
   void emitObjectFile();
@@ -174,11 +179,20 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
   actions_.emplace_back([this]() { unit_->preprocessor()->squeeze(); });
   actions_.emplace_back([this]() { parse(); });
   actions_.emplace_back([this]() { dumpSymbols(std::cout); });
+  actions_.emplace_back([this]() { dumpRecordLayouts(std::cout); });
   actions_.emplace_back([this]() { dumpAst(); });
   actions_.emplace_back([this]() { printAstIfNeeded(); });
   actions_.emplace_back([this]() { serializeAst(); });
+  actions_.emplace_back([this]() {
+    if (diagnosticsClient_->hasErrors()) {
+      shouldExit_ = true;
+      exitStatus_ = EXIT_FAILURE;
+    }
+  });
   actions_.emplace_back([this]() { generateIR(); });
-  actions_.emplace_back([this]() { emitIR(); });
+  actions_.emplace_back([this]() { emitCxxIR(); });
+  actions_.emplace_back([this]() { lowerIR(); });
+  actions_.emplace_back([this]() { emitMLIR(); });
   actions_.emplace_back([this]() { emitLLVMIR(); });
   actions_.emplace_back([this]() { emitCode(); });
 }
@@ -442,6 +456,63 @@ void Frontend::Private::dumpSymbols(std::ostream& out) {
   cxx::dump(out, globalNamespace);
 }
 
+void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
+  if (!cli.opt_dump_record_layouts) return;
+
+  auto globalScope = unit_->globalScope();
+
+  std::function<void(ScopeSymbol*)> visitScope;
+  visitScope = [&](ScopeSymbol* scope) {
+    for (auto member : scope->members()) {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(member)) {
+        auto layout = classSymbol->layout();
+        if (!layout) continue;
+
+        out << std::format("\n*** Dumping layout for '{}' ***\n",
+                           to_string(classSymbol->name()));
+        out << std::format("   size={} align={}\n", layout->size(),
+                           layout->alignment());
+
+        // Dump vtable pointer if it's a direct member (not inherited)
+        if (layout->hasDirectVtable()) {
+          out << std::format("   vtable pointer offset=0 index={}\n",
+                             layout->vtableIndex());
+        }
+
+        // Dump base classes
+        for (auto base : classSymbol->baseClasses()) {
+          auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+          if (!baseClassSymbol) continue;
+
+          auto baseInfo = layout->getBaseInfo(baseClassSymbol);
+          if (baseInfo) {
+            out << std::format("   base '{}' offset={} index={}\n",
+                               to_string(baseClassSymbol->name()),
+                               baseInfo->offset, baseInfo->index);
+          }
+        }
+
+        // Dump fields
+        for (auto field :
+             cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
+          auto fieldInfo = layout->getFieldInfo(field);
+          if (fieldInfo) {
+            out << std::format("   field '{}' offset={} index={}\n",
+                               to_string(field->name()), fieldInfo->offset,
+                               fieldInfo->index);
+          }
+        }
+      }
+
+      if (auto nestedScope = symbol_cast<ScopeSymbol>(member)) {
+        visitScope(nestedScope);
+      }
+    }
+  };
+
+  visitScope(globalScope);
+}
+
 void Frontend::Private::dumpAst() {
   if (!cli.opt_ast_dump) return;
   auto printAST = ASTPrinter{unit_.get(), std::cout};
@@ -486,20 +557,54 @@ void Frontend::Private::generateIR() {
   auto codegen = cxx::Codegen{*context_, unit_.get()};
 
   auto ir = codegen(unit_->ast());
+  module_ = ir.module;
 
-  if (succeeded(lowerToMLIR(ir.module))) {
-    module_ = ir.module;
+#endif
+}
+
+void Frontend::Private::emitCxxIR() {
+  if (!cli.opt_emit_cxx_ir) return;
+
+#ifdef CXX_WITH_MLIR
+  if (!module_) return;
+
+  shouldExit_ = true;
+
+  mlir::OpPrintingFlags flags;
+  if (cli.opt_g) {
+    auto prettyForm = true;
+    flags.enableDebugInfo(true, prettyForm);
+  }
+
+  withRawOutputStream(std::nullopt, [&](llvm::raw_ostream& out) {
+    module_->print(out, flags);
+  });
+
+#endif
+}
+
+void Frontend::Private::lowerIR() {
+#ifdef CXX_WITH_MLIR
+  if (!module_) return;
+  if (cli.opt_fsyntax_only) return;
+
+  auto needsLowering = cli.opt_emit_mlir || needsLLVMIR();
+
+  if (!needsLowering) return;
+
+  if (succeeded(lowerToMLIR(module_))) {
     return;
   }
 
   std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
   shouldExit_ = true;
   exitStatus_ = EXIT_FAILURE;
+  module_ = nullptr;
 #endif
 }
 
-void Frontend::Private::emitIR() {
-  if (!cli.opt_emit_ir) return;
+void Frontend::Private::emitMLIR() {
+  if (!cli.opt_emit_mlir) return;
 
 #ifdef CXX_WITH_MLIR
   if (!module_) return;

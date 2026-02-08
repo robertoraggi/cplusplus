@@ -151,6 +151,8 @@ class TypePrinter {
     specifiers_.append("long double");
   }
 
+  void operator()(const Float16Type* type) { specifiers_.append("_Float16"); }
+
   void operator()(const QualType* type) {
     if (auto ptrTy = type_cast<PointerType>(type->elementType())) {
       accept(ptrTy->elementType());

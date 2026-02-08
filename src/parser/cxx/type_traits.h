@@ -353,6 +353,8 @@ class TypeTraits {
 
     auto operator()(const LongDoubleType*) const -> bool { return true; }
 
+    auto operator()(const Float16Type*) const -> bool { return true; }
+
     auto operator()(const QualType* type) const -> bool {
       return visit(*this, type->elementType());
     }
@@ -928,6 +930,10 @@ class TypeTraits {
 
     auto operator()(const LongDoubleType*, const LongDoubleType*) const
         -> bool {
+      return true;
+    }
+
+    auto operator()(const Float16Type*, const Float16Type*) const -> bool {
       return true;
     }
 

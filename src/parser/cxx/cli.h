@@ -53,11 +53,13 @@ class CLI {
   std::string app_name;
   bool opt_ast_dump = false;
   bool opt_ast_print = false;
-  bool opt_emit_ir = false;
+  bool opt_emit_cxx_ir = false;
+  bool opt_emit_mlir = false;
   bool opt_emit_llvm = false;
   bool opt_dM = false;
   bool opt_dump_symbols = false;
   bool opt_dump_tokens = false;
+  bool opt_dump_record_layouts = false;
   bool opt_E = false;
   bool opt_Eonly = false;
   bool opt_P = false;

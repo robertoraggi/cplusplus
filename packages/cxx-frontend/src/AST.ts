@@ -7094,6 +7094,13 @@ export class CppCastExpressionAST extends ExpressionAST {
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
+
+  /**
+   * Returns the castOp attribute of this node
+   */
+  getCastOp(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 7);
+  }
 }
 
 /**

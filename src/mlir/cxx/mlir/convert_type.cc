@@ -70,6 +70,7 @@ struct Codegen::ConvertType {
   auto operator()(const FloatType* type) -> mlir::Type;
   auto operator()(const DoubleType* type) -> mlir::Type;
   auto operator()(const LongDoubleType* type) -> mlir::Type;
+  auto operator()(const Float16Type* type) -> mlir::Type;
   auto operator()(const QualType* type) -> mlir::Type;
   auto operator()(const BoundedArrayType* type) -> mlir::Type;
   auto operator()(const UnboundedArrayType* type) -> mlir::Type;
@@ -121,7 +122,8 @@ auto Codegen::ConvertType::operator()(const VoidType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const NullptrType* type) -> mlir::Type {
-  return getExprType();
+  auto voidType = gen.builder_.getType<mlir::cxx::VoidType>();
+  return gen.builder_.getType<mlir::cxx::PointerType>(voidType);
 }
 
 auto Codegen::ConvertType::operator()(const DecltypeAutoType* type)
@@ -199,19 +201,19 @@ auto Codegen::ConvertType::operator()(const CharType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const Char8Type* type) -> mlir::Type {
-  return getExprType();
+  return getIntType(type, false);  // unsigned 8-bit
 }
 
 auto Codegen::ConvertType::operator()(const Char16Type* type) -> mlir::Type {
-  return getExprType();
+  return getIntType(type, false);  // unsigned 16-bit
 }
 
 auto Codegen::ConvertType::operator()(const Char32Type* type) -> mlir::Type {
-  return getExprType();
+  return getIntType(type, false);  // unsigned 32-bit
 }
 
 auto Codegen::ConvertType::operator()(const WideCharType* type) -> mlir::Type {
-  return getExprType();
+  return getIntType(type, true);  // signed 32-bit on macOS/Unix
 }
 
 auto Codegen::ConvertType::operator()(const FloatType* type) -> mlir::Type {
@@ -224,6 +226,10 @@ auto Codegen::ConvertType::operator()(const DoubleType* type) -> mlir::Type {
 
 auto Codegen::ConvertType::operator()(const LongDoubleType* type)
     -> mlir::Type {
+  return getFloatType(type);
+}
+
+auto Codegen::ConvertType::operator()(const Float16Type* type) -> mlir::Type {
   return getFloatType(type);
 }
 
@@ -297,6 +303,10 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   gen.classNames_[classSymbol] = classType;
 
+  if (classSymbol->templateDeclaration()) {
+    return classType;
+  }
+
   // todo: layout of parent classes, anonymous nested fields, etc.
 
   std::vector<mlir::Type> memberTypes;
@@ -311,6 +321,13 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     memberTypes.push_back(arrayType);
 
   } else {
+    auto layout = classSymbol->layout();
+    if (layout && layout->hasDirectVtable()) {
+      auto i8Type = gen.builder_.getType<mlir::cxx::IntegerType>(8, false);
+      auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
+      memberTypes.push_back(ptrType);
+    }
+
     // Layout of parent classes
     for (auto base : classSymbol->baseClasses()) {
       const Type* baseType = base->type();
@@ -321,11 +338,8 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     }
 
     // Layout of members
-    for (auto member : views::members(classSymbol)) {
-      auto field = symbol_cast<FieldSymbol>(member);
-      if (!field) continue;
-      if (field->isStatic()) continue;
-      auto memberType = gen.convertType(member->type());
+    for (auto field : views::members(classSymbol) | views::non_static_fields) {
+      auto memberType = gen.convertType(field->type());
       memberTypes.push_back(memberType);
     }
   }

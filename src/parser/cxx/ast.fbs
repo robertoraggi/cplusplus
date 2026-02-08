@@ -1067,6 +1067,7 @@ table PostIncrExpression /* ExpressionAST */ {
 table CppCastExpression /* ExpressionAST */ {
   type_id: TypeId;
   expression: Expression;
+  cast_op: uint32;
   cast_loc: uint32;
   less_loc: uint32;
   greater_loc: uint32;

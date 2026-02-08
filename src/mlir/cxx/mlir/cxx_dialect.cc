@@ -210,6 +210,68 @@ auto FunctionType::clone(TypeRange inputs, TypeRange results) const
              getVariadic());
 }
 
+// VTableOp custom print/parse
+
+void VTableOp::print(OpAsmPrinter& p) {
+  p << ' ';
+  p.printSymbolName(getSymName());
+  p << ' ';
+
+  if (auto linkage = getLinkageKind()) {
+    p << stringifyLinkageKind(*linkage) << ' ';
+  }
+
+  p << '[';
+  auto entries = getEntries();
+  llvm::interleaveComma(entries, p, [&](Attribute entry) {
+    if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {
+      p << '@' << symRef.getValue();
+    } else if (auto intAttr = mlir::dyn_cast<IntegerAttr>(entry)) {
+      p << intAttr.getInt();
+    } else {
+      p.printAttribute(entry);
+    }
+  });
+  p << ']';
+}
+
+auto VTableOp::parse(OpAsmParser& parser, OperationState& result)
+    -> ParseResult {
+#if false
+  StringAttr nameAttr;
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
+                             result.attributes))
+    return failure();
+
+  SmallVector<Attribute> entries;
+  if (parser.parseLSquare()) return failure();
+
+  if (parser.parseOptionalRSquare()) {
+    do {
+      FlatSymbolRefAttr symRef;
+      auto parseResult = parser.parseOptionalAttribute(symRef);
+      if (parseResult.has_value() && succeeded(*parseResult)) {
+        entries.push_back(symRef);
+      } else {
+        int64_t val;
+        if (parser.parseInteger(val)) return failure();
+        entries.push_back(parser.getBuilder().getIntegerAttr(
+            parser.getBuilder().getIntegerType(64), val));
+      }
+    } while (succeeded(parser.parseOptionalComma()));
+
+    if (parser.parseRSquare()) return failure();
+  }
+
+  result.addAttribute("entries", parser.getBuilder().getArrayAttr(entries));
+
+  return success();
+#endif
+
+  // disable for now
+  return failure();
+}
+
 auto ClassType::getNamed(MLIRContext* context, StringRef name) -> ClassType {
   return Base::get(context, name);
 }

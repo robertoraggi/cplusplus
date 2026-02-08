@@ -45,12 +45,35 @@ auto compare_args(const std::vector<TemplateArgument>& args1,
       // If either is not a symbol, we cannot compare them
       return false;
     }
+
+    auto pack1 = symbol_cast<ParameterPackSymbol>(*sym);
+    auto pack2 = symbol_cast<ParameterPackSymbol>(*otherSym);
+    if (pack1 || pack2) {
+      if (!pack1 || !pack2) return false;
+      if (pack1->elements().size() != pack2->elements().size()) return false;
+      for (size_t j = 0; j < pack1->elements().size(); ++j) {
+        auto e1 = pack1->elements()[j];
+        auto e2 = pack2->elements()[j];
+        if (e1->type() != e2->type()) return false;
+        auto v1 = symbol_cast<VariableSymbol>(e1);
+        auto v2 = symbol_cast<VariableSymbol>(e2);
+        if (v1 && v2) {
+          if (v1->constValue() != v2->constValue()) return false;
+        }
+      }
+      continue;
+    }
+
     auto var = symbol_cast<VariableSymbol>(*sym);
     auto otherVar = symbol_cast<VariableSymbol>(*otherSym);
     if (var && otherVar) {
-      auto cst = std::get<std::intmax_t>(var->constValue().value());
-      auto otherCst = std::get<std::intmax_t>(otherVar->constValue().value());
-      if (cst != otherCst) return false;
+      if (!var->constValue().has_value() ||
+          !otherVar->constValue().has_value()) {
+        return false;
+      }
+      if (var->constValue().value() != otherVar->constValue().value()) {
+        return false;
+      }
       continue;
     }
     auto symType = (*sym)->type();
@@ -117,6 +140,15 @@ auto Symbol::enclosingNamespace() const -> NamespaceSymbol* {
   for (auto scope = parent(); scope; scope = scope->parent()) {
     if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
       return ns;
+    }
+  }
+  return nullptr;
+}
+
+auto Symbol::enclosingFunction() const -> FunctionSymbol* {
+  for (auto scope = parent(); scope; scope = scope->parent()) {
+    if (auto func = symbol_cast<FunctionSymbol>(scope)) {
+      return func;
     }
   }
   return nullptr;
@@ -329,13 +361,48 @@ auto BaseClassSymbol::symbol() const -> Symbol* { return symbol_; }
 
 void BaseClassSymbol::setSymbol(Symbol* symbol) { symbol_ = symbol; }
 
-// ClassLayout implementation
+namespace {
+auto needsVtablePointer(ClassSymbol* classSymbol) -> bool {
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass && baseClass->layout() && baseClass->layout()->hasVtable()) {
+      return false;
+    }
+  }
+
+  for (auto member : views::members(classSymbol)) {
+    if (auto func = symbol_cast<FunctionSymbol>(member)) {
+      if (func->isVirtual()) return true;
+    }
+  }
+
+  return false;
+}
+
+auto hasAnyVtable(ClassSymbol* classSymbol) -> bool {
+  for (auto member : views::members(classSymbol)) {
+    if (auto func = symbol_cast<FunctionSymbol>(member)) {
+      if (func->isVirtual()) return true;
+    }
+  }
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass && baseClass->layout() && baseClass->layout()->hasVtable()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+}  // namespace
 
 void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
   fields_.clear();
   bases_.clear();
   size_ = 0;
   alignment_ = 1;
+  hasVtable_ = false;
 
   const bool isUnion = classSymbol->isUnion();
   std::uint64_t currentOffset = 0;
@@ -343,8 +410,23 @@ void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
 
   auto memoryLayout = control->memoryLayout();
 
-  // Process base classes
+  if (!isUnion && needsVtablePointer(classSymbol)) {
+    hasVtable_ = true;
+    hasDirectVtable_ = true;
+    vtableIndex_ = currentIndex++;
+
+    auto ptrSize = memoryLayout->sizeOfPointer();
+    auto ptrAlign = ptrSize;
+
+    currentOffset = ptrSize;
+    alignment_ = std::max(alignment_, static_cast<std::uint64_t>(ptrAlign));
+  } else if (!isUnion && hasAnyVtable(classSymbol)) {
+    hasVtable_ = true;
+    vtableIndex_ = 0;
+  }
+
   if (!isUnion) {
+    bool foundPolymorphicBase = false;
     for (auto* base : classSymbol->baseClasses()) {
       auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClassSymbol) continue;
@@ -359,6 +441,12 @@ void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
       baseInfo.index = currentIndex++;
       bases_[baseClassSymbol] = baseInfo;
 
+      auto baseLayout = baseClassSymbol->layout();
+      if (!foundPolymorphicBase && baseLayout && baseLayout->hasVtable()) {
+        vtableIndex_ = baseInfo.index;
+        foundPolymorphicBase = true;
+      }
+
       currentOffset += baseClassSymbol->sizeInBytes();
       alignment_ =
           std::max(alignment_, static_cast<std::uint64_t>(baseAlignment));
@@ -366,11 +454,7 @@ void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
   }
 
   // Process direct fields
-  for (auto member : views::members(classSymbol)) {
-    auto field = symbol_cast<FieldSymbol>(member);
-    if (!field) continue;
-    if (field->isStatic()) continue;
-
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
     auto type = field->type();
     auto fieldSize = memoryLayout->sizeOf(type).value_or(0);
     auto fieldAlign = memoryLayout->alignmentOf(type).value_or(1);
@@ -409,12 +493,8 @@ void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
     auto baseInfo = getBaseInfo(baseClassSymbol);
     if (!baseInfo) continue;
 
-    // Add all fields from the base class with adjusted offsets
-    for (auto member : views::members(baseClassSymbol)) {
-      auto field = symbol_cast<FieldSymbol>(member);
-      if (!field) continue;
-      if (field->isStatic()) continue;
-
+    for (auto field :
+         views::members(baseClassSymbol) | views::non_static_fields) {
       auto baseFieldInfo = baseLayout->getFieldInfo(field);
       if (baseFieldInfo) {
         MemberInfo adjustedInfo;
@@ -456,6 +536,20 @@ ClassSymbol::ClassSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
 
 ClassSymbol::~ClassSymbol() {}
+
+auto ClassSymbol::canonical() const -> ClassSymbol* {
+  return canonical_ ? canonical_ : const_cast<ClassSymbol*>(this);
+}
+
+void ClassSymbol::setCanonical(ClassSymbol* canonical) {
+  canonical_ = canonical;
+}
+
+auto ClassSymbol::definition() const -> ClassSymbol* { return definition_; }
+
+void ClassSymbol::setDefinition(ClassSymbol* definition) {
+  definition_ = definition;
+}
 
 auto ClassSymbol::flags() const -> std::uint32_t { return flags_; }
 
@@ -530,6 +624,86 @@ void ClassSymbol::addConversionFunction(FunctionSymbol* conversionFunction) {
   conversionFunctions_.push_back(conversionFunction);
 }
 
+auto ClassSymbol::destructor() const -> FunctionSymbol* {
+  for (auto member : members()) {
+    auto func = symbol_cast<FunctionSymbol>(member);
+    if (!func) continue;
+    if (name_cast<DestructorId>(func->name())) return func;
+  }
+  return nullptr;
+}
+
+auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
+  for (auto ctor : constructors_) {
+    auto funcType = type_cast<FunctionType>(ctor->type());
+    if (!funcType) continue;
+    if (funcType->parameterTypes().empty()) return ctor;
+  }
+  return nullptr;
+}
+
+auto ClassSymbol::copyConstructor() const -> FunctionSymbol* {
+  for (auto ctor : constructors_) {
+    auto funcType = type_cast<FunctionType>(ctor->type());
+    if (!funcType) continue;
+    auto& params = funcType->parameterTypes();
+    if (params.size() != 1) continue;
+    auto paramType = params[0];
+    if (auto ref = type_cast<LvalueReferenceType>(paramType)) {
+      auto inner = ref->elementType();
+      auto unqual = inner;
+      if (auto qual = type_cast<QualType>(inner)) {
+        if (qual->isConst())
+          unqual = qual->elementType();
+        else
+          continue;
+      }
+      if (auto classType = type_cast<ClassType>(unqual)) {
+        if (classType->symbol() == this) return ctor;
+      }
+    }
+  }
+  return nullptr;
+}
+
+auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
+  for (auto ctor : constructors_) {
+    auto funcType = type_cast<FunctionType>(ctor->type());
+    if (!funcType) continue;
+    auto& params = funcType->parameterTypes();
+    if (params.size() != 1) continue;
+    // Match T&& parameter
+    auto paramType = params[0];
+    if (auto ref = type_cast<RvalueReferenceType>(paramType)) {
+      auto inner = ref->elementType();
+      if (auto classType = type_cast<ClassType>(inner)) {
+        if (classType->symbol() == this) return ctor;
+      }
+    }
+  }
+  return nullptr;
+}
+
+auto ClassSymbol::hasUserDeclaredConstructors() const -> bool {
+  for (auto ctor : constructors_) {
+    if (!ctor->isDefaulted()) return true;
+  }
+  return false;
+}
+
+auto ClassSymbol::convertingConstructors() const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> result;
+  for (auto ctor : constructors_) {
+    if (ctor->isExplicit()) continue;
+    auto funcType = type_cast<FunctionType>(ctor->type());
+    if (!funcType) continue;
+    if (funcType->parameterTypes().empty()) continue;
+    result.push_back(ctor);
+  }
+  return result;
+}
+
 auto ClassSymbol::buildClassLayout(Control* control)
     -> std::expected<bool, std::string> {
   // Validate that all base classes are complete
@@ -550,6 +724,34 @@ auto ClassSymbol::buildClassLayout(Control* control)
   int calculatedSize = 0;
   int calculatedAlignment = 1;
 
+  bool needsOwnVptr = false;
+  if (!isUnion()) {
+    bool hasPolymorphicBase = false;
+    for (auto base : baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (baseClass && baseClass->layout() &&
+          baseClass->layout()->hasVtable()) {
+        hasPolymorphicBase = true;
+        break;
+      }
+    }
+    if (!hasPolymorphicBase) {
+      for (auto member : members()) {
+        if (auto func = symbol_cast<FunctionSymbol>(member)) {
+          if (func->isVirtual()) {
+            needsOwnVptr = true;
+            break;
+          }
+        }
+      }
+    }
+    if (needsOwnVptr) {
+      auto ptrSize = static_cast<int>(memoryLayout->sizeOfPointer());
+      calculatedSize = ptrSize;
+      calculatedAlignment = ptrSize;
+    }
+  }
+
   for (auto base : baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
@@ -560,11 +762,7 @@ auto ClassSymbol::buildClassLayout(Control* control)
         std::max(calculatedAlignment, baseClassSymbol->alignment());
   }
 
-  for (auto member : members()) {
-    auto field = symbol_cast<FieldSymbol>(member);
-    if (!field) continue;
-    if (field->isStatic()) continue;
-
+  for (auto field : members() | views::non_static_fields) {
     if (lastField && control->is_unbounded_array(lastField->type())) {
       return std::unexpected(
           std::format("size of incomplete type '{}'",
@@ -604,6 +802,10 @@ auto ClassSymbol::buildClassLayout(Control* control)
   }
 
   calculatedSize = align_to(calculatedSize, calculatedAlignment);
+
+  if (calculatedSize == 0) {
+    calculatedSize = 1;
+  }
 
   setAlignment(calculatedAlignment);
   setSizeInBytes(calculatedSize);
@@ -658,6 +860,22 @@ FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
+auto FunctionSymbol::canonical() const -> FunctionSymbol* {
+  return canonical_ ? canonical_ : const_cast<FunctionSymbol*>(this);
+}
+
+void FunctionSymbol::setCanonical(FunctionSymbol* canonical) {
+  canonical_ = canonical;
+}
+
+auto FunctionSymbol::definition() const -> FunctionSymbol* {
+  return definition_;
+}
+
+void FunctionSymbol::setDefinition(FunctionSymbol* definition) {
+  definition_ = definition;
+}
+
 auto FunctionSymbol::isDefined() const -> bool { return isDefined_; }
 
 void FunctionSymbol::setDefined(bool isDefined) { isDefined_ = isDefined; }
@@ -708,6 +926,10 @@ void FunctionSymbol::setDefaulted(bool isDefaulted) {
   isDefaulted_ = isDefaulted;
 }
 
+auto FunctionSymbol::isPure() const -> bool { return isPure_; }
+
+void FunctionSymbol::setPure(bool isPure) { isPure_ = isPure; }
+
 auto FunctionSymbol::isConstructor() const -> bool {
   auto p = symbol_cast<ClassSymbol>(parent());
   if (!p) return false;
@@ -722,9 +944,13 @@ auto FunctionSymbol::isConstructor() const -> bool {
   auto id = name_cast<Identifier>(name());
   if (!id) return false;
 
-  if (p->name() != id) return false;
+  if (p->name() == id) return true;
 
-  return true;
+  if (auto pid = name_cast<Identifier>(p->name())) {
+    if (pid->name() == id->name()) return true;
+  }
+
+  return false;
 }
 
 auto FunctionSymbol::languageLinkage() const -> LanguageKind {
@@ -736,6 +962,14 @@ void FunctionSymbol::setLanguageLinkage(LanguageKind linkage) {
 }
 
 auto FunctionSymbol::hasCLinkage() const -> bool { return hasCLinkage_; }
+
+auto FunctionSymbol::functionParameters() const -> FunctionParametersSymbol* {
+  for (auto member : members()) {
+    if (auto params = symbol_cast<FunctionParametersSymbol>(member))
+      return params;
+  }
+  return nullptr;
+}
 
 OverloadSetSymbol::OverloadSetSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
@@ -815,6 +1049,22 @@ VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
 
 VariableSymbol::~VariableSymbol() {}
 
+auto VariableSymbol::canonical() const -> VariableSymbol* {
+  return canonical_ ? canonical_ : const_cast<VariableSymbol*>(this);
+}
+
+void VariableSymbol::setCanonical(VariableSymbol* canonical) {
+  canonical_ = canonical;
+}
+
+auto VariableSymbol::definition() const -> VariableSymbol* {
+  return definition_;
+}
+
+void VariableSymbol::setDefinition(VariableSymbol* definition) {
+  definition_ = definition;
+}
+
 auto VariableSymbol::isStatic() const -> bool { return isStatic_; }
 
 void VariableSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
@@ -851,6 +1101,14 @@ auto VariableSymbol::initializer() const -> ExpressionAST* {
 
 void VariableSymbol::setInitializer(ExpressionAST* initializer) {
   initializer_ = initializer;
+}
+
+auto VariableSymbol::constructor() const -> FunctionSymbol* {
+  return constructor_;
+}
+
+void VariableSymbol::setConstructor(FunctionSymbol* constructor) {
+  constructor_ = constructor;
 }
 
 auto VariableSymbol::constValue() const -> const std::optional<ConstValue>& {
@@ -922,6 +1180,14 @@ ParameterSymbol::ParameterSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 ParameterSymbol::~ParameterSymbol() {}
+
+auto ParameterSymbol::defaultArgument() const -> ExpressionAST* {
+  return defaultArgument_;
+}
+
+void ParameterSymbol::setDefaultArgument(ExpressionAST* expr) {
+  defaultArgument_ = expr;
+}
 
 ParameterPackSymbol::ParameterPackSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}

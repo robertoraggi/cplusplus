@@ -1189,6 +1189,8 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
     parse_error("expected a compound statement");
   }
 
+  binder_.completeLambdaBody(ast);
+
   return true;
 }
 
@@ -2065,6 +2067,7 @@ auto Parser::parse_cpp_cast_expression(ExpressionAST*& yyast,
   yyast = ast;
 
   ast->castLoc = castLoc;
+  ast->castOp = unit->tokenKind(ast->castLoc);
 
   expect(TokenKind::T_LESS, ast->lessLoc);
 
@@ -3511,16 +3514,22 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast,
 
   auto blockSymbol = binder_.enterBlock(lbraceLoc);
 
-  if (functionSymbol && is_parsing_c()) {
+  if (functionSymbol) {
     auto functionName = to_string(functionSymbol->name());
 
     auto func = control()->newVariableSymbol(scope(), lbraceLoc);
     func->setName(control()->getIdentifier("__func__"));
-    func->setType(functionSymbol->type());
-    func->setType(control()->getBoundedArrayType(control()->getCharType(),
-                                                 functionName.size() + 1));
+
+    const Type* elementType = control()->getCharType();
+    if (is_parsing_cxx()) {
+      elementType = control()->getConstType(elementType);
+    }
+
+    func->setType(
+        control()->getBoundedArrayType(elementType, functionName.size() + 1));
+    func->setStatic(true);
     func->setConstexpr(true);
-    func->setConstValue(control()->stringLiteral(functionName));
+    func->setConstValue(control()->stringLiteral("\"" + functionName + "\""));
     scope()->addSymbol(func);
   }
 
@@ -3861,8 +3870,12 @@ auto Parser::parse_for_range_declaration(DeclarationAST*& yyast) -> bool {
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
+  auto symbol = binder_.declareVariable(declarator, decl,
+                                        /*addSymbolToParentScope=*/true);
+
   auto initDeclarator = InitDeclaratorAST::create(pool_);
   initDeclarator->declarator = declarator;
+  initDeclarator->symbol = symbol;
 
   auto ast = SimpleDeclarationAST::create(pool_);
   yyast = ast;
@@ -4380,7 +4393,15 @@ auto Parser::parse_simple_declaration(
 
     if (!lookat_function_body()) return false;
 
+    if (!templateHead) {
+      templateHead = synthesizeAbbreviatedFunctionTemplate(functionDeclarator);
+    }
+
     auto _ = Binder::ScopeGuard{&binder_};
+
+    if (templateHead && ctx != BindingContext::kTemplate) {
+      setScope(templateHead->symbol);
+    }
 
     auto functionType = getDeclaratorType(unit, declarator, decl.specs.type());
 
@@ -4394,17 +4415,21 @@ auto Parser::parse_simple_declaration(
     }
 
     const Name* functionName = decl.getName();
-    auto functionSymbol =
-        binder_.getFunction(scope(), functionName, functionType);
 
-    if (!functionSymbol) {
-      if (q) {
+    if (q) {
+      auto existing = binder_.getFunction(scope(), functionName, functionType);
+      if (!existing) {
         type_error(q->firstSourceLocation(),
                    std::format("class or namespace has no member named '{}'",
                                to_string(functionName)));
       }
+    }
 
-      functionSymbol = binder_.declareFunction(declarator, decl);
+    auto functionSymbol = binder_.declareFunction(declarator, decl);
+
+    functionSymbol->setDefined(true);
+    if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
+      canon->setDefinition(functionSymbol);
     }
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
@@ -4415,7 +4440,7 @@ auto Parser::parse_simple_declaration(
       setScope(functionSymbol);
     }
 
-    if (ctx == BindingContext::kTemplate) {
+    if (ctx == BindingContext::kTemplate || templateHead) {
       mark_maybe_template_name(declarator);
     }
 
@@ -4425,7 +4450,10 @@ auto Parser::parse_simple_declaration(
 
     lookahead.commit();
 
-    functionSymbol->setDefined(true);
+    if (ast_cast<DefaultFunctionBodyAST>(functionBody))
+      functionSymbol->setDefaulted(true);
+    if (ast_cast<DeleteFunctionBodyAST>(functionBody))
+      functionSymbol->setDeleted(true);
 
     auto ast = FunctionDefinitionAST::create(pool_);
     yyast = ast;
@@ -4437,6 +4465,10 @@ auto Parser::parse_simple_declaration(
     ast->functionBody = functionBody;
     ast->symbol = functionSymbol;
     ast->symbol->setDeclaration(ast);
+
+    if (templateHead) {
+      functionSymbol->setTemplateDeclaration(templateHead);
+    }
 
     if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -4541,12 +4573,7 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!isDeclaration && !isDefinition) return false;
 
-  auto functionSymbol =
-      binder_.getFunction(scope(), decl.getName(), functionType);
-
-  if (!functionSymbol) {
-    functionSymbol = binder_.declareFunction(declarator, decl);
-  }
+  auto functionSymbol = binder_.declareFunction(declarator, decl);
 
   SourceLocation semicolonLoc;
 
@@ -4571,6 +4598,9 @@ auto Parser::parse_notypespec_function_definition(
   // function definition
 
   functionSymbol->setDefined(true);
+  if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
+    canon->setDefinition(functionSymbol);
+  }
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
     auto functionScope = functionSymbol;
@@ -4583,6 +4613,11 @@ auto Parser::parse_notypespec_function_definition(
   FunctionBodyAST* functionBody = nullptr;
 
   if (!parse_function_body(functionBody)) parse_error("expected function body");
+
+  if (ast_cast<DefaultFunctionBodyAST>(functionBody))
+    functionSymbol->setDefaulted(true);
+  if (ast_cast<DeleteFunctionBodyAST>(functionBody))
+    functionSymbol->setDeleted(true);
 
   auto ast = FunctionDefinitionAST::create(pool_);
   yyast = ast;
@@ -5325,6 +5360,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 
     case TokenKind::T_FLOAT:
     case TokenKind::T_DOUBLE:
+    case TokenKind::T__FLOAT16:
     case TokenKind::T___FLOAT80:
     case TokenKind::T___FLOAT128:
       makeFloatingPointTypeSpecifier();
@@ -5369,6 +5405,107 @@ void Parser::mark_maybe_template_name(DeclaratorAST* declarator) {
   if (!declaratorId) return;
   if (declaratorId->nestedNameSpecifier) return;
   mark_maybe_template_name(declaratorId->unqualifiedId);
+}
+
+auto Parser::synthesizeAbbreviatedFunctionTemplate(
+    FunctionDeclaratorChunkAST* functionDeclarator) -> TemplateDeclarationAST* {
+  auto params = functionDeclarator->parameterDeclarationClause;
+  if (!params) return nullptr;
+
+  auto hasAutoSpec = [](ParameterDeclarationAST* param) -> bool {
+    if (param->isPack) return false;
+    for (auto s = param->typeSpecifierList; s; s = s->next) {
+      if (ast_cast<AutoTypeSpecifierAST>(s->value)) return true;
+    }
+    return false;
+  };
+
+  int autoCount = 0;
+  for (auto it = params->parameterDeclarationList; it; it = it->next) {
+    if (hasAutoSpec(it->value)) ++autoCount;
+  }
+
+  if (autoCount == 0) return nullptr;
+
+  auto loc = functionDeclarator->lparenLoc;
+
+  // Create template parameters scope
+  auto templParamsSymbol = control_->newTemplateParametersSymbol(scope(), loc);
+
+  // Build template type parameter list and fix up auto params
+  List<TemplateParameterAST*>* templParamList = nullptr;
+  auto templParamIt = &templParamList;
+
+  int paramIndex = 0;
+  for (auto it = params->parameterDeclarationList; it; it = it->next) {
+    if (!hasAutoSpec(it->value)) continue;
+
+    auto syntheticName =
+        control_->getIdentifier(std::format("__auto_{}", paramIndex));
+
+    auto tyParam = TypenameTypeParameterAST::create(pool_);
+    tyParam->isPack = false;
+    tyParam->identifier = syntheticName;
+
+    {
+      auto scopeGuard = Binder::ScopeGuard{&binder_};
+      setScope(templParamsSymbol);
+      binder_.bind(tyParam, paramIndex, /*depth=*/0);
+    }
+
+    *templParamIt = make_list_node<TemplateParameterAST>(pool_, tyParam);
+    templParamIt = &(*templParamIt)->next;
+
+    for (auto s = it->value->typeSpecifierList; s; s = s->next) {
+      if (ast_cast<AutoTypeSpecifierAST>(s->value)) {
+        auto namedSpec = NamedTypeSpecifierAST::create(pool_);
+        namedSpec->symbol = tyParam->symbol;
+        s->value = namedSpec;
+        break;
+      }
+    }
+
+    auto newParamType =
+        getDeclaratorType(unit, it->value->declarator, tyParam->symbol->type());
+    it->value->type = newParamType;
+
+    if (params->functionParametersSymbol) {
+      for (auto sym : params->functionParametersSymbol->members()) {
+        if (auto paramSym = symbol_cast<ParameterSymbol>(sym)) {
+          if (paramSym->name() == it->value->identifier) {
+            paramSym->setType(newParamType);
+            break;
+          }
+        }
+      }
+    }
+
+    ++paramIndex;
+  }
+
+  if (auto trailing = functionDeclarator->trailingReturnType) {
+    if (auto typeId = trailing->typeId) {
+      for (auto s = typeId->typeSpecifierList; s; s = s->next) {
+        if (auto decltypeSpec = ast_cast<DecltypeSpecifierAST>(s->value)) {
+          binder_.bind(decltypeSpec);
+        }
+      }
+      DeclSpecs declSpecs{unit};
+      for (auto s = typeId->typeSpecifierList; s; s = s->next) {
+        declSpecs.accept(s->value);
+      }
+      declSpecs.finish();
+      typeId->type =
+          getDeclaratorType(unit, typeId->declarator, declSpecs.type());
+    }
+  }
+
+  auto templDecl = TemplateDeclarationAST::create(pool_);
+  templDecl->templateParameterList = templParamList;
+  templDecl->symbol = templParamsSymbol;
+  templDecl->depth = 0;
+
+  return templDecl;
 }
 
 void Parser::check_type_traits() {
@@ -5615,6 +5752,14 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
       auto variableSymbol = binder_.declareVariable(
           declarator, decl, /*addSymbolToParentScope=*/true);
       variableSymbol->setTemplateDeclaration(templateHead);
+
+      // If the variable is not extern, it's a definition
+      if (!variableSymbol->isExtern()) {
+        if (auto canon = variableSymbol->canonical(); canon != variableSymbol) {
+          canon->setDefinition(variableSymbol);
+        }
+      }
+
       symbol = variableSymbol;
     }
   }
@@ -5777,10 +5922,9 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
 
   SourceLocation rbracketLoc;
   ExpressionAST* expression = nullptr;
-  std::optional<ConstValue> value;
 
   if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-    if (!parse_constant_expression(expression, value)) return false;
+    if (!parse_constant_expression(expression)) return false;
     if (!match(TokenKind::T_RBRACKET, rbracketLoc)) return false;
   }
 
@@ -8198,9 +8342,21 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
     if (!lookat_function_body()) return false;
 
+    auto templateHead =
+        synthesizeAbbreviatedFunctionTemplate(functionDeclarator);
+
     lookahead.commit();
 
+    auto templateScopeGuard = Binder::ScopeGuard{&binder_};
+    if (templateHead) {
+      setScope(templateHead->symbol);
+    }
+
     auto functionSymbol = binder_.declareFunction(declarator, decl);
+
+    if (templateHead) {
+      functionSymbol->setTemplateDeclaration(templateHead);
+    }
 
     auto _ = Binder::ScopeGuard{&binder_};
 
@@ -8216,6 +8372,13 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     if (!parse_function_body(functionBody)) {
       parse_error("expected function body");
     }
+
+    functionSymbol->setDefined(true);
+
+    if (ast_cast<DefaultFunctionBodyAST>(functionBody))
+      functionSymbol->setDefaulted(true);
+    if (ast_cast<DeleteFunctionBodyAST>(functionBody))
+      functionSymbol->setDeleted(true);
 
     auto ast = FunctionDefinitionAST::create(pool_);
     yyast = ast;
@@ -8381,6 +8544,13 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
         const auto isPure = parse_pure_specifier(equalLoc, zeroLoc);
 
         functionDeclarator->isPure = isPure;
+
+        if (isPure) {
+          if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
+            funcSym->setPure(true);
+            funcSym->setVirtual(true);
+          }
+        }
       }
 
       return true;
@@ -10000,6 +10170,13 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
 
   setScope(ast->symbol);
 
+  for (auto member : ast->symbol->members()) {
+    if (auto params = symbol_cast<FunctionParametersSymbol>(member)) {
+      setScope(params);
+      break;
+    }
+  }
+
   const auto saved = currentLocation();
 
   for (auto memInitializer : ListView{functionBody->memInitializerList}) {
@@ -10034,6 +10211,11 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
       }
     }
   }
+
+  TypeChecker check{unit};
+  check.setScope(ast->symbol);
+  check.setReportErrors(config().checkTypes);
+  check.check_mem_initializers(functionBody);
 
   rewind(functionBody->statement->lbraceLoc.next());
 

@@ -152,14 +152,23 @@ auto Lexer::readToken() -> TokenKind {
 
   if (std::isdigit(ch)) {
     bool integer_literal = true;
+    bool is_hex = false;
+
+    if (ch == '0' && (LA(1) == 'x' || LA(1) == 'X')) {
+      is_hex = true;
+    }
+
     while (pos_ != end_) {
       const auto ch = LA();
       if (pos_ + 1 < end_ &&
-          (ch == 'e' || ch == 'E' || ch == 'p' || ch == 'P') &&
+          (!is_hex && (ch == 'e' || ch == 'E') ||
+           (is_hex && (ch == 'p' || ch == 'P'))) &&
           (LA(1) == '+' || LA(1) == '-')) {
         consume(2);
         integer_literal = false;
-      } else if (pos_ + 1 < end_ && (ch == 'e' || ch == 'E') &&
+      } else if (pos_ + 1 < end_ &&
+                 (!is_hex && (ch == 'e' || ch == 'E') ||
+                  (is_hex && (ch == 'p' || ch == 'P'))) &&
                  std::isdigit(LA(1))) {
         consume(1);
         integer_literal = false;

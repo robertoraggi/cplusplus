@@ -26,6 +26,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -114,11 +115,69 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto operator()(BracedInitListAST* ast) -> ExpressionResult;
   auto operator()(ParenInitializerAST* ast) -> ExpressionResult;
 
+  auto emitUnaryOpNot(UnaryExpressionAST* ast) -> ExpressionResult;
+  auto emitUnaryOpMinus(UnaryExpressionAST* ast) -> ExpressionResult;
+  auto emitUnaryOpTilde(UnaryExpressionAST* ast) -> ExpressionResult;
+  auto emitUnaryOpIncrDecr(UnaryExpressionAST* ast) -> ExpressionResult;
+  auto emitUnaryOpIncrDecrFloat(UnaryExpressionAST* ast, ExpressionResult expr)
+      -> ExpressionResult;
+  auto emitUnaryOpIncrDecrIntegral(UnaryExpressionAST* ast,
+                                   ExpressionResult expr) -> ExpressionResult;
+  auto emitUnaryOpIncrDecrPointer(UnaryExpressionAST* ast,
+                                  ExpressionResult expr) -> ExpressionResult;
+
   auto binaryExpression(SourceLocation opLoc, TokenKind op,
                         mlir::Type resultType, ExpressionAST* leftExpression,
                         ExpressionAST* rightExpression,
                         ExpressionResult leftExpressionResult,
                         ExpressionResult rightExpressionResult)
+      -> ExpressionResult;
+
+  auto emitBinaryArithmeticOp(SourceLocation loc, TokenKind op,
+                              mlir::Type resultType, const Type* leftType,
+                              mlir::Value left, mlir::Value right)
+      -> ExpressionResult;
+  auto emitBinaryArithmeticOpFloat(SourceLocation loc, TokenKind op,
+                                   mlir::Type resultType, mlir::Value left,
+                                   mlir::Value right) -> ExpressionResult;
+  auto emitBinaryArithmeticOpIntegral(SourceLocation loc, TokenKind op,
+                                      mlir::Type resultType, mlir::Value left,
+                                      mlir::Value right) -> ExpressionResult;
+  auto emitBinaryArithmeticOpPointer(SourceLocation loc, TokenKind op,
+                                     mlir::Type resultType, mlir::Value left,
+                                     mlir::Value right) -> ExpressionResult;
+
+  auto emitBinaryShiftOp(SourceLocation loc, TokenKind op,
+                         mlir::Type resultType, const Type* leftType,
+                         mlir::Value left, mlir::Value right)
+      -> ExpressionResult;
+
+  auto emitBinaryComparisonOp(SourceLocation loc, TokenKind op,
+                              mlir::Type resultType, const Type* leftType,
+                              mlir::Value left, mlir::Value right)
+      -> ExpressionResult;
+  auto emitBinaryComparisonOpFloat(SourceLocation loc, TokenKind op,
+                                   mlir::Type resultType, mlir::Value left,
+                                   mlir::Value right) -> ExpressionResult;
+  auto emitBinaryComparisonOpIntegral(SourceLocation loc, TokenKind op,
+                                      mlir::Type resultType, mlir::Value left,
+                                      mlir::Value right) -> ExpressionResult;
+  auto emitBinaryComparisonOpPointer(SourceLocation loc, TokenKind op,
+                                     mlir::Type resultType,
+                                     const Type* leftType, mlir::Value left,
+                                     mlir::Value right) -> ExpressionResult;
+  auto emitBinaryBitwiseOp(SourceLocation loc, TokenKind op,
+                           mlir::Type resultType, mlir::Value left,
+                           mlir::Value right) -> ExpressionResult;
+
+  auto emitImplicitCast(ImplicitCastExpressionAST* ast) -> ExpressionResult;
+  auto emitLValueToRValueConversion(ImplicitCastExpressionAST* ast)
+      -> ExpressionResult;
+  auto emitNumericConversion(ImplicitCastExpressionAST* ast)
+      -> ExpressionResult;
+  auto emitPointerConversion(ImplicitCastExpressionAST* ast)
+      -> ExpressionResult;
+  auto emitUserDefinedConversion(ImplicitCastExpressionAST* ast)
       -> ExpressionResult;
 };
 
@@ -164,9 +223,17 @@ void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
 
   const auto loc = getLocation(ast->firstSourceLocation());
   auto value = expression(ast);
-  mlir::cxx::CondBranchOp::create(builder_, loc, value.value,
-                                  mlir::ValueRange{}, mlir::ValueRange{},
-                                  trueBlock, falseBlock);
+  auto val = value.value;
+
+  if (auto ptrType = mlir::dyn_cast<mlir::cxx::PointerType>(val.getType())) {
+    auto nullOp = mlir::cxx::NullPtrConstantOp::create(builder_, loc, ptrType);
+    auto boolType = builder_.getType<mlir::cxx::BoolType>();
+    val = mlir::cxx::NotEqualOp::create(builder_, loc, boolType, val,
+                                        nullOp.getResult());
+  }
+
+  mlir::cxx::CondBranchOp::create(builder_, loc, val, mlir::ValueRange{},
+                                  mlir::ValueRange{}, trueBlock, falseBlock);
 }
 
 auto Codegen::newInitializer(NewInitializerAST* ast) -> NewInitializerResult {
@@ -238,7 +305,6 @@ auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
       value = gen.builder_.getF64FloatAttr(ast->literal->floatValue());
       break;
     default:
-      // Handle other float types if necessary
       auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
                                  "unsupported float type");
       return {op};
@@ -278,7 +344,10 @@ auto Codegen::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
 
     auto x = mlir::OpBuilder(gen.module_->getContext());
     x.setInsertionPointToEnd(gen.module_.getBody());
-    mlir::cxx::GlobalOp::create(x, loc, type, true, name, initializer);
+    auto linkage = mlir::cxx::LinkageKindAttr::get(
+        gen.builder_.getContext(), mlir::cxx::LinkageKind::Internal);
+    mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), type, true,
+                                name.getValue(), initializer, linkage);
 
     it = gen.stringLiterals_.insert_or_assign(ast->literal, name).first;
   }
@@ -305,11 +374,11 @@ auto Codegen::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionResult {
-  auto type = gen.convertType(ast->type);
+  auto ptrType = gen.convertType(ast->type);
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   auto loadOp = mlir::cxx::LoadOp::create(
-      gen.builder_, loc, type, gen.thisValue_, gen.getAlignment(ast->type));
+      gen.builder_, loc, ptrType, gen.thisValue_, gen.getAlignment(ast->type));
 
   return {loadOp};
 }
@@ -385,14 +454,18 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
         return {op};
       }
 
-      int fieldIndex = 0;
       auto classSymbol = symbol_cast<ClassSymbol>(field->parent());
-      for (auto member : cxx::views::members(classSymbol)) {
-        auto f = symbol_cast<FieldSymbol>(member);
-        if (!f) continue;
-        if (f->isStatic()) continue;
-        if (member == field) break;
-        ++fieldIndex;
+
+      auto layout = classSymbol->layout();
+      if (!layout) {
+        return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                                 "class layout not computed")};
+      }
+
+      auto fieldInfo = layout->getFieldInfo(field);
+      if (!fieldInfo) {
+        return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                                 "field not found in layout")};
       }
 
       auto loc = gen.getLocation(ast->firstSourceLocation());
@@ -408,7 +481,7 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
           gen.convertType(gen.control()->add_pointer(field->type()));
 
       auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, resultType,
-                                            thisPtr, fieldIndex);
+                                            thisPtr, fieldInfo->index);
       return {op};
     }
   } else if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
@@ -423,8 +496,31 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
+  if (ast->symbol) {
+    if (auto funcSymbol = symbol_cast<FunctionSymbol>(ast->symbol)) {
+      auto funcOp = gen.findOrCreateFunction(funcSymbol);
+      auto loc = gen.getLocation(ast->firstSourceLocation());
+      auto type =
+          gen.convertType(gen.control()->getPointerType(funcSymbol->type()));
+      auto name = llvm::cast<mlir::StringAttr>(funcOp.getSymNameAttr());
+      auto op = mlir::cxx::AddressOfOp::create(gen.builder_, loc, type, name);
+      return {op};
+    }
+
+    auto op = gen.emitTodoExpr(
+        ast->firstSourceLocation(),
+        std::format("{}: did fail to generate MLIR code for symbol '{}'",
+                    to_string(ast->kind()),
+                    to_string(ast->symbol->type(), ast->symbol->name())));
+    return {op};
+  }
+
+  auto name = get_name(control(), ast->unqualifiedId);
+
   auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+      gen.emitTodoExpr(ast->firstSourceLocation(),
+                       std::format("{}: did fail to resolve name '{}'",
+                                   to_string(ast->kind()), to_string(name)));
 
 #if false
   auto nestedNameSpecifierResult = gen.nestedNameSpecifier(ast->nestedNameSpecifier);
@@ -447,39 +543,61 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     -> ExpressionResult {
+  if (auto classType = type_cast<ClassType>(ast->type)) {
+    auto classSymbol = classType->symbol();
+
+    {
+      auto savedIP = gen.builder_.saveInsertionPoint();
+
+      // Move to module level to emit the function definitions
+      gen.builder_.setInsertionPointToEnd(gen.module_.getBody());
+
+      for (auto ctor : classSymbol->constructors()) {
+        if (auto funcDecl = ctor->declaration()) {
+          gen.declaration(funcDecl);
+        }
+      }
+
+      for (auto member : classSymbol->members()) {
+        if (auto funcSym = symbol_cast<FunctionSymbol>(member)) {
+          if (auto funcDecl = funcSym->declaration()) {
+            gen.declaration(funcDecl);
+          }
+        } else if (auto ovl = symbol_cast<OverloadSetSymbol>(member)) {
+          for (auto func : ovl->functions()) {
+            if (auto funcDecl = func->declaration()) {
+              gen.declaration(funcDecl);
+            }
+          }
+        }
+      }
+
+      gen.builder_.restoreInsertionPoint(savedIP);
+    }
+
+    // Allocate storage for the closure object
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto mlirType = gen.convertType(classType);
+    auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(mlirType);
+    auto closureAlloca = mlir::cxx::AllocaOp::create(
+        gen.builder_, loc, ptrType, gen.getAlignment(classType));
+
+    // Call the default constructor
+    for (auto ctor : classSymbol->constructors()) {
+      auto ctorFunc = gen.findOrCreateFunction(ctor);
+      mlir::SmallVector<mlir::Value> args;
+      args.push_back(closureAlloca);
+      mlir::SmallVector<mlir::Type> resultTypes;  // void return
+      mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
+                                ctorFunc.getSymName(), args, mlir::TypeAttr{});
+      break;
+    }
+
+    return {closureAlloca};
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  for (auto node : ListView{ast->captureList}) {
-    auto value = gen(node);
-  }
-
-  for (auto node : ListView{ast->templateParameterList}) {
-    auto value = gen(node);
-  }
-
-  auto templateRequiresClauseResult = gen(ast->templateRequiresClause);
-  auto parameterDeclarationClauseResult = gen(ast->parameterDeclarationClause);
-
-  for (auto node : ListView{ast->gnuAtributeList}) {
-    auto value = gen(node);
-  }
-
-  for (auto node : ListView{ast->lambdaSpecifierList}) {
-    auto value = gen(node);
-  }
-
-  auto exceptionSpecifierResult = gen(ast->exceptionSpecifier);
-
-  for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
-  }
-
-  auto trailingReturnTypeResult = gen(ast->trailingReturnType);
-  auto requiresClauseResult = gen(ast->requiresClause);
-  gen.statement(ast->statement);
-#endif
 
   return {op};
 }
@@ -551,6 +669,18 @@ auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->symbol) {
+    auto baseExpressionResult = gen.expression(ast->baseExpression);
+    auto indexExpressionResult = gen.expression(ast->indexExpression);
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->lbracketLoc, ast->symbol, baseExpressionResult,
+                          {indexExpressionResult});
+    } else {
+      return gen.emitCall(ast->lbracketLoc, ast->symbol, {},
+                          {baseExpressionResult, indexExpressionResult});
+    }
+  }
+
   auto baseExpressionResult = gen.expression(ast->baseExpression);
   auto indexExpressionResult = gen.expression(ast->indexExpression);
 
@@ -590,7 +720,15 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   if (id) {
     if (functionSymbol = symbol_cast<FunctionSymbol>(id->symbol)) {
       if (functionSymbol->parent()->isClass() && !functionSymbol->isStatic()) {
-        thisValue = {gen.thisValue_};
+        auto loc = gen.getLocation(ast->firstSourceLocation());
+        auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+        auto thisPtrType =
+            gen.convertType(gen.control()->getPointerType(classSymbol->type()));
+        auto loadedThis = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, thisPtrType, gen.thisValue_,
+            gen.getAlignment(
+                gen.control()->getPointerType(classSymbol->type())));
+        thisValue = {loadedThis};
       }
     }
 
@@ -645,7 +783,70 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   mlir::cxx::CallOp callOp;
 
-  if (isIndirectCall) {
+  bool isVirtualCall = false;
+  if (functionSymbol && functionSymbol->isVirtual() && thisValue.value) {
+    if (member) {
+      auto baseExprType = member->baseExpression->type;
+      if (control()->is_pointer(baseExprType) ||
+          control()->is_lvalue_reference(baseExprType)) {
+        isVirtualCall = true;
+      }
+    }
+  }
+
+  if (isVirtualCall) {
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+
+    auto vtableSlots = gen.computeVtableSlots(classSymbol);
+    int slotIndex = 0;
+    for (size_t i = 0; i < vtableSlots.size(); ++i) {
+      if (vtableSlots[i]->name() == functionSymbol->name()) {
+        slotIndex = static_cast<int>(i);
+        break;
+      }
+    }
+
+    auto objectPtr = arguments[0];
+
+    auto objectPtrType = objectPtr.getType();
+    if (auto ptrPtrType = dyn_cast<mlir::cxx::PointerType>(objectPtrType)) {
+      if (auto ptrType =
+              dyn_cast<mlir::cxx::PointerType>(ptrPtrType.getElementType())) {
+        objectPtr = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, ptrPtrType.getElementType(), objectPtr, 4);
+      }
+    }
+
+    auto i8Type = gen.builder_.getI8Type();
+    auto i8PtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
+    auto i8PtrPtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8PtrType);
+    auto i8PtrPtrPtrType =
+        gen.builder_.getType<mlir::cxx::PointerType>(i8PtrPtrType);
+
+    auto vptrFieldPtr = mlir::cxx::MemberOp::create(
+        gen.builder_, loc, i8PtrPtrPtrType, objectPtr, 0);
+
+    auto vtablePtr = mlir::cxx::LoadOp::create(gen.builder_, loc, i8PtrPtrType,
+                                               vptrFieldPtr, 8);
+
+    auto offsetOp = mlir::cxx::IntConstantOp::create(
+        gen.builder_, loc, gen.convertType(gen.control()->getIntType()),
+        slotIndex);
+
+    auto funcPtrAddr = mlir::cxx::PtrAddOp::create(
+        gen.builder_, loc, i8PtrPtrType, vtablePtr, offsetOp);
+
+    auto funcPtr =
+        mlir::cxx::LoadOp::create(gen.builder_, loc, i8PtrType, funcPtrAddr, 8);
+
+    mlir::SmallVector<mlir::Value> indirectCallArgs;
+    indirectCallArgs.push_back(funcPtr);
+    indirectCallArgs.append(arguments.begin(), arguments.end());
+
+    callOp = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
+                                       mlir::FlatSymbolRefAttr{},
+                                       indirectCallArgs, mlir::TypeAttr{});
+  } else if (isIndirectCall) {
     callOp = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
                                        mlir::FlatSymbolRefAttr{}, arguments,
                                        mlir::TypeAttr{});
@@ -706,6 +907,15 @@ auto Codegen::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
   return {op};
 }
 
+static auto isDerivedFrom(ClassSymbol* derived, ClassSymbol* base) -> bool {
+  if (derived == base) return true;
+  for (auto b : derived->baseClasses()) {
+    auto bs = symbol_cast<ClassSymbol>(b->symbol());
+    if (bs && isDerivedFrom(bs, base)) return true;
+  }
+  return false;
+}
+
 auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
@@ -728,7 +938,47 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     }
 
     auto startClass = classType->symbol();
-    auto layout = startClass->layout();
+    auto fieldClass = symbol_cast<ClassSymbol>(field->parent());
+
+    if (startClass != fieldClass) {
+      std::function<mlir::Value(mlir::Value, ClassSymbol*, ClassSymbol*)>
+          castToStruct;
+      castToStruct = [&](mlir::Value value, ClassSymbol* from,
+                         ClassSymbol* to) -> mlir::Value {
+        if (from == to) return value;
+
+        auto fromLayout = from->layout();
+
+        for (auto base : from->baseClasses()) {
+          auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
+          if (!baseSym) continue;
+
+          if (isDerivedFrom(baseSym, to)) {
+            std::uint32_t baseIndex = 0;
+            if (fromLayout) {
+              if (auto bi = fromLayout->getBaseInfo(baseSym)) {
+                baseIndex = bi->index;
+              }
+            }
+
+            auto loc = value.getLoc();
+            auto ptrType =
+                gen.convertType(gen.control()->getPointerType(baseSym->type()));
+
+            auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, ptrType,
+                                                  value, baseIndex);
+
+            return castToStruct(op, baseSym, to);
+          }
+        }
+        return value;
+      };
+
+      baseExpressionResult.value =
+          castToStruct(baseExpressionResult.value, startClass, fieldClass);
+    }
+
+    auto layout = fieldClass->layout();
     if (!layout) {
       return {gen.emitTodoExpr(ast->firstSourceLocation(),
                                "class layout not computed")};
@@ -856,8 +1106,49 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
     -> ExpressionResult {
-  auto expressionResult = gen.expression(ast->expression);
+  if (ast->castOp == TokenKind::T_STATIC_CAST &&
+      ast->valueCategory == ValueCategory::kLValue) {
+    auto* innerExpr = ast->expression;
 
+    while (auto* implicitCast =
+               ast_cast<ImplicitCastExpressionAST>(innerExpr)) {
+      innerExpr = implicitCast->expression;
+    }
+
+    auto baseResult = gen.expression(innerExpr);
+
+    auto sourceType = control()->remove_cv(innerExpr->type);
+    auto targetType = control()->remove_cv(ast->type);
+
+    auto sourceClass = type_cast<ClassType>(sourceType);
+    auto targetClass = type_cast<ClassType>(targetType);
+
+    if (sourceClass && targetClass && sourceClass != targetClass) {
+      auto derivedSymbol = sourceClass->symbol();
+      auto baseSymbol = targetClass->symbol();
+
+      int baseIndex = 0;
+      for (auto base : derivedSymbol->baseClasses()) {
+        auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
+        if (!baseSym) continue;
+
+        if (baseSym == baseSymbol) {
+          auto loc = gen.getLocation(ast->firstSourceLocation());
+          auto resultType =
+              gen.convertType(gen.control()->add_pointer(targetType));
+
+          auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, resultType,
+                                                baseResult.value, baseIndex);
+          return {op};
+        }
+        ++baseIndex;
+      }
+    }
+
+    return baseResult;
+  }
+
+  auto expressionResult = gen.expression(ast->expression);
   return expressionResult;
 }
 
@@ -991,6 +1282,215 @@ auto Codegen::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
   return {op};
 }
 
+auto Codegen::ExpressionVisitor::emitUnaryOpNot(UnaryExpressionAST* ast)
+    -> ExpressionResult {
+  if (type_cast<BoolType>(control()->remove_cv(ast->type))) {
+    auto loc = gen.getLocation(ast->opLoc);
+    auto expressionResult = gen.expression(ast->expression);
+    auto resultType = gen.convertType(ast->type);
+    auto op = mlir::cxx::NotOp::create(gen.builder_, loc, resultType,
+                                       expressionResult.value);
+    return {op};
+  }
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+}
+
+auto Codegen::ExpressionVisitor::emitUnaryOpMinus(UnaryExpressionAST* ast)
+    -> ExpressionResult {
+  auto expressionResult = gen.expression(ast->expression);
+  auto resultType = gen.convertType(ast->type);
+  auto loc = gen.getLocation(ast->opLoc);
+
+  if (control()->is_floating_point(ast->type)) {
+    auto op = mlir::cxx::NegFOp::create(gen.builder_, loc, resultType,
+                                        expressionResult.value);
+
+    return {op};
+  }
+
+  if (control()->is_integral_or_unscoped_enum(ast->type)) {
+    auto zero =
+        mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultType, 0);
+    auto op = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType, zero,
+                                        expressionResult.value);
+
+    return {op};
+  }
+
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+}
+
+auto Codegen::ExpressionVisitor::emitUnaryOpTilde(UnaryExpressionAST* ast)
+    -> ExpressionResult {
+  auto expressionResult = gen.expression(ast->expression);
+  auto resultType = gen.convertType(ast->type);
+
+  auto loc = gen.getLocation(ast->opLoc);
+  auto op = mlir::cxx::NotOp::create(gen.builder_, loc, resultType,
+                                     expressionResult.value);
+
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrFloat(
+    UnaryExpressionAST* ast, ExpressionResult expressionResult)
+    -> ExpressionResult {
+  mlir::Value one;
+
+  switch (control()->remove_cvref(ast->expression->type)->kind()) {
+    case TypeKind::kFloat:
+      one = mlir::cxx::FloatConstantOp::create(
+          gen.builder_, gen.getLocation(ast->opLoc),
+          gen.convertType(ast->expression->type),
+          gen.builder_.getF32FloatAttr(1.0));
+      break;
+
+    case TypeKind::kDouble:
+      one = mlir::cxx::FloatConstantOp::create(
+          gen.builder_, gen.getLocation(ast->opLoc),
+          gen.convertType(ast->expression->type),
+          gen.builder_.getF64FloatAttr(1.0));
+      break;
+
+    case TypeKind::kLongDouble:
+      one = mlir::cxx::FloatConstantOp::create(
+          gen.builder_, gen.getLocation(ast->opLoc),
+          gen.convertType(ast->expression->type),
+          gen.builder_.getF64FloatAttr(1.0));
+      break;
+
+    default:
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "unsupported float type")};
+  }
+
+  auto loc = gen.getLocation(ast->opLoc);
+  auto resultType = gen.convertType(ast->type);
+
+  auto loadOp = mlir::cxx::LoadOp::create(
+      gen.builder_, loc, resultType, expressionResult.value,
+      gen.getAlignment(ast->expression->type));
+
+  mlir::Value addOp;
+
+  if (ast->op == TokenKind::T_MINUS_MINUS)
+    addOp =
+        mlir::cxx::SubFOp::create(gen.builder_, loc, resultType, loadOp, one);
+  else
+    addOp =
+        mlir::cxx::AddFOp::create(gen.builder_, loc, resultType, loadOp, one);
+
+  auto storeOp = mlir::cxx::StoreOp::create(
+      gen.builder_, loc, addOp, expressionResult.value,
+      gen.getAlignment(ast->expression->type));
+
+  if (is_glvalue(ast)) {
+    return expressionResult;
+  }
+
+  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
+                                      expressionResult.value,
+                                      gen.getAlignment(ast->expression->type));
+
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrIntegral(
+    UnaryExpressionAST* ast, ExpressionResult expressionResult)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->opLoc);
+
+  auto oneOp = mlir::cxx::IntConstantOp::create(
+      gen.builder_, loc, gen.convertType(control()->getIntType()), 1);
+
+  auto castOneOp = mlir::cxx::IntegralCastOp::create(
+      gen.builder_, loc, gen.convertType(ast->expression->type), oneOp);
+
+  auto resultType = gen.convertType(ast->type);
+
+  auto loadOp = mlir::cxx::LoadOp::create(
+      gen.builder_, loc, resultType, expressionResult.value,
+      gen.getAlignment(ast->expression->type));
+
+  mlir::Value addOp;
+
+  if (ast->op == TokenKind::T_MINUS_MINUS)
+    addOp = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType, loadOp,
+                                      castOneOp);
+  else
+    addOp = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType, loadOp,
+                                      castOneOp);
+
+  auto storeOp = mlir::cxx::StoreOp::create(
+      gen.builder_, loc, addOp, expressionResult.value,
+      gen.getAlignment(ast->expression->type));
+
+  if (is_glvalue(ast)) {
+    return expressionResult;
+  }
+
+  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
+                                      expressionResult.value,
+                                      gen.getAlignment(ast->expression->type));
+
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrPointer(
+    UnaryExpressionAST* ast, ExpressionResult expressionResult)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto intTy = mlir::cxx::IntegerType::get(gen.builder_.getContext(), 32, true);
+  auto one = mlir::cxx::IntConstantOp::create(
+      gen.builder_, loc, intTy, ast->op == TokenKind::T_MINUS_MINUS ? -1 : 1);
+  auto ptrTy =
+      mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
+  auto elementTy = ptrTy.getElementType();
+  auto loadOp = mlir::cxx::LoadOp::create(
+      gen.builder_, loc, elementTy, expressionResult.value,
+      gen.getAlignment(ast->expression->type));
+  auto addOp =
+      mlir::cxx::PtrAddOp::create(gen.builder_, loc, elementTy, loadOp, one);
+  mlir::cxx::StoreOp::create(gen.builder_, loc, addOp, expressionResult.value,
+                             gen.getAlignment(ast->expression->type));
+
+  if (is_glvalue(ast)) {
+    return expressionResult;
+  }
+
+  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
+                                      expressionResult.value,
+                                      gen.getAlignment(ast->expression->type));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecr(UnaryExpressionAST* ast)
+    -> ExpressionResult {
+  auto expressionResult = gen.expression(ast->expression);
+
+  if (ast->symbol) {
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->opLoc, ast->symbol, expressionResult, {});
+    } else {
+      return gen.emitCall(ast->opLoc, ast->symbol, {}, {expressionResult});
+    }
+  }
+
+  if (control()->is_floating_point(ast->expression->type)) {
+    return emitUnaryOpIncrDecrFloat(ast, expressionResult);
+  }
+
+  if (control()->is_arithmetic(ast->expression->type)) {
+    return emitUnaryOpIncrDecrIntegral(ast, expressionResult);
+  }
+
+  if (control()->is_pointer(ast->expression->type)) {
+    return emitUnaryOpIncrDecrPointer(ast, expressionResult);
+  }
+
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+}
+
 auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
     -> ExpressionResult {
   auto op =
@@ -1001,245 +1501,42 @@ auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->op == TokenKind::T_MINUS_MINUS ||
+      ast->op == TokenKind::T_PLUS_PLUS) {
+    return emitUnaryOpIncrDecr(ast);
+  }
+
+  if (ast->symbol) {
+    auto expressionResult = gen.expression(ast->expression);
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->opLoc, ast->symbol, expressionResult, {});
+    } else {
+      return gen.emitCall(ast->opLoc, ast->symbol, {}, {expressionResult});
+    }
+  }
+
   switch (ast->op) {
-    case TokenKind::T_EXCLAIM: {
-      if (type_cast<BoolType>(control()->remove_cv(ast->type))) {
-        auto loc = gen.getLocation(ast->opLoc);
-        auto expressionResult = gen.expression(ast->expression);
-        auto resultType = gen.convertType(ast->type);
-        auto op = mlir::cxx::NotOp::create(gen.builder_, loc, resultType,
-                                           expressionResult.value);
-        return {op};
-      }
-      break;
-    }
+    case TokenKind::T_EXCLAIM:
+      return emitUnaryOpNot(ast);
 
-    case TokenKind::T_PLUS: {
-      // unary plus, no-op
-      auto expressionResult = gen.expression(ast->expression);
-      return expressionResult;
-    }
+    case TokenKind::T_PLUS:
+      return gen.expression(ast->expression);
 
-    case TokenKind::T_MINUS: {
-      // unary minus
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
-      auto loc = gen.getLocation(ast->opLoc);
+    case TokenKind::T_MINUS:
+      return emitUnaryOpMinus(ast);
 
-      if (control()->is_floating_point(ast->type)) {
-        auto op = mlir::cxx::NegFOp::create(gen.builder_, loc, resultType,
-                                            expressionResult.value);
+    case TokenKind::T_TILDE:
+      return emitUnaryOpTilde(ast);
 
-        return {op};
-      }
-
-      if (control()->is_integral_or_unscoped_enum(ast->type)) {
-        auto zero =
-            mlir::cxx::IntConstantOp::create(gen.builder_, loc, resultType, 0);
-        auto op = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType, zero,
-                                            expressionResult.value);
-
-        return {op};
-      }
-
-      if (control()->is_floating_point(ast->type)) {
-        mlir::FloatAttr value;
-        switch (ast->type->kind()) {
-          case TypeKind::kFloat:
-            value = gen.builder_.getF32FloatAttr(0);
-            break;
-          case TypeKind::kDouble:
-            value = gen.builder_.getF64FloatAttr(0);
-            break;
-          case TypeKind::kLongDouble:
-            value = gen.builder_.getF64FloatAttr(0);
-            break;
-          default:
-            // Handle other float types if necessary
-            auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                                       "unsupported float type");
-            return {op};
-        }
-
-        auto zero = mlir::cxx::FloatConstantOp::create(gen.builder_, loc,
-                                                       resultType, value);
-        auto op = mlir::cxx::SubFOp::create(gen.builder_, loc, resultType, zero,
-                                            expressionResult.value);
-
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_TILDE: {
-      // unary bitwise not
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
-
-      auto loc = gen.getLocation(ast->opLoc);
-      auto op = mlir::cxx::NotOp::create(gen.builder_, loc, resultType,
-                                         expressionResult.value);
-
-      return {op};
-    }
-
-    case TokenKind::T_AMP: {
-      auto expressionResult = gen.expression(ast->expression);
-      return expressionResult;
-    }
-
-    case TokenKind::T_STAR: {
-      auto expressionResult = gen.expression(ast->expression);
-      return expressionResult;
-    }
-
-    case TokenKind::T_MINUS_MINUS:
-    case TokenKind::T_PLUS_PLUS: {
-      auto expressionResult = gen.expression(ast->expression);
-
-      if (control()->is_floating_point(ast->expression->type)) {
-        mlir::Value one;
-
-        switch (control()->remove_cvref(ast->expression->type)->kind()) {
-          case TypeKind::kFloat:
-            one = mlir::cxx::FloatConstantOp::create(
-                gen.builder_, gen.getLocation(ast->opLoc),
-                gen.convertType(ast->expression->type),
-                gen.builder_.getF32FloatAttr(1.0));
-            break;
-
-          case TypeKind::kDouble:
-            one = mlir::cxx::FloatConstantOp::create(
-                gen.builder_, gen.getLocation(ast->opLoc),
-                gen.convertType(ast->expression->type),
-                gen.builder_.getF64FloatAttr(1.0));
-            break;
-
-          case TypeKind::kLongDouble:
-            one = mlir::cxx::FloatConstantOp::create(
-                gen.builder_, gen.getLocation(ast->opLoc),
-                gen.convertType(ast->expression->type),
-                gen.builder_.getF64FloatAttr(1.0));
-            break;
-
-          default:
-            // Handle other float types if necessary
-            auto op = gen.emitTodoExpr(ast->firstSourceLocation(),
-                                       "unsupported float type");
-            return {op};
-        }
-
-        auto loc = gen.getLocation(ast->opLoc);
-
-        auto resultType = gen.convertType(ast->type);
-
-        auto loadOp = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, resultType, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-
-        mlir::Value addOp;
-
-        if (ast->op == TokenKind::T_MINUS_MINUS)
-          addOp = mlir::cxx::SubFOp::create(gen.builder_, loc, resultType,
-                                            loadOp, one);
-        else
-          addOp = mlir::cxx::AddFOp::create(gen.builder_, loc, resultType,
-                                            loadOp, one);
-
-        auto storeOp = mlir::cxx::StoreOp::create(
-            gen.builder_, loc, addOp, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-
-        if (is_glvalue(ast)) {
-          return expressionResult;
-        }
-
-        auto op = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, resultType, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-
-        return {op};
-      } else if (control()->is_arithmetic(ast->expression->type)) {
-        auto loc = gen.getLocation(ast->opLoc);
-
-        auto oneOp = mlir::cxx::IntConstantOp::create(
-            gen.builder_, loc, gen.convertType(control()->getIntType()), 1);
-
-        auto castOneOp = mlir::cxx::IntegralCastOp::create(
-            gen.builder_, loc, gen.convertType(ast->expression->type), oneOp);
-
-        auto resultType = gen.convertType(ast->type);
-
-        auto loadOp = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, resultType, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-
-        mlir::Value addOp;
-
-        if (ast->op == TokenKind::T_MINUS_MINUS)
-          addOp = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType,
-                                            loadOp, castOneOp);
-        else
-          addOp = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType,
-                                            loadOp, castOneOp);
-
-        auto storeOp = mlir::cxx::StoreOp::create(
-            gen.builder_, loc, addOp, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-
-        if (is_glvalue(ast)) {
-          return expressionResult;
-        }
-
-        auto op = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, resultType, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-
-        return {op};
-      } else if (control()->is_pointer(ast->expression->type)) {
-        auto loc = gen.getLocation(ast->firstSourceLocation());
-        auto intTy =
-            mlir::cxx::IntegerType::get(gen.builder_.getContext(), 32, true);
-        auto one = mlir::cxx::IntConstantOp::create(
-            gen.builder_, loc, intTy,
-            ast->op == TokenKind::T_MINUS_MINUS ? -1 : 1);
-        auto ptrTy = mlir::cast<mlir::cxx::PointerType>(
-            expressionResult.value.getType());
-        auto elementTy = ptrTy.getElementType();
-        auto loadOp = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, elementTy, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-        auto addOp = mlir::cxx::PtrAddOp::create(gen.builder_, loc, elementTy,
-                                                 loadOp, one);
-        mlir::cxx::StoreOp::create(gen.builder_, loc, addOp,
-                                   expressionResult.value,
-                                   gen.getAlignment(ast->expression->type));
-
-        if (is_glvalue(ast)) {
-          return expressionResult;
-        }
-
-        auto op = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, elementTy, expressionResult.value,
-            gen.getAlignment(ast->expression->type));
-        return {op};
-      }
-
-      auto op =
-          gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-      return {op};
-    }
+    case TokenKind::T_AMP:
+    case TokenKind::T_STAR:
+      return gen.expression(ast->expression);
 
     default:
       break;
-  }  // switch
+  }
 
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-  return {op};
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
 }
 
 auto Codegen::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
@@ -1353,33 +1650,220 @@ auto expressionResult = gen.expression(ast->expression);
 
 auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  auto newPlacementResult = gen(ast->newPlacement);
-
-  for (auto node : ListView{ast->typeSpecifierList}) {
-    auto value = gen(node);
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto objectType = ast->objectType;
+  if (!objectType) {
+    return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                             "new: missing objectType")};
   }
 
-  auto declaratorResult = gen.declarator(ast->declarator);
-  auto newInitalizerResult = gen(ast->newInitalizer);
-#endif
+  auto memoryLayout = control()->memoryLayout();
+  auto sizeOpt = memoryLayout->sizeOf(objectType);
+  uint64_t objectSize = sizeOpt.value_or(1);
 
-  return {op};
+  auto sizeTy = gen.convertType(control()->getSizeType());
+
+  auto sizeVal =
+      mlir::cxx::IntConstantOp::create(gen.builder_, loc, sizeTy, objectSize);
+
+  auto objectMlirType = gen.convertType(objectType);
+  auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(objectMlirType);
+
+  mlir::Value rawPtr;
+
+  if (ast->newPlacement) {
+    mlir::SmallVector<mlir::Value> placementArgs;
+    for (auto it = ast->newPlacement->expressionList; it; it = it->next) {
+      auto arg = gen.expression(it->value);
+      placementArgs.push_back(arg.value);
+    }
+
+    if (!placementArgs.empty()) {
+      rawPtr = placementArgs[0];
+    } else {
+      rawPtr = sizeVal;
+    }
+  } else {
+    auto operatorNewName = std::string("_Znwm");
+
+    auto existingFunc =
+        gen.module_.lookupSymbol<mlir::cxx::FuncOp>(operatorNewName);
+    if (!existingFunc) {
+      auto guard = mlir::OpBuilder::InsertionGuard(gen.builder_);
+      gen.builder_.setInsertionPointToStart(gen.module_.getBody());
+
+      mlir::SmallVector<mlir::Type> paramTypes{sizeTy};
+      mlir::SmallVector<mlir::Type> resultTypes{ptrType};
+      auto funcType = mlir::cxx::FunctionType::get(gen.builder_.getContext(),
+                                                   paramTypes, resultTypes,
+                                                   /*isVariadic=*/false);
+      auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+          gen.builder_.getContext(), mlir::cxx::LinkageKind::External);
+      auto inlineAttr = mlir::cxx::InlineKindAttr::get(
+          gen.builder_.getContext(), mlir::cxx::InlineKind::NoInline);
+      existingFunc = mlir::cxx::FuncOp::create(
+          gen.builder_, loc, operatorNewName, funcType, linkageAttr, inlineAttr,
+          mlir::ArrayAttr{}, mlir::ArrayAttr{});
+    }
+
+    mlir::SmallVector<mlir::Value> args{sizeVal};
+    mlir::SmallVector<mlir::Type> resultTypes{ptrType};
+    auto callOp = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
+                                            existingFunc.getSymName(), args,
+                                            mlir::TypeAttr{});
+    rawPtr = callOp.getResult();
+  }
+
+  if (ast->constructorSymbol) {
+    std::vector<ExpressionResult> ctorArgs;
+    if (ast->newInitalizer) {
+      if (auto paren = ast_cast<NewParenInitializerAST>(ast->newInitalizer)) {
+        for (auto it = paren->expressionList; it; it = it->next) {
+          ctorArgs.push_back(gen.expression(it->value));
+        }
+      } else if (auto braced =
+                     ast_cast<NewBracedInitializerAST>(ast->newInitalizer)) {
+        if (braced->bracedInitList) {
+          auto bracedList = ast_cast<BracedInitListAST>(braced->bracedInitList);
+          if (bracedList) {
+            for (auto it = bracedList->expressionList; it; it = it->next) {
+              ctorArgs.push_back(gen.expression(it->value));
+            }
+          }
+        }
+      }
+    }
+    gen.emitCall(ast->newLoc, ast->constructorSymbol, {rawPtr}, ctorArgs);
+  } else if (ast->newInitalizer) {
+    if (auto paren = ast_cast<NewParenInitializerAST>(ast->newInitalizer)) {
+      if (paren->expressionList) {
+        auto* initExpr = paren->expressionList->value;
+        auto initVal = gen.expression(initExpr);
+        auto val = initVal.value;
+        if (initExpr->valueCategory == ValueCategory::kLValue) {
+          auto loadedType = gen.convertType(initExpr->type);
+          val = mlir::cxx::LoadOp::create(gen.builder_, loc, loadedType, val,
+                                          gen.getAlignment(initExpr->type));
+        }
+        mlir::cxx::StoreOp::create(gen.builder_, loc, val, rawPtr,
+                                   gen.getAlignment(objectType));
+      }
+    } else if (auto braced =
+                   ast_cast<NewBracedInitializerAST>(ast->newInitalizer)) {
+      if (braced->bracedInitList) {
+        auto initVal = gen.expression(braced->bracedInitList);
+        mlir::cxx::StoreOp::create(gen.builder_, loc, initVal.value, rawPtr,
+                                   gen.getAlignment(objectType));
+      }
+    }
+  }
+
+  return {rawPtr};
 }
 
 auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->firstSourceLocation());
 
-#if false
-  auto expressionResult = gen.expression(ast->expression);
-#endif
+  auto ptrResult = gen.expression(ast->expression);
+  if (!ptrResult.value) return {};
 
-  return {op};
+  auto ptrValue = ptrResult.value;
+
+  if (ast->expression->valueCategory == ValueCategory::kLValue) {
+    auto loadedType = gen.convertType(ast->expression->type);
+    ptrValue =
+        mlir::cxx::LoadOp::create(gen.builder_, loc, loadedType, ptrValue,
+                                  gen.getAlignment(ast->expression->type));
+  }
+
+  const Type* exprType = ast->expression->type;
+  const Type* pointeeType = nullptr;
+  if (auto ptrTy = type_cast<PointerType>(control()->remove_cv(exprType))) {
+    pointeeType = ptrTy->elementType();
+  }
+
+  if (pointeeType) {
+    if (auto classType =
+            type_cast<ClassType>(control()->remove_cv(pointeeType))) {
+      auto classSymbol = classType->symbol();
+      if (auto dtorSymbol = classSymbol->destructor()) {
+        if (dtorSymbol->isVirtual()) {
+          auto i8Type = gen.builder_.getI8Type();
+          auto i8PtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
+          auto i8PtrPtrType =
+              gen.builder_.getType<mlir::cxx::PointerType>(i8PtrType);
+          auto i8PtrPtrPtrType =
+              gen.builder_.getType<mlir::cxx::PointerType>(i8PtrPtrType);
+
+          auto vptrFieldPtr = mlir::cxx::MemberOp::create(
+              gen.builder_, loc, i8PtrPtrPtrType, ptrValue, 0);
+          auto vtablePtr = mlir::cxx::LoadOp::create(
+              gen.builder_, loc, i8PtrPtrType, vptrFieldPtr, 8);
+
+          auto vtableSlots = gen.computeVtableSlots(classSymbol);
+          int slotIndex = 0;
+          for (size_t i = 0; i < vtableSlots.size(); ++i) {
+            if (vtableSlots[i]->name() == dtorSymbol->name()) {
+              slotIndex = static_cast<int>(i);
+              break;
+            }
+          }
+
+          auto intTy = gen.convertType(control()->getIntType());
+          auto offsetOp = mlir::cxx::IntConstantOp::create(gen.builder_, loc,
+                                                           intTy, slotIndex);
+          auto funcPtrAddr = mlir::cxx::PtrAddOp::create(
+              gen.builder_, loc, i8PtrPtrType, vtablePtr, offsetOp);
+          auto funcPtr = mlir::cxx::LoadOp::create(gen.builder_, loc, i8PtrType,
+                                                   funcPtrAddr, 8);
+
+          mlir::SmallVector<mlir::Value> indirectArgs;
+          indirectArgs.push_back(funcPtr);
+          indirectArgs.push_back(ptrValue);
+          mlir::SmallVector<mlir::Type> dtorResultTypes;
+          mlir::cxx::CallOp::create(gen.builder_, loc, dtorResultTypes,
+                                    mlir::FlatSymbolRefAttr{}, indirectArgs,
+                                    mlir::TypeAttr{});
+        } else {
+          gen.emitCall(ast->deleteLoc, dtorSymbol, {ptrValue}, {});
+        }
+      }
+    }
+  }
+
+  bool isArrayDelete = static_cast<bool>(ast->lbracketLoc);
+  auto operatorDeleteName = std::string(isArrayDelete ? "_ZdaPv" : "_ZdlPv");
+
+  auto i8Type = gen.builder_.getI8Type();
+  auto i8PtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
+
+  auto existingFunc =
+      gen.module_.lookupSymbol<mlir::cxx::FuncOp>(operatorDeleteName);
+  if (!existingFunc) {
+    auto guard = mlir::OpBuilder::InsertionGuard(gen.builder_);
+    gen.builder_.setInsertionPointToStart(gen.module_.getBody());
+
+    mlir::SmallVector<mlir::Type> paramTypes{i8PtrType};
+    mlir::SmallVector<mlir::Type> resultTypes;
+    auto funcType = mlir::cxx::FunctionType::get(gen.builder_.getContext(),
+                                                 paramTypes, resultTypes,
+                                                 /*isVariadic=*/false);
+    auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+        gen.builder_.getContext(), mlir::cxx::LinkageKind::External);
+    auto inlineAttr = mlir::cxx::InlineKindAttr::get(
+        gen.builder_.getContext(), mlir::cxx::InlineKind::NoInline);
+    existingFunc = mlir::cxx::FuncOp::create(
+        gen.builder_, loc, operatorDeleteName, funcType, linkageAttr,
+        inlineAttr, mlir::ArrayAttr{}, mlir::ArrayAttr{});
+  }
+
+  mlir::SmallVector<mlir::Value> args{ptrValue};
+  mlir::SmallVector<mlir::Type> resultTypes;
+  mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
+                            existingFunc.getSymName(), args, mlir::TypeAttr{});
+
+  return {};
 }
 
 auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
@@ -1389,134 +1873,213 @@ auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
   return expressionResult;
 }
 
+auto Codegen::ExpressionVisitor::emitLValueToRValueConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto expressionResult = gen.expression(ast->expression);
+
+  if (control()->is_reference(ast->expression->type)) {
+    return expressionResult;
+  }
+
+  auto resultType = gen.convertType(ast->type);
+
+  if (expressionResult.value.getType() == resultType) {
+    return expressionResult;
+  }
+
+  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
+                                      expressionResult.value,
+                                      gen.getAlignment(ast->type));
+
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::emitNumericConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto expressionResult = gen.expression(ast->expression);
+  auto resultType = gen.convertType(ast->type);
+
+  switch (ast->castKind) {
+    case ImplicitCastKind::kIntegralConversion:
+    case ImplicitCastKind::kIntegralPromotion:
+      if (is_bool(ast->type)) {
+        return {mlir::cxx::IntToBoolOp::create(gen.builder_, loc, resultType,
+                                               expressionResult.value)};
+      }
+      if (is_bool(ast->expression->type)) {
+        return {mlir::cxx::BoolToIntOp::create(gen.builder_, loc, resultType,
+                                               expressionResult.value)};
+      }
+      return {mlir::cxx::IntegralCastOp::create(gen.builder_, loc, resultType,
+                                                expressionResult.value)};
+
+    case ImplicitCastKind::kFloatingPointPromotion:
+    case ImplicitCastKind::kFloatingPointConversion:
+      return {mlir::cxx::FloatingPointCastOp::create(
+          gen.builder_, loc, resultType, expressionResult.value)};
+
+    case ImplicitCastKind::kFloatingIntegralConversion:
+      if (is_bool(ast->type)) {
+        return {mlir::cxx::FloatToBoolOp::create(gen.builder_, loc, resultType,
+                                                 expressionResult.value)};
+      }
+      if (control()->is_floating_point(ast->type)) {
+        return {mlir::cxx::IntToFloatOp::create(gen.builder_, loc, resultType,
+                                                expressionResult.value)};
+      }
+      if (control()->is_integral(ast->type)) {
+        return {mlir::cxx::FloatToIntOp::create(gen.builder_, loc, resultType,
+                                                expressionResult.value)};
+      }
+      break;
+
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+}
+
+auto Codegen::ExpressionVisitor::emitPointerConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto expressionResult = gen.expression(ast->expression);
+  auto resultType = gen.convertType(ast->type);
+
+  switch (ast->castKind) {
+    case ImplicitCastKind::kFunctionToPointerConversion:
+    case ImplicitCastKind::kQualificationConversion:
+      return expressionResult;
+
+    case ImplicitCastKind::kPointerConversion:
+      if (expressionResult.value &&
+          mlir::isa<mlir::cxx::IntegerType>(expressionResult.value.getType())) {
+        return {mlir::cxx::NullPtrConstantOp::create(gen.builder_, loc,
+                                                     resultType)};
+      }
+      return expressionResult;
+
+    case ImplicitCastKind::kArrayToPointerConversion:
+      return {mlir::cxx::ArrayToPointerOp::create(gen.builder_, loc, resultType,
+                                                  expressionResult.value)};
+
+    case ImplicitCastKind::kBooleanConversion:
+      if (control()->is_pointer(ast->expression->type)) {
+        return {mlir::cxx::PtrToBoolOp::create(gen.builder_, loc, resultType,
+                                               expressionResult.value)};
+      }
+      break;
+
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+}
+
+auto Codegen::ExpressionVisitor::emitUserDefinedConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto resultType = gen.convertType(ast->type);
+
+  auto* innerExpr = ast->expression;
+  auto* sourceType = innerExpr ? innerExpr->type : nullptr;
+  auto* sourceUnqual =
+      sourceType ? control()->remove_cv(control()->remove_reference(sourceType))
+                 : nullptr;
+  auto* destType = ast->type;
+  auto* destUnqual =
+      destType ? control()->remove_cv(control()->remove_reference(destType))
+               : nullptr;
+
+  if (auto* srcClassType = type_cast<ClassType>(sourceUnqual)) {
+    if (auto* srcClass = srcClassType->symbol()) {
+      for (auto* convFunc : srcClass->conversionFunctions()) {
+        auto* convFuncType = type_cast<FunctionType>(convFunc->type());
+        if (!convFuncType) continue;
+        auto* retType = convFuncType->returnType();
+        if (!retType) continue;
+        auto* retUnqual = control()->remove_cv(retType);
+        if (control()->is_same(retUnqual, destUnqual) ||
+            (control()->is_arithmetic(retUnqual) &&
+             control()->is_arithmetic(destUnqual))) {
+          auto exprResult = gen.expression(innerExpr);
+
+          auto objectValue = exprResult.value;
+          if (!objectValue) break;
+
+          auto ptrType = objectValue.getType();
+
+          if (!mlir::isa<mlir::cxx::PointerType>(ptrType)) {
+            auto temp = gen.newTemp(sourceType, ast->firstSourceLocation());
+            mlir::cxx::StoreOp::create(gen.builder_, loc, objectValue,
+                                       temp.getResult(),
+                                       gen.getAlignment(sourceType));
+            objectValue = temp.getResult();
+          }
+
+          return gen.emitCall(ast->firstSourceLocation(), convFunc,
+                              {objectValue}, {});
+        }
+      }
+    }
+  }
+
+  if (auto* dstClassType = type_cast<ClassType>(destUnqual)) {
+    if (auto* dstClass = dstClassType->symbol()) {
+      for (auto* ctor : dstClass->convertingConstructors()) {
+        auto* funcType = type_cast<FunctionType>(ctor->type());
+        if (!funcType) continue;
+        auto& params = funcType->parameterTypes();
+        if (params.size() != 1) continue;
+        auto* paramUnqual =
+            control()->remove_cv(control()->remove_reference(params[0]));
+        if (control()->is_same(sourceUnqual, paramUnqual) ||
+            (control()->is_arithmetic(sourceUnqual) &&
+             control()->is_arithmetic(paramUnqual))) {
+          auto temp = gen.newTemp(destType, ast->firstSourceLocation());
+
+          auto argResult = gen.expression(innerExpr);
+
+          gen.emitCall(ast->firstSourceLocation(), ctor, {temp.getResult()},
+                       {argResult});
+          return ExpressionResult{temp.getResult()};
+        }
+      }
+    }
+  }
+
+  return gen.expression(ast->expression);
+}
+
 auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     -> ExpressionResult {
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   switch (ast->castKind) {
-    case ImplicitCastKind::kFunctionToPointerConversion: {
-      auto expressionResult = gen.expression(ast->expression);
-      return expressionResult;
-    }
+    case ImplicitCastKind::kLValueToRValueConversion:
+      return emitLValueToRValueConversion(ast);
 
-    case ImplicitCastKind::kLValueToRValueConversion: {
-      // generate a load
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
-
-      auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
-                                          expressionResult.value,
-                                          gen.getAlignment(ast->type));
-
-      return {op};
-    }
-
+    case ImplicitCastKind::kIntegralPromotion:
     case ImplicitCastKind::kIntegralConversion:
-    case ImplicitCastKind::kIntegralPromotion: {
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
-
-      if (is_bool(ast->type)) {
-        // If the result type is a boolean, we can use a specialized cast
-        auto op = mlir::cxx::IntToBoolOp::create(gen.builder_, loc, resultType,
-                                                 expressionResult.value);
-        return {op};
-      }
-
-      if (is_bool(ast->expression->type)) {
-        // If the expression type is a boolean, we can use a specialized cast
-        auto op = mlir::cxx::BoolToIntOp::create(gen.builder_, loc, resultType,
-                                                 expressionResult.value);
-        return {op};
-      }
-
-      // generate an integral cast
-      auto op = mlir::cxx::IntegralCastOp::create(gen.builder_, loc, resultType,
-                                                  expressionResult.value);
-
-      return {op};
-    }
-
     case ImplicitCastKind::kFloatingPointPromotion:
-    case ImplicitCastKind::kFloatingPointConversion: {
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
+    case ImplicitCastKind::kFloatingPointConversion:
+    case ImplicitCastKind::kFloatingIntegralConversion:
+      return emitNumericConversion(ast);
 
-      // generate a floating point cast
-      auto op = mlir::cxx::FloatingPointCastOp::create(
-          gen.builder_, loc, resultType, expressionResult.value);
+    case ImplicitCastKind::kFunctionToPointerConversion:
+    case ImplicitCastKind::kArrayToPointerConversion:
+    case ImplicitCastKind::kQualificationConversion:
+    case ImplicitCastKind::kPointerConversion:
+    case ImplicitCastKind::kBooleanConversion:
+      return emitPointerConversion(ast);
 
-      return {op};
-    }
-
-    case ImplicitCastKind::kFloatingIntegralConversion: {
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
-
-      if (is_bool(ast->type)) {
-        auto op = mlir::cxx::FloatToBoolOp::create(
-            gen.builder_, loc, resultType, expressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(ast->type)) {
-        // If the result type is a floating point, we can use a specialized
-        // cast
-        auto op = mlir::cxx::IntToFloatOp::create(gen.builder_, loc, resultType,
-                                                  expressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_integral(ast->type)) {
-        // If the expression type is an integral, we can use a specialized
-        // cast
-        auto op = mlir::cxx::FloatToIntOp::create(gen.builder_, loc, resultType,
-                                                  expressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case ImplicitCastKind::kArrayToPointerConversion: {
-      // generate an array to pointer conversion
-      auto expressionResult = gen.expression(ast->expression);
-      auto resultType = gen.convertType(ast->type);
-
-      auto op = mlir::cxx::ArrayToPointerOp::create(
-          gen.builder_, loc, resultType, expressionResult.value);
-
-      return {op};
-    }
-
-    case ImplicitCastKind::kQualificationConversion: {
-      auto expressionResult = gen.expression(ast->expression);
-      return expressionResult;
-    }
-
-    case ImplicitCastKind::kPointerConversion: {
-      auto expressionResult = gen.expression(ast->expression);
-      return expressionResult;
-    }
-
-    case ImplicitCastKind::kBooleanConversion: {
-      if (control()->is_pointer(ast->expression->type)) {
-        // generate a pointer to bool cast
-        auto expressionResult = gen.expression(ast->expression);
-        auto resultType = gen.convertType(ast->type);
-
-        auto op = mlir::cxx::PtrToBoolOp::create(gen.builder_, loc, resultType,
-                                                 expressionResult.value);
-
-        return {op};
-      }
-      break;
-    }
+    case ImplicitCastKind::kUserDefinedConversion:
+      return emitUserDefinedConversion(ast);
 
     default:
       break;
-
-  }  // switch
+  }
 
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
@@ -1642,6 +2205,17 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
   auto leftExpressionResult = gen.expression(ast->leftExpression);
   auto rightExpressionResult = gen.expression(ast->rightExpression);
+
+  if (ast->symbol) {
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->opLoc, ast->symbol, leftExpressionResult,
+                          {rightExpressionResult});
+    } else {
+      return gen.emitCall(ast->opLoc, ast->symbol, {},
+                          {leftExpressionResult, rightExpressionResult});
+    }
+  }
+
   auto resultType = gen.convertType(ast->type);
 
   return binaryExpression(ast->opLoc, ast->op, resultType, ast->leftExpression,
@@ -1649,295 +2223,306 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
                           rightExpressionResult);
 }
 
+auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpFloat(
+    SourceLocation loc, TokenKind op, mlir::Type resultType, mlir::Value left,
+    mlir::Value right) -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_PLUS:
+      return {mlir::cxx::AddFOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_MINUS:
+      return {mlir::cxx::SubFOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_STAR:
+      return {mlir::cxx::MulFOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_SLASH:
+      return {mlir::cxx::DivFOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "float arithmetic operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpIntegral(
+    SourceLocation loc, TokenKind op, mlir::Type resultType, mlir::Value left,
+    mlir::Value right) -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_PLUS:
+      return {mlir::cxx::AddIOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_MINUS:
+      return {mlir::cxx::SubIOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_STAR:
+      return {mlir::cxx::MulIOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_SLASH:
+      return {mlir::cxx::DivIOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    case TokenKind::T_PERCENT:
+      return {mlir::cxx::ModIOp::create(gen.builder_, mlirLoc, resultType, left,
+                                        right)};
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "integral arithmetic operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpPointer(
+    SourceLocation loc, TokenKind op, mlir::Type resultType, mlir::Value left,
+    mlir::Value right) -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_PLUS:
+      return {mlir::cxx::PtrAddOp::create(gen.builder_, mlirLoc, resultType,
+                                          left, right)};
+    case TokenKind::T_MINUS: {
+      if (mlir::isa<mlir::cxx::PointerType>(right.getType())) {
+        return {mlir::cxx::PtrDiffOp::create(
+            gen.builder_, mlirLoc, gen.convertType(control()->getLongIntType()),
+            left, right)};
+      }
+      auto offsetType = right.getType();
+      auto zero = mlir::cxx::IntConstantOp::create(gen.builder_, mlirLoc,
+                                                   offsetType, 0);
+      auto offset = mlir::cxx::SubIOp::create(gen.builder_, mlirLoc, offsetType,
+                                              zero, right);
+      return {mlir::cxx::PtrAddOp::create(gen.builder_, mlirLoc, resultType,
+                                          left, offset)};
+    }
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "pointer arithmetic operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryArithmeticOp(
+    SourceLocation loc, TokenKind op, mlir::Type resultType,
+    const Type* leftType, mlir::Value left, mlir::Value right)
+    -> ExpressionResult {
+  if (control()->is_floating_point(leftType)) {
+    return emitBinaryArithmeticOpFloat(loc, op, resultType, left, right);
+  }
+
+  if (control()->is_integral(leftType)) {
+    return emitBinaryArithmeticOpIntegral(loc, op, resultType, left, right);
+  }
+
+  return {gen.emitTodoExpr(loc, "arithmetic operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryShiftOp(
+    SourceLocation opLoc, TokenKind binOp, mlir::Type resultType,
+    const Type* leftType, mlir::Value left, mlir::Value right)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(opLoc);
+
+  if (binOp == TokenKind::T_LESS_LESS) {
+    auto op = mlir::cxx::ShiftLeftOp::create(gen.builder_, loc, resultType,
+                                             left, right);
+    return {op};
+  }
+
+  auto op = mlir::cxx::ShiftRightOp::create(gen.builder_, loc, resultType, left,
+                                            right);
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryComparisonOpFloat(
+    SourceLocation loc, TokenKind op, mlir::Type resultType, mlir::Value left,
+    mlir::Value right) -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_EQUAL_EQUAL:
+      return {mlir::cxx::EqualFOp::create(gen.builder_, mlirLoc, resultType,
+                                          left, right)};
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return {mlir::cxx::NotEqualFOp::create(gen.builder_, mlirLoc, resultType,
+                                             left, right)};
+    case TokenKind::T_LESS:
+      return {mlir::cxx::LessThanFOp::create(gen.builder_, mlirLoc, resultType,
+                                             left, right)};
+    case TokenKind::T_LESS_EQUAL:
+      return {mlir::cxx::LessEqualFOp::create(gen.builder_, mlirLoc, resultType,
+                                              left, right)};
+    case TokenKind::T_GREATER:
+      return {mlir::cxx::GreaterThanFOp::create(gen.builder_, mlirLoc,
+                                                resultType, left, right)};
+    case TokenKind::T_GREATER_EQUAL:
+      return {mlir::cxx::GreaterEqualFOp::create(gen.builder_, mlirLoc,
+                                                 resultType, left, right)};
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "float comparison operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryComparisonOpIntegral(
+    SourceLocation loc, TokenKind op, mlir::Type resultType, mlir::Value left,
+    mlir::Value right) -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_EQUAL_EQUAL:
+      return {mlir::cxx::EqualOp::create(gen.builder_, mlirLoc, resultType,
+                                         left, right)};
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return {mlir::cxx::NotEqualOp::create(gen.builder_, mlirLoc, resultType,
+                                            left, right)};
+    case TokenKind::T_LESS:
+      return {mlir::cxx::LessThanOp::create(gen.builder_, mlirLoc, resultType,
+                                            left, right)};
+    case TokenKind::T_LESS_EQUAL:
+      return {mlir::cxx::LessEqualOp::create(gen.builder_, mlirLoc, resultType,
+                                             left, right)};
+    case TokenKind::T_GREATER:
+      return {mlir::cxx::GreaterThanOp::create(gen.builder_, mlirLoc,
+                                               resultType, left, right)};
+    case TokenKind::T_GREATER_EQUAL:
+      return {mlir::cxx::GreaterEqualOp::create(gen.builder_, mlirLoc,
+                                                resultType, left, right)};
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "integral comparison operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryComparisonOpPointer(
+    SourceLocation loc, TokenKind op, mlir::Type resultType,
+    const Type* leftType, mlir::Value left, mlir::Value right)
+    -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_EQUAL_EQUAL:
+      return {mlir::cxx::EqualOp::create(gen.builder_, mlirLoc, resultType,
+                                         left, right)};
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return {mlir::cxx::NotEqualOp::create(gen.builder_, mlirLoc, resultType,
+                                            left, right)};
+    case TokenKind::T_LESS:
+      return {mlir::cxx::LessThanOp::create(gen.builder_, mlirLoc, resultType,
+                                            left, right)};
+    case TokenKind::T_LESS_EQUAL:
+      return {mlir::cxx::LessEqualOp::create(gen.builder_, mlirLoc, resultType,
+                                             left, right)};
+    case TokenKind::T_GREATER:
+      return {mlir::cxx::GreaterThanOp::create(gen.builder_, mlirLoc,
+                                               resultType, left, right)};
+    case TokenKind::T_GREATER_EQUAL:
+      return {mlir::cxx::GreaterEqualOp::create(gen.builder_, mlirLoc,
+                                                resultType, left, right)};
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "pointer comparison operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryComparisonOp(
+    SourceLocation loc, TokenKind op, mlir::Type resultType,
+    const Type* leftType, mlir::Value left, mlir::Value right)
+    -> ExpressionResult {
+  if (control()->is_floating_point(leftType)) {
+    return emitBinaryComparisonOpFloat(loc, op, resultType, left, right);
+  }
+
+  if (control()->is_integral_or_unscoped_enum(leftType) ||
+      control()->is_pointer(leftType) || control()->is_null_pointer(leftType)) {
+    if (control()->is_pointer(leftType)) {
+      return emitBinaryComparisonOpPointer(loc, op, resultType, leftType, left,
+                                           right);
+    }
+    return emitBinaryComparisonOpIntegral(loc, op, resultType, left, right);
+  }
+
+  return {gen.emitTodoExpr(loc, "comparison operator")};
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryBitwiseOp(
+    SourceLocation loc, TokenKind op, mlir::Type resultType, mlir::Value left,
+    mlir::Value right) -> ExpressionResult {
+  auto mlirLoc = gen.getLocation(loc);
+  switch (op) {
+    case TokenKind::T_CARET:
+      return {mlir::cxx::XorOp::create(gen.builder_, mlirLoc, resultType, left,
+                                       right)};
+    case TokenKind::T_AMP:
+      return {mlir::cxx::AndOp::create(gen.builder_, mlirLoc, resultType, left,
+                                       right)};
+    case TokenKind::T_BAR:
+      return {mlir::cxx::OrOp::create(gen.builder_, mlirLoc, resultType, left,
+                                      right)};
+    default:
+      break;
+  }
+  return {gen.emitTodoExpr(loc, "bitwise operator")};
+}
+
 auto Codegen::ExpressionVisitor::binaryExpression(
     SourceLocation opLoc, TokenKind op, mlir::Type resultType,
     ExpressionAST* leftExpression, ExpressionAST* rightExpression,
     ExpressionResult leftExpressionResult,
     ExpressionResult rightExpressionResult) -> ExpressionResult {
-  auto loc = gen.getLocation(opLoc);
-
   switch (op) {
-    case TokenKind::T_PLUS: {
-      if (control()->is_integral(leftExpression->type)) {
-        auto op = mlir::cxx::AddIOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::AddFOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_pointer(leftExpression->type) &&
-          control()->is_integer(rightExpression->type)) {
-        auto op = mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultType,
-                                              leftExpressionResult.value,
-                                              rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_MINUS: {
-      if (control()->is_pointer(leftExpression->type) &&
-          control()->is_integer(rightExpression->type)) {
-        auto offsetType = gen.convertType(rightExpression->type);
-
-        auto zero =
-            mlir::cxx::IntConstantOp::create(gen.builder_, loc, offsetType, 0);
-
-        auto offset = mlir::cxx::SubIOp::create(
-            gen.builder_, loc, offsetType, zero, rightExpressionResult.value);
-
-        auto op = mlir::cxx::PtrAddOp::create(
-            gen.builder_, loc, resultType, leftExpressionResult.value, offset);
-
-        return {op};
-      }
-
-      if (control()->is_integral(leftExpression->type)) {
-        auto op = mlir::cxx::SubIOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::SubFOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_pointer(leftExpression->type) &&
+    case TokenKind::T_PLUS:
+      if (control()->is_pointer(leftExpression->type) ||
           control()->is_pointer(rightExpression->type)) {
-        auto op = mlir::cxx::PtrDiffOp::create(
-            gen.builder_, loc, gen.convertType(control()->getLongIntType()),
-            leftExpressionResult.value, rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_STAR: {
-      if (control()->is_integral(leftExpression->type)) {
-        auto op = mlir::cxx::MulIOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::MulFOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_SLASH: {
-      if (control()->is_integral(leftExpression->type)) {
-        auto op = mlir::cxx::DivIOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::DivFOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_PERCENT: {
-      if (control()->is_integral(leftExpression->type)) {
-        auto op = mlir::cxx::ModIOp::create(gen.builder_, loc, resultType,
-                                            leftExpressionResult.value,
-                                            rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_LESS_LESS: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
-        auto op = mlir::cxx::ShiftLeftOp::create(gen.builder_, loc, resultType,
-                                                 leftExpressionResult.value,
-                                                 rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_GREATER_GREATER: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type)) {
-        auto op = mlir::cxx::ShiftRightOp::create(gen.builder_, loc, resultType,
-                                                  leftExpressionResult.value,
-                                                  rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_EQUAL_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
-          control()->is_pointer(leftExpression->type) ||
-          control()->is_null_pointer(leftExpression->type)) {
-        auto op = mlir::cxx::EqualOp::create(gen.builder_, loc, resultType,
+        return emitBinaryArithmeticOpPointer(opLoc, op, resultType,
                                              leftExpressionResult.value,
                                              rightExpressionResult.value);
-        return {op};
+      }
+      return emitBinaryArithmeticOp(opLoc, op, resultType, leftExpression->type,
+                                    leftExpressionResult.value,
+                                    rightExpressionResult.value);
+
+    case TokenKind::T_MINUS:
+      if (control()->is_pointer(leftExpression->type)) {
+        return emitBinaryArithmeticOpPointer(opLoc, op, resultType,
+                                             leftExpressionResult.value,
+                                             rightExpressionResult.value);
       }
 
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::EqualFOp::create(gen.builder_, loc, resultType,
-                                              leftExpressionResult.value,
-                                              rightExpressionResult.value);
-        return {op};
-      }
+      return emitBinaryArithmeticOp(opLoc, op, resultType, leftExpression->type,
+                                    leftExpressionResult.value,
+                                    rightExpressionResult.value);
 
-      break;
-    }
+    case TokenKind::T_STAR:
+    case TokenKind::T_SLASH:
+    case TokenKind::T_PERCENT:
+      return emitBinaryArithmeticOp(opLoc, op, resultType, leftExpression->type,
+                                    leftExpressionResult.value,
+                                    rightExpressionResult.value);
 
-    case TokenKind::T_EXCLAIM_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
-          control()->is_pointer(leftExpression->type) ||
-          control()->is_null_pointer(leftExpression->type)) {
-        auto op = mlir::cxx::NotEqualOp::create(gen.builder_, loc, resultType,
-                                                leftExpressionResult.value,
-                                                rightExpressionResult.value);
-        return {op};
-      }
+    case TokenKind::T_LESS_LESS:
+    case TokenKind::T_GREATER_GREATER:
+      return emitBinaryShiftOp(opLoc, op, resultType, leftExpression->type,
+                               leftExpressionResult.value,
+                               rightExpressionResult.value);
 
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::NotEqualFOp::create(gen.builder_, loc, resultType,
-                                                 leftExpressionResult.value,
-                                                 rightExpressionResult.value);
-        return {op};
-      }
+    case TokenKind::T_EQUAL_EQUAL:
+    case TokenKind::T_EXCLAIM_EQUAL:
+    case TokenKind::T_LESS:
+    case TokenKind::T_LESS_EQUAL:
+    case TokenKind::T_GREATER:
+    case TokenKind::T_GREATER_EQUAL:
+      return emitBinaryComparisonOp(opLoc, op, resultType, leftExpression->type,
+                                    leftExpressionResult.value,
+                                    rightExpressionResult.value);
 
-      break;
-    }
-
-    case TokenKind::T_LESS: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
-          control()->is_pointer(leftExpression->type)) {
-        auto op = mlir::cxx::LessThanOp::create(gen.builder_, loc, resultType,
-                                                leftExpressionResult.value,
-                                                rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::LessThanFOp::create(gen.builder_, loc, resultType,
-                                                 leftExpressionResult.value,
-                                                 rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_LESS_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
-          control()->is_pointer(leftExpression->type)) {
-        auto op = mlir::cxx::LessEqualOp::create(gen.builder_, loc, resultType,
-                                                 leftExpressionResult.value,
-                                                 rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::LessEqualFOp::create(gen.builder_, loc, resultType,
-                                                  leftExpressionResult.value,
-                                                  rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_GREATER: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
-          control()->is_pointer(leftExpression->type)) {
-        auto op = mlir::cxx::GreaterThanOp::create(
-            gen.builder_, loc, resultType, leftExpressionResult.value,
-            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::GreaterThanFOp::create(
-            gen.builder_, loc, resultType, leftExpressionResult.value,
-            rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_GREATER_EQUAL: {
-      if (control()->is_integral_or_unscoped_enum(leftExpression->type) ||
-          control()->is_pointer(leftExpression->type)) {
-        auto op = mlir::cxx::GreaterEqualOp::create(
-            gen.builder_, loc, resultType, leftExpressionResult.value,
-            rightExpressionResult.value);
-        return {op};
-      }
-
-      if (control()->is_floating_point(leftExpression->type)) {
-        auto op = mlir::cxx::GreaterEqualFOp::create(
-            gen.builder_, loc, resultType, leftExpressionResult.value,
-            rightExpressionResult.value);
-        return {op};
-      }
-
-      break;
-    }
-
-    case TokenKind::T_CARET: {
-      auto op = mlir::cxx::XorOp::create(gen.builder_, loc, resultType,
-                                         leftExpressionResult.value,
-                                         rightExpressionResult.value);
-      return {op};
-    }
-
-    case TokenKind::T_AMP: {
-      auto op = mlir::cxx::AndOp::create(gen.builder_, loc, resultType,
-                                         leftExpressionResult.value,
-                                         rightExpressionResult.value);
-      return {op};
-    }
-
-    case TokenKind::T_BAR: {
-      auto op = mlir::cxx::OrOp::create(gen.builder_, loc, resultType,
-                                        leftExpressionResult.value,
-                                        rightExpressionResult.value);
-      return {op};
-    }
+    case TokenKind::T_CARET:
+    case TokenKind::T_AMP:
+    case TokenKind::T_BAR:
+      return emitBinaryBitwiseOp(opLoc, op, resultType,
+                                 leftExpressionResult.value,
+                                 rightExpressionResult.value);
 
     default:
       break;
-  }  // switch
+  }
 
-  auto resultOp = gen.emitTodoExpr(opLoc, to_string(BinaryExpressionAST::Kind));
-
-  return {resultOp};
+  return {gen.emitTodoExpr(opLoc, to_string(BinaryExpressionAST::Kind))};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
@@ -1946,7 +2531,12 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   auto falseBlock = gen.newBlock();
   auto endBlock = gen.newBlock();
 
-  auto t = gen.newTemp(ast->type, ast->questionLoc);
+  auto type = ast->type;
+  if (ast->valueCategory != ValueCategory::kPrValue) {
+    type = control()->getPointerType(type);
+  }
+
+  auto t = gen.newTemp(type, ast->questionLoc);
 
   gen.condition(ast->condition, trueBlock, falseBlock);
 
@@ -1957,7 +2547,7 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   auto trueExpressionResult = gen.expression(ast->iftrueExpression);
   auto trueValue = mlir::cxx::StoreOp::create(
       gen.builder_, gen.getLocation(ast->questionLoc),
-      trueExpressionResult.value, t, gen.getAlignment(ast->type));
+      trueExpressionResult.value, t, gen.getAlignment(type));
   gen.branch(endLoc, endBlock);
 
   // place the false block
@@ -1965,7 +2555,7 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   auto falseExpressionResult = gen.expression(ast->iffalseExpression);
   auto falseValue = mlir::cxx::StoreOp::create(
       gen.builder_, gen.getLocation(ast->colonLoc), falseExpressionResult.value,
-      t, gen.getAlignment(ast->type));
+      t, gen.getAlignment(type));
   gen.branch(endLoc, endBlock);
 
   // place the end block
@@ -1973,10 +2563,10 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
 
   if (format == ExpressionFormat::kSideEffect) return {};
 
-  auto resultType = gen.convertType(ast->type);
+  auto resultType = gen.convertType(type);
   auto loadOp =
       mlir::cxx::LoadOp::create(gen.builder_, gen.getLocation(ast->colonLoc),
-                                resultType, t, gen.getAlignment(ast->type));
+                                resultType, t, gen.getAlignment(type));
   return {loadOp};
 }
 
@@ -2006,6 +2596,18 @@ auto Codegen::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     -> ExpressionResult {
+  if (ast->symbol) {
+    auto leftExpressionResult = gen.expression(ast->leftExpression);
+    auto rightExpressionResult = gen.expression(ast->rightExpression);
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->opLoc, ast->symbol, leftExpressionResult,
+                          {rightExpressionResult});
+    } else {
+      return gen.emitCall(ast->opLoc, ast->symbol, {},
+                          {leftExpressionResult, rightExpressionResult});
+    }
+  }
+
   if (ast->op == TokenKind::T_EQUAL) {
     auto leftExpressionResult = gen.expression(ast->leftExpression);
     auto rightExpressionResult = gen.expression(ast->rightExpression);
@@ -2062,6 +2664,18 @@ auto Codegen::ExpressionVisitor::operator()(RightExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(
     CompoundAssignmentExpressionAST* ast) -> ExpressionResult {
+  if (ast->symbol) {
+    auto targetExpressionResult = gen.expression(ast->targetExpression);
+    auto rightExpressionResult = gen.expression(ast->rightExpression);
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->opLoc, ast->symbol, targetExpressionResult,
+                          {rightExpressionResult});
+    } else {
+      return gen.emitCall(ast->opLoc, ast->symbol, {},
+                          {targetExpressionResult, rightExpressionResult});
+    }
+  }
+
   auto targetExpressionResult = gen.expression(ast->targetExpression);
 
   auto targetValue = targetExpressionResult.value;
@@ -2170,13 +2784,11 @@ auto Codegen::ExpressionVisitor::operator()(PackExpansionExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(DesignatedInitializerClauseAST* ast)
     -> ExpressionResult {
+  // DesignatedInitializerClause is handled by emitDesignatedInit
+  // when called from emitAggregateInit. If we reach here as a standalone
+  // expression, emit a todo.
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-auto initializerResult = gen.expression(ast->initializer);
-#endif
-
   return {op};
 }
 
@@ -2204,23 +2816,70 @@ auto Codegen::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto var = ast->symbol;
+  if (!var) return {};
 
-#if false
-  for (auto node : ListView{ast->attributeList}) {
-    auto value = gen(node);
+  auto local = gen.findOrCreateLocal(var);
+  const auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  if (!local.has_value()) {
+    gen.unit_->error(
+        ast->firstSourceLocation(),
+        std::format("cannot find local variable '{}'", to_string(var->name())));
+    return {};
   }
 
-  for (auto node : ListView{ast->declSpecifierList}) {
-    auto value = gen(node);
+  if (gen.control()->is_array(var->type())) {
+    gen.arrayInit(local.value(), var->type(), ast->initializer);
+  } else if (gen.control()->is_class(var->type())) {
+    if (auto ctor = var->constructor()) {
+      std::vector<ExpressionResult> args;
+      if (ast->initializer) {
+        if (auto paren = ast_cast<ParenInitializerAST>(ast->initializer)) {
+          for (auto it = paren->expressionList; it; it = it->next) {
+            args.push_back(gen.expression(it->value));
+          }
+        } else if (auto braced =
+                       ast_cast<BracedInitListAST>(ast->initializer)) {
+          for (auto it = braced->expressionList; it; it = it->next) {
+            args.push_back(gen.expression(it->value));
+          }
+        } else if (auto equal =
+                       ast_cast<EqualInitializerAST>(ast->initializer)) {
+          args.push_back(gen.expression(equal->expression));
+        }
+      }
+      gen.emitCall(ast->initializer ? ast->initializer->firstSourceLocation()
+                                    : var->location(),
+                   ctor, {local.value()}, args);
+    } else {
+      if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
+        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
+          braced->type = var->type();
+        }
+      }
+    }
+  } else {
+    if (ast->initializer) {
+      if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
+        auto expressionResult = gen.expression(equal->expression);
+        mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
+                                   local.value(),
+                                   gen.getAlignment(var->type()));
+      } else {
+        auto expressionResult = gen.expression(ast->initializer);
+        mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
+                                   local.value(),
+                                   gen.getAlignment(var->type()));
+      }
+    }
   }
 
-  auto declaratorResult = gen.declarator(ast->declarator);
-  auto initializerResult = gen.expression(ast->initializer);
-#endif
+  auto type = gen.convertType(var->type());
+  auto val = mlir::cxx::LoadOp::create(gen.builder_, loc, type, local.value(),
+                                       gen.getAlignment(var->type()));
 
-  return {op};
+  return {val};
 }
 
 auto Codegen::ExpressionVisitor::operator()(EqualInitializerAST* ast)
@@ -2246,93 +2905,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
   auto temp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType,
                                           gen.getAlignment(ast->type));
 
-  int index = 0;
-  for (auto node : ListView{ast->expressionList}) {
-    mlir::Value memberAddr;
-
-    // Handle Class Type
-    if (gen.control()->is_class(ast->type)) {
-      // member_index attribute is expected to be explicit I32 attr or similar
-      // in create? MemberOp::create(Builder, Loc, ResultType, Base, Index)
-      // ResultType must be pointer to member type.
-      // We need to resolve member type?
-      // MemberOp lowering handled GEP.
-      // Cxx dialect MemberOp definition?
-      // We need result type.
-      // We can iterate fields of the class to get the type of the ith field.
-
-      auto classSymbol = symbol_cast<ClassSymbol>(
-          type_cast<ClassType>(gen.control()->remove_cv(ast->type))->symbol());
-
-      // Just find the ith field.
-      int fieldCount = 0;
-      Symbol* fieldSym = nullptr;
-      for (auto member : views::members(classSymbol)) {
-        if (auto f = symbol_cast<FieldSymbol>(member)) {
-          if (f->isStatic()) continue;
-          if (fieldCount == index) {
-            fieldSym = f;
-            break;
-          }
-          fieldCount++;
-        }
-      }
-
-      if (!fieldSym) {
-        // Error or mismatch?
-        continue;  // or break
-      }
-
-      auto memberType = gen.convertType(fieldSym->type());
-      auto memberPtrType =
-          gen.builder_.getType<mlir::cxx::PointerType>(memberType);
-
-      memberAddr = mlir::cxx::MemberOp::create(gen.builder_, loc, memberPtrType,
-                                               temp, index);
-    } else if (gen.control()->is_array(ast->type)) {
-      // Array handling
-      auto elementType = gen.control()->get_element_type(ast->type);
-      auto memberType = gen.convertType(elementType);
-      auto memberPtrType =
-          gen.builder_.getType<mlir::cxx::PointerType>(memberType);
-      auto intType = gen.builder_.getType<mlir::cxx::IntegerType>(32, true);
-      auto idxVal =
-          mlir::cxx::IntConstantOp::create(gen.builder_, loc, intType, index);
-      memberAddr = mlir::cxx::PtrAddOp::create(gen.builder_, loc, memberPtrType,
-                                               temp, idxVal);
-    } else {
-      // fallback or scalar braced init? {1}
-      // Treat as scalar?
-      // For now valid for array/class.
-      return {gen.emitTodoExpr(ast->firstSourceLocation(),
-                               "braced-init-list non-aggregate")};
-    }
-
-    auto val = gen.expression(node).value;
-    const Type* memberType = nullptr;
-    if (gen.control()->is_class(ast->type)) {
-      auto classType =
-          type_cast<ClassType>(gen.control()->remove_cv(ast->type));
-      auto classSymbol = symbol_cast<ClassSymbol>(classType->symbol());
-      int fieldCount = 0;
-      for (auto member : views::members(classSymbol)) {
-        if (auto f = symbol_cast<FieldSymbol>(member)) {
-          if (f->isStatic()) continue;
-          if (fieldCount == index) {
-            memberType = f->type();
-            break;
-          }
-          fieldCount++;
-        }
-      }
-    } else if (gen.control()->is_array(ast->type)) {
-      memberType = gen.control()->get_element_type(ast->type);
-    }
-    mlir::cxx::StoreOp::create(gen.builder_, loc, val, memberAddr,
-                               gen.getAlignment(memberType));
-
-    index++;
-  }
+  gen.emitAggregateInit(temp, ast->type, ast);
 
   auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, type, temp,
                                       gen.getAlignment(ast->type));
@@ -2404,6 +2977,273 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
                                  getAlignment(elementType));
     }
   }
+}
+
+void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
+                                BracedInitListAST* ast) {
+  auto loc = getLocation(ast->firstSourceLocation());
+
+  if (auto size = control()->memoryLayout()->sizeOf(type)) {
+    mlir::cxx::MemSetZeroOp::create(builder_, loc, address, *size);
+  }
+
+  if (control()->is_array(type)) {
+    auto elementType = control()->get_element_type(type);
+    auto elementMlirType = convertType(elementType);
+    auto resultType = builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+    auto intType = builder_.getType<mlir::cxx::IntegerType>(32, true);
+
+    int index = 0;
+    for (auto node : ListView{ast->expressionList}) {
+      auto elemLoc = getLocation(node->firstSourceLocation());
+
+      auto indexOp =
+          mlir::cxx::IntConstantOp::create(builder_, elemLoc, intType, index);
+      auto elementAddress = mlir::cxx::PtrAddOp::create(
+          builder_, elemLoc, resultType, address, indexOp.getResult());
+
+      if (auto nested = ast_cast<BracedInitListAST>(node)) {
+        emitAggregateInit(elementAddress, elementType, nested);
+      } else if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
+        emitDesignatedInit(address, type, desig);
+      } else {
+        auto val = expression(node);
+        mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, elementAddress,
+                                   getAlignment(elementType));
+      }
+      ++index;
+    }
+  } else if (control()->is_class_or_union(type)) {
+    auto classType = type_cast<ClassType>(control()->remove_cv(type));
+    if (!classType || !classType->symbol()) return;
+    auto classSymbol = classType->symbol();
+
+    if (classType->isUnion()) {
+      auto it = ast->expressionList;
+      if (!it) return;
+
+      auto& expr = it->value;
+
+      FieldSymbol* targetField = nullptr;
+
+      if (auto desig = ast_cast<DesignatedInitializerClauseAST>(expr)) {
+        emitDesignatedInit(address, type, desig);
+        return;
+      }
+
+      // No designator: initialize first non-static field
+      for (auto field :
+           views::members(classSymbol) | views::non_static_fields) {
+        targetField = field;
+        break;
+      }
+
+      if (!targetField) return;
+
+      auto layout = classSymbol->layout();
+      std::uint32_t memberIndex = 0;
+      if (layout) {
+        if (auto fi = layout->getFieldInfo(targetField)) {
+          memberIndex = fi->index;
+        }
+      }
+
+      auto memberMlirType = convertType(targetField->type());
+      auto memberPtrType =
+          builder_.getType<mlir::cxx::PointerType>(memberMlirType);
+      auto elemLoc = getLocation(expr->firstSourceLocation());
+
+      auto memberAddr = mlir::cxx::MemberOp::create(
+          builder_, elemLoc, memberPtrType, address, memberIndex);
+
+      if (auto nested = ast_cast<BracedInitListAST>(expr)) {
+        emitAggregateInit(memberAddr, targetField->type(), nested);
+      } else {
+        auto val = expression(expr);
+        mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, memberAddr,
+                                   getAlignment(targetField->type()));
+      }
+    } else {
+      std::vector<FieldSymbol*> fields;
+      for (auto field :
+           views::members(classSymbol) | views::non_static_fields) {
+        fields.push_back(field);
+      }
+
+      auto layout = classSymbol->layout();
+      size_t fieldIndex = 0;
+
+      for (auto node : ListView{ast->expressionList}) {
+        if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
+          emitDesignatedInit(address, type, desig);
+
+          if (desig->designatorList) {
+            if (auto dot =
+                    ast_cast<DotDesignatorAST>(desig->designatorList->value);
+                dot && dot->symbol) {
+              for (size_t i = 0; i < fields.size(); ++i) {
+                if (fields[i] == dot->symbol) {
+                  fieldIndex = i + 1;
+                  break;
+                }
+              }
+            }
+          }
+          continue;
+        }
+
+        if (fieldIndex >= fields.size()) break;
+
+        auto field = fields[fieldIndex];
+        std::uint32_t memberIndex = static_cast<std::uint32_t>(fieldIndex);
+        if (layout) {
+          if (auto fi = layout->getFieldInfo(field)) {
+            memberIndex = fi->index;
+          }
+        }
+
+        auto memberMlirType = convertType(field->type());
+        auto memberPtrType =
+            builder_.getType<mlir::cxx::PointerType>(memberMlirType);
+        auto elemLoc = getLocation(node->firstSourceLocation());
+
+        auto memberAddr = mlir::cxx::MemberOp::create(
+            builder_, elemLoc, memberPtrType, address, memberIndex);
+
+        if (auto nested = ast_cast<BracedInitListAST>(node)) {
+          emitAggregateInit(memberAddr, field->type(), nested);
+        } else {
+          auto val = expression(node);
+          mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, memberAddr,
+                                     getAlignment(field->type()));
+        }
+        ++fieldIndex;
+      }
+    }
+  } else {
+    auto it = ast->expressionList;
+    if (!it) return;
+
+    auto val = expression(it->value);
+    mlir::cxx::StoreOp::create(builder_, loc, val.value, address,
+                               getAlignment(type));
+  }
+}
+
+void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
+                                 DesignatedInitializerClauseAST* ast) {
+  mlir::Value currentAddr = address;
+  const Type* currentType = type;
+
+  for (auto desigIt = ast->designatorList; desigIt; desigIt = desigIt->next) {
+    auto designator = desigIt->value;
+
+    if (auto dot = ast_cast<DotDesignatorAST>(designator)) {
+      auto field = dot->symbol;
+      if (!field) return;
+
+      auto classType = type_cast<ClassType>(control()->remove_cv(currentType));
+      if (!classType || !classType->symbol()) return;
+
+      auto classSymbol = classType->symbol();
+      auto layout = classSymbol->layout();
+
+      std::uint32_t memberIndex = 0;
+      if (layout) {
+        if (auto fi = layout->getFieldInfo(field)) {
+          memberIndex = fi->index;
+        }
+      }
+
+      auto memberMlirType = convertType(field->type());
+      auto memberPtrType =
+          builder_.getType<mlir::cxx::PointerType>(memberMlirType);
+      auto elemLoc = getLocation(dot->firstSourceLocation());
+
+      currentAddr = mlir::cxx::MemberOp::create(
+          builder_, elemLoc, memberPtrType, currentAddr, memberIndex);
+      currentType = control()->remove_cv(field->type());
+
+    } else if (auto subscript = ast_cast<SubscriptDesignatorAST>(designator)) {
+      auto elementType = control()->get_element_type(currentType);
+      auto elementMlirType = convertType(elementType);
+      auto resultType =
+          builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+      auto elemLoc = getLocation(subscript->firstSourceLocation());
+
+      auto indexVal = expression(subscript->expression);
+      currentAddr = mlir::cxx::PtrAddOp::create(builder_, elemLoc, resultType,
+                                                currentAddr, indexVal.value);
+      currentType = control()->remove_cv(elementType);
+    }
+  }
+
+  ExpressionAST* initExpr = nullptr;
+  if (ast->initializer) {
+    if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
+      initExpr = equal->expression;
+    } else {
+      initExpr = ast->initializer;
+    }
+  }
+
+  if (!initExpr) return;
+
+  auto elemLoc = getLocation(initExpr->firstSourceLocation());
+
+  if (auto nested = ast_cast<BracedInitListAST>(initExpr)) {
+    emitAggregateInit(currentAddr, currentType, nested);
+  } else {
+    auto val = expression(initExpr);
+    mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, currentAddr,
+                               getAlignment(currentType));
+  }
+}
+
+auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
+                       ExpressionResult thisValue,
+                       std::vector<ExpressionResult> arguments)
+    -> ExpressionResult {
+  auto functionType = type_cast<FunctionType>(symbol->type());
+  if (!functionType) return {};
+
+  auto mlirLoc = getLocation(loc);
+
+  mlir::SmallVector<mlir::Value> args;
+  if (thisValue.value) {
+    args.push_back(thisValue.value);
+  }
+
+  auto& paramTypes = functionType->parameterTypes();
+  for (size_t i = 0; i < arguments.size(); ++i) {
+    auto val = arguments[i].value;
+    if (i < paramTypes.size()) {
+      auto expectedType = convertType(paramTypes[i]);
+      if (val.getType() != expectedType) {
+        val = mlir::cxx::LoadOp::create(builder_, mlirLoc, expectedType, val,
+                                        getAlignment(paramTypes[i]));
+      }
+    }
+    args.push_back(val);
+  }
+
+  mlir::SmallVector<mlir::Type> resultTypes;
+  if (!control()->is_void(functionType->returnType())) {
+    resultTypes.push_back(convertType(functionType->returnType()));
+  }
+  auto funcOp = findOrCreateFunction(symbol);
+  auto callOp =
+      mlir::cxx::CallOp::create(builder_, mlirLoc, resultTypes,
+                                funcOp.getSymName(), args, mlir::TypeAttr{});
+
+  if (functionType->isVariadic()) {
+    callOp.setVarCalleeType(
+        mlir::cast<mlir::cxx::FunctionType>(convertType(functionType)));
+  }
+
+  if (resultTypes.empty()) return {};
+
+  return {callOp.getResult()};
 }
 
 }  // namespace cxx

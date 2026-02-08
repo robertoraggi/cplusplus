@@ -277,6 +277,10 @@ void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
       specs.type_ = control()->getLongDoubleType();
       break;
 
+    case TokenKind::T__FLOAT16:
+      specs.type_ = control()->getFloat16Type();
+      break;
+
     case TokenKind::T___FLOAT80:
       // ### todo
       break;

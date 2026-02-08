@@ -96,6 +96,7 @@ export enum TokenKind {
   _DECIMAL128,
   _DECIMAL32,
   _DECIMAL64,
+  _FLOAT16,
   _GENERIC,
   _IMAGINARY,
   _NORETURN,

@@ -214,14 +214,28 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   for (auto node : ListView{ast->initDeclaratorList}) {
     auto var = symbol_cast<VariableSymbol>(node->symbol);
     if (!var) continue;
-    if (!node->initializer) continue;
+    if (!node->initializer && !gen.control()->is_class(var->type())) continue;
 
     const auto loc = gen.getLocation(var->location());
+
+    if (var->isStatic()) {
+      auto glo = gen.findOrCreateGlobal(var);
+      if (!glo) {
+        gen.unit_->error(node->initializer
+                             ? node->initializer->firstSourceLocation()
+                             : var->location(),
+                         std::format("cannot create static local variable '{}'",
+                                     to_string(var->name())));
+      }
+      continue;
+    }
 
     auto local = gen.findOrCreateLocal(var);
 
     if (!local.has_value()) {
-      gen.unit_->error(node->initializer->firstSourceLocation(),
+      gen.unit_->error(node->initializer
+                           ? node->initializer->firstSourceLocation()
+                           : var->location(),
                        std::format("cannot find local variable '{}'",
                                    to_string(var->name())));
       continue;
@@ -233,17 +247,83 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     }
 
     if (gen.control()->is_class(var->type())) {
-      if (auto equal = ast_cast<EqualInitializerAST>(node->initializer)) {
-        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
-          braced->type = var->type();
+      if (auto ctor = var->constructor()) {
+        std::vector<ExpressionResult> args;
+        if (node->initializer) {
+          if (auto paren = ast_cast<ParenInitializerAST>(node->initializer)) {
+            for (auto it = paren->expressionList; it; it = it->next) {
+              args.push_back(gen.expression(it->value));
+            }
+          } else if (auto braced =
+                         ast_cast<BracedInitListAST>(node->initializer)) {
+            for (auto it = braced->expressionList; it; it = it->next) {
+              args.push_back(gen.expression(it->value));
+            }
+          } else if (auto equal =
+                         ast_cast<EqualInitializerAST>(node->initializer)) {
+            args.push_back(gen.expression(equal->expression));
+          }
         }
+        gen.emitCall(node->initializer
+                         ? node->initializer->firstSourceLocation()
+                         : var->location(),
+                     ctor, {local.value()}, args);
+        continue;
+      }
+
+      BracedInitListAST* braced = nullptr;
+      if (node->initializer) {
+        if (auto b = ast_cast<BracedInitListAST>(node->initializer)) {
+          braced = b;
+        } else if (auto equal =
+                       ast_cast<EqualInitializerAST>(node->initializer)) {
+          braced = ast_cast<BracedInitListAST>(equal->expression);
+        }
+      }
+
+      if (braced) {
+        braced->type = var->type();
+        gen.emitAggregateInit(local.value(), var->type(), braced);
+        continue;
       }
     }
 
-    auto expressionResult = gen.expression(node->initializer);
+    if (node->initializer) {
+      ExpressionAST* initExpr = nullptr;
+      if (auto equal = ast_cast<EqualInitializerAST>(node->initializer)) {
+        initExpr = equal->expression;
+      } else {
+        initExpr = node->initializer;
+      }
 
-    mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
-                               local.value(), gen.getAlignment(var->type()));
+      auto expressionResult = gen.expression(initExpr);
+
+      if (gen.control()->is_reference(var->type())) {
+        mlir::Value addressToStore = expressionResult.value;
+
+        if (initExpr && initExpr->valueCategory == ValueCategory::kPrValue) {
+          auto refType = type_cast<LvalueReferenceType>(var->type());
+          auto elementType = refType->elementType();
+          auto mlirElementType = gen.convertType(elementType);
+          auto tempPtrType =
+              gen.builder_.getType<mlir::cxx::PointerType>(mlirElementType);
+          auto tempAlloca = mlir::cxx::AllocaOp::create(
+              gen.builder_, loc, tempPtrType, gen.getAlignment(elementType));
+
+          mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
+                                     tempAlloca, gen.getAlignment(elementType));
+
+          addressToStore = tempAlloca;
+        }
+
+        mlir::cxx::StoreOp::create(gen.builder_, loc, addressToStore,
+                                   local.value(), 8 /* pointer alignment */);
+      } else {
+        mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
+                                   local.value(),
+                                   gen.getAlignment(var->type()));
+      }
+    }
   }
 
   return {};
@@ -382,10 +462,20 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto func = gen.findOrCreateFunction(functionSymbol);
 
+  if (!func.getBody().empty()) return {};
+
   mlir::DistinctAttr id =
       mlir::DistinctAttr::create(gen.builder_.getUnitAttr());
 
   mlir::LLVM::DIScopeAttr scope;
+
+  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+    if (classSymbol) {
+      scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
+          gen.convertDebugType(classSymbol->type()));
+    }
+  }
 
   mlir::StringAttr name = mlir::StringAttr::get(ctx, func.getSymName());
 
@@ -393,16 +483,39 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto declaratorId = getDeclaratorId(ast->declarator);
 
-  auto funcLoc =
-      gen.unit_->tokenStartPosition(declaratorId->firstSourceLocation());
+  mlir::LLVM::DIFileAttr fileAttr;
+  unsigned line = 0;
+  unsigned scopeLine = 0;
+  std::string_view fileName;
 
-  auto fileAttr = gen.getFileAttr(funcLoc.fileName);
+  if (declaratorId && declaratorId->firstSourceLocation()) {
+    auto funcLoc =
+        gen.unit_->tokenStartPosition(declaratorId->firstSourceLocation());
+    fileAttr = gen.getFileAttr(funcLoc.fileName);
+    line = funcLoc.line;
+    fileName = funcLoc.fileName;
+  }
 
-  unsigned line = funcLoc.line;
+  if (ast->functionBody) {
+    auto bodyLoc = ast->functionBody->firstSourceLocation();
+    if (bodyLoc) {
+      scopeLine = gen.unit_->tokenStartPosition(bodyLoc).line;
+    }
+  }
 
-  unsigned scopeLine =
-      gen.unit_->tokenStartPosition(ast->functionBody->firstSourceLocation())
-          .line;
+  if (!fileAttr) {
+    auto classLoc = functionSymbol->location();
+    if (classLoc) {
+      auto pos = gen.unit_->tokenStartPosition(classLoc);
+      fileAttr = gen.getFileAttr(pos.fileName);
+      line = pos.line;
+      scopeLine = pos.line;
+      fileName = pos.fileName;
+    } else {
+      fileAttr = gen.getFileAttr(std::string_view{""});
+      fileName = "";
+    }
+  }
 
   mlir::LLVM::DISubprogramFlags subprogramFlags =
       mlir::LLVM::DISubprogramFlags::Definition;
@@ -424,10 +537,6 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
   mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
 
-  auto fileName =
-      gen.unit_->tokenStartPosition(declaratorId->firstSourceLocation())
-          .fileName;
-
   auto compileUnitAttr = gen.getCompileUnitAttr(fileName);
 
   auto subprogram = mlir::LLVM::DISubprogramAttr::get(
@@ -440,9 +549,10 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
   func->setLoc(mlir::FusedLoc::get({loc}, subprogram, ctx));
 
+  gen.diScopes_[functionSymbol] = subprogram;
+
   gen.returnType_ = returnType;
 
-  // Add the function body.
   auto entryBlock = gen.builder_.createBlock(&func.getBody());
   auto inputs = func.getFunctionType().getInputs();
 
@@ -453,7 +563,6 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto exitBlock = gen.builder_.createBlock(&func.getBody());
   mlir::cxx::AllocaOp exitValue;
 
-  // set the insertion point to the entry block
   gen.builder_.setInsertionPointToEnd(entryBlock);
 
   if (needsExitValue) {
@@ -476,6 +585,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   std::unordered_map<Symbol*, mlir::Value> locals;
+  std::unordered_map<const Name*, int> staticLocalCounts;
 
   // function state
   std::swap(gen.function_, func);
@@ -483,25 +593,30 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);
+  std::swap(gen.staticLocalCounts_, staticLocalCounts);
+
+  FunctionSymbol* prevFunctionSymbol = nullptr;
+  std::swap(gen.currentFunctionSymbol_, prevFunctionSymbol);
+  gen.currentFunctionSymbol_ = functionSymbol;
 
   mlir::Value thisValue;
 
-  // if this is a non static member function, we need to allocate the `this`
   if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
     auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(thisType);
 
-    auto allocaOp =
-        gen.newTemp(classSymbol->type(), ast->firstSourceLocation());
+    auto allocaOp = gen.newTemp(gen.control()->add_pointer(classSymbol->type()),
+                                ast->firstSourceLocation());
     thisValue = allocaOp;
 
     if (gen.unit_->language() == LanguageKind::kCXX) {
-      gen.attachDebugInfo(allocaOp, classSymbol, "this", 1);
+      gen.attachDebugInfo(
+          allocaOp, gen.control()->add_pointer(classSymbol->type()), "this", 1,
+          mlir::LLVM::DIFlags::Artificial | mlir::LLVM::DIFlags::ObjectPointer);
     }
 
-    // store the `this` pointer in the entry block
     mlir::cxx::StoreOp::create(
         gen.builder_, loc, gen.entryBlock_->getArgument(0), thisValue,
         gen.getAlignment(gen.control()->add_pointer(classSymbol->type())));
@@ -515,7 +630,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto args = gen.entryBlock_->getArguments();
     int argc = 0;
     if (thisValue) {
-      ++argc;  // skip the `this` pointer
+      ++argc;
     }
     for (auto param : views::members(params)) {
       auto arg = symbol_cast<ParameterSymbol>(param);
@@ -543,10 +658,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   allocateLocals(functionSymbol);
 
-  // generate code for the function body
   auto functionBodyResult = gen.functionBody(ast->functionBody);
-
-  // terminate the function body
 
   const auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
@@ -556,8 +668,45 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
 
+  if (name_cast<DestructorId>(functionSymbol->name()) && gen.thisValue_) {
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+    if (classSymbol) {
+      auto layout = classSymbol->layout();
+
+      auto thisPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+          gen.convertType(classSymbol->type()));
+
+      auto thisPtr = mlir::cxx::LoadOp::create(
+          gen.builder_, endLoc, thisPtrType, gen.thisValue_,
+          gen.getAlignment(gen.control()->add_pointer(classSymbol->type())));
+
+      auto bases = classSymbol->baseClasses();
+      for (auto it = bases.rbegin(); it != bases.rend(); ++it) {
+        auto baseClassSymbol = symbol_cast<ClassSymbol>((*it)->symbol());
+        if (!baseClassSymbol) continue;
+
+        auto baseDtor = baseClassSymbol->destructor();
+        if (!baseDtor) continue;
+
+        int index = 0;
+        if (layout) {
+          if (auto bi = layout->getBaseInfo(baseClassSymbol)) {
+            index = bi->index;
+          }
+        }
+
+        auto basePtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+            gen.convertType(baseClassSymbol->type()));
+
+        auto basePtr = mlir::cxx::MemberOp::create(gen.builder_, endLoc,
+                                                   basePtrType, thisPtr, index);
+
+        gen.emitCall(ast->lastSourceLocation(), baseDtor, {basePtr}, {});
+      }
+    }
+  }
+
   if (gen.exitValue_) {
-    // We need to return a value of the correct type.
     auto elementType = gen.exitValue_.getType().getElementType();
 
     auto value =
@@ -566,18 +715,19 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
     mlir::cxx::ReturnOp::create(gen.builder_, endLoc, value->getResults());
   } else {
-    // If the function returns void, we don't need to return anything.
     mlir::cxx::ReturnOp::create(gen.builder_, endLoc);
   }
 
   // restore the state
   std::swap(gen.thisValue_, thisValue);
+  gen.currentFunctionSymbol_ = prevFunctionSymbol;
 
   std::swap(gen.function_, func);
   std::swap(gen.entryBlock_, entryBlock);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);
+  std::swap(gen.staticLocalCounts_, staticLocalCounts);
 
   return {};
 }
@@ -745,16 +895,107 @@ auto Codegen::DeclarationVisitor::operator()(
 
 auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     -> FunctionBodyResult {
+  auto functionSymbol = gen.currentFunctionSymbol_;
+  if (!functionSymbol || !functionSymbol->isConstructor()) return {};
+
+  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+  if (!classSymbol) return {};
+
+  auto sourceLoc = ast->firstSourceLocation();
+  if (!sourceLoc) sourceLoc = functionSymbol->location();
+  auto loc = gen.getLocation(sourceLoc);
+
+  auto thisPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+      gen.convertType(classSymbol->type()));
+
+  auto thisPtr = mlir::cxx::LoadOp::create(
+      gen.builder_, loc, thisPtrType, gen.thisValue_,
+      gen.getAlignment(gen.control()->getPointerType(classSymbol->type())));
+
+  auto layout = classSymbol->layout();
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClassSymbol) continue;
+
+    FunctionSymbol* defaultCtor = nullptr;
+    for (auto ctor : baseClassSymbol->constructors()) {
+      auto funcType = type_cast<FunctionType>(ctor->type());
+      if (funcType && funcType->parameterTypes().empty()) {
+        defaultCtor = ctor;
+        break;
+      }
+    }
+    if (!defaultCtor) continue;
+
+    int index = 0;
+    if (layout) {
+      if (auto bi = layout->getBaseInfo(baseClassSymbol)) {
+        index = bi->index;
+      }
+    }
+
+    auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+        gen.convertType(baseClassSymbol->type()));
+
+    auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc,
+                                                memberPtrType, thisPtr, index);
+
+    gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
+  }
+
+  for (auto member : views::members(classSymbol)) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field || field->isStatic()) continue;
+
+    auto fieldType = gen.control()->remove_cv(field->type());
+    auto classType = type_cast<ClassType>(fieldType);
+    if (!classType) continue;
+
+    auto fieldClassSymbol = classType->symbol();
+    if (!fieldClassSymbol) continue;
+
+    FunctionSymbol* defaultCtor = nullptr;
+    for (auto ctor : fieldClassSymbol->constructors()) {
+      auto funcType = type_cast<FunctionType>(ctor->type());
+      if (funcType && funcType->parameterTypes().empty()) {
+        defaultCtor = ctor;
+        break;
+      }
+    }
+    if (!defaultCtor) continue;
+
+    int index = 0;
+    if (layout) {
+      if (auto fi = layout->getFieldInfo(field)) {
+        index = fi->index;
+      }
+    }
+
+    auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+        gen.convertType(field->type()));
+
+    auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc,
+                                                memberPtrType, thisPtr, index);
+
+    gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
+  }
+
+  gen.emitCtorVtableInit(functionSymbol, loc);
+
   return {};
 }
 
 auto Codegen::FunctionBodyVisitor::operator()(
     CompoundStatementFunctionBodyAST* ast) -> FunctionBodyResult {
-#if false
   for (auto node : ListView{ast->memInitializerList}) {
-    auto value = gen(node);
+    auto value = gen.memInitializer(node);
   }
-#endif
+
+  if (gen.currentFunctionSymbol_) {
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    gen.emitCtorVtableInit(gen.currentFunctionSymbol_, loc);
+  }
 
   gen.statement(ast->statement);
 

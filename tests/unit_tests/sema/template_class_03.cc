@@ -31,11 +31,15 @@ auto X<T>::self() -> X* {
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    constructor void X()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor void X(int)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter int
 // CHECK-NEXT:        block
+// CHECK-NEXT:          variable static constexpr const char __func__[2]
 // CHECK-NEXT:    function const ::X* self() const
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[5]
 // CHECK-NEXT:    function ::X* self()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[5]

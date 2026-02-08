@@ -37,8 +37,8 @@ auto main() -> int {
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: consteval_lambda
-// CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: lambda-expression
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue ::__lambda_0]
+// CHECK-NEXT:                      expression: lambda-expression [prvalue ::__lambda_0]
 // CHECK-NEXT:                        lambda-specifier-list
 // CHECK-NEXT:                          lambda-specifier
 // CHECK-NEXT:                            specifier: consteval
@@ -57,8 +57,8 @@ auto main() -> int {
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: constexpr_lambda
-// CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: lambda-expression
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue ::__lambda_1]
+// CHECK-NEXT:                      expression: lambda-expression [prvalue ::__lambda_1]
 // CHECK-NEXT:                        lambda-specifier-list
 // CHECK-NEXT:                          lambda-specifier
 // CHECK-NEXT:                            specifier: constexpr
@@ -77,8 +77,8 @@ auto main() -> int {
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: mutable_lambda
-// CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: lambda-expression
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue ::__lambda_2]
+// CHECK-NEXT:                      expression: lambda-expression [prvalue ::__lambda_2]
 // CHECK-NEXT:                        lambda-specifier-list
 // CHECK-NEXT:                          lambda-specifier
 // CHECK-NEXT:                            specifier: mutable
@@ -97,8 +97,8 @@ auto main() -> int {
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: static_lambda
-// CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: lambda-expression
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue ::__lambda_3]
+// CHECK-NEXT:                      expression: lambda-expression [prvalue ::__lambda_3]
 // CHECK-NEXT:                        lambda-specifier-list
 // CHECK-NEXT:                          lambda-specifier
 // CHECK-NEXT:                            specifier: static

@@ -21,9 +21,17 @@ struct ScopeSymbol {
 // CHECK-NEXT:    typealias type-param<1, 0>* iterator
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class HashMap<const ::Name*, ::Symbol*>
+// CHECK-NEXT:        constructor defaulted void HashMap()
+// CHECK-NEXT:        constructor defaulted void HashMap(const ::HashMap<const ::Name*, ::Symbol*>&)
+// CHECK-NEXT:        constructor defaulted void HashMap(::HashMap<const ::Name*, ::Symbol*>&&)
 // CHECK-NEXT:        typealias ::Symbol** iterator
+// CHECK-NEXT:        function defaulted void ~HashMap()
 // CHECK-NEXT:  class Name
 // CHECK-NEXT:  class Symbol
 // CHECK-NEXT:  class ScopeSymbol
+// CHECK-NEXT:    constructor defaulted void ScopeSymbol()
+// CHECK-NEXT:    constructor defaulted void ScopeSymbol(const ::ScopeSymbol&)
+// CHECK-NEXT:    constructor defaulted void ScopeSymbol(::ScopeSymbol&&)
 // CHECK-NEXT:    typealias ::HashMap<const ::Name*, ::Symbol*> Table
 // CHECK-NEXT:    typealias ::Symbol** MemberIterator
+// CHECK-NEXT:    function defaulted void ~ScopeSymbol()

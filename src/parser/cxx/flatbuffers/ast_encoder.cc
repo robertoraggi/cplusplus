@@ -3180,6 +3180,7 @@ void ASTEncoder::visit(CppCastExpressionAST* ast) {
   builder.add_expression(expression);
   builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_rparen_loc(ast->rparenLoc.index());
+  builder.add_cast_op(static_cast<std::uint32_t>(ast->castOp));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_CppCastExpression;

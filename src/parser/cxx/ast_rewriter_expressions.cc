@@ -24,12 +24,15 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/binder.h>
+#include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/literals.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/types.h>
 
 #include <format>
 
@@ -619,6 +622,95 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
     -> ExpressionAST* {
+  if (auto parameterPack = rewrite.getParameterPack(ast->leftExpression)) {
+    auto savedParameterPack = rewrite.parameterPack_;
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    ExpressionAST* current = nullptr;
+    int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+
+    for (int i = 0; i < n; ++i) {
+      std::optional<int> index{i};
+      std::swap(rewrite.elementIndex_, index);
+
+      auto expression = rewrite.expression(ast->leftExpression);
+      if (!current) {
+        current = expression;
+      } else {
+        auto binop = BinaryExpressionAST::create(arena());
+        binop->valueCategory = current->valueCategory;
+        binop->type = current->type;
+        binop->leftExpression = current;
+        binop->op = ast->op;
+        binop->opLoc = ast->opLoc;
+        binop->rightExpression = expression;
+        current = binop;
+      }
+
+      std::swap(rewrite.elementIndex_, index);
+    }
+
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    if (current) {
+      auto init = rewrite.expression(ast->rightExpression);
+      auto binop = BinaryExpressionAST::create(arena());
+      binop->valueCategory = current->valueCategory;
+      binop->type = current->type;
+      binop->leftExpression = current;
+      binop->op = ast->foldOp;
+      binop->opLoc = ast->foldOpLoc;
+      binop->rightExpression = init;
+      return binop;
+    }
+    return rewrite.expression(ast->rightExpression);
+  }
+
+  if (auto parameterPack = rewrite.getParameterPack(ast->rightExpression)) {
+    auto savedParameterPack = rewrite.parameterPack_;
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    ExpressionAST* current = nullptr;
+    int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+
+    for (int i = n - 1; i >= 0; --i) {
+      std::optional<int> index{i};
+      std::swap(rewrite.elementIndex_, index);
+
+      auto expression = rewrite.expression(ast->rightExpression);
+      if (!current) {
+        current = expression;
+      } else {
+        auto binop = BinaryExpressionAST::create(arena());
+        binop->valueCategory = current->valueCategory;
+        binop->type = current->type;
+        binop->leftExpression = expression;
+        binop->op = ast->foldOp;
+        binop->opLoc = ast->foldOpLoc;
+        binop->rightExpression = current;
+        current = binop;
+      }
+
+      std::swap(rewrite.elementIndex_, index);
+    }
+
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    if (current) {
+      auto init = rewrite.expression(ast->leftExpression);
+      auto binop = BinaryExpressionAST::create(arena());
+      binop->valueCategory = current->valueCategory;
+      binop->type = current->type;
+      binop->leftExpression = init;
+      binop->op = ast->op;
+      binop->opLoc = ast->opLoc;
+      binop->rightExpression = current;
+      return binop;
+    }
+    return rewrite.expression(ast->leftExpression);
+  }
+
+  // Fallback: copy as-is
   auto copy = FoldExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
@@ -638,6 +730,39 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
     -> ExpressionAST* {
+  if (auto parameterPack = rewrite.getParameterPack(ast->expression)) {
+    auto savedParameterPack = rewrite.parameterPack_;
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+    ExpressionAST* current = nullptr;
+
+    for (int i = n - 1; i >= 0; --i) {
+      std::optional<int> index{i};
+      std::swap(rewrite.elementIndex_, index);
+
+      auto expression = rewrite.expression(ast->expression);
+      if (!current) {
+        current = expression;
+      } else {
+        auto binop = BinaryExpressionAST::create(arena());
+        binop->valueCategory = current->valueCategory;
+        binop->type = current->type;
+        binop->leftExpression = expression;
+        binop->op = ast->op;
+        binop->opLoc = ast->opLoc;
+        binop->rightExpression = current;
+        current = binop;
+      }
+
+      std::swap(rewrite.elementIndex_, index);
+    }
+
+    std::swap(rewrite.parameterPack_, parameterPack);
+
+    return current;
+  }
+
   auto copy = RightFoldExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
@@ -875,6 +1000,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->expression = rewrite.expression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
+  copy->castOp = ast->castOp;
 
   return copy;
 }
@@ -1076,6 +1202,19 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     -> ExpressionAST* {
+  for (const auto& arg : rewrite.templateArguments_) {
+    if (auto sym = std::get_if<Symbol*>(&arg)) {
+      if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
+        auto packSize = pack->elements().size();
+        auto literal = control()->integerLiteral(std::to_string(packSize));
+        auto sizeType = control()->getSizeType();
+        auto result = IntLiteralExpressionAST::create(
+            arena(), literal, ValueCategory::kPrValue, sizeType);
+        return result;
+      }
+    }
+  }
+
   auto copy = SizeofPackExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
@@ -1303,6 +1442,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 
 auto ASTRewriter::ExpressionVisitor::operator()(PackExpansionExpressionAST* ast)
     -> ExpressionAST* {
+  if (rewrite.elementIndex_.has_value()) {
+    return rewrite.expression(ast->expression);
+  }
+
   auto copy = PackExpansionExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
@@ -1384,7 +1527,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           declSpecifierListCtx.type());
   copy->initializer = rewrite.expression(ast->initializer);
-  copy->symbol = ast->symbol;
+
+  copy->symbol = binder()->declareVariable(copy->declarator, declaratorDecl,
+                                           /*addSymbolToParentScope=*/true);
 
   return copy;
 }

@@ -55,7 +55,11 @@ def Cxx_InlineKind : Cxx_I32EnumAttr<"InlineKind", "inlineKind", [
 
 def Cxx_LinkageKind : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
   I32EnumAttrCase<"External", 0, "external">,
-  I32EnumAttrCase<"Internal", 1, "internal">
+  I32EnumAttrCase<"Internal", 1, "internal">,
+  I32EnumAttrCase<"LinkOnceODR", 2, "linkonce_odr">,
+  I32EnumAttrCase<"WeakODR", 3, "weak_odr">,
+  I32EnumAttrCase<"AvailableExternally", 4, "available_externally">,
+  I32EnumAttrCase<"Appending", 5, "appending">
 ]>;
 
 // types
@@ -153,7 +157,18 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , UnitAttr:$constant
     , SymbolNameAttr:$sym_name
     , OptionalAttr<AnyAttr>:$value
+    , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
   );
+}
+
+def Cxx_VTableOp : Cxx_Op<"vtable"> {
+  let arguments = (ins
+      SymbolNameAttr:$sym_name
+    , ArrayAttr:$entries
+    , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
+  );
+
+  let hasCustomAssemblyFormat = 1;
 }
 
 def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
@@ -192,6 +207,10 @@ def Cxx_StoreOp : Cxx_Op<"store"> {
   let arguments = (ins AnyType:$value, Cxx_PointerType:$addr, I64Prop:$alignment);
 
   let hasVerifier = 1;
+}
+
+def Cxx_MemSetZeroOp : Cxx_Op<"memset_zero"> {
+  let arguments = (ins Cxx_PointerType:$addr, I64Prop:$size);
 }
 
 def Cxx_SubscriptOp : Cxx_Op<"subscript"> {

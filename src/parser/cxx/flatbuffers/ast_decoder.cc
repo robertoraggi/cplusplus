@@ -2831,6 +2831,7 @@ auto ASTDecoder::decodeCppCastExpression(const io::CppCastExpression* node)
   ast->expression =
       decodeExpression(node->expression(), node->expression_type());
   ast->rparenLoc = SourceLocation(node->rparen_loc());
+  ast->castOp = static_cast<TokenKind>(node->cast_op());
   return ast;
 }
 

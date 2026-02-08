@@ -85,6 +85,7 @@ struct Codegen::UnitVisitor {
 
     void operator()(OverloadSetSymbol* symbol) {
       for (auto member : symbol->functions()) {
+        if (member->canonical() != member) continue;
         visit(*this, member);
       }
     }
@@ -97,7 +98,14 @@ struct Codegen::UnitVisitor {
         return;
       }
 
-      if (auto funcDecl = symbol->declaration()) {
+      if (!symbol->name()) return;
+
+      auto target = symbol;
+      if (auto def = symbol->definition()) {
+        target = def;
+      }
+
+      if (auto funcDecl = target->declaration()) {
         p.gen.declaration(funcDecl);
       }
     }
@@ -115,12 +123,15 @@ struct Codegen::UnitVisitor {
       }
 
       for (auto ctor : symbol->constructors()) {
+        if (ctor->canonical() != ctor) continue;
         visit(*this, ctor);
       }
 
       for (auto member : views::members(symbol)) {
         visit(*this, member);
       }
+
+      p.gen.generateVTable(symbol);
     }
 
     void operator()(Symbol*) {

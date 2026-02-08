@@ -55,6 +55,7 @@ class Name;
   V(Float)                        \
   V(Double)                       \
   V(LongDouble)                   \
+  V(Float16)                      \
   V(Qual)                         \
   V(BoundedArray)                 \
   V(UnboundedArray)               \

@@ -24,7 +24,10 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
+#include <cxx/symbols.h>
+#include <cxx/types.h>
 
 // mlir
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -70,8 +73,10 @@ struct Codegen::ExceptionDeclarationVisitor {
 void Codegen::statement(StatementAST* ast) {
   if (!ast) return;
 
-  // TODO: move to the op visitors
-  // if (currentBlockMightHaveTerminator()) return;
+  if (currentBlockMightHaveTerminator()) {
+    auto deadBlock = newBlock();
+    builder_.setInsertionPointToEnd(deadBlock);
+  }
 
   visit(StatementVisitor{*this}, ast);
 }
@@ -254,14 +259,322 @@ void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->firstSourceLocation());
 
-#if false
   gen.statement(ast->initializer);
-  auto rangeDeclarationResult = gen(ast->rangeDeclaration);
-  auto rangeInitializerResult = gen.expression(ast->rangeInitializer);
+
+  auto rangeResult = gen.expression(ast->rangeInitializer);
+
+  auto rangeType = ast->rangeInitializer->type;
+  if (!rangeType) {
+    (void)gen.emitTodoStmt(ast->firstSourceLocation(), "for-range: no type");
+    return;
+  }
+  rangeType = control()->remove_cvref(rangeType);
+
+  mlir::Value beginVal, endVal;
+  bool isPointerIterator = false;
+  const Type* iteratorElementType = nullptr;
+  FunctionSymbol* derefFunc = nullptr;
+  FunctionSymbol* incrFunc = nullptr;
+  FunctionSymbol* neqFunc = nullptr;
+
+  if (auto arrayType = type_cast<BoundedArrayType>(rangeType)) {
+    isPointerIterator = true;
+    iteratorElementType = arrayType->elementType();
+
+    auto elementMlirType = gen.convertType(arrayType->elementType());
+    auto ptrType =
+        gen.builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+
+    beginVal = rangeResult.value;
+
+    auto intTy =
+        mlir::cxx::IntegerType::get(gen.builder_.getContext(), 64, true);
+    auto sizeOp = mlir::cxx::IntConstantOp::create(gen.builder_, loc, intTy,
+                                                   arrayType->size());
+    endVal = mlir::cxx::PtrAddOp::create(gen.builder_, loc, ptrType, beginVal,
+                                         sizeOp);
+  } else if (auto classType = type_cast<ClassType>(rangeType)) {
+    auto classSymbol = classType->symbol();
+    if (classSymbol && classSymbol->definition())
+      classSymbol = classSymbol->definition();
+
+    if (!classSymbol) {
+      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
+                             "for-range: incomplete class");
+      return;
+    }
+
+    auto beginName = control()->getIdentifier("begin");
+    auto endName = control()->getIdentifier("end");
+
+    // Look for member begin()/end()
+    FunctionSymbol* beginFunc = nullptr;
+    FunctionSymbol* endFunc = nullptr;
+
+    for (auto sym : classSymbol->find(beginName)) {
+      if (auto func = symbol_cast<FunctionSymbol>(sym)) {
+        beginFunc = func;
+        break;
+      }
+    }
+
+    for (auto sym : classSymbol->find(endName)) {
+      if (auto func = symbol_cast<FunctionSymbol>(sym)) {
+        endFunc = func;
+        break;
+      }
+    }
+
+    if (!beginFunc || !endFunc) {
+      ScopeSymbol* lookupScope = ast->symbol
+                                     ? static_cast<ScopeSymbol*>(ast->symbol)
+                                     : static_cast<ScopeSymbol*>(classSymbol);
+
+      std::vector<const Type*> argTypes = {rangeType};
+
+      auto beginCandidates =
+          Lookup{lookupScope}.argumentDependentLookup(beginName, argTypes);
+      auto endCandidates =
+          Lookup{lookupScope}.argumentDependentLookup(endName, argTypes);
+
+      if (!beginCandidates.empty()) beginFunc = beginCandidates.front();
+      if (!endCandidates.empty()) endFunc = endCandidates.front();
+    }
+
+    if (!beginFunc || !endFunc) {
+      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
+                             "for-range: no begin/end");
+      return;
+    }
+
+    bool isMember = beginFunc->parent() == classSymbol;
+
+    if (isMember) {
+      beginVal = gen.emitCall(ast->colonLoc, beginFunc, rangeResult, {}).value;
+      endVal = gen.emitCall(ast->colonLoc, endFunc, rangeResult, {}).value;
+    } else {
+      beginVal =
+          gen.emitCall(ast->colonLoc, beginFunc, {}, {rangeResult}).value;
+      endVal = gen.emitCall(ast->colonLoc, endFunc, {}, {rangeResult}).value;
+    }
+
+    if (!beginVal || !endVal) {
+      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
+                             "for-range: begin/end call failed");
+      return;
+    }
+
+    auto beginFuncType = type_cast<FunctionType>(beginFunc->type());
+    if (!beginFuncType) {
+      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
+                             "for-range: bad begin type");
+      return;
+    }
+
+    auto iterType = control()->remove_cvref(beginFuncType->returnType());
+
+    if (control()->is_pointer(iterType)) {
+      isPointerIterator = true;
+      iteratorElementType = control()->get_element_type(iterType);
+    } else if (auto iterClassType = type_cast<ClassType>(iterType)) {
+      auto iterClass = iterClassType->symbol();
+      if (iterClass && iterClass->definition())
+        iterClass = iterClass->definition();
+
+      if (iterClass) {
+        auto starOp = control()->getOperatorId(TokenKind::T_STAR);
+        auto plusPlusOp = control()->getOperatorId(TokenKind::T_PLUS_PLUS);
+        auto neqOp = control()->getOperatorId(TokenKind::T_EXCLAIM_EQUAL);
+
+        for (auto sym : iterClass->find(starOp)) {
+          if (auto func = symbol_cast<FunctionSymbol>(sym)) {
+            derefFunc = func;
+            break;
+          }
+        }
+
+        for (auto sym : iterClass->find(plusPlusOp)) {
+          if (auto func = symbol_cast<FunctionSymbol>(sym)) {
+            auto ft = type_cast<FunctionType>(func->type());
+            if (ft && ft->parameterTypes().empty()) {
+              incrFunc = func;
+              break;
+            }
+          }
+        }
+
+        for (auto sym : iterClass->find(neqOp)) {
+          if (auto func = symbol_cast<FunctionSymbol>(sym)) {
+            neqFunc = func;
+            break;
+          }
+        }
+
+        if (!neqFunc) {
+          ScopeSymbol* lookupScope =
+              ast->symbol ? static_cast<ScopeSymbol*>(ast->symbol)
+                          : static_cast<ScopeSymbol*>(iterClass);
+          std::vector<const Type*> cmpArgTypes = {iterType, iterType};
+          auto neqCandidates =
+              Lookup{lookupScope}.argumentDependentLookup(neqOp, cmpArgTypes);
+          if (!neqCandidates.empty()) neqFunc = neqCandidates.front();
+        }
+      }
+
+      if (!derefFunc || !incrFunc || !neqFunc) {
+        (void)gen.emitTodoStmt(ast->firstSourceLocation(),
+                               "for-range: missing iterator ops");
+        return;
+      }
+    } else {
+      // Unknown iterator type
+      isPointerIterator = true;
+      iteratorElementType = nullptr;
+    }
+  } else {
+    (void)gen.emitTodoStmt(ast->firstSourceLocation(),
+                           "for-range: unsupported range type");
+    return;
+  }
+
+  // Create loop blocks
+  auto condBlock = gen.newBlock();
+  auto bodyBlock = gen.newBlock();
+  auto stepBlock = gen.newBlock();
+  auto exitBlock = gen.newBlock();
+
+  // Alloca for the iterator
+  auto iterType = beginVal.getType();
+  auto iterPtrType = gen.builder_.getType<mlir::cxx::PointerType>(iterType);
+  auto iterAlloca =
+      mlir::cxx::AllocaOp::create(gen.builder_, loc, iterPtrType, 8);
+  mlir::cxx::StoreOp::create(gen.builder_, loc, beginVal, iterAlloca, 8);
+
+  // Alloca for end
+  auto endPtrType =
+      gen.builder_.getType<mlir::cxx::PointerType>(endVal.getType());
+  auto endAlloca =
+      mlir::cxx::AllocaOp::create(gen.builder_, loc, endPtrType, 8);
+  mlir::cxx::StoreOp::create(gen.builder_, loc, endVal, endAlloca, 8);
+
+  Loop loop{stepBlock, exitBlock};
+  std::swap(gen.loop_, loop);
+
+  gen.branch(loc, condBlock);
+
+  gen.builder_.setInsertionPointToEnd(condBlock);
+
+  auto iterLoad =
+      mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
+  auto endLoad = mlir::cxx::LoadOp::create(gen.builder_, loc, endVal.getType(),
+                                           endAlloca, 8);
+
+  mlir::Value condVal;
+  if (isPointerIterator || !neqFunc) {
+    auto boolType = gen.convertType(control()->getBoolType());
+    condVal = mlir::cxx::NotEqualOp::create(gen.builder_, loc, boolType,
+                                            iterLoad, endLoad);
+  } else {
+    auto neqParent = neqFunc->parent();
+    bool isMemberNeq = neqParent && neqParent->kind() == SymbolKind::kClass;
+
+    ExpressionResult neqResult;
+    if (isMemberNeq) {
+      neqResult = gen.emitCall(ast->colonLoc, neqFunc, {iterLoad}, {{endLoad}});
+    } else {
+      neqResult =
+          gen.emitCall(ast->colonLoc, neqFunc, {}, {{iterLoad}, {endLoad}});
+    }
+    condVal = neqResult.value;
+  }
+
+  if (!condVal) {
+    auto boolType = gen.convertType(control()->getBoolType());
+    condVal = mlir::cxx::NotEqualOp::create(gen.builder_, loc, boolType,
+                                            iterLoad, endLoad);
+  }
+
+  mlir::cf::CondBranchOp::create(gen.builder_, loc, condVal, bodyBlock, {},
+                                 exitBlock, {});
+
+  gen.builder_.setInsertionPointToEnd(bodyBlock);
+
+  // Get the loop variable from the block scope
+  VariableSymbol* loopVar = nullptr;
+  if (ast->symbol) {
+    for (auto member : ast->symbol->members()) {
+      if (auto var = symbol_cast<VariableSymbol>(member)) {
+        loopVar = var;
+        break;
+      }
+    }
+  }
+
+  if (loopVar) {
+    auto local = gen.findOrCreateLocal(loopVar);
+    if (local) {
+      auto iterInBody =
+          mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
+
+      if (isPointerIterator) {
+        if (control()->is_reference(loopVar->type())) {
+          mlir::cxx::StoreOp::create(gen.builder_, loc, iterInBody,
+                                     local.value(),
+                                     gen.getAlignment(loopVar->type()));
+        } else {
+          auto elemType =
+              gen.convertType(control()->remove_cvref(loopVar->type()));
+          auto elem = mlir::cxx::LoadOp::create(
+              gen.builder_, loc, elemType, iterInBody,
+              gen.getAlignment(control()->remove_cvref(loopVar->type())));
+          mlir::cxx::StoreOp::create(gen.builder_, loc, elem, local.value(),
+                                     gen.getAlignment(loopVar->type()));
+        }
+      } else if (derefFunc) {
+        auto derefResult =
+            gen.emitCall(ast->colonLoc, derefFunc, {iterInBody}, {});
+        if (derefResult.value) {
+          mlir::cxx::StoreOp::create(gen.builder_, loc, derefResult.value,
+                                     local.value(),
+                                     gen.getAlignment(loopVar->type()));
+        }
+      }
+    }
+  }
+
   gen.statement(ast->statement);
-#endif
+  gen.branch(
+      gen.getLocation(ast->statement ? ast->statement->lastSourceLocation()
+                                     : ast->rparenLoc),
+      stepBlock);
+
+  gen.builder_.setInsertionPointToEnd(stepBlock);
+
+  auto iterInStep =
+      mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
+
+  if (isPointerIterator) {
+    auto intTy =
+        mlir::cxx::IntegerType::get(gen.builder_.getContext(), 32, true);
+    auto oneOp = mlir::cxx::IntConstantOp::create(gen.builder_, loc, intTy, 1);
+    auto nextIter = mlir::cxx::PtrAddOp::create(gen.builder_, loc, iterType,
+                                                iterInStep, oneOp);
+    mlir::cxx::StoreOp::create(gen.builder_, loc, nextIter, iterAlloca, 8);
+  } else if (incrFunc) {
+    auto incrResult = gen.emitCall(ast->colonLoc, incrFunc, {iterInStep}, {});
+    if (incrResult.value) {
+      mlir::cxx::StoreOp::create(gen.builder_, loc, incrResult.value,
+                                 iterAlloca, 8);
+    }
+  }
+
+  gen.branch(loc, condBlock);
+
+  gen.builder_.setInsertionPointToEnd(exitBlock);
+
+  std::swap(gen.loop_, loop);
 }
 
 void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {

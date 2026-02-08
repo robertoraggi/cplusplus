@@ -20,4 +20,20 @@
 
 #include <cxx/const_value.h>
 
-namespace cxx {}
+namespace cxx {
+
+auto ConstObject::operator==(const ConstObject& other) const -> bool {
+  if (type_ != other.type_) return false;
+  if (fields_.size() != other.fields_.size()) return false;
+  if (bases_.size() != other.bases_.size()) return false;
+  for (std::size_t i = 0; i < fields_.size(); ++i) {
+    if (fields_[i].symbol != other.fields_[i].symbol) return false;
+    if (fields_[i].value != other.fields_[i].value) return false;
+  }
+  for (std::size_t i = 0; i < bases_.size(); ++i) {
+    if (bases_[i] != other.bases_[i]) return false;
+  }
+  return true;
+}
+
+}  // namespace cxx

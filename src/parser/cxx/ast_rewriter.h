@@ -59,6 +59,8 @@ class ASTRewriter {
       List<TemplateArgumentAST*>* templateArgumentList)
       -> std::vector<TemplateArgument>;
 
+  [[nodiscard]] auto statement(StatementAST* ast) -> StatementAST*;
+
  private:
   [[nodiscard]] auto templateArguments() const
       -> const std::vector<TemplateArgument>& {
@@ -80,7 +82,6 @@ class ASTRewriter {
 
   // run on the base nodes
   [[nodiscard]] auto unit(UnitAST* ast) -> UnitAST*;
-  [[nodiscard]] auto statement(StatementAST* ast) -> StatementAST*;
   [[nodiscard]] auto expression(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto genericAssociation(GenericAssociationAST* ast)
       -> GenericAssociationAST*;
@@ -189,6 +190,9 @@ class ASTRewriter {
   [[nodiscard]] auto rewriter() -> ASTRewriter* { return this; }
 
   [[nodiscard]] auto getParameterPack(ExpressionAST* ast)
+      -> ParameterPackSymbol*;
+
+  [[nodiscard]] auto getTypeParameterPack(SpecifierAST* ast)
       -> ParameterPackSymbol*;
 
   std::vector<TemplateArgument> templateArguments_;

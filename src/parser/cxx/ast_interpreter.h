@@ -24,6 +24,8 @@
 #include <cxx/const_value.h>
 
 #include <optional>
+#include <unordered_map>
+#include <vector>
 
 namespace cxx {
 
@@ -57,6 +59,17 @@ class ASTInterpreter {
 
   [[nodiscard]] auto toLongDouble(const ConstValue& value)
       -> std::optional<long double>;
+
+  [[nodiscard]] auto evaluateCall(FunctionSymbol* func,
+                                  std::vector<ConstValue> args)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateConstructor(FunctionSymbol* ctor,
+                                         const Type* classType,
+                                         std::vector<ConstValue> args)
+      -> std::optional<ConstValue>;
+
+  static constexpr int kMaxDepth = 512;
 
  private:
   using ExpressionResult = std::optional<ConstValue>;
@@ -216,8 +229,45 @@ class ASTInterpreter {
   [[nodiscard]] auto asmClobber(AsmClobberAST* ast) -> DeclarationResult;
   [[nodiscard]] auto asmGotoLabel(AsmGotoLabelAST* ast) -> DeclarationResult;
 
+  [[nodiscard]] auto lookupLocal(const Symbol* sym) const
+      -> std::optional<ConstValue>;
+
+  void setLocal(const Symbol* sym, ConstValue value);
+
+  void pushFrame();
+  void popFrame();
+
+  [[nodiscard]] auto hasReturnValue() const -> bool {
+    return returnValue_.has_value();
+  }
+
+  [[nodiscard]] auto takeReturnValue() -> std::optional<ConstValue> {
+    auto v = std::move(returnValue_);
+    returnValue_.reset();
+    return v;
+  }
+
+  void setReturnValue(ConstValue value) { returnValue_ = std::move(value); }
+
+  [[nodiscard]] auto thisObject() const -> const std::shared_ptr<ConstObject>& {
+    return thisObject_;
+  }
+  void setThisObject(std::shared_ptr<ConstObject> obj) {
+    thisObject_ = std::move(obj);
+  }
+
  private:
   TranslationUnit* unit_ = nullptr;
+
+  struct Frame {
+    std::unordered_map<const Symbol*, ConstValue> locals;
+  };
+  std::vector<Frame> frames_;
+
+  std::optional<ConstValue> returnValue_;
+  std::shared_ptr<ConstObject> thisObject_;
+
+  int depth_ = 0;
 };
 
 }  // namespace cxx

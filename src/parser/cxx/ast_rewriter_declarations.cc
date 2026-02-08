@@ -557,7 +557,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
-  copy->functionBody = rewrite.functionBody(ast->functionBody);
+
+  if (ast->symbol && ast->symbol->templateDeclaration() &&
+      rewrite.binder().instantiatingSymbol() == ast->symbol) {
+    ast->symbol->addSpecialization(rewrite.templateArguments(), functionSymbol);
+  }
+
+  if (!rewrite.restrictedToDeclarations()) {
+    copy->functionBody = rewrite.functionBody(ast->functionBody);
+  }
 
   return copy;
 }
