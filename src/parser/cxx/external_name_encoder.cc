@@ -181,6 +181,11 @@ struct ExternalNameEncoder::EncodeType {
     return false;
   }
 
+  auto operator()(const Float16Type* type) -> bool {
+    encoder.out("DF16_");
+    return false;
+  }
+
   auto operator()(const QualType* type) -> bool {
     if (type->isVolatile()) encoder.out("V");
     if (type->isConst()) encoder.out("K");
@@ -347,9 +352,24 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
     for (const auto& arg : args) {
       if (auto sym = std::get_if<Symbol*>(&arg)) {
         auto type = (*sym)->type();
+        if (!type) continue;
+
+        if (type_cast<TypeParameterType>(type)) continue;
+
+        if (auto var = symbol_cast<VariableSymbol>(*sym)) {
+          if (var->constValue().has_value()) {
+            encoder.encodeConstValue(type, var->constValue().value());
+            continue;
+          }
+        }
+
         encoder.encodeType(type);
+      } else if (auto type = std::get_if<const Type*>(&arg)) {
+        if (*type) encoder.encodeType(*type);
+      } else if (auto val = std::get_if<ConstValue>(&arg)) {
+        encoder.out(std::format("Li{}E", std::get<std::intmax_t>(*val)));
       } else {
-        cxx_runtime_error("template argument not supported yet");
+        // todo: ExpressionAST
       }
     }
 
@@ -570,12 +590,16 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
 ExternalNameEncoder::ExternalNameEncoder() {}
 
-auto ExternalNameEncoder::encode(Symbol* symbol) -> std::string {
+auto ExternalNameEncoder::encode(Symbol* symbol, std::string_view suffix)
+    -> std::string {
+  std::string result;
   if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
-    return encodeFunction(functionSymbol);
+    result = encodeFunction(functionSymbol);
+  } else {
+    result = encodeData(symbol);
   }
-
-  return encodeData(symbol);
+  result.append(suffix);
+  return result;
 }
 
 auto ExternalNameEncoder::encode(const Type* type) -> std::string {
@@ -583,6 +607,18 @@ auto ExternalNameEncoder::encode(const Type* type) -> std::string {
   std::swap(externalName, out_);
 
   encodeType(type);
+
+  std::swap(externalName, out_);
+  return externalName;
+}
+
+auto ExternalNameEncoder::encodeVTable(ClassSymbol* classSymbol)
+    -> std::string {
+  std::string externalName;
+  std::swap(externalName, out_);
+
+  out("_ZTV");
+  encodeName(classSymbol);
 
   std::swap(externalName, out_);
   return externalName;
@@ -626,11 +662,25 @@ auto ExternalNameEncoder::encodeFunction(FunctionSymbol* function)
 }
 
 void ExternalNameEncoder::encodeName(Symbol* symbol) {
+  if (encodeLocalName(symbol)) return;
   if (encodeNestedName(symbol)) return;
   if (encodeUnscopedName(symbol)) return;
 
-  cxx_runtime_error(std::format("cannot encode name for symbol '{}'",
+  cxx_runtime_error(std::format("cannot encode name for symbol \'{}\'",
                                 to_string(symbol->type(), symbol->name())));
+}
+
+auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
+  auto function = symbol->enclosingFunction();
+  if (!function) return false;
+
+  out("Z");
+  encodeName(function);
+  auto functionType = type_cast<FunctionType>(function->type());
+  encodeBareFunctionType(functionType);
+  out("E");
+  encodeUnqualifiedName(symbol);
+  return true;
 }
 
 auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
@@ -716,6 +766,30 @@ void ExternalNameEncoder::encodeType(const Type* type) {
   if (encodeSubstitution(type)) return;
   if (!visit(EncodeType{*this}, type)) return;
   enterSubstitution(type);
+}
+
+void ExternalNameEncoder::encodeConstValue(const Type* type,
+                                           const ConstValue& value) {
+  out("L");
+  encodeType(type);
+  std::visit(
+      [&](auto&& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, std::intmax_t>) {
+          if (v < 0) {
+            out(std::format("n{}", -v));
+          } else {
+            out(std::format("{}", v));
+          }
+        } else if constexpr (std::is_same_v<T, bool>) {
+          out(v ? "1" : "0");
+        } else if constexpr (std::is_same_v<T, double>) {
+          // TODO: hex float encoding
+          out("0");
+        }
+      },
+      value);
+  out("E");
 }
 
 auto ExternalNameEncoder::encodeSubstitution(const Type* type) -> bool {

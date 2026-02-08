@@ -26,7 +26,9 @@
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
+#include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -42,6 +44,24 @@
 #include <format>
 
 namespace cxx {
+
+static auto isInAnonymousNamespace(Symbol* symbol) -> bool {
+  for (auto* scope = symbol->parent(); scope; scope = scope->parent()) {
+    if (auto* ns = symbol_cast<NamespaceSymbol>(scope)) {
+      if (ns->anonNamespaceIndex().has_value()) return true;
+    }
+  }
+  return false;
+}
+
+static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
+  for (auto* scope = symbol->parent(); scope; scope = scope->parent()) {
+    if (auto* cls = symbol_cast<ClassSymbol>(scope)) {
+      if (cls->isSpecialization()) return true;
+    }
+  }
+  return false;
+}
 
 Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit)
     : builder_(&context), unit_(unit) {}
@@ -137,17 +157,50 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   return allocaOp;
 }
 
+auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
+  if (!symbol) return {};
+
+  if (auto it = diScopes_.find(symbol); it != diScopes_.end())
+    return it->second;
+
+  if (symbol_cast<FunctionParametersSymbol>(symbol))
+    return getOrCreateDIScope(symbol->parent());
+
+  if (auto* block = symbol_cast<BlockSymbol>(symbol)) {
+    auto parentScope = getOrCreateDIScope(block->parent());
+    if (!parentScope) return {};
+    auto [filename, line, column] =
+        unit_->tokenStartPosition(block->location());
+    auto fileAttr = getFileAttr(filename);
+    auto lexicalBlock = mlir::LLVM::DILexicalBlockAttr::get(
+        builder_.getContext(), parentScope, fileAttr, line, column);
+    diScopes_[symbol] = lexicalBlock;
+    return lexicalBlock;
+  }
+
+  if (auto* func = symbol_cast<FunctionSymbol>(symbol)) {
+    if (auto it = funcOps_.find(func); it != funcOps_.end()) {
+      if (auto fusedLoc = mlir::dyn_cast<mlir::FusedLoc>(it->second.getLoc())) {
+        if (auto sp = mlir::dyn_cast_or_null<mlir::LLVM::DISubprogramAttr>(
+                fusedLoc.getMetadata())) {
+          diScopes_[symbol] = sp;
+          return sp;
+        }
+      }
+    }
+  }
+
+  auto fileAttr =
+      getFileAttr(unit_->tokenStartPosition(symbol->location()).fileName);
+  return fileAttr;
+}
+
 void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
                               std::string_view name, unsigned arg) {
   if (!function_) return;
 
-  auto funcLoc = mlir::dyn_cast<mlir::FusedLoc>(function_.getLoc());
-  if (!funcLoc) return;
-
-  auto metadata = funcLoc.getMetadata();
-  auto subprogram =
-      mlir::dyn_cast_or_null<mlir::LLVM::DISubprogramAttr>(metadata);
-  if (!subprogram) return;
+  auto scope = getOrCreateDIScope(symbol->parent());
+  if (!scope) return;
 
   auto ctx = builder_.getContext();
   auto nameAttr = mlir::StringAttr::get(
@@ -158,8 +211,33 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
   auto typeAttr = convertDebugType(symbol->type());
 
   auto localVar = mlir::LLVM::DILocalVariableAttr::get(
-      ctx, subprogram, nameAttr, file, line, arg, 0, typeAttr,
+      ctx, scope, nameAttr, file, line, arg, 0, typeAttr,
       mlir::LLVM::DIFlags::Zero);
+
+  allocaOp->setAttr("cxx.di_local", localVar);
+}
+
+void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, const Type* type,
+                              std::string_view name, unsigned arg,
+                              mlir::LLVM::DIFlags flags) {
+  if (!function_) return;
+
+  auto scope = getOrCreateDIScope(currentFunctionSymbol_);
+  if (!scope) return;
+
+  auto ctx = builder_.getContext();
+  auto nameAttr = mlir::StringAttr::get(ctx, name);
+  auto typeAttr = convertDebugType(type);
+
+  mlir::LLVM::DIFileAttr file;
+  unsigned line = 0;
+  if (auto sp = mlir::dyn_cast<mlir::LLVM::DISubprogramAttr>(scope)) {
+    file = sp.getFile();
+    line = sp.getLine();
+  }
+
+  auto localVar = mlir::LLVM::DILocalVariableAttr::get(
+      ctx, scope, nameAttr, file, line, arg, 0, typeAttr, flags);
 
   allocaOp->setAttr("cxx.di_local", localVar);
 }
@@ -173,19 +251,21 @@ auto Codegen::newTemp(const Type* type, SourceLocation loc)
 
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> mlir::cxx::FuncOp {
-  if (auto it = funcOps_.find(functionSymbol); it != funcOps_.end()) {
+  auto canonicalSymbol = functionSymbol->canonical();
+
+  if (auto it = funcOps_.find(canonicalSymbol); it != funcOps_.end()) {
     return it->second;
   }
 
-  const auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  const auto functionType = type_cast<FunctionType>(canonicalSymbol->type());
   const auto returnType = functionType->returnType();
   const auto needsExitValue = !control()->is_void(returnType);
 
   std::vector<mlir::Type> inputTypes;
   std::vector<mlir::Type> resultTypes;
 
-  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+  if (!canonicalSymbol->isStatic() && canonicalSymbol->parent()->isClass()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(canonicalSymbol->parent());
 
     inputTypes.push_back(builder_.getType<mlir::cxx::PointerType>(
         convertType(classSymbol->type())));
@@ -205,11 +285,11 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   std::string name;
 
-  if (functionSymbol->hasCLinkage()) {
-    name = to_string(functionSymbol->name());
+  if (canonicalSymbol->hasCLinkage()) {
+    name = to_string(canonicalSymbol->name());
   } else {
     ExternalNameEncoder encoder;
-    name = encoder.encode(functionSymbol);
+    name = encoder.encode(canonicalSymbol);
   }
 
   const auto loc = getLocation(functionSymbol->location());
@@ -220,7 +300,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   mlir::cxx::InlineKind inlineKind = mlir::cxx::InlineKind::NoInline;
 
-  if (functionSymbol->isInline()) {
+  if (canonicalSymbol->isInline()) {
     inlineKind = mlir::cxx::InlineKind::InlineHint;
   }
 
@@ -229,8 +309,18 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   mlir::cxx::LinkageKind linkageKind = mlir::cxx::LinkageKind::External;
 
-  if (functionSymbol->isStatic()) {
+  if (canonicalSymbol->isStatic() && !canonicalSymbol->parent()->isClass()) {
     linkageKind = mlir::cxx::LinkageKind::Internal;
+  } else if (isInAnonymousNamespace(canonicalSymbol)) {
+    linkageKind = mlir::cxx::LinkageKind::Internal;
+  } else if (canonicalSymbol->isInline()) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (canonicalSymbol->isSpecialization()) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (isMemberOfClassTemplateSpecialization(canonicalSymbol)) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (canonicalSymbol->isDefaulted()) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
   }
 
   auto linkageAttr =
@@ -240,7 +330,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
                                         linkageAttr, inlineAttr,
                                         mlir::ArrayAttr{}, mlir::ArrayAttr{});
 
-  funcOps_.insert_or_assign(functionSymbol, func);
+  funcOps_.insert_or_assign(canonicalSymbol, func);
 
   return func;
 }
@@ -250,7 +340,9 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   auto variableSymbol = symbol_cast<VariableSymbol>(symbol);
   if (!variableSymbol) return {};
 
-  if (auto it = globalOps_.find(variableSymbol); it != globalOps_.end()) {
+  auto canonicalVar = variableSymbol->canonical();
+
+  if (auto it = globalOps_.find(canonicalVar); it != globalOps_.end()) {
     return it->second;
   }
 
@@ -270,8 +362,19 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   mlir::cxx::LinkageKind linkageKind = mlir::cxx::LinkageKind::External;
 
-  if (variableSymbol->isStatic()) {
+  if (variableSymbol->isStatic() && !variableSymbol->parent()->isClass()) {
     linkageKind = mlir::cxx::LinkageKind::Internal;
+  } else if (isInAnonymousNamespace(variableSymbol)) {
+    linkageKind = mlir::cxx::LinkageKind::Internal;
+  } else if (variableSymbol->isInline()) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (variableSymbol->isSpecialization()) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (isMemberOfClassTemplateSpecialization(variableSymbol)) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (variableSymbol->isStatic() &&
+             variableSymbol->parent()->isClass()) {
+    linkageKind = mlir::cxx::LinkageKind::External;
   }
 
   auto linkageAttr =
@@ -281,8 +384,19 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   if (variableSymbol->isStatic() ||
       !is_global_namespace(variableSymbol->parent())) {
+    std::string suffix;
+    if (variableSymbol->isStatic()) {
+      if (auto function = symbol->enclosingFunction()) {
+        auto& count = staticLocalCounts_[symbol->name()];
+        if (count > 0) {
+          suffix = std::format("_{}", count - 1);
+        }
+        ++count;
+      }
+    }
+
     ExternalNameEncoder encoder;
-    name = encoder.encode(symbol);
+    name = encoder.encode(symbol, suffix);
   } else {
     name = to_string(symbol->name());
   }
@@ -313,6 +427,13 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
           // convert each element to mlir::Attribute and push to elements
         }
         initializer = builder_.getArrayAttr(elements);
+      } else if (auto constStringPtr =
+                     std::get_if<const StringLiteral*>(&*value)) {
+        auto stringLiteral = *constStringPtr;
+        stringLiteral->initialize();
+        std::string str(stringLiteral->stringValue());
+        str.push_back('\0');
+        initializer = builder_.getStringAttr(str);
       }
     } else if (control()->is_class(variableSymbol->type())) {
       if (auto constArrayPtr =
@@ -330,15 +451,47 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     }
   }
 
-  if (!variableSymbol->initializer() && !variableSymbol->isExtern()) {
-    // default initialize to zero
-    initializer = builder_.getZeroAttr(varType);
+  if (!initializer && !variableSymbol->isExtern()) {
+    if (control()->is_integral_or_unscoped_enum(variableSymbol->type())) {
+      initializer = builder_.getI64IntegerAttr(0);
+    } else if (control()->is_floating_point(variableSymbol->type())) {
+      initializer = builder_.getF64FloatAttr(0.0);
+    } else if (control()->is_array(variableSymbol->type())) {
+      auto arrayType = type_cast<BoundedArrayType>(variableSymbol->type());
+      if (arrayType) {
+        size_t numElements = arrayType->size();
+        std::vector<mlir::Attribute> zeroElements;
+
+        mlir::Attribute zeroElement;
+        if (control()->is_integral_or_unscoped_enum(arrayType->elementType())) {
+          zeroElement = builder_.getI64IntegerAttr(0);
+        } else if (control()->is_floating_point(arrayType->elementType())) {
+          zeroElement = builder_.getF64FloatAttr(0.0);
+        } else {
+          auto elementVarType = convertType(arrayType->elementType());
+          zeroElement = builder_.getZeroAttr(elementVarType);
+        }
+
+        if (zeroElement) {
+          for (size_t i = 0; i < numElements; ++i) {
+            zeroElements.push_back(zeroElement);
+          }
+          initializer = builder_.getArrayAttr(zeroElements);
+        }
+      }
+    } else {
+      initializer = builder_.getZeroAttr(varType);
+    }
   }
 
-  auto var = mlir::cxx::GlobalOp::create(builder_, loc, varType, false, name,
-                                         initializer);
+  bool isConstant = variableSymbol->isConstexpr() ||
+                    control()->is_const(variableSymbol->type());
 
-  globalOps_.insert_or_assign(variableSymbol, var);
+  auto var = mlir::cxx::GlobalOp::create(
+      builder_, loc, mlir::TypeRange(), varType, isConstant,
+      llvm::StringRef(name), initializer, linkageAttr);
+
+  globalOps_.insert_or_assign(canonicalVar, var);
 
   return var;
 }
@@ -420,6 +573,170 @@ auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
   const auto loc = getLocation(location);
   auto op = mlir::cxx::TodoExprOp::create(builder_, loc, message);
   return op;
+}
+
+auto Codegen::computeVtableSlots(ClassSymbol* classSymbol)
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> vtableSlots;
+
+  auto baseClasses = classSymbol->baseClasses();
+  if (!baseClasses.empty()) {
+    auto baseClassSym = symbol_cast<ClassSymbol>(baseClasses[0]->symbol());
+    if (baseClassSym && baseClassSym->layout() &&
+        baseClassSym->layout()->hasVtable()) {
+      vtableSlots = computeVtableSlots(baseClassSym);
+    }
+  }
+
+  for (auto member : views::members(classSymbol)) {
+    if (auto func = symbol_cast<FunctionSymbol>(member)) {
+      if (func->isVirtual()) {
+        bool foundOverride = false;
+        for (size_t i = 0; i < vtableSlots.size(); ++i) {
+          auto isOverride = vtableSlots[i]->name() == func->name() ||
+                            (name_cast<DestructorId>(vtableSlots[i]->name()) &&
+                             name_cast<DestructorId>(func->name()));
+          if (isOverride) {
+            vtableSlots[i] = func;
+            foundOverride = true;
+            break;
+          }
+        }
+
+        if (!foundOverride) {
+          vtableSlots.push_back(func);
+        }
+      }
+    }
+  }
+
+  return vtableSlots;
+}
+
+void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
+                                 mlir::Location loc) {
+  if (!functionSymbol->isConstructor() || !thisValue_) return;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+  if (!classSymbol) return;
+
+  auto layout = classSymbol->layout();
+  if (!layout || !layout->hasVtable()) return;
+
+  ExternalNameEncoder encoder;
+  auto vtableName = encoder.encodeVTable(classSymbol);
+
+  auto vtableSlots = computeVtableSlots(classSymbol);
+  size_t vtableSize = 2 + vtableSlots.size();
+
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = builder_.getType<mlir::cxx::PointerType>(i8Type);
+  auto vtableArrayType =
+      builder_.getType<mlir::cxx::ArrayType>(i8PtrType, vtableSize);
+  auto vtablePtrType =
+      builder_.getType<mlir::cxx::PointerType>(vtableArrayType);
+
+  auto vtableAddr = mlir::cxx::AddressOfOp::create(
+      builder_, loc, vtablePtrType,
+      mlir::FlatSymbolRefAttr::get(builder_.getContext(), vtableName));
+
+  auto twoOp = mlir::cxx::IntConstantOp::create(
+      builder_, loc, convertType(control()->getIntType()), 2);
+
+  auto vtableDataPtr =
+      mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, vtableAddr, twoOp);
+
+  auto thisType = convertType(classSymbol->type());
+  auto ptrType = builder_.getType<mlir::cxx::PointerType>(thisType);
+
+  auto thisPtr = mlir::cxx::LoadOp::create(
+      builder_, loc, ptrType, thisValue_,
+      getAlignment(control()->add_pointer(classSymbol->type())));
+
+  mlir::Value vptrFieldPtr;
+  if (layout->hasDirectVtable()) {
+    vptrFieldPtr = mlir::cxx::MemberOp::create(
+        builder_, loc, builder_.getType<mlir::cxx::PointerType>(i8PtrType),
+        thisPtr, layout->vtableIndex());
+  } else {
+    mlir::Value current = thisPtr;
+    auto* currentClass = classSymbol;
+    auto* currentLayout = layout;
+
+    while (currentLayout && !currentLayout->hasDirectVtable()) {
+      auto baseIdx = currentLayout->vtableIndex();
+      ClassSymbol* baseSym = nullptr;
+      for (auto base : currentClass->baseClasses()) {
+        auto bs = symbol_cast<ClassSymbol>(base->symbol());
+        if (!bs) continue;
+        auto bi = currentLayout->getBaseInfo(bs);
+        if (bi && bi->index == baseIdx) {
+          baseSym = bs;
+          break;
+        }
+      }
+      if (!baseSym) break;
+
+      auto basePtrType = builder_.getType<mlir::cxx::PointerType>(
+          convertType(baseSym->type()));
+      current = mlir::cxx::MemberOp::create(builder_, loc, basePtrType, current,
+                                            baseIdx);
+      currentClass = baseSym;
+      currentLayout = baseSym->layout();
+    }
+
+    auto vtableIdx = currentLayout ? currentLayout->vtableIndex() : 0;
+    vptrFieldPtr = mlir::cxx::MemberOp::create(
+        builder_, loc, builder_.getType<mlir::cxx::PointerType>(i8PtrType),
+        current, vtableIdx);
+  }
+
+  mlir::cxx::StoreOp::create(builder_, loc, vtableDataPtr, vptrFieldPtr, 8);
+}
+
+void Codegen::generateVTable(ClassSymbol* classSymbol) {
+  auto layout = classSymbol->layout();
+  if (!layout || !layout->hasVtable()) {
+    return;
+  }
+
+  auto vtableSlots = computeVtableSlots(classSymbol);
+
+  ExternalNameEncoder encoder;
+  auto vtableName = encoder.encodeVTable(classSymbol);
+
+  auto loc = getLocation(classSymbol->location());
+
+  mlir::SmallVector<mlir::Attribute> vtableEntries;
+
+  auto i64Type = builder_.getIntegerType(64);
+  auto nullEntry = builder_.getIntegerAttr(i64Type, 0);
+  vtableEntries.push_back(nullEntry);
+
+  vtableEntries.push_back(nullEntry);
+
+  for (auto func : vtableSlots) {
+    auto funcOp = findOrCreateFunction(func);
+    auto funcSymRef = mlir::FlatSymbolRefAttr::get(builder_.getContext(),
+                                                   funcOp.getSymName());
+    vtableEntries.push_back(funcSymRef);
+  }
+
+  auto entriesAttr = builder_.getArrayAttr(vtableEntries);
+
+  auto linkage = mlir::cxx::LinkageKind::LinkOnceODR;
+  auto linkageAttr =
+      mlir::cxx::LinkageKindAttr::get(builder_.getContext(), linkage);
+
+  auto savedInsertionPoint = builder_.saveInsertionPoint();
+
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  mlir::cxx::VTableOp::create(builder_, loc, mlir::TypeRange(),
+                              llvm::StringRef(vtableName), entriesAttr,
+                              linkageAttr);
+
+  builder_.restoreInsertionPoint(savedInsertionPoint);
 }
 
 }  // namespace cxx

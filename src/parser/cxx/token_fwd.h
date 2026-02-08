@@ -112,6 +112,7 @@ class Token;
   V(_DECIMAL128, "_Decimal128")                 \
   V(_DECIMAL32, "_Decimal32")                   \
   V(_DECIMAL64, "_Decimal64")                   \
+  V(_FLOAT16, "_Float16")                       \
   V(_GENERIC, "_Generic")                       \
   V(_IMAGINARY, "_Imaginary")                   \
   V(_NORETURN, "_Noreturn")                     \

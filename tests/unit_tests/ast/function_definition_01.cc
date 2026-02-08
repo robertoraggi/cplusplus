@@ -22,7 +22,7 @@ void (*f(int))() {}
 // CHECK-NEXT:                    identifier: ptr
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
-// CHECK-NEXT:          initializer: braced-init-list
+// CHECK-NEXT:          initializer: braced-init-list [prvalue void (*)()]
 // CHECK-NEXT:    function-definition
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        void-type-specifier

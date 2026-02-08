@@ -53,36 +53,59 @@ auto main() -> int {
 // CHECK-NEXT:    field int v
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<void>
+// CHECK-NEXT:        constructor defaulted void A()
+// CHECK-NEXT:        constructor defaulted void A(const ::A<void>&)
+// CHECK-NEXT:        constructor defaulted void A(::A<void>&&)
 // CHECK-NEXT:        typealias void T
 // CHECK-NEXT:        field int v
+// CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<::A<void>>
+// CHECK-NEXT:        constructor defaulted void A()
+// CHECK-NEXT:        constructor defaulted void A(const ::A<::A<void>>&)
+// CHECK-NEXT:        constructor defaulted void A(::A<::A<void>>&&)
 // CHECK-NEXT:        typealias ::A<void> T
 // CHECK-NEXT:        field int v
+// CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<double>
+// CHECK-NEXT:        constructor defaulted void A()
+// CHECK-NEXT:        constructor defaulted void A(const ::A<double>&)
+// CHECK-NEXT:        constructor defaulted void A(::A<double>&&)
 // CHECK-NEXT:        typealias double T
 // CHECK-NEXT:        field int v
+// CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:  template typealias const ::A B
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:  class D
 // CHECK-NEXT:    base class A
+// CHECK-NEXT:    constructor defaulted void D()
+// CHECK-NEXT:    constructor defaulted void D(const ::D&)
+// CHECK-NEXT:    constructor defaulted void D(::D&&)
 // CHECK-NEXT:    function void f()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable ::A<void> t
+// CHECK-NEXT:    function defaulted void ~D()
 // CHECK-NEXT:  template class D2<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    base class A
 // CHECK-NEXT:    function double f()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable double t
 // CHECK-NEXT:    field double t
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class D2<int>
 // CHECK-NEXT:        base class A
+// CHECK-NEXT:        constructor defaulted void D2()
+// CHECK-NEXT:        constructor defaulted void D2(const ::D2<int>&)
+// CHECK-NEXT:        constructor defaulted void D2(::D2<int>&&)
 // CHECK-NEXT:        function double f()
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable double t
 // CHECK-NEXT:        field double t
+// CHECK-NEXT:        function defaulted void ~D2()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block
+// CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      variable ::D d1
 // CHECK-NEXT:      variable ::D2<int> d2

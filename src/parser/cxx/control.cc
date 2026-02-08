@@ -25,6 +25,7 @@
 #include <cxx/symbols.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <cstdlib>
 #include <forward_list>
@@ -105,6 +106,7 @@ struct Control::Private {
   FloatType floatType;
   DoubleType doubleType;
   LongDoubleType longDoubleType;
+  Float16Type float16Type;
 
   std::set<QualType> qualTypes;
   std::set<BoundedArrayType> boundedArrayTypes;
@@ -360,6 +362,8 @@ auto Control::getDoubleType() -> const DoubleType* { return &d->doubleType; }
 auto Control::getLongDoubleType() -> const LongDoubleType* {
   return &d->longDoubleType;
 }
+
+auto Control::getFloat16Type() -> const Float16Type* { return &d->float16Type; }
 
 auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
     -> const QualType* {
@@ -893,6 +897,198 @@ auto Control::is_same(const Type* a, const Type* b) -> bool {
 
 auto Control::decay(const Type* type) -> const Type* {
   return d->traits.decay(type);
+}
+
+auto Control::is_pod(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_scalar(unqual)) return true;
+  if (is_void(unqual)) return true;
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+    // POD = trivial + standard_layout (simplified)
+    if (cls->hasUserDeclaredConstructors()) return false;
+    for (auto fn : cls->members() | views::virtual_functions) {
+      (void)fn;
+      return false;
+    }
+    for (auto base : cls->baseClasses()) {
+      if (base->isVirtual()) return false;
+    }
+    return true;
+  }
+  if (is_array(unqual)) return true;
+  return false;
+}
+
+auto Control::is_trivial(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_scalar(unqual)) return true;
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+    if (cls->hasUserDeclaredConstructors()) return false;
+    for (auto fn : cls->members() | views::virtual_functions) {
+      (void)fn;
+      return false;
+    }
+    auto dtor = cls->destructor();
+    if (dtor && !dtor->isDefaulted() && !dtor->isDeleted()) return false;
+    return true;
+  }
+  if (is_array(unqual)) return true;
+  return false;
+}
+
+auto Control::is_standard_layout(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_scalar(unqual)) return true;
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+    // no virtual functions
+    for (auto fn : cls->members() | views::virtual_functions) {
+      (void)fn;
+      return false;
+    }
+    // no virtual base classes
+    for (auto base : cls->baseClasses()) {
+      if (base->isVirtual()) return false;
+    }
+    return true;
+  }
+  if (is_array(unqual)) return true;
+  return false;
+}
+
+auto Control::is_literal_type(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_void(unqual)) return true;
+  if (is_scalar(unqual)) return true;
+  if (is_reference(unqual)) return true;
+  if (is_array(unqual)) {
+    // literal if element type is literal (simplified: accept)
+    return true;
+  }
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+    auto dtor = cls->destructor();
+    if (dtor && !dtor->isDefaulted() && !dtor->isDeleted()) return false;
+    return true;
+  }
+  return false;
+}
+
+auto Control::is_aggregate(const Type* type) -> bool {
+  if (is_array(type)) return true;
+  auto classType = type_cast<ClassType>(remove_cv(type));
+  if (!classType) return false;
+  auto cls = classType->symbol();
+  if (!cls || !cls->isComplete()) return false;
+  if (cls->hasUserDeclaredConstructors()) return false;
+  for (auto fn : cls->members() | views::virtual_functions) {
+    (void)fn;
+    return false;
+  }
+  for (auto base : cls->baseClasses()) {
+    if (base->isVirtual()) return false;
+  }
+  return true;
+}
+
+auto Control::is_empty(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cv(type));
+  if (!classType) return false;
+  auto cls = classType->symbol();
+  if (!cls || !cls->isComplete()) return false;
+  // no non-static data members
+  for (auto f : cls->members() | views::non_static_fields) {
+    return false;
+  }
+  // no virtual functions
+  for (auto fn : cls->members() | views::virtual_functions) {
+    return false;
+  }
+  // no virtual base classes
+  for (auto base : cls->baseClasses()) {
+    if (base->isVirtual()) return false;
+  }
+  return true;
+}
+
+auto Control::is_polymorphic(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cv(type));
+  if (!classType) return false;
+  auto cls = classType->symbol();
+  if (!cls || !cls->isComplete()) return false;
+  for (auto fn : cls->members() | views::virtual_functions) {
+    (void)fn;
+    return true;
+  }
+  // check base classes for polymorphism
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    for (auto fn : baseClass->members() | views::virtual_functions) {
+      (void)fn;
+      return true;
+    }
+  }
+  return false;
+}
+
+auto Control::is_final(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cv(type));
+  if (!classType) return false;
+  auto cls = classType->symbol();
+  if (!cls) return false;
+  return cls->isFinal();
+}
+
+auto Control::is_trivially_constructible(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_scalar(unqual)) return true;
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+    if (cls->hasUserDeclaredConstructors()) return false;
+    for (auto fn : cls->members() | views::virtual_functions) {
+      (void)fn;
+      return false;
+    }
+    return true;
+  }
+  if (is_array(unqual)) return true;
+  return false;
+}
+
+auto Control::is_trivially_assignable(const Type* from, const Type* to)
+    -> bool {
+  if (!to) return false;
+  auto unqual = remove_cvref(from);
+  if (is_scalar(unqual)) return true;
+  return false;
+}
+
+auto Control::is_abstract(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cvref(type));
+  if (!classType) return false;
+  auto cls = classType->symbol();
+  if (!cls || !cls->isComplete()) return false;
+  for (auto fn : cls->members() | views::virtual_functions) {
+    if (fn->isPure()) return true;
+  }
+  return false;
+}
+
+auto Control::has_virtual_destructor(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cvref(type));
+  if (!classType) return false;
+  auto cls = classType->symbol();
+  if (!cls || !cls->isComplete()) return false;
+  auto dtor = cls->destructor();
+  return dtor && dtor->isVirtual();
 }
 
 }  // namespace cxx

@@ -157,7 +157,7 @@ TEST(LSP, VariantArrayProperty) {
 }
 
 TEST(LSP, CompletionList) {
-  const char *kResponse = R"(
+  const char* kResponse = R"(
 {
   "id": 1,
   "jsonrpc": "2.0",

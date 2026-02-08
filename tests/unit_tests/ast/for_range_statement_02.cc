@@ -39,9 +39,9 @@ int main() {
 // CHECK-NEXT:                          expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 2
 // CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: braced-init-list
+// CHECK-NEXT:                      expression: braced-init-list [prvalue int [1][2]]
 // CHECK-NEXT:                        expression-list
-// CHECK-NEXT:                          braced-init-list
+// CHECK-NEXT:                          braced-init-list [prvalue int [2]]
 // CHECK-NEXT:                            expression-list
 // CHECK-NEXT:                              int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 1

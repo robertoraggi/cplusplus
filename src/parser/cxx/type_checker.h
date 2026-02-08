@@ -23,9 +23,12 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token.h>
 #include <cxx/types_fwd.h>
 
 namespace cxx {
+
+struct ImplicitConversionSequence;
 
 class TranslationUnit;
 
@@ -58,14 +61,45 @@ class TypeChecker {
   void deduce_array_size(VariableSymbol* var);
   void deduce_auto_type(VariableSymbol* var);
   void check_initialization(VariableSymbol* var, InitDeclaratorAST* ast);
+  void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
 
   void check_braced_init_list(const Type* type, BracedInitListAST* ast);
+  void check_struct_init(ClassSymbol* classSymbol, BracedInitListAST* ast);
+  void check_union_init(ClassSymbol* classSymbol, BracedInitListAST* ast);
+  void check_designated_initializer(const Type* currentType,
+                                    DesignatedInitializerClauseAST* ast);
+
+  [[nodiscard]] auto is_narrowing_conversion(const Type* from, const Type* to)
+      -> bool;
+
+  void warn_narrowing(SourceLocation loc, const Type* from, const Type* to);
 
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* targetType) -> bool;
 
+  [[nodiscard]] auto checkImplicitConversion(ExpressionAST* expr,
+                                             const Type* targetType)
+      -> ImplicitConversionSequence;
+
+  void applyImplicitConversion(const ImplicitConversionSequence& sequence,
+                               ExpressionAST*& expr);
+
+  [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
+                                    const Type* rightType = nullptr)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto findOverloads(ScopeSymbol* scope, const Name* name) const
+      -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto selectBestOverload(
+      const std::vector<FunctionSymbol*>& candidates, const Type* type,
+      const Type* rightType) const -> FunctionSymbol*;
+
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
+
+  [[nodiscard]] auto as_pointer(const Type* type) const -> const PointerType*;
+  [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
 
  private:
   struct Visitor;

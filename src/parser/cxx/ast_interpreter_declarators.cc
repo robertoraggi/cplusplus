@@ -376,7 +376,10 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
   for (auto node : ListView{ast->expressionList}) {
-    auto value = interp.expression(node);
+    auto value = interp.evaluate(node);
+    if (value.has_value() && ast->symbol && interp.thisObject()) {
+      interp.thisObject()->setField(ast->symbol, std::move(*value));
+    }
   }
 
   return {};
@@ -388,6 +391,11 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
   auto bracedInitListResult = interp.expression(ast->bracedInitList);
+
+  if (bracedInitListResult.has_value() && ast->symbol && interp.thisObject()) {
+    interp.thisObject()->setField(ast->symbol,
+                                  std::move(*bracedInitListResult));
+  }
 
   return {};
 }

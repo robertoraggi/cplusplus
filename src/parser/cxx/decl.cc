@@ -398,9 +398,14 @@ auto Decl::getReturnType(ScopeSymbol* currentScope) const -> const Type* {
     } else if (auto castId = name_cast<ConversionFunctionId>(name)) {
       returnType = castId->type();
     } else if (auto id = name_cast<Identifier>(name);
-               id && currentScope && currentScope->isClass() &&
-               id == currentScope->name()) {
-      returnType = control->getVoidType();
+               id && currentScope && currentScope->isClass()) {
+      bool isCtor = (id == currentScope->name());
+      if (!isCtor && currentScope->name()) {
+        if (auto typeName = name_cast<Identifier>(currentScope->name())) {
+          if (typeName->name() == id->name()) isCtor = true;
+        }
+      }
+      if (isCtor) returnType = control->getVoidType();
     }
   }
 

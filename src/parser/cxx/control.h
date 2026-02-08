@@ -105,6 +105,7 @@ class Control {
   [[nodiscard]] auto getFloatType() -> const FloatType*;
   [[nodiscard]] auto getDoubleType() -> const DoubleType*;
   [[nodiscard]] auto getLongDoubleType() -> const LongDoubleType*;
+  [[nodiscard]] auto getFloat16Type() -> const Float16Type*;
   [[nodiscard]] auto getQualType(const Type* elementType,
                                  CvQualifiers cvQualifiers) -> const QualType*;
   [[nodiscard]] auto getConstType(const Type* elementType) -> const QualType*;
@@ -302,6 +303,20 @@ class Control {
   // type relationships
   [[nodiscard]] auto is_same(const Type* a, const Type* b) -> bool;
   [[nodiscard]] auto decay(const Type* type) -> const Type*;
+
+  [[nodiscard]] auto is_pod(const Type* type) -> bool;
+  [[nodiscard]] auto is_trivial(const Type* type) -> bool;
+  [[nodiscard]] auto is_standard_layout(const Type* type) -> bool;
+  [[nodiscard]] auto is_literal_type(const Type* type) -> bool;
+  [[nodiscard]] auto is_aggregate(const Type* type) -> bool;
+  [[nodiscard]] auto is_empty(const Type* type) -> bool;
+  [[nodiscard]] auto is_polymorphic(const Type* type) -> bool;
+  [[nodiscard]] auto is_final(const Type* type) -> bool;
+  [[nodiscard]] auto is_trivially_constructible(const Type* type) -> bool;
+  [[nodiscard]] auto is_trivially_assignable(const Type* from, const Type* to)
+      -> bool;
+  [[nodiscard]] auto is_abstract(const Type* type) -> bool;
+  [[nodiscard]] auto has_virtual_destructor(const Type* type) -> bool;
 
  private:
   struct Private;

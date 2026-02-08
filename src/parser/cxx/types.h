@@ -203,6 +203,12 @@ class LongDoubleType final : public Type {
   LongDoubleType() : Type(Kind) {}
 };
 
+class Float16Type final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kFloat16;
+  Float16Type() : Type(Kind) {}
+};
+
 class QualType final : public Type,
                        public std::tuple<const Type*, CvQualifiers> {
  public:

@@ -156,7 +156,10 @@ std::vector<CLIOptionDescr> options{
 
     {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},
 
-    {"-emit-ir", "Emit the IR for the source inputs", &CLI::opt_emit_ir},
+    {"-emit-ir", "Emit the CXX dialect IR for the source inputs",
+     &CLI::opt_emit_cxx_ir},
+
+    {"-emit-mlir", "Emit the MLIR for the source inputs", &CLI::opt_emit_mlir},
 
     {"-emit-llvm", "Emit the LLVM IR for the source inputs",
      &CLI::opt_emit_llvm},
@@ -166,6 +169,9 @@ std::vector<CLIOptionDescr> options{
     {"-ast-print", "Print the AST", &CLI::opt_ast_print},
 
     {"-dump-symbols", "Dump the symbol tables", &CLI::opt_dump_symbols},
+
+    {"-dump-record-layouts", "Dump class/struct layout information",
+     &CLI::opt_dump_record_layouts},
 
     {"-dump-tokens", "Run preprocessor, dump internal rep of tokens",
      &CLI::opt_dump_tokens},

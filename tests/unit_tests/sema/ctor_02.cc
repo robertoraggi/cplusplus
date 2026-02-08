@@ -26,14 +26,21 @@ X::operator int() { return i; }
 // CHECK-NEXT:  class X
 // CHECK-NEXT:    constructor void X()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor void X(int)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter int
 // CHECK-NEXT:        block
+// CHECK-NEXT:          variable static constexpr const char __func__[2]
+// CHECK-NEXT:    constructor defaulted void X(const ::X&)
+// CHECK-NEXT:    constructor defaulted void X(::X&&)
 // CHECK-NEXT:    field int i
 // CHECK-NEXT:    function void ~X()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[3]
 // CHECK-NEXT:    function int operator int()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[13]
 // CHECK-NEXT:    function const int& operator const int&()
 // CHECK-NEXT:      block
+// CHECK-NEXT:        variable static constexpr const char __func__[20]

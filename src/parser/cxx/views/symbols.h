@@ -24,6 +24,7 @@
 #include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token_fwd.h>
+#include <cxx/types.h>
 #include <cxx/types_fwd.h>
 #include <cxx/views/symbol_chain.h>
 
@@ -75,6 +76,60 @@ inline auto find(ScopeSymbol* scope, const Name* name) {
 }
 
 constexpr auto named_symbol = std::views::filter(&Symbol::name);
+
+// Field views
+constexpr auto fields = std::views::filter(&Symbol::isField) |
+                        std::views::transform(symbol_cast<FieldSymbol>);
+
+constexpr auto non_static_fields =
+    fields | std::views::filter([](FieldSymbol* f) { return !f->isStatic(); });
+
+constexpr auto static_fields =
+    fields | std::views::filter(&FieldSymbol::isStatic);
+
+// Member function views
+constexpr auto member_functions =
+    std::views::filter([](Symbol* s) {
+      if (auto func = symbol_cast<FunctionSymbol>(s)) {
+        return func->parent() && func->parent()->isClass();
+      }
+      return false;
+    }) |
+    std::views::transform(symbol_cast<FunctionSymbol>);
+
+constexpr auto non_static_member_functions =
+    member_functions |
+    std::views::filter([](FunctionSymbol* f) { return !f->isStatic(); });
+
+constexpr auto static_member_functions =
+    member_functions | std::views::filter(&FunctionSymbol::isStatic);
+
+constexpr auto virtual_functions =
+    member_functions | std::views::filter(&FunctionSymbol::isVirtual);
+
+constexpr auto constructors =
+    member_functions | std::views::filter(&FunctionSymbol::isConstructor);
+
+constexpr auto converting_constructors =
+    constructors | std::views::filter([](FunctionSymbol* f) {
+      if (f->isExplicit()) return false;
+      auto funcType = type_cast<FunctionType>(f->type());
+      if (!funcType) return false;
+      return !funcType->parameterTypes().empty();
+    });
+
+inline auto overloads(Symbol* symbol)
+    -> std::variant<std::ranges::ref_view<const std::vector<FunctionSymbol*>>,
+                    std::ranges::single_view<FunctionSymbol*>,
+                    std::ranges::empty_view<FunctionSymbol*>> {
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+    return std::views::all(overloadSet->functions());
+  }
+  if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
+    return std::views::single(func);
+  }
+  return std::views::empty<FunctionSymbol*>;
+}
 
 }  // namespace views
 

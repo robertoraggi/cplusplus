@@ -28,6 +28,7 @@
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/types.h>
 
 #include <format>
 #include <iostream>
@@ -202,6 +203,82 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
 
   for (auto templateArgumentList = &copy->templateArgumentList;
        auto node : ListView{ast->templateArgumentList}) {
+    auto typeArg = ast_cast<TypeTemplateArgumentAST>(node);
+    if (typeArg && typeArg->typeId && typeArg->typeId->declarator) {
+      auto packDecl = ast_cast<ParameterPackAST>(
+          typeArg->typeId->declarator->coreDeclarator);
+      if (packDecl) {
+        ParameterPackSymbol* pack = nullptr;
+        for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
+          pack = rewrite.getTypeParameterPack(spec);
+          if (pack) break;
+        }
+
+        if (pack && !pack->elements().empty()) {
+          auto savedParameterPack = rewrite.parameterPack_;
+          std::swap(rewrite.parameterPack_, pack);
+
+          int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+          for (int i = 0; i < n; ++i) {
+            std::optional<int> index{i};
+            std::swap(rewrite.elementIndex_, index);
+
+            auto expandedTypeId = rewrite.typeId(typeArg->typeId);
+            auto expandedArg = TypeTemplateArgumentAST::create(arena());
+            expandedArg->typeId = expandedTypeId;
+
+            *templateArgumentList = make_list_node(
+                arena(), static_cast<TemplateArgumentAST*>(expandedArg));
+            templateArgumentList = &(*templateArgumentList)->next;
+
+            std::swap(rewrite.elementIndex_, index);
+          }
+
+          std::swap(rewrite.parameterPack_, pack);
+          continue;
+        }
+
+        if (pack) {
+          continue;
+        }
+      }
+    }
+
+    auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(node);
+    if (exprArg) {
+      auto packExpr = ast_cast<PackExpansionExpressionAST>(exprArg->expression);
+      if (packExpr) {
+        auto parameterPack = rewrite.getParameterPack(packExpr->expression);
+        if (parameterPack && !parameterPack->elements().empty()) {
+          auto savedParameterPack = rewrite.parameterPack_;
+          std::swap(rewrite.parameterPack_, parameterPack);
+
+          int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+          for (int i = 0; i < n; ++i) {
+            std::optional<int> index{i};
+            std::swap(rewrite.elementIndex_, index);
+
+            auto expandedExpr = rewrite.expression(packExpr->expression);
+            auto expandedArg = ExpressionTemplateArgumentAST::create(arena());
+            expandedArg->expression = expandedExpr;
+
+            *templateArgumentList = make_list_node(
+                arena(), static_cast<TemplateArgumentAST*>(expandedArg));
+            templateArgumentList = &(*templateArgumentList)->next;
+
+            std::swap(rewrite.elementIndex_, index);
+          }
+
+          std::swap(rewrite.parameterPack_, parameterPack);
+          continue;
+        }
+
+        if (parameterPack) {
+          continue;
+        }
+      }
+    }
+
     auto value = rewrite.templateArgument(node);
     *templateArgumentList = make_list_node(arena(), value);
     templateArgumentList = &(*templateArgumentList)->next;

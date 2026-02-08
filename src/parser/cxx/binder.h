@@ -134,6 +134,8 @@ class Binder {
 
   void complete(LambdaExpressionAST* ast);
 
+  void completeLambdaBody(LambdaExpressionAST* ast);
+
   void bind(ParameterDeclarationClauseAST* ast);
 
   void bind(UsingDirectiveAST* ast);
@@ -177,6 +179,7 @@ class Binder {
   ScopeSymbol* scope_ = nullptr;
   Symbol* instantiatingSymbol_ = nullptr;
   LanguageKind languageLinkage_ = LanguageKind::kCXX;
+  int lambdaCount_ = 0;
   bool inTemplate_ = false;
   bool reportErrors_ = true;
 };

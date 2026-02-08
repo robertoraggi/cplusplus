@@ -43,7 +43,7 @@ struct object {
 // CHECK-NEXT:                          identifier: self
 // CHECK-NEXT:                          is-this-introduced: true
 // CHECK-NEXT:                          type-specifier-list
-// CHECK-NEXT:                            auto-type-specifier
+// CHECK-NEXT:                            named-type-specifier
 // CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                            core-declarator: id-declarator
 // CHECK-NEXT:                              unqualified-id: name-id
@@ -52,8 +52,6 @@ struct object {
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list
 // CHECK-NEXT:                    return-statement
-// CHECK-NEXT:                      expression: implicit-cast-expression [prvalue auto]
-// CHECK-NEXT:                        cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                        expression: id-expression [lvalue auto]
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: self
+// CHECK-NEXT:                      expression: id-expression
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: self

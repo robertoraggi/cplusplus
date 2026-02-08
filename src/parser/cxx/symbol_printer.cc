@@ -57,8 +57,11 @@ struct DumpSymbols {
 
     std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
 
-    std::ranges::for_each(sortedSymbols,
-                          [&](auto symbol) { visit(*this, symbol); });
+    std::ranges::for_each(sortedSymbols, [&](auto symbol) {
+      // Skip non-canonical redeclarations
+      if (symbol->canonical() != symbol) return;
+      visit(*this, symbol);
+    });
 
     --depth;
   }
@@ -149,6 +152,8 @@ struct DumpSymbols {
     if (!symbol->constructors().empty()) {
       ++depth;
       for (auto constructor : symbol->constructors()) {
+        // Skip non-canonical redeclarations
+        if (constructor->canonical() != constructor) continue;
         visit(*this, constructor);
       }
       --depth;
@@ -191,41 +196,51 @@ struct DumpSymbols {
 
   void operator()(OverloadSetSymbol* symbol) {
     for (auto function : symbol->functions()) {
+      // Skip non-canonical redeclarations
+      if (function->canonical() != function) continue;
       visit(*this, function);
     }
   }
 
   void operator()(FunctionSymbol* symbol) {
+    // If this canonical symbol has a separate definition, use the definition
+    // for printing scope contents (parameters, blocks, etc.)
+    auto effective = symbol;
+    if (auto def = symbol->definition()) {
+      effective = def;
+    }
+
     indent();
 
-    if (symbol->templateParameters()) {
+    if (effective->templateParameters()) {
       out << std::format("template ");
     }
 
-    if (symbol->isConstructor()) {
+    if (effective->isConstructor()) {
       out << std::format("constructor");
     } else {
       out << std::format("function");
     }
 
-    if (symbol->isStatic()) out << " static";
-    if (symbol->isExtern()) out << " extern";
-    if (symbol->isFriend()) out << " friend";
-    if (symbol->isConstexpr()) out << " constexpr";
-    if (symbol->isConsteval()) out << " consteval";
-    if (symbol->isInline()) out << " inline";
-    if (symbol->isVirtual()) out << " virtual";
-    if (symbol->isExplicit()) out << " explicit";
-    if (symbol->isDeleted()) out << " deleted";
-    if (symbol->isDefaulted()) out << " defaulted";
+    if (effective->isStatic()) out << " static";
+    if (effective->isExtern()) out << " extern";
+    if (effective->isFriend()) out << " friend";
+    if (effective->isConstexpr()) out << " constexpr";
+    if (effective->isConsteval()) out << " consteval";
+    if (effective->isInline()) out << " inline";
+    if (effective->isVirtual()) out << " virtual";
+    if (effective->isExplicit()) out << " explicit";
+    if (effective->isDeleted()) out << " deleted";
+    if (effective->isDefaulted()) out << " defaulted";
 
-    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
+    out << std::format(" {}\n",
+                       to_string(effective->type(), effective->name()));
 
-    if (symbol->templateParameters()) {
-      dumpScope(symbol->templateParameters());
+    if (effective->templateParameters()) {
+      dumpScope(effective->templateParameters());
     }
 
-    dumpScope(symbol);
+    dumpScope(effective);
   }
 
   void operator()(LambdaSymbol* symbol) {

@@ -245,6 +245,9 @@ class MemInitializerAST : public AST {
  public:
   using AST::AST;
 
+  Symbol* symbol = nullptr;
+  FunctionSymbol* constructor = nullptr;
+
   [[nodiscard]] auto clone(Arena* arena) -> MemInitializerAST* override = 0;
 };
 
@@ -3511,6 +3514,7 @@ class SubscriptExpressionAST final : public ExpressionAST {
   SourceLocation lbracketLoc;
   ExpressionAST* indexExpression = nullptr;
   SourceLocation rbracketLoc;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3525,11 +3529,13 @@ class SubscriptExpressionAST final : public ExpressionAST {
                                    SourceLocation lbracketLoc,
                                    ExpressionAST* indexExpression,
                                    SourceLocation rbracketLoc,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> SubscriptExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    ExpressionAST* indexExpression,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> SubscriptExpressionAST*;
 
@@ -3753,6 +3759,7 @@ class CppCastExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+  TokenKind castOp = TokenKind::T_EOF_SYMBOL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3766,11 +3773,11 @@ class CppCastExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(
       Arena* arena, SourceLocation castLoc, SourceLocation lessLoc,
       TypeIdAST* typeId, SourceLocation greaterLoc, SourceLocation lparenLoc,
-      ExpressionAST* expression, SourceLocation rparenLoc,
+      ExpressionAST* expression, SourceLocation rparenLoc, TokenKind castOp,
       ValueCategory valueCategory, const Type* type) -> CppCastExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
-                                   ExpressionAST* expression,
+                                   ExpressionAST* expression, TokenKind castOp,
                                    ValueCategory valueCategory,
                                    const Type* type) -> CppCastExpressionAST*;
 
@@ -4122,6 +4129,7 @@ class UnaryExpressionAST final : public ExpressionAST {
   SourceLocation opLoc;
   ExpressionAST* expression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4134,11 +4142,13 @@ class UnaryExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation opLoc,
                                    ExpressionAST* expression, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> UnaryExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
-                                   TokenKind op, ValueCategory valueCategory,
+                                   TokenKind op, FunctionSymbol* symbol,
+                                   ValueCategory valueCategory,
                                    const Type* type) -> UnaryExpressionAST*;
 
  protected:
@@ -4388,6 +4398,7 @@ class NewExpressionAST final : public ExpressionAST {
   SourceLocation rparenLoc;
   NewInitializerAST* newInitalizer = nullptr;
   const Type* objectType = nullptr;
+  FunctionSymbol* constructorSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4403,14 +4414,15 @@ class NewExpressionAST final : public ExpressionAST {
       NewPlacementAST* newPlacement, SourceLocation lparenLoc,
       List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
       SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
-      const Type* objectType, ValueCategory valueCategory, const Type* type)
-      -> NewExpressionAST*;
+      const Type* objectType, FunctionSymbol* constructorSymbol,
+      ValueCategory valueCategory, const Type* type) -> NewExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, NewPlacementAST* newPlacement,
                                    List<SpecifierAST*>* typeSpecifierList,
                                    DeclaratorAST* declarator,
                                    NewInitializerAST* newInitalizer,
                                    const Type* objectType,
+                                   FunctionSymbol* constructorSymbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> NewExpressionAST*;
 
@@ -4520,6 +4532,7 @@ class BinaryExpressionAST final : public ExpressionAST {
   SourceLocation opLoc;
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4533,11 +4546,13 @@ class BinaryExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
                                    SourceLocation opLoc,
                                    ExpressionAST* rightExpression, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BinaryExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
                                    ExpressionAST* rightExpression, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BinaryExpressionAST*;
 
@@ -4647,6 +4662,7 @@ class AssignmentExpressionAST final : public ExpressionAST {
   SourceLocation opLoc;
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4660,12 +4676,14 @@ class AssignmentExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
                                    SourceLocation opLoc,
                                    ExpressionAST* rightExpression, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> AssignmentExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
                                    ExpressionAST* rightExpression, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> AssignmentExpressionAST*;
@@ -4724,6 +4742,7 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
   ExpressionAST* rightExpression = nullptr;
   ExpressionAST* adjustExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4739,17 +4758,15 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(
       Arena* arena, ExpressionAST* targetExpression, SourceLocation opLoc,
       ExpressionAST* leftExpression, ExpressionAST* rightExpression,
-      ExpressionAST* adjustExpression, TokenKind op,
+      ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
       ValueCategory valueCategory, const Type* type)
       -> CompoundAssignmentExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena,
-                                   ExpressionAST* targetExpression,
-                                   ExpressionAST* leftExpression,
-                                   ExpressionAST* rightExpression,
-                                   ExpressionAST* adjustExpression,
-                                   TokenKind op, ValueCategory valueCategory,
-                                   const Type* type)
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* targetExpression,
+      ExpressionAST* leftExpression, ExpressionAST* rightExpression,
+      ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
+      ValueCategory valueCategory, const Type* type)
       -> CompoundAssignmentExpressionAST*;
 
  protected:
@@ -5045,6 +5062,7 @@ class DotDesignatorAST final : public DesignatorAST {
   SourceLocation dotLoc;
   SourceLocation identifierLoc;
   const Identifier* identifier = nullptr;
+  FieldSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5057,11 +5075,11 @@ class DotDesignatorAST final : public DesignatorAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation dotLoc,
                                    SourceLocation identifierLoc,
-                                   const Identifier* identifier)
-      -> DotDesignatorAST*;
+                                   const Identifier* identifier,
+                                   FieldSymbol* symbol) -> DotDesignatorAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
-      -> DotDesignatorAST*;
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   FieldSymbol* symbol) -> DotDesignatorAST*;
 
  protected:
   DotDesignatorAST() : DesignatorAST(Kind) {}
@@ -7475,12 +7493,14 @@ class ParenMemInitializerAST final : public MemInitializerAST {
       Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
       UnqualifiedIdAST* unqualifiedId, SourceLocation lparenLoc,
       List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
-      SourceLocation ellipsisLoc) -> ParenMemInitializerAST*;
+      SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor)
+      -> ParenMemInitializerAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
-                                   List<ExpressionAST*>* expressionList)
+                                   List<ExpressionAST*>* expressionList,
+                                   Symbol* symbol, FunctionSymbol* constructor)
       -> ParenMemInitializerAST*;
 
  protected:
@@ -7509,13 +7529,15 @@ class BracedMemInitializerAST final : public MemInitializerAST {
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
                                    BracedInitListAST* bracedInitList,
-                                   SourceLocation ellipsisLoc)
+                                   SourceLocation ellipsisLoc, Symbol* symbol,
+                                   FunctionSymbol* constructor)
       -> BracedMemInitializerAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
-                                   BracedInitListAST* bracedInitList)
+                                   BracedInitListAST* bracedInitList,
+                                   Symbol* symbol, FunctionSymbol* constructor)
       -> BracedMemInitializerAST*;
 
  protected:

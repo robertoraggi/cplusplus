@@ -27,18 +27,26 @@ A<void*> a2;
 // CHECK-NEXT:    typealias type-param<0, 0>& reference
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<int>
+// CHECK-NEXT:        constructor defaulted void A()
+// CHECK-NEXT:        constructor defaulted void A(const ::A<int>&)
+// CHECK-NEXT:        constructor defaulted void A(::A<int>&&)
 // CHECK-NEXT:        field int a
 // CHECK-NEXT:        field ::A<int>* next
 // CHECK-NEXT:        function int get_a()
 // CHECK-NEXT:        function void set_a(const int&)
 // CHECK-NEXT:        typealias int type
 // CHECK-NEXT:        typealias int& reference
+// CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<void*>
+// CHECK-NEXT:        constructor defaulted void A()
+// CHECK-NEXT:        constructor defaulted void A(const ::A<void*>&)
+// CHECK-NEXT:        constructor defaulted void A(::A<void*>&&)
 // CHECK-NEXT:        field void* a
 // CHECK-NEXT:        field ::A<void*>* next
 // CHECK-NEXT:        function void* get_a()
 // CHECK-NEXT:        function void set_a(void* const&)
 // CHECK-NEXT:        typealias void* type
 // CHECK-NEXT:        typealias void*& reference
+// CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:  variable ::A<int> a1
 // CHECK-NEXT:  variable ::A<void*> a2

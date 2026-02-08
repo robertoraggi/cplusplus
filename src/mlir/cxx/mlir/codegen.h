@@ -246,6 +246,10 @@ class Codegen {
   void asmClobber(AsmClobberAST* ast);
   void asmGotoLabel(AsmGotoLabelAST* ast);
   void arrayInit(mlir::Value address, const Type* type, ExpressionAST* init);
+  void emitAggregateInit(mlir::Value address, const Type* type,
+                         BracedInitListAST* ast);
+  void emitDesignatedInit(mlir::Value address, const Type* type,
+                          DesignatedInitializerClauseAST* ast);
 
  private:
   [[nodiscard]] auto getCompileUnitAttr(std::string_view filename)
@@ -280,11 +284,23 @@ class Codegen {
   [[nodiscard]] auto findOrCreateGlobal(Symbol* symbol)
       -> std::optional<mlir::cxx::GlobalOp>;
 
+  void generateVTable(ClassSymbol* classSymbol);
+
+  void emitCtorVtableInit(FunctionSymbol* functionSymbol, mlir::Location loc);
+
+  [[nodiscard]] static auto computeVtableSlots(ClassSymbol* classSymbol)
+      -> std::vector<FunctionSymbol*>;
+
   [[nodiscard]] auto newTemp(const Type* type, SourceLocation loc)
       -> mlir::cxx::AllocaOp;
 
   [[nodiscard]] auto findOrCreateLocal(Symbol* symbol)
       -> std::optional<mlir::Value>;
+
+  [[nodiscard]] auto emitCall(SourceLocation loc, FunctionSymbol* symbol,
+                              ExpressionResult thisValue,
+                              std::vector<ExpressionResult> arguments)
+      -> ExpressionResult;
 
   [[nodiscard]] auto newBlock() -> mlir::Block*;
 
@@ -342,6 +358,13 @@ class Codegen {
   void attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
                        std::string_view name = {}, unsigned arg = 0);
 
+  void attachDebugInfo(mlir::cxx::AllocaOp allocaOp, const Type* type,
+                       std::string_view name, unsigned arg,
+                       mlir::LLVM::DIFlags flags);
+
+  [[nodiscard]] auto getOrCreateDIScope(Symbol* symbol)
+      -> mlir::LLVM::DIScopeAttr;
+
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp function_;
@@ -352,6 +375,7 @@ class Codegen {
   const Type* returnType_ = nullptr;
   mlir::Value thisValue_;
   mlir::Value targetValue_;
+  FunctionSymbol* currentFunctionSymbol_ = nullptr;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
@@ -365,6 +389,8 @@ class Codegen {
   Switch switch_;
   int count_ = 0;
   std::unordered_map<const Type*, mlir::LLVM::DITypeAttr> debugTypeCache_;
+  std::unordered_map<Symbol*, mlir::LLVM::DIScopeAttr> diScopes_;
+  std::unordered_map<const Name*, int> staticLocalCounts_;
 };
 
 }  // namespace cxx

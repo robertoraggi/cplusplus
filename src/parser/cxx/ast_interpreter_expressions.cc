@@ -30,6 +30,7 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 
@@ -693,6 +694,23 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return var->constValue();
   }
 
+  if (ast->symbol) {
+    auto local = interp.lookupLocal(ast->symbol);
+    if (local.has_value()) return local;
+  }
+
+  if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
+    auto local = interp.lookupLocal(param);
+    if (local.has_value()) return local;
+  }
+
+  if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
+    if (interp.thisObject()) {
+      auto* fieldVal = interp.thisObject()->getField(field);
+      if (fieldVal) return *fieldVal;
+    }
+  }
+
   return std::nullopt;
 }
 
@@ -787,10 +805,61 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
-  auto baseExpressionResult = interp.expression(ast->baseExpression);
-
+  std::vector<ConstValue> args;
   for (auto node : ListView{ast->expressionList}) {
-    auto value = interp.expression(node);
+    auto value = interp.evaluate(node);
+    if (!value) {
+      return ExpressionResult{std::nullopt};
+    }
+    args.push_back(std::move(*value));
+  }
+
+  FunctionSymbol* func = nullptr;
+
+  if (auto* idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    func = symbol_cast<FunctionSymbol>(idExpr->symbol);
+    if (!func) {
+      if (auto* overloads = symbol_cast<OverloadSetSymbol>(idExpr->symbol)) {
+        for (auto* f : overloads->functions()) {
+          if (f->isConstexpr()) {
+            func = f;
+            break;
+          }
+        }
+      }
+    }
+  } else if (auto* memberExpr =
+                 ast_cast<MemberExpressionAST>(ast->baseExpression)) {
+    func = symbol_cast<FunctionSymbol>(memberExpr->symbol);
+    if (!func) {
+      if (auto* overloads =
+              symbol_cast<OverloadSetSymbol>(memberExpr->symbol)) {
+        for (auto* f : overloads->functions()) {
+          if (f->isConstexpr()) {
+            func = f;
+            break;
+          }
+        }
+      }
+    }
+    if (func && func->isConstexpr()) {
+      auto baseVal = interp.evaluate(memberExpr->baseExpression);
+      if (baseVal.has_value()) {
+        if (auto* objPtr =
+                std::get_if<std::shared_ptr<ConstObject>>(&*baseVal)) {
+          auto savedThis = interp.thisObject();
+          interp.setThisObject(*objPtr);
+          auto result = interp.evaluateCall(func, std::move(args));
+          interp.setThisObject(savedThis);
+          return result;
+        }
+      }
+    }
+    return ExpressionResult{std::nullopt};
+  }
+
+  if (func && func->isConstexpr()) {
+    return interp.evaluateCall(func, std::move(args));
   }
 
   return ExpressionResult{std::nullopt};
@@ -800,8 +869,27 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     -> ExpressionResult {
   auto typeSpecifierResult = interp.specifier(ast->typeSpecifier);
 
+  std::vector<ConstValue> args;
   for (auto node : ListView{ast->expressionList}) {
-    auto value = interp.expression(node);
+    auto value = interp.evaluate(node);
+    if (!value) return ExpressionResult{std::nullopt};
+    args.push_back(std::move(*value));
+  }
+
+  if (ast->type) {
+    if (auto* classType = type_cast<ClassType>(ast->type)) {
+      auto* classSym = classType->symbol();
+      if (classSym) {
+        for (auto* ctor : classSym->constructors()) {
+          if (ctor->isConstexpr()) {
+            return interp.evaluateConstructor(ctor, ast->type, std::move(args));
+          }
+        }
+      }
+    }
+    if (args.size() == 1) {
+      return std::move(args[0]);
+    }
   }
 
   return ExpressionResult{std::nullopt};
@@ -812,7 +900,45 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto typeSpecifierResult = interp.specifier(ast->typeSpecifier);
   auto bracedInitListResult = interp.expression(ast->bracedInitList);
 
-  return ExpressionResult{std::nullopt};
+  if (ast->type && bracedInitListResult.has_value()) {
+    if (auto* classType = type_cast<ClassType>(ast->type)) {
+      auto* classSym = classType->symbol();
+      if (classSym) {
+        if (auto* initList = std::get_if<std::shared_ptr<InitializerList>>(
+                &*bracedInitListResult)) {
+          auto obj = std::make_shared<ConstObject>(ast->type);
+          const auto& members = classSym->members();
+          std::size_t fieldIdx = 0;
+          for (const auto& [val, ty] : (*initList)->elements) {
+            while (fieldIdx < members.size() &&
+                   !symbol_cast<FieldSymbol>(members[fieldIdx]))
+              ++fieldIdx;
+            if (fieldIdx < members.size()) {
+              obj->addField(members[fieldIdx], val);
+              ++fieldIdx;
+            }
+          }
+          return ConstValue{std::move(obj)};
+        }
+        for (auto* ctor : classSym->constructors()) {
+          if (ctor->isConstexpr()) {
+            std::vector<ConstValue> args;
+            if (auto* initList = std::get_if<std::shared_ptr<InitializerList>>(
+                    &*bracedInitListResult)) {
+              for (auto& [v, t] : (*initList)->elements) {
+                args.push_back(v);
+              }
+            } else {
+              args.push_back(*bracedInitListResult);
+            }
+            return interp.evaluateConstructor(ctor, ast->type, std::move(args));
+          }
+        }
+      }
+    }
+  }
+
+  return bracedInitListResult;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -826,6 +952,22 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 auto ASTInterpreter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
   auto baseExpressionResult = interp.expression(ast->baseExpression);
+
+  if (baseExpressionResult.has_value()) {
+    if (auto* objPtr =
+            std::get_if<std::shared_ptr<ConstObject>>(&*baseExpressionResult)) {
+      if (ast->symbol) {
+        auto* fieldVal = (*objPtr)->getField(ast->symbol);
+        if (fieldVal) return *fieldVal;
+      }
+    }
+  }
+
+  if (interp.thisObject() && ast->symbol) {
+    auto* fieldVal = interp.thisObject()->getField(ast->symbol);
+    if (fieldVal) return *fieldVal;
+  }
+
   auto nestedNameSpecifierResult =
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
@@ -842,10 +984,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
     -> ExpressionResult {
-  auto typeIdResult = interp.typeId(ast->typeId);
   auto expressionResult = interp.expression(ast->expression);
 
-  return ExpressionResult{std::nullopt};
+  return expressionResult;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -970,6 +1111,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       break;
     }
 
+    case TokenKind::T_EXCLAIM: {
+      if (expressionResult.has_value()) {
+        return ExpressionResult(
+            static_cast<std::intmax_t>(!toBool(expressionResult.value())));
+      }
+      break;
+    }
+
     default:
       break;
   }  // switch
@@ -1057,10 +1206,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CastExpressionAST* ast)
     -> ExpressionResult {
-  auto typeIdResult = interp.typeId(ast->typeId);
   auto expressionResult = interp.expression(ast->expression);
 
-  return ExpressionResult{std::nullopt};
+  return expressionResult;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -1315,7 +1463,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
         return control()->is_union(firstType);
 
       case BuiltinTypeTraitKind::T___IS_CLASS:
-        return control()->is_class(firstType);
+        return control()->is_class(firstType) &&
+               !control()->is_union(firstType);
 
       case BuiltinTypeTraitKind::T___IS_FUNCTION:
         return control()->is_function(firstType);
@@ -1389,17 +1538,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
         break;
       }
 
-      case BuiltinTypeTraitKind::T___HAS_VIRTUAL_DESTRUCTOR: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___HAS_VIRTUAL_DESTRUCTOR:
+        return control()->has_virtual_destructor(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_ABSTRACT: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_ABSTRACT:
+        return control()->is_abstract(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_AGGREGATE: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_AGGREGATE:
+        return control()->is_aggregate(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ASSIGNABLE: {
         break;
@@ -1409,53 +1555,40 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
         break;
       }
 
-      case BuiltinTypeTraitKind::T___IS_EMPTY: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_EMPTY:
+        return control()->is_empty(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_FINAL: {
-        if (auto classType =
-                type_cast<ClassType>(control()->remove_cv(firstType))) {
-          return classType->symbol()->isFinal();
-        }
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_FINAL:
+        return control()->is_final(firstType);
 
       case BuiltinTypeTraitKind::T___IS_LAYOUT_COMPATIBLE: {
         break;
       }
 
-      case BuiltinTypeTraitKind::T___IS_LITERAL_TYPE: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_LITERAL_TYPE:
+        return control()->is_literal_type(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_POD: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_POD:
+        return control()->is_pod(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_POLYMORPHIC: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_POLYMORPHIC:
+        return control()->is_polymorphic(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_STANDARD_LAYOUT: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_STANDARD_LAYOUT:
+        return control()->is_standard_layout(firstType);
 
       case BuiltinTypeTraitKind::T___IS_SWAPPABLE_WITH: {
         break;
       }
 
-      case BuiltinTypeTraitKind::T___IS_TRIVIAL: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_TRIVIAL:
+        return control()->is_trivial(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_CONSTRUCTIBLE: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
+        return control()->is_trivially_constructible(firstType);
 
-      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_ASSIGNABLE: {
-        break;
-      }
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_ASSIGNABLE:
+        return control()->is_trivially_assignable(firstType, secondType);
 
       case BuiltinTypeTraitKind::T_NONE: {
         // not a builtin

@@ -598,7 +598,16 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
       auto index = paramType->index();
 
       if (auto sym = std::get_if<Symbol*>(&args[index])) {
-        copy->symbol = *sym;
+        if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
+          if (rewrite.elementIndex_.has_value()) {
+            auto elemIdx = *rewrite.elementIndex_;
+            if (elemIdx < static_cast<int>(pack->elements().size())) {
+              copy->symbol = pack->elements()[elemIdx];
+            }
+          }
+        } else {
+          copy->symbol = *sym;
+        }
       }
     }
   } else {
@@ -693,7 +702,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(DecltypeSpecifierAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->expression = rewrite.expression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
-  copy->type = ast->type;
+
+  if (copy->expression) {
+    rewrite.check(copy->expression);
+    rewrite.binder().bind(copy);
+  }
+  if (!copy->type) {
+    copy->type = ast->type;
+  }
 
   return copy;
 }
@@ -839,6 +855,61 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   for (auto baseSpecifierList = &copy->baseSpecifierList;
        auto node : ListView{ast->baseSpecifierList}) {
+    if (node->isVariadic) {
+      ParameterPackSymbol* pack = nullptr;
+      if (node->unqualifiedId) {
+        for (const auto& arg : rewrite.templateArguments_) {
+          if (auto sym = std::get_if<Symbol*>(&arg)) {
+            if (auto p = symbol_cast<ParameterPackSymbol>(*sym)) {
+              pack = p;
+              break;
+            }
+          }
+        }
+      }
+
+      if (pack && !pack->elements().empty()) {
+        int n = static_cast<int>(pack->elements().size());
+        for (int i = 0; i < n; ++i) {
+          auto elem = pack->elements()[i];
+
+          Symbol* baseResolvedSym = elem;
+          if (auto typeAlias = symbol_cast<TypeAliasSymbol>(baseResolvedSym)) {
+            if (auto classType = type_cast<ClassType>(
+                    control()->remove_cv(typeAlias->type()))) {
+              baseResolvedSym = classType->symbol();
+            }
+          }
+
+          if (!baseResolvedSym || !baseResolvedSym->isClass()) continue;
+
+          auto value = BaseSpecifierAST::create(arena());
+          value->isVariadic = false;
+          value->accessSpecifier = node->accessSpecifier;
+          value->isVirtual = node->isVirtual;
+
+          auto location = node->unqualifiedId
+                              ? node->unqualifiedId->firstSourceLocation()
+                              : SourceLocation{};
+          auto baseClassSym =
+              control()->newBaseClassSymbol(classSymbol, location);
+          baseClassSym->setSymbol(baseResolvedSym);
+          baseClassSym->setName(baseResolvedSym->name());
+          value->symbol = baseClassSym;
+          classSymbol->addBaseClass(baseClassSym);
+
+          *baseSpecifierList = make_list_node(arena(), value);
+          baseSpecifierList = &(*baseSpecifierList)->next;
+        }
+
+        continue;
+      }
+
+      if (pack) {
+        continue;
+      }
+    }
+
     auto value = rewrite.baseSpecifier(node);
     *baseSpecifierList = make_list_node(arena(), value);
     baseSpecifierList = &(*baseSpecifierList)->next;
@@ -850,11 +921,50 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   copy->lbraceLoc = ast->lbraceLoc;
 
+  struct DelayedFunction {
+    FunctionDefinitionAST* newAst = nullptr;
+    FunctionDefinitionAST* oldAst = nullptr;
+  };
+
+  std::vector<DelayedFunction> delayedFunctions;
+
+  rewrite.setRestrictedToDeclarations(true);
+
   for (auto declarationList = &copy->declarationList;
        auto node : ListView{ast->declarationList}) {
     auto value = rewrite.declaration(node);
     *declarationList = make_list_node(arena(), value);
     declarationList = &(*declarationList)->next;
+
+    auto newDecl = value;
+    auto oldDecl = node;
+
+    while (auto newTempl = ast_cast<TemplateDeclarationAST>(newDecl)) {
+      auto oldTempl = ast_cast<TemplateDeclarationAST>(oldDecl);
+      newDecl = newTempl->declaration;
+      oldDecl = oldTempl->declaration;
+    }
+
+    if (auto newFunc = ast_cast<FunctionDefinitionAST>(newDecl)) {
+      delayedFunctions.push_back(
+          {newFunc, ast_cast<FunctionDefinitionAST>(oldDecl)});
+    }
+  }
+
+  rewrite.setRestrictedToDeclarations(false);
+
+  for (const auto& [newAst, oldAst] : delayedFunctions) {
+    auto _ = Binder::ScopeGuard{binder()};
+
+    auto functionDeclarator = getFunctionPrototype(newAst->declarator);
+
+    if (auto params = functionDeclarator->parameterDeclarationClause) {
+      binder()->setScope(params->functionParametersSymbol);
+    } else {
+      binder()->setScope(newAst->symbol);
+    }
+
+    newAst->functionBody = rewrite.functionBody(oldAst->functionBody);
   }
 
   copy->rbraceLoc = ast->rbraceLoc;

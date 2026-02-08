@@ -28,6 +28,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <variant>
 #include <vector>
@@ -36,14 +37,69 @@ namespace cxx {
 
 class Meta;
 class InitializerList;
+class ConstObject;
 
 using ConstValue = std::variant<std::intmax_t, const StringLiteral*, float,
                                 double, long double, std::shared_ptr<Meta>,
-                                std::shared_ptr<InitializerList>>;
+                                std::shared_ptr<InitializerList>,
+                                std::shared_ptr<ConstObject>>;
 
 class InitializerList {
  public:
   std::vector<std::tuple<ConstValue, const Type*>> elements;
+};
+
+class ConstObject {
+ public:
+  struct Field {
+    const Symbol* symbol = nullptr;
+    ConstValue value;
+  };
+
+  explicit ConstObject(const Type* type) : type_(type) {}
+
+  ConstObject(const Type* type, std::vector<Field> fields)
+      : type_(type), fields_(std::move(fields)) {}
+
+  [[nodiscard]] auto type() const -> const Type* { return type_; }
+
+  [[nodiscard]] auto fields() const -> const std::vector<Field>& {
+    return fields_;
+  }
+
+  void addField(const Symbol* symbol, ConstValue value) {
+    fields_.push_back({symbol, std::move(value)});
+  }
+
+  [[nodiscard]] auto getField(const Symbol* symbol) const -> const ConstValue* {
+    for (const auto& f : fields_) {
+      if (f.symbol == symbol) return &f.value;
+    }
+    return nullptr;
+  }
+
+  void setField(const Symbol* symbol, ConstValue value) {
+    for (auto& f : fields_) {
+      if (f.symbol == symbol) {
+        f.value = std::move(value);
+        return;
+      }
+    }
+    fields_.push_back({symbol, std::move(value)});
+  }
+
+  [[nodiscard]] auto bases() const -> const std::vector<ConstValue>& {
+    return bases_;
+  }
+
+  void addBase(ConstValue base) { bases_.push_back(std::move(base)); }
+
+  [[nodiscard]] auto operator==(const ConstObject& other) const -> bool;
+
+ private:
+  const Type* type_ = nullptr;
+  std::vector<Field> fields_;
+  std::vector<ConstValue> bases_;
 };
 
 class Meta {

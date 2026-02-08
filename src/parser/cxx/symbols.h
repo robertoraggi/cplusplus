@@ -56,7 +56,6 @@ template <typename S, typename D>
 class MaybeTemplate {
   struct Template {
     std::vector<TemplateSpecialization> specializations_;
-    D* declaration_ = nullptr;
     TemplateDeclarationAST* templateDeclaration_ = nullptr;
   };
 
@@ -111,15 +110,9 @@ class MaybeTemplate {
                                            specialization});
   }
 
-  [[nodiscard]] auto declaration() const -> D* {
-    if (!template_) return nullptr;
-    return template_->declaration_;
-  }
+  [[nodiscard]] auto declaration() const -> D* { return declaration_; }
 
-  void setDeclaration(D* ast) {
-    ensure_template();
-    template_->declaration_ = ast;
-  }
+  void setDeclaration(D* ast) { declaration_ = ast; }
 
   [[nodiscard]] auto specializations() const
       -> std::span<const TemplateSpecialization> {
@@ -161,6 +154,7 @@ class MaybeTemplate {
   }
 
   std::unique_ptr<TemplateData> template_;
+  D* declaration_ = nullptr;
 };
 
 class Symbol {
@@ -214,14 +208,22 @@ class Symbol {
                                  EnclosingSymbolIterator{});
   }
 
+  [[nodiscard]] auto enclosingFunction() const -> FunctionSymbol*;
+
   [[nodiscard]] auto templateParameters() -> TemplateParametersSymbol*;
 
   [[nodiscard]] auto hasEnclosingSymbol(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto next() const -> Symbol*;
 
+  [[nodiscard]] virtual auto canonical() const -> Symbol* {
+    return const_cast<Symbol*>(this);
+  }
+
+  [[nodiscard]] virtual auto definition() const -> Symbol* { return nullptr; }
+
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -341,11 +343,22 @@ class ClassLayout {
     return fields_.empty() && bases_.empty();
   }
 
+  [[nodiscard]] auto hasVtable() const -> bool { return hasVtable_; }
+  [[nodiscard]] auto vtableIndex() const -> std::uint32_t {
+    return vtableIndex_;
+  }
+  [[nodiscard]] auto hasDirectVtable() const -> bool {
+    return hasDirectVtable_;
+  }
+
  private:
   std::unordered_map<FieldSymbol*, MemberInfo> fields_;
   std::unordered_map<ClassSymbol*, MemberInfo> bases_;
   std::uint64_t size_ = 0;
   std::uint64_t alignment_ = 1;
+  std::uint32_t vtableIndex_ = 0;
+  bool hasVtable_ = false;
+  bool hasDirectVtable_ = false;
 };
 
 class BaseClassSymbol final : public Symbol {
@@ -378,6 +391,12 @@ class ClassSymbol final : public ScopeSymbol,
   explicit ClassSymbol(ScopeSymbol* enclosingScope);
   ~ClassSymbol() override;
 
+  [[nodiscard]] auto canonical() const -> ClassSymbol* override;
+  void setCanonical(ClassSymbol* canonical);
+
+  [[nodiscard]] auto definition() const -> ClassSymbol* override;
+  void setDefinition(ClassSymbol* definition);
+
   [[nodiscard]] auto isUnion() const -> bool;
   void setIsUnion(bool isUnion);
 
@@ -395,6 +414,15 @@ class ClassSymbol final : public ScopeSymbol,
       -> const std::vector<FunctionSymbol*>&;
 
   void addConversionFunction(FunctionSymbol* conversionFunction);
+
+  [[nodiscard]] auto destructor() const -> FunctionSymbol*;
+  [[nodiscard]] auto defaultConstructor() const -> FunctionSymbol*;
+  [[nodiscard]] auto copyConstructor() const -> FunctionSymbol*;
+  [[nodiscard]] auto moveConstructor() const -> FunctionSymbol*;
+  [[nodiscard]] auto hasUserDeclaredConstructors() const -> bool;
+
+  [[nodiscard]] auto convertingConstructors() const
+      -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto isFinal() const -> bool;
   void setFinal(bool isFinal);
@@ -428,6 +456,8 @@ class ClassSymbol final : public ScopeSymbol,
   std::vector<FunctionSymbol*> constructors_;
   std::vector<FunctionSymbol*> conversionFunctions_;
   std::unique_ptr<ClassLayout> layout_;
+  ClassSymbol* canonical_ = nullptr;
+  ClassSymbol* definition_ = nullptr;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
   union {
@@ -481,6 +511,14 @@ class FunctionSymbol final
   explicit FunctionSymbol(ScopeSymbol* enclosingScope);
   ~FunctionSymbol() override;
 
+  [[nodiscard]] auto canonical() const -> FunctionSymbol* override;
+  void setCanonical(FunctionSymbol* canonical);
+
+  [[nodiscard]] auto definition() const -> FunctionSymbol* override;
+  void setDefinition(FunctionSymbol* definition);
+
+  [[nodiscard]] auto functionParameters() const -> FunctionParametersSymbol*;
+
   [[nodiscard]] auto isDefined() const -> bool;
   void setDefined(bool isDefined);
 
@@ -514,6 +552,9 @@ class FunctionSymbol final
   [[nodiscard]] auto isDefaulted() const -> bool;
   void setDefaulted(bool isDefaulted);
 
+  [[nodiscard]] auto isPure() const -> bool;
+  void setPure(bool isPure);
+
   [[nodiscard]] auto isConstructor() const -> bool;
 
   [[nodiscard]] auto languageLinkage() const -> LanguageKind;
@@ -522,6 +563,8 @@ class FunctionSymbol final
   [[nodiscard]] auto hasCLinkage() const -> bool;
 
  private:
+  FunctionSymbol* canonical_ = nullptr;
+  FunctionSymbol* definition_ = nullptr;
   union {
     std::uint32_t flags_{};
     struct {
@@ -536,6 +579,7 @@ class FunctionSymbol final
       std::uint32_t isExplicit_ : 1;
       std::uint32_t isDeleted_ : 1;
       std::uint32_t isDefaulted_ : 1;
+      std::uint32_t isPure_ : 1;
       std::uint32_t hasCLinkage_ : 1;
     };
   };
@@ -640,6 +684,12 @@ class VariableSymbol final
   explicit VariableSymbol(ScopeSymbol* enclosingScope);
   ~VariableSymbol() override;
 
+  [[nodiscard]] auto canonical() const -> VariableSymbol* override;
+  void setCanonical(VariableSymbol* canonical);
+
+  [[nodiscard]] auto definition() const -> VariableSymbol* override;
+  void setDefinition(VariableSymbol* definition);
+
   [[nodiscard]] auto isStatic() const -> bool;
   void setStatic(bool isStatic);
 
@@ -661,11 +711,17 @@ class VariableSymbol final
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST*);
 
+  [[nodiscard]] auto constructor() const -> FunctionSymbol*;
+  void setConstructor(FunctionSymbol* constructor);
+
   [[nodiscard]] auto constValue() const -> const std::optional<ConstValue>&;
   void setConstValue(std::optional<ConstValue> value);
 
  private:
+  VariableSymbol* canonical_ = nullptr;
+  VariableSymbol* definition_ = nullptr;
   ExpressionAST* initializer_ = nullptr;
+  FunctionSymbol* constructor_ = nullptr;
   std::optional<ConstValue> constValue_;
 
   union {
@@ -748,6 +804,12 @@ class ParameterSymbol final : public Symbol {
 
   explicit ParameterSymbol(ScopeSymbol* enclosingScope);
   ~ParameterSymbol() override;
+
+  [[nodiscard]] auto defaultArgument() const -> ExpressionAST*;
+  void setDefaultArgument(ExpressionAST* expr);
+
+ private:
+  ExpressionAST* defaultArgument_ = nullptr;
 };
 
 class ParameterPackSymbol final : public Symbol {
@@ -878,7 +940,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
+  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

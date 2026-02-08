@@ -30,7 +30,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <ranges>
 #include <vector>
 
 namespace cxx {
@@ -98,6 +97,10 @@ class Lookup {
 
   [[nodiscard]] auto lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
                                 const Identifier* id) const -> Symbol*;
+
+  [[nodiscard]] auto argumentDependentLookup(
+      const Name* name, std::span<const Type* const> argumentTypes) const
+      -> std::vector<FunctionSymbol*>;
 
  private:
   template <typename Predicate>

@@ -868,6 +868,10 @@ class Parser final {
   void mark_maybe_template_name(UnqualifiedIdAST* name);
   void mark_maybe_template_name(DeclaratorAST* declarator);
 
+  [[nodiscard]] auto synthesizeAbbreviatedFunctionTemplate(
+      FunctionDeclaratorChunkAST* functionDeclarator)
+      -> TemplateDeclarationAST*;
+
   [[nodiscard]] auto is_parsing_c() const { return lang_ == LanguageKind::kC; }
 
   [[nodiscard]] auto is_parsing_cxx() const {

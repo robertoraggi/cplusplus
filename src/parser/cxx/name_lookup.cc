@@ -29,6 +29,97 @@
 
 namespace cxx {
 
+namespace {
+
+struct AssociatedNamespaceCollector {
+  std::vector<NamespaceSymbol*>& namespaces;
+  std::vector<ClassSymbol*>& classes;
+  std::vector<const Type*>& visited;
+
+  void collect(const Type* type) {
+    if (!type) return;
+    if (std::ranges::contains(visited, type)) return;
+    visited.push_back(type);
+    visit(*this, type);
+  }
+
+  void addNamespace(NamespaceSymbol* ns) {
+    if (ns && !std::ranges::contains(namespaces, ns)) namespaces.push_back(ns);
+  }
+
+  void addClass(ClassSymbol* cls) { classes.push_back(cls); }
+
+  void operator()(const QualType* type) { collect(type->elementType()); }
+
+  void operator()(const PointerType* type) { collect(type->elementType()); }
+  void operator()(const LvalueReferenceType* type) {
+    collect(type->elementType());
+  }
+
+  void operator()(const RvalueReferenceType* type) {
+    collect(type->elementType());
+  }
+
+  void operator()(const BoundedArrayType* type) {
+    collect(type->elementType());
+  }
+
+  void operator()(const UnboundedArrayType* type) {
+    collect(type->elementType());
+  }
+
+  void operator()(const ClassType* type) {
+    auto classSymbol = type->symbol();
+    if (!classSymbol) return;
+    if (auto def = classSymbol->definition()) classSymbol = def;
+    if (std::ranges::contains(classes, classSymbol)) return;
+    addClass(classSymbol);
+
+    addNamespace(classSymbol->enclosingNamespace());
+
+    for (const auto& base : classSymbol->baseClasses()) {
+      if (auto baseClass = symbol_cast<ClassSymbol>(base->symbol())) {
+        if (auto baseType = type_cast<ClassType>(baseClass->type())) {
+          collect(baseType);
+        }
+      }
+    }
+
+    for (const auto& arg : classSymbol->templateArguments()) {
+      if (auto* argType = std::get_if<const Type*>(&arg)) {
+        collect(*argType);
+      }
+    }
+  }
+
+  void operator()(const EnumType* type) {
+    if (auto sym = type->symbol()) addNamespace(sym->enclosingNamespace());
+  }
+
+  void operator()(const ScopedEnumType* type) {
+    if (auto sym = type->symbol()) addNamespace(sym->enclosingNamespace());
+  }
+
+  void operator()(const FunctionType* type) {
+    collect(type->returnType());
+    for (auto paramType : type->parameterTypes()) collect(paramType);
+  }
+
+  void operator()(const MemberObjectPointerType* type) {
+    collect(type->classType());
+    collect(type->elementType());
+  }
+
+  void operator()(const MemberFunctionPointerType* type) {
+    collect(type->classType());
+    collect(type->functionType());
+  }
+
+  void operator()(const Type*) {}
+};
+
+}  // namespace
+
 Lookup::Lookup(ScopeSymbol* scope) : scope_(scope) {}
 
 auto Lookup::lookupNamespace(NestedNameSpecifierAST* nestedNameSpecifier,
@@ -148,6 +239,12 @@ auto Lookup::lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
 
   set.push_back(scope);
 
+  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
+    if (classSymbol->name() == id) {
+      return classSymbol;
+    }
+  }
+
   for (auto candidate : scope->find(id)) {
     if (auto u = symbol_cast<UsingDeclarationSymbol>(candidate);
         u && u->target()) {
@@ -176,6 +273,53 @@ auto Lookup::lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
   }
 
   return nullptr;
+}
+
+auto Lookup::argumentDependentLookup(
+    const Name* name, std::span<const Type* const> argumentTypes) const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> result;
+
+  if (!name) return result;
+
+  std::vector<NamespaceSymbol*> namespaces;
+  std::vector<ClassSymbol*> classes;
+  std::vector<const Type*> visited;
+
+  AssociatedNamespaceCollector collector{namespaces, classes, visited};
+
+  for (auto argType : argumentTypes) {
+    collector.collect(argType);
+  }
+
+  // Search for functions with the given name in each associated namespace
+  auto addCandidate = [&](FunctionSymbol* func) {
+    auto canonical = func->canonical();
+    if (!std::ranges::contains(result, canonical)) {
+      result.push_back(canonical);
+    }
+  };
+
+  for (auto ns : namespaces) {
+    for (auto symbol : ns->find(name)) {
+      if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
+        addCandidate(func);
+      } else if (auto ovl = symbol_cast<OverloadSetSymbol>(symbol)) {
+        for (auto f : ovl->functions()) addCandidate(f);
+      }
+    }
+  }
+
+  // Also search friend functions declared in associated classes
+  for (auto cls : classes) {
+    for (auto symbol : cls->find(name)) {
+      if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
+        if (func->isFriend()) addCandidate(func);
+      }
+    }
+  }
+
+  return result;
 }
 
 }  // namespace cxx

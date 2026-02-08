@@ -303,7 +303,7 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
     const auto isUnion = ast->classKey == TokenKind::T_UNION;
 
-    auto classSymbol = control()->newClassSymbol(declaringScope(), location);
+    auto classSymbol = control()->newClassSymbol(scope(), location);
     ast->symbol = classSymbol;
 
     classSymbol->setIsUnion(isUnion);
@@ -311,13 +311,12 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
     ast->symbol->setDeclaration(ast);
     ast->symbol->setFinal(ast->isFinal);
 
-    // if (declSpecs.templateHead) {
-    //   warning(location, "setting template head");
-    //   ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
-    // }
-
     declSpecs.setTypeSpecifier(ast);
     declSpecs.setType(ast->symbol->type());
+
+    if (declSpecs.templateHead) {
+      ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
+    }
 
     if (primaryTemplateSymbol) {
       primaryTemplateSymbol->addSpecialization(std::move(templateArguments),
@@ -369,6 +368,8 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
   ast->symbol->setDeclaration(ast);
 
+  ast->symbol->canonical()->setDefinition(ast->symbol);
+
   if (declSpecs.templateHead) {
     ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
   }
@@ -381,6 +382,172 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
 void Binder::complete(ClassSpecifierAST* ast) {
   if (!inTemplate()) {
+    if (is_parsing_cxx() && ast->symbol->constructors().empty() &&
+        ast->symbol->name()) {
+      auto classSymbol = ast->symbol;
+      auto pool = unit_->arena();
+
+      auto functionSymbol =
+          control()->newFunctionSymbol(classSymbol, classSymbol->location());
+      functionSymbol->setName(classSymbol->name());
+      functionSymbol->setType(
+          control()->getFunctionType(control()->getVoidType(), {}));
+      functionSymbol->setDefined(true);
+      functionSymbol->setDefaulted(true);
+      functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
+
+      classSymbol->addConstructor(functionSymbol);
+
+      auto defaultBody = DefaultFunctionBodyAST::create(pool);
+
+      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
+
+      auto nameId = NameIdAST::create(pool, classIdentifier);
+
+      auto idDecl = IdDeclaratorAST::create(pool);
+      idDecl->unqualifiedId = nameId;
+
+      auto funcChunk = FunctionDeclaratorChunkAST::create(pool);
+
+      auto declarator = DeclaratorAST::create(
+          pool, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
+          /*declaratorChunkList=*/
+          make_list_node<DeclaratorChunkAST>(pool, funcChunk));
+
+      auto funcDef = FunctionDefinitionAST::create(pool);
+      funcDef->declarator = declarator;
+      funcDef->functionBody = defaultBody;
+      funcDef->symbol = functionSymbol;
+      functionSymbol->setDeclaration(funcDef);
+    }
+
+    if (is_parsing_cxx() && ast->symbol->name() &&
+        !ast->symbol->copyConstructor()) {
+      auto classSymbol = ast->symbol;
+      auto pool = unit_->arena();
+
+      auto classType = classSymbol->type();
+      auto constClassType = control()->getConstType(classType);
+      auto constRefType = control()->getLvalueReferenceType(constClassType);
+
+      auto copyCtorSymbol =
+          control()->newFunctionSymbol(classSymbol, classSymbol->location());
+      copyCtorSymbol->setName(classSymbol->name());
+      copyCtorSymbol->setType(
+          control()->getFunctionType(control()->getVoidType(), {constRefType}));
+      copyCtorSymbol->setDefined(true);
+      copyCtorSymbol->setDefaulted(true);
+      copyCtorSymbol->setLanguageLinkage(LanguageKind::kCXX);
+
+      classSymbol->addConstructor(copyCtorSymbol);
+
+      auto defaultBody = DefaultFunctionBodyAST::create(pool);
+      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
+      auto nameId = NameIdAST::create(pool, classIdentifier);
+      auto idDecl = IdDeclaratorAST::create(pool);
+      idDecl->unqualifiedId = nameId;
+      auto funcChunk = FunctionDeclaratorChunkAST::create(pool);
+      auto declarator = DeclaratorAST::create(
+          pool, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
+          /*declaratorChunkList=*/
+          make_list_node<DeclaratorChunkAST>(pool, funcChunk));
+      auto funcDef = FunctionDefinitionAST::create(pool);
+      funcDef->declarator = declarator;
+      funcDef->functionBody = defaultBody;
+      funcDef->symbol = copyCtorSymbol;
+      copyCtorSymbol->setDeclaration(funcDef);
+    }
+
+    if (is_parsing_cxx() && ast->symbol->name() &&
+        !ast->symbol->moveConstructor()) {
+      auto classSymbol = ast->symbol;
+      auto ar = unit_->arena();
+
+      // Parameter type: T&&
+      auto classType = classSymbol->type();
+      auto rvalRefType = control()->getRvalueReferenceType(classType);
+
+      auto moveCtorSymbol =
+          control()->newFunctionSymbol(classSymbol, classSymbol->location());
+      moveCtorSymbol->setName(classSymbol->name());
+      moveCtorSymbol->setType(
+          control()->getFunctionType(control()->getVoidType(), {rvalRefType}));
+      moveCtorSymbol->setDefined(true);
+      moveCtorSymbol->setDefaulted(true);
+      moveCtorSymbol->setLanguageLinkage(LanguageKind::kCXX);
+
+      classSymbol->addConstructor(moveCtorSymbol);
+
+      auto defaultBody = DefaultFunctionBodyAST::create(ar);
+      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
+      auto nameId = NameIdAST::create(ar, classIdentifier);
+      auto idDecl = IdDeclaratorAST::create(ar);
+      idDecl->unqualifiedId = nameId;
+      auto funcChunk = FunctionDeclaratorChunkAST::create(ar);
+      auto declarator = DeclaratorAST::create(
+          ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
+          /*declaratorChunkList=*/
+          make_list_node<DeclaratorChunkAST>(ar, funcChunk));
+      auto funcDef = FunctionDefinitionAST::create(ar);
+      funcDef->declarator = declarator;
+      funcDef->functionBody = defaultBody;
+      funcDef->symbol = moveCtorSymbol;
+      moveCtorSymbol->setDeclaration(funcDef);
+    }
+
+    if (is_parsing_cxx() && ast->symbol->name() && !ast->symbol->destructor()) {
+      auto classSymbol = ast->symbol;
+      auto ar = unit_->arena();
+
+      auto dtorName = control()->getDestructorId(classSymbol->name());
+
+      auto dtorSymbol =
+          control()->newFunctionSymbol(classSymbol, classSymbol->location());
+      dtorSymbol->setName(dtorName);
+      dtorSymbol->setType(
+          control()->getFunctionType(control()->getVoidType(), {}));
+      dtorSymbol->setDefined(true);
+      dtorSymbol->setDefaulted(true);
+      dtorSymbol->setLanguageLinkage(LanguageKind::kCXX);
+
+      for (auto base : classSymbol->baseClasses()) {
+        auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+        if (!baseClass) continue;
+        auto baseDtor = baseClass->destructor();
+        if (baseDtor && baseDtor->isVirtual()) {
+          dtorSymbol->setVirtual(true);
+          break;
+        }
+      }
+
+      classSymbol->addSymbol(dtorSymbol);
+
+      auto defaultBody = DefaultFunctionBodyAST::create(ar);
+
+      auto dtorIdAST = DestructorIdAST::create(ar);
+      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
+      if (classIdentifier) {
+        auto innerNameId = NameIdAST::create(ar, classIdentifier);
+        dtorIdAST->id = innerNameId;
+      }
+
+      auto idDecl = IdDeclaratorAST::create(ar);
+      idDecl->unqualifiedId = dtorIdAST;
+
+      auto funcChunk = FunctionDeclaratorChunkAST::create(ar);
+
+      auto declarator = DeclaratorAST::create(
+          ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
+          /*declaratorChunkList=*/
+          make_list_node<DeclaratorChunkAST>(ar, funcChunk));
+
+      auto funcDef = FunctionDefinitionAST::create(ar);
+      funcDef->declarator = declarator;
+      funcDef->functionBody = defaultBody;
+      funcDef->symbol = dtorSymbol;
+      dtorSymbol->setDeclaration(funcDef);
+    }
+
     auto status = ast->symbol->buildClassLayout(control());
     if (!status.has_value()) {
       error(ast->symbol->location(), status.error());
@@ -417,6 +584,7 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
         control()->newParameterSymbol(scope_, decl.location());
     parameterSymbol->setName(ast->identifier);
     parameterSymbol->setType(ast->type);
+    parameterSymbol->setDefaultArgument(ast->expression);
     scope_->addSymbol(parameterSymbol);
   }
 }
@@ -558,8 +726,13 @@ void Binder::bind(BaseSpecifierAST* ast) {
   }
 
   if (!symbol || !symbol->isClass()) {
-    error(ast->unqualifiedId->firstSourceLocation(),
-          "base class specifier must be a class");
+    if (symbol_cast<TypeParameterSymbol>(symbol)) {
+      return;
+    }
+    if (!inTemplate()) {
+      error(ast->unqualifiedId->firstSourceLocation(),
+            "base class specifier must be a class");
+    }
     return;
   }
 
@@ -700,9 +873,144 @@ void Binder::complete(LambdaExpressionAST* ast) {
     returnType = ast->trailingReturnType->typeId->type;
   }
 
-  auto type = control()->getFunctionType(returnType, std::move(parameterTypes),
-                                         isVariadic, {}, {}, isNoexcept);
-  ast->symbol->setType(type);
+  auto funcType = control()->getFunctionType(
+      returnType, std::move(parameterTypes), isVariadic, {}, {}, isNoexcept);
+  ast->symbol->setType(funcType);
+
+  if (is_parsing_cxx() && !inTemplate()) {
+    auto closureName =
+        control()->getIdentifier(std::format("__lambda_{}", lambdaCount_++));
+
+    // Create the ClassSymbol for the closure type
+    auto classSymbol = control()->newClassSymbol(parentScope, ast->lbracketLoc);
+    classSymbol->setName(closureName);
+    parentScope->addSymbol(classSymbol);
+
+    // Create operator() FunctionSymbol
+    auto operatorCallName = control()->getOperatorId(TokenKind::T_LPAREN);
+    auto operatorFunc =
+        control()->newFunctionSymbol(classSymbol, ast->lbracketLoc);
+    operatorFunc->setName(operatorCallName);
+    operatorFunc->setType(funcType);
+    operatorFunc->setDefined(true);
+    operatorFunc->setLanguageLinkage(LanguageKind::kCXX);
+    classSymbol->addSymbol(operatorFunc);
+
+    if (auto lambdaParams = ast->parameterDeclarationClause) {
+      if (lambdaParams->functionParametersSymbol) {
+        operatorFunc->addSymbol(lambdaParams->functionParametersSymbol);
+      }
+    }
+
+    // Create implicit default constructor
+    auto ctorSymbol =
+        control()->newFunctionSymbol(classSymbol, ast->lbracketLoc);
+    ctorSymbol->setName(closureName);
+    ctorSymbol->setType(
+        control()->getFunctionType(control()->getVoidType(), {}));
+    ctorSymbol->setDefined(true);
+    ctorSymbol->setDefaulted(true);
+    ctorSymbol->setLanguageLinkage(LanguageKind::kCXX);
+    classSymbol->addConstructor(ctorSymbol);
+
+    if (ast->captureDefault == TokenKind::T_EOF_SYMBOL && !ast->captureList) {
+      auto fptrType = control()->getPointerType(funcType);
+      auto convFuncType = control()->getFunctionType(fptrType, {});
+      auto convName = control()->getConversionFunctionId(fptrType);
+      auto convFunc =
+          control()->newFunctionSymbol(classSymbol, ast->lbracketLoc);
+      convFunc->setName(convName);
+      convFunc->setType(convFuncType);
+      convFunc->setDefined(true);
+      convFunc->setLanguageLinkage(LanguageKind::kCXX);
+      classSymbol->addConversionFunction(convFunc);
+    }
+
+    classSymbol->setComplete(true);
+    auto status = classSymbol->buildClassLayout(control());
+    if (!status.has_value()) {
+      error(ast->lbracketLoc, status.error());
+    }
+
+    ast->type = classSymbol->type();
+    ast->valueCategory = ValueCategory::kPrValue;
+  }
+}
+
+void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
+  auto classType = type_cast<ClassType>(ast->type);
+  if (!classType) return;
+
+  auto classSymbol = classType->symbol();
+  auto ar = unit_->arena();
+
+  // Find the operator() FunctionSymbol
+  FunctionSymbol* operatorFunc = nullptr;
+  for (auto member : classSymbol->members()) {
+    if (auto func = symbol_cast<FunctionSymbol>(member)) {
+      operatorFunc = func;
+      break;
+    }
+  }
+  if (!operatorFunc) return;
+
+  ScopeSymbol* bodyScope = operatorFunc;
+  for (auto member : operatorFunc->members()) {
+    if (auto params = symbol_cast<FunctionParametersSymbol>(member)) {
+      bodyScope = params;
+      break;
+    }
+  }
+
+  ASTRewriter rewriter{unit_, bodyScope, {}};
+  auto reboundBody =
+      ast_cast<CompoundStatementAST>(rewriter.statement(ast->statement));
+
+  auto opId = OperatorFunctionIdAST::create(ar, TokenKind::T_LPAREN);
+
+  auto idDecl = IdDeclaratorAST::create(ar);
+  idDecl->unqualifiedId = opId;
+
+  auto funcChunk = FunctionDeclaratorChunkAST::create(ar);
+  if (ast->parameterDeclarationClause) {
+    funcChunk->parameterDeclarationClause =
+        ast->parameterDeclarationClause->clone(ar);
+  }
+
+  auto declarator = DeclaratorAST::create(
+      ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
+      /*declaratorChunkList=*/
+      make_list_node<DeclaratorChunkAST>(ar, funcChunk));
+
+  auto funcBody = CompoundStatementFunctionBodyAST::create(
+      ar, /*memInitializerList=*/nullptr, reboundBody);
+
+  auto funcDef = FunctionDefinitionAST::create(ar);
+  funcDef->declarator = declarator;
+  funcDef->functionBody = funcBody;
+  funcDef->symbol = operatorFunc;
+  operatorFunc->setDeclaration(funcDef);
+
+  // Build FunctionDefinitionAST for the default constructor
+  auto closureName = name_cast<Identifier>(classSymbol->name());
+  for (auto ctor : classSymbol->constructors()) {
+    if (ctor->declaration()) continue;  // already created
+
+    auto ctorNameId = NameIdAST::create(ar, closureName);
+    auto ctorIdDecl = IdDeclaratorAST::create(ar);
+    ctorIdDecl->unqualifiedId = ctorNameId;
+    auto ctorFuncChunk = FunctionDeclaratorChunkAST::create(ar);
+    auto ctorDeclarator = DeclaratorAST::create(
+        ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/ctorIdDecl,
+        /*declaratorChunkList=*/
+        make_list_node<DeclaratorChunkAST>(ar, ctorFuncChunk));
+    auto ctorBody = DefaultFunctionBodyAST::create(ar);
+    auto ctorDef = FunctionDefinitionAST::create(ar);
+    ctorDef->declarator = ctorDeclarator;
+    ctorDef->functionBody = ctorBody;
+    ctorDef->symbol = ctor;
+    ctor->setDeclaration(ctorDef);
+  }
 }
 
 void Binder::bind(ParameterDeclarationClauseAST* ast) {
@@ -761,6 +1069,51 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   return symbol;
 }
 
+namespace {
+
+void mergeRedeclaration(FunctionSymbol* redecl) {
+  auto canonical = redecl->canonical();
+  if (!canonical || canonical == redecl) return;
+
+  if (canonical->isStatic()) redecl->setStatic(true);
+  if (canonical->isExtern()) redecl->setExtern(true);
+  if (canonical->isFriend()) redecl->setFriend(true);
+  if (canonical->isConstexpr()) redecl->setConstexpr(true);
+  if (canonical->isConsteval()) redecl->setConsteval(true);
+  if (canonical->isInline()) redecl->setInline(true);
+  if (canonical->isVirtual()) redecl->setVirtual(true);
+  if (canonical->isExplicit()) redecl->setExplicit(true);
+
+  if (redecl->isInline()) canonical->setInline(true);
+  if (redecl->isConstexpr()) canonical->setConstexpr(true);
+  if (redecl->isConsteval()) canonical->setConsteval(true);
+
+  auto canonParams = canonical->functionParameters();
+  auto redeclParams = redecl->functionParameters();
+  if (!canonParams || !redeclParams) return;
+
+  auto canonIt = canonParams->members().begin();
+  auto canonEnd = canonParams->members().end();
+  auto redeclIt = redeclParams->members().begin();
+  auto redeclEnd = redeclParams->members().end();
+
+  for (; canonIt != canonEnd && redeclIt != redeclEnd; ++canonIt, ++redeclIt) {
+    auto cp = symbol_cast<ParameterSymbol>(*canonIt);
+    auto rp = symbol_cast<ParameterSymbol>(*redeclIt);
+    if (!cp || !rp) continue;
+
+    if (!cp->defaultArgument() && rp->defaultArgument()) {
+      cp->setDefaultArgument(rp->defaultArgument());
+    }
+
+    if (cp->defaultArgument() && !rp->defaultArgument()) {
+      rp->setDefaultArgument(cp->defaultArgument());
+    }
+  }
+}
+
+}  // namespace
+
 auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
     -> FunctionSymbol* {
   auto name = decl.getName();
@@ -781,6 +1134,31 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   functionSymbol->setName(name);
   functionSymbol->setType(type);
 
+  if (auto functionDeclarator = getFunctionPrototype(declarator)) {
+    if (functionDeclarator->isOverride) {
+      functionSymbol->setVirtual(true);
+    }
+    if (functionDeclarator->isPure) {
+      functionSymbol->setPure(true);
+      functionSymbol->setVirtual(true);
+    }
+  }
+
+  if (!functionSymbol->isVirtual() &&
+      name_cast<DestructorId>(functionSymbol->name())) {
+    if (auto enclosingClass = symbol_cast<ClassSymbol>(scope())) {
+      for (auto base : enclosingClass->baseClasses()) {
+        auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+        if (!baseClass) continue;
+        auto baseDtor = baseClass->destructor();
+        if (baseDtor && baseDtor->isVirtual()) {
+          functionSymbol->setVirtual(true);
+          break;
+        }
+      }
+    }
+  }
+
   if (is_parsing_c()) {
     // in C mode, functions have C linkage
     functionSymbol->setLanguageLinkage(LanguageKind::kC);
@@ -796,6 +1174,15 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
     auto enclosingClass = symbol_cast<ClassSymbol>(scope());
 
     if (enclosingClass) {
+      // Check for redeclaration among existing constructors
+      for (auto ctor : enclosingClass->constructors()) {
+        if (control()->is_same(ctor->type(), functionSymbol->type())) {
+          functionSymbol->setCanonical(ctor->canonical());
+          mergeRedeclaration(functionSymbol);
+          break;
+        }
+      }
+
       enclosingClass->addConstructor(functionSymbol);
     }
 
@@ -808,9 +1195,29 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
 
   for (Symbol* candidate : scope->find(functionSymbol->name())) {
     overloadSet = symbol_cast<OverloadSetSymbol>(candidate);
-    if (overloadSet) break;
+    if (overloadSet) {
+      // Check for redeclaration within the overload set
+      for (auto existing : overloadSet->functions()) {
+        if (control()->is_same(existing->type(), functionSymbol->type())) {
+          functionSymbol->setCanonical(existing->canonical());
+          mergeRedeclaration(functionSymbol);
+          break;
+        }
+      }
+      break;
+    }
 
     if (auto previousFunction = symbol_cast<FunctionSymbol>(candidate)) {
+      // Check if this is a redeclaration of the previous function
+      if (control()->is_same(previousFunction->type(),
+                             functionSymbol->type())) {
+        functionSymbol->setCanonical(previousFunction->canonical());
+        mergeRedeclaration(functionSymbol);
+        if (is_parsing_c()) return previousFunction;
+      }
+
+      if (is_parsing_c()) return previousFunction;
+
       overloadSet = control()->newOverloadSetSymbol(scope, {});
       overloadSet->setName(functionSymbol->name());
       overloadSet->addFunction(previousFunction);
@@ -858,7 +1265,17 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   symbol->setName(name);
   symbol->setType(type);
   if (addSymbolToParentScope) {
-    declaringScope()->addSymbol(symbol);
+    auto scope = declaringScope();
+
+    // Check for redeclaration of an existing variable with the same name
+    for (auto candidate : scope->find(name)) {
+      if (auto existing = symbol_cast<VariableSymbol>(candidate)) {
+        symbol->setCanonical(existing->canonical());
+        break;
+      }
+    }
+
+    scope->addSymbol(symbol);
   }
   return symbol;
 }
@@ -933,6 +1350,23 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
     if (!checkTemplates) return templateId->symbol;
 
+    if (inTemplate()) {
+      bool hasDependentArgs = false;
+      for (auto arg : ListView{templateId->templateArgumentList}) {
+        if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+          if (typeArg->typeId && typeArg->typeId->type) {
+            if (type_cast<TypeParameterType>(typeArg->typeId->type)) {
+              hasDependentArgs = true;
+              break;
+            }
+          }
+        }
+      }
+      if (hasDependentArgs) {
+        return templateId->symbol;
+      }
+    }
+
     if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
       // todo: delay
       auto instance = ASTRewriter::instantiate(
@@ -989,13 +1423,32 @@ void Binder::bind(IdExpressionAST* ast) {
 
   if (unit_->config().checkTypes) {
     if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
-      auto var = symbol_cast<VariableSymbol>(ast->symbol);
+      // Try to find a template symbol to instantiate
+      Symbol* templateSymbol = nullptr;
 
-      if (!var) {
+      if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+        templateSymbol = var;
+      } else if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
+        if (func->templateDeclaration()) templateSymbol = func;
+      } else if (auto ovl = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
+        for (auto func : ovl->functions()) {
+          if (!func->templateDeclaration()) continue;
+          auto instance = ASTRewriter::instantiate(
+              unit_, templateId->templateArgumentList, func);
+          if (instance) {
+            ast->symbol = instance;
+            templateSymbol = func;
+            break;
+          }
+        }
+        if (templateSymbol) return;
+      }
+
+      if (!templateSymbol) {
         error(templateId->firstSourceLocation(), std::format("not a template"));
       } else {
         auto instance = ASTRewriter::instantiate(
-            unit_, templateId->templateArgumentList, var);
+            unit_, templateId->templateArgumentList, templateSymbol);
 
         ast->symbol = instance;
       }

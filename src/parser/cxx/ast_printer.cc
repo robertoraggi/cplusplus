@@ -1610,6 +1610,12 @@ void ASTPrinter::visit(CppCastExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  if (ast->castOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("cast-op: {}\n", Token::spell(ast->castOp));
+    --indent_;
+  }
   accept(ast->typeId, "type-id");
   accept(ast->expression, "expression");
 }

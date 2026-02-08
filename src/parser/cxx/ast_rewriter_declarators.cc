@@ -176,6 +176,37 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
 
   for (auto parameterDeclarationList = &copy->parameterDeclarationList;
        auto node : ListView{ast->parameterDeclarationList}) {
+    auto paramDecl = ast_cast<ParameterDeclarationAST>(node);
+
+    if (paramDecl && paramDecl->isPack) {
+      ParameterPackSymbol* pack = nullptr;
+      for (auto specNode : ListView{paramDecl->typeSpecifierList}) {
+        pack = getTypeParameterPack(specNode);
+        if (pack) break;
+      }
+
+      if (pack && !pack->elements().empty()) {
+        auto savedParameterPack = parameterPack_;
+        std::swap(parameterPack_, pack);
+
+        int n = static_cast<int>(parameterPack_->elements().size());
+        for (int i = 0; i < n; ++i) {
+          std::optional<int> index{i};
+          std::swap(elementIndex_, index);
+
+          auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
+          if (value) value->isPack = false;
+          *parameterDeclarationList = make_list_node(arena(), value);
+          parameterDeclarationList = &(*parameterDeclarationList)->next;
+
+          std::swap(elementIndex_, index);
+        }
+
+        std::swap(parameterPack_, pack);
+        continue;
+      }
+    }
+
     auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
     *parameterDeclarationList = make_list_node(arena(), value);
     parameterDeclarationList = &(*parameterDeclarationList)->next;
