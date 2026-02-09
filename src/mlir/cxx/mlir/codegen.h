@@ -46,7 +46,8 @@ class Control;
 
 class Codegen {
  public:
-  explicit Codegen(mlir::MLIRContext& context, TranslationUnit* unit);
+  explicit Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
+                   bool debugInfo = true);
   ~Codegen();
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -397,6 +398,7 @@ class Codegen {
   std::unordered_map<const Type*, mlir::LLVM::DITypeAttr> debugTypeCache_;
   std::unordered_map<Symbol*, mlir::LLVM::DIScopeAttr> diScopes_;
   std::unordered_map<const Name*, int> staticLocalCounts_;
+  bool debugInfo_ = true;
 };
 
 }  // namespace cxx

@@ -128,9 +128,45 @@ void CxxDialect::initialize() {
 
 void FuncOp::print(OpAsmPrinter& p) {
   const auto isVariadic = getFunctionType().getVariadic();
-  function_interface_impl::printFunctionOp(
-      p, *this, isVariadic, getFunctionTypeAttrName(), getArgAttrsAttrName(),
-      getResAttrsAttrName());
+
+  p << ' ';
+
+  // Print linkage if non-default
+  if (auto linkage = getLinkageKind()) {
+    if (*linkage != LinkageKind::External) {
+      p << stringifyLinkageKind(*linkage) << ' ';
+    }
+  }
+
+  // Print inline hint if present
+  if (auto inlineKind = getInlineKind()) {
+    if (*inlineKind != InlineKind::NoInline) {
+      p << stringifyInlineKind(*inlineKind) << ' ';
+    }
+  }
+
+  // Print function name
+  p.printSymbolName(getSymName());
+
+  // Print signature
+  ArrayRef<Type> argTypes = getArgumentTypes();
+  ArrayRef<Type> resultTypes = getResultTypes();
+  function_interface_impl::printFunctionSignature(p, *this, argTypes,
+                                                  isVariadic, resultTypes);
+
+  // Print attributes, eliding the ones we handle specially
+  function_interface_impl::printFunctionAttributes(
+      p, *this,
+      {getFunctionTypeAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
+       getLinkageKindAttrName(), getInlineKindAttrName()});
+
+  // Print body
+  Region& body = getBody();
+  if (!body.empty()) {
+    p << ' ';
+    p.printRegion(body, /*printEntryBlockArgs=*/false,
+                  /*printBlockTerminators=*/true);
+  }
 }
 
 auto FuncOp::parse(OpAsmParser& parser, OperationState& result) -> ParseResult {
@@ -227,6 +263,41 @@ auto VTableOp::parse(OpAsmParser& parser, OperationState& result)
   return success();
 #endif
 
+  // disable for now
+  return failure();
+}
+
+// GlobalOp custom print/parse
+
+void GlobalOp::print(OpAsmPrinter& p) {
+  p << ' ';
+  p.printSymbolName(getSymName());
+
+  if (auto linkage = getLinkageKind()) {
+    if (*linkage != LinkageKind::External) {
+      p << ' ' << stringifyLinkageKind(*linkage);
+    }
+  }
+
+  if (getConstant()) {
+    p << " constant";
+  }
+
+  p << " : ";
+  p.printType(getGlobalType());
+
+  if (auto val = getValue()) {
+    p << " = ";
+    p.printAttribute(*val);
+  }
+
+  p.printOptionalAttrDict(
+      (*this)->getAttrs(),
+      {"sym_name", "global_type", "constant", "value", "linkage_kind"});
+}
+
+auto GlobalOp::parse(OpAsmParser& parser, OperationState& result)
+    -> ParseResult {
   // disable for now
   return failure();
 }

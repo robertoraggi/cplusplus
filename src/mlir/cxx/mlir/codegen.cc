@@ -63,8 +63,9 @@ static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
   return false;
 }
 
-Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit)
-    : builder_(&context), unit_(unit) {}
+Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
+                 bool debugInfo)
+    : builder_(&context), unit_(unit), debugInfo_(debugInfo) {}
 
 Codegen::~Codegen() {}
 
@@ -197,6 +198,7 @@ auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
 
 void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
                               std::string_view name, unsigned arg) {
+  if (!debugInfo_) return;
   if (!function_) return;
 
   auto scope = getOrCreateDIScope(symbol->parent());
@@ -220,6 +222,7 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
 void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, const Type* type,
                               std::string_view name, unsigned arg,
                               mlir::LLVM::DIFlags flags) {
+  if (!debugInfo_) return;
   if (!function_) return;
 
   auto scope = getOrCreateDIScope(currentFunctionSymbol_);
