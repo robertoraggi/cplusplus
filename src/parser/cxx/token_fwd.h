@@ -291,6 +291,22 @@ class Token;
 
 #define FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(V)
 
+#define FOR_EACH_BUILTIN_FUNCTION(V)        \
+  V(__BUILTIN_ABS, "__builtin_abs")         \
+  V(__BUILTIN_FABS, "__builtin_fabs")       \
+  V(__BUILTIN_FABSF, "__builtin_fabsf")     \
+  V(__BUILTIN_FABSL, "__builtin_fabsl")     \
+  V(__BUILTIN_LABS, "__builtin_labs")       \
+  V(__BUILTIN_LLABS, "__builtin_llabs")     \
+  V(__BUILTIN_MEMCHR, "__builtin_memchr")   \
+  V(__BUILTIN_STRCHR, "__builtin_strchr")   \
+  V(__BUILTIN_STRPBRK, "__builtin_strpbrk") \
+  V(__BUILTIN_STRRCHR, "__builtin_strrchr") \
+  V(__BUILTIN_STRSTR, "__builtin_strstr")   \
+  V(__BUILTIN_VA_COPY, "__builtin_va_copy") \
+  V(__BUILTIN_VA_END, "__builtin_va_end")   \
+  V(__BUILTIN_VA_START, "__builtin_va_start")
+
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
   V(__ALIGNOF__, ALIGNOF)          \
@@ -351,6 +367,11 @@ enum class UnaryBuiltinTypeKind {
 enum class BinaryBuiltinTypeKind {
   T_NONE,
   FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(TOKEN_ENUM)
+};
+
+enum class BuiltinFunctionKind {
+  T_NONE,
+  FOR_EACH_BUILTIN_FUNCTION(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM

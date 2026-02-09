@@ -551,6 +551,20 @@ def Cxx_SwitchOp : Cxx_Op<"switch", [ AttrSizedOperandSegments, Terminator ]> {
 }
 
 //
+// builtin ops
+//
+
+def Cxx_BuiltinCallOp : Cxx_Op<"builtin_call"> {
+  let arguments = (ins
+      StringProp:$builtin_name
+    , Variadic<AnyType>:$inputs
+  );
+
+  let results = (outs Optional<AnyType>:$result);
+  let assemblyFormat = "$builtin_name `(` $inputs `)` attr-dict `:` functional-type($inputs, results)";
+}
+
+//
 // todo ops
 //
 

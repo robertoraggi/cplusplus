@@ -914,6 +914,86 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
 
   auto layout = classSymbol->layout();
 
+  // Check if this is a copy or move constructor
+  bool isCopyCtor = (functionSymbol == classSymbol->copyConstructor());
+  bool isMoveCtor = (functionSymbol == classSymbol->moveConstructor());
+
+  if (isCopyCtor || isMoveCtor) {
+    auto otherPtr = gen.entryBlock_->getArgument(1);
+
+    for (auto base : classSymbol->baseClasses()) {
+      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClassSymbol) continue;
+
+      FunctionSymbol* ctor = isCopyCtor ? baseClassSymbol->copyConstructor()
+                                        : baseClassSymbol->moveConstructor();
+      if (!ctor) continue;
+
+      int index = 0;
+      if (layout) {
+        if (auto bi = layout->getBaseInfo(baseClassSymbol)) {
+          index = bi->index;
+        }
+      }
+
+      auto basePtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+          gen.convertType(baseClassSymbol->type()));
+
+      auto thisBasePtr = mlir::cxx::MemberOp::create(
+          gen.builder_, loc, basePtrType, thisPtr, index);
+      auto otherBasePtr = mlir::cxx::MemberOp::create(
+          gen.builder_, loc, basePtrType, otherPtr, index);
+
+      gen.emitCall(ast->firstSourceLocation(), ctor, {thisBasePtr},
+                   {{otherBasePtr}});
+    }
+
+    for (auto member : views::members(classSymbol)) {
+      auto field = symbol_cast<FieldSymbol>(member);
+      if (!field || field->isStatic()) continue;
+
+      int index = 0;
+      if (layout) {
+        if (auto fi = layout->getFieldInfo(field)) {
+          index = fi->index;
+        }
+      }
+
+      auto fieldType = field->type();
+      auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
+          gen.convertType(fieldType));
+
+      auto thisFieldPtr = mlir::cxx::MemberOp::create(
+          gen.builder_, loc, memberPtrType, thisPtr, index);
+      auto otherFieldPtr = mlir::cxx::MemberOp::create(
+          gen.builder_, loc, memberPtrType, otherPtr, index);
+
+      auto unqualFieldType = gen.control()->remove_cv(fieldType);
+      auto fieldClassType = type_cast<ClassType>(unqualFieldType);
+
+      if (fieldClassType && fieldClassType->symbol()) {
+        // For class type fields, call their copy/move constructor
+        auto fieldClassSymbol = fieldClassType->symbol();
+        FunctionSymbol* ctor = isCopyCtor ? fieldClassSymbol->copyConstructor()
+                                          : fieldClassSymbol->moveConstructor();
+        if (ctor) {
+          gen.emitCall(ast->firstSourceLocation(), ctor, {thisFieldPtr},
+                       {{otherFieldPtr}});
+        }
+      } else {
+        auto mlirFieldType = gen.convertType(fieldType);
+        auto value = mlir::cxx::LoadOp::create(gen.builder_, loc, mlirFieldType,
+                                               otherFieldPtr,
+                                               gen.getAlignment(fieldType));
+        mlir::cxx::StoreOp::create(gen.builder_, loc, value, thisFieldPtr,
+                                   gen.getAlignment(fieldType));
+      }
+    }
+
+    gen.emitCtorVtableInit(functionSymbol, loc);
+    return {};
+  }
+
   for (auto base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;

@@ -351,7 +351,7 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
   copy->condition = rewrite.expression(ast->condition);
-  typeChecker().check_integral_condition(ast->condition);
+  typeChecker().check_integral_condition(copy->condition);
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
 
@@ -401,6 +401,7 @@ auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
   copy->whileLoc = ast->whileLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->expression = rewrite.expression(ast->expression);
+  typeChecker().check_bool_condition(copy->expression);
   copy->rparenLoc = ast->rparenLoc;
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -457,7 +458,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
   copy->condition = rewrite.expression(ast->condition);
-  typeChecker().check_bool_condition(ast->condition);
+  typeChecker().check_bool_condition(copy->condition);
   copy->semicolonLoc = ast->semicolonLoc;
   copy->expression = rewrite.expression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;

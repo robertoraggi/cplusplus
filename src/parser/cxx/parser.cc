@@ -4428,6 +4428,9 @@ auto Parser::parse_simple_declaration(
     auto functionSymbol = binder_.declareFunction(declarator, decl);
 
     functionSymbol->setDefined(true);
+
+    if (classDepth_) functionSymbol->setInline(true);
+
     if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
       canon->setDefinition(functionSymbol);
     }
@@ -4598,6 +4601,9 @@ auto Parser::parse_notypespec_function_definition(
   // function definition
 
   functionSymbol->setDefined(true);
+
+  if (classDepth_) functionSymbol->setInline(true);
+
   if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
     canon->setDefinition(functionSymbol);
   }
@@ -8374,6 +8380,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     }
 
     functionSymbol->setDefined(true);
+
+    if (classDepth_) functionSymbol->setInline(true);
 
     if (ast_cast<DefaultFunctionBodyAST>(functionBody))
       functionSymbol->setDefaulted(true);

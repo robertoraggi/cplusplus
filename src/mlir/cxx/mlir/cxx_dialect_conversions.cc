@@ -218,8 +218,22 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       value = rewriter.getZeroAttr(elementType);
     }
 
-    auto globalOp = rewriter.replaceOpWithNewOp<LLVM::GlobalOp>(
-        op, elementType, op.getConstant(), linkage, op.getSymName(), value);
+    bool needsZeroPtrInit = isa_and_nonnull<UnitAttr>(value) &&
+                            isa<LLVM::LLVMPointerType>(elementType);
+
+    auto globalOp = LLVM::GlobalOp::create(
+        rewriter, op.getLoc(), elementType, op.getConstant(), linkage,
+        op.getSymName(), needsZeroPtrInit ? Attribute{} : value);
+
+    if (needsZeroPtrInit) {
+      auto& region = globalOp.getInitializerRegion();
+      auto* block = rewriter.createBlock(&region);
+      rewriter.setInsertionPointToStart(block);
+      auto zero = LLVM::ZeroOp::create(rewriter, op.getLoc(), elementType);
+      LLVM::ReturnOp::create(rewriter, op.getLoc(), zero.getResult());
+    }
+
+    rewriter.eraseOp(op);
 
     if (needsComdat_ && linkageNeedsComdat(linkage)) {
       auto module = globalOp->getParentOfType<ModuleOp>();
@@ -360,6 +374,102 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
     }
 
     rewriter.replaceOp(op, llvmCallOp);
+    return success();
+  }
+};
+
+class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto loc = op.getLoc();
+    auto name = op.getBuiltinName();
+
+    if (name == "__builtin_va_start") {
+      if (adaptor.getInputs().size() < 1) {
+        return rewriter.notifyMatchFailure(
+            op, "va_start expects at least 1 argument");
+      }
+      LLVM::VaStartOp::create(rewriter, loc, adaptor.getInputs()[0]);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    if (name == "__builtin_va_end") {
+      if (adaptor.getInputs().size() != 1) {
+        return rewriter.notifyMatchFailure(op, "va_end expects 1 argument");
+      }
+      LLVM::VaEndOp::create(rewriter, loc, adaptor.getInputs()[0]);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    if (name == "__builtin_va_copy") {
+      if (adaptor.getInputs().size() != 2) {
+        return rewriter.notifyMatchFailure(op, "va_copy expects 2 arguments");
+      }
+      LLVM::VaCopyOp::create(rewriter, loc, adaptor.getInputs()[0],
+                             adaptor.getInputs()[1]);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    if (name == "__builtin_va_arg") {
+      if (adaptor.getInputs().size() != 1) {
+        return rewriter.notifyMatchFailure(op, "va_arg expects 1 argument");
+      }
+      SmallVector<Type> resultTypes;
+      if (failed(
+              typeConverter->convertTypes(op.getResultTypes(), resultTypes))) {
+        return rewriter.notifyMatchFailure(
+            op, "failed to convert va_arg result type");
+      }
+      if (resultTypes.empty()) {
+        return rewriter.notifyMatchFailure(op, "va_arg must have a result");
+      }
+      auto vaArgOp = LLVM::VaArgOp::create(rewriter, loc, resultTypes.front(),
+                                           adaptor.getInputs()[0]);
+      rewriter.replaceOp(op, vaArgOp);
+      return success();
+    }
+
+    llvm::StringRef funcName = name;
+    if (funcName.starts_with("__builtin_")) {
+      funcName = funcName.drop_front(std::strlen("__builtin_"));
+    }
+
+    SmallVector<Type> resultTypes;
+    if (failed(typeConverter->convertTypes(op.getResultTypes(), resultTypes))) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert builtin call result types");
+    }
+
+    SmallVector<Type> argTypes;
+    for (auto arg : adaptor.getInputs()) {
+      argTypes.push_back(arg.getType());
+    }
+
+    auto module = op->getParentOfType<ModuleOp>();
+    auto funcOp = module.lookupSymbol<LLVM::LLVMFuncOp>(funcName);
+    if (!funcOp) {
+      auto funcType = LLVM::LLVMFunctionType::get(
+          rewriter.getContext(),
+          resultTypes.empty() ? rewriter.getType<LLVM::LLVMVoidType>()
+                              : resultTypes.front(),
+          argTypes, /*isVarArg=*/false);
+
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(module.getBody());
+      funcOp = LLVM::LLVMFuncOp::create(rewriter, loc, funcName, funcType);
+    }
+
+    auto callOp = LLVM::CallOp::create(rewriter, loc, resultTypes, funcName,
+                                       adaptor.getInputs());
+    rewriter.replaceOp(op, callOp);
     return success();
   }
 };
@@ -2065,8 +2175,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   patterns.insert<FuncOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<GlobalOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<VTableOpLowering>(typeConverter, needsComdat, context);
-  patterns.insert<ReturnOpLowering, CallOpLowering, AddressOfOpLowering>(
-      typeConverter, context);
+  patterns.insert<ReturnOpLowering, CallOpLowering, BuiltinCallOpLowering,
+                  AddressOfOpLowering>(typeConverter, context);
 
   // memory operations
   DataLayout dataLayout{module};

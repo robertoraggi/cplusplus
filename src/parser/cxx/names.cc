@@ -174,6 +174,16 @@ auto Identifier::builtinTypeTrait() const -> BuiltinTypeTraitKind {
   return static_cast<const TypeTraitIdentifierInfo*>(info_)->trait();
 }
 
+auto Identifier::builtinFunction() const -> BuiltinFunctionKind {
+  if (!info_) return BuiltinFunctionKind::T_NONE;
+
+  if (info_->kind() != IdentifierInfoKind::kBuiltinFunction)
+    return BuiltinFunctionKind::T_NONE;
+
+  return static_cast<const BuiltinFunctionIdentifierInfo*>(info_)
+      ->builtinKind();
+}
+
 auto TemplateId::hash(const Name* name,
                       const std::vector<TemplateArgument>& args)
     -> std::size_t {

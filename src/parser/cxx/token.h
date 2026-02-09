@@ -97,6 +97,8 @@ class Token {
   [[nodiscard]] auto isBuiltinTypeTrait() const -> bool;
   [[nodiscard]] auto builtinTypeTrait() const -> BuiltinTypeTraitKind;
 
+  [[nodiscard]] auto builtinFunction() const -> BuiltinFunctionKind;
+
   [[nodiscard]] auto raw() const -> std::uint64_t { return raw_; }
 
  private:

@@ -85,6 +85,10 @@ class Preprocessor {
 
   void endPreprocessing(std::vector<Token>& outputTokens);
 
+  [[nodiscard]] auto builtinsFileId() const -> int;
+
+  [[nodiscard]] auto mainSourceFileId() const -> int;
+
   [[nodiscard]] auto continuePreprocessing(std::vector<Token>& outputTokens)
       -> PreprocessingState;
 

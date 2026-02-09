@@ -155,6 +155,7 @@ struct Control::Private {
 
   std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
   std::forward_list<UnaryBuiltinTypeInfo> unaryBuiltinTypeInfos;
+  std::forward_list<BuiltinFunctionIdentifierInfo> builtinFunctionInfos;
 
   int anonymousIdCount = 0;
 
@@ -178,10 +179,21 @@ struct Control::Private {
     FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(PROCESS_UNARY_BUILTIN)
 #undef PROCESS_UNARY_BUILTIN
   }
+
+  void initBuiltinFunctions() {
+#define PROCESS_BUILTIN_FUNCTION(id, name) \
+  getIdentifier(name)->setInfo(            \
+      &builtinFunctionInfos.emplace_front(BuiltinFunctionKind::T_##id));
+
+    FOR_EACH_BUILTIN_FUNCTION(PROCESS_BUILTIN_FUNCTION)
+
+#undef PROCESS_BUILTIN_FUNCTION
+  }
 };
 
 Control::Control() : d(std::make_unique<Private>(this)) {
   d->initBuiltinTypeTraits();
+  d->initBuiltinFunctions();
 }
 
 Control::~Control() = default;

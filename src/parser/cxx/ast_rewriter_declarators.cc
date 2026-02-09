@@ -28,6 +28,7 @@
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 
 #include <format>
 
@@ -280,11 +281,9 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   copy->initializer = expression(ast->initializer);
 
   if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
-    if (variableSymbol->isConstexpr()) {
-      auto interp = ASTInterpreter{unit_};
-      auto constValue = interp.evaluate(copy->initializer);
-      variableSymbol->setConstValue(constValue);
-    }
+    auto typeChecker = TypeChecker{unit_};
+    typeChecker.setScope(binder_.scope());
+    typeChecker.check_init_declarator(copy);
   }
 
   return copy;

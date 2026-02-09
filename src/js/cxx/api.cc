@@ -236,6 +236,7 @@ auto getTokenLocation(std::intptr_t handle, std::intptr_t unitHandle) -> val {
 
   val result = val::object();
 
+  result.set("fileName", std::string(start.fileName));
   result.set("startLine", start.line);
   result.set("startColumn", start.column);
   result.set("endLine", end.line);

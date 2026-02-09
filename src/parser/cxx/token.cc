@@ -107,4 +107,11 @@ auto Token::isBuiltinTypeTrait() const -> bool {
   return builtinTypeTrait() != BuiltinTypeTraitKind::T_NONE;
 }
 
+auto Token::builtinFunction() const -> BuiltinFunctionKind {
+  if (!is(TokenKind::T_IDENTIFIER)) return BuiltinFunctionKind::T_NONE;
+  auto id = value_.idValue;
+  if (!id) return BuiltinFunctionKind::T_NONE;
+  return id->builtinFunction();
+}
+
 }  // namespace cxx

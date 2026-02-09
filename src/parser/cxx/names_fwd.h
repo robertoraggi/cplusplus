@@ -56,10 +56,12 @@ using TemplateArgument =
 enum class IdentifierInfoKind {
   kTypeTrait,
   kUnaryBuiltinType,
+  kBuiltinFunction,
 };
 
 class IdentifierInfo;
 class TypeTraitIdentifierInfo;
+class BuiltinFunctionIdentifierInfo;
 
 auto to_string(const Name* name) -> std::string;
 

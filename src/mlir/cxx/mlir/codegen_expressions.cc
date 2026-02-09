@@ -179,6 +179,9 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
       -> ExpressionResult;
   auto emitUserDefinedConversion(ImplicitCastExpressionAST* ast)
       -> ExpressionResult;
+
+  auto emitBuiltinCall(CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
+      -> ExpressionResult;
 };
 
 struct Codegen::NewInitializerVisitor {
@@ -656,15 +659,22 @@ auto Codegen::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->vaArgLoc);
 
-#if false
   auto expressionResult = gen.expression(ast->expression);
-  auto typeIdResult = gen.typeId(ast->typeId);
-#endif
 
-  return {op};
+  mlir::SmallVector<mlir::Value> arguments;
+  arguments.push_back(expressionResult.value);
+
+  mlir::SmallVector<mlir::Type> resultTypes;
+  if (ast->type && !control()->is_void(ast->type)) {
+    resultTypes.push_back(gen.convertType(ast->type));
+  }
+
+  auto op = mlir::cxx::BuiltinCallOp::create(gen.builder_, loc, resultTypes,
+                                             "__builtin_va_arg", arguments);
+
+  return {op.getResult()};
 }
 
 auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
@@ -703,12 +713,60 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   return {op};
 }
 
+static auto builtinFunctionName(BuiltinFunctionKind kind) -> llvm::StringRef {
+  switch (kind) {
+#define BUILTIN_FUNCTION_NAME(tk, str) \
+  case BuiltinFunctionKind::T_##tk:    \
+    return str;
+    FOR_EACH_BUILTIN_FUNCTION(BUILTIN_FUNCTION_NAME)
+#undef BUILTIN_FUNCTION_NAME
+    default:
+      return "";
+  }
+}
+
+auto Codegen::ExpressionVisitor::emitBuiltinCall(
+    CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->lparenLoc);
+  auto name = builtinFunctionName(builtinKind);
+
+  mlir::SmallVector<mlir::Value> arguments;
+  for (auto node : ListView{ast->expressionList}) {
+    auto value = gen.expression(node);
+    arguments.push_back(value.value);
+  }
+
+  // determine result type
+  mlir::SmallVector<mlir::Type> resultTypes;
+  if (ast->type && !control()->is_void(ast->type)) {
+    resultTypes.push_back(gen.convertType(ast->type));
+  }
+
+  auto op = mlir::cxx::BuiltinCallOp::create(gen.builder_, loc, resultTypes,
+                                             name, arguments);
+
+  return {op.getResult()};
+}
+
 auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
   // strip nested expressions
   auto func = ast->baseExpression;
   while (auto nested = ast_cast<NestedExpressionAST>(func)) {
     func = nested->expression;
+  }
+
+  // check for builtin function calls
+  if (auto id = ast_cast<IdExpressionAST>(func)) {
+    if (auto nameId = ast_cast<NameIdAST>(id->unqualifiedId)) {
+      if (nameId->identifier) {
+        auto builtinKind = nameId->identifier->builtinFunction();
+        if (builtinKind != BuiltinFunctionKind::T_NONE) {
+          return emitBuiltinCall(ast, builtinKind);
+        }
+      }
+    }
   }
 
   // check for direct calls
@@ -2686,7 +2744,7 @@ auto Codegen::ExpressionVisitor::operator()(
 
   auto rightExpressionResult = gen.expression(ast->rightExpression);
 
-  auto resultType = gen.convertType(ast->type);
+  auto resultType = leftExpressionResult.value.getType();
 
   TokenKind binaryOp = TokenKind::T_EOF_SYMBOL;
 
@@ -3214,17 +3272,8 @@ auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
     args.push_back(thisValue.value);
   }
 
-  auto& paramTypes = functionType->parameterTypes();
   for (size_t i = 0; i < arguments.size(); ++i) {
-    auto val = arguments[i].value;
-    if (i < paramTypes.size()) {
-      auto expectedType = convertType(paramTypes[i]);
-      if (val.getType() != expectedType) {
-        val = mlir::cxx::LoadOp::create(builder_, mlirLoc, expectedType, val,
-                                        getAlignment(paramTypes[i]));
-      }
-    }
-    args.push_back(val);
+    args.push_back(arguments[i].value);
   }
 
   mlir::SmallVector<mlir::Type> resultTypes;

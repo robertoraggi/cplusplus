@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 export interface SourceLocation {
+  fileName: string;
   startLine: number;
   startColumn: number;
   endLine: number;
