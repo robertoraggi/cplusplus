@@ -51,6 +51,23 @@
 
 namespace {
 
+// todo: generate and embed
+static constexpr const char* builtinsSource = R"(
+int __builtin_abs(int);
+__UINT32_TYPE__ __builtin_bswap32(__UINT32_TYPE__);
+__UINT64_TYPE__ __builtin_bswap64(__UINT64_TYPE__);
+double __builtin_fabs(double);
+float __builtin_fabsf(float);
+long double __builtin_fabsl(long double);
+long __builtin_labs(long);
+long long __builtin_llabs(long long);
+void* __builtin_memchr(const void*, int, __SIZE_TYPE__);
+char* __builtin_strchr(const char*, int);
+char* __builtin_strpbrk(const char*, const char*);
+char* __builtin_strrchr(const char*, int);
+char* __builtin_strstr(const char*, const char*);
+)";
+
 std::unordered_set<std::string_view> enabledBuiltins{
     "__is_trivially_destructible",
     "__builtin_is_constant_evaluated",
@@ -105,6 +122,11 @@ std::unordered_set<std::string_view> enabledBuiltins{
     "__remove_reference_t",
     "__type_pack_element",
 // "__integer_pack",
+
+// builtin functions
+#define VISIT_BUILTIN_FUNCTION(_, name) #name,
+    FOR_EACH_BUILTIN_FUNCTION(VISIT_BUILTIN_FUNCTION)
+#undef VISIT_BUILTIN_FUNCTION
 
 #if false
       "__add_lvalue_reference", "__add_pointer", "__add_rvalue_reference",
@@ -706,6 +728,8 @@ struct Preprocessor::Private {
 
   int counter_ = 0;
   int includeDepth_ = 0;
+  int builtinsFileId_ = 0;
+  int mainSourceFileId_ = 0;
   bool omitLineMarkers_ = false;
   Arena pool_;
 
@@ -3002,6 +3026,8 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
 
   auto sourceFile = d->createSourceFile(std::move(fileName), std::move(source));
 
+  d->mainSourceFileId_ = sourceFile->id;
+
   auto dirpath = fs::path(sourceFile->fileName);
   dirpath.remove_filename();
 
@@ -3011,6 +3037,20 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
       .ts = sourceFile->tokens,
       .includeDepth = d->includeDepth_,
   });
+
+  {
+    auto builtinsSourceFile =
+        d->createSourceFile("<builtins>", std::string(builtinsSource));
+
+    d->builtinsFileId_ = builtinsSourceFile->id;
+
+    d->buffers_.push_back(Private::Buffer{
+        .source = builtinsSourceFile,
+        .currentPath = fs::path{},
+        .ts = builtinsSourceFile->tokens,
+        .includeDepth = d->includeDepth_,
+    });
+  }
 
   if (!tokens.empty()) {
     assert(tokens.back().is(TokenKind::T_EOF_SYMBOL));
@@ -3034,14 +3074,14 @@ void Preprocessor::endPreprocessing(std::vector<Token>& tokens) {
 
   if (tokens.empty()) return;
 
-  // assume the main source file is the first one
-  const auto mainSourceFileId = 1;
+  const auto mainSourceFileId = d->mainSourceFileId_;
+  if (mainSourceFileId == 0) return;
 
   // place the EOF token at the end of the main source file
   const auto offset = d->sourceFiles_[mainSourceFileId - 1]->source.size();
 
   if (d->codeCompletionLocation_.has_value()) {
-    auto sourceFile = d->sourceFiles_[0].get();
+    auto sourceFile = d->sourceFiles_[mainSourceFileId - 1].get();
 
     auto& tk = tokens.emplace_back(TokenKind::T_CODE_COMPLETION, offset, 0);
     tk.setFileId(mainSourceFileId);
@@ -3051,6 +3091,12 @@ void Preprocessor::endPreprocessing(std::vector<Token>& tokens) {
 
   auto& tk = tokens.emplace_back(TokenKind::T_EOF_SYMBOL, offset);
   tk.setFileId(mainSourceFileId);
+}
+
+auto Preprocessor::builtinsFileId() const -> int { return d->builtinsFileId_; }
+
+auto Preprocessor::mainSourceFileId() const -> int {
+  return d->mainSourceFileId_;
 }
 
 auto Preprocessor::continuePreprocessing(std::vector<Token>& tokens)
@@ -3078,6 +3124,9 @@ void Preprocessor::getPreprocessedText(const std::vector<Token>& tokens,
 
   while (index + 1 < tokens.size()) {
     const auto& token = tokens[index++];
+
+    // skip tokens from the builtins prelude
+    if (d->builtinsFileId_ && token.fileId() == d->builtinsFileId_) continue;
 
     if (const auto fileId = token.fileId();
         !d->omitLineMarkers_ && fileId && fileId != lastFileId) {

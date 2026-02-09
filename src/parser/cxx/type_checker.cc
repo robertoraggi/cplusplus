@@ -2464,6 +2464,9 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
                             ast->iffalseExpression->type))
       return false;
 
+    (void)ensure_prvalue(ast->iftrueExpression);
+    (void)ensure_prvalue(ast->iffalseExpression);
+
     ast->type = ast->iftrueExpression->type;
     ast->valueCategory = ValueCategory::kPrValue;
     return true;
@@ -2473,6 +2476,9 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
     if (!control()->is_pointer(ast->iftrueExpression->type) &&
         !control()->is_pointer(ast->iffalseExpression->type))
       return false;
+
+    (void)ensure_prvalue(ast->iftrueExpression);
+    (void)ensure_prvalue(ast->iffalseExpression);
 
     ast->type =
         composite_pointer_type(ast->iftrueExpression, ast->iffalseExpression);
@@ -3870,8 +3876,18 @@ void TypeChecker::check_initialization(VariableSymbol* var,
 
     var->setConstructor(bestPtr->symbol);
 
-    for (size_t i = 0; i < args.size(); ++i) {
-      applyImplicitConversion(bestPtr->conversions[i], args[i]);
+    if (ast->initializer) {
+      if (auto paren = ast_cast<ParenInitializerAST>(ast->initializer)) {
+        size_t i = 0;
+        for (auto it = paren->expressionList; it; it = it->next, ++i)
+          applyImplicitConversion(bestPtr->conversions[i], it->value);
+      } else if (auto braced = ast_cast<BracedInitListAST>(ast->initializer)) {
+        size_t i = 0;
+        for (auto it = braced->expressionList; it; it = it->next, ++i)
+          applyImplicitConversion(bestPtr->conversions[i], it->value);
+      } else if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
+        applyImplicitConversion(bestPtr->conversions[0], equal->expression);
+      }
     }
     return;
   }
@@ -5004,8 +5020,7 @@ void TypeChecker::applyImplicitConversion(
       }
       case ImplicitConversionKind::kQualificationConversion: {
         auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind =
-            ImplicitCastKind::kLValueToRValueConversion;  // Fallback
+        cast->castKind = ImplicitCastKind::kQualificationConversion;
         cast->expression = expr;
         cast->type = step.type;
         cast->valueCategory = ValueCategory::kPrValue;

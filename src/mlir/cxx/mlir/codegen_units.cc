@@ -25,6 +25,7 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/views/symbols.h>
@@ -69,75 +70,21 @@ struct Codegen::UnitVisitor {
   auto operator()(TranslationUnitAST* ast) -> UnitResult;
   auto operator()(ModuleUnitAST* ast) -> UnitResult;
 
-  struct VisitSymbols {
-    UnitVisitor& p;
+  void visitGlobals(ScopeSymbol* scope) {
+    auto ns = symbol_cast<NamespaceSymbol>(scope);
+    if (!ns) return;
 
-    void operator()(NamespaceSymbol* symbol) {
-      for (auto member : views::members(symbol)) {
-        if (auto var = symbol_cast<VariableSymbol>(member)) {
-          p.gen.findOrCreateGlobal(var);
-          continue;
-        }
+    for (auto member : views::members(ns)) {
+      if (auto var = symbol_cast<VariableSymbol>(member)) {
+        gen.findOrCreateGlobal(var);
+        continue;
+      }
 
-        visit(*this, member);
+      if (auto nestedNs = symbol_cast<NamespaceSymbol>(member)) {
+        visitGlobals(nestedNs);
       }
     }
-
-    void operator()(OverloadSetSymbol* symbol) {
-      for (auto member : symbol->functions()) {
-        if (member->canonical() != member) continue;
-        visit(*this, member);
-      }
-    }
-
-    void operator()(FunctionSymbol* symbol) {
-      if (symbol->templateDeclaration()) {
-        for (auto specialization : symbol->specializations()) {
-          visit(*this, specialization.symbol);
-        }
-        return;
-      }
-
-      if (!symbol->name()) return;
-
-      auto target = symbol;
-      if (auto def = symbol->definition()) {
-        target = def;
-      }
-
-      if (auto funcDecl = target->declaration()) {
-        p.gen.declaration(funcDecl);
-      }
-    }
-
-    void operator()(ClassSymbol* symbol) {
-      if (symbol->templateDeclaration()) {
-        for (auto specialization : symbol->specializations()) {
-          visit(*this, specialization.symbol);
-        }
-        return;
-      }
-
-      for (auto specialization : symbol->specializations()) {
-        visit(*this, specialization.symbol);
-      }
-
-      for (auto ctor : symbol->constructors()) {
-        if (ctor->canonical() != ctor) continue;
-        visit(*this, ctor);
-      }
-
-      for (auto member : views::members(symbol)) {
-        visit(*this, member);
-      }
-
-      p.gen.generateVTable(symbol);
-    }
-
-    void operator()(Symbol*) {
-      // Do nothing for other symbols.
-    }
-  } visitor{*this};
+  }
 };
 
 auto Codegen::operator()(UnitAST* ast) -> UnitResult {
@@ -197,20 +144,25 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
-  visit(visitor, gen.unit_->globalScope());
+  visitGlobals(gen.unit_->globalScope());
 
-#if false
+  auto mainFileId = gen.unit_->preprocessor()->mainSourceFileId();
+
   ForEachExternalDefinition forEachExternalDefinition;
 
   forEachExternalDefinition.functionCallback =
       [&](FunctionDefinitionAST* function) {
-        auto functionResult = gen.declaration(function);
+        auto loc = function->firstSourceLocation();
+        if (loc && gen.unit_->tokenAt(loc).fileId() == mainFileId) {
+          gen.declaration(function);
+        }
       };
 
   for (auto node : ListView{ast->declarationList}) {
     forEachExternalDefinition.accept(node);
   }
-#endif
+
+  gen.processPendingFunctions();
 
   std::swap(gen.module_, module);
 

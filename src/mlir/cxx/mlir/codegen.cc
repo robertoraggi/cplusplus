@@ -332,7 +332,38 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   funcOps_.insert_or_assign(canonicalSymbol, func);
 
+  enqueueFunctionBody(canonicalSymbol);
+
   return func;
+}
+
+void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
+  auto target = symbol->canonical();
+  if (auto def = target->definition()) target = def;
+  if (!target->declaration()) return;
+  if (!enqueuedFunctions_.insert(target).second) return;
+  pendingFunctions_.push_back(target);
+}
+
+void Codegen::processPendingFunctions() {
+  while (!pendingFunctions_.empty()) {
+    auto* sym = pendingFunctions_.back();
+    pendingFunctions_.pop_back();
+
+    auto target = sym;
+    if (auto def = sym->definition()) target = def;
+
+    if (auto funcDecl = target->declaration()) {
+      declaration(funcDecl);
+    }
+
+    if (sym->parent() && sym->parent()->isClass()) {
+      auto classSymbol = symbol_cast<ClassSymbol>(sym->parent());
+      if (classSymbol) {
+        generateVTable(classSymbol);
+      }
+    }
+  }
 }
 
 auto Codegen::findOrCreateGlobal(Symbol* symbol)
@@ -451,7 +482,14 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     }
   }
 
-  if (!initializer && !variableSymbol->isExtern()) {
+  auto isExternalOnly = variableSymbol->isExtern();
+  if (isExternalOnly) {
+    if (auto canon = variableSymbol->canonical()) {
+      if (canon->definition()) isExternalOnly = false;
+    }
+  }
+
+  if (!initializer && !isExternalOnly) {
     if (control()->is_integral_or_unscoped_enum(variableSymbol->type())) {
       initializer = builder_.getI64IntegerAttr(0);
     } else if (control()->is_floating_point(variableSymbol->type())) {
@@ -479,6 +517,8 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
           initializer = builder_.getArrayAttr(zeroElements);
         }
       }
+    } else if (control()->is_pointer(variableSymbol->type())) {
+      initializer = builder_.getUnitAttr();
     } else {
       initializer = builder_.getZeroAttr(varType);
     }

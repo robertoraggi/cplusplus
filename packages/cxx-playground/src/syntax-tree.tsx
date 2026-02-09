@@ -27,6 +27,7 @@ import clsx from "clsx";
 
 interface SyntaxTreeProps {
   parser: Parser | null;
+  mainFileName: string;
   cursorPosition?: { line: number; column: number };
   onNodeSelected?: (node: AST) => void;
 }
@@ -40,6 +41,7 @@ interface SyntaxTreeNode {
 
 export function SyntaxTree({
   parser,
+  mainFileName,
   cursorPosition,
   onNodeSelected,
 }: SyntaxTreeProps) {
@@ -64,6 +66,12 @@ export function SyntaxTree({
 
         for (const { node, slot, depth: level } of visitor) {
           if (!(node instanceof AST)) continue;
+
+          const fileName = node.getStartLocation()?.fileName;
+
+          if (fileName != mainFileName) {
+            continue;
+          }
 
           ++count;
 
@@ -103,12 +111,12 @@ export function SyntaxTree({
 
     if (ast && cursorPosition) {
       const { line, column } = cursorPosition;
-      const node = ast ? findNodeAt(ast, line, column + 1) : null;
+      const node = ast ? findNodeAt(ast, line, column + 1, mainFileName) : null;
       const selectedNodeHandle = node?.getHandle() ?? 0;
       setSelectedNodeHandle(selectedNodeHandle);
 
       const index = nodes.findIndex(
-        (node) => node.handle === selectedNodeHandle
+        (node) => node.handle === selectedNodeHandle,
       );
 
       if (index != -1) {
@@ -175,7 +183,12 @@ function isWithin(node: AST, line: number, column: number): boolean {
   return true;
 }
 
-function findNodeAt(root: AST, line: number, column: number): AST | null {
+function findNodeAt(
+  root: AST,
+  line: number,
+  column: number,
+  mainFileName: string,
+): AST | null {
   if (!isWithin(root, line, column)) {
     return null;
   }
@@ -188,7 +201,13 @@ function findNodeAt(root: AST, line: number, column: number): AST | null {
     const childNode = cursor.node;
 
     if (childNode instanceof AST) {
-      const result = findNodeAt(childNode, line, column);
+      const fileName = childNode.getStartLocation()?.fileName;
+
+      if (fileName != mainFileName) {
+        continue;
+      }
+
+      const result = findNodeAt(childNode, line, column, mainFileName);
 
       if (result) {
         return result;
@@ -208,7 +227,7 @@ function hasAccessOp(node: any): node is AST & { getAccessOp(): TokenKind } {
 }
 
 function hasAccessSpecifier(
-  node: any
+  node: any,
 ): node is AST & { getAccessSpecifier(): TokenKind } {
   return (
     typeof node.getAccessSpecifier === "function" && node.getAccessSpecifier()

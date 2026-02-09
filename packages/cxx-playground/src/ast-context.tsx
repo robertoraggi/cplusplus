@@ -23,12 +23,12 @@ import { createContext } from "react";
 
 interface ASTContextProps {
   parser: Parser | null;
+  fileName: string;
 }
 
 const ASTContext = createContext<ASTContextProps>({
-  get parser(): Parser | null {
-    return null;
-  },
+  parser: null,
+  fileName: "",
 });
 
 export default ASTContext;

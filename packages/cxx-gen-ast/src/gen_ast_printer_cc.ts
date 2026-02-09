@@ -40,16 +40,30 @@ export function gen_ast_printer_cc({
 
   const astName = (name: string) => toKebapName(name.slice(0, -3)).slice(1);
 
-  const dumpMember = (member: Member) => {
+  const dumpMember = (member: Member, astName: string) => {
     const fieldName = toKebapName(member.name);
+
+    const isTranslationOrModuleUnit =
+      astName === "TranslationUnitAST" || astName === "ModuleUnitAST";
 
     if (member.kind === "node-list") {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
+      if (isTranslationOrModuleUnit) {
+        emit(
+          `    const auto builtinsFileId = unit_->preprocessor()->builtinsFileId();`,
+        );
+      }
       emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
       emit(`    out_ << std::format("{}\\n", "${fieldName}");`);
       emit(`    for (auto node: ListView{ast->${member.name}}) {`);
-      emit(`      accept(node);`);
+      if (isTranslationOrModuleUnit) {
+        emit(`        auto loc = firstSourceLocation(node);`);
+        emit(
+          `        if (unit_->tokenAt(loc).fileId() == builtinsFileId) continue;`,
+        );
+      }
+      emit(`        accept(node);`);
       emit(`    }`);
       emit(`    --indent_;`);
       emit(`  }`);
@@ -127,19 +141,19 @@ export function gen_ast_printer_cc({
 
       baseMembers
         ?.filter((m) => m.kind === "attribute")
-        ?.forEach((member) => dumpMember(member));
+        ?.forEach((member) => dumpMember(member, name));
 
       members
         .filter((m) => m.kind === "attribute")
-        .forEach((member) => dumpMember(member));
+        .forEach((member) => dumpMember(member, name));
 
       baseMembers
         ?.filter((m) => m.kind !== "attribute")
-        ?.forEach((member) => dumpMember(member));
+        ?.forEach((member) => dumpMember(member, name));
 
       members
         .filter((m) => m.kind !== "attribute")
-        .forEach((member) => dumpMember(member));
+        .forEach((member) => dumpMember(member, name));
       emit(`}`);
     });
   });
@@ -153,6 +167,7 @@ ${cpy_header}
 #include <cxx/translation_unit.h>
 #include <cxx/names.h>
 #include <cxx/literals.h>
+#include <cxx/preprocessor.h>
 #include <format>
 
 #include <algorithm>

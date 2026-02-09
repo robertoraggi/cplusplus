@@ -224,7 +224,7 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   copy->accessSpecifier = ast->accessSpecifier;
   copy->symbol = ast->symbol;
 
-  binder_.bind(ast);
+  binder_.bind(copy);
 
   return copy;
 }

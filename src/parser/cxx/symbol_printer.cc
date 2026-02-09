@@ -28,6 +28,7 @@
 #include <format>
 #include <iostream>
 #include <ranges>
+#include <unordered_set>
 
 namespace cxx {
 
@@ -47,6 +48,7 @@ struct GetEnumeratorValue {
 struct DumpSymbols {
   std::ostream& out;
   int depth = 0;
+  std::unordered_set<Symbol*> visited;
 
   auto dumpScope(ScopeSymbol* scope) {
     if (!scope) return;
@@ -60,6 +62,10 @@ struct DumpSymbols {
     std::ranges::for_each(sortedSymbols, [&](auto symbol) {
       // Skip non-canonical redeclarations
       if (symbol->canonical() != symbol) return;
+      // Skip builtin function declarations
+      if (auto id = name_cast<Identifier>(symbol->name())) {
+        if (id->value().starts_with("__builtin_")) return;
+      }
       visit(*this, symbol);
     });
 
@@ -74,7 +80,9 @@ struct DumpSymbols {
     out << std::format("[specializations]\n");
     ++depth;
     for (auto specialization : specializations) {
-      visit(*this, specialization.symbol);
+      if (visited.insert(specialization.symbol).second) {
+        visit(*this, specialization.symbol);
+      }
     }
     depth -= 2;
   }

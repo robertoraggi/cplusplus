@@ -27,7 +27,7 @@ import * as monaco from "monaco-editor";
 import ModelContext from "./editor-model-context";
 
 export default function AbstractSyntaxTree() {
-  const { parser } = useContext(ASTContext);
+  const { parser, fileName } = useContext(ASTContext);
   const { editor } = useContext(EditorContext);
   const { model } = useContext(ModelContext);
 
@@ -49,7 +49,7 @@ export default function AbstractSyntaxTree() {
           message: message,
           source: "C++",
         });
-      }
+      },
     );
 
     monaco.editor.setModelMarkers(model, "cxx", markers);
@@ -67,5 +67,11 @@ export default function AbstractSyntaxTree() {
     },
   });
 
-  return <SyntaxTree parser={parser} cursorPosition={cursorPosition} />;
+  return (
+    <SyntaxTree
+      parser={parser}
+      mainFileName={fileName}
+      cursorPosition={cursorPosition}
+    />
+  );
 }

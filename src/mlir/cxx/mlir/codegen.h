@@ -33,6 +33,7 @@
 #include <mlir/IR/BuiltinOps.h>
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace mlir::func {
 class FuncOp;
@@ -281,6 +282,9 @@ class Codegen {
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;
 
+  void enqueueFunctionBody(FunctionSymbol* symbol);
+  void processPendingFunctions();
+
   [[nodiscard]] auto findOrCreateGlobal(Symbol* symbol)
       -> std::optional<mlir::cxx::GlobalOp>;
 
@@ -379,6 +383,8 @@ class Codegen {
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
+  std::vector<FunctionSymbol*> pendingFunctions_;
+  std::unordered_set<FunctionSymbol*> enqueuedFunctions_;
   std::unordered_map<VariableSymbol*, mlir::cxx::GlobalOp> globalOps_;
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;

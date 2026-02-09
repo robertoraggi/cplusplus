@@ -25,7 +25,7 @@ struct WithDtor {
 // CHECK-NEXT:    field float y
 // CHECK-NEXT:    function defaulted void ~Pod()
 // CHECK-NEXT:  class WithCtor
-// CHECK-NEXT:    constructor void WithCtor()
+// CHECK-NEXT:    constructor inline void WithCtor()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[9]
 // CHECK-NEXT:    constructor defaulted void WithCtor(const ::WithCtor&)
@@ -36,7 +36,7 @@ struct WithDtor {
 // CHECK-NEXT:    constructor defaulted void WithDtor()
 // CHECK-NEXT:    constructor defaulted void WithDtor(const ::WithDtor&)
 // CHECK-NEXT:    constructor defaulted void WithDtor(::WithDtor&&)
-// CHECK-NEXT:    function void ~WithDtor()
+// CHECK-NEXT:    function inline void ~WithDtor()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[10]
 // CHECK-NEXT:    field int data

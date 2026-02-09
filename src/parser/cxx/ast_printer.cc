@@ -25,6 +25,7 @@
 #include <cxx/ast.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/preprocessor.h>
 #include <cxx/translation_unit.h>
 
 #include <algorithm>
@@ -62,9 +63,12 @@ void ASTPrinter::visit(TranslationUnitAST* ast) {
   out_ << std::format("{}\n", "translation-unit");
   if (ast->declarationList) {
     ++indent_;
+    const auto builtinsFileId = unit_->preprocessor()->builtinsFileId();
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
     for (auto node : ListView{ast->declarationList}) {
+      auto loc = firstSourceLocation(node);
+      if (unit_->tokenAt(loc).fileId() == builtinsFileId) continue;
       accept(node);
     }
     --indent_;
@@ -77,9 +81,12 @@ void ASTPrinter::visit(ModuleUnitAST* ast) {
   accept(ast->moduleDeclaration, "module-declaration");
   if (ast->declarationList) {
     ++indent_;
+    const auto builtinsFileId = unit_->preprocessor()->builtinsFileId();
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("{}\n", "declaration-list");
     for (auto node : ListView{ast->declarationList}) {
+      auto loc = firstSourceLocation(node);
+      if (unit_->tokenAt(loc).fileId() == builtinsFileId) continue;
       accept(node);
     }
     --indent_;

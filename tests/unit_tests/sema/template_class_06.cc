@@ -80,7 +80,7 @@ auto main() -> int {
 // CHECK-NEXT:    constructor defaulted void D()
 // CHECK-NEXT:    constructor defaulted void D(const ::D&)
 // CHECK-NEXT:    constructor defaulted void D(::D&&)
-// CHECK-NEXT:    function void f()
+// CHECK-NEXT:    function inline void f()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable ::A<void> t
@@ -88,7 +88,7 @@ auto main() -> int {
 // CHECK-NEXT:  template class D2<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    base class A
-// CHECK-NEXT:    function double f()
+// CHECK-NEXT:    function inline double f()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable double t

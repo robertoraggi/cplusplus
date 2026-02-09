@@ -34,12 +34,13 @@ export default function ASTProvider({
   children: ReactNode;
 }) {
   const [parser, setParser] = useState<Parser | null>(null);
+  const fileName = "main.cc";
 
   const onDidChangeContent = useCallback((model: monaco.editor.ITextModel) => {
     const source = model.getValue();
 
     let parser: Parser | null = new Parser({
-      path: "main.cc",
+      path: fileName,
       source,
     });
 
@@ -69,6 +70,8 @@ export default function ASTProvider({
   useDebouncedOnDidChangeContent({ model, onDidChangeContent, interval });
 
   return (
-    <ASTContext.Provider value={{ parser }}>{children}</ASTContext.Provider>
+    <ASTContext.Provider value={{ parser, fileName }}>
+      {children}
+    </ASTContext.Provider>
   );
 }
