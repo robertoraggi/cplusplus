@@ -1948,20 +1948,45 @@ class FloatToIntOpLowering : public OpConversionPattern<cxx::FloatToIntOp> {
 // control flow operations
 //
 
-class CondBranchOpLowering : public OpConversionPattern<cxx::CondBranchOp> {
+class ToCondOpLowering : public OpConversionPattern<cxx::ToCondOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
 
-  auto matchAndRewrite(cxx::CondBranchOp op, OpAdaptor adaptor,
+  auto matchAndRewrite(cxx::ToCondOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
     auto context = getContext();
 
-    rewriter.replaceOpWithNewOp<cf::CondBranchOp>(
-        op, adaptor.getCondition(), op.getTrueDest(),
-        adaptor.getTrueDestOperands(), op.getFalseDest(),
-        adaptor.getFalseDestOperands());
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert to condition type");
+    }
+
+    rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, resultType,
+                                               adaptor.getCondition());
+
+    return success();
+  }
+};
+
+class ToFlagOpLowering : public OpConversionPattern<cxx::ToFlagOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::ToFlagOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto context = getContext();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "failed to convert to flag type");
+    }
+
+    rewriter.replaceOp(op, adaptor.getCondition());
 
     return success();
   }
@@ -2009,24 +2034,6 @@ class LabelOpLowering : public OpConversionPattern<cxx::LabelOp> {
     auto context = getContext();
 
     rewriter.eraseOp(op);
-
-    return success();
-  }
-};
-
-class SwitchOpLowering : public OpConversionPattern<cxx::SwitchOp> {
- public:
-  using OpConversionPattern::OpConversionPattern;
-
-  auto matchAndRewrite(cxx::SwitchOp op, OpAdaptor adaptor,
-                       ConversionPatternRewriter& rewriter) const
-      -> LogicalResult override {
-    auto context = getContext();
-
-    rewriter.replaceOpWithNewOp<cf::SwitchOp>(
-        op, adaptor.getValue(), op.getDefaultDestination(),
-        adaptor.getDefaultOperands(), *adaptor.getCaseValues(),
-        op.getCaseDestinations(), adaptor.getCaseOperands());
 
     return success();
   }
@@ -2233,8 +2240,9 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                   FloatToIntOpLowering>(typeConverter, context);
 
   // control flow operations
-  patterns.insert<CondBranchOpLowering, LabelOpLowering, SwitchOpLowering>(
+  patterns.insert<ToCondOpLowering, ToFlagOpLowering, LabelOpLowering>(
       typeConverter, context);
+
   patterns.insert<GotoOpLowering>(typeConverter, labelConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,

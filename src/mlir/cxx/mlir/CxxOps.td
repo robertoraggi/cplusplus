@@ -503,6 +503,19 @@ def Cxx_XorOp : Cxx_Op<"xor"> {
 }
 
 //
+// Adaptor ops
+//
+def Cxx_ToCondOp : Cxx_Op<"to_cond"> {
+  let arguments = (ins Cxx_BoolType:$condition);
+  let results = (outs I1:$result);
+}
+
+def Cxx_ToFlagOp : Cxx_Op<"to_flag"> {
+  let arguments = (ins Cxx_IntegerType:$condition);
+  let results = (outs AnyInteger:$result);
+}
+
+//
 // control flow ops
 //
 
@@ -512,42 +525,6 @@ def Cxx_LabelOp : Cxx_Op<"label"> {
 
 def Cxx_GotoOp : Cxx_Op<"goto"> {
   let arguments = (ins StringProp:$label);
-}
-
-def Cxx_CondBranchOp : Cxx_Op<"cond_br", [ AttrSizedOperandSegments, Terminator ]> {
-  let arguments = (ins Cxx_BoolType:$condition, Variadic<AnyType>:$trueDestOperands, Variadic<AnyType>:$falseDestOperands);
-
-  let successors = (successor AnySuccessor:$trueDest, AnySuccessor:$falseDest);
-}
-
-def Cxx_SwitchOp : Cxx_Op<"switch", [ AttrSizedOperandSegments, Terminator ]> {
-  let arguments = (ins
-    Cxx_IntegerType:$value,
-    Variadic<AnyType>:$defaultOperands,
-    VariadicOfVariadic<AnyType, "case_operand_segments">:$caseOperands,
-    OptionalAttr<AnyIntElementsAttr>:$case_values,
-    DenseI32ArrayAttr:$case_operand_segments
-  );
-
-  let successors = (successor
-    AnySuccessor:$defaultDestination,
-    VariadicSuccessor<AnySuccessor>:$caseDestinations
-  );
-
-  let builders = [
-    OpBuilder<(ins "Value":$value,
-      "Block *":$defaultDestination,
-      "ValueRange":$defaultOperands,
-      CArg<"ArrayRef<std::int64_t>", "{}">:$caseValues,
-      CArg<"BlockRange", "{}">:$caseDestinations,
-      CArg<"ArrayRef<ValueRange>", "{}">:$caseOperands)>,
-    OpBuilder<(ins "Value":$value,
-      "Block *":$defaultDestination,
-      "ValueRange":$defaultOperands,
-      CArg<"DenseIntElementsAttr", "{}">:$caseValues,
-      CArg<"BlockRange", "{}">:$caseDestinations,
-      CArg<"ArrayRef<ValueRange>", "{}">:$caseOperands)>
-  ];
 }
 
 //

@@ -235,8 +235,11 @@ void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
                                         nullOp.getResult());
   }
 
-  mlir::cxx::CondBranchOp::create(builder_, loc, val, mlir::ValueRange{},
-                                  mlir::ValueRange{}, trueBlock, falseBlock);
+  auto cond =
+      mlir::cxx::ToCondOp::create(builder_, loc, builder_.getI1Type(), val);
+
+  mlir::cf::CondBranchOp::create(builder_, loc, cond.getResult(), trueBlock,
+                                 falseBlock);
 }
 
 auto Codegen::newInitializer(NewInitializerAST* ast) -> NewInitializerResult {

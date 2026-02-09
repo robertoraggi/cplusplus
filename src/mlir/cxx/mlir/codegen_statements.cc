@@ -30,6 +30,7 @@
 #include <cxx/types.h>
 
 // mlir
+#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 
 namespace cxx {
@@ -195,11 +196,37 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
     gen.switch_.defaultDestination = endSwitchBlock;
   }
 
-  mlir::cxx::SwitchOp::create(
+  auto elementTy =
+      mlir::TypeSwitch<mlir::Type, mlir::IntegerType>(
+          conditionResult.value.getType())
+          .Case<mlir::cxx::IntegerType>(
+              [&](mlir::cxx::IntegerType ty) -> mlir::IntegerType {
+                return gen.builder_.getIntegerType(ty.getWidth());
+              })
+          .Default([](mlir::Type ty) -> mlir::IntegerType { return {}; });
+
+  auto shapeType = mlir::VectorType::get(
+      static_cast<std::int64_t>(gen.switch_.caseValues.size()),
+      gen.builder_.getIntegerType(64));
+
+  auto caseValuesAttr = mlir::cast<mlir::DenseIntElementsAttr>(
+      mlir::DenseIntElementsAttr::get(shapeType, gen.switch_.caseValues)
+          .mapValues(elementTy, [&](mlir::APInt v) {
+            return mlir::APInt(elementTy.getIntOrFloatBitWidth(),
+                               v.getZExtValue(), false, true);
+          }));
+
+  auto flag = mlir::cxx::ToFlagOp::create(
+      gen.builder_, gen.getLocation(ast->firstSourceLocation()), elementTy,
+      conditionResult.value);
+
+  std::vector<mlir::ValueRange> caseOperands(
+      gen.switch_.caseDestinations.size(), mlir::ValueRange{});
+
+  mlir::cf::SwitchOp::create(
       gen.builder_, gen.getLocation(ast->firstSourceLocation()),
-      conditionResult.value, gen.switch_.defaultDestination, {},
-      gen.switch_.caseValues, gen.switch_.caseDestinations,
-      mlir::SmallVector<mlir::ValueRange>(gen.switch_.caseValues.size()));
+      flag, gen.switch_.defaultDestination, {}, caseValuesAttr,
+      gen.switch_.caseDestinations, caseOperands);
 
   std::swap(gen.switch_, previousSwitch);
   std::swap(gen.loop_, previousLoop);

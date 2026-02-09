@@ -163,47 +163,6 @@ auto StoreOp::verify() -> LogicalResult {
   return success();
 }
 
-void SwitchOp::build(OpBuilder& builder, OperationState& result, Value value,
-                     Block* defaultDestination, ValueRange defaultOperands,
-                     DenseIntElementsAttr caseValues,
-                     BlockRange caseDestinations,
-                     ArrayRef<ValueRange> caseOperands) {
-  build(builder, result, value, defaultOperands, caseOperands, caseValues,
-        defaultDestination, caseDestinations);
-}
-
-void SwitchOp::build(OpBuilder& builder, OperationState& result, Value value,
-                     Block* defaultDestination, ValueRange defaultOperands,
-                     ArrayRef<std::int64_t> caseValues,
-                     BlockRange caseDestinations,
-                     ArrayRef<ValueRange> caseOperands) {
-  DenseIntElementsAttr caseValuesAttr;
-
-  if (!caseValues.empty()) {
-    auto elementTy =
-        mlir::TypeSwitch<mlir::Type, mlir::IntegerType>(value.getType())
-            .Case<mlir::cxx::IntegerType>(
-                [&](mlir::cxx::IntegerType ty) -> mlir::IntegerType {
-                  return builder.getIntegerType(ty.getWidth());
-                })
-            .Default([](mlir::Type ty) -> mlir::IntegerType { return {}; });
-
-    auto shapeType =
-        VectorType::get(static_cast<std::int64_t>(caseValues.size()),
-                        builder.getIntegerType(64));
-
-    caseValuesAttr = mlir::cast<DenseIntElementsAttr>(
-        DenseIntElementsAttr::get(shapeType, caseValues)
-            .mapValues(elementTy, [&](APInt v) {
-              return APInt(elementTy.getIntOrFloatBitWidth(), v.getZExtValue(),
-                           false, true);
-            }));
-  }
-
-  build(builder, result, value, defaultDestination, defaultOperands,
-        caseValuesAttr, caseDestinations, caseOperands);
-}
-
 auto FunctionType::clone(TypeRange inputs, TypeRange results) const
     -> FunctionType {
   return get(getContext(), llvm::to_vector(inputs), llvm::to_vector(results),
