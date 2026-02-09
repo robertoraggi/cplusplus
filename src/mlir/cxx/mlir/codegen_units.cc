@@ -40,7 +40,9 @@
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/PatternMatch.h>
 #include <mlir/Target/LLVMIR/Import.h>
+#include <mlir/Transforms/RegionUtils.h>
 
 #include <filesystem>
 #include <format>
@@ -88,8 +90,18 @@ struct Codegen::UnitVisitor {
 };
 
 auto Codegen::operator()(UnitAST* ast) -> UnitResult {
-  if (ast) return visit(UnitVisitor{*this}, ast);
-  return {};
+  if (!ast) return {};
+  auto result = visit(UnitVisitor{*this}, ast);
+
+  // remove unreachable code
+  mlir::IRRewriter rewriter(result.module->getContext());
+  result.module.walk([&](mlir::cxx::FuncOp funcOp) {
+    for (auto& region : funcOp->getRegions()) {
+      eraseUnreachableBlocks(rewriter, region);
+    }
+  });
+
+  return result;
 }
 
 auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {

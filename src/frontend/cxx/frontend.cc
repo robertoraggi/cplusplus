@@ -554,7 +554,7 @@ void Frontend::Private::generateIR() {
   context_ = std::make_unique<mlir::MLIRContext>();
   context_->loadDialect<mlir::cxx::CxxDialect>();
 
-  auto codegen = cxx::Codegen{*context_, unit_.get()};
+  auto codegen = cxx::Codegen{*context_, unit_.get(), cli.opt_g};
 
   auto ir = codegen(unit_->ast());
   module_ = ir.module;

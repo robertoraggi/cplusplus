@@ -223,10 +223,10 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
   std::vector<mlir::ValueRange> caseOperands(
       gen.switch_.caseDestinations.size(), mlir::ValueRange{});
 
-  mlir::cf::SwitchOp::create(
-      gen.builder_, gen.getLocation(ast->firstSourceLocation()),
-      flag, gen.switch_.defaultDestination, {}, caseValuesAttr,
-      gen.switch_.caseDestinations, caseOperands);
+  mlir::cf::SwitchOp::create(gen.builder_,
+                             gen.getLocation(ast->firstSourceLocation()), flag,
+                             gen.switch_.defaultDestination, {}, caseValuesAttr,
+                             gen.switch_.caseDestinations, caseOperands);
 
   std::swap(gen.switch_, previousSwitch);
   std::swap(gen.loop_, previousLoop);

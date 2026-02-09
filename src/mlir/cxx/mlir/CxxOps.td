@@ -26,6 +26,7 @@ include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 
 def Cxx_Dialect : Dialect {
   let name = "cxx";
@@ -159,6 +160,8 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , OptionalAttr<AnyAttr>:$value
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
   );
+
+  let hasCustomAssemblyFormat = 1;
 }
 
 def Cxx_VTableOp : Cxx_Op<"vtable"> {
@@ -173,6 +176,8 @@ def Cxx_VTableOp : Cxx_Op<"vtable"> {
 
 def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
   let arguments = (ins Variadic<AnyType>:$input);
+
+  let assemblyFormat = "($input^ `:` type($input))? attr-dict";
 
   let builders = [OpBuilder<(ins), [{ build($_builder, $_state, {}); }]>];
 
@@ -189,58 +194,78 @@ def Cxx_CallOp : Cxx_Op<"call"> {
   );
 
   let results = (outs Optional<AnyType>:$result);
+
+  let assemblyFormat = "$callee `(` $inputs `)` attr-dict `:` functional-type($inputs, results)";
 }
 
 def Cxx_AllocaOp : Cxx_Op<"alloca"> {
   let arguments = (ins I64Prop:$alignment);
 
   let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "attr-dict `:` type($result) `align` $alignment";
 }
 
 def Cxx_LoadOp : Cxx_Op<"load"> {
   let arguments = (ins Cxx_PointerType:$addr, I64Prop:$alignment);
 
   let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$addr attr-dict `:` type($addr) `->` type($result) `align` $alignment";
 }
 
 def Cxx_StoreOp : Cxx_Op<"store"> {
   let arguments = (ins AnyType:$value, Cxx_PointerType:$addr, I64Prop:$alignment);
 
+  let assemblyFormat = "$value `,` $addr attr-dict `:` type($value) `,` type($addr) `align` $alignment";
+
   let hasVerifier = 1;
 }
 
-def Cxx_MemSetZeroOp : Cxx_Op<"memset_zero"> {
+def Cxx_MemSetZeroOp : Cxx_Op<"memzero"> {
   let arguments = (ins Cxx_PointerType:$addr, I64Prop:$size);
+
+  let assemblyFormat = "$addr attr-dict `:` type($addr) `size` $size";
 }
 
 def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
   let arguments = (ins Cxx_PointerType:$base, AnyType:$index);
 
   let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$base `[` $index `]` attr-dict `:` functional-type(operands, results)";
 }
 
 def Cxx_MemberOp : Cxx_Op<"member"> {
   let arguments = (ins Cxx_PointerType:$base, I32Prop:$member_index);
 
   let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$base `[` $member_index `]` attr-dict `:` type($base) `->` type($result)";
 }
 
-def Cxx_PtrAddOp : Cxx_Op<"ptr_add"> {
+def Cxx_PtrAddOp : Cxx_Op<"ptradd"> {
   let arguments = (ins Cxx_PointerType:$base, Cxx_IntegerType:$offset);
 
   let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$base `,` $offset attr-dict `:` functional-type(operands, results)";
 }
 
-def Cxx_PtrDiffOp : Cxx_Op<"ptr_diff"> {
+def Cxx_PtrDiffOp : Cxx_Op<"ptrdiff"> {
   let arguments = (ins Cxx_PointerType:$lhs, Cxx_PointerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` functional-type(operands, results)";
 }
 
-def Cxx_AddressOfOp : Cxx_Op<"addressof"> {
+def Cxx_AddressOfOp : Cxx_Op<"address_of"> {
   let arguments = (ins FlatSymbolRefAttr:$sym_name);
 
   let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$sym_name attr-dict `:` type($result)";
 }
 
 def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [
@@ -249,6 +274,8 @@ def Cxx_BoolConstantOp : Cxx_Op<"constant.bool", [
   let arguments = (ins BoolProp:$value);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$value attr-dict";
 }
 
 def Cxx_IntConstantOp : Cxx_Op<"constant.int", [
@@ -257,6 +284,8 @@ def Cxx_IntConstantOp : Cxx_Op<"constant.int", [
   let arguments = (ins I64Prop:$value);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
 def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
@@ -265,6 +294,8 @@ def Cxx_FloatConstantOp : Cxx_Op<"constant.float", [
   let arguments = (ins TypedAttrInterface:$value);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
 def Cxx_NullPtrConstantOp : Cxx_Op<"constant.null", [
@@ -273,233 +304,309 @@ def Cxx_NullPtrConstantOp : Cxx_Op<"constant.null", [
   let arguments = (ins);
 
   let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "attr-dict `:` type($result)";
 }
 
 def Cxx_IntToBoolOp : Cxx_Op<"int_to_bool"> {
   let arguments = (ins AnyType:$value);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
 def Cxx_FloatToBoolOp : Cxx_Op<"float_to_bool"> {
   let arguments = (ins Cxx_FloatType:$value);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
 def Cxx_PtrToBoolOp : Cxx_Op<"ptr_to_bool"> {
   let arguments = (ins Cxx_PointerType:$value);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
 def Cxx_BoolToIntOp : Cxx_Op<"bool_to_int"> {
   let arguments = (ins Cxx_BoolType:$value);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
-def Cxx_IntegralCastOp : Cxx_Op<"integral_cast"> {
+def Cxx_IntegralCastOp : Cxx_Op<"intcast"> {
   let arguments = (ins Cxx_IntegerType:$value);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
-def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_pointer"> {
+def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
   let arguments = (ins Cxx_PointerType:$value);
 
   let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
-def Cxx_NotOp : Cxx_Op<"not"> {
+def Cxx_NotOp : Cxx_Op<"not", [SameOperandsAndResultType]> {
   let arguments = (ins AnyType:$value);
 
   let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
-def Cxx_AddIOp : Cxx_Op<"addi"> {
+def Cxx_AddIOp : Cxx_Op<"addi", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_SubIOp : Cxx_Op<"subi"> {
+def Cxx_SubIOp : Cxx_Op<"subi", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_MulIOp : Cxx_Op<"muli"> {
+def Cxx_MulIOp : Cxx_Op<"muli", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_DivIOp : Cxx_Op<"divi"> {
+def Cxx_DivIOp : Cxx_Op<"divi", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_ModIOp : Cxx_Op<"mod"> {
+def Cxx_ModIOp : Cxx_Op<"remi", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_ShiftLeftOp : Cxx_Op<"shl"> {
+def Cxx_ShiftLeftOp : Cxx_Op<"shl", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_ShiftRightOp : Cxx_Op<"shr"> {
+def Cxx_ShiftRightOp : Cxx_Op<"shr", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_EqualOp : Cxx_Op<"eq"> {
+def Cxx_EqualOp : Cxx_Op<"eq", [SameTypeOperands]> {
   let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_NotEqualOp : Cxx_Op<"ne"> {
+def Cxx_NotEqualOp : Cxx_Op<"ne", [SameTypeOperands]> {
   let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_LessThanOp : Cxx_Op<"lt"> {
+def Cxx_LessThanOp : Cxx_Op<"lt", [SameTypeOperands]> {
   let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_LessEqualOp : Cxx_Op<"le"> {
+def Cxx_LessEqualOp : Cxx_Op<"le", [SameTypeOperands]> {
   let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_GreaterThanOp : Cxx_Op<"gt"> {
+def Cxx_GreaterThanOp : Cxx_Op<"gt", [SameTypeOperands]> {
   let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_GreaterEqualOp : Cxx_Op<"ge"> {
+def Cxx_GreaterEqualOp : Cxx_Op<"ge", [SameTypeOperands]> {
   let arguments = (ins Cxx_IntOrPointerType:$lhs, Cxx_IntOrPointerType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
 //
 // float operations
 //
 
-def Cxx_NegFOp : Cxx_Op<"negf"> {
+def Cxx_NegFOp : Cxx_Op<"negf", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_FloatType:$value);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value)";
 }
 
-def Cxx_AddFOp : Cxx_Op<"addf"> {
+def Cxx_AddFOp : Cxx_Op<"addf", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_SubFOp : Cxx_Op<"subf"> {
+def Cxx_SubFOp : Cxx_Op<"subf", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_MulFOp : Cxx_Op<"mulf"> {
+def Cxx_MulFOp : Cxx_Op<"mulf", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_DivFOp : Cxx_Op<"divf"> {
+def Cxx_DivFOp : Cxx_Op<"divf", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_FloatingPointCastOp : Cxx_Op<"floating_point_cast"> {
+def Cxx_FloatingPointCastOp : Cxx_Op<"fpcast"> {
   let arguments = (ins Cxx_FloatType:$value);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
-def Cxx_FloatToIntOp : Cxx_Op<"float_to_int"> {
+def Cxx_FloatToIntOp : Cxx_Op<"fptoi"> {
   let arguments = (ins Cxx_FloatType:$value);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
-def Cxx_IntToFloatOp : Cxx_Op<"int_to_float"> {
+def Cxx_IntToFloatOp : Cxx_Op<"itofp"> {
   let arguments = (ins Cxx_IntegerType:$value);
 
   let results = (outs Cxx_FloatType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
-def Cxx_LessThanFOp : Cxx_Op<"ltf"> {
+def Cxx_LessThanFOp : Cxx_Op<"ltf", [SameTypeOperands]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_LessEqualFOp : Cxx_Op<"lef"> {
+def Cxx_LessEqualFOp : Cxx_Op<"lef", [SameTypeOperands]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_GreaterThanFOp : Cxx_Op<"gtf"> {
+def Cxx_GreaterThanFOp : Cxx_Op<"gtf", [SameTypeOperands]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_GreaterEqualFOp : Cxx_Op<"gef"> {
+def Cxx_GreaterEqualFOp : Cxx_Op<"gef", [SameTypeOperands]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_EqualFOp : Cxx_Op<"eqf"> {
+def Cxx_EqualFOp : Cxx_Op<"eqf", [SameTypeOperands]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_NotEqualFOp : Cxx_Op<"nef"> {
+def Cxx_NotEqualFOp : Cxx_Op<"nef", [SameTypeOperands]> {
   let arguments = (ins Cxx_FloatType:$lhs, Cxx_FloatType:$rhs);
 
   let results = (outs Cxx_BoolType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
 // bitwise ops
-def Cxx_AndOp : Cxx_Op<"and"> {
+def Cxx_AndOp : Cxx_Op<"and", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_OrOp : Cxx_Op<"or"> {
+def Cxx_OrOp : Cxx_Op<"or", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
-def Cxx_XorOp : Cxx_Op<"xor"> {
+def Cxx_XorOp : Cxx_Op<"xor", [SameOperandsAndResultType]> {
   let arguments = (ins Cxx_IntegerType:$lhs, Cxx_IntegerType:$rhs);
 
   let results = (outs Cxx_IntegerType:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
 }
 
 //
@@ -508,11 +615,15 @@ def Cxx_XorOp : Cxx_Op<"xor"> {
 def Cxx_ToCondOp : Cxx_Op<"to_cond"> {
   let arguments = (ins Cxx_BoolType:$condition);
   let results = (outs I1:$result);
+
+  let assemblyFormat = "$condition attr-dict";
 }
 
 def Cxx_ToFlagOp : Cxx_Op<"to_flag"> {
   let arguments = (ins Cxx_IntegerType:$condition);
   let results = (outs AnyInteger:$result);
+
+  let assemblyFormat = "$condition attr-dict `:` type($condition) `->` type($result)";
 }
 
 //
@@ -521,17 +632,21 @@ def Cxx_ToFlagOp : Cxx_Op<"to_flag"> {
 
 def Cxx_LabelOp : Cxx_Op<"label"> {
   let arguments = (ins StringProp:$name);
+
+  let assemblyFormat = "$name attr-dict";
 }
 
 def Cxx_GotoOp : Cxx_Op<"goto"> {
   let arguments = (ins StringProp:$label);
+
+  let assemblyFormat = "$label attr-dict";
 }
 
 //
 // builtin ops
 //
 
-def Cxx_BuiltinCallOp : Cxx_Op<"builtin_call"> {
+def Cxx_BuiltinCallOp : Cxx_Op<"builtin.call"> {
   let arguments = (ins
       StringProp:$builtin_name
     , Variadic<AnyType>:$inputs
