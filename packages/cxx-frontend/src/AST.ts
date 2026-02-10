@@ -5625,6 +5625,13 @@ export class StringLiteralExpressionAST extends ExpressionAST {
     const slot = cxx.getASTSlot(this.getHandle(), 1);
     return cxx.getLiteralValue(slot);
   }
+
+  /**
+   * Returns the encoding attribute of this node
+   */
+  getEncoding(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 2);
+  }
 }
 
 /**
@@ -5657,6 +5664,13 @@ export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
   getLiteral(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 1);
     return cxx.getLiteralValue(slot);
+  }
+
+  /**
+   * Returns the encoding attribute of this node
+   */
+  getEncoding(): TokenKind {
+    return cxx.getASTSlot(this.getHandle(), 2);
   }
 }
 

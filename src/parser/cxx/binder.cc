@@ -40,6 +40,180 @@
 
 namespace cxx {
 
+namespace {
+
+auto containsDependentType(const Type* type) -> bool;
+
+struct ContainsDependentExpr {
+  auto check(ExpressionAST* expr) const -> bool {
+    if (!expr) return false;
+    return visit(*this, expr);
+  }
+
+  auto operator()(SizeofPackExpressionAST*) const -> bool { return true; }
+  auto operator()(PackExpansionExpressionAST*) const -> bool { return true; }
+  auto operator()(FoldExpressionAST*) const -> bool { return true; }
+  auto operator()(RightFoldExpressionAST*) const -> bool { return true; }
+  auto operator()(LeftFoldExpressionAST*) const -> bool { return true; }
+
+  auto operator()(IdExpressionAST* ast) const -> bool {
+    if (symbol_cast<NonTypeParameterSymbol>(ast->symbol)) return true;
+    if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
+    if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+    return false;
+  }
+
+  auto operator()(BinaryExpressionAST* ast) const -> bool {
+    return check(ast->leftExpression) || check(ast->rightExpression);
+  }
+
+  auto operator()(UnaryExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(CastExpressionAST* ast) const -> bool {
+    if (ast->typeId && containsDependentType(ast->typeId->type)) return true;
+    return check(ast->expression);
+  }
+
+  auto operator()(CppCastExpressionAST* ast) const -> bool {
+    if (ast->typeId && containsDependentType(ast->typeId->type)) return true;
+    return check(ast->expression);
+  }
+
+  auto operator()(ImplicitCastExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(NestedExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(ConditionalExpressionAST* ast) const -> bool {
+    return check(ast->condition) || check(ast->iftrueExpression) ||
+           check(ast->iffalseExpression);
+  }
+
+  auto operator()(MemberExpressionAST* ast) const -> bool {
+    return check(ast->baseExpression);
+  }
+
+  auto operator()(CallExpressionAST* ast) const -> bool {
+    if (check(ast->baseExpression)) return true;
+    for (auto arg : ListView{ast->expressionList}) {
+      if (check(arg)) return true;
+    }
+    return false;
+  }
+
+  auto operator()(SubscriptExpressionAST* ast) const -> bool {
+    return check(ast->baseExpression) || check(ast->indexExpression);
+  }
+
+  auto operator()(PostIncrExpressionAST* ast) const -> bool {
+    return check(ast->baseExpression);
+  }
+
+  auto operator()(TypeConstructionAST* ast) const -> bool {
+    for (auto arg : ListView{ast->expressionList}) {
+      if (check(arg)) return true;
+    }
+    return false;
+  }
+
+  auto operator()(SizeofExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(SizeofTypeExpressionAST* ast) const -> bool {
+    return ast->typeId && containsDependentType(ast->typeId->type);
+  }
+
+  auto operator()(AlignofTypeExpressionAST* ast) const -> bool {
+    return ast->typeId && containsDependentType(ast->typeId->type);
+  }
+
+  auto operator()(AlignofExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(TypeTraitExpressionAST* ast) const -> bool {
+    for (auto typeId : ListView{ast->typeIdList}) {
+      if (typeId && containsDependentType(typeId->type)) return true;
+    }
+    return false;
+  }
+
+  auto operator()(AssignmentExpressionAST* ast) const -> bool {
+    return check(ast->leftExpression) || check(ast->rightExpression);
+  }
+
+  auto operator()(CompoundAssignmentExpressionAST* ast) const -> bool {
+    return check(ast->leftExpression) || check(ast->rightExpression) ||
+           check(ast->targetExpression);
+  }
+
+  auto operator()(NoexceptExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(AwaitExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(YieldExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(ThrowExpressionAST* ast) const -> bool {
+    return check(ast->expression);
+  }
+
+  auto operator()(ExpressionAST* ast) const -> bool {
+    if (ast && ast->type && containsDependentType(ast->type)) return true;
+    return false;
+  }
+};
+
+auto containsDependentType(const Type* type) -> bool {
+  if (!type) return false;
+  return visit(
+      [](auto t) -> bool {
+        using T = std::remove_cvref_t<decltype(*t)>;
+        if constexpr (std::is_same_v<T, TypeParameterType> ||
+                      std::is_same_v<T, TemplateTypeParameterType> ||
+                      std::is_same_v<T, UnresolvedNameType> ||
+                      std::is_same_v<T, UnresolvedBoundedArrayType> ||
+                      std::is_same_v<T, UnresolvedUnderlyingType>) {
+          return true;
+        } else if constexpr (std::is_same_v<T, QualType> ||
+                             std::is_same_v<T, PointerType> ||
+                             std::is_same_v<T, LvalueReferenceType> ||
+                             std::is_same_v<T, RvalueReferenceType> ||
+                             std::is_same_v<T, BoundedArrayType> ||
+                             std::is_same_v<T, UnboundedArrayType>) {
+          return containsDependentType(t->elementType());
+        } else if constexpr (std::is_same_v<T, FunctionType>) {
+          if (containsDependentType(t->returnType())) return true;
+          for (auto* param : t->parameterTypes()) {
+            if (containsDependentType(param)) return true;
+          }
+          return false;
+        } else if constexpr (std::is_same_v<T, MemberObjectPointerType>) {
+          return containsDependentType(t->classType()) ||
+                 containsDependentType(t->elementType());
+        } else if constexpr (std::is_same_v<T, MemberFunctionPointerType>) {
+          return containsDependentType(t->classType()) ||
+                 containsDependentType(t->functionType());
+        } else {
+          return false;
+        }
+      },
+      type);
+}
+
+}  // namespace
+
 Binder::Binder(TranslationUnit* unit) : unit_(unit) {
   languageLinkage_ = unit->language() == LanguageKind::kC ? LanguageKind::kC
                                                           : LanguageKind::kCXX;
@@ -295,8 +469,46 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
                            : nullptr;
 
       if (specialization) {
-        error(location, std::format("redefinition of specialization '{}'",
-                                    templateId->identifier->name()));
+        bool isTrueRedefinition = true;
+        if (declSpecs.templateHead) {
+          auto existingSpec = symbol_cast<ClassSymbol>(specialization);
+
+          auto existingTemplDecl =
+              existingSpec ? existingSpec->templateDeclaration() : nullptr;
+
+          if (existingTemplDecl) {
+            int existingCount = 0, newCount = 0;
+            bool existingHasPack = false, newHasPack = false;
+
+            for (auto p : ListView{existingTemplDecl->templateParameterList}) {
+              ++existingCount;
+
+              if (auto tp = ast_cast<TypenameTypeParameterAST>(p))
+                if (tp->isPack) existingHasPack = true;
+            }
+
+            for (auto p :
+                 ListView{declSpecs.templateHead->templateParameterList}) {
+              ++newCount;
+
+              if (auto tp = ast_cast<TypenameTypeParameterAST>(p))
+                if (tp->isPack) newHasPack = true;
+            }
+
+            if (existingCount != newCount || existingHasPack != newHasPack) {
+              isTrueRedefinition = false;
+            }
+
+            if (existingTemplDecl->requiresClause ||
+                declSpecs.templateHead->requiresClause) {
+              isTrueRedefinition = false;
+            }
+          }
+        }
+        if (isTrueRedefinition) {
+          error(location, std::format("redefinition of specialization '{}'",
+                                      templateId->identifier->name()));
+        }
         // return true;
       }
     }
@@ -795,6 +1007,12 @@ void Binder::bind(ConstraintTypeParameterAST* ast, int index, int depth) {
 
 void Binder::bind(TemplateTypeParameterAST* ast, int index, int depth) {
   std::vector<const Type*> parameters;
+
+  for (auto param : ListView{ast->templateParameterList}) {
+    if (param->symbol && param->symbol->type()) {
+      parameters.push_back(param->symbol->type());
+    }
+  }
 
   auto symbol = control()->newTemplateTypeParameterSymbol(
       scope(), ast->templateLoc, index, depth, ast->isPack,
@@ -1351,14 +1569,23 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
     if (!checkTemplates) return templateId->symbol;
 
     if (inTemplate()) {
+      if (symbol_cast<TemplateTypeParameterSymbol>(templateId->symbol)) {
+        return templateId->symbol;
+      }
+
       bool hasDependentArgs = false;
       for (auto arg : ListView{templateId->templateArgumentList}) {
         if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-          if (typeArg->typeId && typeArg->typeId->type) {
-            if (type_cast<TypeParameterType>(typeArg->typeId->type)) {
-              hasDependentArgs = true;
-              break;
-            }
+          if (typeArg->typeId && containsDependentType(typeArg->typeId->type)) {
+            hasDependentArgs = true;
+            break;
+          }
+        }
+
+        if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+          if (ContainsDependentExpr{}.check(exprArg->expression)) {
+            hasDependentArgs = true;
+            break;
           }
         }
       }
@@ -1413,8 +1640,10 @@ void Binder::bind(IdExpressionAST* ast) {
 
   if (ast->nestedNameSpecifier) {
     if (!ast->nestedNameSpecifier->symbol) {
-      error(ast->nestedNameSpecifier->firstSourceLocation(),
-            "nested name specifier must be a class or namespace");
+      if (!inTemplate()) {
+        error(ast->nestedNameSpecifier->firstSourceLocation(),
+              "nested name specifier must be a class or namespace");
+      }
       return;
     }
   }
@@ -1433,6 +1662,7 @@ void Binder::bind(IdExpressionAST* ast) {
       } else if (auto ovl = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
         for (auto func : ovl->functions()) {
           if (!func->templateDeclaration()) continue;
+          if (!templateSymbol) templateSymbol = func;
           auto instance = ASTRewriter::instantiate(
               unit_, templateId->templateArgumentList, func);
           if (instance) {
@@ -1445,7 +1675,10 @@ void Binder::bind(IdExpressionAST* ast) {
       }
 
       if (!templateSymbol) {
-        error(templateId->firstSourceLocation(), std::format("not a template"));
+        if (!inTemplate()) {
+          error(templateId->firstSourceLocation(),
+                std::format("not a template"));
+        }
       } else {
         auto instance = ASTRewriter::instantiate(
             unit_, templateId->templateArgumentList, templateSymbol);

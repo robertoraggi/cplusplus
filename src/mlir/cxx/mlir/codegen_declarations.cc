@@ -33,6 +33,7 @@
 
 // mlir
 #include <llvm/BinaryFormat/Dwarf.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
@@ -264,10 +265,10 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
             args.push_back(gen.expression(equal->expression));
           }
         }
-        gen.emitCall(node->initializer
-                         ? node->initializer->firstSourceLocation()
-                         : var->location(),
-                     ctor, {local.value()}, args);
+        (void)gen.emitCall(node->initializer
+                               ? node->initializer->firstSourceLocation()
+                               : var->location(),
+                           ctor, {local.value()}, args);
         continue;
       }
 
@@ -579,8 +580,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto id = name_cast<Identifier>(functionSymbol->name());
     if (id && id->name() == "main" &&
         is_global_namespace(functionSymbol->parent())) {
-      auto zeroOp = mlir::cxx::IntConstantOp::create(
-          gen.builder_, loc, gen.convertType(gen.control()->getIntType()), 0);
+      auto intTy = gen.convertType(gen.control()->getIntType());
+      auto zeroOp = mlir::arith::ConstantOp::create(
+          gen.builder_, loc, intTy, gen.builder_.getIntegerAttr(intTy, 0));
 
       mlir::cxx::StoreOp::create(gen.builder_, exitValueLoc, zeroOp, exitValue,
                                  gen.getAlignment(gen.control()->getIntType()));
@@ -704,7 +706,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         auto basePtr = mlir::cxx::MemberOp::create(gen.builder_, endLoc,
                                                    basePtrType, thisPtr, index);
 
-        gen.emitCall(ast->lastSourceLocation(), baseDtor, {basePtr}, {});
+        (void)gen.emitCall(ast->lastSourceLocation(), baseDtor, {basePtr}, {});
       }
     }
   }
@@ -947,8 +949,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
       auto otherBasePtr = mlir::cxx::MemberOp::create(
           gen.builder_, loc, basePtrType, otherPtr, index);
 
-      gen.emitCall(ast->firstSourceLocation(), ctor, {thisBasePtr},
-                   {{otherBasePtr}});
+      (void)gen.emitCall(ast->firstSourceLocation(), ctor, {thisBasePtr},
+                         {{otherBasePtr}});
     }
 
     for (auto member : views::members(classSymbol)) {
@@ -980,8 +982,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
         FunctionSymbol* ctor = isCopyCtor ? fieldClassSymbol->copyConstructor()
                                           : fieldClassSymbol->moveConstructor();
         if (ctor) {
-          gen.emitCall(ast->firstSourceLocation(), ctor, {thisFieldPtr},
-                       {{otherFieldPtr}});
+          (void)gen.emitCall(ast->firstSourceLocation(), ctor, {thisFieldPtr},
+                             {{otherFieldPtr}});
         }
       } else {
         auto mlirFieldType = gen.convertType(fieldType);
@@ -1024,7 +1026,7 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc,
                                                 memberPtrType, thisPtr, index);
 
-    gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
+    (void)gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
   }
 
   for (auto member : views::members(classSymbol)) {
@@ -1061,7 +1063,7 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc,
                                                 memberPtrType, thisPtr, index);
 
-    gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
+    (void)gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
   }
 
   gen.emitCtorVtableInit(functionSymbol, loc);

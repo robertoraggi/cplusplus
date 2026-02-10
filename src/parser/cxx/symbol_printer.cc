@@ -63,8 +63,10 @@ struct DumpSymbols {
       // Skip non-canonical redeclarations
       if (symbol->canonical() != symbol) return;
       // Skip builtin function declarations
-      if (auto id = name_cast<Identifier>(symbol->name())) {
-        if (id->value().starts_with("__builtin_")) return;
+      auto id = name_cast<Identifier>(symbol->name());
+      if (id && id->info() &&
+          id->info()->kind() == IdentifierInfoKind::kBuiltinFunction) {
+        return;
       }
       visit(*this, symbol);
     });

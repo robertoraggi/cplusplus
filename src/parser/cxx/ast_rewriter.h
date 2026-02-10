@@ -24,6 +24,7 @@
 #include <cxx/binder.h>
 #include <cxx/names_fwd.h>
 
+#include <unordered_map>
 #include <vector>
 
 namespace cxx {
@@ -37,6 +38,8 @@ class ASTRewriter {
   [[nodiscard]] static auto instantiate(
       TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
       Symbol* symbol) -> Symbol*;
+
+  static void completePendingBody(TranslationUnit* unit, FunctionSymbol* func);
 
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                        const std::vector<TemplateArgument>& templateArguments);
@@ -73,6 +76,15 @@ class ASTRewriter {
   void check(ExpressionAST* ast);
 
   [[nodiscard]] auto binder() -> Binder& { return binder_; }
+
+  [[nodiscard]] static auto tryPartialSpecialization(
+      TranslationUnit* unit, ClassSymbol* classSymbol,
+      const std::vector<TemplateArgument>& templateArguments) -> Symbol*;
+
+  [[nodiscard]] static auto checkRequiresClause(
+      TranslationUnit* unit, Symbol* symbol, RequiresClauseAST* clause,
+      const std::vector<TemplateArgument>& templateArguments, int depth)
+      -> bool;
 
   [[nodiscard]] auto control() const -> Control*;
   [[nodiscard]] auto arena() const -> Arena*;
@@ -202,6 +214,7 @@ class ASTRewriter {
   Binder binder_;
   int depth_ = 0;
   bool restrictedToDeclarations_ = false;
+  std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
 };
 
 }  // namespace cxx

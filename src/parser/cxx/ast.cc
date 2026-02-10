@@ -7707,6 +7707,7 @@ auto StringLiteralExpressionAST::clone(Arena* arena)
 
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -7721,12 +7722,14 @@ auto StringLiteralExpressionAST::create(Arena* arena)
 
 auto StringLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
                                         const StringLiteral* literal,
+                                        TokenKind encoding,
                                         ValueCategory valueCategory,
                                         const Type* type)
     -> StringLiteralExpressionAST* {
   auto node = new (arena) StringLiteralExpressionAST();
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7734,11 +7737,13 @@ auto StringLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
 
 auto StringLiteralExpressionAST::create(Arena* arena,
                                         const StringLiteral* literal,
+                                        TokenKind encoding,
                                         ValueCategory valueCategory,
                                         const Type* type)
     -> StringLiteralExpressionAST* {
   auto node = new (arena) StringLiteralExpressionAST();
   node->literal = literal;
+  node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7750,6 +7755,7 @@ auto UserDefinedStringLiteralExpressionAST::clone(Arena* arena)
 
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -7762,15 +7768,14 @@ auto UserDefinedStringLiteralExpressionAST::create(Arena* arena)
   return node;
 }
 
-auto UserDefinedStringLiteralExpressionAST::create(Arena* arena,
-                                                   SourceLocation literalLoc,
-                                                   const StringLiteral* literal,
-                                                   ValueCategory valueCategory,
-                                                   const Type* type)
+auto UserDefinedStringLiteralExpressionAST::create(
+    Arena* arena, SourceLocation literalLoc, const StringLiteral* literal,
+    TokenKind encoding, ValueCategory valueCategory, const Type* type)
     -> UserDefinedStringLiteralExpressionAST* {
   auto node = new (arena) UserDefinedStringLiteralExpressionAST();
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7778,11 +7783,13 @@ auto UserDefinedStringLiteralExpressionAST::create(Arena* arena,
 
 auto UserDefinedStringLiteralExpressionAST::create(Arena* arena,
                                                    const StringLiteral* literal,
+                                                   TokenKind encoding,
                                                    ValueCategory valueCategory,
                                                    const Type* type)
     -> UserDefinedStringLiteralExpressionAST* {
   auto node = new (arena) UserDefinedStringLiteralExpressionAST();
   node->literal = literal;
+  node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;

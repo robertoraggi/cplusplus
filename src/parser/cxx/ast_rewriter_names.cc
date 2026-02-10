@@ -67,6 +67,19 @@ struct ASTRewriter::UnqualifiedIdVisitor {
 
   [[nodiscard]] auto operator()(OperatorFunctionTemplateIdAST* ast)
       -> UnqualifiedIdAST*;
+
+ private:
+  enum class PackResult { kExpanded, kEmpty, kNotPack };
+
+  [[nodiscard]] auto expandTypePackArgument(
+      TypeTemplateArgumentAST* typeArg,
+      List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult;
+
+  [[nodiscard]] auto expandExprPackArgument(
+      ExpressionTemplateArgumentAST* exprArg,
+      List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult;
+
+  void substituteTemplateTemplateParameter(SimpleTemplateIdAST* copy);
 };
 
 struct ASTRewriter::NestedNameSpecifierVisitor {
@@ -194,6 +207,115 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
   return copy;
 }
 
+auto ASTRewriter::UnqualifiedIdVisitor::expandTypePackArgument(
+    TypeTemplateArgumentAST* typeArg,
+    List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult {
+  if (!typeArg || !typeArg->typeId || !typeArg->typeId->declarator)
+    return PackResult::kNotPack;
+
+  auto packDecl =
+      ast_cast<ParameterPackAST>(typeArg->typeId->declarator->coreDeclarator);
+  if (!packDecl) return PackResult::kNotPack;
+
+  ParameterPackSymbol* pack = nullptr;
+  for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
+    pack = rewrite.getTypeParameterPack(spec);
+    if (pack) break;
+  }
+
+  if (!pack) return PackResult::kNotPack;
+  if (pack->elements().empty()) return PackResult::kEmpty;
+
+  auto savedParameterPack = rewrite.parameterPack_;
+  std::swap(rewrite.parameterPack_, pack);
+
+  int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+  for (int i = 0; i < n; ++i) {
+    std::optional<int> index{i};
+    std::swap(rewrite.elementIndex_, index);
+
+    auto expandedTypeId = rewrite.typeId(typeArg->typeId);
+    auto expandedArg = TypeTemplateArgumentAST::create(arena());
+    expandedArg->typeId = expandedTypeId;
+
+    *templateArgumentList =
+        make_list_node(arena(), static_cast<TemplateArgumentAST*>(expandedArg));
+    templateArgumentList = &(*templateArgumentList)->next;
+
+    std::swap(rewrite.elementIndex_, index);
+  }
+
+  std::swap(rewrite.parameterPack_, pack);
+  return PackResult::kExpanded;
+}
+
+auto ASTRewriter::UnqualifiedIdVisitor::expandExprPackArgument(
+    ExpressionTemplateArgumentAST* exprArg,
+    List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult {
+  if (!exprArg) return PackResult::kNotPack;
+
+  auto packExpr = ast_cast<PackExpansionExpressionAST>(exprArg->expression);
+  if (!packExpr) return PackResult::kNotPack;
+
+  auto parameterPack = rewrite.getParameterPack(packExpr->expression);
+  if (!parameterPack) return PackResult::kNotPack;
+  if (parameterPack->elements().empty()) return PackResult::kEmpty;
+
+  auto savedParameterPack = rewrite.parameterPack_;
+  std::swap(rewrite.parameterPack_, parameterPack);
+
+  int n = static_cast<int>(rewrite.parameterPack_->elements().size());
+  for (int i = 0; i < n; ++i) {
+    std::optional<int> index{i};
+    std::swap(rewrite.elementIndex_, index);
+
+    auto expandedExpr = rewrite.expression(packExpr->expression);
+    auto expandedArg = ExpressionTemplateArgumentAST::create(arena());
+    expandedArg->expression = expandedExpr;
+
+    *templateArgumentList =
+        make_list_node(arena(), static_cast<TemplateArgumentAST*>(expandedArg));
+    templateArgumentList = &(*templateArgumentList)->next;
+
+    std::swap(rewrite.elementIndex_, index);
+  }
+
+  std::swap(rewrite.parameterPack_, parameterPack);
+  return PackResult::kExpanded;
+}
+
+void ASTRewriter::UnqualifiedIdVisitor::substituteTemplateTemplateParameter(
+    SimpleTemplateIdAST* copy) {
+  auto ttpSymbol = symbol_cast<TemplateTypeParameterSymbol>(copy->symbol);
+  if (!ttpSymbol) return;
+
+  auto paramType = type_cast<TemplateTypeParameterType>(ttpSymbol->type());
+  const auto& args = rewrite.templateArguments_;
+  if (!paramType || paramType->depth() != rewrite.depth_ ||
+      paramType->index() >= static_cast<int>(args.size()))
+    return;
+
+  auto index = paramType->index();
+  auto sym = std::get_if<Symbol*>(&args[index]);
+  if (!sym) return;
+
+  if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
+    if (!rewrite.elementIndex_.has_value()) return;
+    auto elemIdx = *rewrite.elementIndex_;
+    if (elemIdx >= static_cast<int>(pack->elements().size())) return;
+    auto elemSym = pack->elements()[elemIdx];
+    if (auto alias = symbol_cast<TypeAliasSymbol>(elemSym)) {
+      if (auto classType = type_cast<ClassType>(alias->type())) {
+        copy->symbol = classType->symbol();
+      }
+    }
+  } else if (auto alias = symbol_cast<TypeAliasSymbol>(*sym)) {
+    if (auto classType = type_cast<ClassType>(alias->type())) {
+      copy->symbol = classType->symbol();
+    }
+  }
+}
+
 auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
     -> UnqualifiedIdAST* {
   auto copy = SimpleTemplateIdAST::create(arena());
@@ -204,79 +326,17 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
   for (auto templateArgumentList = &copy->templateArgumentList;
        auto node : ListView{ast->templateArgumentList}) {
     auto typeArg = ast_cast<TypeTemplateArgumentAST>(node);
-    if (typeArg && typeArg->typeId && typeArg->typeId->declarator) {
-      auto packDecl = ast_cast<ParameterPackAST>(
-          typeArg->typeId->declarator->coreDeclarator);
-      if (packDecl) {
-        ParameterPackSymbol* pack = nullptr;
-        for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
-          pack = rewrite.getTypeParameterPack(spec);
-          if (pack) break;
-        }
-
-        if (pack && !pack->elements().empty()) {
-          auto savedParameterPack = rewrite.parameterPack_;
-          std::swap(rewrite.parameterPack_, pack);
-
-          int n = static_cast<int>(rewrite.parameterPack_->elements().size());
-          for (int i = 0; i < n; ++i) {
-            std::optional<int> index{i};
-            std::swap(rewrite.elementIndex_, index);
-
-            auto expandedTypeId = rewrite.typeId(typeArg->typeId);
-            auto expandedArg = TypeTemplateArgumentAST::create(arena());
-            expandedArg->typeId = expandedTypeId;
-
-            *templateArgumentList = make_list_node(
-                arena(), static_cast<TemplateArgumentAST*>(expandedArg));
-            templateArgumentList = &(*templateArgumentList)->next;
-
-            std::swap(rewrite.elementIndex_, index);
-          }
-
-          std::swap(rewrite.parameterPack_, pack);
-          continue;
-        }
-
-        if (pack) {
-          continue;
-        }
-      }
+    auto typeResult = expandTypePackArgument(typeArg, templateArgumentList);
+    if (typeResult != PackResult::kNotPack) {
+      if (typeResult == PackResult::kExpanded) continue;
+      if (typeResult == PackResult::kEmpty) continue;
     }
 
     auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(node);
-    if (exprArg) {
-      auto packExpr = ast_cast<PackExpansionExpressionAST>(exprArg->expression);
-      if (packExpr) {
-        auto parameterPack = rewrite.getParameterPack(packExpr->expression);
-        if (parameterPack && !parameterPack->elements().empty()) {
-          auto savedParameterPack = rewrite.parameterPack_;
-          std::swap(rewrite.parameterPack_, parameterPack);
-
-          int n = static_cast<int>(rewrite.parameterPack_->elements().size());
-          for (int i = 0; i < n; ++i) {
-            std::optional<int> index{i};
-            std::swap(rewrite.elementIndex_, index);
-
-            auto expandedExpr = rewrite.expression(packExpr->expression);
-            auto expandedArg = ExpressionTemplateArgumentAST::create(arena());
-            expandedArg->expression = expandedExpr;
-
-            *templateArgumentList = make_list_node(
-                arena(), static_cast<TemplateArgumentAST*>(expandedArg));
-            templateArgumentList = &(*templateArgumentList)->next;
-
-            std::swap(rewrite.elementIndex_, index);
-          }
-
-          std::swap(rewrite.parameterPack_, parameterPack);
-          continue;
-        }
-
-        if (parameterPack) {
-          continue;
-        }
-      }
+    auto exprResult = expandExprPackArgument(exprArg, templateArgumentList);
+    if (exprResult != PackResult::kNotPack) {
+      if (exprResult == PackResult::kExpanded) continue;
+      if (exprResult == PackResult::kEmpty) continue;
     }
 
     auto value = rewrite.templateArgument(node);
@@ -287,6 +347,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
   copy->greaterLoc = ast->greaterLoc;
   copy->identifier = ast->identifier;
   copy->symbol = ast->symbol;
+
+  substituteTemplateTemplateParameter(copy);
 
   return copy;
 }

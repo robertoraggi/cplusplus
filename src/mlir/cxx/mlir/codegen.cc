@@ -37,6 +37,7 @@
 
 // mlir
 #include <llvm/BinaryFormat/Dwarf.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 
@@ -464,10 +465,29 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
       } else if (auto constStringPtr =
                      std::get_if<const StringLiteral*>(&*value)) {
         auto stringLiteral = *constStringPtr;
-        stringLiteral->initialize();
+        stringLiteral->initialize(stringLiteral->encoding());
         std::string str(stringLiteral->stringValue());
-        str.push_back('\0');
-        initializer = builder_.getStringAttr(str);
+
+        // Append null terminator.
+        switch (stringLiteral->encoding()) {
+          case StringLiteralEncoding::kUtf16:
+            str.push_back('\0');
+            str.push_back('\0');
+            break;
+          case StringLiteralEncoding::kUtf32:
+          case StringLiteralEncoding::kWide:
+            str.push_back('\0');
+            str.push_back('\0');
+            str.push_back('\0');
+            str.push_back('\0');
+            break;
+          default:
+            str.push_back('\0');
+            break;
+        }
+
+        initializer =
+            builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
       }
     } else if (control()->is_class(variableSymbol->type())) {
       if (auto constArrayPtr =
@@ -683,8 +703,9 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       builder_, loc, vtablePtrType,
       mlir::FlatSymbolRefAttr::get(builder_.getContext(), vtableName));
 
-  auto twoOp = mlir::cxx::IntConstantOp::create(
-      builder_, loc, convertType(control()->getIntType()), 2);
+  auto intTy = convertType(control()->getIntType());
+  auto twoOp = mlir::arith::ConstantOp::create(
+      builder_, loc, intTy, builder_.getIntegerAttr(intTy, 2));
 
   auto vtableDataPtr =
       mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, vtableAddr, twoOp);

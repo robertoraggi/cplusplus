@@ -25,6 +25,7 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
@@ -453,7 +454,7 @@ class TemplateTypeParameterType final
     : public Type,
       public std::tuple<int, int, bool, std::vector<const Type*>> {
  public:
-  static constexpr TypeKind Kind = TypeKind::kTypeParameter;
+  static constexpr TypeKind Kind = TypeKind::kTemplateTypeParameter;
 
   explicit TemplateTypeParameterType(
       int index, int depth, bool isPack,
@@ -470,6 +471,12 @@ class TemplateTypeParameterType final
       -> const std::vector<const Type*>& {
     return std::get<3>(*this);
   }
+};
+
+struct TypeParamInfo {
+  int index;
+  int depth;
+  bool isPack;
 };
 
 class UnresolvedNameType final
@@ -555,6 +562,15 @@ template <typename T>
 [[nodiscard]] auto type_cast(const Type* type) -> const T* {
   return type && type->kind() == T::Kind ? static_cast<const T*>(type)
                                          : nullptr;
+}
+
+[[nodiscard]] inline auto getTypeParamInfo(const Type* type)
+    -> std::optional<TypeParamInfo> {
+  if (auto t = type_cast<TypeParameterType>(type))
+    return TypeParamInfo{t->index(), t->depth(), t->isParameterPack()};
+  if (auto t = type_cast<TemplateTypeParameterType>(type))
+    return TypeParamInfo{t->index(), t->depth(), t->isParameterPack()};
+  return std::nullopt;
 }
 
 }  // namespace cxx

@@ -26,6 +26,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -805,6 +806,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
+  // __builtin_is_constant_evaluated() returns true during constant evaluation.
+  if (auto* idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    if (auto* nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
+      if (nameId->identifier &&
+          nameId->identifier->builtinFunction() ==
+              BuiltinFunctionKind::T___BUILTIN_IS_CONSTANT_EVALUATED) {
+        return ConstValue{true};
+      }
+    }
+  }
+
   std::vector<ConstValue> args;
   for (auto node : ListView{ast->expressionList}) {
     auto value = interp.evaluate(node);

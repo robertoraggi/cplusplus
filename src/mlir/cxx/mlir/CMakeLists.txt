@@ -42,6 +42,8 @@ target_include_directories(cxx-mlir
 
 target_link_libraries(cxx-mlir PUBLIC
     cxx-parser
+    MLIRArithDialect
+    MLIRArithToLLVM
     MLIRBuiltinToLLVMIRTranslation
     MLIRControlFlowDialect
     MLIRControlFlowToLLVM

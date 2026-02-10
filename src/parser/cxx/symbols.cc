@@ -963,6 +963,21 @@ void FunctionSymbol::setLanguageLinkage(LanguageKind linkage) {
 
 auto FunctionSymbol::hasCLinkage() const -> bool { return hasCLinkage_; }
 
+auto FunctionSymbol::hasPendingBody() const -> bool {
+  return pendingBody_ != nullptr;
+}
+
+auto FunctionSymbol::pendingBody() const -> PendingBodyInstantiation* {
+  return pendingBody_.get();
+}
+
+void FunctionSymbol::setPendingBody(
+    std::unique_ptr<PendingBodyInstantiation> pending) {
+  pendingBody_ = std::move(pending);
+}
+
+void FunctionSymbol::clearPendingBody() { pendingBody_.reset(); }
+
 auto FunctionSymbol::functionParameters() const -> FunctionParametersSymbol* {
   for (auto member : members()) {
     if (auto params = symbol_cast<FunctionParametersSymbol>(member))
@@ -1299,6 +1314,7 @@ bool is_type(Symbol* symbol) {
   switch (symbol->kind()) {
     case SymbolKind::kTypeParameter:
     case SymbolKind::kConstraintTypeParameter:
+    case SymbolKind::kTemplateTypeParameter:
     case SymbolKind::kTypeAlias:
     case SymbolKind::kClass:
     case SymbolKind::kEnum:

@@ -1226,6 +1226,12 @@ void ASTPrinter::visit(StringLiteralExpressionAST* ast) {
     out_ << std::format("literal: {}\n", ast->literal->value());
     --indent_;
   }
+  if (ast->encoding != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("encoding: {}\n", Token::spell(ast->encoding));
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
@@ -1239,6 +1245,12 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("literal: {}\n", ast->literal->value());
+    --indent_;
+  }
+  if (ast->encoding != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("encoding: {}\n", Token::spell(ast->encoding));
     --indent_;
   }
 }

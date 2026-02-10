@@ -2641,6 +2641,7 @@ void ASTEncoder::visit(StringLiteralExpressionAST* ast) {
   if (ast->literal) {
     builder.add_literal(literal);
   }
+  builder.add_encoding(static_cast<std::uint32_t>(ast->encoding));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_StringLiteralExpression;
@@ -2662,6 +2663,7 @@ void ASTEncoder::visit(UserDefinedStringLiteralExpressionAST* ast) {
   if (ast->literal) {
     builder.add_literal(literal);
   }
+  builder.add_encoding(static_cast<std::uint32_t>(ast->encoding));
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_UserDefinedStringLiteralExpression;

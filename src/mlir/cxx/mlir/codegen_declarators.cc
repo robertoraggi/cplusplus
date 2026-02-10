@@ -435,8 +435,8 @@ auto Codegen::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
                                               thisPtr, index);
 
   if (ast->constructor) {
-    gen.emitCall(ast->firstSourceLocation(), ast->constructor, {fieldPtr},
-                 args);
+    (void)gen.emitCall(ast->firstSourceLocation(), ast->constructor, {fieldPtr},
+                       args);
   } else if (args.size() == 1) {
     mlir::cxx::StoreOp::create(gen.builder_, loc, args[0].value, fieldPtr, 1);
   }
@@ -521,8 +521,8 @@ auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
                                               thisPtr, index);
 
   if (ast->constructor) {
-    gen.emitCall(ast->firstSourceLocation(), ast->constructor, {fieldPtr},
-                 args);
+    (void)gen.emitCall(ast->firstSourceLocation(), ast->constructor, {fieldPtr},
+                       args);
   } else if (args.size() == 1) {
     mlir::cxx::StoreOp::create(gen.builder_, loc, args[0].value, fieldPtr, 1);
   }

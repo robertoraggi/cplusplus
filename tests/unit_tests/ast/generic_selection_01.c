@@ -38,6 +38,7 @@ int main() {
 // CHECK-NEXT:                    default-generic-association
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [8]]
 // CHECK-NEXT:                        literal: "default"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: cast-expression [prvalue void]
 // CHECK-NEXT:                type-id: type-id
@@ -51,6 +52,7 @@ int main() {
 // CHECK-NEXT:                    default-generic-association
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [8]]
 // CHECK-NEXT:                        literal: "default"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
@@ -58,6 +60,7 @@ int main() {
 // CHECK-NEXT:                            specifier: int
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [4]]
 // CHECK-NEXT:                        literal: "int"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
@@ -69,6 +72,7 @@ int main() {
 // CHECK-NEXT:                            pointer-operator
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [12]]
 // CHECK-NEXT:                        literal: "const char*"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: cast-expression [prvalue void]
 // CHECK-NEXT:                type-id: type-id
@@ -86,6 +90,7 @@ int main() {
 // CHECK-NEXT:                            specifier: int
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [4]]
 // CHECK-NEXT:                        literal: "int"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
@@ -97,9 +102,11 @@ int main() {
 // CHECK-NEXT:                            pointer-operator
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [12]]
 // CHECK-NEXT:                        literal: "const char*"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:                    default-generic-association
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [8]]
 // CHECK-NEXT:                        literal: "default"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: cast-expression [prvalue void]
 // CHECK-NEXT:                type-id: type-id
@@ -117,6 +124,7 @@ int main() {
 // CHECK-NEXT:                            specifier: int
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [4]]
 // CHECK-NEXT:                        literal: "int"
+// CHECK-NEXT:                        encoding: <string_literal>
 // CHECK-NEXT:                    type-generic-association
 // CHECK-NEXT:                      type-id: type-id
 // CHECK-NEXT:                        type-specifier-list
@@ -128,3 +136,4 @@ int main() {
 // CHECK-NEXT:                            pointer-operator
 // CHECK-NEXT:                      expression: string-literal-expression [lvalue char [12]]
 // CHECK-NEXT:                        literal: "const char*"
+// CHECK-NEXT:                        encoding: <string_literal>
