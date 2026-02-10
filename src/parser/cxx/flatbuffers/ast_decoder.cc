@@ -2438,6 +2438,7 @@ auto ASTDecoder::decodeStringLiteralExpression(
   if (node->literal()) {
     ast->literal = unit_->control()->stringLiteral(node->literal()->str());
   }
+  ast->encoding = static_cast<TokenKind>(node->encoding());
   return ast;
 }
 
@@ -2451,6 +2452,7 @@ auto ASTDecoder::decodeUserDefinedStringLiteralExpression(
   if (node->literal()) {
     ast->literal = unit_->control()->stringLiteral(node->literal()->str());
   }
+  ast->encoding = static_cast<TokenKind>(node->encoding());
   return ast;
 }
 

@@ -355,6 +355,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
         if (!type) continue;
 
         if (type_cast<TypeParameterType>(type)) continue;
+        if (type_cast<TemplateTypeParameterType>(type)) continue;
 
         if (auto var = symbol_cast<VariableSymbol>(*sym)) {
           if (var->constValue().has_value()) {

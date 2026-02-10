@@ -119,48 +119,47 @@ class FloatLiteral final : public Literal {
   mutable Components components_;
 };
 
+enum class StringLiteralEncoding {
+  kNone,
+  kWide,
+  kUtf8,
+  kUtf16,
+  kUtf32,
+};
+
 class StringLiteral final : public Literal {
  public:
   using Literal::Literal;
 
   struct Components {
     std::string value;
+    StringLiteralEncoding encoding = StringLiteralEncoding::kNone;
+    bool isRaw = false;
 
     [[nodiscard]] static auto from(std::string_view text,
+                                   StringLiteralEncoding encoding,
                                    DiagnosticsClient* diagnostics = nullptr)
         -> Components;
   };
+
+  [[nodiscard]] auto encoding() const -> StringLiteralEncoding {
+    return components_.encoding;
+  }
+
+  [[nodiscard]] auto isRaw() const -> bool { return components_.isRaw; }
 
   [[nodiscard]] auto stringValue() const -> std::string_view {
     return components_.value;
   };
 
+  [[nodiscard]] auto charCount() const -> std::size_t;
+
   [[nodiscard]] auto components() const { return components_; }
 
-  void initialize() const;
+  void initialize(StringLiteralEncoding encoding) const;
 
  private:
   mutable Components components_;
-};
-
-class WideStringLiteral final : public Literal {
- public:
-  using Literal::Literal;
-};
-
-class Utf8StringLiteral final : public Literal {
- public:
-  using Literal::Literal;
-};
-
-class Utf16StringLiteral final : public Literal {
- public:
-  using Literal::Literal;
-};
-
-class Utf32StringLiteral final : public Literal {
- public:
-  using Literal::Literal;
 };
 
 class CharLiteral final : public Literal {

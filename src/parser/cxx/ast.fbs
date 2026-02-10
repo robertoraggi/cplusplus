@@ -897,11 +897,13 @@ table NullptrLiteralExpression /* ExpressionAST */ {
 
 table StringLiteralExpression /* ExpressionAST */ {
   literal: string;
+  encoding: uint32;
   literal_loc: uint32;
 }
 
 table UserDefinedStringLiteralExpression /* ExpressionAST */ {
   literal: string;
+  encoding: uint32;
   literal_loc: uint32;
 }
 

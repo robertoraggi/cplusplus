@@ -80,16 +80,6 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
   using OpAsmDialectInterface::OpAsmDialectInterface;
 
   auto getAlias(Type type, raw_ostream& os) const -> AliasResult override {
-    if (auto intType = dyn_cast<IntegerType>(type)) {
-      os << 'i' << intType.getWidth() << (intType.getIsSigned() ? 's' : 'u');
-      return AliasResult::FinalAlias;
-    }
-
-    if (auto floatType = dyn_cast<FloatType>(type)) {
-      os << 'f' << floatType.getWidth();
-      return AliasResult::FinalAlias;
-    }
-
     if (auto classType = dyn_cast<ClassType>(type)) {
       if (!classType.getBody().empty()) {
         os << "class_" << classType.getName();
@@ -99,11 +89,6 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
 
     if (isa<VoidType>(type)) {
       os << "void";
-      return AliasResult::FinalAlias;
-    }
-
-    if (isa<BoolType>(type)) {
-      os << "bool";
       return AliasResult::FinalAlias;
     }
 

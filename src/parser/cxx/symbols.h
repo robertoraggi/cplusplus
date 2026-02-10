@@ -48,6 +48,13 @@ class TemplateSpecialization {
   Symbol* symbol = nullptr;
 };
 
+struct PendingBodyInstantiation {
+  FunctionDefinitionAST* originalDefinition = nullptr;
+  std::vector<TemplateArgument> templateArguments;
+  ScopeSymbol* parentScope = nullptr;
+  int depth = 0;
+};
+
 [[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
@@ -562,9 +569,15 @@ class FunctionSymbol final
 
   [[nodiscard]] auto hasCLinkage() const -> bool;
 
+  [[nodiscard]] auto hasPendingBody() const -> bool;
+  [[nodiscard]] auto pendingBody() const -> PendingBodyInstantiation*;
+  void setPendingBody(std::unique_ptr<PendingBodyInstantiation> pending);
+  void clearPendingBody();
+
  private:
   FunctionSymbol* canonical_ = nullptr;
   FunctionSymbol* definition_ = nullptr;
+  std::unique_ptr<PendingBodyInstantiation> pendingBody_;
   union {
     std::uint32_t flags_{};
     struct {

@@ -954,17 +954,21 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   rewrite.setRestrictedToDeclarations(false);
 
   for (const auto& [newAst, oldAst] : delayedFunctions) {
-    auto _ = Binder::ScopeGuard{binder()};
-
-    auto functionDeclarator = getFunctionPrototype(newAst->declarator);
-
-    if (auto params = functionDeclarator->parameterDeclarationClause) {
-      binder()->setScope(params->functionParametersSymbol);
-    } else {
-      binder()->setScope(newAst->symbol);
+    if (newAst->symbol) {
+      auto pending = std::make_unique<PendingBodyInstantiation>();
+      pending->originalDefinition = oldAst;
+      pending->templateArguments = rewrite.templateArguments();
+      pending->parentScope =
+          copy->symbol->enclosingNonTemplateParametersScope();
+      pending->depth = rewrite.depth_;
+      newAst->symbol->setPendingBody(std::move(pending));
     }
+  }
 
-    newAst->functionBody = rewrite.functionBody(oldAst->functionBody);
+  for (const auto& [newAst, oldAst] : delayedFunctions) {
+    if (newAst->symbol && newAst->symbol->hasPendingBody()) {
+      ASTRewriter::completePendingBody(rewrite.unit_, newAst->symbol);
+    }
   }
 
   copy->rbraceLoc = ast->rbraceLoc;

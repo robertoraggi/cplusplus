@@ -276,9 +276,12 @@ export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
 
 export const BUILTIN_FUNCTIONS: string[] = [
   "__builtin_abs",
+  "__builtin_bswap32",
+  "__builtin_bswap64",
   "__builtin_fabs",
   "__builtin_fabsf",
   "__builtin_fabsl",
+  "__builtin_is_constant_evaluated",
   "__builtin_labs",
   "__builtin_llabs",
   "__builtin_memchr",

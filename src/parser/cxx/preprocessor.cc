@@ -53,6 +53,7 @@ namespace {
 
 // todo: generate and embed
 static constexpr const char* builtinsSource = R"(
+constexpr bool __builtin_is_constant_evaluated();
 int __builtin_abs(int);
 __UINT32_TYPE__ __builtin_bswap32(__UINT32_TYPE__);
 __UINT64_TYPE__ __builtin_bswap64(__UINT64_TYPE__);

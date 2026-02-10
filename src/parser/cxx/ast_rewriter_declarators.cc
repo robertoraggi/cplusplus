@@ -24,8 +24,10 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/binder.h>
+#include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -187,20 +189,46 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
       }
 
       if (pack && !pack->elements().empty()) {
+        ParameterSymbol* originalParam = nullptr;
+        if (ast->functionParametersSymbol) {
+          for (auto member : ast->functionParametersSymbol->members()) {
+            if (auto ps = symbol_cast<ParameterSymbol>(member)) {
+              if (name_cast<Identifier>(ps->name()) == paramDecl->identifier) {
+                originalParam = ps;
+                break;
+              }
+            }
+          }
+        }
+
         auto savedParameterPack = parameterPack_;
         std::swap(parameterPack_, pack);
+
+        auto funcParamPack = control()->newParameterPackSymbol(
+            binder().scope(), SourceLocation{});
 
         int n = static_cast<int>(parameterPack_->elements().size());
         for (int i = 0; i < n; ++i) {
           std::optional<int> index{i};
           std::swap(elementIndex_, index);
 
+          auto membersBefore = binder().scope()->members().size();
+
           auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
           if (value) value->isPack = false;
           *parameterDeclarationList = make_list_node(arena(), value);
           parameterDeclarationList = &(*parameterDeclarationList)->next;
 
+          const auto& members = binder().scope()->members();
+          if (members.size() > membersBefore) {
+            funcParamPack->addElement(members.back());
+          }
+
           std::swap(elementIndex_, index);
+        }
+
+        if (originalParam) {
+          functionParamPacks_[originalParam] = funcParamPack;
         }
 
         std::swap(parameterPack_, pack);

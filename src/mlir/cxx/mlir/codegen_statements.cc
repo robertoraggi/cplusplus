@@ -31,6 +31,7 @@
 
 // mlir
 #include <llvm/ADT/TypeSwitch.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 
 namespace cxx {
@@ -199,10 +200,8 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
   auto elementTy =
       mlir::TypeSwitch<mlir::Type, mlir::IntegerType>(
           conditionResult.value.getType())
-          .Case<mlir::cxx::IntegerType>(
-              [&](mlir::cxx::IntegerType ty) -> mlir::IntegerType {
-                return gen.builder_.getIntegerType(ty.getWidth());
-              })
+          .Case<mlir::IntegerType>(
+              [&](mlir::IntegerType ty) -> mlir::IntegerType { return ty; })
           .Default([](mlir::Type ty) -> mlir::IntegerType { return {}; });
 
   auto shapeType = mlir::VectorType::get(
@@ -216,9 +215,7 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
                                v.getZExtValue(), false, true);
           }));
 
-  auto flag = mlir::cxx::ToFlagOp::create(
-      gen.builder_, gen.getLocation(ast->firstSourceLocation()), elementTy,
-      conditionResult.value);
+  auto flag = conditionResult.value;
 
   std::vector<mlir::ValueRange> caseOperands(
       gen.switch_.caseDestinations.size(), mlir::ValueRange{});
@@ -316,10 +313,10 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
     beginVal = rangeResult.value;
 
-    auto intTy =
-        mlir::cxx::IntegerType::get(gen.builder_.getContext(), 64, true);
-    auto sizeOp = mlir::cxx::IntConstantOp::create(gen.builder_, loc, intTy,
-                                                   arrayType->size());
+    auto intTy = gen.builder_.getIntegerType(64);
+    auto sizeOp = mlir::arith::ConstantOp::create(
+        gen.builder_, loc, intTy,
+        gen.builder_.getIntegerAttr(intTy, arrayType->size()));
     endVal = mlir::cxx::PtrAddOp::create(gen.builder_, loc, ptrType, beginVal,
                                          sizeOp);
   } else if (auto classType = type_cast<ClassType>(rangeType)) {
@@ -500,9 +497,13 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
   mlir::Value condVal;
   if (isPointerIterator || !neqFunc) {
-    auto boolType = gen.convertType(control()->getBoolType());
-    condVal = mlir::cxx::NotEqualOp::create(gen.builder_, loc, boolType,
-                                            iterLoad, endLoad);
+    auto intPtrType = gen.builder_.getIntegerType(64);
+    auto leftInt =
+        mlir::cxx::PtrToIntOp::create(gen.builder_, loc, intPtrType, iterLoad);
+    auto rightInt =
+        mlir::cxx::PtrToIntOp::create(gen.builder_, loc, intPtrType, endLoad);
+    condVal = mlir::arith::CmpIOp::create(
+        gen.builder_, loc, mlir::arith::CmpIPredicate::ne, leftInt, rightInt);
   } else {
     auto neqParent = neqFunc->parent();
     bool isMemberNeq = neqParent && neqParent->kind() == SymbolKind::kClass;
@@ -518,9 +519,13 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
   }
 
   if (!condVal) {
-    auto boolType = gen.convertType(control()->getBoolType());
-    condVal = mlir::cxx::NotEqualOp::create(gen.builder_, loc, boolType,
-                                            iterLoad, endLoad);
+    auto intPtrType = gen.builder_.getIntegerType(64);
+    auto leftInt =
+        mlir::cxx::PtrToIntOp::create(gen.builder_, loc, intPtrType, iterLoad);
+    auto rightInt =
+        mlir::cxx::PtrToIntOp::create(gen.builder_, loc, intPtrType, endLoad);
+    condVal = mlir::arith::CmpIOp::create(
+        gen.builder_, loc, mlir::arith::CmpIPredicate::ne, leftInt, rightInt);
   }
 
   mlir::cf::CondBranchOp::create(gen.builder_, loc, condVal, bodyBlock, {},
@@ -583,9 +588,9 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
       mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
 
   if (isPointerIterator) {
-    auto intTy =
-        mlir::cxx::IntegerType::get(gen.builder_.getContext(), 32, true);
-    auto oneOp = mlir::cxx::IntConstantOp::create(gen.builder_, loc, intTy, 1);
+    auto intTy = gen.builder_.getIntegerType(32);
+    auto oneOp = mlir::arith::ConstantOp::create(
+        gen.builder_, loc, intTy, gen.builder_.getIntegerAttr(intTy, 1));
     auto nextIter = mlir::cxx::PtrAddOp::create(gen.builder_, loc, iterType,
                                                 iterInStep, oneOp);
     mlir::cxx::StoreOp::create(gen.builder_, loc, nextIter, iterAlloca, 8);

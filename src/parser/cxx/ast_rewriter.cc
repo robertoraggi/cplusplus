@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -38,6 +39,7 @@
 namespace cxx {
 
 namespace {
+
 struct GetTemplateDeclaration {
   auto operator()(ClassSymbol* symbol) -> TemplateDeclarationAST* {
     return symbol->templateDeclaration();
@@ -136,19 +138,253 @@ struct Instantiate {
 
     return instance->symbol;
   }
+
   auto operator()(FunctionSymbol* symbol) -> Symbol* {
     auto funcDef = symbol->declaration();
-    if (!funcDef) return nullptr;
+    if (funcDef) {
+      auto instance =
+          ast_cast<FunctionDefinitionAST>(rewriter.declaration(funcDef));
 
-    auto instance =
-        ast_cast<FunctionDefinitionAST>(rewriter.declaration(funcDef));
+      if (!instance) return nullptr;
+
+      return instance->symbol;
+    }
+
+    auto templateDecl = symbol->templateDeclaration();
+    if (!templateDecl) return nullptr;
+
+    auto decl = templateDecl->declaration;
+    if (!decl) return nullptr;
+
+    auto instance = ast_cast<SimpleDeclarationAST>(
+        rewriter.declaration(ast_cast<SimpleDeclarationAST>(decl)));
 
     if (!instance) return nullptr;
+    if (!instance->initDeclaratorList) return nullptr;
 
-    return instance->symbol;
+    return instance->initDeclaratorList->value->symbol;
   }
+
   auto operator()(Symbol*) -> Symbol* { return nullptr; }
 };
+
+auto isPrimaryTemplate(const std::vector<TemplateArgument>& templateArguments)
+    -> bool {
+  int expected = 0;
+  for (const auto& arg : templateArguments) {
+    if (!std::holds_alternative<Symbol*>(arg)) return false;
+
+    auto sym = std::get<Symbol*>(arg);
+
+    if (auto pack = symbol_cast<ParameterPackSymbol>(sym)) {
+      if (pack->elements().size() != 1) return false;
+      auto ty = getTypeParamInfo(pack->elements()[0]->type());
+      if (!ty) return false;
+      if (ty->index != expected) return false;
+      if (!ty->isPack) return false;
+      ++expected;
+      continue;
+    }
+
+    auto ty = getTypeParamInfo(sym->type());
+    if (!ty) return false;
+    if (ty->index != expected) return false;
+    ++expected;
+  }
+  return true;
+}
+
+struct PackDeducer {
+  Control* control;
+  std::vector<TemplateArgument>& deducedArgs;
+  std::function<int(int depth, int index)> paramPosition;
+
+  void setDeduced(int pos, TemplateArgument arg) {
+    if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
+      deducedArgs[pos] = std::move(arg);
+    }
+  }
+
+  auto deducePackElements(const std::vector<Symbol*>& patElems,
+                          const std::vector<Symbol*>& concElems) -> bool {
+    size_t patIdx = 0;
+    size_t concIdx = 0;
+
+    while (patIdx < patElems.size() && concIdx < concElems.size()) {
+      auto patElem = patElems[patIdx];
+      auto patElemInfo = getTypeParamInfo(patElem->type());
+
+      if (patElemInfo && patElemInfo->isPack) {
+        auto deducedPack = control->newParameterPackSymbol(nullptr, {});
+        while (concIdx < concElems.size()) {
+          deducedPack->addElement(concElems[concIdx]);
+          ++concIdx;
+        }
+        setDeduced(paramPosition(patElemInfo->depth, patElemInfo->index),
+                   deducedPack);
+        ++patIdx;
+        continue;
+      }
+
+      if (patElemInfo) {
+        setDeduced(paramPosition(patElemInfo->depth, patElemInfo->index),
+                   concElems[concIdx]);
+        ++patIdx;
+        ++concIdx;
+        continue;
+      }
+
+      if (patElem->type() != concElems[concIdx]->type()) return false;
+      ++patIdx;
+      ++concIdx;
+    }
+
+    while (patIdx < patElems.size()) {
+      auto patElem = patElems[patIdx];
+      auto patElemInfo = getTypeParamInfo(patElem->type());
+      if (patElemInfo && patElemInfo->isPack) {
+        auto deducedPack = control->newParameterPackSymbol(nullptr, {});
+        setDeduced(paramPosition(patElemInfo->depth, patElemInfo->index),
+                   deducedPack);
+        ++patIdx;
+      } else {
+        return false;
+      }
+    }
+
+    return concIdx == concElems.size();
+  }
+};
+
+auto findInnerTemplateId(ClassSpecifierAST* specBody, size_t argPos)
+    -> SimpleTemplateIdAST* {
+  auto outerTemplId = ast_cast<SimpleTemplateIdAST>(specBody->unqualifiedId);
+  if (!outerTemplId) return nullptr;
+
+  int idx = 0;
+  for (auto arg : ListView{outerTemplId->templateArgumentList}) {
+    if (idx == static_cast<int>(argPos)) {
+      auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg);
+      if (!typeArg || !typeArg->typeId) return nullptr;
+
+      for (auto sp : ListView{typeArg->typeId->typeSpecifierList}) {
+        if (auto named = ast_cast<NamedTypeSpecifierAST>(sp)) {
+          if (auto templId =
+                  ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) {
+            return templId;
+          }
+        }
+      }
+      return nullptr;
+    }
+    ++idx;
+  }
+  return nullptr;
+}
+
+struct PartialSpecMatcher {
+  TranslationUnit* unit;
+  ClassSpecifierAST* specBody;
+  std::vector<TemplateArgument>& deducedArgs;
+  std::function<int(int depth, int index)> paramPosition;
+
+  [[nodiscard]] auto control() const -> Control* { return unit->control(); }
+
+  auto matchArg(const TemplateArgument& pat, const TemplateArgument& conc,
+                size_t argPos) -> bool {
+    auto patSym = std::get_if<Symbol*>(&pat);
+    auto concSym = std::get_if<Symbol*>(&conc);
+    if (!patSym || !concSym) return false;
+
+    auto patPack = symbol_cast<ParameterPackSymbol>(*patSym);
+    auto concPack = symbol_cast<ParameterPackSymbol>(*concSym);
+    if (patPack && concPack) {
+      PackDeducer deducer{control(), deducedArgs, paramPosition};
+      return deducer.deducePackElements(patPack->elements(),
+                                        concPack->elements());
+    }
+
+    if (auto patParamInfo = getTypeParamInfo((*patSym)->type())) {
+      auto pos = paramPosition(patParamInfo->depth, patParamInfo->index);
+      if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
+        deducedArgs[pos] = conc;
+      }
+      return true;
+    }
+
+    auto patVar = symbol_cast<VariableSymbol>(*patSym);
+    auto concVar = symbol_cast<VariableSymbol>(*concSym);
+    if (patVar && concVar) {
+      if (!patVar->constValue().has_value() ||
+          !concVar->constValue().has_value())
+        return false;
+      return patVar->constValue().value() == concVar->constValue().value();
+    }
+
+    if (auto patClassType = type_cast<ClassType>((*patSym)->type())) {
+      if (auto concClassType = type_cast<ClassType>((*concSym)->type())) {
+        auto patClassSym = patClassType->symbol();
+        auto concClassSym = concClassType->symbol();
+
+        if (concClassSym->isSpecialization() &&
+            concClassSym->primaryTemplateSymbol() == patClassSym &&
+            patClassSym->templateDeclaration()) {
+          return matchNestedClassTemplate(patClassSym, concClassSym, argPos);
+        }
+      }
+    }
+
+    return (*patSym)->type() == (*concSym)->type();
+  }
+
+ private:
+  auto matchNestedClassTemplate(ClassSymbol* patClassSym,
+                                ClassSymbol* concClassSym, size_t argPos)
+      -> bool {
+    auto concInnerArgs = concClassSym->templateArguments();
+
+    auto innerTemplId = findInnerTemplateId(specBody, argPos);
+    if (!innerTemplId) return false;
+
+    auto patInnerArgs =
+        ASTRewriter::make_substitution(unit, patClassSym->templateDeclaration(),
+                                       innerTemplId->templateArgumentList);
+
+    if (patInnerArgs.size() != concInnerArgs.size()) return false;
+
+    std::vector<TemplateArgument> concInnerVec(concInnerArgs.begin(),
+                                               concInnerArgs.end());
+
+    for (size_t j = 0; j < patInnerArgs.size(); ++j) {
+      auto ipSym = std::get_if<Symbol*>(&patInnerArgs[j]);
+      auto icSym = std::get_if<Symbol*>(&concInnerVec[j]);
+      if (!ipSym || !icSym) return false;
+
+      auto ipPack = symbol_cast<ParameterPackSymbol>(*ipSym);
+      auto icPack = symbol_cast<ParameterPackSymbol>(*icSym);
+
+      if (ipPack && icPack) {
+        PackDeducer deducer{control(), deducedArgs, paramPosition};
+        if (!deducer.deducePackElements(ipPack->elements(), icPack->elements()))
+          return false;
+        continue;
+      }
+
+      if (auto innerPTInfo = getTypeParamInfo((*ipSym)->type())) {
+        auto pos = paramPosition(innerPTInfo->depth, innerPTInfo->index);
+        if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
+          deducedArgs[pos] = concInnerVec[j];
+        }
+        continue;
+      }
+
+      if ((*ipSym)->type() != (*icSym)->type()) return false;
+    }
+
+    return true;
+  }
+};
+
 }  // namespace
 
 ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
@@ -179,6 +415,28 @@ void ASTRewriter::error(SourceLocation loc, std::string message) {
   binder_.error(loc, std::move(message));
 }
 
+auto ASTRewriter::checkRequiresClause(
+    TranslationUnit* unit, Symbol* symbol, RequiresClauseAST* clause,
+    const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
+  if (!clause) return true;
+
+  auto parentScope = symbol->enclosingNonTemplateParametersScope();
+  auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
+  reqRewriter.depth_ = depth;
+  auto rewrittenClause = reqRewriter.requiresClause(clause);
+  if (!rewrittenClause || !rewrittenClause->expression) return true;
+
+  reqRewriter.check(rewrittenClause->expression);
+  auto interp = ASTInterpreter{unit};
+  auto val = interp.evaluate(rewrittenClause->expression);
+  if (!val.has_value()) return true;
+
+  auto boolVal = interp.toBool(*val);
+  if (boolVal.has_value() && !*boolVal) return false;
+
+  return true;
+}
+
 void ASTRewriter::check(ExpressionAST* ast) {
   auto typeChecker = TypeChecker{unit_};
   typeChecker.setScope(binder_.scope());
@@ -193,27 +451,35 @@ auto ASTRewriter::getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol* {
     auto astNode = std::get<AST*>(current.node);
 
     if (auto id = ast_cast<IdExpressionAST>(astNode)) {
-      auto param = symbol_cast<NonTypeParameterSymbol>(id->symbol);
-      if (!param) continue;
+      if (auto param = symbol_cast<NonTypeParameterSymbol>(id->symbol)) {
+        if (param->depth() != 0) continue;
 
-      if (param->depth() != 0) continue;
+        auto arg = templateArguments_[param->index()];
+        auto argSymbol = std::get<Symbol*>(arg);
 
-      auto arg = templateArguments_[param->index()];
-      auto argSymbol = std::get<Symbol*>(arg);
+        auto parameterPack = symbol_cast<ParameterPackSymbol>(argSymbol);
+        if (parameterPack) return parameterPack;
+      }
 
-      auto parameterPack = symbol_cast<ParameterPackSymbol>(argSymbol);
-      if (parameterPack) return parameterPack;
+      if (auto param = symbol_cast<ParameterSymbol>(id->symbol)) {
+        auto it = functionParamPacks_.find(param);
+        if (it != functionParamPacks_.end()) {
+          return it->second;
+        }
+      }
     }
 
     if (auto named = ast_cast<NamedTypeSpecifierAST>(astNode)) {
-      auto typeParam = symbol_cast<TypeParameterSymbol>(named->symbol);
-      if (!typeParam) continue;
+      Symbol* paramSym = symbol_cast<TypeParameterSymbol>(named->symbol);
+      if (!paramSym)
+        paramSym = symbol_cast<TemplateTypeParameterSymbol>(named->symbol);
+      if (!paramSym) continue;
 
-      auto paramType = type_cast<TypeParameterType>(typeParam->type());
-      if (!paramType || !paramType->isParameterPack()) continue;
-      if (paramType->depth() != depth_) continue;
+      auto paramInfo = getTypeParamInfo(paramSym->type());
+      if (!paramInfo || !paramInfo->isPack) continue;
+      if (paramInfo->depth != depth_) continue;
 
-      auto index = paramType->index();
+      auto index = paramInfo->index;
       if (index >= static_cast<int>(templateArguments_.size())) continue;
 
       if (auto sym = std::get_if<Symbol*>(&templateArguments_[index])) {
@@ -230,14 +496,16 @@ auto ASTRewriter::getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol* {
 auto ASTRewriter::getTypeParameterPack(SpecifierAST* ast)
     -> ParameterPackSymbol* {
   if (auto named = ast_cast<NamedTypeSpecifierAST>(ast)) {
-    auto typeParam = symbol_cast<TypeParameterSymbol>(named->symbol);
-    if (!typeParam) return nullptr;
+    Symbol* paramSym = symbol_cast<TypeParameterSymbol>(named->symbol);
+    if (!paramSym)
+      paramSym = symbol_cast<TemplateTypeParameterSymbol>(named->symbol);
+    if (!paramSym) return nullptr;
 
-    auto paramType = type_cast<TypeParameterType>(typeParam->type());
-    if (!paramType || !paramType->isParameterPack()) return nullptr;
-    if (paramType->depth() != depth_) return nullptr;
+    auto paramInfo = getTypeParamInfo(paramSym->type());
+    if (!paramInfo || !paramInfo->isPack) return nullptr;
+    if (paramInfo->depth != depth_) return nullptr;
 
-    auto index = paramType->index();
+    auto index = paramInfo->index;
     if (index >= static_cast<int>(templateArguments_.size())) return nullptr;
 
     if (auto sym = std::get_if<Symbol*>(&templateArguments_[index])) {
@@ -252,10 +520,6 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
                               Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(symbol);
-  auto variableSymbol = symbol_cast<VariableSymbol>(symbol);
-  auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(symbol);
-
   auto templateDecl = visit(GetTemplateDeclaration{}, symbol);
   if (!templateDecl) return nullptr;
 
@@ -265,273 +529,145 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   auto templateArguments =
       make_substitution(unit, templateDecl, templateArgumentList);
 
-  auto is_primary_template = [&]() -> bool {
-    int expected = 0;
-    for (const auto& arg : templateArguments) {
-      if (!std::holds_alternative<Symbol*>(arg)) return false;
+  if (isPrimaryTemplate(templateArguments)) return symbol;
 
-      auto sym = std::get<Symbol*>(arg);
+  if (auto cached = visit(GetSpecialization{templateArguments}, symbol))
+    return cached;
 
-      if (auto pack = symbol_cast<ParameterPackSymbol>(sym)) {
-        if (pack->elements().size() != 1) return false;
-        auto ty = type_cast<TypeParameterType>(pack->elements()[0]->type());
-        if (!ty) return false;
-        if (ty->index() != expected) return false;
-        if (!ty->isParameterPack()) return false;
-        ++expected;
-        continue;
-      }
-
-      auto ty = type_cast<TypeParameterType>(sym->type());
-      if (!ty) return false;
-
-      if (ty->index() != expected) return false;
-      ++expected;
-    }
-    return true;
-  };
-
-  if (is_primary_template()) {
-    // if this is a primary template, we can just return the class symbol
-    return symbol;
-  }
-
-  auto specialization = visit(GetSpecialization{templateArguments}, symbol);
-
-  if (specialization) return specialization;
-
-  if (templateDecl->requiresClause) {
-    auto parentScope = symbol->enclosingNonTemplateParametersScope();
-    auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
-    reqRewriter.depth_ = templateDecl->depth;
-    auto rewrittenClause =
-        reqRewriter.requiresClause(templateDecl->requiresClause);
-    if (rewrittenClause && rewrittenClause->expression) {
-      reqRewriter.check(rewrittenClause->expression);
-      auto interp = ASTInterpreter{unit};
-      auto val = interp.evaluate(rewrittenClause->expression);
-      if (val.has_value()) {
-        auto boolVal = interp.toBool(*val);
-        if (boolVal.has_value() && !*boolVal) {
-          return nullptr;
-        }
-      }
-    }
-  }
+  if (!checkRequiresClause(unit, symbol, templateDecl->requiresClause,
+                           templateArguments, templateDecl->depth))
+    return nullptr;
 
   if (auto funcDef = ast_cast<FunctionDefinitionAST>(declaration)) {
-    if (funcDef->requiresClause) {
-      auto parentScope = symbol->enclosingNonTemplateParametersScope();
-      auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
-      reqRewriter.depth_ = templateDecl->depth;
-      auto rewrittenClause =
-          reqRewriter.requiresClause(funcDef->requiresClause);
-      if (rewrittenClause && rewrittenClause->expression) {
-        reqRewriter.check(rewrittenClause->expression);
-        auto interp = ASTInterpreter{unit};
-        auto val = interp.evaluate(rewrittenClause->expression);
-        if (val.has_value()) {
-          auto boolVal = interp.toBool(*val);
-          if (boolVal.has_value() && !*boolVal) {
-            return nullptr;
-          }
-        }
-      }
-    }
+    if (!checkRequiresClause(unit, symbol, funcDef->requiresClause,
+                             templateArguments, templateDecl->depth))
+      return nullptr;
   }
 
-  if (classSymbol) {
-    auto tryPartialSpecialization = [&]() -> Symbol* {
-      for (const auto& spec : classSymbol->specializations()) {
-        auto specClass = symbol_cast<ClassSymbol>(spec.symbol);
-        if (!specClass) continue;
-
-        auto specTemplateDecl = specClass->templateDeclaration();
-        if (!specTemplateDecl) continue;
-
-        const auto& patternArgs = spec.arguments;
-        if (patternArgs.size() != templateArguments.size()) continue;
-
-        bool matches = true;
-        std::vector<TemplateArgument> deducedArgs;
-
-        int specParamCount = 0;
-        std::map<std::pair<int, int>, int> paramPositionMap;
-        for (auto p : ListView{specTemplateDecl->templateParameterList}) {
-          paramPositionMap[{p->depth, p->index}] = specParamCount;
-          ++specParamCount;
-        }
-        deducedArgs.resize(specParamCount);
-
-        auto paramPosition = [&](const TypeParameterType* ty) -> int {
-          auto it = paramPositionMap.find({ty->depth(), ty->index()});
-          if (it != paramPositionMap.end()) return it->second;
-          return -1;
-        };
-
-        for (size_t i = 0; i < patternArgs.size(); ++i) {
-          const auto& pat = patternArgs[i];
-          const auto& conc = templateArguments[i];
-
-          auto patSym = std::get_if<Symbol*>(&pat);
-          auto concSym = std::get_if<Symbol*>(&conc);
-          if (!patSym || !concSym) {
-            matches = false;
-            break;
-          }
-
-          auto patPack = symbol_cast<ParameterPackSymbol>(*patSym);
-          auto concPack = symbol_cast<ParameterPackSymbol>(*concSym);
-
-          if (patPack && concPack) {
-            const auto& patElems = patPack->elements();
-            const auto& concElems = concPack->elements();
-
-            size_t patIdx = 0;
-            size_t concIdx = 0;
-
-            while (patIdx < patElems.size() && concIdx < concElems.size()) {
-              auto patElem = patElems[patIdx];
-              auto patElemType = type_cast<TypeParameterType>(patElem->type());
-
-              if (patElemType && patElemType->isParameterPack()) {
-                auto deducedPack =
-                    unit->control()->newParameterPackSymbol(nullptr, {});
-                while (concIdx < concElems.size()) {
-                  deducedPack->addElement(concElems[concIdx]);
-                  ++concIdx;
-                }
-                auto pos = paramPosition(patElemType);
-                if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
-                  deducedArgs[pos] = deducedPack;
-                }
-                ++patIdx;
-                continue;
-              }
-
-              if (patElemType) {
-                auto pos = paramPosition(patElemType);
-                if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
-                  deducedArgs[pos] = concElems[concIdx];
-                }
-                ++patIdx;
-                ++concIdx;
-                continue;
-              }
-
-              if (patElem->type() != concElems[concIdx]->type()) {
-                matches = false;
-                break;
-              }
-              ++patIdx;
-              ++concIdx;
-            }
-
-            while (patIdx < patElems.size() && matches) {
-              auto patElem = patElems[patIdx];
-              auto patElemType = type_cast<TypeParameterType>(patElem->type());
-              if (patElemType && patElemType->isParameterPack()) {
-                auto deducedPack =
-                    unit->control()->newParameterPackSymbol(nullptr, {});
-                auto pos = paramPosition(patElemType);
-                if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
-                  deducedArgs[pos] = deducedPack;
-                }
-                ++patIdx;
-              } else {
-                matches = false;
-              }
-            }
-
-            if (concIdx != concElems.size()) matches = false;
-            if (!matches) break;
-            continue;
-          }
-
-          auto patParamType = type_cast<TypeParameterType>((*patSym)->type());
-          if (patParamType) {
-            auto pos = paramPosition(patParamType);
-            if (pos >= 0 && pos < static_cast<int>(deducedArgs.size())) {
-              deducedArgs[pos] = conc;
-            }
-            continue;
-          }
-
-          auto patVar = symbol_cast<VariableSymbol>(*patSym);
-          auto concVar = symbol_cast<VariableSymbol>(*concSym);
-          if (patVar && concVar) {
-            if (!patVar->constValue().has_value() ||
-                !concVar->constValue().has_value()) {
-              matches = false;
-              break;
-            }
-            if (patVar->constValue().value() != concVar->constValue().value()) {
-              matches = false;
-              break;
-            }
-            continue;
-          }
-
-          if ((*patSym)->type() == (*concSym)->type()) continue;
-
-          matches = false;
-          break;
-        }
-
-        if (!matches) continue;
-
-        bool allDeduced = true;
-        for (const auto& d : deducedArgs) {
-          if (!std::holds_alternative<Symbol*>(d)) {
-            allDeduced = false;
-            break;
-          }
-        }
-        if (!allDeduced) continue;
-
-        if (auto cached = specClass->findSpecialization(deducedArgs)) {
-          auto cachedClass = symbol_cast<ClassSymbol>(cached);
-          if (cachedClass) {
-            classSymbol->addSpecialization(templateArguments, cachedClass);
-          }
-          return cached;
-        }
-
-        auto specParentScope = specClass->enclosingNonTemplateParametersScope();
-        auto specRewriter = ASTRewriter{unit, specParentScope, deducedArgs};
-        specRewriter.depth_ = specTemplateDecl->depth;
-        specRewriter.binder().setInstantiatingSymbol(specClass);
-
-        auto specBody = ast_cast<ClassSpecifierAST>(specClass->declaration());
-        if (!specBody) continue;
-
-        auto instance =
-            ast_cast<ClassSpecifierAST>(specRewriter.specifier(specBody));
-        if (!instance || !instance->symbol) continue;
-
-        auto instanceClass = symbol_cast<ClassSymbol>(instance->symbol);
-        if (instanceClass) {
-          classSymbol->addSpecialization(templateArguments, instanceClass);
-        }
-
-        return instance->symbol;
-      }
-      return nullptr;
-    };
-
-    if (auto result = tryPartialSpecialization()) return result;
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    if (auto result =
+            tryPartialSpecialization(unit, classSymbol, templateArguments))
+      return result;
   }
 
   auto parentScope = symbol->enclosingNonTemplateParametersScope();
-
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
   rewriter.depth_ = templateDecl->depth;
-
   rewriter.binder().setInstantiatingSymbol(symbol);
 
-  auto instance = visit(Instantiate{rewriter}, symbol);
+  return visit(Instantiate{rewriter}, symbol);
+}
 
-  return instance;
+void ASTRewriter::completePendingBody(TranslationUnit* unit,
+                                      FunctionSymbol* func) {
+  if (!func || !func->hasPendingBody()) return;
+
+  auto pending = func->pendingBody();
+
+  auto newAst = func->declaration();
+  if (!newAst) {
+    func->clearPendingBody();
+    return;
+  }
+
+  auto templateArguments = std::move(pending->templateArguments);
+  auto parentScope = pending->parentScope;
+  auto depth = pending->depth;
+  auto originalDef = pending->originalDefinition;
+  func->clearPendingBody();
+
+  auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
+  rewriter.depth_ = depth;
+
+  auto functionDeclarator = getFunctionPrototype(newAst->declarator);
+
+  if (functionDeclarator) {
+    if (auto params = functionDeclarator->parameterDeclarationClause) {
+      rewriter.binder_.setScope(params->functionParametersSymbol);
+    } else {
+      rewriter.binder_.setScope(func);
+    }
+  } else {
+    rewriter.binder_.setScope(func);
+  }
+
+  newAst->functionBody = rewriter.functionBody(originalDef->functionBody);
+}
+
+auto ASTRewriter::tryPartialSpecialization(
+    TranslationUnit* unit, ClassSymbol* classSymbol,
+    const std::vector<TemplateArgument>& templateArguments) -> Symbol* {
+  for (const auto& spec : classSymbol->specializations()) {
+    auto specClass = symbol_cast<ClassSymbol>(spec.symbol);
+    if (!specClass) continue;
+
+    auto specTemplateDecl = specClass->templateDeclaration();
+    if (!specTemplateDecl) continue;
+
+    const auto& patternArgs = spec.arguments;
+    if (patternArgs.size() != templateArguments.size()) continue;
+
+    auto specBody = ast_cast<ClassSpecifierAST>(specClass->declaration());
+    if (!specBody) continue;
+
+    int specParamCount = 0;
+    std::map<std::pair<int, int>, int> paramPositionMap;
+    for (auto p : ListView{specTemplateDecl->templateParameterList}) {
+      paramPositionMap[{p->depth, p->index}] = specParamCount;
+      ++specParamCount;
+    }
+
+    std::vector<TemplateArgument> deducedArgs(specParamCount);
+
+    auto paramPosition = [&](int depth, int index) -> int {
+      auto it = paramPositionMap.find({depth, index});
+      if (it != paramPositionMap.end()) return it->second;
+      return -1;
+    };
+
+    PartialSpecMatcher matcher{unit, specBody, deducedArgs, paramPosition};
+
+    bool matches = true;
+    for (size_t i = 0; i < patternArgs.size(); ++i) {
+      if (!matcher.matchArg(patternArgs[i], templateArguments[i], i)) {
+        matches = false;
+        break;
+      }
+    }
+    if (!matches) continue;
+
+    bool allDeduced = true;
+    for (const auto& d : deducedArgs) {
+      if (!std::holds_alternative<Symbol*>(d)) {
+        allDeduced = false;
+        break;
+      }
+    }
+    if (!allDeduced) continue;
+
+    if (auto cached = specClass->findSpecialization(deducedArgs)) {
+      if (auto cachedClass = symbol_cast<ClassSymbol>(cached)) {
+        classSymbol->addSpecialization(templateArguments, cachedClass);
+      }
+      return cached;
+    }
+
+    auto specParentScope = specClass->enclosingNonTemplateParametersScope();
+    auto specRewriter = ASTRewriter{unit, specParentScope, deducedArgs};
+    specRewriter.depth_ = specTemplateDecl->depth;
+    specRewriter.binder().setInstantiatingSymbol(specClass);
+
+    auto instance =
+        ast_cast<ClassSpecifierAST>(specRewriter.specifier(specBody));
+    if (!instance || !instance->symbol) continue;
+
+    if (auto instanceClass = symbol_cast<ClassSymbol>(instance->symbol)) {
+      classSymbol->addSpecialization(templateArguments, instanceClass);
+    }
+
+    return instance->symbol;
+  }
+  return nullptr;
 }
 
 auto ASTRewriter::make_substitution(

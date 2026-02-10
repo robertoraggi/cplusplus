@@ -537,6 +537,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literal =
           static_cast<const StringLiteral*>(unit->literal(ast->literalLoc));
 
+      // TODO: look up literal operator and resolve call
       return true;
     }
 
@@ -546,6 +547,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
     case TokenKind::T_UTF32_STRING_LITERAL:
     case TokenKind::T_STRING_LITERAL: {
       auto literalLoc = consumeToken();
+      auto tokenKind = unit->tokenKind(literalLoc);
 
       auto ast = StringLiteralExpressionAST::create(pool_);
       yyast = ast;
@@ -553,17 +555,42 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       ast->literalLoc = literalLoc;
       ast->literal =
           static_cast<const StringLiteral*>(unit->literal(literalLoc));
+      ast->encoding = tokenKind;
 
-      if (unit->tokenKind(literalLoc) == TokenKind::T_STRING_LITERAL) {
-        const Type* elementType = control_->getCharType();
-        if (is_parsing_cxx()) elementType = control_->add_const(elementType);
+      const Type* elementType = nullptr;
+      std::size_t extent = 0;
 
-        auto extent = ast->literal->stringValue().size() + 1;
-
-        ast->type = control_->getBoundedArrayType(elementType, extent);
-
-        ast->valueCategory = ValueCategory::kLValue;
+      switch (tokenKind) {
+        case TokenKind::T_STRING_LITERAL:
+          elementType = control_->getCharType();
+          extent = ast->literal->charCount() + 1;
+          break;
+        case TokenKind::T_UTF8_STRING_LITERAL:
+          elementType = control_->getChar8Type();
+          extent = ast->literal->charCount() + 1;
+          break;
+        case TokenKind::T_UTF16_STRING_LITERAL:
+          elementType = control_->getChar16Type();
+          extent = ast->literal->charCount() + 1;
+          break;
+        case TokenKind::T_UTF32_STRING_LITERAL:
+          elementType = control_->getChar32Type();
+          extent = ast->literal->charCount() + 1;
+          break;
+        case TokenKind::T_WIDE_STRING_LITERAL:
+          elementType = control_->getWideCharType();
+          extent = ast->literal->charCount() + 1;
+          break;
+        default:
+          elementType = control_->getCharType();
+          extent = ast->literal->charCount() + 1;
+          break;
       }
+
+      if (is_parsing_cxx()) elementType = control_->add_const(elementType);
+
+      ast->type = control_->getBoundedArrayType(elementType, extent);
+      ast->valueCategory = ValueCategory::kLValue;
 
       return true;
     }
@@ -1017,11 +1044,11 @@ struct IsReferencingTemplateParameter {
   }
 
   [[nodiscard]] auto checkTypeParam(const Type* type) const -> bool {
-    auto typeParam = type_cast<TypeParameterType>(type);
-    if (!typeParam) return false;
+    auto info = getTypeParamInfo(type);
+    if (!info) return false;
 
-    if (typeParam->depth() != depth) return false;
-    if (typeParam->index() != index) return false;
+    if (info->depth != depth) return false;
+    if (info->index != index) return false;
 
     return true;
   }
@@ -1060,18 +1087,47 @@ auto Parser::parse_template_nested_name_specifier(
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
   if (config().checkTypes) {
-    // replace with instantiated class template
-    if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiate(
-          unit, templateId->templateArgumentList, classSymbol);
+    // Skip instantiation when inside a template with dependent arguments.
+    bool hasDependentArgs = false;
+    if (binder_.inTemplate()) {
+      for (auto arg : ListView{templateId->templateArgumentList}) {
+        if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+          if (typeArg->typeId && typeArg->typeId->type) {
+            if (type_cast<TypeParameterType>(typeArg->typeId->type) ||
+                type_cast<TemplateTypeParameterType>(typeArg->typeId->type)) {
+              hasDependentArgs = true;
+              break;
+            }
+          }
+        }
+        if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+          if (auto idExpr = ast_cast<IdExpressionAST>(exprArg->expression)) {
+            if (symbol_cast<NonTypeParameterSymbol>(idExpr->symbol)) {
+              hasDependentArgs = true;
+              break;
+            }
+          }
+        }
+      }
+    }
 
-      ast->symbol = symbol_cast<ClassSymbol>(instance);
-    } else if (auto typeAliasSymbol =
-                   symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiate(
-          unit, templateId->templateArgumentList, typeAliasSymbol);
+    if (!hasDependentArgs) {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
+        auto instance = ASTRewriter::instantiate(
+            unit, templateId->templateArgumentList, classSymbol);
 
-      ast->symbol = symbol_cast<ScopeSymbol>(instance);
+        ast->symbol = symbol_cast<ClassSymbol>(instance);
+      } else if (auto typeAliasSymbol =
+                     symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
+        auto instance = ASTRewriter::instantiate(
+            unit, templateId->templateArgumentList, typeAliasSymbol);
+
+        ast->symbol = symbol_cast<ScopeSymbol>(instance);
+      }
+    } else {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
+        ast->symbol = classSymbol;
+      }
     }
   }
 
@@ -2753,8 +2809,10 @@ auto Parser::parse_new_expression(ExpressionAST*& yyast, const ExprContext& ctx)
   if (lookat_nested_type_id()) return true;
 
   DeclSpecs specs{unit};
-  if (!parse_type_specifier_seq(ast->typeSpecifierList, specs))
+  if (!parse_type_specifier_seq(ast->typeSpecifierList, specs)) {
     parse_error("expected a type specifier");
+    specs.finish();
+  }
 
   Decl decl{specs};
 
@@ -5737,7 +5795,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
-  return parse_init_declarator(yyast, declarator, decl, ctx);
+  return parse_init_declarator(yyast, declarator, decl, ctx, templateHead);
 }
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
@@ -5753,6 +5811,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
       symbol = typedefSymbol;
     } else if (getFunctionPrototype(declarator)) {
       auto functionSymbol = binder_.declareFunction(declarator, decl);
+      functionSymbol->setTemplateDeclaration(templateHead);
       symbol = functionSymbol;
     } else {
       auto variableSymbol = binder_.declareVariable(

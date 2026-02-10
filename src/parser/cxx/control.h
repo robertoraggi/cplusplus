@@ -53,13 +53,13 @@ class Control {
   [[nodiscard]] auto charLiteral(std::string_view spelling)
       -> const CharLiteral*;
   [[nodiscard]] auto wideStringLiteral(std::string_view spelling)
-      -> const WideStringLiteral*;
+      -> const StringLiteral*;
   [[nodiscard]] auto utf8StringLiteral(std::string_view spelling)
-      -> const Utf8StringLiteral*;
+      -> const StringLiteral*;
   [[nodiscard]] auto utf16StringLiteral(std::string_view spelling)
-      -> const Utf16StringLiteral*;
+      -> const StringLiteral*;
   [[nodiscard]] auto utf32StringLiteral(std::string_view spelling)
-      -> const Utf32StringLiteral*;
+      -> const StringLiteral*;
   [[nodiscard]] auto commentLiteral(std::string_view spelling)
       -> const CommentLiteral*;
 

@@ -109,12 +109,21 @@ auto Codegen::ConvertType::getExprType() const -> mlir::Type {
 auto Codegen::ConvertType::getIntType(const Type* type, bool isSigned)
     -> mlir::Type {
   const auto width = memoryLayout()->sizeOf(type).value() * 8;
-  return gen.builder_.getType<mlir::cxx::IntegerType>(width, isSigned);
+  return mlir::IntegerType::get(gen.builder_.getContext(), width);
 }
 
 auto Codegen::ConvertType::getFloatType(const Type* type) -> mlir::Type {
-  return gen.builder_.getType<mlir::cxx::FloatType>(
-      memoryLayout()->sizeOf(type).value() * 8);
+  const auto width = memoryLayout()->sizeOf(type).value() * 8;
+  switch (width) {
+    case 16:
+      return mlir::Float16Type::get(gen.builder_.getContext());
+    case 32:
+      return mlir::Float32Type::get(gen.builder_.getContext());
+    case 64:
+      return mlir::Float64Type::get(gen.builder_.getContext());
+    default:
+      return mlir::Float64Type::get(gen.builder_.getContext());
+  }
 }
 
 auto Codegen::ConvertType::operator()(const VoidType* type) -> mlir::Type {
@@ -136,7 +145,7 @@ auto Codegen::ConvertType::operator()(const AutoType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const BoolType* type) -> mlir::Type {
-  return gen.builder_.getType<mlir::cxx::BoolType>();
+  return mlir::IntegerType::get(gen.builder_.getContext(), 1);
 }
 
 auto Codegen::ConvertType::operator()(const SignedCharType* type)
@@ -316,14 +325,14 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     auto alignment = classSymbol->alignment();
     if (alignment == 0) alignment = 1;
 
-    auto byteType = gen.builder_.getType<mlir::cxx::IntegerType>(8, false);
+    auto byteType = mlir::IntegerType::get(gen.builder_.getContext(), 8);
     auto arrayType = gen.builder_.getType<mlir::cxx::ArrayType>(byteType, size);
     memberTypes.push_back(arrayType);
 
   } else {
     auto layout = classSymbol->layout();
     if (layout && layout->hasDirectVtable()) {
-      auto i8Type = gen.builder_.getType<mlir::cxx::IntegerType>(8, false);
+      auto i8Type = mlir::IntegerType::get(gen.builder_.getContext(), 8);
       auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
       memberTypes.push_back(ptrType);
     }
@@ -351,13 +360,13 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
 auto Codegen::ConvertType::operator()(const EnumType* type) -> mlir::Type {
   if (type->underlyingType()) return gen.convertType(type->underlyingType());
-  return gen.builder_.getType<mlir::cxx::IntegerType>(32, true);
+  return mlir::IntegerType::get(gen.builder_.getContext(), 32);
 }
 
 auto Codegen::ConvertType::operator()(const ScopedEnumType* type)
     -> mlir::Type {
   if (type->underlyingType()) return gen.convertType(type->underlyingType());
-  return gen.builder_.getType<mlir::cxx::IntegerType>(32, true);
+  return mlir::IntegerType::get(gen.builder_.getContext(), 32);
 }
 
 auto Codegen::ConvertType::operator()(const MemberObjectPointerType* type)

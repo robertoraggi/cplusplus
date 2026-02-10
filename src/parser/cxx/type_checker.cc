@@ -790,7 +790,8 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
       }
 
       auto paramIt = type->parameterTypes().begin();
-      for (auto argIt = ast->expressionList; argIt;
+      auto paramEnd = type->parameterTypes().end();
+      for (auto argIt = ast->expressionList; argIt && paramIt != paramEnd;
            argIt = argIt->next, ++paramIt) {
         auto paramType = *paramIt;
 
@@ -3759,6 +3760,10 @@ void TypeChecker::deduce_array_size(VariableSymbol* var) {
   auto initializer = var->initializer();
   if (!initializer) return;
 
+  while (auto cast = ast_cast<ImplicitCastExpressionAST>(initializer)) {
+    initializer = cast->expression;
+  }
+
   BracedInitListAST* bracedInitList = nullptr;
 
   if (auto init = ast_cast<BracedInitListAST>(initializer)) {
@@ -3774,6 +3779,22 @@ void TypeChecker::deduce_array_size(VariableSymbol* var) {
     if (count > 0) {
       const auto arrayType =
           unit_->control()->getBoundedArrayType(ty->elementType(), count);
+
+      var->setType(arrayType);
+    }
+
+    return;
+  }
+
+  ExpressionAST* initExpr = nullptr;
+  if (auto init = ast_cast<EqualInitializerAST>(initializer)) {
+    initExpr = init->expression;
+  }
+
+  if (initExpr) {
+    if (auto boundedArray = type_cast<BoundedArrayType>(initExpr->type)) {
+      const auto arrayType = unit_->control()->getBoundedArrayType(
+          ty->elementType(), boundedArray->size());
 
       var->setType(arrayType);
     }

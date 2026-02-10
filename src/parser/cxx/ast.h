@@ -2981,6 +2981,7 @@ class StringLiteralExpressionAST final : public ExpressionAST {
 
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
+  TokenKind encoding = TokenKind::T_STRING_LITERAL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2994,11 +2995,13 @@ class StringLiteralExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
                                    const StringLiteral* literal,
+                                   TokenKind encoding,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> StringLiteralExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, const StringLiteral* literal,
+                                   TokenKind encoding,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> StringLiteralExpressionAST*;
@@ -3013,6 +3016,7 @@ class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
 
   SourceLocation literalLoc;
   const StringLiteral* literal = nullptr;
+  TokenKind encoding = TokenKind::T_STRING_LITERAL;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3027,11 +3031,13 @@ class UserDefinedStringLiteralExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation literalLoc,
                                    const StringLiteral* literal,
+                                   TokenKind encoding,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> UserDefinedStringLiteralExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, const StringLiteral* literal,
+                                   TokenKind encoding,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> UserDefinedStringLiteralExpressionAST*;

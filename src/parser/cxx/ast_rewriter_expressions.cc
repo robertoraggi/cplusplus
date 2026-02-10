@@ -504,6 +504,30 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
+  // Handle function parameter pack expansion
+  if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
+    auto it = rewrite.functionParamPacks_.find(param);
+    if (it != rewrite.functionParamPacks_.end()) {
+      auto funcParamPack = it->second;
+      if (funcParamPack == rewrite.parameterPack_ &&
+          rewrite.elementIndex_.has_value()) {
+        auto idx = rewrite.elementIndex_.value();
+        auto expandedParam = funcParamPack->elements()[idx];
+
+        auto copy = IdExpressionAST::create(arena());
+        copy->valueCategory = ValueCategory::kLValue;
+        copy->type = expandedParam->type();
+        copy->nestedNameSpecifier =
+            rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
+        copy->templateLoc = ast->templateLoc;
+        copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
+        copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+        copy->symbol = expandedParam;
+        return copy;
+      }
+    }
+  }
+
   auto copy = IdExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;
@@ -644,6 +668,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
         binop->op = ast->op;
         binop->opLoc = ast->opLoc;
         binop->rightExpression = expression;
+        rewrite.check(binop);
         current = binop;
       }
 
@@ -661,6 +686,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
       binop->op = ast->foldOp;
       binop->opLoc = ast->foldOpLoc;
       binop->rightExpression = init;
+      rewrite.check(binop);
       return binop;
     }
     return rewrite.expression(ast->rightExpression);
@@ -688,6 +714,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
         binop->op = ast->foldOp;
         binop->opLoc = ast->foldOpLoc;
         binop->rightExpression = current;
+        rewrite.check(binop);
         current = binop;
       }
 
@@ -705,6 +732,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
       binop->op = ast->op;
       binop->opLoc = ast->opLoc;
       binop->rightExpression = current;
+      rewrite.check(binop);
       return binop;
     }
     return rewrite.expression(ast->leftExpression);
@@ -752,6 +780,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
         binop->op = ast->op;
         binop->opLoc = ast->opLoc;
         binop->rightExpression = current;
+        rewrite.check(binop);
         current = binop;
       }
 
@@ -802,6 +831,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
         binop->op = ast->op;
         binop->opLoc = ast->opLoc;
         binop->rightExpression = expression;
+        rewrite.check(binop);
         current = binop;
       }
 

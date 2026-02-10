@@ -24,11 +24,53 @@
 #include <cxx/diagnostics_client.h>
 
 #include <charconv>
+#include <cstdint>
 #include <format>
 
 namespace cxx {
 
 namespace {
+
+void encodeUtf8(std::uint32_t cp, std::string& out) {
+  if (cp <= 0x7F) {
+    out += static_cast<char>(cp);
+  } else if (cp <= 0x7FF) {
+    out += static_cast<char>(0xC0 | (cp >> 6));
+    out += static_cast<char>(0x80 | (cp & 0x3F));
+  } else if (cp <= 0xFFFF) {
+    out += static_cast<char>(0xE0 | (cp >> 12));
+    out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+    out += static_cast<char>(0x80 | (cp & 0x3F));
+  } else if (cp <= 0x10FFFF) {
+    out += static_cast<char>(0xF0 | (cp >> 18));
+    out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+    out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+    out += static_cast<char>(0x80 | (cp & 0x3F));
+  }
+}
+
+void encodeUtf16LE(std::uint32_t cp, std::string& out) {
+  if (cp <= 0xFFFF) {
+    auto v = static_cast<std::uint16_t>(cp);
+    out += static_cast<char>(v & 0xFF);
+    out += static_cast<char>((v >> 8) & 0xFF);
+  } else if (cp <= 0x10FFFF) {
+    cp -= 0x10000;
+    auto hi = static_cast<std::uint16_t>(0xD800 | (cp >> 10));
+    auto lo = static_cast<std::uint16_t>(0xDC00 | (cp & 0x3FF));
+    out += static_cast<char>(hi & 0xFF);
+    out += static_cast<char>((hi >> 8) & 0xFF);
+    out += static_cast<char>(lo & 0xFF);
+    out += static_cast<char>((lo >> 8) & 0xFF);
+  }
+}
+
+void encodeUtf32LE(std::uint32_t cp, std::string& out) {
+  out += static_cast<char>(cp & 0xFF);
+  out += static_cast<char>((cp >> 8) & 0xFF);
+  out += static_cast<char>((cp >> 16) & 0xFF);
+  out += static_cast<char>((cp >> 24) & 0xFF);
+}
 
 template <typename String>
 struct StringLiteralParser {
@@ -36,10 +78,12 @@ struct StringLiteralParser {
   DiagnosticsClient* diagnostics;
   String value;
   int pos = 0;
+  StringLiteralEncoding encoding = StringLiteralEncoding::kNone;
 
-  explicit StringLiteralParser(std::string_view text,
-                               DiagnosticsClient* diagnostics)
-      : text(text), diagnostics(diagnostics) {}
+  explicit StringLiteralParser(
+      std::string_view text, DiagnosticsClient* diagnostics,
+      StringLiteralEncoding encoding = StringLiteralEncoding::kNone)
+      : text(text), diagnostics(diagnostics), encoding(encoding) {}
 
   [[nodiscard]] auto LA(int n = 0) -> int {
     auto p = pos + n;
@@ -81,7 +125,7 @@ struct StringLiteralParser {
       x = x * 16 + hexDigitValue(LA());
       consume();
     }
-    value += static_cast<char>(x);
+    emitCodeUnit(x);
   }
 
   [[nodiscard]] auto parseHexadecimalEscapeSequence() -> bool {
@@ -103,8 +147,106 @@ struct StringLiteralParser {
         consume();
       }
     }
-    value += static_cast<char>(x);
+    emitCodeUnit(x);
     return true;
+  }
+
+  [[nodiscard]] auto parseUniversalCharacterName4() -> bool {
+    if (LA() != 'u') return false;
+    if (!isHexDigit(LA(1)) || !isHexDigit(LA(2)) || !isHexDigit(LA(3)) ||
+        !isHexDigit(LA(4)))
+      return false;
+    consume();
+    std::uint32_t cp = 0;
+    for (int i = 0; i < 4; ++i) {
+      cp = cp * 16 + hexDigitValue(LA());
+      consume();
+    }
+    emitCodePoint(cp);
+    return true;
+  }
+
+  [[nodiscard]] auto parseUniversalCharacterName8() -> bool {
+    if (LA() != 'U') return false;
+    for (int i = 1; i <= 8; ++i) {
+      if (!isHexDigit(LA(i))) return false;
+    }
+    consume();
+    std::uint32_t cp = 0;
+    for (int i = 0; i < 8; ++i) {
+      cp = cp * 16 + hexDigitValue(LA());
+      consume();
+    }
+    emitCodePoint(cp);
+    return true;
+  }
+
+  [[nodiscard]] auto parseUniversalCharacterName() -> bool {
+    return parseUniversalCharacterName4() || parseUniversalCharacterName8();
+  }
+
+  void emitCodeUnit(int x) {
+    switch (encoding) {
+      case StringLiteralEncoding::kNone:
+      case StringLiteralEncoding::kUtf8:
+        value += static_cast<char>(x);
+        break;
+      case StringLiteralEncoding::kUtf16: {
+        auto v = static_cast<std::uint16_t>(x);
+        value += static_cast<char>(v & 0xFF);
+        value += static_cast<char>((v >> 8) & 0xFF);
+        break;
+      }
+      case StringLiteralEncoding::kUtf32:
+      case StringLiteralEncoding::kWide: {
+        auto v = static_cast<std::uint32_t>(x);
+        value += static_cast<char>(v & 0xFF);
+        value += static_cast<char>((v >> 8) & 0xFF);
+        value += static_cast<char>((v >> 16) & 0xFF);
+        value += static_cast<char>((v >> 24) & 0xFF);
+        break;
+      }
+    }
+  }
+
+  void emitCodePoint(std::uint32_t cp) {
+    switch (encoding) {
+      case StringLiteralEncoding::kNone:
+      case StringLiteralEncoding::kUtf8:
+        encodeUtf8(cp, value);
+        break;
+      case StringLiteralEncoding::kUtf16:
+        encodeUtf16LE(cp, value);
+        break;
+      case StringLiteralEncoding::kUtf32:
+      case StringLiteralEncoding::kWide:
+        encodeUtf32LE(cp, value);
+        break;
+    }
+  }
+
+  void emitChar(char ch) {
+    switch (encoding) {
+      case StringLiteralEncoding::kNone:
+      case StringLiteralEncoding::kUtf8:
+        value += ch;
+        break;
+      case StringLiteralEncoding::kUtf16: {
+        auto v = static_cast<std::uint16_t>(static_cast<unsigned char>(ch));
+        value += static_cast<char>(v & 0xFF);
+        value += static_cast<char>((v >> 8) & 0xFF);
+        break;
+      }
+      case StringLiteralEncoding::kUtf32:
+      case StringLiteralEncoding::kWide: {
+        auto v = static_cast<std::uint32_t>(static_cast<unsigned char>(ch));
+        value += static_cast<char>(v & 0xFF);
+        value += static_cast<char>((v >> 8) & 0xFF);
+        value += static_cast<char>((v >> 16) & 0xFF);
+        value += static_cast<char>((v >> 24) & 0xFF);
+        break;
+      }
+    }
   }
 
   [[nodiscard]] auto parseNumericEscapeSequence() -> bool {
@@ -114,88 +256,134 @@ struct StringLiteralParser {
   [[nodiscard]] auto parseSimpleEscapeSequence() -> bool {
     switch (LA()) {
       case '\'':
-        value += '\'';
+        emitChar('\'');
         consume();
         return true;
       case '"':
-        value += '"';
+        emitChar('"');
         consume();
         return true;
       case '?':
-        value += '?';
+        emitChar('?');
         consume();
         return true;
       case '\\':
-        value += '\\';
+        emitChar('\\');
         consume();
         return true;
       case 'a':
-        value += '\a';
+        emitChar('\a');
         consume();
         return true;
       case 'b':
-        value += '\b';
+        emitChar('\b');
         consume();
         return true;
       case 'f':
-        value += '\f';
+        emitChar('\f');
         consume();
         return true;
       case 'n':
-        value += '\n';
+        emitChar('\n');
         consume();
         return true;
       case 'r':
-        value += '\r';
+        emitChar('\r');
         consume();
         return true;
       case 't':
-        value += '\t';
+        emitChar('\t');
         consume();
         return true;
       case 'v':
-        value += '\v';
+        emitChar('\v');
         consume();
         return true;
+      case '0':
+        if (!isOctDigit(LA(1))) {
+          emitCodeUnit(0);
+          consume();
+          return true;
+        }
+        return false;
       default:
         return false;
     }  // switch
   };
 
-  [[nodiscard]] auto parseConditionalEscapeSequence() -> bool { return true; };
+  [[nodiscard]] auto parseConditionalEscapeSequence() -> bool {
+    if (LA()) {
+      emitChar(LA());
+      consume();
+      return true;
+    }
+    return false;
+  };
 
   [[nodiscard]] auto parseEscapeSequence() -> bool {
     const auto ch = LA();
     if (ch != '\\') return false;
     consume();
-    return parseNumericEscapeSequence() || parseSimpleEscapeSequence() ||
-           parseConditionalEscapeSequence();
+    return parseNumericEscapeSequence() || parseUniversalCharacterName() ||
+           parseSimpleEscapeSequence() || parseConditionalEscapeSequence();
   };
 
   void parseStringLiteral() {
-    // TODO: handle encoding prefix
+    bool isRaw = false;
 
     while (auto ch = LA()) {
       if (ch == '"') break;
+      if (ch == 'R') {
+        isRaw = true;
+        consume();
+        continue;
+      }
       consume();
     }
 
-    if (LA() == '"') {
-      consume();
+    if (LA() != '"') return;
+    consume();
 
+    if (isRaw) {
+      std::string delimiter;
+      while (auto ch = LA()) {
+        if (ch == '(') {
+          consume();
+          break;
+        }
+        delimiter += ch;
+        consume();
+      }
+
+      while (LA()) {
+        if (LA() == ')') {
+          bool matched = true;
+          for (std::size_t i = 0; i < delimiter.size(); ++i) {
+            if (LA(1 + static_cast<int>(i)) != delimiter[i]) {
+              matched = false;
+              break;
+            }
+          }
+          if (matched && LA(1 + static_cast<int>(delimiter.size())) == '"') {
+            break;
+          }
+        }
+        emitChar(LA());
+        consume();
+      }
+    } else {
       while (const auto ch = LA()) {
         if (ch == '"') break;
 
         if (parseEscapeSequence()) continue;
 
-        value += ch;
+        emitChar(ch);
         consume();
       }
     }
   }
 
   void parseCharLiteral() {
-    // TODO: handle encoding prefix
     while (auto ch = LA()) {
       if (ch == '\'') break;
       consume();
@@ -737,20 +925,42 @@ auto FloatLiteral::Components::from(std::string_view text,
 }
 
 auto StringLiteral::Components::from(std::string_view text,
+                                     StringLiteralEncoding encoding,
                                      DiagnosticsClient* diagnostics)
     -> Components {
-  StringLiteralParser<std::string> parser(text, diagnostics);
+  StringLiteralParser<std::string> parser(text, diagnostics, encoding);
 
   parser.parseStringLiteral();
 
   Components components;
   components.value = std::move(parser.value);
+  components.encoding = encoding;
+
+  auto quotePos = text.find('"');
+  if (quotePos != std::string_view::npos && quotePos > 0 &&
+      text[quotePos - 1] == 'R') {
+    components.isRaw = true;
+  }
 
   return components;
 }
 
-void StringLiteral::initialize() const {
-  components_ = Components::from(value());
+void StringLiteral::initialize(StringLiteralEncoding encoding) const {
+  components_ = Components::from(value(), encoding);
+}
+
+auto StringLiteral::charCount() const -> std::size_t {
+  switch (components_.encoding) {
+    case StringLiteralEncoding::kNone:
+    case StringLiteralEncoding::kUtf8:
+      return components_.value.size();
+    case StringLiteralEncoding::kUtf16:
+      return components_.value.size() / 2;
+    case StringLiteralEncoding::kUtf32:
+    case StringLiteralEncoding::kWide:
+      return components_.value.size() / 4;
+  }
+  return components_.value.size();
 }
 
 auto CharLiteral::Components::from(std::string_view text,

@@ -37,6 +37,7 @@
 #include <llvm/Support/Error.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
+#include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -93,9 +94,49 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
   if (!ast) return {};
   auto result = visit(UnitVisitor{*this}, ast);
 
-  // remove unreachable code
   mlir::IRRewriter rewriter(result.module->getContext());
+
   result.module.walk([&](mlir::cxx::FuncOp funcOp) {
+    llvm::DenseMap<llvm::StringRef, mlir::Block*> labels;
+
+    for (auto& block : funcOp.getBody()) {
+      for (auto& op : block) {
+        if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op)) {
+          labels[labelOp.getName()] = labelOp->getBlock();
+        }
+      }
+    }
+
+    llvm::SmallVector<mlir::cxx::GotoOp> gotoOps;
+    llvm::SmallVector<mlir::cxx::LabelOp> labelOps;
+
+    for (auto& block : funcOp.getBody()) {
+      for (auto& op : block) {
+        if (auto gotoOp = mlir::dyn_cast<mlir::cxx::GotoOp>(&op))
+          gotoOps.push_back(gotoOp);
+        else if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op))
+          labelOps.push_back(labelOp);
+      }
+    }
+
+    for (auto gotoOp : gotoOps) {
+      auto targetBlock = labels.lookup(gotoOp.getLabel());
+      if (!targetBlock) continue;
+
+      rewriter.setInsertionPoint(gotoOp);
+
+      if (auto nextOp = ++gotoOp->getIterator();
+          mlir::isa<mlir::cf::BranchOp>(&*nextOp)) {
+        rewriter.eraseOp(&*nextOp);
+      }
+
+      rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(gotoOp, targetBlock);
+    }
+
+    for (auto labelOp : labelOps) {
+      rewriter.eraseOp(labelOp);
+    }
+
     for (auto& region : funcOp->getRegions()) {
       eraseUnreachableBlocks(rewriter, region);
     }
@@ -166,7 +207,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
       [&](FunctionDefinitionAST* function) {
         auto loc = function->firstSourceLocation();
         if (loc && gen.unit_->tokenAt(loc).fileId() == mainFileId) {
-          gen.declaration(function);
+          (void)gen.declaration(function);
         }
       };
 
