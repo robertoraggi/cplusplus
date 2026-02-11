@@ -214,98 +214,12 @@ std::unordered_set<std::string_view> enabledFeatures{
     "cxx_variadic_templates",
 };
 
-class Hideset {
- public:
-  Hideset(const Hideset& other) = default;
-  auto operator=(const Hideset& other) -> Hideset& = default;
-
-  Hideset(Hideset&& other) = default;
-  auto operator=(Hideset&& other) -> Hideset& = default;
-
-  Hideset() = default;
-
-  explicit Hideset(std::vector<const cxx::Identifier*> names)
-      : names_(std::move(names)) {}
-
-  [[nodiscard]] auto contains(const cxx::Identifier* name) const -> bool {
-    return std::binary_search(names_.begin(), names_.end(), name);
-  }
-
-  [[nodiscard]] auto names() const
-      -> const std::vector<const cxx::Identifier*>& {
-    return names_;
-  };
-
-  auto operator==(const Hideset& other) const -> bool {
-    return names_ == other.names_;
-  }
-
- private:
-  std::vector<const cxx::Identifier*> names_;
-};
-
 inline auto getHeaderName(const cxx::Include& include) -> std::string {
   return std::visit([](const auto& include) { return include.fileName; },
                     include);
 }
 
 }  // namespace
-
-template <>
-struct std::less<Hideset> {
-  using is_transparent = void;
-
-  auto operator()(const Hideset& hideset, const Hideset& other) const -> bool {
-    return hideset.names() < other.names();
-  }
-
-  auto operator()(const Hideset& hideset,
-                  const std::vector<const cxx::Identifier*>& names) const
-      -> bool {
-    return hideset.names() < names;
-  }
-
-  auto operator()(const std::vector<const cxx::Identifier*>& names,
-                  const Hideset& hideset) const -> bool {
-    return names < hideset.names();
-  }
-};
-
-template <>
-struct std::hash<Hideset> {
-  using is_transparent = void;
-
-  auto operator()(const Hideset& hideset) const -> std::size_t {
-    return operator()(hideset.names());
-  }
-
-  auto operator()(const std::vector<const cxx::Identifier*>& names) const
-      -> std::size_t {
-    std::size_t seed = 0;
-    for (const auto& name : names) cxx::hash_combine(seed, name);
-    return seed;
-  }
-};
-
-template <>
-struct std::equal_to<Hideset> {
-  using is_transparent = void;
-
-  auto operator()(const Hideset& hideset, const Hideset& other) const -> bool {
-    return hideset.names() == other.names();
-  }
-
-  auto operator()(const Hideset& hideset,
-                  const std::vector<const cxx::Identifier*>& names) const
-      -> bool {
-    return hideset.names() == names;
-  }
-
-  auto operator()(const std::vector<const cxx::Identifier*>& names,
-                  const Hideset& hideset) const -> bool {
-    return hideset.names() == names;
-  }
-};
 
 namespace cxx {
 
@@ -316,7 +230,7 @@ struct TokList;
 
 struct Tok final : Managed {
   std::string_view text;
-  const Hideset* hideset = nullptr;
+  const cxx::Identifier* untaintIdent = nullptr;
   std::uint32_t offset = 0;
   std::uint32_t length = 0;
   std::uint32_t sourceFile = 0;
@@ -325,6 +239,7 @@ struct Tok final : Managed {
   std::uint16_t space : 1 = false;
   std::uint16_t generated : 1 = false;
   std::uint16_t isFromMacroBody : 1 = false;
+  std::uint16_t noexpand : 1 = false;
 
   Tok(const Tok& other) = default;
   auto operator=(const Tok& other) -> Tok& = default;
@@ -335,11 +250,6 @@ struct Tok final : Managed {
   [[nodiscard]] auto is(TokenKind k) const -> bool { return kind == k; }
 
   [[nodiscard]] auto isNot(TokenKind k) const -> bool { return kind != k; }
-
-  [[nodiscard]] static auto WithHideset(Arena* pool, const Tok* tok,
-                                        const Hideset* hideset) -> Tok* {
-    return new (pool) Tok(tok, hideset);
-  }
 
   [[nodiscard]] static auto FromCurrentToken(Arena* pool, const Lexer& lex,
                                              int sourceFile) -> Tok* {
@@ -361,15 +271,12 @@ struct Tok final : Managed {
   }
 
   [[nodiscard]] static auto Gen(Arena* pool, TokenKind kind,
-                                const std::string_view& text,
-                                const Hideset* hideset = nullptr) -> Tok* {
+                                const std::string_view& text) -> Tok* {
     auto tk = new (pool) Tok();
     tk->kind = kind;
     tk->text = text;
-    tk->hideset = hideset;
     tk->generated = true;
     tk->length = static_cast<std::uint32_t>(text.length());
-    // tk->space = true;
     return tk;
   }
 
@@ -383,11 +290,6 @@ struct Tok final : Managed {
 
  private:
   Tok() = default;
-
-  Tok(const Tok* tok, const Hideset* hs) {
-    *this = *tok;
-    hideset = hs;
-  }
 };
 
 struct TokList final : Managed {
@@ -703,7 +605,7 @@ struct Preprocessor::Private {
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
-  std::unordered_set<Hideset> hidesets;
+  std::unordered_set<const cxx::Identifier*> taintedIdents_;
   std::forward_list<std::string> scratchBuffer_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
@@ -808,9 +710,10 @@ struct Preprocessor::Private {
     return toTokList(std::ranges::begin(range), std::ranges::end(range));
   }
 
-  [[nodiscard]] auto withHideset(const Tok* tok, const Hideset* hideset)
-      -> Tok* {
-    return Tok::WithHideset(&pool_, tok, hideset);
+  [[nodiscard]] auto withNoexpand(const Tok* tok) -> Tok* {
+    auto cp = Tok::Copy(&pool_, tok);
+    cp->noexpand = true;
+    return cp;
   }
 
   [[nodiscard]] auto fromCurrentToken(const Lexer& lex, int sourceFile)
@@ -818,9 +721,8 @@ struct Preprocessor::Private {
     return Tok::FromCurrentToken(&pool_, lex, sourceFile);
   }
 
-  [[nodiscard]] auto gen(TokenKind kind, const std::string_view& text,
-                         const Hideset* hideset = nullptr) -> Tok* {
-    return Tok::Gen(&pool_, kind, text, hideset);
+  [[nodiscard]] auto gen(TokenKind kind, const std::string_view& text) -> Tok* {
+    return Tok::Gen(&pool_, kind, text);
   }
 
   [[nodiscard]] auto copy(const Tok* tok) -> Tok* {
@@ -922,43 +824,26 @@ struct Preprocessor::Private {
     return {};
   }
 
-  [[nodiscard]] auto makeUnion(const Hideset* hs, const std::string_view& name)
-      -> const Hideset* {
-    auto id = control_->getIdentifier(name);
-    if (!hs) return get(id);
-    if (hs->contains(id)) return hs;
-    auto names = hs->names();
-    auto it = std::upper_bound(names.begin(), names.end(), id);
-    names.insert(it, id);
-    return get(std::move(names));
+  [[nodiscard]] auto isTainted(const cxx::Identifier* id) const -> bool {
+    return taintedIdents_.contains(id);
   }
 
-  [[nodiscard]] auto makeIntersection(const Hideset* hs, const Hideset* other)
-      -> const Hideset* {
-    if (!other || !hs) return nullptr;
-    if (other == hs) return hs;
+  void taint(const cxx::Identifier* id) { taintedIdents_.insert(id); }
 
-    std::vector<const cxx::Identifier*> names;
+  void untaint(const cxx::Identifier* id) { taintedIdents_.erase(id); }
 
-    std::set_intersection(begin(hs->names()), end(hs->names()),
-                          begin(other->names()), end(other->names()),
-                          std::back_inserter(names));
-
-    return get(std::move(names));
+  void scanPastUntaints(TokList*& ts) {
+    while (ts && ts->tok->untaintIdent) {
+      untaint(ts->tok->untaintIdent);
+      ts = ts->next;
+    }
   }
 
-  [[nodiscard]] auto get(std::vector<const cxx::Identifier*> names)
-      -> const Hideset* {
-    if (names.empty()) return nullptr;
-    if (auto it = hidesets.find(names); it != hidesets.end()) return &*it;
-    return &*hidesets.emplace(std::move(names)).first;
-  }
-
-  [[nodiscard]] auto get(const cxx::Identifier* name) -> const Hideset* {
-    std::vector<const cxx::Identifier*> names;
-    names.push_back(name);
-    if (auto it = hidesets.find(names); it != hidesets.end()) return &*it;
-    return &*hidesets.emplace(std::move(names)).first;
+  void scanPastUntaints(TokIterator& it, TokIterator last) {
+    while (it != last && it->untaintIdent) {
+      untaint(it->untaintIdent);
+      ++it;
+    }
   }
 
   [[nodiscard]] auto isStringLiteral(TokenKind kind) const -> bool {
@@ -1195,14 +1080,12 @@ struct Preprocessor::Private {
   [[nodiscard]] auto substitute(TokList* pointOfSubstitution,
                                 const Macro* macro,
                                 const std::vector<TokRange>& actuals,
-                                const Hideset* hideset) -> TokList*;
+                                const std::vector<TokRange>& expandedActuals)
+      -> TokList*;
 
   [[nodiscard]] auto merge(const Tok* left, const Tok* right) -> const Tok*;
 
   [[nodiscard]] auto stringize(TokList* ts) -> const Tok*;
-
-  [[nodiscard]] auto instantiate(TokList* ts, const Hideset* hideset)
-      -> TokList*;
 
   [[nodiscard]] auto lookupMacro(const Tok* tk) const -> const Macro*;
 
@@ -1225,7 +1108,7 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto parseArguments(TokList* ts, std::size_t formalCount,
                                     bool ignoreComma = false)
-      -> std::tuple<std::vector<TokRange>, TokList*, const Hideset*>;
+      -> std::tuple<std::vector<TokRange>, TokList*>;
 
   [[nodiscard]] auto string(std::string s) -> std::string_view;
 
@@ -1240,7 +1123,6 @@ struct Preprocessor::ParseArguments {
   struct Result {
     std::vector<TokRange> args;
     TokIterator it;
-    const Hideset* hideset = nullptr;
   };
 
   Private& d;
@@ -1284,7 +1166,6 @@ struct Preprocessor::ParseArguments {
     return Result{
         .args = std::move(args),
         .it = it,
-        .hideset = rparen->hideset,
     };
   }
 
@@ -1564,7 +1445,7 @@ void Preprocessor::Private::initialize() {
 
     expect(ts, TokenKind::T_LPAREN);
 
-    auto [args, rest, hideset] = parseArguments(context.ts, 0, true);
+    auto [args, rest] = parseArguments(context.ts, 0, true);
 
     if (args.empty()) {
       error(macroName->token(), std::format("expected a header name"));
@@ -1873,6 +1754,12 @@ auto Preprocessor::Private::expandOne(TokIterator it, TokIterator last,
                                       const EmitToken& emitToken)
     -> TokIterator {
   if (it == last) return last;
+
+  if (it->untaintIdent) {
+    untaint(it->untaintIdent);
+    ++it;
+    return it;
+  }
 
   if (auto continuation = replaceIsDefinedMacro(
           it.toTokList(), inConditionalExpression, emitToken)) {
@@ -2210,6 +2097,7 @@ auto Preprocessor::Private::expandMacro(TokList* ts) -> TokList* {
     }
 
     auto operator()(const FunctionMacro&) -> TokList* {
+      self.scanPastUntaints(ts->next);
       if (!self.lookat(ts->next, TokenKind::T_LPAREN)) return nullptr;
 
       return self.expandFunctionLikeMacro(ts, macro);
@@ -2220,6 +2108,7 @@ auto Preprocessor::Private::expandMacro(TokList* ts) -> TokList* {
     }
 
     auto operator()(const BuiltinFunctionMacro& macro) -> TokList* {
+      self.scanPastUntaints(ts->next);
       if (!self.lookat(ts->next, TokenKind::T_LPAREN)) return nullptr;
 
       return macro.expand(MacroExpansionContext{.ts = ts});
@@ -2239,21 +2128,27 @@ auto Preprocessor::Private::expandObjectLikeMacro(TokList* ts, const Macro* m)
   auto macro = &std::get<ObjectMacro>(*m);
   const Tok* tk = ts->tok;
 
-  const auto hideset = makeUnion(tk->hideset, tk->text);
-  auto expanded = substitute(ts, m, {}, hideset);
+  auto ident = control_->getIdentifier(tk->text);
+  taint(ident);
+
+  auto expanded = substitute(ts, m, {}, {});
 
   if (!expanded) {
-    return ts->next;
+    auto sentinel = gen(TokenKind::T_IDENTIFIER, "");
+    const_cast<Tok*>(sentinel)->untaintIdent = ident;
+    return cons(sentinel, ts->next);
   }
 
-  // assert(expanded->tok->generated);
   const_cast<Tok*>(expanded->tok)->space = tk->space;
   const_cast<Tok*>(expanded->tok)->bol = tk->bol;
 
   auto it = expanded;
 
   while (it->next) it = it->next;
-  (it)->next = ts->next;
+
+  auto sentinel = gen(TokenKind::T_IDENTIFIER, "");
+  const_cast<Tok*>(sentinel)->untaintIdent = ident;
+  (it)->next = cons(sentinel, ts->next);
 
   return expanded;
 }
@@ -2266,33 +2161,44 @@ auto Preprocessor::Private::expandFunctionLikeMacro(TokList* ts, const Macro* m)
 
   const Tok* tk = ts->tok;
 
-  auto [args, rest, hideset] =
+  auto [args, rest] =
       parseArguments(ts, macro->formals.size(), macro->variadic);
 
-  auto hs = makeUnion(makeIntersection(tk->hideset, hideset), tk->text);
-
-  auto expanded = substitute(ts, m, args, hs);
-
-  if (!expanded) {
-    return rest;
+  std::vector<TokRange> expandedArgs;
+  expandedArgs.reserve(args.size());
+  for (const auto& [startArg, endArg] : args) {
+    auto expandedIt = expandTokens(startArg, endArg, false);
+    expandedArgs.push_back(TokRange{expandedIt, TokIterator{}});
   }
 
-  // assert(expanded->tok->generated);
+  auto ident = control_->getIdentifier(tk->text);
+  taint(ident);
+
+  auto expanded = substitute(ts, m, args, expandedArgs);
+
+  if (!expanded) {
+    auto sentinel = gen(TokenKind::T_IDENTIFIER, "");
+    const_cast<Tok*>(sentinel)->untaintIdent = ident;
+    return cons(sentinel, rest);
+  }
 
   const_cast<Tok*>(expanded->tok)->space = tk->space;
   const_cast<Tok*>(expanded->tok)->bol = tk->bol;
 
   auto it = expanded;
   while (it->next) it = it->next;
-  (it)->next = rest;
+
+  auto sentinel = gen(TokenKind::T_IDENTIFIER, "");
+  const_cast<Tok*>(sentinel)->untaintIdent = ident;
+  (it)->next = cons(sentinel, rest);
 
   return expanded;
 }
 
-auto Preprocessor::Private::substitute(TokList* pointOfSubstitution,
-                                       const Macro* macro,
-                                       const std::vector<TokRange>& actuals,
-                                       const Hideset* hideset) -> TokList* {
+auto Preprocessor::Private::substitute(
+    TokList* pointOfSubstitution, const Macro* macro,
+    const std::vector<TokRange>& actuals,
+    const std::vector<TokRange>& expandedActuals) -> TokList* {
   TokList* os = nullptr;
   auto** ip = (&os);
 
@@ -2393,12 +2299,10 @@ auto Preprocessor::Private::substitute(TokList* pointOfSubstitution,
       }
     }
 
-    if (auto actual = lookupMacroArgument(ts, macro, actuals)) {
+    if (auto actual = lookupMacroArgument(ts, macro, expandedActuals)) {
       auto [startArg, endArg] = *actual;
-      auto line = expandTokens(startArg, endArg,
-                               /*expression*/ false);
-      if (line != TokIterator{}) {
-        appendTokens(line.toTokList());
+      for (auto it = startArg; it != endArg; ++it) {
+        appendToken(&*it);
       }
       continue;
     }
@@ -2407,7 +2311,17 @@ auto Preprocessor::Private::substitute(TokList* pointOfSubstitution,
     ts = ts->next;
   }
 
-  return instantiate(os, hideset);
+  for (auto ip = os; ip; ip = ip->next) {
+    auto tk = ip->tok;
+    if (tk->is(TokenKind::T_IDENTIFIER) &&
+        isTainted(control_->getIdentifier(tk->text))) {
+      auto c = copy(tk);
+      c->noexpand = true;
+      ip->tok = c;
+    }
+  }
+
+  return os;
 }
 
 auto Preprocessor::Private::lookupMacroArgument(
@@ -2432,7 +2346,7 @@ auto Preprocessor::Private::lookupMacroArgument(
     }
 
     if (lookat(ts, "__VA_OPT__", TokenKind::T_LPAREN)) {
-      const auto [args, rest, hideset] =
+      const auto [args, rest] =
           parseArguments(ts, /*formal count*/ 0, /*ignore comma*/ true);
 
       ts = rest;
@@ -2720,30 +2634,19 @@ auto Preprocessor::Private::primaryExpression(TokList*& ts) -> long {
   return 0;
 }
 
-auto Preprocessor::Private::instantiate(TokList* ts, const Hideset* hideset)
-    -> TokList* {
-  for (auto ip = ts; ip; ip = ip->next) {
-    if (ip->tok->hideset != hideset) {
-      (ip)->tok = withHideset(ip->tok, hideset);
-    }
-  }
-  return ts;
-}
-
 auto Preprocessor::Private::parseArguments(TokList* ts, std::size_t formalCount,
                                            bool ignoreComma)
-    -> std::tuple<std::vector<TokRange>, TokList*, const Hideset*> {
+    -> std::tuple<std::vector<TokRange>, TokList*> {
   assert(lookat(ts, TokenKind::T_IDENTIFIER, TokenKind::T_LPAREN));
 
   auto parsedArgs = ParseArguments{*this}(
       TokIterator{ts->next}, EndOfFileSentinel{}, formalCount, ignoreComma);
 
   if (!parsedArgs) {
-    return std::tuple(std::vector<TokRange>(), ts->next, nullptr);
+    return std::tuple(std::vector<TokRange>(), ts->next);
   }
 
-  return std::tuple(std::move(parsedArgs->args), parsedArgs->it.toTokList(),
-                    parsedArgs->hideset);
+  return std::tuple(std::move(parsedArgs->args), parsedArgs->it.toTokList());
 }
 
 auto Preprocessor::Private::stringize(TokList* ts) -> const Tok* {
@@ -2847,14 +2750,14 @@ auto Preprocessor::Private::merge(const Tok* left, const Tok* right)
     -> const Tok* {
   if (!left) return right;
   if (!right) return left;
-  const auto hideset = makeIntersection(left->hideset, right->hideset);
   auto text = string(std::string(left->text) + std::string(right->text));
   Lexer lex(text, language_);
   lex.setPreprocessing(true);
   lex.next();
-  auto tok = gen(lex.tokenKind(), lex.tokenText(), hideset);
+  auto tok = gen(lex.tokenKind(), lex.tokenText());
   tok->sourceFile = left->sourceFile;
   tok->offset = left->offset;
+  tok->noexpand = false;
   return tok;
 }
 
@@ -2872,10 +2775,10 @@ auto Preprocessor::Private::lookupMacro(const Tok* tk) const -> const Macro* {
     return nullptr;
   }
 
+  if (tk->noexpand) return nullptr;
+
   if (auto it = macros_.find(tk->text); it != macros_.end()) {
-    const auto disabled =
-        tk->hideset && tk->hideset->contains(control_->getIdentifier(tk->text));
-    if (!disabled) {
+    if (!isTainted(control_->getIdentifier(tk->text))) {
       return &it->second;
     }
   }
