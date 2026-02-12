@@ -286,28 +286,38 @@ struct ExternalNameEncoder::EncodeType {
   auto operator()(const NamespaceType* type) -> bool { return false; }
 
   auto operator()(const TypeParameterType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
-    return false;
+    if (type->depth() == 0 && type->index() == 0) {
+      encoder.out("T_");
+      return true;
+    }
+
+    encoder.out(std::format("T{}{}", type->index(), "_"));
+    return true;
   }
 
   auto operator()(const TemplateTypeParameterType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
-    return false;
+    if (type->depth() == 0 && type->index() == 0) {
+      encoder.out("T_");
+      return true;
+    }
+
+    encoder.out(std::format("T{}{}", type->index(), "_"));
+    return true;
   }
 
   auto operator()(const UnresolvedNameType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
-    return false;
+    encoder.out("u8__dep_ty");
+    return true;
   }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
-    return false;
+    encoder.out("A0_");
+    return true;
   }
 
   auto operator()(const UnresolvedUnderlyingType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
-    return false;
+    encoder.out("u8__dep_ut");
+    return true;
   }
 
   auto operator()(const OverloadSetType* type) -> bool {

@@ -21,6 +21,8 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/symbols.h>
+#include <cxx/types.h>
 #include <gtest/gtest.h>
 
 using namespace cxx;
@@ -148,4 +150,102 @@ TEST(Control, get_destructor_id) {
 
   EXPECT_EQ(control.getDestructorId(control.getIdentifier("foo")), id);
   EXPECT_NE(name_cast<DestructorId>(id), nullptr);
+}
+
+TEST(Control, overload_set_dedup_by_canonical) {
+  Control control;
+
+  auto global = control.newNamespaceSymbol(nullptr, {});
+  auto overloadSet = control.newOverloadSetSymbol(global, {});
+
+  auto f1 = control.newFunctionSymbol(global, {});
+  f1->setName(control.getIdentifier("f"));
+  f1->setType(control.getFunctionType(control.getVoidType(), {}));
+
+  auto f2 = control.newFunctionSymbol(global, {});
+  f2->setName(control.getIdentifier("f"));
+  f2->setType(control.getFunctionType(control.getVoidType(), {}));
+  f2->setCanonical(f1);
+
+  overloadSet->addFunction(f1);
+  overloadSet->addFunction(f2);
+
+  EXPECT_EQ(overloadSet->functions().size(), 1);
+}
+
+TEST(Control, compare_args_with_type_arguments) {
+  Control control;
+
+  std::vector<TemplateArgument> lhs{control.getIntType()};
+  std::vector<TemplateArgument> rhs{control.getIntType()};
+
+  EXPECT_TRUE(compare_args(lhs, rhs));
+}
+
+TEST(Control, compare_args_symbol_and_type_equivalent) {
+  Control control;
+
+  auto global = control.newNamespaceSymbol(nullptr, {});
+  auto typeAlias = control.newTypeAliasSymbol(global, {});
+  typeAlias->setName(control.getIdentifier("AliasInt"));
+  typeAlias->setType(control.getIntType());
+
+  std::vector<TemplateArgument> lhs{static_cast<Symbol*>(typeAlias)};
+  std::vector<TemplateArgument> rhs{control.getIntType()};
+
+  EXPECT_TRUE(compare_args(lhs, rhs));
+}
+
+TEST(Control, compare_args_parameter_pack_equivalent) {
+  Control control;
+
+  auto global = control.newNamespaceSymbol(nullptr, {});
+
+  auto packL = control.newParameterPackSymbol(global, {});
+  auto l0 = control.newTypeAliasSymbol(global, {});
+  l0->setType(control.getIntType());
+  auto l1 = control.newTypeAliasSymbol(global, {});
+  l1->setType(control.getCharType());
+  packL->addElement(l0);
+  packL->addElement(l1);
+
+  auto packR = control.newParameterPackSymbol(global, {});
+  auto r0 = control.newTypeAliasSymbol(global, {});
+  r0->setType(control.getIntType());
+  auto r1 = control.newTypeAliasSymbol(global, {});
+  r1->setType(control.getCharType());
+  packR->addElement(r0);
+  packR->addElement(r1);
+
+  std::vector<TemplateArgument> lhs{static_cast<Symbol*>(packL)};
+  std::vector<TemplateArgument> rhs{static_cast<Symbol*>(packR)};
+
+  EXPECT_TRUE(compare_args(lhs, rhs));
+}
+
+TEST(Control, compare_args_parameter_pack_order_matters) {
+  Control control;
+
+  auto global = control.newNamespaceSymbol(nullptr, {});
+
+  auto packL = control.newParameterPackSymbol(global, {});
+  auto l0 = control.newTypeAliasSymbol(global, {});
+  l0->setType(control.getIntType());
+  auto l1 = control.newTypeAliasSymbol(global, {});
+  l1->setType(control.getCharType());
+  packL->addElement(l0);
+  packL->addElement(l1);
+
+  auto packR = control.newParameterPackSymbol(global, {});
+  auto r0 = control.newTypeAliasSymbol(global, {});
+  r0->setType(control.getCharType());
+  auto r1 = control.newTypeAliasSymbol(global, {});
+  r1->setType(control.getIntType());
+  packR->addElement(r0);
+  packR->addElement(r1);
+
+  std::vector<TemplateArgument> lhs{static_cast<Symbol*>(packL)};
+  std::vector<TemplateArgument> rhs{static_cast<Symbol*>(packR)};
+
+  EXPECT_FALSE(compare_args(lhs, rhs));
 }

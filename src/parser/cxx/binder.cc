@@ -1289,7 +1289,65 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
 
 namespace {
 
-void mergeRedeclaration(FunctionSymbol* redecl) {
+auto collectDefaultArguments(DeclaratorAST* declarator)
+    -> std::vector<Binder::DefaultArgumentInfo> {
+  std::vector<Binder::DefaultArgumentInfo> result;
+
+  if (!declarator) return result;
+
+  auto functionDeclarator = getFunctionPrototype(declarator);
+  if (!functionDeclarator) return result;
+
+  auto params = functionDeclarator->parameterDeclarationClause;
+  if (!params || !params->functionParametersSymbol) return result;
+
+  for (auto member : params->functionParametersSymbol->members()) {
+    auto param = symbol_cast<ParameterSymbol>(member);
+    if (!param) {
+      result.push_back({});
+      continue;
+    }
+
+    result.push_back({.expression = param->defaultArgument(),
+                      .location = param->location()});
+  }
+
+  return result;
+}
+
+void applyDefaultArguments(
+    DeclaratorAST* declarator,
+    const std::vector<Binder::DefaultArgumentInfo>& defaultArguments) {
+  if (!declarator) return;
+
+  auto functionDeclarator = getFunctionPrototype(declarator);
+  if (!functionDeclarator) return;
+
+  auto params = functionDeclarator->parameterDeclarationClause;
+  if (!params || !params->functionParametersSymbol) return;
+
+  size_t index = 0;
+  for (auto member : params->functionParametersSymbol->members()) {
+    auto param = symbol_cast<ParameterSymbol>(member);
+    if (!param) {
+      ++index;
+      continue;
+    }
+
+    if (index >= defaultArguments.size()) {
+      ++index;
+      continue;
+    }
+
+    if (!param->defaultArgument()) {
+      param->setDefaultArgument(defaultArguments[index].expression);
+    }
+
+    ++index;
+  }
+}
+
+void mergeRedeclaration(Binder& binder, FunctionSymbol* redecl) {
   auto canonical = redecl->canonical();
   if (!canonical || canonical == redecl) return;
 
@@ -1301,10 +1359,12 @@ void mergeRedeclaration(FunctionSymbol* redecl) {
   if (canonical->isInline()) redecl->setInline(true);
   if (canonical->isVirtual()) redecl->setVirtual(true);
   if (canonical->isExplicit()) redecl->setExplicit(true);
+  if (canonical->hasCLinkage()) redecl->setLanguageLinkage(LanguageKind::kC);
 
   if (redecl->isInline()) canonical->setInline(true);
   if (redecl->isConstexpr()) canonical->setConstexpr(true);
   if (redecl->isConsteval()) canonical->setConsteval(true);
+  if (redecl->hasCLinkage()) canonical->setLanguageLinkage(LanguageKind::kC);
 
   auto canonParams = canonical->functionParameters();
   auto redeclParams = redecl->functionParameters();
@@ -1320,8 +1380,14 @@ void mergeRedeclaration(FunctionSymbol* redecl) {
     auto rp = symbol_cast<ParameterSymbol>(*redeclIt);
     if (!cp || !rp) continue;
 
+    if (cp->defaultArgument() && rp->defaultArgument()) {
+      binder.error(rp->location(), "redefinition of default argument");
+      continue;
+    }
+
     if (!cp->defaultArgument() && rp->defaultArgument()) {
       cp->setDefaultArgument(rp->defaultArgument());
+      continue;
     }
 
     if (cp->defaultArgument() && !rp->defaultArgument()) {
@@ -1331,6 +1397,37 @@ void mergeRedeclaration(FunctionSymbol* redecl) {
 }
 
 }  // namespace
+
+void Binder::mergeDefaultArguments(FunctionSymbol* functionSymbol,
+                                   DeclaratorAST* declarator) {
+  if (!functionSymbol) return;
+
+  auto collected = collectDefaultArguments(declarator);
+  if (collected.empty()) return;
+
+  auto canonical = functionSymbol->canonical();
+  if (!canonical) canonical = functionSymbol;
+
+  auto& known = defaultArguments_[canonical];
+  if (known.size() < collected.size()) {
+    known.resize(collected.size());
+  }
+
+  for (size_t index = 0; index < collected.size(); ++index) {
+    const auto& incoming = collected[index];
+    if (!incoming.expression) continue;
+
+    auto& existing = known[index];
+    if (existing.expression) {
+      error(incoming.location, "redefinition of default argument");
+      continue;
+    }
+
+    existing = incoming;
+  }
+
+  applyDefaultArguments(declarator, known);
+}
 
 auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
     -> FunctionSymbol* {
@@ -1396,10 +1493,12 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
       for (auto ctor : enclosingClass->constructors()) {
         if (control()->is_same(ctor->type(), functionSymbol->type())) {
           functionSymbol->setCanonical(ctor->canonical());
-          mergeRedeclaration(functionSymbol);
+          mergeRedeclaration(*this, functionSymbol);
           break;
         }
       }
+
+      mergeDefaultArguments(functionSymbol, declarator);
 
       enclosingClass->addConstructor(functionSymbol);
     }
@@ -1418,7 +1517,7 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
       for (auto existing : overloadSet->functions()) {
         if (control()->is_same(existing->type(), functionSymbol->type())) {
           functionSymbol->setCanonical(existing->canonical());
-          mergeRedeclaration(functionSymbol);
+          mergeRedeclaration(*this, functionSymbol);
           break;
         }
       }
@@ -1430,7 +1529,7 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
       if (control()->is_same(previousFunction->type(),
                              functionSymbol->type())) {
         functionSymbol->setCanonical(previousFunction->canonical());
-        mergeRedeclaration(functionSymbol);
+        mergeRedeclaration(*this, functionSymbol);
         if (is_parsing_c()) return previousFunction;
       }
 
@@ -1449,6 +1548,8 @@ auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
   } else {
     scope->addSymbol(functionSymbol);
   }
+
+  mergeDefaultArguments(functionSymbol, declarator);
 
   return functionSymbol;
 }
@@ -1488,6 +1589,13 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
     // Check for redeclaration of an existing variable with the same name
     for (auto candidate : scope->find(name)) {
       if (auto existing = symbol_cast<VariableSymbol>(candidate)) {
+        if (!control()->is_same(existing->type(), symbol->type())) {
+          error(
+              symbol->location(),
+              std::format("conflicting declaration of '{}'", to_string(name)));
+          continue;
+        }
+
         symbol->setCanonical(existing->canonical());
         break;
       }

@@ -188,7 +188,7 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
         if (pack) break;
       }
 
-      if (pack && !pack->elements().empty()) {
+      if (pack) {
         ParameterSymbol* originalParam = nullptr;
         if (ast->functionParametersSymbol) {
           for (auto member : ast->functionParametersSymbol->members()) {
@@ -308,7 +308,11 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   copy->requiresClause = requiresClause(ast->requiresClause);
   copy->initializer = expression(ast->initializer);
 
-  if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
+  if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol)) {
+    if (copy->initializer) {
+      fieldSymbol->setInitializer(copy->initializer);
+    }
+  } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
     auto typeChecker = TypeChecker{unit_};
     typeChecker.setScope(binder_.scope());
     typeChecker.check_init_declarator(copy);

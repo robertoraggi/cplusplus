@@ -78,6 +78,7 @@ struct Frontend::Private {
   std::unique_ptr<llvm::Module> llvmModule_;
 #endif
   bool shouldExit_ = false;
+  bool loweringFailed_ = false;
   int exitStatus_ = 0;
 
   Private(Frontend& frontend, const CLI& cli, std::string fileName);
@@ -162,7 +163,7 @@ auto Frontend::operator()() -> bool {
 
   priv->diagnosticsClient_->verifyExpectedDiagnostics();
 
-  return !priv->diagnosticsClient_->hasErrors();
+  return !priv->diagnosticsClient_->hasErrors() && !priv->loweringFailed_;
 }
 
 Frontend::Private::Private(Frontend& frontend, const CLI& cli,
@@ -598,6 +599,7 @@ void Frontend::Private::lowerIR() {
 
   std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
   shouldExit_ = true;
+  loweringFailed_ = true;
   exitStatus_ = EXIT_FAILURE;
   module_ = nullptr;
 #endif
@@ -636,6 +638,7 @@ void Frontend::Private::emitLLVMIR() {
   if (!llvmModule_) {
     std::cerr << "cxx: failed to lower MLIR module to LLVM IR" << std::endl;
     shouldExit_ = true;
+    loweringFailed_ = true;
     exitStatus_ = EXIT_FAILURE;
     return;
   }
@@ -664,6 +667,7 @@ void Frontend::Private::emitCode() {
     std::cerr << std::format("cxx: cannot find target for triple '{}': {}\n",
                              triple.getTriple(), error);
     shouldExit_ = true;
+    loweringFailed_ = true;
     exitStatus_ = EXIT_FAILURE;
     return;
   }
@@ -679,6 +683,7 @@ void Frontend::Private::emitCode() {
     std::cerr << std::format("cxx: cannot create target machine for '{}': {}\n",
                              triple.getTriple(), error);
     shouldExit_ = true;
+    loweringFailed_ = true;
     exitStatus_ = EXIT_FAILURE;
     return;
   }
@@ -703,6 +708,7 @@ void Frontend::Private::emitCode() {
     if (targetMachine->addPassesToEmitFile(pm, out, nullptr, fileType)) {
       std::cerr << "cxx: target machine cannot emit assembly\n";
       shouldExit_ = true;
+      loweringFailed_ = true;
       exitStatus_ = EXIT_FAILURE;
       return;
     }

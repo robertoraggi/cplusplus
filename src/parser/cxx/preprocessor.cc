@@ -51,23 +51,7 @@
 
 namespace {
 
-// todo: generate and embed
-static constexpr const char* builtinsSource = R"(
-constexpr bool __builtin_is_constant_evaluated();
-int __builtin_abs(int);
-__UINT32_TYPE__ __builtin_bswap32(__UINT32_TYPE__);
-__UINT64_TYPE__ __builtin_bswap64(__UINT64_TYPE__);
-double __builtin_fabs(double);
-float __builtin_fabsf(float);
-long double __builtin_fabsl(long double);
-long __builtin_labs(long);
-long long __builtin_llabs(long long);
-void* __builtin_memchr(const void*, int, __SIZE_TYPE__);
-char* __builtin_strchr(const char*, int);
-char* __builtin_strpbrk(const char*, const char*);
-char* __builtin_strrchr(const char*, int);
-char* __builtin_strstr(const char*, const char*);
-)";
+#include "private/builtins-priv.h"
 
 std::unordered_set<std::string_view> enabledBuiltins{
     "__is_trivially_destructible",
@@ -125,7 +109,7 @@ std::unordered_set<std::string_view> enabledBuiltins{
 // "__integer_pack",
 
 // builtin functions
-#define VISIT_BUILTIN_FUNCTION(_, name) #name,
+#define VISIT_BUILTIN_FUNCTION(_, name) name,
     FOR_EACH_BUILTIN_FUNCTION(VISIT_BUILTIN_FUNCTION)
 #undef VISIT_BUILTIN_FUNCTION
 
@@ -913,90 +897,58 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto checkPragmaOnceProtected(TokList* ts) const -> bool;
 
-  struct Resolve {
-    const Private* d;
-    bool wantNextInlude;
-    bool didFindCurrentPath = false;
-    std::optional<fs::path> firstMatch;
-    std::array<std::string, 1> currentPaths;
-
-    Resolve(const Resolve& other) = delete;
-    auto operator=(const Resolve& other) -> Resolve& = delete;
-
-    Resolve(const Private* d, bool next) : d(d), wantNextInlude(next) {
-      currentPaths[0] = d->currentPath_.string();
-    }
-
-    using SearchPaths = std::vector<std::span<const std::string>>;
-
-    [[nodiscard]] auto operator()(const Include& include)
-        -> std::optional<std::string> {
-      // search in the current path
-      auto header = getHeaderName(include);
-
-      SearchPaths searchPaths;
-
-      if (std::holds_alternative<QuoteInclude>(include)) {
-        searchPaths = userHeaderSearchPaths();
-      } else {
-        searchPaths = systemHeaderSearchPaths();
-      }
-
-      if (auto p = search(searchPaths | std::views::join, header)) {
-        return p;
-      }
-
-      if (wantNextInlude && !didFindCurrentPath && firstMatch.has_value()) {
-        return firstMatch->string();
-      }
-
-      return std::nullopt;
-    }
-
-    [[nodiscard]] auto userHeaderSearchPaths() -> SearchPaths {
-      std::vector<std::span<const std::string>> paths;
-      paths.push_back(std::span<const std::string>(currentPaths));
-      paths.push_back(std::span<const std::string>(d->quoteIncludePaths_));
-      paths.push_back(std::span<const std::string>(d->systemIncludePaths_));
-      return paths;
-    }
-
-    [[nodiscard]] auto systemHeaderSearchPaths() -> SearchPaths {
-      std::vector<std::span<const std::string>> paths;
-      paths.push_back(std::span<const std::string>(d->systemIncludePaths_));
-      return paths;
-    }
-
-    [[nodiscard]] auto search(auto view, const std::string& headerName)
-        -> std::optional<std::string> {
-      auto transformToIncludePath = std::views::transform(
-          [&](const fs::path& path) { return path / headerName; });
-
-      auto filterExistingFiles = std::views::filter(
-          [&](const fs::path& path) { return d->fileExists(path); });
-
-      for (const auto& path : view | transformToIncludePath |
-                                  filterExistingFiles | std::views::reverse) {
-        if (!wantNextInlude) return path.string();
-
-        firstMatch = path;
-
-        if (path == d->currentPath_) {
-          didFindCurrentPath = true;
-        } else if (didFindCurrentPath) {
-          return path.string();
-        }
-      }
-
-      return std::nullopt;
-    }
-  };
-
-  [[nodiscard]] auto resolve(const Include& include, bool next) const
+  [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
       -> std::optional<std::string> {
     if (!canResolveFiles_) return std::nullopt;
 
-    return Resolve{this, next}(include);
+    auto headerName = getHeaderName(include);
+    bool isQuoted = std::holds_alternative<QuoteInclude>(include);
+
+    // Build a flat list of search directories in priority order.
+    std::vector<std::string> searchDirs;
+
+    if (isQuoted) {
+      // For quoted includes, first search the current file's directory.
+      auto curDir = currentPath_.string();
+      if (!curDir.empty()) {
+        searchDirs.push_back(curDir);
+      }
+
+      // Then quote include paths (reversed = priority order).
+      for (auto it = quoteIncludePaths_.rbegin();
+           it != quoteIncludePaths_.rend(); ++it) {
+        searchDirs.push_back(*it);
+      }
+    }
+
+    // Then system include paths (reversed = priority order).
+    for (auto it = systemIncludePaths_.rbegin();
+         it != systemIncludePaths_.rend(); ++it) {
+      searchDirs.push_back(*it);
+    }
+
+    std::size_t startIndex = 0;
+
+    if (isIncludeNext) {
+      auto curDir = currentPath_.string();
+
+      for (std::size_t i = 0; i < searchDirs.size(); ++i) {
+        if (searchDirs[i] == curDir) {
+          startIndex = i + 1;
+          break;
+        }
+      }
+    }
+
+    // Search for the header.
+    for (std::size_t i = startIndex; i < searchDirs.size(); ++i) {
+      auto candidate = fs::path(searchDirs[i]) / headerName;
+      if (fileExists(candidate)) {
+        return candidate.string();
+      }
+    }
+
+    return std::nullopt;
   }
 
   [[nodiscard]] auto isDefined(const std::string_view& id) const -> bool {
@@ -1225,8 +1177,7 @@ void PendingInclude::resolveWith(
     if (!continuation) return std::nullopt;
 
     // make the continuation the current file
-    auto dirpath = fs::path(continuation->fileName);
-    dirpath.remove_filename();
+    auto dirpath = fs::path(continuation->fileName).parent_path();
 
     d->buffers_.push_back(Preprocessor::Private::Buffer{
         .source = continuation,
@@ -1400,7 +1351,13 @@ void Preprocessor::Private::initialize() {
         auto macroId = ts->tok;
         ts = ts->next;
         expect(ts, TokenKind::T_LPAREN);
-        const auto id = expectId(ts);
+        // Accept any token (builtins may be lexed as keywords, not identifiers)
+        std::string_view id;
+        if (ts && ts->tok && !ts->tok->is(TokenKind::T_RPAREN) &&
+            !ts->tok->is(TokenKind::T_EOF_SYMBOL)) {
+          id = ts->tok->text;
+          ts = ts->next;
+        }
         expect(ts, TokenKind::T_RPAREN);
         const auto enabled = enabledBuiltins.contains(id);
         return replaceWithBoolLiteral(macroId, enabled, ts);

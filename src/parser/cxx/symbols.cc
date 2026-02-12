@@ -33,56 +33,103 @@
 
 namespace cxx {
 
-auto compare_args(const std::vector<TemplateArgument>& args1,
-                  const std::vector<TemplateArgument>& args2) -> bool {
-  if (args1.size() != args2.size()) return false;
-  for (size_t i = 0; i < args1.size(); ++i) {
-    const auto& arg = args1[i];
-    const auto& otherArg = args2[i];
-    auto sym = std::get_if<Symbol*>(&arg);
-    auto otherSym = std::get_if<Symbol*>(&otherArg);
-    if (!sym || !otherSym) {
-      // If either is not a symbol, we cannot compare them
-      return false;
-    }
+namespace {
 
-    auto pack1 = symbol_cast<ParameterPackSymbol>(*sym);
-    auto pack2 = symbol_cast<ParameterPackSymbol>(*otherSym);
-    if (pack1 || pack2) {
-      if (!pack1 || !pack2) return false;
-      if (pack1->elements().size() != pack2->elements().size()) return false;
-      for (size_t j = 0; j < pack1->elements().size(); ++j) {
-        auto e1 = pack1->elements()[j];
-        auto e2 = pack2->elements()[j];
-        if (e1->type() != e2->type()) return false;
-        auto v1 = symbol_cast<VariableSymbol>(e1);
-        auto v2 = symbol_cast<VariableSymbol>(e2);
-        if (v1 && v2) {
-          if (v1->constValue() != v2->constValue()) return false;
-        }
-      }
-      continue;
-    }
+auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
+  if (lhs == rhs) return true;
+  if (!lhs || !rhs) return false;
 
-    auto var = symbol_cast<VariableSymbol>(*sym);
-    auto otherVar = symbol_cast<VariableSymbol>(*otherSym);
-    if (var && otherVar) {
-      if (!var->constValue().has_value() ||
-          !otherVar->constValue().has_value()) {
+  auto lhsPack = symbol_cast<ParameterPackSymbol>(lhs);
+  auto rhsPack = symbol_cast<ParameterPackSymbol>(rhs);
+  if (lhsPack || rhsPack) {
+    if (!lhsPack || !rhsPack) return false;
+    if (lhsPack->elements().size() != rhsPack->elements().size()) return false;
+    for (size_t i = 0; i < lhsPack->elements().size(); ++i) {
+      if (!compare_symbols(lhsPack->elements()[i], rhsPack->elements()[i])) {
         return false;
       }
-      if (var->constValue().value() != otherVar->constValue().value()) {
-        return false;
-      }
-      continue;
     }
-    auto symType = (*sym)->type();
-    auto otherSymType = (*otherSym)->type();
-    if (symType != otherSymType) {
-      // If the types are different, we cannot compare them
+    return true;
+  }
+
+  auto lhsVar = symbol_cast<VariableSymbol>(lhs);
+  auto rhsVar = symbol_cast<VariableSymbol>(rhs);
+  if (lhsVar && rhsVar && lhsVar->constValue().has_value() &&
+      rhsVar->constValue().has_value()) {
+    if (lhsVar->constValue().value() != rhsVar->constValue().value()) {
       return false;
     }
   }
+
+  return lhs->type() == rhs->type();
+}
+
+auto compare_symbol_and_type(Symbol* symbol, const Type* type) -> bool {
+  if (!symbol || !type) return false;
+  return symbol->type() == type;
+}
+
+auto compare_symbol_and_const(Symbol* symbol, const ConstValue& value) -> bool {
+  auto variable = symbol_cast<VariableSymbol>(symbol);
+  if (!variable) return false;
+  if (!variable->constValue().has_value()) return false;
+  return variable->constValue().value() == value;
+}
+
+auto compare_single_arg(const TemplateArgument& lhs,
+                        const TemplateArgument& rhs) -> bool {
+  if (auto lhsType = std::get_if<const Type*>(&lhs)) {
+    if (auto rhsType = std::get_if<const Type*>(&rhs)) {
+      return *lhsType == *rhsType;
+    }
+    if (auto rhsSymbol = std::get_if<Symbol*>(&rhs)) {
+      return compare_symbol_and_type(*rhsSymbol, *lhsType);
+    }
+    return false;
+  }
+
+  if (auto lhsSymbol = std::get_if<Symbol*>(&lhs)) {
+    if (auto rhsSymbol = std::get_if<Symbol*>(&rhs)) {
+      return compare_symbols(*lhsSymbol, *rhsSymbol);
+    }
+    if (auto rhsType = std::get_if<const Type*>(&rhs)) {
+      return compare_symbol_and_type(*lhsSymbol, *rhsType);
+    }
+    if (auto rhsValue = std::get_if<ConstValue>(&rhs)) {
+      return compare_symbol_and_const(*lhsSymbol, *rhsValue);
+    }
+    return false;
+  }
+
+  if (auto lhsValue = std::get_if<ConstValue>(&lhs)) {
+    if (auto rhsValue = std::get_if<ConstValue>(&rhs)) {
+      return *lhsValue == *rhsValue;
+    }
+    if (auto rhsSymbol = std::get_if<Symbol*>(&rhs)) {
+      return compare_symbol_and_const(*rhsSymbol, *lhsValue);
+    }
+    return false;
+  }
+
+  if (auto lhsExpr = std::get_if<ExpressionAST*>(&lhs)) {
+    auto rhsExpr = std::get_if<ExpressionAST*>(&rhs);
+    if (!rhsExpr) return false;
+    return *lhsExpr == *rhsExpr;
+  }
+
+  return false;
+}
+
+}  // namespace
+
+auto compare_args(const std::vector<TemplateArgument>& args1,
+                  const std::vector<TemplateArgument>& args2) -> bool {
+  if (args1.size() != args2.size()) return false;
+
+  for (size_t i = 0; i < args1.size(); ++i) {
+    if (!compare_single_arg(args1[i], args2[i])) return false;
+  }
+
   return true;
 };
 
@@ -1001,6 +1048,15 @@ void OverloadSetSymbol::setFunctions(std::vector<FunctionSymbol*> functions) {
 }
 
 void OverloadSetSymbol::addFunction(FunctionSymbol* function) {
+  if (!function) return;
+
+  auto canonical = function->canonical();
+
+  for (auto existing : functions_) {
+    if (!existing) continue;
+    if (existing->canonical() == canonical) return;
+  }
+
   functions_.push_back(function);
 }
 
@@ -1190,6 +1246,12 @@ void FieldSymbol::setLocalOffset(int offset) { localOffset_ = offset; }
 auto FieldSymbol::alignment() const -> int { return alignment_; }
 
 void FieldSymbol::setAlignment(int alignment) { alignment_ = alignment; }
+
+auto FieldSymbol::initializer() const -> ExpressionAST* { return initializer_; }
+
+void FieldSymbol::setInitializer(ExpressionAST* initializer) {
+  initializer_ = initializer;
+}
 
 ParameterSymbol::ParameterSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}

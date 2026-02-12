@@ -26,8 +26,7 @@ void test_int_to_short() {
 
 void test_int_to_float_struct() {
   int x = 42;
-  // expected-warning@2 {{narrowing conversion from 'int' to 'float' in braced-init-list}}
-  // expected-warning@1 {{narrowing conversion from 'int' to 'short' in braced-init-list}}
+  // expected-warning@1 {{narrowing conversion from 'int' to 'float' in braced-init-list}}
   struct S s1 = {0, x, 0};
 }
 

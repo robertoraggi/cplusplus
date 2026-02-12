@@ -792,6 +792,9 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto alignment() const -> int;
   void setAlignment(int alignment);
 
+  [[nodiscard]] auto initializer() const -> ExpressionAST*;
+  void setInitializer(ExpressionAST* initializer);
+
  private:
   union {
     std::uint32_t flags_{};
@@ -809,6 +812,7 @@ class FieldSymbol final : public Symbol {
   int alignment_{};
   int bitFieldOffset_{};
   std::optional<ConstValue> bitFieldWidth_;
+  ExpressionAST* initializer_ = nullptr;
 };
 
 class ParameterSymbol final : public Symbol {

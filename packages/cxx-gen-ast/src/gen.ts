@@ -48,6 +48,8 @@ import { gen_c_keywords_kwgen } from "./gen_c_keywords_kwgen.ts";
 import { gen_pp_keywords_kwgen } from "./gen_pp_keywords_kwgen.ts";
 import { gen_ast_pretty_printer_h } from "./gen_ast_pretty_printer_h.ts";
 import { gen_ast_pretty_printer_cc } from "./gen_ast_pretty_printer_cc.ts";
+import { gen_builtins_h } from "./gen_builtins_h.ts";
+import { gen_builtins_interp_h } from "./gen_builtins_interp_h.ts";
 
 import * as fs from "fs";
 import * as path from "path";
@@ -124,6 +126,17 @@ gen_ast_decoder_cc({
 
 gen_token_fwd_h({
   output: path.join(outdir, "src/parser/cxx/token_fwd.h"),
+});
+
+gen_builtins_h({
+  output: path.join(outdir, "src/parser/cxx/private/builtins-priv.h"),
+});
+
+gen_builtins_interp_h({
+  output: path.join(
+    outdir,
+    "src/parser/cxx/private/builtins_interpreter-priv.h",
+  ),
 });
 
 // js integration

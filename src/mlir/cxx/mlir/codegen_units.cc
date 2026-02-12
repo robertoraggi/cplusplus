@@ -59,6 +59,7 @@ struct ForEachExternalDefinition final : ASTVisitor {
   }
 
   void visit(FunctionDefinitionAST* ast) override {
+    if (ast->symbol && ast->symbol->templateDeclaration()) return;
     if (functionCallback) functionCallback(ast);
 
     ASTVisitor::visit(ast);
@@ -109,6 +110,7 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
 
     llvm::SmallVector<mlir::cxx::GotoOp> gotoOps;
     llvm::SmallVector<mlir::cxx::LabelOp> labelOps;
+    llvm::SmallVector<mlir::cxx::CleanupBranchOp> cleanupBranchOps;
 
     for (auto& block : funcOp.getBody()) {
       for (auto& op : block) {
@@ -116,6 +118,8 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
           gotoOps.push_back(gotoOp);
         else if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op))
           labelOps.push_back(labelOp);
+        else if (auto cbOp = mlir::dyn_cast<mlir::cxx::CleanupBranchOp>(&op))
+          cleanupBranchOps.push_back(cbOp);
       }
     }
 
@@ -135,6 +139,19 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
 
     for (auto labelOp : labelOps) {
       rewriter.eraseOp(labelOp);
+    }
+
+    for (auto cbOp : cleanupBranchOps) {
+      rewriter.setInsertionPoint(cbOp);
+      auto addresses = cbOp.getAddresses();
+      auto destructors = cbOp.getDestructors();
+      for (unsigned i = 0; i < addresses.size(); ++i) {
+        auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
+        mlir::cxx::CallOp::create(rewriter, cbOp.getLoc(), mlir::Type{},
+                                  dtorRef, mlir::ValueRange{addresses[i]},
+                                  mlir::TypeAttr{});
+      }
+      rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(cbOp, cbOp.getDest());
     }
 
     for (auto& region : funcOp->getRegions()) {

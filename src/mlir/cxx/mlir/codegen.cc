@@ -128,6 +128,49 @@ auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
   return {};
 }
 
+auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
+    -> std::optional<mlir::Attribute> {
+  auto interp = ASTInterpreter{unit_};
+
+  if (control()->is_integral_or_unscoped_enum(type)) {
+    auto constValue = interp.toInt(value);
+    return builder_.getI64IntegerAttr(constValue.value_or(0));
+  }
+
+  if (auto attr = getFloatAttr(value, type)) {
+    return *attr;
+  }
+
+  if (control()->is_pointer(type)) {
+    if (auto intVal = std::get_if<std::intmax_t>(&value)) {
+      if (*intVal == 0) return builder_.getUnitAttr();
+    }
+    if (auto strLit = std::get_if<const StringLiteral*>(&value)) {
+      (*strLit)->initialize((*strLit)->encoding());
+      std::string str((*strLit)->stringValue());
+      str.push_back('\0');
+      return builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
+    }
+    return builder_.getUnitAttr();
+  }
+
+  if (control()->is_array(type) || control()->is_class(type)) {
+    if (auto constArrayPtr =
+            std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+      auto constArray = *constArrayPtr;
+      std::vector<mlir::Attribute> elements;
+      for (const auto& [elemValue, elemType] : constArray->elements) {
+        if (auto attr = constValueToAttr(elemValue, elemType)) {
+          elements.push_back(*attr);
+        }
+      }
+      return builder_.getArrayAttr(elements);
+    }
+  }
+
+  return std::nullopt;
+}
+
 void Codegen::branch(mlir::Location loc, mlir::Block* block,
                      mlir::ValueRange operands) {
   if (currentBlockMightHaveTerminator()) return;
@@ -253,23 +296,81 @@ auto Codegen::newTemp(const Type* type, SourceLocation loc)
                                      getAlignment(type));
 }
 
+void Codegen::pushCleanup() { cleanupStack_.emplace_back(); }
+
+void Codegen::popCleanup(SourceLocation loc) {
+  auto& scope = cleanupStack_.back();
+  if (scope.entries.empty() || currentBlockMightHaveTerminator()) {
+    cleanupStack_.pop_back();
+    return;
+  }
+  auto mergeBlock = newBlock();
+  emitBranchWithCleanups(loc, mergeBlock, cleanupStack_.size() - 1);
+  builder_.setInsertionPointToEnd(mergeBlock);
+  cleanupStack_.pop_back();
+}
+
+void Codegen::emitBranchWithCleanups(SourceLocation loc, mlir::Block* target,
+                                     std::size_t targetDepth) {
+  if (currentBlockMightHaveTerminator()) return;
+
+  auto mlirLoc = getLocation(loc);
+
+  llvm::SmallVector<mlir::Value> addresses;
+  llvm::SmallVector<mlir::Attribute> destructors;
+
+  for (auto i = cleanupStack_.size(); i > targetDepth; --i) {
+    auto& scope = cleanupStack_[i - 1];
+    for (auto jt = scope.entries.rbegin(); jt != scope.entries.rend(); ++jt) {
+      addresses.push_back(jt->address);
+      auto funcOp = findOrCreateFunction(jt->destructor);
+      destructors.push_back(
+          mlir::FlatSymbolRefAttr::get(funcOp.getSymNameAttr()));
+    }
+  }
+
+  if (addresses.empty()) {
+    mlir::cf::BranchOp::create(builder_, mlirLoc, target);
+    return;
+  }
+
+  auto destructorsAttr =
+      mlir::ArrayAttr::get(builder_.getContext(), destructors);
+  mlir::cxx::CleanupBranchOp::create(builder_, mlirLoc, addresses,
+                                     destructorsAttr, target);
+}
+
+void Codegen::addCleanup(mlir::Value address, FunctionSymbol* dtor) {
+  if (cleanupStack_.empty()) return;
+  cleanupStack_.back().entries.push_back({address, dtor});
+}
+
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> mlir::cxx::FuncOp {
   auto canonicalSymbol = functionSymbol->canonical();
+  auto emittedSymbol = functionSymbol;
 
-  if (auto it = funcOps_.find(canonicalSymbol); it != funcOps_.end()) {
+  if (!functionSymbol->isSpecialization()) {
+    emittedSymbol = canonicalSymbol;
+  }
+
+  if (auto it = funcOps_.find(emittedSymbol); it != funcOps_.end()) {
     return it->second;
   }
 
-  const auto functionType = type_cast<FunctionType>(canonicalSymbol->type());
+  const auto functionType = type_cast<FunctionType>(emittedSymbol->type());
+  if (!functionType) {
+    return {};
+  }
+
   const auto returnType = functionType->returnType();
   const auto needsExitValue = !control()->is_void(returnType);
 
   std::vector<mlir::Type> inputTypes;
   std::vector<mlir::Type> resultTypes;
 
-  if (!canonicalSymbol->isStatic() && canonicalSymbol->parent()->isClass()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(canonicalSymbol->parent());
+  if (!emittedSymbol->isStatic() && emittedSymbol->parent()->isClass()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(emittedSymbol->parent());
 
     inputTypes.push_back(builder_.getType<mlir::cxx::PointerType>(
         convertType(classSymbol->type())));
@@ -289,11 +390,11 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   std::string name;
 
-  if (canonicalSymbol->hasCLinkage()) {
-    name = to_string(canonicalSymbol->name());
+  if (emittedSymbol->hasCLinkage()) {
+    name = to_string(emittedSymbol->name());
   } else {
     ExternalNameEncoder encoder;
-    name = encoder.encode(canonicalSymbol);
+    name = encoder.encode(emittedSymbol);
   }
 
   const auto loc = getLocation(functionSymbol->location());
@@ -304,7 +405,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   mlir::cxx::InlineKind inlineKind = mlir::cxx::InlineKind::NoInline;
 
-  if (canonicalSymbol->isInline()) {
+  if (emittedSymbol->isInline()) {
     inlineKind = mlir::cxx::InlineKind::InlineHint;
   }
 
@@ -313,17 +414,17 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   mlir::cxx::LinkageKind linkageKind = mlir::cxx::LinkageKind::External;
 
-  if (canonicalSymbol->isStatic() && !canonicalSymbol->parent()->isClass()) {
+  if (emittedSymbol->isStatic() && !emittedSymbol->parent()->isClass()) {
     linkageKind = mlir::cxx::LinkageKind::Internal;
-  } else if (isInAnonymousNamespace(canonicalSymbol)) {
+  } else if (isInAnonymousNamespace(emittedSymbol)) {
     linkageKind = mlir::cxx::LinkageKind::Internal;
-  } else if (canonicalSymbol->isInline()) {
+  } else if (emittedSymbol->isInline()) {
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
-  } else if (canonicalSymbol->isSpecialization()) {
+  } else if (emittedSymbol->isSpecialization()) {
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
-  } else if (isMemberOfClassTemplateSpecialization(canonicalSymbol)) {
+  } else if (isMemberOfClassTemplateSpecialization(emittedSymbol)) {
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
-  } else if (canonicalSymbol->isDefaulted()) {
+  } else if (emittedSymbol->isDefaulted()) {
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
   }
 
@@ -334,9 +435,9 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
                                         linkageAttr, inlineAttr,
                                         mlir::ArrayAttr{}, mlir::ArrayAttr{});
 
-  funcOps_.insert_or_assign(canonicalSymbol, func);
+  funcOps_.insert_or_assign(emittedSymbol, func);
 
-  enqueueFunctionBody(canonicalSymbol);
+  enqueueFunctionBody(emittedSymbol);
 
   return func;
 }
@@ -457,9 +558,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
         auto constArray = *constArrayPtr;
         std::vector<mlir::Attribute> elements;
 
-        // todo: fill elements
-        for (const auto& element : constArray->elements) {
-          // convert each element to mlir::Attribute and push to elements
+        for (const auto& [elemValue, elemType] : constArray->elements) {
+          if (auto attr = constValueToAttr(elemValue, elemType)) {
+            elements.push_back(*attr);
+          }
         }
         initializer = builder_.getArrayAttr(elements);
       } else if (auto constStringPtr =
@@ -495,9 +597,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
         auto constArray = *constArrayPtr;
         std::vector<mlir::Attribute> elements;
 
-        // todo: fill elements
-        for (const auto& element : constArray->elements) {
-          // convert each element to mlir::Attribute and push to elements
+        for (const auto& [elemValue, elemType] : constArray->elements) {
+          if (auto attr = constValueToAttr(elemValue, elemType)) {
+            elements.push_back(*attr);
+          }
         }
 
         initializer = builder_.getArrayAttr(elements);

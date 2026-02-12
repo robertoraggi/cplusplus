@@ -49,8 +49,8 @@ auto pair = Pair{
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: pair
-// CHECK-NEXT:          initializer: equal-initializer
-// CHECK-NEXT:            expression: braced-type-construction
+// CHECK-NEXT:          initializer: equal-initializer [prvalue ::Pair]
+// CHECK-NEXT:            expression: braced-type-construction [prvalue ::Pair]
 // CHECK-NEXT:              type-specifier: named-type-specifier
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: Pair

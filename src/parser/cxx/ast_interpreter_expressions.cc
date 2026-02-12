@@ -806,17 +806,6 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
-  // __builtin_is_constant_evaluated() returns true during constant evaluation.
-  if (auto* idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-    if (auto* nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
-      if (nameId->identifier &&
-          nameId->identifier->builtinFunction() ==
-              BuiltinFunctionKind::T___BUILTIN_IS_CONSTANT_EVALUATED) {
-        return ConstValue{true};
-      }
-    }
-  }
-
   std::vector<ConstValue> args;
   for (auto node : ListView{ast->expressionList}) {
     auto value = interp.evaluate(node);
@@ -824,6 +813,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
       return ExpressionResult{std::nullopt};
     }
     args.push_back(std::move(*value));
+  }
+
+  if (auto* idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    if (auto* nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
+      if (nameId->identifier) {
+        auto builtinKind = nameId->identifier->builtinFunction();
+        if (builtinKind != BuiltinFunctionKind::T_NONE) {
+          return interp.evaluateBuiltinCall(builtinKind, std::move(args));
+        }
+      }
+    }
   }
 
   FunctionSymbol* func = nullptr;
@@ -1675,3 +1675,5 @@ auto ASTInterpreter::NewInitializerVisitor::operator()(
 }
 
 }  // namespace cxx
+
+#include "private/builtins_interpreter-priv.h"
