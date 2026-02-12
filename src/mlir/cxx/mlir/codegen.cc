@@ -647,6 +647,9 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
       initializer = builder_.getUnitAttr();
     } else {
       initializer = builder_.getZeroAttr(varType);
+      if (!initializer) {
+        initializer = builder_.getUnitAttr();
+      }
     }
   }
 

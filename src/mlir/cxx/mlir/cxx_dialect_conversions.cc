@@ -276,8 +276,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       value = rewriter.getZeroAttr(elementType);
     }
 
-    bool needsZeroPtrInit = isa_and_nonnull<UnitAttr>(value) &&
-                            isa<LLVM::LLVMPointerType>(elementType);
+    bool needsZeroPtrInit = isa_and_nonnull<UnitAttr>(value);
 
     bool needsWideStringInit = false;
     unsigned wideElementWidth = 0;
