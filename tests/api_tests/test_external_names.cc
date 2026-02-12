@@ -60,3 +60,22 @@ TEST(ExternalNames, BuiltinTypes) {
   ASSERT_EQ("Dc", encoder.encode(control.getDecltypeAutoType()));
   ASSERT_EQ("Dn", encoder.encode(control.getNullptrType()));
 }
+
+TEST(ExternalNames, CLinkageFunctionName) {
+  Control control;
+  ExternalNameEncoder encoder;
+
+  auto global = control.newNamespaceSymbol(nullptr, {});
+  auto function = control.newFunctionSymbol(global, {});
+
+  function->setName(control.getIdentifier("printf"));
+  function->setType(control.getFunctionType(
+      control.getIntType(), {control.getPointerType(control.getCharType())},
+      true));
+
+  auto cxxName = encoder.encode(function);
+  ASSERT_NE("printf", cxxName);
+
+  function->setLanguageLinkage(LanguageKind::kC);
+  ASSERT_EQ("printf", encoder.encode(function));
+}

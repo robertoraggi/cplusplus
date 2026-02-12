@@ -789,6 +789,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
 
     std::swap(rewrite.parameterPack_, parameterPack);
 
+    if (!current) current = rewrite.emptyFoldIdentity(ast->op);
+
     return current;
   }
 
@@ -812,7 +814,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     auto savedParameterPack = rewrite.parameterPack_;
     std::swap(rewrite.parameterPack_, parameterPack);
 
-    std::vector<ExpressionAST*> instantiations;
     ExpressionAST* current = nullptr;
 
     int n = 0;
@@ -840,6 +841,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     }
 
     std::swap(rewrite.parameterPack_, parameterPack);
+
+    if (!current) current = rewrite.emptyFoldIdentity(ast->op);
 
     return current;
   }
@@ -915,6 +918,42 @@ auto ASTRewriter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionAST* {
+  // Check if this is T(args...) where T is a type parameter — after
+  // substitution it becomes a functional type construction (e.g. int(10)).
+  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    if (auto typeParam = symbol_cast<TypeParameterSymbol>(idExpr->symbol)) {
+      auto paramType = type_cast<TypeParameterType>(typeParam->type());
+      const auto& args = rewrite.templateArguments_;
+      if (paramType && paramType->depth() == rewrite.depth_ &&
+          paramType->index() < static_cast<int>(args.size())) {
+        auto index = paramType->index();
+        if (auto sym = std::get_if<Symbol*>(&args[index])) {
+          // Build a NamedTypeSpecifierAST for the substituted type.
+          auto typeSpec = NamedTypeSpecifierAST::create(arena());
+          typeSpec->unqualifiedId =
+              rewrite.unqualifiedId(idExpr->unqualifiedId);
+          typeSpec->symbol = *sym;
+
+          auto tc = TypeConstructionAST::create(arena());
+          tc->typeSpecifier = typeSpec;
+          tc->lparenLoc = ast->lparenLoc;
+          tc->rparenLoc = ast->rparenLoc;
+          tc->valueCategory = ValueCategory::kPrValue;
+          tc->type = (*sym)->type();
+
+          for (auto expressionList = &tc->expressionList;
+               auto node : ListView{ast->expressionList}) {
+            auto value = rewrite.expression(node);
+            *expressionList = make_list_node(arena(), value);
+            expressionList = &(*expressionList)->next;
+          }
+
+          return tc;
+        }
+      }
+    }
+  }
+
   auto copy = CallExpressionAST::create(arena());
 
   copy->valueCategory = ast->valueCategory;

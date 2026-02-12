@@ -50,6 +50,62 @@ struct DumpSymbols {
   int depth = 0;
   std::unordered_set<Symbol*> visited;
 
+  auto constValueToString(const ConstValue& value) const -> std::string {
+    if (auto n = std::get_if<std::intmax_t>(&value)) {
+      return std::to_string(*n);
+    }
+    if (auto n = std::get_if<float>(&value)) {
+      return std::format("{}", *n);
+    }
+    if (auto n = std::get_if<double>(&value)) {
+      return std::format("{}", *n);
+    }
+    if (auto n = std::get_if<long double>(&value)) {
+      return std::format("{}", *n);
+    }
+    if (std::holds_alternative<const StringLiteral*>(value)) {
+      return "\"...\"";
+    }
+    if (std::holds_alternative<std::shared_ptr<Meta>>(value)) {
+      return "<meta>";
+    }
+    if (std::holds_alternative<std::shared_ptr<InitializerList>>(value)) {
+      return "<init-list>";
+    }
+    if (std::holds_alternative<std::shared_ptr<ConstObject>>(value)) {
+      return "<const-object>";
+    }
+    return "<const>";
+  }
+
+  auto templateArgumentToString(const TemplateArgument& arg) const
+      -> std::string {
+    if (auto typeArg = std::get_if<const Type*>(&arg)) {
+      return to_string(*typeArg);
+    }
+
+    if (auto symbolArg = std::get_if<Symbol*>(&arg)) {
+      auto sym = *symbolArg;
+      if (!sym) return "<null-symbol>";
+      if (sym->isTypeAlias()) return to_string(sym->type());
+      if (auto var = symbol_cast<VariableSymbol>(sym)) {
+        if (auto cst = var->constValue()) return constValueToString(*cst);
+      }
+      if (sym->type()) return to_string(sym->type());
+      return to_string(sym->name());
+    }
+
+    if (auto constArg = std::get_if<ConstValue>(&arg)) {
+      return constValueToString(*constArg);
+    }
+
+    if (std::get_if<ExpressionAST*>(&arg)) {
+      return "<expr>";
+    }
+
+    return "<arg>";
+  }
+
   auto dumpScope(ScopeSymbol* scope) {
     if (!scope) return;
 
@@ -136,17 +192,7 @@ struct DumpSymbols {
       out << "<";
       std::string_view sep = "";
       for (auto arg : symbol->templateArguments()) {
-        auto symbol = std::get_if<Symbol*>(&arg);
-        if (!symbol) continue;
-        auto sym = *symbol;
-        if (sym->isTypeAlias()) {
-          out << std::format("{}{}", sep, to_string(sym->type()));
-        } else if (auto var = symbol_cast<VariableSymbol>(sym)) {
-          auto cst = std::get<std::intmax_t>(var->constValue().value());
-          out << std::format("{}{}", sep, cst);
-        } else {
-          cxx_runtime_error("todo");
-        }
+        out << std::format("{}{}", sep, templateArgumentToString(arg));
         sep = ", ";
       }
       out << std::format(">\n");
@@ -318,17 +364,7 @@ struct DumpSymbols {
       out << "<";
       std::string_view sep = "";
       for (auto arg : symbol->templateArguments()) {
-        auto symbol = std::get_if<Symbol*>(&arg);
-        if (!symbol) continue;
-        auto sym = *symbol;
-        if (sym->isTypeAlias()) {
-          out << std::format("{}{}", sep, to_string(sym->type()));
-        } else if (auto var = symbol_cast<VariableSymbol>(sym)) {
-          auto cst = std::get<std::intmax_t>(var->constValue().value());
-          out << std::format("{}{}", sep, cst);
-        } else {
-          cxx_runtime_error("todo");
-        }
+        out << std::format("{}{}", sep, templateArgumentToString(arg));
         sep = ", ";
       }
       out << std::format(">");

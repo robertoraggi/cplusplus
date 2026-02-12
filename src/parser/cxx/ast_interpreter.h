@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
+#include <cxx/token_fwd.h>
 
 #include <optional>
 #include <unordered_map>
@@ -66,6 +67,10 @@ class ASTInterpreter {
 
   [[nodiscard]] auto evaluateConstructor(FunctionSymbol* ctor,
                                          const Type* classType,
+                                         std::vector<ConstValue> args)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinCall(BuiltinFunctionKind kind,
                                          std::vector<ConstValue> args)
       -> std::optional<ConstValue>;
 

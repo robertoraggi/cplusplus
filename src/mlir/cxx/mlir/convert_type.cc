@@ -23,6 +23,7 @@
 
 // cxx
 #include <cxx/control.h>
+#include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
@@ -302,6 +303,13 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
   if (name.empty()) {
     auto loc = type->symbol()->location();
     name = std::format("$class_{}", loc.index());
+  }
+
+  // Use mangled type name for template instantiations to avoid collisions
+  // between e.g. Test<int> and Test<double> which both have name "Test".
+  if (!classSymbol->templateArguments().empty()) {
+    ExternalNameEncoder encoder;
+    name = encoder.encode(type);
   }
 
   if (classSymbol->isUnion()) {

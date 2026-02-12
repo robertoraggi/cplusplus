@@ -21,14 +21,15 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/implicit_conversion_sequence.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
 #include <cxx/types_fwd.h>
 
-namespace cxx {
+#include <optional>
 
-struct ImplicitConversionSequence;
+namespace cxx {
 
 class TranslationUnit;
 
@@ -63,6 +64,13 @@ class TypeChecker {
   void check_initialization(VariableSymbol* var, InitDeclaratorAST* ast);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
 
+  [[nodiscard]] auto collect_init_args(ExpressionAST* initializer)
+      -> std::vector<ExpressionAST*>;
+
+  void apply_init_conversions(
+      ExpressionAST* initializer,
+      const std::vector<ImplicitConversionSequence>& conversions);
+
   void check_braced_init_list(const Type* type, BracedInitListAST* ast);
   void check_struct_init(ClassSymbol* classSymbol, BracedInitListAST* ast);
   void check_union_init(ClassSymbol* classSymbol, BracedInitListAST* ast);
@@ -74,6 +82,9 @@ class TypeChecker {
 
   void warn_narrowing(SourceLocation loc, const Type* from, const Type* to);
 
+  void check_element_init(ExpressionAST*& expr, const Type* targetType,
+                          std::string errorMessage);
+
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* targetType) -> bool;
 
@@ -84,16 +95,33 @@ class TypeChecker {
   void applyImplicitConversion(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
+  [[nodiscard]] static auto mapImplicitCastKind(ImplicitConversionKind kind)
+      -> std::optional<ImplicitCastKind>;
+
+  void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
+                            ExpressionAST*& expr);
+
   [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
                                     const Type* rightType = nullptr)
       -> FunctionSymbol*;
+
+  [[nodiscard]] auto trySelectOperator(
+      const std::vector<FunctionSymbol*>& candidates, const Type* type,
+      const Type* rightType) -> FunctionSymbol*;
+
+  [[nodiscard]] auto collectOverloads(Symbol* symbol) const
+      -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto findOverloads(ScopeSymbol* scope, const Name* name) const
       -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto selectBestOverload(
       const std::vector<FunctionSymbol*>& candidates, const Type* type,
-      const Type* rightType) const -> FunctionSymbol*;
+      const Type* rightType, bool* ambiguous) const -> FunctionSymbol*;
+
+  [[nodiscard]] auto wasLastOperatorLookupAmbiguous() const -> bool {
+    return lastOperatorLookupAmbiguous_;
+  }
 
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
@@ -107,6 +135,7 @@ class TypeChecker {
   TranslationUnit* unit_;
   ScopeSymbol* scope_ = nullptr;
   bool reportErrors_ = false;
+  bool lastOperatorLookupAmbiguous_ = false;
 };
 
 }  // namespace cxx

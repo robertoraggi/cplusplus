@@ -5477,7 +5477,6 @@ auto Parser::synthesizeAbbreviatedFunctionTemplate(
   if (!params) return nullptr;
 
   auto hasAutoSpec = [](ParameterDeclarationAST* param) -> bool {
-    if (param->isPack) return false;
     for (auto s = param->typeSpecifierList; s; s = s->next) {
       if (ast_cast<AutoTypeSpecifierAST>(s->value)) return true;
     }
@@ -5508,7 +5507,7 @@ auto Parser::synthesizeAbbreviatedFunctionTemplate(
         control_->getIdentifier(std::format("__auto_{}", paramIndex));
 
     auto tyParam = TypenameTypeParameterAST::create(pool_);
-    tyParam->isPack = false;
+    tyParam->isPack = it->value->isPack;
     tyParam->identifier = syntheticName;
 
     {
@@ -6429,6 +6428,16 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
       if (templParam) return false;
 
       parse_error("expected an initializer");
+    }
+
+    if (auto paramsScope = symbol_cast<FunctionParametersSymbol>(scope())) {
+      const auto& members = paramsScope->members();
+      if (!members.empty()) {
+        if (auto parameterSymbol =
+                symbol_cast<ParameterSymbol>(members.back())) {
+          parameterSymbol->setDefaultArgument(ast->expression);
+        }
+      }
     }
   }
 
@@ -8421,6 +8430,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
     if (templateHead) {
       functionSymbol->setTemplateDeclaration(templateHead);
+      mark_maybe_template_name(declarator);
     }
 
     auto _ = Binder::ScopeGuard{&binder_};
@@ -8624,6 +8634,12 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     }
 
     (void)parse_brace_or_equal_initializer(ast->initializer);
+
+    if (ast->initializer) {
+      if (auto field = symbol_cast<FieldSymbol>(symbol)) {
+        field->setInitializer(ast->initializer);
+      }
+    }
   }
 
   return true;

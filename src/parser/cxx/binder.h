@@ -28,6 +28,8 @@
 #include <cxx/types_fwd.h>
 
 #include <optional>
+#include <unordered_map>
+#include <vector>
 
 namespace cxx {
 
@@ -38,6 +40,11 @@ class TranslationUnit;
 
 class Binder {
  public:
+  struct DefaultArgumentInfo {
+    ExpressionAST* expression = nullptr;
+    SourceLocation location = {};
+  };
+
   explicit Binder(TranslationUnit* unit = nullptr);
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
@@ -174,6 +181,9 @@ class Binder {
   [[nodiscard]] auto is_parsing_c() const;
   [[nodiscard]] auto is_parsing_cxx() const;
 
+  void mergeDefaultArguments(FunctionSymbol* functionSymbol,
+                             DeclaratorAST* declarator);
+
  private:
   TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;
@@ -182,6 +192,8 @@ class Binder {
   int lambdaCount_ = 0;
   bool inTemplate_ = false;
   bool reportErrors_ = true;
+  std::unordered_map<FunctionSymbol*, std::vector<DefaultArgumentInfo>>
+      defaultArguments_;
 };
 
 }  // namespace cxx

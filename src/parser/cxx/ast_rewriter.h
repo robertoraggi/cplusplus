@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/binder.h>
 #include <cxx/names_fwd.h>
+#include <cxx/token_fwd.h>
 
 #include <unordered_map>
 #include <vector>
@@ -206,6 +207,8 @@ class ASTRewriter {
 
   [[nodiscard]] auto getTypeParameterPack(SpecifierAST* ast)
       -> ParameterPackSymbol*;
+
+  [[nodiscard]] auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
   std::vector<TemplateArgument> templateArguments_;
   ParameterPackSymbol* parameterPack_ = nullptr;

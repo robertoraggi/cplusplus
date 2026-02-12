@@ -185,6 +185,9 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
 
   auto emitBuiltinCall(CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
       -> ExpressionResult;
+
+  auto emitClassConstruction(SourceLocation loc, const Type* classType,
+                             List<ExpressionAST*>* argList) -> ExpressionResult;
 };
 
 struct Codegen::NewInitializerVisitor {
@@ -761,6 +764,16 @@ auto Codegen::ExpressionVisitor::emitBuiltinCall(
     return {falseVal};
   }
 
+  // __builtin_expect(expr, expected) just returns expr at codegen time.
+  if (builtinKind == BuiltinFunctionKind::T___BUILTIN_EXPECT) {
+    auto args = ListView{ast->expressionList};
+    auto it = args.begin();
+    if (it != args.end()) {
+      return gen.expression(*it);
+    }
+    return {};
+  }
+
   auto name = builtinFunctionName(builtinKind);
 
   mlir::SmallVector<mlir::Value> arguments;
@@ -808,6 +821,10 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   FunctionSymbol* functionSymbol = nullptr;
   if (id) {
+    if (auto classSym = symbol_cast<ClassSymbol>(id->symbol)) {
+      return emitClassConstruction(ast->lparenLoc, classSym->type(),
+                                   ast->expressionList);
+    }
     if (functionSymbol = symbol_cast<FunctionSymbol>(id->symbol)) {
       if (functionSymbol->parent()->isClass() && !functionSymbol->isStatic()) {
         auto loc = gen.getLocation(ast->firstSourceLocation());
@@ -958,31 +975,103 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  const Type* targetType = ast->type;
 
-#if false
-  auto typeSpecifierResult = gen(ast->typeSpecifier);
-
-  for (auto node : ListView{ast->expressionList}) {
-    auto value = gen.expression(node);
+  if (!targetType) {
+    return {
+        gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
   }
-#endif
 
-  return {op};
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  if (gen.control()->is_class(targetType)) {
+    return emitClassConstruction(ast->firstSourceLocation(), targetType,
+                                 ast->expressionList);
+  }
+
+  auto resultType = gen.convertType(targetType);
+
+  if (!ast->expressionList) {
+    if (mlir::isa<mlir::IntegerType>(resultType)) {
+      auto op = mlir::arith::ConstantOp::create(
+          gen.builder_, loc, resultType,
+          gen.builder_.getIntegerAttr(resultType, 0));
+      return {op};
+    }
+    if (mlir::isa<mlir::FloatType>(resultType)) {
+      auto op = mlir::arith::ConstantOp::create(
+          gen.builder_, loc, resultType, gen.builder_.getZeroAttr(resultType));
+      return {op};
+    }
+    return {
+        gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+  }
+
+  auto argResult = gen.expression(ast->expressionList->value);
+  auto argType = argResult.value.getType();
+
+  if (argType == resultType) {
+    return argResult;
+  }
+
+  if (mlir::isa<mlir::IntegerType>(argType) &&
+      mlir::isa<mlir::FloatType>(resultType)) {
+    return {mlir::arith::SIToFPOp::create(gen.builder_, loc, resultType,
+                                          argResult.value)};
+  }
+
+  if (mlir::isa<mlir::FloatType>(argType) &&
+      mlir::isa<mlir::IntegerType>(resultType)) {
+    return {mlir::arith::FPToSIOp::create(gen.builder_, loc, resultType,
+                                          argResult.value)};
+  }
+
+  if (mlir::isa<mlir::FloatType>(argType) &&
+      mlir::isa<mlir::FloatType>(resultType)) {
+    if (argType.getIntOrFloatBitWidth() < resultType.getIntOrFloatBitWidth())
+      return {mlir::arith::ExtFOp::create(gen.builder_, loc, resultType,
+                                          argResult.value)};
+    return {mlir::arith::TruncFOp::create(gen.builder_, loc, resultType,
+                                          argResult.value)};
+  }
+
+  if (mlir::isa<mlir::IntegerType>(argType) &&
+      mlir::isa<mlir::IntegerType>(resultType)) {
+    if (argType.getIntOrFloatBitWidth() < resultType.getIntOrFloatBitWidth())
+      return {mlir::arith::ExtSIOp::create(gen.builder_, loc, resultType,
+                                           argResult.value)};
+    return {mlir::arith::TruncIOp::create(gen.builder_, loc, resultType,
+                                          argResult.value)};
+  }
+
+  return argResult;
 }
 
 auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  const Type* targetType = ast->type;
 
-#if false
-  auto typeSpecifierResult = gen(ast->typeSpecifier);
+  if (!targetType) {
+    return {
+        gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+  }
+
+  if (gen.control()->is_class(targetType)) {
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto temp = gen.newTemp(targetType, ast->firstSourceLocation());
+    if (ast->bracedInitList) {
+      ast->bracedInitList->type = targetType;
+      gen.emitAggregateInit(temp, targetType, ast->bracedInitList);
+    }
+    return {temp.getResult()};
+  }
+
+  if (ast->bracedInitList && !ast->bracedInitList->type) {
+    ast->bracedInitList->type = targetType;
+  }
+
   auto bracedInitListResult = gen.expression(ast->bracedInitList);
-#endif
-
-  return {op};
+  return bracedInitListResult;
 }
 
 auto Codegen::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
@@ -2805,31 +2894,52 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   auto falseBlock = gen.newBlock();
   auto endBlock = gen.newBlock();
 
-  auto type = ast->type;
-  if (ast->valueCategory != ValueCategory::kPrValue) {
-    type = control()->getPointerType(type);
-  }
+  const bool isVoid = control()->is_void(ast->type);
 
-  auto t = gen.newTemp(type, ast->questionLoc);
+  // For non-void types, allocate temp before emitting the condition
+  // (condition emits a terminator, so the alloca must come first).
+  mlir::Value t;
+  const Type* type = nullptr;
+  if (!isVoid) {
+    type = ast->type;
+    if (ast->valueCategory != ValueCategory::kPrValue) {
+      type = control()->getPointerType(type);
+    }
+    t = gen.newTemp(type, ast->questionLoc);
+  }
 
   gen.condition(ast->condition, trueBlock, falseBlock);
 
   auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
+  if (isVoid) {
+    // void-typed conditional: evaluate both branches for side effects only.
+    gen.builder_.setInsertionPointToEnd(trueBlock);
+    gen.expression(ast->iftrueExpression);
+    gen.branch(endLoc, endBlock);
+
+    gen.builder_.setInsertionPointToEnd(falseBlock);
+    gen.expression(ast->iffalseExpression);
+    gen.branch(endLoc, endBlock);
+
+    gen.builder_.setInsertionPointToEnd(endBlock);
+    return {};
+  }
+
   // place the true block
   gen.builder_.setInsertionPointToEnd(trueBlock);
   auto trueExpressionResult = gen.expression(ast->iftrueExpression);
-  auto trueValue = mlir::cxx::StoreOp::create(
-      gen.builder_, gen.getLocation(ast->questionLoc),
-      trueExpressionResult.value, t, gen.getAlignment(type));
+  mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->questionLoc),
+                             trueExpressionResult.value, t,
+                             gen.getAlignment(type));
   gen.branch(endLoc, endBlock);
 
   // place the false block
   gen.builder_.setInsertionPointToEnd(falseBlock);
   auto falseExpressionResult = gen.expression(ast->iffalseExpression);
-  auto falseValue = mlir::cxx::StoreOp::create(
-      gen.builder_, gen.getLocation(ast->colonLoc), falseExpressionResult.value,
-      t, gen.getAlignment(type));
+  mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->colonLoc),
+                             falseExpressionResult.value, t,
+                             gen.getAlignment(type));
   gen.branch(endLoc, endBlock);
 
   // place the end block
@@ -3473,6 +3583,37 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
   }
 }
 
+auto Codegen::ExpressionVisitor::emitClassConstruction(
+    SourceLocation loc, const Type* classType, List<ExpressionAST*>* argList)
+    -> ExpressionResult {
+  auto classT = type_cast<ClassType>(classType);
+  if (!classT || !classT->symbol())
+    return {gen.emitTodoExpr(loc, "class construction: no class symbol")};
+
+  auto classSymbol = classT->symbol();
+  auto temp = gen.newTemp(classType, loc);
+
+  std::vector<ExpressionResult> args;
+  for (auto it = argList; it; it = it->next)
+    args.push_back(gen.expression(it->value));
+
+  int argCount = static_cast<int>(args.size());
+
+  for (auto ctor : classSymbol->constructors()) {
+    if (ctor->canonical() != ctor) continue;
+    auto funcType = type_cast<FunctionType>(ctor->type());
+    if (!funcType) continue;
+    if (static_cast<int>(funcType->parameterTypes().size()) != argCount)
+      continue;
+    (void)gen.emitCall(loc, ctor, {temp.getResult()}, args);
+    return {temp.getResult()};
+  }
+
+  if (argCount == 0) return {temp.getResult()};
+
+  return {gen.emitTodoExpr(loc, "class construction: no matching ctor")};
+}
+
 auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments)
@@ -3481,6 +3622,19 @@ auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
   if (!functionType) return {};
 
   auto mlirLoc = getLocation(loc);
+
+  const auto& paramTypes = functionType->parameterTypes();
+
+  for (size_t i = 0; i < arguments.size() && i < paramTypes.size(); ++i) {
+    if (!control()->is_reference(paramTypes[i])) continue;
+    auto val = arguments[i].value;
+    if (mlir::isa<mlir::cxx::PointerType>(val.getType())) continue;
+    auto elemType = control()->remove_reference(paramTypes[i]);
+    auto temp = newTemp(elemType, loc);
+    mlir::cxx::StoreOp::create(builder_, mlirLoc, val, temp,
+                               getAlignment(elemType));
+    arguments[i] = {temp.getResult()};
+  }
 
   mlir::SmallVector<mlir::Value> args;
   if (thisValue.value) {

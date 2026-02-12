@@ -48,17 +48,21 @@ void ff(int count, ...) {
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: args
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: call-expression
-// CHECK-NEXT:                base-expression: id-expression
+// CHECK-NEXT:              expression: call-expression [prvalue void]
+// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list...)]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_start
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  id-expression [lvalue __builtin_va_list]
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: args
-// CHECK-NEXT:                  id-expression [lvalue int]
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: count
+// CHECK-NEXT:                  implicit-cast-expression [prvalue __builtin_va_list]
+// CHECK-NEXT:                    cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                    expression: id-expression [lvalue __builtin_va_list]
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: args
+// CHECK-NEXT:                  implicit-cast-expression [prvalue int]
+// CHECK-NEXT:                    cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                    expression: id-expression [lvalue int]
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: count
 // CHECK-NEXT:            for-statement
 // CHECK-NEXT:              initializer: declaration-statement
 // CHECK-NEXT:                declaration: simple-declaration

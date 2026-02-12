@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/const_value.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
@@ -47,7 +48,43 @@ struct AssociatedNamespaceCollector {
     if (ns && !std::ranges::contains(namespaces, ns)) namespaces.push_back(ns);
   }
 
-  void addClass(ClassSymbol* cls) { classes.push_back(cls); }
+  void addClass(ClassSymbol* cls) {
+    if (cls && !std::ranges::contains(classes, cls)) classes.push_back(cls);
+  }
+
+  void collect(const Symbol* symbol) {
+    if (!symbol) return;
+    collect(symbol->type());
+    addNamespace(symbol->enclosingNamespace());
+  }
+
+  void collect(const ConstValue& value) {
+    if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+      if (*object) collect((*object)->type());
+    }
+  }
+
+  void collect(const TemplateArgument& arg) {
+    if (auto* argType = std::get_if<const Type*>(&arg)) {
+      collect(*argType);
+      return;
+    }
+
+    if (auto* argSymbol = std::get_if<Symbol*>(&arg)) {
+      collect(*argSymbol);
+      return;
+    }
+
+    if (auto* argValue = std::get_if<ConstValue>(&arg)) {
+      collect(*argValue);
+      return;
+    }
+
+    if (auto* argExpr = std::get_if<ExpressionAST*>(&arg)) {
+      if (*argExpr) collect((*argExpr)->type);
+      return;
+    }
+  }
 
   void operator()(const QualType* type) { collect(type->elementType()); }
 
@@ -85,11 +122,7 @@ struct AssociatedNamespaceCollector {
       }
     }
 
-    for (const auto& arg : classSymbol->templateArguments()) {
-      if (auto* argType = std::get_if<const Type*>(&arg)) {
-        collect(*argType);
-      }
-    }
+    for (const auto& arg : classSymbol->templateArguments()) collect(arg);
   }
 
   void operator()(const EnumType* type) {

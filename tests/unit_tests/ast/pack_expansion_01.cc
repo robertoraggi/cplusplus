@@ -42,7 +42,7 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:                  identifier: xs
 // CHECK-NEXT:                  is-pack: true
 // CHECK-NEXT:                  type-specifier-list
-// CHECK-NEXT:                    auto-type-specifier
+// CHECK-NEXT:                    named-type-specifier
 // CHECK-NEXT:                  declarator: declarator
 // CHECK-NEXT:                    core-declarator: parameter-pack
 // CHECK-NEXT:                      core-declarator: id-declarator
@@ -53,11 +53,11 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression
-// CHECK-NEXT:                base-expression: id-expression [lvalue $overload-set]
+// CHECK-NEXT:                base-expression: id-expression
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: foo
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  pack-expansion-expression
-// CHECK-NEXT:                    expression: id-expression [lvalue auto]
+// CHECK-NEXT:                    expression: id-expression
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: xs

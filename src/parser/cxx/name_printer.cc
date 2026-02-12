@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/names.h>
+#include <cxx/symbols.h>
 #include <cxx/token.h>
 #include <cxx/types.h>
 
@@ -30,13 +31,43 @@ namespace {
 
 struct NamePrinter {
   struct {
+    auto const_value_to_string(const ConstValue& value) const -> std::string {
+      if (auto v = std::get_if<std::intmax_t>(&value))
+        return std::to_string(*v);
+      if (auto v = std::get_if<float>(&value)) return std::format("{}", *v);
+      if (auto v = std::get_if<double>(&value)) return std::format("{}", *v);
+      if (auto v = std::get_if<long double>(&value)) {
+        return std::format("{}", *v);
+      }
+      if (std::holds_alternative<const StringLiteral*>(value)) return "\"...\"";
+      if (std::holds_alternative<std::shared_ptr<Meta>>(value)) return "<meta>";
+      if (std::holds_alternative<std::shared_ptr<InitializerList>>(value)) {
+        return "<init-list>";
+      }
+      if (std::holds_alternative<std::shared_ptr<ConstObject>>(value)) {
+        return "<const-object>";
+      }
+      return "<const>";
+    }
+
     auto operator()(const Type* type) const -> std::string {
       return to_string(type);
     }
 
-    auto operator()(const ConstValue& value) const -> std::string { return {}; }
+    auto operator()(const ConstValue& value) const -> std::string {
+      return const_value_to_string(value);
+    }
 
-    auto operator()(const Symbol* symbol) const -> std::string { return {}; }
+    auto operator()(const Symbol* symbol) const -> std::string {
+      if (!symbol) return "<null-symbol>";
+      if (symbol->isTypeAlias()) return to_string(symbol->type());
+      if (symbol->isVariable()) {
+        auto var = static_cast<const VariableSymbol*>(symbol);
+        if (auto cst = var->constValue()) return const_value_to_string(*cst);
+      }
+      if (auto type = symbol->type()) return to_string(type);
+      return to_string(symbol->name());
+    }
 
     auto operator()(ExpressionAST* value) const -> std::string { return {}; }
 

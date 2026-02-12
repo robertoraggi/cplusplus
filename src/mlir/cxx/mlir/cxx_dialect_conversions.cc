@@ -195,6 +195,62 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
   bool needsComdat_;
 };
 
+static void emitAggregateInit(ConversionPatternRewriter& rewriter, Location loc,
+                              Value& result, Type elementType,
+                              ArrayAttr arrAttr);
+
+static Value emitAttrAsValue(ConversionPatternRewriter& rewriter, Location loc,
+                             Type type, Attribute attr) {
+  if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
+    auto intType = dyn_cast<IntegerType>(type);
+    if (!intType) intType = IntegerType::get(type.getContext(), 64);
+    auto adjusted = rewriter.getIntegerAttr(intType, intAttr.getInt());
+    return LLVM::ConstantOp::create(rewriter, loc, intType, adjusted);
+  }
+
+  if (auto floatAttr = dyn_cast<FloatAttr>(attr)) {
+    auto floatType = dyn_cast<FloatType>(type);
+    if (!floatType) floatType = Float64Type::get(type.getContext());
+    auto adjusted = FloatAttr::get(floatType, floatAttr.getValueAsDouble());
+    return LLVM::ConstantOp::create(rewriter, loc, floatType, adjusted);
+  }
+
+  if (isa<UnitAttr>(attr) && isa<LLVM::LLVMPointerType>(type)) {
+    return LLVM::ZeroOp::create(rewriter, loc, type);
+  }
+
+  if (auto arrAttr = dyn_cast<ArrayAttr>(attr)) {
+    if (isa<LLVM::LLVMStructType>(type) || isa<LLVM::LLVMArrayType>(type)) {
+      Value agg = LLVM::UndefOp::create(rewriter, loc, type);
+      emitAggregateInit(rewriter, loc, agg, type, arrAttr);
+      return agg;
+    }
+  }
+
+  return LLVM::ZeroOp::create(rewriter, loc, type);
+}
+
+static void emitAggregateInit(ConversionPatternRewriter& rewriter, Location loc,
+                              Value& result, Type elementType,
+                              ArrayAttr arrAttr) {
+  if (auto structType = dyn_cast<LLVM::LLVMStructType>(elementType)) {
+    auto body = structType.getBody();
+    for (unsigned i = 0; i < arrAttr.size() && i < body.size(); ++i) {
+      auto fieldType = body[i];
+      auto fieldAttr = arrAttr[i];
+      Value fieldVal = emitAttrAsValue(rewriter, loc, fieldType, fieldAttr);
+      result = LLVM::InsertValueOp::create(rewriter, loc, result, fieldVal, i);
+    }
+  } else if (auto arrType = dyn_cast<LLVM::LLVMArrayType>(elementType)) {
+    auto elemType = arrType.getElementType();
+    for (unsigned i = 0; i < arrAttr.size(); ++i) {
+      auto elemAttrVal = arrAttr[i];
+      Value elemVal = emitAttrAsValue(rewriter, loc, elemType, elemAttrVal);
+      result = LLVM::InsertValueOp::create(rewriter, loc, result, elemVal, i);
+    }
+  }
+}
+
 class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
  public:
   GlobalOpLowering(const TypeConverter& typeConverter, bool needsComdat,
@@ -236,10 +292,16 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       }
     }
 
+    bool needsAggregateInit = isa_and_nonnull<ArrayAttr>(value) &&
+                              (isa<LLVM::LLVMStructType>(elementType) ||
+                               isa<LLVM::LLVMArrayType>(elementType));
+
     auto globalOp = LLVM::GlobalOp::create(
         rewriter, op.getLoc(), elementType, op.getConstant(), linkage,
         op.getSymName(),
-        (needsZeroPtrInit || needsWideStringInit) ? Attribute{} : value);
+        (needsZeroPtrInit || needsWideStringInit || needsAggregateInit)
+            ? Attribute{}
+            : value);
 
     if (needsZeroPtrInit) {
       auto& region = globalOp.getInitializerRegion();
@@ -278,6 +340,17 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       }
 
       LLVM::ReturnOp::create(rewriter, op.getLoc(), arr);
+    } else if (needsAggregateInit) {
+      auto arrAttr = cast<ArrayAttr>(value);
+      auto& region = globalOp.getInitializerRegion();
+      auto* block = rewriter.createBlock(&region);
+      rewriter.setInsertionPointToStart(block);
+
+      Value result = LLVM::UndefOp::create(rewriter, op.getLoc(), elementType);
+
+      emitAggregateInit(rewriter, op.getLoc(), result, elementType, arrAttr);
+
+      LLVM::ReturnOp::create(rewriter, op.getLoc(), result);
     }
 
     rewriter.eraseOp(op);
@@ -991,7 +1064,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   // set up the type converter
   LLVMTypeConverter typeConverter{context};
 
-  typeConverter.addConversion([](cxx::ExprType type) { return type; });
+  typeConverter.addConversion([](cxx::ExprType type) -> Type { return type; });
 
   typeConverter.addConversion([](cxx::VoidType type) {
     return LLVM::LLVMVoidType::get(type.getContext());
@@ -1074,6 +1147,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   target.addLegalDialect<LLVM::LLVMDialect>();
   target.addIllegalDialect<cxx::CxxDialect>();
   target.addIllegalDialect<arith::ArithDialect>();
+
+  // Keep todo ops legal - they signal unresolved AST/type checker issues
+  // and must not be lowered to object code.
+  target.addLegalOp<cxx::TodoExprOp, cxx::TodoStmtOp>();
 
   RewritePatternSet patterns(context);
 

@@ -248,6 +248,15 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     }
 
     if (gen.control()->is_class(var->type())) {
+      auto registerCleanup = [&] {
+        auto classType =
+            type_cast<ClassType>(gen.control()->remove_cv(var->type()));
+        if (!classType || !classType->symbol()) return;
+        auto dtor = classType->symbol()->destructor();
+        if (!dtor) return;
+        gen.addCleanup(local.value(), dtor);
+      };
+
       if (auto ctor = var->constructor()) {
         std::vector<ExpressionResult> args;
         if (node->initializer) {
@@ -269,6 +278,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
                                ? node->initializer->firstSourceLocation()
                                : var->location(),
                            ctor, {local.value()}, args);
+        registerCleanup();
         continue;
       }
 
@@ -285,6 +295,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
       if (braced) {
         braced->type = var->type();
         gen.emitAggregateInit(local.value(), var->type(), braced);
+        registerCleanup();
         continue;
       }
     }
@@ -455,9 +466,11 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
+  auto functionSymbol = ast->symbol;
+  if (functionSymbol && functionSymbol->templateDeclaration()) return {};
+
   auto ctx = gen.builder_.getContext();
 
-  auto functionSymbol = ast->symbol;
   const auto functionType = type_cast<FunctionType>(functionSymbol->type());
   const auto returnType = functionType->returnType();
 
@@ -591,14 +604,15 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   std::unordered_map<Symbol*, mlir::Value> locals;
   std::unordered_map<const Name*, int> staticLocalCounts;
+  std::vector<Codegen::CleanupScope> cleanupStack;
 
-  // function state
   std::swap(gen.function_, func);
   std::swap(gen.entryBlock_, entryBlock);
   std::swap(gen.exitBlock_, exitBlock);
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);
   std::swap(gen.staticLocalCounts_, staticLocalCounts);
+  std::swap(gen.cleanupStack_, cleanupStack);
 
   FunctionSymbol* prevFunctionSymbol = nullptr;
   std::swap(gen.currentFunctionSymbol_, prevFunctionSymbol);
@@ -650,6 +664,13 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
       gen.attachDebugInfo(allocaOp, arg, {}, argc + 1);
 
+      if (argc >= args.size()) {
+        gen.unit_->error(arg->location(),
+                         std::format("unexpected argument for function '{}'",
+                                     to_string(functionSymbol->name())));
+        break;
+      }
+
       auto value = args[argc];
       ++argc;
       mlir::cxx::StoreOp::create(gen.builder_, loc, value, allocaOp,
@@ -667,9 +688,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   const auto endLoc = gen.getLocation(ast->lastSourceLocation());
 
-  if (!gen.builder_.getBlock()->mightHaveTerminator()) {
-    mlir::cf::BranchOp::create(gen.builder_, endLoc, gen.exitBlock_);
-  }
+  gen.emitBranchWithCleanups(ast->lastSourceLocation(), gen.exitBlock_, 0);
 
   gen.builder_.setInsertionPointToEnd(gen.exitBlock_);
 
@@ -733,6 +752,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.exitValue_, exitValue);
   std::swap(gen.locals_, locals);
   std::swap(gen.staticLocalCounts_, staticLocalCounts);
+  std::swap(gen.cleanupStack_, cleanupStack);
 
   return {};
 }
@@ -1033,23 +1053,6 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field || field->isStatic()) continue;
 
-    auto fieldType = gen.control()->remove_cv(field->type());
-    auto classType = type_cast<ClassType>(fieldType);
-    if (!classType) continue;
-
-    auto fieldClassSymbol = classType->symbol();
-    if (!fieldClassSymbol) continue;
-
-    FunctionSymbol* defaultCtor = nullptr;
-    for (auto ctor : fieldClassSymbol->constructors()) {
-      auto funcType = type_cast<FunctionType>(ctor->type());
-      if (funcType && funcType->parameterTypes().empty()) {
-        defaultCtor = ctor;
-        break;
-      }
-    }
-    if (!defaultCtor) continue;
-
     int index = 0;
     if (layout) {
       if (auto fi = layout->getFieldInfo(field)) {
@@ -1060,10 +1063,44 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
         gen.convertType(field->type()));
 
-    auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc,
-                                                memberPtrType, thisPtr, index);
+    auto fieldType = gen.control()->remove_cv(field->type());
+    auto classType = type_cast<ClassType>(fieldType);
 
-    (void)gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr}, {});
+    if (classType) {
+      auto fieldClassSymbol = classType->symbol();
+      if (!fieldClassSymbol) continue;
+
+      FunctionSymbol* defaultCtor = nullptr;
+      for (auto ctor : fieldClassSymbol->constructors()) {
+        auto funcType = type_cast<FunctionType>(ctor->type());
+        if (funcType && funcType->parameterTypes().empty()) {
+          defaultCtor = ctor;
+          break;
+        }
+      }
+      if (!defaultCtor) continue;
+
+      auto fieldPtr = mlir::cxx::MemberOp::create(
+          gen.builder_, loc, memberPtrType, thisPtr, index);
+
+      (void)gen.emitCall(ast->firstSourceLocation(), defaultCtor, {fieldPtr},
+                         {});
+    } else if (field->initializer()) {
+      auto fieldPtr = mlir::cxx::MemberOp::create(
+          gen.builder_, loc, memberPtrType, thisPtr, index);
+
+      // If the initializer is a BracedInitListAST without a type, set the
+      // type from the field declaration so that the codegen can emit it.
+      if (auto braced = ast_cast<BracedInitListAST>(field->initializer())) {
+        if (!braced->type) {
+          braced->type = field->type();
+        }
+      }
+
+      auto initResult = gen.expression(field->initializer());
+      mlir::cxx::StoreOp::create(gen.builder_, loc, initResult.value, fieldPtr,
+                                 gen.getAlignment(field->type()));
+    }
   }
 
   gen.emitCtorVtableInit(functionSymbol, loc);

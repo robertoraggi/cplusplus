@@ -316,18 +316,32 @@ class Codegen {
                                   const Type* type)
       -> std::optional<mlir::FloatAttr>;
 
+  [[nodiscard]] auto constValueToAttr(const ConstValue& value, const Type* type)
+      -> std::optional<mlir::Attribute>;
+
   void branch(mlir::Location loc, mlir::Block* block,
               mlir::ValueRange operands = {});
 
   struct Loop {
     mlir::Block* continueBlock = nullptr;
     mlir::Block* breakBlock = nullptr;
-
-    Loop() = default;
-
-    Loop(mlir::Block* continueBlock, mlir::Block* breakBlock)
-        : continueBlock(continueBlock), breakBlock(breakBlock) {}
+    std::size_t continueCleanupDepth = 0;
+    std::size_t breakCleanupDepth = 0;
   };
+
+  struct CleanupScope {
+    struct Entry {
+      mlir::Value address;
+      FunctionSymbol* destructor;
+    };
+    std::vector<Entry> entries;
+  };
+
+  void pushCleanup();
+  void popCleanup(SourceLocation loc);
+  void emitBranchWithCleanups(SourceLocation loc, mlir::Block* target,
+                              std::size_t targetDepth);
+  void addCleanup(mlir::Value address, FunctionSymbol* dtor);
 
   struct Switch {
     std::vector<std::int64_t> caseValues;
@@ -394,6 +408,7 @@ class Codegen {
       compileUnitAttrs_;
   Loop loop_;
   Switch switch_;
+  std::vector<CleanupScope> cleanupStack_;
   int count_ = 0;
   std::unordered_map<const Type*, mlir::LLVM::DITypeAttr> debugTypeCache_;
   std::unordered_map<Symbol*, mlir::LLVM::DIScopeAttr> diScopes_;

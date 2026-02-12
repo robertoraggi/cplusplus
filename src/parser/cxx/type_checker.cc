@@ -98,6 +98,46 @@ inline auto selectBestCandidate(std::vector<OverloadCandidate>& candidates,
   return {best[0], /*ambiguous=*/false};
 }
 
+struct ConstructorResolution {
+  std::vector<OverloadCandidate> candidates;
+  OverloadCandidate* best = nullptr;
+  bool ambiguous = false;
+};
+
+inline auto resolve_constructor(TypeChecker& checker, ClassSymbol* classSymbol,
+                                const std::vector<ExpressionAST*>& args)
+    -> ConstructorResolution {
+  ConstructorResolution result;
+
+  for (auto ctor : classSymbol->constructors()) {
+    if (ctor->canonical() != ctor) continue;
+
+    auto type = type_cast<FunctionType>(ctor->type());
+    if (!type) continue;
+    if (type->parameterTypes().size() != args.size()) continue;
+
+    OverloadCandidate cand{ctor};
+    cand.viable = true;
+
+    auto paramIt = type->parameterTypes().begin();
+    for (auto arg : args) {
+      auto conv = checker.checkImplicitConversion(arg, *paramIt++);
+      if (conv.rank == ConversionRank::kNone) {
+        cand.viable = false;
+        break;
+      }
+      cand.conversions.push_back(conv);
+    }
+
+    if (cand.viable) result.candidates.push_back(std::move(cand));
+  }
+
+  auto [bestPtr, ambiguous] = selectBestCandidate(result.candidates);
+  result.best = bestPtr;
+  result.ambiguous = ambiguous;
+  return result;
+}
+
 struct TypeChecker::Visitor {
   TypeChecker& check;
 
@@ -164,6 +204,9 @@ struct TypeChecker::Visitor {
       -> bool;
   [[nodiscard]] auto boolean_conversion(ExpressionAST*& expr,
                                         const Type* destinationType) -> bool;
+  [[nodiscard]] auto c_integer_to_enum_conversion(ExpressionAST*& expr,
+                                                  const Type* destinationType)
+      -> bool;
   [[nodiscard]] auto temporary_materialization_conversion(ExpressionAST*& expr)
       -> bool;
   [[nodiscard]] auto qualification_conversion(ExpressionAST*& expr,
@@ -250,8 +293,46 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto check_cast_to_derived(ExpressionAST* expression,
                                            const Type* targetType) -> bool;
 
+  void classify_reference_type(ExpressionAST* ast, const Type* fullType);
+  void check_address_of(UnaryExpressionAST* ast);
+  void check_unary_promote(UnaryExpressionAST* ast);
+  void check_shift(BinaryExpressionAST* ast);
+  void check_relational(BinaryExpressionAST* ast);
+  void check_equality(BinaryExpressionAST* ast);
+  void prepare_comparison_operands(BinaryExpressionAST* ast);
+  void set_base_symbol(ExpressionAST* base, Symbol* sym);
+  void resolve_call_overload(CallExpressionAST* ast,
+                             const std::vector<const Type*>& argTypes);
+  [[nodiscard]] auto resolve_function_type(CallExpressionAST* ast)
+      -> const FunctionType*;
+  void check_call_arguments(CallExpressionAST* ast,
+                            const FunctionType* functionType);
+  [[nodiscard]] auto try_c_style_cast(CastExpressionAST* ast,
+                                      ExpressionAST*& expr,
+                                      const Type* targetType,
+                                      ValueCategory targetVC) -> bool;
+
   void check_addition(BinaryExpressionAST* ast);
   void check_subtraction(BinaryExpressionAST* ast);
+  void check_prefix_increment_decrement(UnaryExpressionAST* ast,
+                                        std::string_view action,
+                                        std::string_view opWord);
+
+  [[nodiscard]] auto resolve_operator_overload(
+      const Type* leftType, TokenKind op, SourceLocation opLoc,
+      const Type* rightType, FunctionSymbol*& symbolOut) -> bool;
+
+  [[nodiscard]] auto resolve_unary_overload(UnaryExpressionAST* ast) -> bool;
+
+  [[nodiscard]] auto resolve_binary_overload(BinaryExpressionAST* ast,
+                                             bool setValueCategory = true)
+      -> bool;
+
+  [[nodiscard]] auto resolve_assignment_overload(AssignmentExpressionAST* ast)
+      -> bool;
+
+  [[nodiscard]] auto resolve_compound_assignment_overload(
+      CompoundAssignmentExpressionAST* ast) -> bool;
 
   [[nodiscard]] auto check_member_access(MemberExpressionAST* ast) -> bool;
   [[nodiscard]] auto check_pseudo_destructor_access(MemberExpressionAST* ast)
@@ -307,6 +388,103 @@ struct TypeChecker::Visitor {
         tail = &(*tail)->next;
       }
     }
+  }
+
+  auto deduceTemplateArguments(FunctionSymbol* func,
+                               List<ExpressionAST*>* expressionList)
+      -> std::optional<List<TemplateArgumentAST*>*> {
+    auto templateDecl = func->templateDeclaration();
+    if (!templateDecl) return std::nullopt;
+
+    auto type = type_cast<FunctionType>(func->type());
+    if (!type) return std::nullopt;
+
+    struct ParamInfo {
+      const TypeParameterType* tpt = nullptr;
+      bool isPack = false;
+    };
+
+    std::vector<ParamInfo> templateParams;
+    for (auto p : ListView{templateDecl->templateParameterList}) {
+      ParamInfo info;
+      if (auto sym = p->symbol) {
+        info.tpt = type_cast<TypeParameterType>(sym->type());
+        if (info.tpt) info.isPack = info.tpt->isParameterPack();
+      }
+      templateParams.push_back(info);
+    }
+
+    std::vector<const Type*> deducedTypes(templateParams.size(), nullptr);
+    std::vector<std::vector<const Type*>> deducedPacks(templateParams.size());
+
+    auto paramIt = type->parameterTypes().begin();
+    auto paramEnd = type->parameterTypes().end();
+
+    for (auto argIt = expressionList; argIt; argIt = argIt->next) {
+      auto argType = argIt->value ? argIt->value->type : nullptr;
+      if (!argType) return std::nullopt;
+
+      if (paramIt == paramEnd) return std::nullopt;
+
+      auto paramType = *paramIt;
+      auto bareParam = control()->remove_cvref(paramType);
+      auto tpt = type_cast<TypeParameterType>(bareParam);
+
+      if (!tpt) {
+        ++paramIt;
+        continue;
+      }
+
+      auto idx = tpt->index();
+      if (idx < 0 || idx >= static_cast<int>(templateParams.size()))
+        return std::nullopt;
+
+      auto bareArg = control()->remove_cvref(argType);
+
+      if (templateParams[idx].isPack) {
+        deducedPacks[idx].push_back(bareArg);
+        continue;
+      }
+
+      if (!deducedTypes[idx]) {
+        deducedTypes[idx] = bareArg;
+      } else if (deducedTypes[idx] != bareArg) {
+        return std::nullopt;
+      }
+
+      ++paramIt;
+    }
+
+    for (int i = 0; i < static_cast<int>(templateParams.size()); ++i) {
+      if (templateParams[i].isPack) continue;
+      if (!deducedTypes[i]) return std::nullopt;
+    }
+
+    List<TemplateArgumentAST*>* templArgList = nullptr;
+    auto argListIt = &templArgList;
+
+    for (int i = 0; i < static_cast<int>(templateParams.size()); ++i) {
+      if (templateParams[i].isPack) {
+        for (auto& packType : deducedPacks[i]) {
+          auto typeId = TypeIdAST::create(arena());
+          typeId->type = packType;
+          auto typeArg = TypeTemplateArgumentAST::create(arena());
+          typeArg->typeId = typeId;
+          *argListIt = make_list_node<TemplateArgumentAST>(arena(), typeArg);
+          argListIt = &(*argListIt)->next;
+        }
+        continue;
+      }
+
+      auto typeId = TypeIdAST::create(arena());
+      typeId->type = deducedTypes[i];
+      auto typeArg = TypeTemplateArgumentAST::create(arena());
+      typeArg->typeId = typeId;
+      *argListIt = make_list_node<TemplateArgumentAST>(arena(), typeArg);
+      argListIt = &(*argListIt)->next;
+    }
+
+    return templArgList;
   }
 
   void operator()(CharLiteralExpressionAST* ast);
@@ -539,7 +717,9 @@ void TypeChecker::Visitor::operator()(RightFoldExpressionAST* ast) {}
 
 void TypeChecker::Visitor::operator()(LeftFoldExpressionAST* ast) {}
 
-void TypeChecker::Visitor::operator()(RequiresExpressionAST* ast) {}
+void TypeChecker::Visitor::operator()(RequiresExpressionAST* ast) {
+  ast->type = control()->getBoolType();
+}
 
 void TypeChecker::Visitor::operator()(VaArgExpressionAST* ast) {
   if (ast->typeId) {
@@ -555,6 +735,12 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
                                ast->indexExpression->type)) {
     ast->symbol = operatorFunc;
     setResultTypeAndValueCategory(ast, operatorFunc->type());
+    return;
+  }
+
+  if (check.wasLastOperatorLookupAmbiguous()) {
+    error(ast->firstSourceLocation(),
+          "call to overloaded operator '[]' is ambiguous");
     return;
   }
 
@@ -604,414 +790,179 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
                     to_string(ast->indexExpression->type)));
 }
 
-void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
-  if (!ast->baseExpression) return;
+void TypeChecker::Visitor::set_base_symbol(ExpressionAST* base, Symbol* sym) {
+  if (auto id = ast_cast<IdExpressionAST>(base))
+    id->symbol = sym;
+  else if (auto member = ast_cast<MemberExpressionAST>(base))
+    member->symbol = sym;
+}
 
-  std::vector<const Type*> argumentTypes;
+void TypeChecker::Visitor::resolve_call_overload(
+    CallExpressionAST* ast, const std::vector<const Type*>& argumentTypes) {
+  auto ovl = type_cast<OverloadSetType>(ast->baseExpression->type);
+  if (!ovl) return;
 
-  for (auto it = ast->expressionList; it; it = it->next) {
-    const Type* argumentType = nullptr;
-    if (it->value) argumentType = it->value->type;
+  int argCount = 0;
+  for (auto it = ast->expressionList; it; it = it->next) ++argCount;
 
-    argumentTypes.push_back(argumentType);
-  }
-
+  bool isMemberCall = false;
+  CvQualifiers objectCv{};
+  ValueCategory objectValueCategory = ValueCategory::kPrValue;
   if (auto access = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-    if (ast_cast<DestructorIdAST>(access->unqualifiedId)) {
-      ast->type = control()->getVoidType();
-      return;
+    isMemberCall = true;
+    const Type* objectType = access->baseExpression->type;
+    objectValueCategory = access->baseExpression->valueCategory;
+
+    if (access->accessOp == TokenKind::T_MINUS_GREATER) {
+      if (auto ptrType = as_pointer(objectType))
+        objectType = ptrType->elementType();
     }
+
+    objectCv = strip_cv(objectType);
   }
 
-  // overload resolution
-  if (auto ovl = type_cast<OverloadSetType>(ast->baseExpression->type)) {
-    std::vector<OverloadCandidate> candidates;
-
-    int argCount = 0;
-    for (auto it = ast->expressionList; it; it = it->next) ++argCount;
-
-    bool isMemberCall = false;
-    CvQualifiers objectCv{};
-    ValueCategory objectValueCategory = ValueCategory::kPrValue;
-    if (auto access = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-      isMemberCall = true;
-      const Type* objectType = access->baseExpression->type;
-      objectValueCategory = access->baseExpression->valueCategory;
-
-      if (access->accessOp == TokenKind::T_MINUS_GREATER) {
-        if (auto ptrType = as_pointer(objectType))
-          objectType = ptrType->elementType();
-      }
-
-      objectCv = strip_cv(objectType);
-    }
-
-    // Collect all candidate functions from the overload set
-    std::vector<FunctionSymbol*> allFunctions;
-    for (auto func : ovl->symbol()->functions()) {
-      if (func->canonical() != func) continue;
-      if (func->isSpecialization()) continue;
-      allFunctions.push_back(func);
-    }
-
-    // adl
-    if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-      if (!idExpr->nestedNameSpecifier) {
-        auto adlCandidates = Lookup{check.scope_}.argumentDependentLookup(
-            ovl->symbol()->name(), argumentTypes);
-
-        std::set<FunctionSymbol*> seen;
-        for (auto f : allFunctions) seen.insert(f);
-        for (auto f : adlCandidates) {
-          if (seen.insert(f).second) {
-            allFunctions.push_back(f);
-          }
-        }
-      }
-    }
-
-    for (auto func : allFunctions) {
-      auto type = type_cast<FunctionType>(func->type());
-      if (!type) continue;
-
-      if (func->templateDeclaration()) {
-        auto templateDecl = func->templateDeclaration();
-
-        std::vector<const TypeParameterType*> templateParamTypes;
-        for (auto p : ListView{templateDecl->templateParameterList}) {
-          if (auto sym = p->symbol) {
-            templateParamTypes.push_back(
-                type_cast<TypeParameterType>(sym->type()));
-          } else {
-            templateParamTypes.push_back(nullptr);
-          }
-        }
-
-        std::vector<const Type*> deducedTypes(templateParamTypes.size(),
-                                              nullptr);
-
-        bool deductionFailed = false;
-        auto paramIt2 = type->parameterTypes().begin();
-        for (auto argIt2 = ast->expressionList;
-             argIt2 && paramIt2 != type->parameterTypes().end();
-             argIt2 = argIt2->next, ++paramIt2) {
-          auto paramType = *paramIt2;
-          auto argType = argIt2->value ? argIt2->value->type : nullptr;
-          if (!argType) {
-            deductionFailed = true;
-            break;
-          }
-
-          auto bareParam = control()->remove_cvref(paramType);
-
-          if (auto tpt = type_cast<TypeParameterType>(bareParam)) {
-            auto idx = tpt->index();
-            if (idx >= 0 && idx < static_cast<int>(deducedTypes.size())) {
-              auto bareArg = control()->remove_cvref(argType);
-              if (!deducedTypes[idx]) {
-                deducedTypes[idx] = bareArg;
-              } else if (deducedTypes[idx] != bareArg) {
-                deductionFailed = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if (!deductionFailed) {
-          for (auto& dt : deducedTypes) {
-            if (!dt) {
-              deductionFailed = true;
-              break;
-            }
-          }
-        }
-
-        if (deductionFailed) continue;
-
-        // Build template argument AST list
-        List<TemplateArgumentAST*>* templArgList = nullptr;
-        auto argListIt = &templArgList;
-
-        for (auto& deducedType : deducedTypes) {
-          auto typeId = TypeIdAST::create(arena());
-          typeId->type = deducedType;
-
-          auto typeArg = TypeTemplateArgumentAST::create(arena());
-          typeArg->typeId = typeId;
-
-          *argListIt = make_list_node<TemplateArgumentAST>(arena(), typeArg);
-          argListIt = &(*argListIt)->next;
-        }
-
-        // Instantiate the function template
-        auto instantiated =
-            ASTRewriter::instantiate(check.unit_, templArgList, func);
-
-        if (!instantiated) continue;
-
-        auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
-        if (!instFunc) continue;
-
-        func = instFunc;
-        type = type_cast<FunctionType>(func->type());
-        if (!type) continue;
-      }
-
-      auto paramCount = static_cast<int>(type->parameterTypes().size());
-      if (argCount > paramCount && !type->isVariadic()) continue;
-      if (argCount < paramCount) {
-        auto minRequired = getMinRequiredArgs(func, paramCount);
-        if (argCount < minRequired) continue;
-      }
-
-      OverloadCandidate cand{func};
-      cand.viable = true;
-
-      // Check implicit object parameter for non-static member functions
-      if (isMemberCall && !func->isStatic()) {
-        auto funcCv = type->cvQualifiers();
-        auto funcRef = type->refQualifier();
-
-        auto objCvInt = static_cast<int>(objectCv);
-        auto funcCvInt = static_cast<int>(funcCv);
-        if ((objCvInt & ~funcCvInt) != 0) {
-          continue;
-        }
-
-        // ref-qualifier check
-        if (funcRef == RefQualifier::kLvalue) {
-          if (objectValueCategory == ValueCategory::kPrValue) continue;
-        } else if (funcRef == RefQualifier::kRvalue) {
-          if (objectValueCategory == ValueCategory::kLValue) continue;
-        }
-
-        cand.exactCvMatch = (objectCv == funcCv);
-      }
-
-      auto paramIt = type->parameterTypes().begin();
-      auto paramEnd = type->parameterTypes().end();
-      for (auto argIt = ast->expressionList; argIt && paramIt != paramEnd;
-           argIt = argIt->next, ++paramIt) {
-        auto paramType = *paramIt;
-
-        auto conv = check.checkImplicitConversion(argIt->value, paramType);
-        if (conv.rank == ConversionRank::kNone) {
-          cand.viable = false;
-          break;
-        }
-        cand.conversions.push_back(conv);
-      }
-
-      if (cand.viable) candidates.push_back(cand);
-    }
-
-    auto [bestPtr, ambiguous] =
-        selectBestCandidate(candidates, /*useCvTiebreaker=*/isMemberCall);
-
-    if (!bestPtr) {
-      error(ast->firstSourceLocation(), "no matching function for call");
-      return;
-    } else if (ambiguous) {
-      error(ast->firstSourceLocation(), "call to function is ambiguous");
-      return;
-    }
-
-    auto function = bestPtr->symbol;
-    auto& selectedCandidate = *bestPtr;
-    ast->baseExpression->type = function->type();
-
-    if (auto id = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-      id->symbol = function;
-    } else if (auto member =
-                   ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-      member->symbol = function;
-    }
-
-    auto selectedType = type_cast<FunctionType>(function->type());
-    if (selectedType) {
-      auto totalParams =
-          static_cast<int>(selectedType->parameterTypes().size());
-      appendDefaultArguments(ast, function, argCount, totalParams);
-    }
-
-    int argIdx = 0;
-    for (auto it = ast->expressionList;
-         it && argIdx < selectedCandidate.conversions.size();
-         it = it->next, ++argIdx) {
-      check.applyImplicitConversion(selectedCandidate.conversions[argIdx],
-                                    it->value);
-    }
+  std::vector<FunctionSymbol*> allFunctions;
+  for (auto func : ovl->symbol()->functions()) {
+    if (func->canonical() != func) continue;
+    if (func->isSpecialization()) continue;
+    allFunctions.push_back(func);
   }
 
-  // adl
   if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-    if (!idExpr->symbol && !idExpr->nestedNameSpecifier) {
-      if (auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
-        auto name = nameId->identifier;
-        if (name && check.scope_) {
-          auto adlCandidates =
-              Lookup{check.scope_}.argumentDependentLookup(name, argumentTypes);
-          if (!adlCandidates.empty()) {
-            auto func = adlCandidates.front();
-            idExpr->symbol = func;
-            ast->baseExpression->type = func->type();
-          }
-        }
-      }
+    if (!idExpr->nestedNameSpecifier) {
+      auto adlCandidates = Lookup{check.scope_}.argumentDependentLookup(
+          ovl->symbol()->name(), argumentTypes);
+      std::set<FunctionSymbol*> seen(allFunctions.begin(), allFunctions.end());
+      for (auto f : adlCandidates)
+        if (seen.insert(f).second) allFunctions.push_back(f);
     }
   }
 
-  auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
+  std::vector<OverloadCandidate> candidates;
 
-  if (!functionType) {
-    if (control()->is_pointer(ast->baseExpression->type)) {
-      // resolve pointer to function type
-      functionType = type_cast<FunctionType>(
-          control()->get_element_type(ast->baseExpression->type));
+  for (auto func : allFunctions) {
+    auto type = type_cast<FunctionType>(func->type());
+    if (!type) continue;
 
-      if (functionType) {
-        (void)ensure_prvalue(ast->baseExpression);
-      }
+    if (func->templateDeclaration()) {
+      auto deducedArgs = deduceTemplateArguments(func, ast->expressionList);
+      if (!deducedArgs.has_value()) continue;
+      auto instantiated =
+          ASTRewriter::instantiate(check.unit_, *deducedArgs, func);
+      if (!instantiated) continue;
+      auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
+      if (!instFunc) continue;
+      func = instFunc;
+      type = type_cast<FunctionType>(func->type());
+      if (!type) continue;
     }
+
+    auto paramCount = static_cast<int>(type->parameterTypes().size());
+    if (argCount > paramCount && !type->isVariadic()) continue;
+    if (argCount < paramCount) {
+      if (argCount < getMinRequiredArgs(func, paramCount)) continue;
+    }
+
+    OverloadCandidate cand{func};
+    cand.viable = true;
+
+    if (isMemberCall && !func->isStatic()) {
+      auto funcCv = type->cvQualifiers();
+      auto funcRef = type->refQualifier();
+
+      if ((static_cast<int>(objectCv) & ~static_cast<int>(funcCv)) != 0)
+        continue;
+
+      if (funcRef == RefQualifier::kLvalue &&
+          objectValueCategory == ValueCategory::kPrValue)
+        continue;
+      if (funcRef == RefQualifier::kRvalue &&
+          objectValueCategory == ValueCategory::kLValue)
+        continue;
+
+      cand.exactCvMatch = (objectCv == funcCv);
+    }
+
+    auto paramIt = type->parameterTypes().begin();
+    auto paramEnd = type->parameterTypes().end();
+    for (auto argIt = ast->expressionList; argIt && paramIt != paramEnd;
+         argIt = argIt->next, ++paramIt) {
+      auto conv = check.checkImplicitConversion(argIt->value, *paramIt);
+      if (conv.rank == ConversionRank::kNone) {
+        cand.viable = false;
+        break;
+      }
+      cand.conversions.push_back(conv);
+    }
+
+    if (cand.viable) candidates.push_back(cand);
   }
 
-  if (!functionType) {
-    if (auto classType = type_cast<ClassType>(
-            control()->remove_cvref(ast->baseExpression->type))) {
-      auto classSymbol = classType->symbol();
-      if (classSymbol) {
-        auto operatorName = control()->getOperatorId(TokenKind::T_LPAREN);
-        auto candidates = check.findOverloads(classSymbol, operatorName);
-        if (!candidates.empty()) {
-          auto operatorFunc = candidates.front();
-          functionType = type_cast<FunctionType>(operatorFunc->type());
-          if (functionType) {
-            auto ar = arena();
-            auto opId = OperatorFunctionIdAST::create(ar, TokenKind::T_LPAREN);
-            auto memberExpr = MemberExpressionAST::create(
-                ar, ast->baseExpression, /*nestedNameSpecifier=*/nullptr,
-                /*unqualifiedId=*/opId, /*symbol=*/operatorFunc,
-                /*accessOp=*/TokenKind::T_DOT,
-                /*isTemplateIntroduced=*/false,
-                /*valueCategory=*/ValueCategory::kLValue,
-                /*type=*/operatorFunc->type());
-            ast->baseExpression = memberExpr;
-          }
-        }
-      }
-    }
+  auto [bestPtr, ambiguous] = selectBestCandidate(candidates, isMemberCall);
+
+  if (!bestPtr) {
+    error(ast->firstSourceLocation(), "no matching function for call");
+    return;
   }
-
-  if (!functionType) {
-    // todo: enable when support for the __builtin_<op> functions is added
-
-#if false
-    error(ast->firstSourceLocation(),
-          std::format("invalid call of type '{}'",
-                      to_string(ast->baseExpression->type)));
-#endif
+  if (ambiguous) {
+    error(ast->firstSourceLocation(), "call to function is ambiguous");
     return;
   }
 
-  auto deduceAndInstantiateTemplate = [&](FunctionSymbol* funcSym) -> bool {
-    if (!funcSym || !funcSym->templateDeclaration()) return false;
+  auto function = bestPtr->symbol;
+  ast->baseExpression->type = function->type();
+  set_base_symbol(ast->baseExpression, function);
 
-    auto& paramTypes = functionType->parameterTypes();
-    auto templateDecl = funcSym->templateDeclaration();
-
-    int templateParamCount = 0;
-    for (auto p : ListView{templateDecl->templateParameterList}) {
-      (void)p;
-      ++templateParamCount;
-    }
-
-    std::vector<const Type*> deducedTypes(templateParamCount, nullptr);
-    bool deductionFailed = false;
-
-    int pi = 0;
-    for (auto argIt = ast->expressionList;
-         argIt && pi < static_cast<int>(paramTypes.size());
-         argIt = argIt->next, ++pi) {
-      auto argType = argIt->value ? argIt->value->type : nullptr;
-      if (!argType) {
-        deductionFailed = true;
-        break;
-      }
-
-      auto bareParam = control()->remove_cvref(paramTypes[pi]);
-      if (auto tpt = type_cast<TypeParameterType>(bareParam)) {
-        auto idx = tpt->index();
-        if (idx >= 0 && idx < templateParamCount) {
-          auto bareArg = control()->remove_cvref(argType);
-          if (!deducedTypes[idx]) {
-            deducedTypes[idx] = bareArg;
-          } else if (deducedTypes[idx] != bareArg) {
-            deductionFailed = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!deductionFailed) {
-      for (auto& dt : deducedTypes) {
-        if (!dt) {
-          deductionFailed = true;
-          break;
-        }
-      }
-    }
-
-    if (deductionFailed) return false;
-
-    // Build template argument AST list
-    List<TemplateArgumentAST*>* templArgList = nullptr;
-    auto templArgIt = &templArgList;
-
-    for (auto& deducedType : deducedTypes) {
-      auto typeId = TypeIdAST::create(arena());
-      typeId->type = deducedType;
-
-      auto typeArg = TypeTemplateArgumentAST::create(arena());
-      typeArg->typeId = typeId;
-
-      *templArgIt = make_list_node<TemplateArgumentAST>(arena(), typeArg);
-      templArgIt = &(*templArgIt)->next;
-    }
-
-    auto instantiated =
-        ASTRewriter::instantiate(check.unit_, templArgList, funcSym);
-
-    if (!instantiated) return false;
-
-    auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
-    if (!instFunc) return false;
-
-    auto instType = type_cast<FunctionType>(instFunc->type());
-    if (!instType) return false;
-
-    if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-      idExpr->symbol = instFunc;
-    } else if (auto memberExpr =
-                   ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-      memberExpr->symbol = instFunc;
-    }
-    ast->baseExpression->type = instFunc->type();
-    functionType = instType;
-    return true;
-  };
-
-  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-    deduceAndInstantiateTemplate(symbol_cast<FunctionSymbol>(idExpr->symbol));
+  auto selectedType = type_cast<FunctionType>(function->type());
+  if (selectedType) {
+    auto totalParams = static_cast<int>(selectedType->parameterTypes().size());
+    appendDefaultArguments(ast, function, argCount, totalParams);
   }
 
-  if (auto memberExpr = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-    deduceAndInstantiateTemplate(
-        symbol_cast<FunctionSymbol>(memberExpr->symbol));
+  int argIdx = 0;
+  for (auto it = ast->expressionList;
+       it && argIdx < bestPtr->conversions.size(); it = it->next, ++argIdx) {
+    check.applyImplicitConversion(bestPtr->conversions[argIdx], it->value);
+  }
+}
+
+auto TypeChecker::Visitor::resolve_function_type(CallExpressionAST* ast)
+    -> const FunctionType* {
+  auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
+
+  if (!functionType && control()->is_pointer(ast->baseExpression->type)) {
+    functionType = type_cast<FunctionType>(
+        control()->get_element_type(ast->baseExpression->type));
+    if (functionType) (void)ensure_prvalue(ast->baseExpression);
   }
 
-  // Check the arguments
+  if (!functionType) {
+    auto classType = type_cast<ClassType>(
+        control()->remove_cvref(ast->baseExpression->type));
+    if (!classType) return nullptr;
+    auto classSymbol = classType->symbol();
+    if (!classSymbol) return nullptr;
+
+    auto operatorName = control()->getOperatorId(TokenKind::T_LPAREN);
+    auto candidates = check.findOverloads(classSymbol, operatorName);
+    if (candidates.empty()) return nullptr;
+
+    auto operatorFunc = candidates.front();
+    functionType = type_cast<FunctionType>(operatorFunc->type());
+    if (!functionType) return nullptr;
+
+    auto ar = arena();
+    auto opId = OperatorFunctionIdAST::create(ar, TokenKind::T_LPAREN);
+    ast->baseExpression = MemberExpressionAST::create(
+        ar, ast->baseExpression, nullptr, opId, operatorFunc, TokenKind::T_DOT,
+        false, ValueCategory::kLValue, operatorFunc->type());
+  }
+
+  return functionType;
+}
+
+void TypeChecker::Visitor::check_call_arguments(
+    CallExpressionAST* ast, const FunctionType* functionType) {
   const auto& parameterTypes = functionType->parameterTypes();
 
   int argc = 0;
@@ -1022,18 +973,14 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
       continue;
     }
 
-    if (argc >= parameterTypes.size()) {
+    if (argc >= static_cast<int>(parameterTypes.size())) {
       if (functionType->isVariadic()) {
-        // do the promotion for the variadic arguments
         (void)ensure_prvalue(it->value);
         adjust_cv(it->value);
-
         if (integral_promotion(it->value)) continue;
         if (floating_point_promotion(it->value)) continue;
-
         continue;
       }
-
       error(it->value->firstSourceLocation(),
             std::format("too many arguments for function of type '{}'",
                         to_string(functionType)));
@@ -1043,12 +990,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     auto targetType = parameterTypes[argc];
     ++argc;
 
-    if (is_parsing_cxx()) {
-      if (control()->is_reference(targetType)) {
-        // TODO: check reference binding
-        continue;
-      }
-    }
+    if (is_parsing_cxx() && control()->is_reference(targetType)) continue;
 
     if (!implicit_conversion(it->value, targetType)) {
       error(it->value->firstSourceLocation(),
@@ -1057,12 +999,78 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
                         to_string(it->value->type), to_string(targetType)));
     }
   }
+}
+
+void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
+  if (!ast->baseExpression) return;
+
+  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    if (auto classSym = symbol_cast<ClassSymbol>(idExpr->symbol)) {
+      ast->type = classSym->type();
+      ast->valueCategory = ValueCategory::kPrValue;
+      return;
+    }
+  }
+
+  std::vector<const Type*> argumentTypes;
+  for (auto it = ast->expressionList; it; it = it->next)
+    argumentTypes.push_back(it->value ? it->value->type : nullptr);
+
+  if (auto access = ast_cast<MemberExpressionAST>(ast->baseExpression)) {
+    if (ast_cast<DestructorIdAST>(access->unqualifiedId)) {
+      ast->type = control()->getVoidType();
+      return;
+    }
+  }
+
+  resolve_call_overload(ast, argumentTypes);
+
+  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    if (!idExpr->symbol && !idExpr->nestedNameSpecifier) {
+      if (auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
+        auto name = nameId->identifier;
+        if (name && check.scope_) {
+          auto adlCandidates =
+              Lookup{check.scope_}.argumentDependentLookup(name, argumentTypes);
+          if (!adlCandidates.empty()) {
+            idExpr->symbol = adlCandidates.front();
+            ast->baseExpression->type = adlCandidates.front()->type();
+          }
+        }
+      }
+    }
+  }
+
+  auto functionType = resolve_function_type(ast);
+  if (!functionType) return;
+
+  auto tryInstantiate = [&](FunctionSymbol* funcSym) {
+    if (!funcSym || !funcSym->templateDeclaration()) return;
+    auto deducedArgs = deduceTemplateArguments(funcSym, ast->expressionList);
+    if (!deducedArgs.has_value()) return;
+    auto instantiated =
+        ASTRewriter::instantiate(check.unit_, *deducedArgs, funcSym);
+    if (!instantiated) return;
+    auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
+    if (!instFunc) return;
+    auto instType = type_cast<FunctionType>(instFunc->type());
+    if (!instType) return;
+    set_base_symbol(ast->baseExpression, instFunc);
+    ast->baseExpression->type = instFunc->type();
+    functionType = instType;
+  };
+
+  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression))
+    tryInstantiate(symbol_cast<FunctionSymbol>(idExpr->symbol));
+
+  if (auto memberExpr = ast_cast<MemberExpressionAST>(ast->baseExpression))
+    tryInstantiate(symbol_cast<FunctionSymbol>(memberExpr->symbol));
+
+  check_call_arguments(ast, functionType);
 
   setResultTypeAndValueCategory(ast, functionType);
 
-  if (ast->valueCategory == ValueCategory::kPrValue) {
-    adjust_cv(ast);
-  }
+  if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
 }
 
 void TypeChecker::Visitor::setResultTypeAndValueCategory(ExpressionAST* ast,
@@ -1082,9 +1090,21 @@ void TypeChecker::Visitor::setResultTypeAndValueCategory(ExpressionAST* ast,
   }
 }
 
-void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {}
+void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
+  if (!ast->typeSpecifier) return;
+  auto named = ast_cast<NamedTypeSpecifierAST>(ast->typeSpecifier);
+  if (!named || !named->symbol) return;
+  ast->type = named->symbol->type();
+  ast->valueCategory = ValueCategory::kPrValue;
+}
 
-void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {}
+void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {
+  if (!ast->typeSpecifier) return;
+  auto named = ast_cast<NamedTypeSpecifierAST>(ast->typeSpecifier);
+  if (!named || !named->symbol) return;
+  ast->type = named->symbol->type();
+  ast->valueCategory = ValueCategory::kPrValue;
+}
 
 void TypeChecker::Visitor::operator()(SpliceMemberExpressionAST* ast) {}
 
@@ -1094,7 +1114,20 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
-  if (control()->is_class(ast->baseExpression->type)) return;
+  if (control()->is_class(ast->baseExpression->type)) {
+    if (auto operatorFunc =
+            check.lookupOperator(ast->baseExpression->type, ast->op)) {
+      setResultTypeAndValueCategory(ast, operatorFunc->type());
+      return;
+    }
+
+    if (check.wasLastOperatorLookupAmbiguous()) {
+      error(ast->opLoc,
+            std::format("call to overloaded operator '{}' is ambiguous",
+                        Token::spell(ast->op)));
+      return;
+    }
+  }
 
   const std::string_view op =
       ast->op == TokenKind::T_PLUS_PLUS ? "increment" : "decrement";
@@ -1140,71 +1173,57 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
                                 to_string(ast->baseExpression->type)));
 }
 
+void TypeChecker::Visitor::classify_reference_type(ExpressionAST* ast,
+                                                   const Type* fullType) {
+  if (auto refType = type_cast<LvalueReferenceType>(fullType)) {
+    ast->type = refType->elementType();
+    ast->valueCategory = ValueCategory::kLValue;
+  } else if (auto rrefType = type_cast<RvalueReferenceType>(fullType)) {
+    ast->type = rrefType->elementType();
+    ast->valueCategory = type_cast<FunctionType>(ast->type)
+                             ? ValueCategory::kLValue
+                             : ValueCategory::kXValue;
+  } else {
+    ast->type = fullType;
+    ast->valueCategory = ValueCategory::kPrValue;
+  }
+}
+
 void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
   if (!ast->typeId) return;
 
   auto fullTargetType = ast->typeId->type;
-  ast->type = fullTargetType;
+  classify_reference_type(ast, fullTargetType);
 
-  if (auto refType = type_cast<LvalueReferenceType>(fullTargetType)) {
-    ast->type = refType->elementType();
-    ast->valueCategory = ValueCategory::kLValue;
-  } else if (auto rrefType = type_cast<RvalueReferenceType>(fullTargetType)) {
-    ast->type = rrefType->elementType();
-    if (type_cast<FunctionType>(ast->type)) {
-      ast->valueCategory = ValueCategory::kLValue;
-    } else {
-      ast->valueCategory = ValueCategory::kXValue;
-    }
-  } else {
-    ast->valueCategory = ValueCategory::kPrValue;
+  using CastCheck =
+      bool (Visitor::*)(ExpressionAST*&, const Type*, ValueCategory);
+  struct CastInfo {
+    TokenKind op;
+    CastCheck fn;
+    const char* name;
+  };
+
+  CastInfo casts[] = {
+      {TokenKind::T_STATIC_CAST, &Visitor::check_static_cast, "static_cast"},
+      {TokenKind::T_CONST_CAST, &Visitor::check_const_cast, "const_cast"},
+      {TokenKind::T_REINTERPRET_CAST, &Visitor::check_reinterpret_cast,
+       "reinterpret_cast"},
+  };
+
+  for (auto& [op, fn, name] : casts) {
+    if (ast->castOp != op) continue;
+    if ((this->*fn)(ast->expression, ast->type, ast->valueCategory)) break;
+    error(ast->firstSourceLocation(),
+          std::format("invalid {} of '{}' to '{}'", name,
+                      to_string(ast->expression->type),
+                      to_string(fullTargetType)));
+    break;
   }
 
-  switch (ast->castOp) {
-    case TokenKind::T_STATIC_CAST: {
-      if (check_static_cast(ast->expression, ast->type, ast->valueCategory))
-        break;
-      error(ast->firstSourceLocation(),
-            std::format("invalid static_cast of '{}' to '{}'",
-                        to_string(ast->expression->type),
-                        to_string(fullTargetType)));
-      break;
-    }
+  if (ast->castOp == TokenKind::T_DYNAMIC_CAST)
+    warning(ast->firstSourceLocation(), "dynamic_cast is not supported yet");
 
-    case TokenKind::T_CONST_CAST: {
-      if (check_const_cast(ast->expression, ast->type, ast->valueCategory))
-        break;
-      error(ast->firstSourceLocation(),
-            std::format("invalid const_cast of '{}' to '{}'",
-                        to_string(ast->expression->type),
-                        to_string(fullTargetType)));
-      break;
-    }
-
-    case TokenKind::T_REINTERPRET_CAST: {
-      if (check_reinterpret_cast(ast->expression, ast->type,
-                                 ast->valueCategory))
-        break;
-      error(ast->firstSourceLocation(),
-            std::format("invalid reinterpret_cast of '{}' to '{}'",
-                        to_string(ast->expression->type),
-                        to_string(fullTargetType)));
-      break;
-    }
-
-    case TokenKind::T_DYNAMIC_CAST: {
-      // no rtti yet
-      warning(ast->firstSourceLocation(), "dynamic_cast is not supported yet");
-      break;
-    }
-
-    default:
-      break;
-  }  // switch
-
-  if (ast->valueCategory == ValueCategory::kPrValue) {
-    adjust_cv(ast);
-  }
+  if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
 }
 
 auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
@@ -1685,200 +1704,123 @@ void TypeChecker::Visitor::operator()(LabelAddressExpressionAST* ast) {
   ast->type = control()->getPointerType(control()->getVoidType());
 }
 
-void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
-  if (!ast->expression) return;
+void TypeChecker::Visitor::check_address_of(UnaryExpressionAST* ast) {
+  if (!ast->expression->type) return;
 
-  if (auto symbol = check.lookupOperator(ast->expression->type, ast->op)) {
-    ast->symbol = symbol;
-    setResultTypeAndValueCategory(ast, symbol->type());
+  if (!is_glvalue(ast->expression)) {
+    error(ast->opLoc,
+          std::format("cannot take the address of an rvalue of type '{}'",
+                      to_string(ast->expression->type)));
     return;
   }
 
+  auto idExpr = ast_cast<IdExpressionAST>(ast->expression);
+  if (idExpr && idExpr->nestedNameSpecifier) {
+    auto symbol = idExpr->symbol;
+
+    if (auto field = symbol_cast<FieldSymbol>(symbol);
+        field && !field->isStatic()) {
+      auto classType = type_cast<ClassType>(field->parent()->type());
+      ast->type =
+          control()->getMemberObjectPointerType(classType, field->type());
+      ast->valueCategory = ValueCategory::kPrValue;
+      return;
+    }
+
+    if (auto function = symbol_cast<FunctionSymbol>(symbol);
+        function && !function->isStatic()) {
+      auto functionType = type_cast<FunctionType>(function->type());
+      auto classType = type_cast<ClassType>(function->parent()->type());
+      ast->type =
+          control()->getMemberFunctionPointerType(classType, functionType);
+      ast->valueCategory = ValueCategory::kPrValue;
+      return;
+    }
+  }
+
+  ast->type = control()->getPointerType(ast->expression->type);
+  ast->valueCategory = ValueCategory::kPrValue;
+}
+
+void TypeChecker::Visitor::check_unary_promote(UnaryExpressionAST* ast) {
+  ExpressionAST* expr = ast->expression;
+  (void)ensure_prvalue(expr);
+  adjust_cv(expr);
+
+  bool valid = false;
   switch (ast->op) {
-    case TokenKind::T_STAR: {
-      auto pointerType = as_pointer(ast->expression->type);
-      if (pointerType) {
+    case TokenKind::T_PLUS:
+      valid = control()->is_arithmetic_or_unscoped_enum(expr->type) ||
+              control()->is_pointer(expr->type);
+      break;
+    case TokenKind::T_MINUS:
+      valid = control()->is_arithmetic_or_unscoped_enum(expr->type);
+      break;
+    case TokenKind::T_TILDE:
+      valid = control()->is_integral_or_unscoped_enum(expr->type);
+      break;
+    default:
+      return;
+  }
+
+  if (!valid) return;
+
+  if (control()->is_integral_or_unscoped_enum(expr->type))
+    (void)integral_promotion(expr);
+
+  ast->expression = expr;
+  ast->type = expr->type;
+  ast->valueCategory = ValueCategory::kPrValue;
+}
+
+void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
+  if (!ast->expression) return;
+
+  if (resolve_unary_overload(ast)) return;
+
+  switch (ast->op) {
+    case TokenKind::T_STAR:
+      if (auto pointerType = as_pointer(ast->expression->type)) {
         (void)ensure_prvalue(ast->expression);
         adjust_cv(ast->expression);
         ast->type = pointerType->elementType();
         ast->valueCategory = ValueCategory::kLValue;
       }
       break;
-    }
 
-    case TokenKind::T_AMP_AMP: {
+    case TokenKind::T_AMP_AMP:
       cxx_runtime_error("address of label");
       ast->type = control()->getPointerType(control()->getVoidType());
       ast->valueCategory = ValueCategory::kPrValue;
       break;
-    }
 
-    case TokenKind::T_AMP: {
-      if (!ast->expression->type) {
-        break;
-      }
-
-      if (!is_glvalue(ast->expression)) {
-        error(ast->opLoc,
-              std::format("cannot take the address of an rvalue of type '{}'",
-                          to_string(ast->expression->type)));
-        break;
-      }
-
-      // TODO xvalue to lvalue
-
-      if (auto idExpr = ast_cast<IdExpressionAST>(ast->expression);
-          idExpr && idExpr->nestedNameSpecifier) {
-        auto symbol = idExpr->symbol;
-        if (auto field = symbol_cast<FieldSymbol>(symbol);
-            field && !field->isStatic()) {
-          auto parentClass = field->parent();
-          auto classType = type_cast<ClassType>(parentClass->type());
-
-          ast->type =
-              control()->getMemberObjectPointerType(classType, field->type());
-
-          ast->valueCategory = ValueCategory::kPrValue;
-
-          break;
-        }
-
-        if (auto function = symbol_cast<FunctionSymbol>(symbol);
-            function && !function->isStatic()) {
-          auto functionType = type_cast<FunctionType>(function->type());
-          auto parentClass = function->parent();
-          auto classType = type_cast<ClassType>(parentClass->type());
-
-          ast->type =
-              control()->getMemberFunctionPointerType(classType, functionType);
-
-          ast->valueCategory = ValueCategory::kPrValue;
-
-          break;
-        }
-      }  // id expression
-
-      ast->type = control()->getPointerType(ast->expression->type);
-      ast->valueCategory = ValueCategory::kPrValue;
+    case TokenKind::T_AMP:
+      check_address_of(ast);
       break;
-    }
 
-    case TokenKind::T_PLUS: {
-      ExpressionAST* expr = ast->expression;
-      (void)ensure_prvalue(expr);
-      adjust_cv(expr);
-      if (control()->is_arithmetic_or_unscoped_enum(expr->type) ||
-          control()->is_pointer(expr->type)) {
-        if (control()->is_integral_or_unscoped_enum(expr->type)) {
-          (void)integral_promotion(expr);
-        }
-        ast->expression = expr;
-        ast->type = expr->type;
-        ast->valueCategory = ValueCategory::kPrValue;
-      }
+    case TokenKind::T_PLUS:
+    case TokenKind::T_MINUS:
+    case TokenKind::T_TILDE:
+      check_unary_promote(ast);
       break;
-    }
 
-    case TokenKind::T_MINUS: {
-      ExpressionAST* expr = ast->expression;
-      (void)ensure_prvalue(expr);
-      adjust_cv(expr);
-      if (control()->is_arithmetic_or_unscoped_enum(expr->type)) {
-        if (control()->is_integral_or_unscoped_enum(expr->type)) {
-          (void)integral_promotion(expr);
-        }
-        ast->expression = expr;
-        ast->type = expr->type;
-        ast->valueCategory = ValueCategory::kPrValue;
-      }
-      break;
-    }
-
-    case TokenKind::T_EXCLAIM: {
+    case TokenKind::T_EXCLAIM:
       (void)implicit_conversion(ast->expression, control()->getBoolType());
       ast->type = control()->getBoolType();
       ast->valueCategory = ValueCategory::kPrValue;
       break;
-    }
 
-    case TokenKind::T_TILDE: {
-      ExpressionAST* expr = ast->expression;
-      (void)ensure_prvalue(expr);
-      adjust_cv(expr);
-      if (control()->is_integral_or_unscoped_enum(expr->type)) {
-        (void)integral_promotion(expr);
-        ast->expression = expr;
-        ast->type = expr->type;
-        ast->valueCategory = ValueCategory::kPrValue;
-      }
+    case TokenKind::T_PLUS_PLUS:
+      check_prefix_increment_decrement(ast, "increment", "increment");
       break;
-    }
 
-    case TokenKind::T_PLUS_PLUS: {
-      if (!is_glvalue(ast->expression)) {
-        error(ast->opLoc, std::format("cannot increment an rvalue of type '{}'",
-                                      to_string(ast->expression->type)));
-        break;
-      }
-
-      if (!control()->is_const(ast->expression->type)) {
-        const auto ty = ast->expression->type;
-
-        if (is_parsing_cxx() ? control()->is_arithmetic(ty)
-                             : control()->is_arithmetic_or_unscoped_enum(ty)) {
-          ast->type = ty;
-          ast->valueCategory = ValueCategory::kLValue;
-          break;
-        }
-
-        if (auto ptrTy = as_pointer(ty)) {
-          if (!control()->is_void(ptrTy->elementType())) {
-            ast->type = ptrTy;
-            ast->valueCategory = ValueCategory::kLValue;
-            break;
-          }
-        }
-      }
-
-      error(ast->opLoc, std::format("cannot increment a value of type '{}'",
-                                    to_string(ast->expression->type)));
+    case TokenKind::T_MINUS_MINUS:
+      check_prefix_increment_decrement(ast, "decrement", "decrement");
       break;
-    }
-
-    case TokenKind::T_MINUS_MINUS: {
-      if (!is_glvalue(ast->expression)) {
-        error(ast->opLoc, std::format("cannot decrement an rvalue of type '{}'",
-                                      to_string(ast->expression->type)));
-        break;
-      }
-
-      if (!control()->is_const(ast->expression->type)) {
-        auto ty = ast->expression->type;
-
-        if (is_parsing_cxx() ? control()->is_arithmetic(ty)
-                             : control()->is_arithmetic_or_unscoped_enum(ty)) {
-          ast->type = ty;
-          ast->valueCategory = ValueCategory::kLValue;
-          break;
-        }
-
-        if (auto ptrTy = as_pointer(ty)) {
-          if (ptrTy && !control()->is_void(ptrTy->elementType())) {
-            ast->type = ptrTy;
-            ast->valueCategory = ValueCategory::kLValue;
-            break;
-          }
-        }
-      }
-
-      error(ast->opLoc, std::format("cannot decrement a value of type '{}'",
-                                    to_string(ast->expression->type)));
-      break;
-    }
 
     default:
       break;
-  }  // switch
+  }
 }
 
 void TypeChecker::Visitor::operator()(AwaitExpressionAST* ast) {}
@@ -1992,71 +1934,28 @@ void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {
   ast->valueCategory = ValueCategory::kPrValue;
 }
 
+auto TypeChecker::Visitor::try_c_style_cast(CastExpressionAST* ast,
+                                            ExpressionAST*& expr,
+                                            const Type* targetType,
+                                            ValueCategory targetVC) -> bool {
+  if (check_const_cast(expr, targetType, targetVC)) return true;
+  if (check_static_cast(expr, targetType, targetVC)) return true;
+  if (control()->is_pointer(targetType) && control()->is_pointer(expr->type))
+    if (check_static_cast(expr, targetType, targetVC)) return true;
+  if (check_reinterpret_cast(expr, targetType, targetVC)) return true;
+  if (check_reinterpret_cast_permissive(expr, targetType, targetVC))
+    return true;
+  return false;
+}
+
 void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {
   if (!ast->typeId) return;
 
-  auto fullTargetType = ast->typeId->type;
-  ast->type = fullTargetType;
+  classify_reference_type(ast, ast->typeId->type);
 
-  if (auto refType = type_cast<LvalueReferenceType>(fullTargetType)) {
-    ast->type = refType->elementType();
-    ast->valueCategory = ValueCategory::kLValue;
-  } else if (auto rrefType = type_cast<RvalueReferenceType>(fullTargetType)) {
-    ast->type = rrefType->elementType();
-    if (type_cast<FunctionType>(ast->type)) {
-      ast->valueCategory = ValueCategory::kLValue;
-    } else {
-      ast->valueCategory = ValueCategory::kXValue;
-    }
-  } else {
-    ast->valueCategory = ValueCategory::kPrValue;
-  }
-
-  auto targetType = ast->type;
-  auto targetVC = ast->valueCategory;
-
-  if (auto expr = ast->expression;
-      check_const_cast(expr, targetType, targetVC)) {
+  auto expr = ast->expression;
+  if (try_c_style_cast(ast, expr, ast->type, ast->valueCategory))
     ast->expression = expr;
-    if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
-    return;
-  }
-
-  if (auto expr = ast->expression;
-      check_static_cast(expr, targetType, targetVC)) {
-    ast->expression = expr;
-    if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
-    return;
-  }
-
-  {
-    auto expr = ast->expression;
-    auto cvAdjustedTarget = targetType;
-    if (control()->is_pointer(targetType) &&
-        control()->is_pointer(expr->type)) {
-      if (check_static_cast(expr, targetType, targetVC)) {
-        ast->expression = expr;
-        if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
-        return;
-      }
-    }
-    (void)cvAdjustedTarget;
-  }
-
-  if (auto expr = ast->expression;
-      check_reinterpret_cast(expr, targetType, targetVC)) {
-    ast->expression = expr;
-    if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
-    return;
-  }
-
-  // Try reinterpret_cast permissively (C-style casts can cast away const).
-  if (auto expr = ast->expression;
-      check_reinterpret_cast_permissive(expr, targetType, targetVC)) {
-    ast->expression = expr;
-    if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
-    return;
-  }
 
   if (ast->valueCategory == ValueCategory::kPrValue) adjust_cv(ast);
 }
@@ -2112,6 +2011,121 @@ auto TypeChecker::Visitor::check_reinterpret_cast_permissive(
 
 void TypeChecker::Visitor::operator()(ImplicitCastExpressionAST* ast) {}
 
+void TypeChecker::Visitor::prepare_comparison_operands(
+    BinaryExpressionAST* ast) {
+  (void)lvalue_to_rvalue_conversion(ast->leftExpression);
+  (void)function_to_pointer_conversion(ast->leftExpression);
+  (void)lvalue_to_rvalue_conversion(ast->rightExpression);
+  (void)function_to_pointer_conversion(ast->rightExpression);
+}
+
+void TypeChecker::Visitor::check_shift(BinaryExpressionAST* ast) {
+  if (control()->is_class_or_union(ast->leftExpression->type) ||
+      control()->is_class_or_union(ast->rightExpression->type)) {
+    if (resolve_binary_overload(ast)) return;
+    error(
+        ast->opLoc,
+        std::format("'operator {}' is not defined for types {} and {}",
+                    Token::spell(ast->op), to_string(ast->leftExpression->type),
+                    to_string(ast->rightExpression->type)));
+    return;
+  }
+
+  (void)usual_arithmetic_conversion(ast->leftExpression, ast->rightExpression);
+  ast->type = ast->leftExpression->type;
+}
+
+void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
+  ast->type = control()->getBoolType();
+
+  if (resolve_binary_overload(ast)) return;
+
+  prepare_comparison_operands(ast);
+
+  if (control()->is_pointer(ast->leftExpression->type))
+    (void)array_to_pointer_conversion(ast->rightExpression);
+  else if (control()->is_pointer(ast->rightExpression->type))
+    (void)array_to_pointer_conversion(ast->leftExpression);
+
+  if (usual_arithmetic_conversion(ast->leftExpression, ast->rightExpression)) {
+    ast->type = control()->getBoolType();
+    return;
+  }
+
+  if (control()->is_pointer(ast->leftExpression->type) &&
+      control()->is_pointer(ast->rightExpression->type)) {
+    auto compositeType =
+        composite_pointer_type(ast->leftExpression, ast->rightExpression);
+    (void)implicit_conversion(ast->leftExpression, compositeType);
+    (void)implicit_conversion(ast->rightExpression, compositeType);
+    return;
+  }
+
+  error(ast->firstSourceLocation(),
+        std::format("invalid operands to binary expression ('{}' and '{}')",
+                    to_string(ast->leftExpression->type),
+                    to_string(ast->rightExpression->type)));
+}
+
+void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
+  ast->type = control()->getBoolType();
+
+  if (resolve_binary_overload(ast, false)) return;
+
+  prepare_comparison_operands(ast);
+
+  auto is_null_pointer = [this](ExpressionAST* expr) -> bool {
+    if (control()->is_null_pointer(expr->type)) return true;
+
+    while (auto nestedExpr = ast_cast<NestedExpressionAST>(expr))
+      expr = nestedExpr->expression;
+
+    if (auto intLiteral = ast_cast<IntLiteralExpressionAST>(expr))
+      if (intLiteral->literal->value() == "0") return true;
+
+    if (auto boolLiteral = ast_cast<BoolLiteralExpressionAST>(expr))
+      if (!boolLiteral->isTrue) return true;
+
+    return false;
+  };
+
+  if (control()->is_pointer(ast->leftExpression->type) ||
+      is_null_pointer(ast->leftExpression))
+    (void)array_to_pointer_conversion(ast->rightExpression);
+  else if (control()->is_pointer(ast->rightExpression->type) ||
+           is_null_pointer(ast->rightExpression))
+    (void)array_to_pointer_conversion(ast->leftExpression);
+
+  if (usual_arithmetic_conversion(ast->leftExpression, ast->rightExpression)) {
+    ast->type = control()->getBoolType();
+    return;
+  }
+
+  if (control()->is_pointer(ast->leftExpression->type) &&
+      control()->is_same(ast->rightExpression->type, control()->getBoolType()))
+    (void)implicit_conversion(ast->rightExpression, ast->leftExpression->type);
+  else if (control()->is_pointer(ast->rightExpression->type) &&
+           control()->is_same(ast->leftExpression->type,
+                              control()->getBoolType()))
+    (void)implicit_conversion(ast->leftExpression, ast->rightExpression->type);
+
+  if ((control()->is_pointer(ast->leftExpression->type) ||
+       is_null_pointer(ast->leftExpression)) &&
+      (control()->is_pointer(ast->rightExpression->type) ||
+       is_null_pointer(ast->rightExpression))) {
+    auto compositeType =
+        composite_pointer_type(ast->leftExpression, ast->rightExpression);
+    (void)implicit_conversion(ast->leftExpression, compositeType);
+    (void)implicit_conversion(ast->rightExpression, compositeType);
+    return;
+  }
+
+  error(ast->firstSourceLocation(),
+        std::format("invalid operands to binary expression ('{}' and '{}')",
+                    to_string(ast->leftExpression->type),
+                    to_string(ast->rightExpression->type)));
+}
+
 void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
   if (!ast->leftExpression) return;
   if (!ast->rightExpression) return;
@@ -2124,96 +2138,30 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
 
   switch (ast->op) {
     case TokenKind::T_DOT_STAR:
-      // TODO check for built-in .* operator
-      break;
-
     case TokenKind::T_MINUS_GREATER_STAR:
-      // TODO check for built-in ->* operator
       break;
 
     case TokenKind::T_STAR:
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        setResultTypeAndValueCategory(ast, operatorFunc->type());
-        break;
-      }
-
-      ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                              ast->rightExpression);
-      break;
-
     case TokenKind::T_SLASH:
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        setResultTypeAndValueCategory(ast, operatorFunc->type());
-        break;
-      }
-
+    case TokenKind::T_PERCENT:
+      if (resolve_binary_overload(ast)) break;
       ast->type = usual_arithmetic_conversion(ast->leftExpression,
                                               ast->rightExpression);
       break;
 
     case TokenKind::T_PLUS:
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        setResultTypeAndValueCategory(ast, operatorFunc->type());
-        break;
-      }
-
+      if (resolve_binary_overload(ast)) break;
       check_addition(ast);
       break;
 
     case TokenKind::T_MINUS:
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        setResultTypeAndValueCategory(ast, operatorFunc->type());
-        break;
-      }
-
+      if (resolve_binary_overload(ast)) break;
       check_subtraction(ast);
-      break;
-
-    case TokenKind::T_PERCENT:
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        setResultTypeAndValueCategory(ast, operatorFunc->type());
-        break;
-      }
-
-      ast->type = usual_arithmetic_conversion(ast->leftExpression,
-                                              ast->rightExpression);
-
       break;
 
     case TokenKind::T_LESS_LESS:
     case TokenKind::T_GREATER_GREATER:
-      if (control()->is_class_or_union(ast->leftExpression->type) ||
-          control()->is_class_or_union(ast->rightExpression->type)) {
-        if (auto operatorFunc =
-                check.lookupOperator(ast->leftExpression->type, ast->op,
-                                     ast->rightExpression->type)) {
-          ast->symbol = operatorFunc;
-          ast->type = operatorFunc->type();
-          setResultTypeAndValueCategory(ast, operatorFunc->type());
-          break;
-        }
-
-        error(ast->opLoc,
-              std::format("'operator {}' is not defined for types {} and {}",
-                          Token::spell(ast->op),
-                          to_string(ast->leftExpression->type),
-                          to_string(ast->rightExpression->type)));
-        break;
-      }
-
-      (void)usual_arithmetic_conversion(ast->leftExpression,
-                                        ast->rightExpression);
-      ast->type = ast->leftExpression->type;
+      check_shift(ast);
       break;
 
     case TokenKind::T_LESS_EQUAL_GREATER:
@@ -2225,155 +2173,26 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
     case TokenKind::T_LESS_EQUAL:
     case TokenKind::T_GREATER_EQUAL:
     case TokenKind::T_LESS:
-    case TokenKind::T_GREATER: {
-      ast->type = control()->getBoolType();
-
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        setResultTypeAndValueCategory(ast, operatorFunc->type());
-        break;
-      }
-
-      (void)lvalue_to_rvalue_conversion(ast->leftExpression);
-      (void)function_to_pointer_conversion(ast->leftExpression);
-
-      (void)lvalue_to_rvalue_conversion(ast->rightExpression);
-      (void)function_to_pointer_conversion(ast->rightExpression);
-
-      // handle array-to-pointer conversion if needed
-      if (control()->is_pointer(ast->leftExpression->type)) {
-        (void)array_to_pointer_conversion(ast->rightExpression);
-      } else if (control()->is_pointer(ast->rightExpression->type)) {
-        (void)array_to_pointer_conversion(ast->leftExpression);
-      }
-
-      if (usual_arithmetic_conversion(ast->leftExpression,
-                                      ast->rightExpression)) {
-        ast->type = control()->getBoolType();
-        break;
-      }
-
-      if (control()->is_pointer(ast->leftExpression->type) &&
-          control()->is_pointer(ast->rightExpression->type)) {
-        auto compositeType =
-            composite_pointer_type(ast->leftExpression, ast->rightExpression);
-        (void)implicit_conversion(ast->leftExpression, compositeType);
-        (void)implicit_conversion(ast->rightExpression, compositeType);
-        break;
-      }
-
-      error(ast->firstSourceLocation(),
-            std::format("invalid operands to binary expression ('{}' and '{}')",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
-
+    case TokenKind::T_GREATER:
+      check_relational(ast);
       break;
-    }
 
     case TokenKind::T_EQUAL_EQUAL:
-    case TokenKind::T_EXCLAIM_EQUAL: {
-      ast->type = control()->getBoolType();
-
-      if (auto operatorFunc = check.lookupOperator(
-              ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-        ast->symbol = operatorFunc;
-        // Get the return type from the function type
-        if (auto funcType = type_cast<FunctionType>(operatorFunc->type())) {
-          ast->type = funcType->returnType();
-        } else {
-          ast->type = operatorFunc->type();
-        }
-        break;
-      }
-
-      // apply lvalue-to-rvalue and function-to-pointer con
-      // versions to both operands
-      (void)lvalue_to_rvalue_conversion(ast->leftExpression);
-      (void)function_to_pointer_conversion(ast->leftExpression);
-
-      (void)lvalue_to_rvalue_conversion(ast->rightExpression);
-      (void)function_to_pointer_conversion(ast->rightExpression);
-
-      auto is_null_pointer = [this](ExpressionAST* expr) -> bool {
-        if (control()->is_null_pointer(expr->type)) return true;
-
-        // strip nested expressions
-        while (auto nestedExpr = ast_cast<NestedExpressionAST>(expr)) {
-          expr = nestedExpr->expression;
-        }
-
-        if (auto intLiteral = ast_cast<IntLiteralExpressionAST>(expr)) {
-          if (intLiteral->literal->value() == "0") return true;
-        }
-
-        if (auto boolLiteral = ast_cast<BoolLiteralExpressionAST>(expr)) {
-          if (!boolLiteral->isTrue) return true;
-        }
-
-        return false;
-      };
-
-      // handle array-to-pointer conversion if needed
-      if (control()->is_pointer(ast->leftExpression->type) ||
-          is_null_pointer(ast->leftExpression)) {
-        (void)array_to_pointer_conversion(ast->rightExpression);
-      } else if (control()->is_pointer(ast->rightExpression->type) ||
-                 is_null_pointer(ast->rightExpression)) {
-        (void)array_to_pointer_conversion(ast->leftExpression);
-      }
-
-      if (usual_arithmetic_conversion(ast->leftExpression,
-                                      ast->rightExpression)) {
-        ast->type = control()->getBoolType();
-        break;
-      }
-
-      if (control()->is_pointer(ast->leftExpression->type) &&
-          control()->is_same(ast->rightExpression->type,
-                             control()->getBoolType())) {
-        (void)implicit_conversion(ast->rightExpression,
-                                  ast->leftExpression->type);
-      } else if (control()->is_pointer(ast->rightExpression->type) &&
-                 control()->is_same(ast->leftExpression->type,
-                                    control()->getBoolType())) {
-        (void)implicit_conversion(ast->leftExpression,
-                                  ast->rightExpression->type);
-      }
-
-      if ((control()->is_pointer(ast->leftExpression->type) ||
-           is_null_pointer(ast->leftExpression)) &&
-          (control()->is_pointer(ast->rightExpression->type) ||
-           is_null_pointer(ast->rightExpression))) {
-        auto compositeType =
-            composite_pointer_type(ast->leftExpression, ast->rightExpression);
-        (void)implicit_conversion(ast->leftExpression, compositeType);
-        (void)implicit_conversion(ast->rightExpression, compositeType);
-        break;
-      }
-
-      error(ast->firstSourceLocation(),
-            std::format("invalid operands to binary expression ('{}' and '{}')",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
-
+    case TokenKind::T_EXCLAIM_EQUAL:
+      check_equality(ast);
       break;
-    }
 
     case TokenKind::T_AMP:
     case TokenKind::T_CARET:
     case TokenKind::T_BAR:
       ast->type = usual_arithmetic_conversion(ast->leftExpression,
                                               ast->rightExpression);
-
       break;
 
     case TokenKind::T_AMP_AMP:
     case TokenKind::T_BAR_BAR:
       (void)implicit_conversion(ast->leftExpression, control()->getBoolType());
-
       (void)implicit_conversion(ast->rightExpression, control()->getBoolType());
-
       ast->type = control()->getBoolType();
       break;
 
@@ -2387,7 +2206,7 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
     default:
       cxx_runtime_error(
           std::format("invalid operator '{}'", Token::spell(ast->op)));
-  }  // switch
+  }
 }
 
 void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
@@ -2544,12 +2363,7 @@ void TypeChecker::Visitor::operator()(ThrowExpressionAST* ast) {
 void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   if (!ast->leftExpression || !ast->rightExpression) return;
 
-  if (auto operatorFunc = check.lookupOperator(
-          ast->leftExpression->type, ast->op, ast->rightExpression->type)) {
-    ast->symbol = operatorFunc;
-    setResultTypeAndValueCategory(ast, operatorFunc->type());
-    return;
-  }
+  if (resolve_assignment_overload(ast)) return;
 
   if (!is_lvalue(ast->leftExpression)) {
     error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
@@ -2575,12 +2389,7 @@ void TypeChecker::Visitor::operator()(RightExpressionAST* ast) {}
 void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
   if (!ast->targetExpression || !ast->rightExpression) return;
 
-  if (auto operatorFunc = check.lookupOperator(
-          ast->targetExpression->type, ast->op, ast->rightExpression->type)) {
-    ast->symbol = operatorFunc;
-    setResultTypeAndValueCategory(ast, operatorFunc->type());
-    return;
-  }
+  if (resolve_compound_assignment_overload(ast)) return;
 
   if (!is_lvalue(ast->targetExpression)) {
     error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
@@ -3198,6 +3007,25 @@ auto TypeChecker::Visitor::boolean_conversion(ExpressionAST*& expr,
   return true;
 }
 
+auto TypeChecker::Visitor::c_integer_to_enum_conversion(
+    ExpressionAST*& expr, const Type* destinationType) -> bool {
+  if (!is_parsing_c()) return false;
+  if (!is_prvalue(expr)) return false;
+  if (!control()->is_integral_or_unscoped_enum(expr->type)) return false;
+  if (!control()->is_enum(destinationType) ||
+      control()->is_scoped_enum(destinationType))
+    return false;
+
+  auto cast = ImplicitCastExpressionAST::create(arena());
+  cast->castKind = ImplicitCastKind::kIntegralConversion;
+  cast->expression = expr;
+  cast->type = destinationType;
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  return true;
+}
+
 auto TypeChecker::Visitor::temporary_materialization_conversion(
     ExpressionAST*& expr) -> bool {
   if (!is_prvalue(expr)) return false;
@@ -3365,6 +3193,7 @@ auto TypeChecker::Visitor::implicit_conversion(ExpressionAST*& expr,
   if (pointer_conversion(expr, destinationType)) return true;
   if (pointer_to_member_conversion(expr, destinationType)) return true;
   if (boolean_conversion(expr, destinationType)) return true;
+  if (c_integer_to_enum_conversion(expr, destinationType)) return true;
   if (function_pointer_conversion(expr, destinationType)) return true;
   if (qualification_conversion(expr, destinationType)) return true;
   if (user_defined_conversion(expr, destinationType)) return true;
@@ -3685,6 +3514,34 @@ void TypeChecker::check(DeclarationAST* ast) {
   }
 }
 
+static auto try_evaluate_constexpr_ctor(TypeChecker& checker,
+                                        VariableSymbol* var,
+                                        ASTInterpreter& interp)
+    -> std::optional<ConstValue> {
+  auto classType = type_cast<ClassType>(
+      checker.translationUnit()->control()->remove_cv(var->type()));
+  if (!classType) return std::nullopt;
+
+  auto classSym = classType->symbol();
+  if (!classSym) return std::nullopt;
+
+  auto initArgs = checker.collect_init_args(var->initializer());
+
+  std::vector<ConstValue> args;
+  for (auto argExpr : initArgs) {
+    auto argVal = interp.evaluate(argExpr);
+    if (!argVal) return std::nullopt;
+    args.push_back(std::move(*argVal));
+  }
+
+  for (auto ctor : classSym->constructors()) {
+    if (!ctor->isConstexpr()) continue;
+    return interp.evaluateConstructor(ctor, classType, std::move(args));
+  }
+
+  return std::nullopt;
+}
+
 void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
@@ -3694,9 +3551,8 @@ void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
   deduce_array_size(var);
   deduce_auto_type(var);
 
-  if (var->isConstexpr()) {
+  if (var->isConstexpr())
     var->setType(unit_->control()->add_const(var->type()));
-  }
 
   check_initialization(var, ast);
 
@@ -3704,53 +3560,14 @@ void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
     auto interp = ASTInterpreter{unit_};
     auto value = interp.evaluate(var->initializer());
 
-    if (!value.has_value() && var->isConstexpr()) {
-      if (auto* classType =
-              type_cast<ClassType>(unit_->control()->remove_cv(var->type()))) {
-        auto* classSym = classType->symbol();
-        if (classSym) {
-          std::vector<ConstValue> args;
-          bool argsOk = true;
-          if (auto* parenInit =
-                  ast_cast<ParenInitializerAST>(var->initializer())) {
-            for (auto node : ListView{parenInit->expressionList}) {
-              auto argVal = interp.evaluate(node);
-              if (!argVal) {
-                argsOk = false;
-                break;
-              }
-              args.push_back(std::move(*argVal));
-            }
-          } else if (auto* bracedInit =
-                         ast_cast<BracedInitListAST>(var->initializer())) {
-            for (auto node : ListView{bracedInit->expressionList}) {
-              auto argVal = interp.evaluate(node);
-              if (!argVal) {
-                argsOk = false;
-                break;
-              }
-              args.push_back(std::move(*argVal));
-            }
-          }
-          if (argsOk) {
-            for (auto* ctor : classSym->constructors()) {
-              if (ctor->isConstexpr()) {
-                value = interp.evaluateConstructor(ctor, classType,
-                                                   std::move(args));
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
+    if (!value.has_value() && var->isConstexpr())
+      value = try_evaluate_constexpr_ctor(*this, var, interp);
 
     var->setConstValue(value);
   }
 
-  if (var->isConstexpr() && !var->constValue().has_value()) {
+  if (var->isConstexpr() && !var->constValue().has_value())
     error(var->location(), "constexpr variable must be initialized");
-  }
 }
 
 void TypeChecker::deduce_array_size(VariableSymbol* var) {
@@ -3811,6 +3628,42 @@ void TypeChecker::deduce_auto_type(VariableSymbol* var) {
   }
 }
 
+auto TypeChecker::collect_init_args(ExpressionAST* initializer)
+    -> std::vector<ExpressionAST*> {
+  std::vector<ExpressionAST*> args;
+  if (!initializer) return args;
+
+  if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+    for (auto it = paren->expressionList; it; it = it->next)
+      args.push_back(it->value);
+  } else if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
+    for (auto it = braced->expressionList; it; it = it->next)
+      args.push_back(it->value);
+  } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+    args.push_back(equal->expression);
+  }
+
+  return args;
+}
+
+void TypeChecker::apply_init_conversions(
+    ExpressionAST* initializer,
+    const std::vector<ImplicitConversionSequence>& conversions) {
+  if (!initializer) return;
+
+  if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+    size_t i = 0;
+    for (auto it = paren->expressionList; it; it = it->next, ++i)
+      applyImplicitConversion(conversions[i], it->value);
+  } else if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
+    size_t i = 0;
+    for (auto it = braced->expressionList; it; it = it->next, ++i)
+      applyImplicitConversion(conversions[i], it->value);
+  } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+    applyImplicitConversion(conversions[0], equal->expression);
+  }
+}
+
 void TypeChecker::check_initialization(VariableSymbol* var,
                                        InitDeclaratorAST* ast) {
   auto control = unit_->control();
@@ -3845,71 +3698,19 @@ void TypeChecker::check_initialization(VariableSymbol* var,
       return;
     }
 
-    std::vector<ExpressionAST*> args;
-    if (ast->initializer) {
-      if (auto paren = ast_cast<ParenInitializerAST>(ast->initializer)) {
-        for (auto it = paren->expressionList; it; it = it->next)
-          args.push_back(it->value);
-      } else if (auto braced = ast_cast<BracedInitListAST>(ast->initializer)) {
-        for (auto it = braced->expressionList; it; it = it->next)
-          args.push_back(it->value);
-      } else if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
-        args.push_back(equal->expression);
-      }
-    }
+    auto args = collect_init_args(ast->initializer);
 
-    std::vector<OverloadCandidate> candidates;
+    auto resolution = resolve_constructor(*this, classSymbol, args);
 
-    for (auto ctor : classSymbol->constructors()) {
-      if (ctor->canonical() != ctor) continue;
+    if (!resolution.best) return;
 
-      auto type = type_cast<FunctionType>(ctor->type());
-      if (!type) continue;
-
-      if (type->parameterTypes().size() != args.size()) continue;
-
-      OverloadCandidate cand{ctor};
-      cand.viable = true;
-
-      auto paramIt = type->parameterTypes().begin();
-      for (auto arg : args) {
-        auto paramType = *paramIt++;
-        auto conv = checkImplicitConversion(arg, paramType);
-        if (conv.rank == ConversionRank::kNone) {
-          cand.viable = false;
-          break;
-        }
-        cand.conversions.push_back(conv);
-      }
-
-      if (cand.viable) candidates.push_back(cand);
-    }
-
-    auto [bestPtr, ambiguous] = selectBestCandidate(candidates);
-
-    if (!bestPtr) {
-      // error(var->location(), "no matching constructor for initialization");
-      return;
-    } else if (ambiguous) {
+    if (resolution.ambiguous) {
       error(var->location(), "constructor call is ambiguous");
       return;
     }
 
-    var->setConstructor(bestPtr->symbol);
-
-    if (ast->initializer) {
-      if (auto paren = ast_cast<ParenInitializerAST>(ast->initializer)) {
-        size_t i = 0;
-        for (auto it = paren->expressionList; it; it = it->next, ++i)
-          applyImplicitConversion(bestPtr->conversions[i], it->value);
-      } else if (auto braced = ast_cast<BracedInitListAST>(ast->initializer)) {
-        size_t i = 0;
-        for (auto it = braced->expressionList; it; it = it->next, ++i)
-          applyImplicitConversion(bestPtr->conversions[i], it->value);
-      } else if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
-        applyImplicitConversion(bestPtr->conversions[0], equal->expression);
-      }
-    }
+    var->setConstructor(resolution.best->symbol);
+    apply_init_conversions(ast->initializer, resolution.best->conversions);
     return;
   }
 
@@ -4019,46 +3820,27 @@ void TypeChecker::check_mem_initializers(
       auto targetClassSymbol = classType->symbol();
       if (!targetClassSymbol) continue;
 
-      std::vector<OverloadCandidate> candidates;
+      std::vector<ExpressionAST*> argValues;
+      argValues.reserve(args.size());
+      for (auto arg : args) argValues.push_back(*arg);
 
-      for (auto ctor : targetClassSymbol->constructors()) {
-        if (ctor->canonical() != ctor) continue;
+      auto resolution =
+          resolve_constructor(*this, targetClassSymbol, argValues);
 
-        auto type = type_cast<FunctionType>(ctor->type());
-        if (!type || type->parameterTypes().size() != args.size()) continue;
-
-        OverloadCandidate cand{ctor};
-        cand.viable = true;
-        auto paramIt = type->parameterTypes().begin();
-        for (auto arg : args) {
-          auto paramType = *paramIt++;
-          auto conv = checkImplicitConversion(*arg, paramType);
-          if (conv.rank == ConversionRank::kNone) {
-            cand.viable = false;
-            break;
-          }
-          cand.conversions.push_back(conv);
-        }
-        if (cand.viable) candidates.push_back(cand);
-      }
-
-      auto [bestPtr, ambiguous] = selectBestCandidate(candidates);
-
-      if (!bestPtr) {
+      if (!resolution.best) {
         error(memInit->firstSourceLocation(), "no matching constructor");
         continue;
       }
 
-      if (ambiguous) {
+      if (resolution.ambiguous) {
         error(memInit->firstSourceLocation(), "constructor call is ambiguous");
         continue;
       }
 
-      memInit->constructor = bestPtr->symbol;
+      memInit->constructor = resolution.best->symbol;
 
-      for (size_t i = 0; i < args.size(); ++i) {
-        applyImplicitConversion(bestPtr->conversions[i], *args[i]);
-      }
+      for (size_t i = 0; i < args.size(); ++i)
+        applyImplicitConversion(resolution.best->conversions[i], *args[i]);
     } else {
       if (args.size() == 1) {
         (void)implicit_conversion(*args[0], targetType);
@@ -4142,11 +3924,54 @@ auto TypeChecker::is_narrowing_conversion(const Type* from, const Type* to)
   return false;
 }
 
+static auto integer_constant_fits_in_type(ExpressionAST* expr,
+                                          const Type* targetType,
+                                          Control* control) -> bool {
+  // Strip implicit casts
+  while (auto cast = ast_cast<ImplicitCastExpressionAST>(expr)) {
+    expr = cast->expression;
+  }
+
+  auto intLit = ast_cast<IntLiteralExpressionAST>(expr);
+  if (!intLit || !intLit->literal) return false;
+
+  auto value = intLit->literal->integerValue();
+
+  if (!control->is_integral(targetType)) return false;
+
+  auto targetSize = control->memoryLayout()->sizeOf(targetType);
+  if (!targetSize) return false;
+
+  bool targetSigned = control->is_signed(targetType);
+
+  if (targetSigned) {
+    auto maxVal = (std::uint64_t{1} << (*targetSize * 8 - 1)) - 1;
+    return value <= maxVal;
+  } else {
+    if (*targetSize >= 8) return true;
+    auto maxVal = (std::uint64_t{1} << (*targetSize * 8)) - 1;
+    return value <= maxVal;
+  }
+}
+
 void TypeChecker::warn_narrowing(SourceLocation loc, const Type* from,
                                  const Type* to) {
   warning(loc, std::format("narrowing conversion from '{}' to '{}' in "
                            "braced-init-list",
                            to_string(from), to_string(to)));
+}
+
+void TypeChecker::check_element_init(ExpressionAST*& expr,
+                                     const Type* targetType,
+                                     std::string errorMessage) {
+  auto sourceType = expr->type;
+  if (!implicit_conversion(expr, targetType)) {
+    error(expr->firstSourceLocation(), std::move(errorMessage));
+  } else if (sourceType && is_narrowing_conversion(sourceType, targetType) &&
+             !integer_constant_fits_in_type(expr, targetType,
+                                            unit_->control())) {
+    warn_narrowing(expr->firstSourceLocation(), sourceType, targetType);
+  }
 }
 
 void TypeChecker::check_braced_init_list(const Type* type,
@@ -4173,6 +3998,26 @@ void TypeChecker::check_braced_init_list(const Type* type,
       } else if (auto desig =
                      ast_cast<DesignatedInitializerClauseAST>(it->value)) {
         check_designated_initializer(elementType, desig);
+      } else if (auto strLit = ast_cast<StringLiteralExpressionAST>(it->value);
+                 strLit && control->is_array(elementType)) {
+        auto destElemType =
+            control->remove_cv(control->get_element_type(elementType));
+        auto srcElemType =
+            control->remove_cv(control->get_element_type(strLit->type));
+        if (!control->is_same(destElemType, srcElemType)) {
+          error(it->value->firstSourceLocation(),
+                std::format("cannot initialize array element of type '{}' with "
+                            "expression of type '{}'",
+                            to_string(elementType), to_string(strLit->type)));
+        } else if (auto destArray = type_cast<BoundedArrayType>(elementType)) {
+          if (auto srcArray = type_cast<BoundedArrayType>(strLit->type)) {
+            if (srcArray->size() > destArray->size()) {
+              error(
+                  it->value->firstSourceLocation(),
+                  std::format("initializer-string for char array is too long"));
+            }
+          }
+        }
       } else {
         auto sourceType = it->value->type;
         if (!implicit_conversion(it->value, elementType) ||
@@ -4183,7 +4028,9 @@ void TypeChecker::check_braced_init_list(const Type* type,
                           "expression of type '{}'",
                           to_string(elementType), to_string(it->value->type)));
         } else if (sourceType &&
-                   is_narrowing_conversion(sourceType, elementType)) {
+                   is_narrowing_conversion(sourceType, elementType) &&
+                   !integer_constant_fits_in_type(it->value, elementType,
+                                                  unit_->control())) {
           warn_narrowing(it->value->firstSourceLocation(), sourceType,
                          elementType);
         }
@@ -4224,15 +4071,10 @@ void TypeChecker::check_braced_init_list(const Type* type,
       return;
     }
 
-    auto sourceType = expr->type;
-    if (!implicit_conversion(expr, type)) {
-      error(expr->firstSourceLocation(),
-            std::format("cannot initialize type '{}' with expression of "
-                        "type '{}'",
-                        to_string(type), to_string(expr->type)));
-    } else if (sourceType && is_narrowing_conversion(sourceType, type)) {
-      warn_narrowing(expr->firstSourceLocation(), sourceType, type);
-    }
+    check_element_init(expr, type,
+                       std::format("cannot initialize type '{}' with "
+                                   "expression of type '{}'",
+                                   to_string(type), to_string(expr->type)));
   }
 }
 
@@ -4277,16 +4119,12 @@ void TypeChecker::check_struct_init(ClassSymbol* classSymbol,
     if (auto nested = ast_cast<BracedInitListAST>(expr)) {
       check_braced_init_list(fieldType, nested);
     } else {
-      auto sourceType = expr->type;
-      if (!implicit_conversion(expr, fieldType)) {
-        error(expr->firstSourceLocation(),
-              std::format("cannot initialize member '{}' of type '{}' with "
-                          "expression of type '{}'",
-                          to_string(fields[fieldIndex]->name()),
-                          to_string(fieldType), to_string(expr->type)));
-      } else if (sourceType && is_narrowing_conversion(sourceType, fieldType)) {
-        warn_narrowing(expr->firstSourceLocation(), sourceType, fieldType);
-      }
+      check_element_init(
+          expr, fieldType,
+          std::format("cannot initialize member '{}' of type '{}' with "
+                      "expression of type '{}'",
+                      to_string(fields[fieldIndex]->name()),
+                      to_string(fieldType), to_string(expr->type)));
     }
 
     ++fieldIndex;
@@ -4327,16 +4165,12 @@ void TypeChecker::check_union_init(ClassSymbol* classSymbol,
   if (auto nested = ast_cast<BracedInitListAST>(expr)) {
     check_braced_init_list(fieldType, nested);
   } else {
-    auto sourceType = expr->type;
-    if (!implicit_conversion(expr, fieldType)) {
-      error(expr->firstSourceLocation(),
-            std::format("cannot initialize member '{}' of type '{}' with "
-                        "expression of type '{}'",
-                        to_string(firstField->name()), to_string(fieldType),
-                        to_string(expr->type)));
-    } else if (sourceType && is_narrowing_conversion(sourceType, fieldType)) {
-      warn_narrowing(expr->firstSourceLocation(), sourceType, fieldType);
-    }
+    check_element_init(
+        expr, fieldType,
+        std::format("cannot initialize member '{}' of type '{}' with "
+                    "expression of type '{}'",
+                    to_string(firstField->name()), to_string(fieldType),
+                    to_string(expr->type)));
   }
 
   if (it->next) {
@@ -4403,15 +4237,11 @@ void TypeChecker::check_designated_initializer(
   if (auto nested = ast_cast<BracedInitListAST>(initExpr)) {
     check_braced_init_list(targetType, nested);
   } else {
-    auto sourceType = initExpr->type;
-    if (!implicit_conversion(initExpr, targetType)) {
-      error(initExpr->firstSourceLocation(),
-            std::format("cannot initialize type '{}' with expression of "
-                        "type '{}'",
-                        to_string(targetType), to_string(initExpr->type)));
-    } else if (sourceType && is_narrowing_conversion(sourceType, targetType)) {
-      warn_narrowing(initExpr->firstSourceLocation(), sourceType, targetType);
-    }
+    check_element_init(
+        initExpr, targetType,
+        std::format("cannot initialize type '{}' with expression of "
+                    "type '{}'",
+                    to_string(targetType), to_string(initExpr->type)));
   }
 
   ast->type = targetType;
@@ -4557,6 +4387,126 @@ void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
   ast->type = ast->leftExpression->type;
 }
 
+void TypeChecker::Visitor::check_prefix_increment_decrement(
+    UnaryExpressionAST* ast, std::string_view action, std::string_view opWord) {
+  if (!is_glvalue(ast->expression)) {
+    error(ast->opLoc, std::format("cannot {} an rvalue of type '{}'", action,
+                                  to_string(ast->expression->type)));
+    return;
+  }
+
+  if (!control()->is_const(ast->expression->type)) {
+    auto ty = ast->expression->type;
+
+    if (is_parsing_cxx() ? control()->is_arithmetic(ty)
+                         : control()->is_arithmetic_or_unscoped_enum(ty)) {
+      ast->type = ty;
+      ast->valueCategory = ValueCategory::kLValue;
+      return;
+    }
+
+    if (auto ptrTy = as_pointer(ty)) {
+      if (!control()->is_void(ptrTy->elementType())) {
+        ast->type = ptrTy;
+        ast->valueCategory = ValueCategory::kLValue;
+        return;
+      }
+    }
+  }
+
+  error(ast->opLoc, std::format("cannot {} a value of type '{}'", opWord,
+                                to_string(ast->expression->type)));
+}
+
+auto TypeChecker::Visitor::resolve_operator_overload(
+    const Type* leftType, TokenKind op, SourceLocation opLoc,
+    const Type* rightType, FunctionSymbol*& symbolOut) -> bool {
+  symbolOut = nullptr;
+
+  if (auto symbol = check.lookupOperator(leftType, op, rightType)) {
+    symbolOut = symbol;
+    return true;
+  }
+
+  if (check.wasLastOperatorLookupAmbiguous()) {
+    error(opLoc, std::format("call to overloaded operator '{}' is ambiguous",
+                             Token::spell(op)));
+    return true;
+  }
+
+  return false;
+}
+
+auto TypeChecker::Visitor::resolve_unary_overload(UnaryExpressionAST* ast)
+    -> bool {
+  FunctionSymbol* operatorFunc = nullptr;
+  if (!resolve_operator_overload(ast->expression->type, ast->op, ast->opLoc,
+                                 nullptr, operatorFunc)) {
+    return false;
+  }
+
+  if (!operatorFunc) return true;
+
+  ast->symbol = operatorFunc;
+  setResultTypeAndValueCategory(ast, operatorFunc->type());
+  return true;
+}
+
+auto TypeChecker::Visitor::resolve_binary_overload(BinaryExpressionAST* ast,
+                                                   bool setValueCategory)
+    -> bool {
+  FunctionSymbol* operatorFunc = nullptr;
+  if (!resolve_operator_overload(ast->leftExpression->type, ast->op, ast->opLoc,
+                                 ast->rightExpression->type, operatorFunc)) {
+    return false;
+  }
+
+  if (!operatorFunc) return true;
+
+  ast->symbol = operatorFunc;
+  if (setValueCategory) {
+    setResultTypeAndValueCategory(ast, operatorFunc->type());
+  } else if (auto functionType =
+                 type_cast<FunctionType>(operatorFunc->type())) {
+    ast->type = functionType->returnType();
+  } else {
+    ast->type = operatorFunc->type();
+  }
+
+  return true;
+}
+
+auto TypeChecker::Visitor::resolve_assignment_overload(
+    AssignmentExpressionAST* ast) -> bool {
+  FunctionSymbol* operatorFunc = nullptr;
+  if (!resolve_operator_overload(ast->leftExpression->type, ast->op, ast->opLoc,
+                                 ast->rightExpression->type, operatorFunc)) {
+    return false;
+  }
+
+  if (!operatorFunc) return true;
+
+  ast->symbol = operatorFunc;
+  setResultTypeAndValueCategory(ast, operatorFunc->type());
+  return true;
+}
+
+auto TypeChecker::Visitor::resolve_compound_assignment_overload(
+    CompoundAssignmentExpressionAST* ast) -> bool {
+  FunctionSymbol* operatorFunc = nullptr;
+  if (!resolve_operator_overload(ast->targetExpression->type, ast->op,
+                                 ast->opLoc, ast->rightExpression->type,
+                                 operatorFunc)) {
+    return false;
+  }
+
+  if (!operatorFunc) return true;
+
+  ast->symbol = operatorFunc;
+  setResultTypeAndValueCategory(ast, operatorFunc->type());
+  return true;
+}
+
 auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
     -> bool {
   const Type* objectType = ast->baseExpression->type;
@@ -4564,7 +4514,36 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
 
   if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
     if (control()->is_class_or_union(ast->baseExpression->type)) {
-      // todo: lookup operator-> in the class
+      auto classType =
+          type_cast<ClassType>(control()->remove_cv(ast->baseExpression->type));
+      if (!classType) return false;
+      auto classSymbol = classType->symbol();
+      if (!classSymbol) return false;
+
+      auto operatorName = control()->getOperatorId(TokenKind::T_MINUS_GREATER);
+      auto candidates = check.findOverloads(classSymbol, operatorName);
+      if (candidates.empty()) return false;
+
+      auto operatorFunc = candidates.front();
+      auto functionType = type_cast<FunctionType>(operatorFunc->type());
+      if (!functionType) return false;
+
+      auto ar = arena();
+      auto opId = OperatorFunctionIdAST::create(ar, TokenKind::T_MINUS_GREATER);
+
+      auto memberAccess = MemberExpressionAST::create(
+          ar, ast->baseExpression, nullptr, opId, operatorFunc,
+          TokenKind::T_DOT, false, ValueCategory::kLValue,
+          operatorFunc->type());
+
+      auto callExpr = CallExpressionAST::create(
+          ar, memberAccess, /*expressionList=*/nullptr, ValueCategory::kPrValue,
+          functionType->returnType());
+
+      ast->baseExpression = callExpr;
+
+      objectType = functionType->returnType();
+      cv1 = strip_cv(objectType);
     } else {
       (void)ensure_prvalue(ast->baseExpression);
       objectType = ast->baseExpression->type;
@@ -4869,6 +4848,24 @@ auto TypeChecker::checkImplicitConversion(ExpressionAST* expr,
 
   ImplicitConversionSequence bestUserDefined;
 
+  auto checkViability = [&](const Type* from,
+                            const Type* to) -> std::pair<bool, ConversionRank> {
+    if (control->is_same(from, to)) return {true, ConversionRank::kExactMatch};
+    if (control->is_arithmetic(from) && control->is_arithmetic(to))
+      return {true, ConversionRank::kConversion};
+    if (control->is_pointer(from) && control->is_pointer(to))
+      return {true, ConversionRank::kConversion};
+    if (control->is_null_pointer(from) && control->is_pointer(to))
+      return {true, ConversionRank::kConversion};
+    return {false, ConversionRank::kNone};
+  };
+
+  auto updateBest = [&](FunctionSymbol* func, ConversionRank s2Rank) {
+    auto uds = makeUserDefinedSeq(func, s2Rank);
+    if (!bestUserDefined || uds.isBetterThan(bestUserDefined))
+      bestUserDefined = uds;
+  };
+
   if (auto destClassType = type_cast<ClassType>(unqualTo)) {
     if (auto destClass = destClassType->symbol()) {
       for (auto ctor : destClass->convertingConstructors()) {
@@ -4877,37 +4874,11 @@ auto TypeChecker::checkImplicitConversion(ExpressionAST* expr,
         auto& params = funcType->parameterTypes();
         if (params.size() != 1) continue;
 
-        auto paramType = params[0];
+        auto paramUnqual =
+            control->remove_cv(control->remove_reference(params[0]));
 
-        auto paramUnref = control->remove_reference(paramType);
-        auto paramUnqual = control->remove_cv(paramUnref);
-
-        bool viable = false;
-        ConversionRank s2Rank = ConversionRank::kNone;
-
-        if (control->is_same(unqualFrom, paramUnqual)) {
-          viable = true;
-          s2Rank = ConversionRank::kExactMatch;
-        } else if (control->is_arithmetic(unqualFrom) &&
-                   control->is_arithmetic(paramUnqual)) {
-          viable = true;
-          s2Rank = ConversionRank::kConversion;
-        } else if (control->is_pointer(unqualFrom) &&
-                   control->is_pointer(paramUnqual)) {
-          viable = true;
-          s2Rank = ConversionRank::kConversion;
-        } else if (control->is_null_pointer(unqualFrom) &&
-                   control->is_pointer(paramUnqual)) {
-          viable = true;
-          s2Rank = ConversionRank::kConversion;
-        }
-
-        if (!viable) continue;
-
-        auto uds = makeUserDefinedSeq(ctor, s2Rank);
-        if (!bestUserDefined || uds.isBetterThan(bestUserDefined)) {
-          bestUserDefined = uds;
-        }
+        auto [viable, s2Rank] = checkViability(unqualFrom, paramUnqual);
+        if (viable) updateBest(ctor, s2Rank);
       }
     }
   }
@@ -4923,31 +4894,12 @@ auto TypeChecker::checkImplicitConversion(ExpressionAST* expr,
 
         auto retUnqual = control->remove_cv(returnType);
 
-        bool viable = false;
-        ConversionRank s2Rank = ConversionRank::kNone;
-
-        if (control->is_same(retUnqual, unqualTo)) {
-          viable = true;
-          s2Rank = ConversionRank::kExactMatch;
-        } else if (control->is_arithmetic(retUnqual) &&
-                   control->is_arithmetic(unqualTo)) {
-          viable = true;
-          s2Rank = ConversionRank::kConversion;
-        } else if (control->is_pointer(retUnqual) &&
-                   control->is_pointer(unqualTo)) {
-          viable = true;
-          s2Rank = ConversionRank::kConversion;
-        } else if (control->is_same(unqualTo, control->getBoolType())) {
+        auto [viable, s2Rank] = checkViability(retUnqual, unqualTo);
+        if (!viable && control->is_same(unqualTo, control->getBoolType())) {
           viable = true;
           s2Rank = ConversionRank::kConversion;
         }
-
-        if (!viable) continue;
-
-        auto uds = makeUserDefinedSeq(convFunc, s2Rank);
-        if (!bestUserDefined || uds.isBetterThan(bestUserDefined)) {
-          bestUserDefined = uds;
-        }
+        if (viable) updateBest(convFunc, s2Rank);
       }
     }
   }
@@ -4957,109 +4909,51 @@ auto TypeChecker::checkImplicitConversion(ExpressionAST* expr,
   return seq;
 }
 
+auto TypeChecker::mapImplicitCastKind(ImplicitConversionKind kind)
+    -> std::optional<ImplicitCastKind> {
+  switch (kind) {
+    case ImplicitConversionKind::kLValueToRValue:
+      return ImplicitCastKind::kLValueToRValueConversion;
+    case ImplicitConversionKind::kArrayToPointer:
+      return ImplicitCastKind::kArrayToPointerConversion;
+    case ImplicitConversionKind::kFunctionToPointer:
+      return ImplicitCastKind::kFunctionToPointerConversion;
+    case ImplicitConversionKind::kIntegralConversion:
+      return ImplicitCastKind::kIntegralConversion;
+    case ImplicitConversionKind::kFloatingPointConversion:
+      return ImplicitCastKind::kFloatingPointConversion;
+    case ImplicitConversionKind::kFloatingIntegralConversion:
+      return ImplicitCastKind::kFloatingIntegralConversion;
+    case ImplicitConversionKind::kPointerConversion:
+      return ImplicitCastKind::kPointerConversion;
+    case ImplicitConversionKind::kBooleanConversion:
+      return ImplicitCastKind::kIntegralConversion;
+    case ImplicitConversionKind::kQualificationConversion:
+      return ImplicitCastKind::kQualificationConversion;
+    case ImplicitConversionKind::kUserDefinedConversion:
+      return ImplicitCastKind::kUserDefinedConversion;
+    default:
+      return std::nullopt;
+  }
+}
+
+void TypeChecker::wrapWithImplicitCast(ImplicitCastKind castKind,
+                                       const Type* type, ExpressionAST*& expr) {
+  auto cast = ImplicitCastExpressionAST::create(unit_->arena());
+  cast->castKind = castKind;
+  cast->expression = expr;
+  cast->type = type;
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+}
+
 void TypeChecker::applyImplicitConversion(
     const ImplicitConversionSequence& sequence, ExpressionAST*& expr) {
   if (sequence.rank == ConversionRank::kNone) return;
 
   for (const auto& step : sequence.steps) {
-    switch (step.kind) {
-      case ImplicitConversionKind::kIdentity:
-        break;  // Nothing to do (or maybe add cast for type adjustment?)
-      case ImplicitConversionKind::kLValueToRValue: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kArrayToPointer: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kFunctionToPointer: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kFunctionToPointerConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kIntegralConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kIntegralConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kFloatingPointConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kFloatingPointConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kFloatingIntegralConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kPointerConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kPointerConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kBooleanConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind =
-            ImplicitCastKind::kIntegralConversion;  // Use integral conversion
-                                                    // for bool
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kQualificationConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kQualificationConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      case ImplicitConversionKind::kUserDefinedConversion: {
-        auto cast = ImplicitCastExpressionAST::create(unit_->arena());
-        cast->castKind = ImplicitCastKind::kUserDefinedConversion;
-        cast->expression = expr;
-        cast->type = step.type;
-        cast->valueCategory = ValueCategory::kPrValue;
-        expr = cast;
-        break;
-      }
-      default:
-        break;
-    }
+    if (auto castKind = mapImplicitCastKind(step.kind))
+      wrapWithImplicitCast(*castKind, step.type, expr);
   }
 }
 
@@ -5091,8 +4985,10 @@ auto TypeChecker::findOverloads(ScopeSymbol* scope, const Name* name) const
 
 auto TypeChecker::selectBestOverload(
     const std::vector<FunctionSymbol*>& candidates, const Type* leftType,
-    const Type* rightType) const -> FunctionSymbol* {
+    const Type* rightType, bool* ambiguous) const -> FunctionSymbol* {
   auto control = unit_->control();
+
+  if (ambiguous) *ambiguous = false;
 
   if (candidates.empty()) return nullptr;
 
@@ -5218,12 +5114,45 @@ auto TypeChecker::selectBestOverload(
     }
   }
 
+  int bestRank = best->totalRank();
+  int bestCount = 0;
+  for (const auto& candidate : viable) {
+    if (candidate.totalRank() == bestRank) ++bestCount;
+  }
+
+  if (bestCount > 1) {
+    if (ambiguous) *ambiguous = true;
+    return nullptr;
+  }
+
   return best->symbol;
+}
+
+auto TypeChecker::trySelectOperator(
+    const std::vector<FunctionSymbol*>& candidates, const Type* type,
+    const Type* rightType) -> FunctionSymbol* {
+  if (candidates.empty()) return nullptr;
+  bool ambiguous = false;
+  auto selected = selectBestOverload(candidates, type, rightType, &ambiguous);
+  lastOperatorLookupAmbiguous_ = ambiguous;
+  return selected;
+}
+
+auto TypeChecker::collectOverloads(Symbol* symbol) const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> result;
+  if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
+    result.push_back(func);
+  } else if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+    for (auto func : overloadSet->functions()) result.push_back(func);
+  }
+  return result;
 }
 
 auto TypeChecker::lookupOperator(const Type* type, TokenKind op,
                                  const Type* rightType) -> FunctionSymbol* {
   auto control = unit_->control();
+  lastOperatorLookupAmbiguous_ = false;
 
   auto name = control->getOperatorId(op);
   if (!name) return nullptr;
@@ -5233,39 +5162,23 @@ auto TypeChecker::lookupOperator(const Type* type, TokenKind op,
     if (!classSymbol) return nullptr;
 
     auto candidates = findOverloads(classSymbol, name);
-    if (!candidates.empty()) {
-      return selectBestOverload(candidates, type, rightType);
-    }
+    if (!candidates.empty())
+      return trySelectOperator(candidates, type, rightType);
   }
 
   if (scope_) {
-    auto symbol = Lookup{scope_}(name);
-
-    if (auto funcSymbol = symbol_cast<FunctionSymbol>(symbol)) {
-      std::vector<FunctionSymbol*> candidates = {funcSymbol};
-      return selectBestOverload(candidates, type, rightType);
-    }
-
-    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
-      std::vector<FunctionSymbol*> candidates;
-      for (auto func : overloadSet->functions()) {
-        candidates.push_back(func);
-      }
-
-      return selectBestOverload(candidates, type, rightType);
-    }
+    auto candidates = collectOverloads(Lookup{scope_}(name));
+    if (!candidates.empty())
+      return trySelectOperator(candidates, type, rightType);
   }
 
   if (scope_) {
-    std::vector<const Type*> argTypes;
-    argTypes.push_back(type);
+    std::vector<const Type*> argTypes{type};
     if (rightType) argTypes.push_back(rightType);
-
-    auto adlCandidates = Lookup{scope_}.argumentDependentLookup(name, argTypes);
-
-    if (!adlCandidates.empty()) {
-      return selectBestOverload(adlCandidates, type, rightType);
-    }
+    if (auto result = trySelectOperator(
+            Lookup{scope_}.argumentDependentLookup(name, argTypes), type,
+            rightType))
+      return result;
   }
 
   return nullptr;

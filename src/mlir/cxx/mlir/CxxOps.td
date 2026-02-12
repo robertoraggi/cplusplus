@@ -294,6 +294,17 @@ def Cxx_GotoOp : Cxx_Op<"goto"> {
   let assemblyFormat = "$label attr-dict";
 }
 
+def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch", [Terminator]> {
+  let arguments = (ins
+      Variadic<Cxx_PointerType>:$addresses
+    , ArrayAttr:$destructors
+  );
+
+  let successors = (successor AnySuccessor:$dest);
+
+  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors $dest attr-dict";
+}
+
 //
 // builtin ops
 //
