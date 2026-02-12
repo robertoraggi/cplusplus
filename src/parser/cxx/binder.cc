@@ -1703,9 +1703,25 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
     }
 
     if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
-      // todo: delay
       auto instance = ASTRewriter::instantiate(
           unit_, templateId->templateArgumentList, classSymbol);
+
+      if (!instance && classSymbol->templateDeclaration()) {
+        auto templateArgs = ASTRewriter::make_substitution(
+            unit_, classSymbol->templateDeclaration(),
+            templateId->templateArgumentList);
+
+        if (!templateArgs.empty()) {
+          if (auto cached = classSymbol->findSpecialization(templateArgs))
+            return cached;
+
+          auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
+          auto spec = control()->newClassSymbol(parentScope, {});
+          spec->setName(classSymbol->name());
+          classSymbol->addSpecialization(std::move(templateArgs), spec);
+          instance = spec;
+        }
+      }
 
       return instance;
     }

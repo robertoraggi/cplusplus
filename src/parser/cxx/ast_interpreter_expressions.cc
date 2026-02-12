@@ -695,6 +695,13 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return var->constValue();
   }
 
+  if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
+      field && field->isConstexpr() && field->isStatic()) {
+    if (field->initializer()) {
+      return interp.expression(field->initializer());
+    }
+  }
+
   if (ast->symbol) {
     auto local = interp.lookupLocal(ast->symbol);
     if (local.has_value()) return local;

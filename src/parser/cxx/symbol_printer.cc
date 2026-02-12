@@ -167,22 +167,32 @@ struct DumpSymbols {
     if (symbol->templateParameters()) {
       out << std::format("template {} {}", classKey, to_string(symbol->name()));
 
-      out << '<';
-      std::string_view sep = "";
-      for (const auto& param : views::members(symbol->templateParameters())) {
-        if (auto cstParam = symbol_cast<NonTypeParameterSymbol>(param)) {
-          out << std::format("{}{}", sep, to_string(cstParam->objectType()));
-        } else if (symbol_cast<TypeParameterSymbol>(param)) {
-          out << std::format("{}{}", sep, to_string(param->type()));
-        } else if (symbol_cast<TemplateTypeParameterSymbol>(param)) {
-          out << std::format("{}{}", sep, to_string(param->type()));
-        } else {
-          out << std::format("{}{}", sep, to_string(param->type()));
+      if (symbol->isSpecialization()) {
+        out << '<';
+        std::string_view sep = "";
+        for (auto arg : symbol->templateArguments()) {
+          out << std::format("{}{}", sep, templateArgumentToString(arg));
+          sep = ", ";
         }
-        if (param->isParameterPack()) out << "...";
-        sep = ", ";
+        out << '>';
+      } else {
+        out << '<';
+        std::string_view sep = "";
+        for (const auto& param : views::members(symbol->templateParameters())) {
+          if (auto cstParam = symbol_cast<NonTypeParameterSymbol>(param)) {
+            out << std::format("{}{}", sep, to_string(cstParam->objectType()));
+          } else if (symbol_cast<TypeParameterSymbol>(param)) {
+            out << std::format("{}{}", sep, to_string(param->type()));
+          } else if (symbol_cast<TemplateTypeParameterSymbol>(param)) {
+            out << std::format("{}{}", sep, to_string(param->type()));
+          } else {
+            out << std::format("{}{}", sep, to_string(param->type()));
+          }
+          if (param->isParameterPack()) out << "...";
+          sep = ", ";
+        }
+        out << '>';
       }
-      out << '>';
 
       out << "\n";
 

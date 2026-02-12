@@ -657,8 +657,16 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
 
   if (isPrimaryTemplate(templateArguments)) return symbol;
 
-  if (auto cached = visit(GetSpecialization{templateArguments}, symbol))
-    return cached;
+  if (auto cached = visit(GetSpecialization{templateArguments}, symbol)) {
+    if (auto cachedClass = symbol_cast<ClassSymbol>(cached)) {
+      if (!cachedClass->declaration()) {
+      } else {
+        return cached;
+      }
+    } else {
+      return cached;
+    }
+  }
 
   if (!checkRequiresClause(unit, symbol, templateDecl->requiresClause,
                            templateArguments, templateDecl->depth))
