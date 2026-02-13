@@ -24,7 +24,6 @@
 #include <utf8/unchecked.h>
 
 #include <cctype>
-#include <unordered_map>
 #include <vector>
 
 namespace cxx {
@@ -33,26 +32,84 @@ inline namespace {
 
 enum class EncodingPrefix { kNone, kWide, kUtf8, kUtf16, kUtf32 };
 
-const std::unordered_map<std::string_view, std::tuple<EncodingPrefix, bool>>
-    kStringLiteralPrefixes{
-        {"R", {EncodingPrefix::kNone, true}},
-        {"L", {EncodingPrefix::kWide, false}},
-        {"u8", {EncodingPrefix::kUtf8, false}},
-        {"u", {EncodingPrefix::kUtf16, false}},
-        {"U", {EncodingPrefix::kUtf32, false}},
-        {"LR", {EncodingPrefix::kWide, true}},
-        {"u8R", {EncodingPrefix::kUtf8, true}},
-        {"uR", {EncodingPrefix::kUtf16, true}},
-        {"UR", {EncodingPrefix::kUtf32, true}},
-    };
+inline auto classifyStringPrefix(std::string_view text, EncodingPrefix& enc,
+                                 bool& isRaw) -> bool {
+  if (text.size() == 1) {
+    switch (text[0]) {
+      case 'R':
+        enc = EncodingPrefix::kNone;
+        isRaw = true;
+        return true;
+      case 'L':
+        enc = EncodingPrefix::kWide;
+        isRaw = false;
+        return true;
+      case 'u':
+        enc = EncodingPrefix::kUtf16;
+        isRaw = false;
+        return true;
+      case 'U':
+        enc = EncodingPrefix::kUtf32;
+        isRaw = false;
+        return true;
+      default:
+        return false;
+    }
+  }
+  if (text.size() == 2) {
+    if (text == "u8") {
+      enc = EncodingPrefix::kUtf8;
+      isRaw = false;
+      return true;
+    }
+    if (text == "LR") {
+      enc = EncodingPrefix::kWide;
+      isRaw = true;
+      return true;
+    }
+    if (text == "uR") {
+      enc = EncodingPrefix::kUtf16;
+      isRaw = true;
+      return true;
+    }
+    if (text == "UR") {
+      enc = EncodingPrefix::kUtf32;
+      isRaw = true;
+      return true;
+    }
+    return false;
+  }
+  if (text.size() == 3 && text == "u8R") {
+    enc = EncodingPrefix::kUtf8;
+    isRaw = true;
+    return true;
+  }
+  return false;
+}
 
-const std::unordered_map<std::string_view, EncodingPrefix>
-    kCharacterLiteralPrefixes{
-        {"L", EncodingPrefix::kWide},
-        {"u8", EncodingPrefix::kUtf8},
-        {"u", EncodingPrefix::kUtf16},
-        {"U", EncodingPrefix::kUtf32},
-    };
+inline auto classifyCharPrefix(std::string_view text, EncodingPrefix& enc)
+    -> bool {
+  if (text.size() == 1) {
+    switch (text[0]) {
+      case 'L':
+        enc = EncodingPrefix::kWide;
+        return true;
+      case 'u':
+        enc = EncodingPrefix::kUtf16;
+        return true;
+      case 'U':
+        enc = EncodingPrefix::kUtf32;
+        return true;
+      default:
+        return false;
+    }
+  }
+  if (text.size() == 2 && text == "u8") {
+    enc = EncodingPrefix::kUtf8;
+    return true;
+  }
+  return false;
+}
 
 inline auto is_idcont(int ch) -> bool {
   return ch == '_' || std::isalnum(static_cast<unsigned char>(ch));
@@ -192,25 +249,35 @@ auto Lexer::readToken() -> TokenKind {
   bool isRawStringLiteral = false;
 
   if (std::isalpha(ch) || ch == '_') {
-    do {
-      text_ += static_cast<char>(LA());
-      consume();
-    } while (pos_ != end_ && is_idcont(LA()));
+    if (pos_ < end_ && *pos_ == static_cast<char>(ch)) {
+      auto scan = pos_ + 1;
+      while (scan < end_ && is_idcont(static_cast<unsigned char>(*scan)))
+        ++scan;
+      if (scan >= end_ || *scan != '\\') {
+        text_.assign(pos_, scan);
+        pos_ = scan;
+        currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+      } else {
+        do {
+          text_ += static_cast<char>(LA());
+          consume();
+        } while (pos_ != end_ && is_idcont(LA()));
+      }
+    } else {
+      do {
+        text_ += static_cast<char>(LA());
+        consume();
+      } while (pos_ != end_ && is_idcont(LA()));
+    }
 
     bool isStringOrCharacterLiteral = false;
 
     if (pos_ != end_ && LA() == '"') {
-      auto it = kStringLiteralPrefixes.find(text_);
-      if (it != kStringLiteralPrefixes.end()) {
-        auto [enc, raw] = it->second;
-        encodingPrefix = enc;
-        isRawStringLiteral = raw;
+      if (classifyStringPrefix(text_, encodingPrefix, isRawStringLiteral)) {
         isStringOrCharacterLiteral = true;
       }
     } else if (pos_ != end_ && LA() == '\'') {
-      auto it = kCharacterLiteralPrefixes.find(text_);
-      if (it != kCharacterLiteralPrefixes.end()) {
-        encodingPrefix = it->second;
+      if (classifyCharPrefix(text_, encodingPrefix)) {
         isStringOrCharacterLiteral = true;
       }
     }
@@ -544,6 +611,15 @@ auto Lexer::skipSpaces() -> bool {
   tokenStartOfLine_ = startOfLine_;
 
   while (pos_ != end_) {
+    if (*pos_ == ' ' || *pos_ == '\t') {
+      tokenLeadingSpace_ = true;
+      do {
+        ++pos_;
+      } while (pos_ < end_ && (*pos_ == ' ' || *pos_ == '\t'));
+      currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+      continue;
+    }
+
     const auto ch = LA();
 
     if (std::isspace(ch)) {
@@ -556,21 +632,21 @@ auto Lexer::skipSpaces() -> bool {
       consume();
     } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '/') {
       consume(2);
-      for (; pos_ != end_; consume()) {
-        if (pos_ != end_ && LA() == '\n') {
-          break;
-        }
-      }
+      while (pos_ < end_ && *pos_ != '\n' && *pos_ != '\\') ++pos_;
+      currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+      while (pos_ != end_ && LA() != '\n') consume();
     } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
       consume(2);
       while (pos_ != end_) {
+        while (pos_ < end_ && *pos_ != '*' && *pos_ != '\\') ++pos_;
+        currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+        if (pos_ == end_) break;
         if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
           consume(2);
           break;
         }
         consume();
       }
-      // unexpected eof
     } else {
       break;
     }
