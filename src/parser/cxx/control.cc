@@ -38,15 +38,26 @@ namespace {
 
 template <typename Literal>
 struct LiteralHash {
+  using is_transparent = void;
   auto operator()(const Literal& literal) const -> std::size_t {
     return std::hash<std::string_view>{}(literal.value());
+  }
+  auto operator()(std::string_view sv) const -> std::size_t {
+    return std::hash<std::string_view>{}(sv);
   }
 };
 
 template <typename Literal>
 struct LiteralEqualTo {
+  using is_transparent = void;
   auto operator()(const Literal& lhs, const Literal& rhs) const -> bool {
     return lhs.value() == rhs.value();
+  }
+  auto operator()(const Literal& lhs, std::string_view rhs) const -> bool {
+    return lhs.value() == rhs;
+  }
+  auto operator()(std::string_view lhs, const Literal& rhs) const -> bool {
+    return lhs == rhs.value();
   }
 };
 
@@ -200,59 +211,83 @@ Control::~Control() = default;
 
 auto Control::integerLiteral(std::string_view spelling)
     -> const IntegerLiteral* {
-  auto [it, inserted] = d->integerLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize();
+  if (auto it = d->integerLiterals.find(spelling);
+      it != d->integerLiterals.end())
+    return &*it;
+  auto it = d->integerLiterals.emplace(std::string(spelling)).first;
+  it->initialize();
   return &*it;
 }
 
 auto Control::floatLiteral(std::string_view spelling) -> const FloatLiteral* {
-  auto [it, inserted] = d->floatLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize();
+  if (auto it = d->floatLiterals.find(spelling); it != d->floatLiterals.end())
+    return &*it;
+  auto it = d->floatLiterals.emplace(std::string(spelling)).first;
+  it->initialize();
   return &*it;
 }
 
 auto Control::stringLiteral(std::string_view spelling) -> const StringLiteral* {
-  auto [it, inserted] = d->stringLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize(StringLiteralEncoding::kNone);
+  if (auto it = d->stringLiterals.find(spelling); it != d->stringLiterals.end())
+    return &*it;
+  auto it = d->stringLiterals.emplace(std::string(spelling)).first;
+  it->initialize(StringLiteralEncoding::kNone);
   return &*it;
 }
 
 auto Control::charLiteral(std::string_view spelling) -> const CharLiteral* {
-  auto [it, inserted] = d->charLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize();
+  if (auto it = d->charLiterals.find(spelling); it != d->charLiterals.end())
+    return &*it;
+  auto it = d->charLiterals.emplace(std::string(spelling)).first;
+  it->initialize();
   return &*it;
 }
 
 auto Control::wideStringLiteral(std::string_view spelling)
     -> const StringLiteral* {
-  auto [it, inserted] = d->wideStringLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize(StringLiteralEncoding::kWide);
+  if (auto it = d->wideStringLiterals.find(spelling);
+      it != d->wideStringLiterals.end())
+    return &*it;
+  auto it = d->wideStringLiterals.emplace(std::string(spelling)).first;
+  it->initialize(StringLiteralEncoding::kWide);
   return &*it;
 }
 
 auto Control::utf8StringLiteral(std::string_view spelling)
     -> const StringLiteral* {
-  auto [it, inserted] = d->utf8StringLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize(StringLiteralEncoding::kUtf8);
+  if (auto it = d->utf8StringLiterals.find(spelling);
+      it != d->utf8StringLiterals.end())
+    return &*it;
+  auto it = d->utf8StringLiterals.emplace(std::string(spelling)).first;
+  it->initialize(StringLiteralEncoding::kUtf8);
   return &*it;
 }
 
 auto Control::utf16StringLiteral(std::string_view spelling)
     -> const StringLiteral* {
-  auto [it, inserted] = d->utf16StringLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize(StringLiteralEncoding::kUtf16);
+  if (auto it = d->utf16StringLiterals.find(spelling);
+      it != d->utf16StringLiterals.end())
+    return &*it;
+  auto it = d->utf16StringLiterals.emplace(std::string(spelling)).first;
+  it->initialize(StringLiteralEncoding::kUtf16);
   return &*it;
 }
 
 auto Control::utf32StringLiteral(std::string_view spelling)
     -> const StringLiteral* {
-  auto [it, inserted] = d->utf32StringLiterals.emplace(std::string(spelling));
-  if (inserted) it->initialize(StringLiteralEncoding::kUtf32);
+  if (auto it = d->utf32StringLiterals.find(spelling);
+      it != d->utf32StringLiterals.end())
+    return &*it;
+  auto it = d->utf32StringLiterals.emplace(std::string(spelling)).first;
+  it->initialize(StringLiteralEncoding::kUtf32);
   return &*it;
 }
 
 auto Control::commentLiteral(std::string_view spelling)
     -> const CommentLiteral* {
+  if (auto it = d->commentLiterals.find(spelling);
+      it != d->commentLiterals.end())
+    return &*it;
   return &*d->commentLiterals.emplace(std::string(spelling)).first;
 }
 
