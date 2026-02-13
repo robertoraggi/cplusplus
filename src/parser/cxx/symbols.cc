@@ -1000,6 +1000,11 @@ auto FunctionSymbol::isConstructor() const -> bool {
   return false;
 }
 
+auto FunctionSymbol::isDestructor() const -> bool {
+  if (name_cast<DestructorId>(name())) return true;
+  return false;
+}
+
 auto FunctionSymbol::languageLinkage() const -> LanguageKind {
   return hasCLinkage_ ? LanguageKind::kC : LanguageKind::kCXX;
 }
