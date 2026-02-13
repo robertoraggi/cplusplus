@@ -1347,55 +1347,6 @@ void applyDefaultArguments(
   }
 }
 
-void mergeRedeclaration(Binder& binder, FunctionSymbol* redecl) {
-  auto canonical = redecl->canonical();
-  if (!canonical || canonical == redecl) return;
-
-  if (canonical->isStatic()) redecl->setStatic(true);
-  if (canonical->isExtern()) redecl->setExtern(true);
-  if (canonical->isFriend()) redecl->setFriend(true);
-  if (canonical->isConstexpr()) redecl->setConstexpr(true);
-  if (canonical->isConsteval()) redecl->setConsteval(true);
-  if (canonical->isInline()) redecl->setInline(true);
-  if (canonical->isVirtual()) redecl->setVirtual(true);
-  if (canonical->isExplicit()) redecl->setExplicit(true);
-  if (canonical->hasCLinkage()) redecl->setLanguageLinkage(LanguageKind::kC);
-
-  if (redecl->isInline()) canonical->setInline(true);
-  if (redecl->isConstexpr()) canonical->setConstexpr(true);
-  if (redecl->isConsteval()) canonical->setConsteval(true);
-  if (redecl->hasCLinkage()) canonical->setLanguageLinkage(LanguageKind::kC);
-
-  auto canonParams = canonical->functionParameters();
-  auto redeclParams = redecl->functionParameters();
-  if (!canonParams || !redeclParams) return;
-
-  auto canonIt = canonParams->members().begin();
-  auto canonEnd = canonParams->members().end();
-  auto redeclIt = redeclParams->members().begin();
-  auto redeclEnd = redeclParams->members().end();
-
-  for (; canonIt != canonEnd && redeclIt != redeclEnd; ++canonIt, ++redeclIt) {
-    auto cp = symbol_cast<ParameterSymbol>(*canonIt);
-    auto rp = symbol_cast<ParameterSymbol>(*redeclIt);
-    if (!cp || !rp) continue;
-
-    if (cp->defaultArgument() && rp->defaultArgument()) {
-      binder.error(rp->location(), "redefinition of default argument");
-      continue;
-    }
-
-    if (!cp->defaultArgument() && rp->defaultArgument()) {
-      cp->setDefaultArgument(rp->defaultArgument());
-      continue;
-    }
-
-    if (cp->defaultArgument() && !rp->defaultArgument()) {
-      rp->setDefaultArgument(cp->defaultArgument());
-    }
-  }
-}
-
 }  // namespace
 
 void Binder::mergeDefaultArguments(FunctionSymbol* functionSymbol,
@@ -1429,129 +1380,220 @@ void Binder::mergeDefaultArguments(FunctionSymbol* functionSymbol,
   applyDefaultArguments(declarator, known);
 }
 
-auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
-    -> FunctionSymbol* {
-  auto name = decl.getName();
+struct [[nodiscard]] Binder::DeclareFunction {
+  Binder& binder;
+  DeclaratorAST* declarator = nullptr;
+  const Decl& decl;
+  // the symbol we're currently declaring, used for merging redeclarations
+  FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
+  // the symbol we're currently declaring, used for merging redeclarations
+  FunctionSymbol* functionSymbol = nullptr;
+  // the shadowed function symbol
+  FunctionSymbol* shadowedFunction = nullptr;
 
-  auto returnType = decl.getReturnType(scope());
+  auto control() const -> Control* { return binder.control(); }
+  auto scope() const -> ScopeSymbol* { return binder.scope(); }
+  auto lookup() const -> Lookup { return Lookup{scope()}; }
 
-  auto type = getDeclaratorType(unit_, declarator, returnType);
-
-  auto parentScope = scope();
-
-  if (parentScope->isBlock()) {
-    parentScope = parentScope->enclosingNamespace();
+  auto isTemplateFunction() const -> bool {
+    return scope()->isTemplateParameters();
   }
 
-  auto functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
-
-  applySpecifiers(functionSymbol, decl.specs);
-  functionSymbol->setName(name);
-  functionSymbol->setType(type);
-
-  if (auto functionDeclarator = getFunctionPrototype(declarator)) {
-    if (functionDeclarator->isOverride) {
-      functionSymbol->setVirtual(true);
-    }
-    if (functionDeclarator->isPure) {
-      functionSymbol->setPure(true);
-      functionSymbol->setVirtual(true);
-    }
+  auto isDestructor() const -> bool {
+    return name_cast<DestructorId>(decl.getName()) != nullptr;
   }
 
-  if (!functionSymbol->isVirtual() &&
-      name_cast<DestructorId>(functionSymbol->name())) {
-    if (auto enclosingClass = symbol_cast<ClassSymbol>(scope())) {
-      for (auto base : enclosingClass->baseClasses()) {
-        auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-        if (!baseClass) continue;
-        auto baseDtor = baseClass->destructor();
-        if (baseDtor && baseDtor->isVirtual()) {
-          functionSymbol->setVirtual(true);
-          break;
-        }
-      }
+  auto operator()() -> FunctionSymbol* {
+    functionDeclarator = getFunctionPrototype(declarator);
+
+    auto name = decl.getName();
+    auto returnType = decl.getReturnType(scope());
+    auto type = getDeclaratorType(binder.unit_, declarator, returnType);
+
+    functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
+    functionSymbol->setName(name);
+    functionSymbol->setType(type);
+
+    checkDeclSpecifiers();
+    checkExternalLinkageSpec();
+    checkVirtualSpecifier();
+
+    if (functionSymbol->isConstructor()) {
+      checkConstructor();
+      return functionSymbol;
     }
-  }
 
-  if (is_parsing_c()) {
-    // in C mode, functions have C linkage
-    functionSymbol->setLanguageLinkage(LanguageKind::kC);
-  } else {
-    if (!scope()->isNamespace()) {
-      functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
-    } else {
-      functionSymbol->setLanguageLinkage(languageLinkage_);
-    }
-  }
-
-  if (functionSymbol->isConstructor()) {
-    auto enclosingClass = symbol_cast<ClassSymbol>(scope());
-
-    if (enclosingClass) {
-      // Check for redeclaration among existing constructors
-      for (auto ctor : enclosingClass->constructors()) {
-        if (control()->is_same(ctor->type(), functionSymbol->type())) {
-          functionSymbol->setCanonical(ctor->canonical());
-          mergeRedeclaration(*this, functionSymbol);
-          break;
-        }
-      }
-
-      mergeDefaultArguments(functionSymbol, declarator);
-
-      enclosingClass->addConstructor(functionSymbol);
-    }
+    checkRedeclaration();
 
     return functionSymbol;
   }
 
-  auto scope = declaringScope();
+  void checkRedeclaration() {
+    auto declaringScope = binder.declaringScope();
 
-  OverloadSetSymbol* overloadSet = nullptr;
+    OverloadSetSymbol* overloadSet = nullptr;
 
-  for (Symbol* candidate : scope->find(functionSymbol->name())) {
-    overloadSet = symbol_cast<OverloadSetSymbol>(candidate);
+    for (Symbol* candidate : declaringScope->find(functionSymbol->name())) {
+      overloadSet = symbol_cast<OverloadSetSymbol>(candidate);
+      if (overloadSet) break;
+
+      if (auto otherFunction = symbol_cast<FunctionSymbol>(candidate)) {
+        if (binder.is_parsing_c()) {
+          functionSymbol->setCanonical(otherFunction);
+          mergeRedeclaration();
+          break;
+        }
+
+        overloadSet = control()->newOverloadSetSymbol(
+            declaringScope, otherFunction->location());
+        overloadSet->setName(otherFunction->name());
+        overloadSet->addFunction(otherFunction);
+        declaringScope->replaceSymbol(otherFunction, overloadSet);
+        break;
+      }
+    }
+
     if (overloadSet) {
-      // Check for redeclaration within the overload set
-      for (auto existing : overloadSet->functions()) {
-        if (control()->is_same(existing->type(), functionSymbol->type())) {
-          functionSymbol->setCanonical(existing->canonical());
-          mergeRedeclaration(*this, functionSymbol);
+      for (auto existingFunction : overloadSet->functions()) {
+        if (control()->is_same(existingFunction->type(),
+                               functionSymbol->type())) {
+          functionSymbol->setCanonical(existingFunction->canonical());
+          mergeRedeclaration();
           break;
         }
       }
-      break;
+
+      overloadSet->addFunction(functionSymbol);
+    } else {
+      declaringScope->addSymbol(functionSymbol);
     }
 
-    if (auto previousFunction = symbol_cast<FunctionSymbol>(candidate)) {
-      // Check if this is a redeclaration of the previous function
-      if (control()->is_same(previousFunction->type(),
-                             functionSymbol->type())) {
-        functionSymbol->setCanonical(previousFunction->canonical());
-        mergeRedeclaration(*this, functionSymbol);
-        if (is_parsing_c()) return previousFunction;
+    binder.mergeDefaultArguments(functionSymbol, declarator);
+  }
+
+  void checkConstructor() {
+    auto enclosingClass = symbol_cast<ClassSymbol>(binder.scope());
+
+    if (!enclosingClass) {
+      cxx_runtime_error("constructor must be declared inside a class");
+    }
+
+    for (auto ctor : enclosingClass->constructors()) {
+      if (control()->is_same(ctor->type(), functionSymbol->type())) {
+        functionSymbol->setCanonical(ctor->canonical());
+        mergeRedeclaration();
+        break;
+      }
+    }
+
+    binder.mergeDefaultArguments(functionSymbol, declarator);
+
+    enclosingClass->addConstructor(functionSymbol);
+  }
+
+  void checkDeclSpecifiers() {
+    binder.applySpecifiers(functionSymbol, decl.specs);
+  }
+
+  void checkExternalLinkageSpec() {
+    if (binder.is_parsing_c()) {
+      // in C mode, functions have C linkage
+      functionSymbol->setLanguageLinkage(LanguageKind::kC);
+      return;
+    }
+
+    if (scope()->isNamespace()) {
+      functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
+      return;
+    }
+
+    functionSymbol->setLanguageLinkage(binder.languageLinkage_);
+  }
+
+  void checkVirtualSpecifier() {
+    // todo: find the shadowed function and check if it's virtual,
+    // if so this is also virtual
+
+    if (functionDeclarator->isOverride) {
+      functionSymbol->setVirtual(true);
+    }
+
+    if (functionDeclarator->isPure) {
+      functionSymbol->setPure(true);
+      functionSymbol->setVirtual(true);
+    }
+
+    if (!functionSymbol->isVirtual() && functionSymbol->isDestructor()) {
+      if (auto enclosingClass = symbol_cast<ClassSymbol>(scope())) {
+        for (auto base : enclosingClass->baseClasses()) {
+          auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+          if (!baseClass) continue;
+          auto baseDtor = baseClass->destructor();
+          if (baseDtor && baseDtor->isVirtual()) {
+            functionSymbol->setVirtual(true);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  void mergeRedeclaration() {
+    auto canonical = functionSymbol->canonical();
+    if (!canonical || canonical == functionSymbol) return;
+
+    if (canonical->isStatic()) functionSymbol->setStatic(true);
+    if (canonical->isExtern()) functionSymbol->setExtern(true);
+    if (canonical->isFriend()) functionSymbol->setFriend(true);
+    if (canonical->isConstexpr()) functionSymbol->setConstexpr(true);
+    if (canonical->isConsteval()) functionSymbol->setConsteval(true);
+    if (canonical->isInline()) functionSymbol->setInline(true);
+    if (canonical->isVirtual()) functionSymbol->setVirtual(true);
+    if (canonical->isExplicit()) functionSymbol->setExplicit(true);
+    if (canonical->hasCLinkage())
+      functionSymbol->setLanguageLinkage(LanguageKind::kC);
+
+    if (functionSymbol->isInline()) canonical->setInline(true);
+    if (functionSymbol->isConstexpr()) canonical->setConstexpr(true);
+    if (functionSymbol->isConsteval()) canonical->setConsteval(true);
+    if (functionSymbol->hasCLinkage())
+      canonical->setLanguageLinkage(LanguageKind::kC);
+
+    auto canonParams = canonical->functionParameters();
+    auto redeclParams = functionSymbol->functionParameters();
+    if (!canonParams || !redeclParams) return;
+
+    auto canonIt = canonParams->members().begin();
+    auto canonEnd = canonParams->members().end();
+    auto redeclIt = redeclParams->members().begin();
+    auto redeclEnd = redeclParams->members().end();
+
+    for (; canonIt != canonEnd && redeclIt != redeclEnd;
+         ++canonIt, ++redeclIt) {
+      auto cp = symbol_cast<ParameterSymbol>(*canonIt);
+      auto rp = symbol_cast<ParameterSymbol>(*redeclIt);
+      if (!cp || !rp) continue;
+
+      if (cp->defaultArgument() && rp->defaultArgument()) {
+        binder.error(rp->location(), "redefinition of default argument");
+        continue;
       }
 
-      if (is_parsing_c()) return previousFunction;
+      if (!cp->defaultArgument() && rp->defaultArgument()) {
+        cp->setDefaultArgument(rp->defaultArgument());
+        continue;
+      }
 
-      overloadSet = control()->newOverloadSetSymbol(scope, {});
-      overloadSet->setName(functionSymbol->name());
-      overloadSet->addFunction(previousFunction);
-      scope->replaceSymbol(previousFunction, overloadSet);
-      break;
+      if (cp->defaultArgument() && !rp->defaultArgument()) {
+        rp->setDefaultArgument(cp->defaultArgument());
+      }
     }
   }
+};
 
-  if (overloadSet) {
-    overloadSet->addFunction(functionSymbol);
-  } else {
-    scope->addSymbol(functionSymbol);
-  }
-
-  mergeDefaultArguments(functionSymbol, declarator);
-
-  return functionSymbol;
+auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
+    -> FunctionSymbol* {
+  return DeclareFunction{*this, declarator, decl}();
 }
 
 auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)

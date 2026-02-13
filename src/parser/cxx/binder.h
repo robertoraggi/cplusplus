@@ -185,6 +185,9 @@ class Binder {
                              DeclaratorAST* declarator);
 
  private:
+  struct DeclareFunction;
+
+ private:
   TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;
   Symbol* instantiatingSymbol_ = nullptr;

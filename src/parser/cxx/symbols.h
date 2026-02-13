@@ -563,6 +563,7 @@ class FunctionSymbol final
   void setPure(bool isPure);
 
   [[nodiscard]] auto isConstructor() const -> bool;
+  [[nodiscard]] auto isDestructor() const -> bool;
 
   [[nodiscard]] auto languageLinkage() const -> LanguageKind;
   void setLanguageLinkage(LanguageKind linkage);
