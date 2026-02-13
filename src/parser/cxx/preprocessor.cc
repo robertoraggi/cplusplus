@@ -36,11 +36,12 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstring>
 #include <format>
-#include <forward_list>
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <optional>
 #include <ranges>
 #include <set>
@@ -590,7 +591,6 @@ struct Preprocessor::Private {
   std::vector<std::string> quoteIncludePaths_;
   std::unordered_map<std::string_view, Macro> macros_;
   std::unordered_set<const cxx::Identifier*> taintedIdents_;
-  std::forward_list<std::string> scratchBuffer_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
   fs::path currentPath_;
@@ -618,7 +618,19 @@ struct Preprocessor::Private {
   int builtinsFileId_ = 0;
   int mainSourceFileId_ = 0;
   bool omitLineMarkers_ = false;
-  Arena pool_;
+  Arena pool_{1024 * 1024};
+  std::unordered_map<std::string, SourceFile*> sourceFileIndex_;
+
+  struct IncludeCacheKey {
+    bool isQuoted = false;
+    bool isIncludeNext = false;
+    std::string currentPath;
+    std::string headerName;
+
+    auto operator<=>(const IncludeCacheKey& other) const = default;
+  };
+
+  mutable std::map<IncludeCacheKey, std::optional<std::string>> resolveCache_;
 
   Private();
 
@@ -655,8 +667,13 @@ struct Preprocessor::Private {
   }
 
   [[nodiscard]] auto clone(TokList* ts) -> TokList* {
-    if (!ts) return nullptr;
-    return cons(ts->tok, clone(ts->next));
+    TokList* result = nullptr;
+    TokList** out = &result;
+    for (; ts; ts = ts->next) {
+      *out = cons(ts->tok);
+      out = &(*out)->next;
+    }
+    return result;
   }
 
   [[nodiscard]] auto cons(const Tok* tok, TokList* next = nullptr) -> TokList* {
@@ -733,11 +750,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto findSourceFile(const std::string& fileName)
       -> SourceFile* {
-    for (auto& sourceFile : sourceFiles_) {
-      if (sourceFile->fileName == fileName) {
-        return sourceFile.get();
-      }
-    }
+    auto it = sourceFileIndex_.find(fileName);
+    if (it != sourceFileIndex_.end()) return it->second;
     return nullptr;
   }
 
@@ -752,6 +766,8 @@ struct Preprocessor::Private {
     SourceFile* sourceFile =
         &*sourceFiles_.emplace_back(std::make_unique<SourceFile>(
             std::move(fileName), std::move(source), sourceFileId));
+
+    sourceFileIndex_[sourceFile->fileName] = sourceFile;
 
     sourceFile->tokens = tokenize(sourceFile->source, sourceFileId, true);
 
@@ -901,50 +917,85 @@ struct Preprocessor::Private {
       -> std::optional<std::string> {
     if (!canResolveFiles_) return std::nullopt;
 
-    auto headerName = getHeaderName(include);
-    bool isQuoted = std::holds_alternative<QuoteInclude>(include);
+    const auto headerName = getHeaderName(include);
 
+    const bool isQuoted = std::holds_alternative<QuoteInclude>(include);
+
+    auto cacheKey = IncludeCacheKey{
+        .isQuoted = isQuoted,
+        .isIncludeNext = isIncludeNext,
+        .currentPath = currentPath_.string(),
+        .headerName = headerName,
+    };
+
+    if (auto cacheIt = resolveCache_.find(cacheKey);
+        cacheIt != resolveCache_.end()) {
+      return cacheIt->second;
+    }
+
+    auto result = resolveUncached(include, isIncludeNext, headerName, isQuoted);
+    resolveCache_.emplace(std::move(cacheKey), result);
+    return result;
+  }
+
+  [[nodiscard]] auto resolveUncached(const Include& include, bool isIncludeNext,
+                                     const std::string& headerName,
+                                     bool isQuoted) const
+      -> std::optional<std::string> {
     // Build a flat list of search directories in priority order.
-    std::vector<std::string> searchDirs;
+    // Avoid allocation by iterating directly over the path sources.
+    auto tryCandidate =
+        [&](const std::string& dir) -> std::optional<std::string> {
+      auto candidate = fs::path(dir) / headerName;
+      if (fileExists(candidate)) {
+        return candidate.string();
+      }
+      return std::nullopt;
+    };
 
-    if (isQuoted) {
-      // For quoted includes, first search the current file's directory.
-      auto curDir = currentPath_.string();
-      if (!curDir.empty()) {
-        searchDirs.push_back(curDir);
+    auto curDir = currentPath_.string();
+
+    // Determine start index for include_next
+    // We need to track which directory source we're in
+    if (!isIncludeNext) {
+      if (isQuoted) {
+        if (!curDir.empty()) {
+          if (auto r = tryCandidate(curDir)) return r;
+        }
+        for (auto it = quoteIncludePaths_.rbegin();
+             it != quoteIncludePaths_.rend(); ++it) {
+          if (auto r = tryCandidate(*it)) return r;
+        }
+      }
+      for (auto it = systemIncludePaths_.rbegin();
+           it != systemIncludePaths_.rend(); ++it) {
+        if (auto r = tryCandidate(*it)) return r;
+      }
+    } else {
+      // For include_next, build the list and skip past curDir
+      std::vector<const std::string*> searchDirs;
+      if (isQuoted) {
+        if (!curDir.empty()) searchDirs.push_back(&curDir);
+        for (auto it = quoteIncludePaths_.rbegin();
+             it != quoteIncludePaths_.rend(); ++it) {
+          searchDirs.push_back(&*it);
+        }
+      }
+      for (auto it = systemIncludePaths_.rbegin();
+           it != systemIncludePaths_.rend(); ++it) {
+        searchDirs.push_back(&*it);
       }
 
-      // Then quote include paths (reversed = priority order).
-      for (auto it = quoteIncludePaths_.rbegin();
-           it != quoteIncludePaths_.rend(); ++it) {
-        searchDirs.push_back(*it);
-      }
-    }
-
-    // Then system include paths (reversed = priority order).
-    for (auto it = systemIncludePaths_.rbegin();
-         it != systemIncludePaths_.rend(); ++it) {
-      searchDirs.push_back(*it);
-    }
-
-    std::size_t startIndex = 0;
-
-    if (isIncludeNext) {
-      auto curDir = currentPath_.string();
-
+      std::size_t startIndex = 0;
       for (std::size_t i = 0; i < searchDirs.size(); ++i) {
-        if (searchDirs[i] == curDir) {
+        if (*searchDirs[i] == curDir) {
           startIndex = i + 1;
           break;
         }
       }
-    }
 
-    // Search for the header.
-    for (std::size_t i = startIndex; i < searchDirs.size(); ++i) {
-      auto candidate = fs::path(searchDirs[i]) / headerName;
-      if (fileExists(candidate)) {
-        return candidate.string();
+      for (std::size_t i = startIndex; i < searchDirs.size(); ++i) {
+        if (auto r = tryCandidate(*searchDirs[i])) return r;
       }
     }
 
@@ -983,17 +1034,18 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto parseMacroDefinition(TokList* ts) -> Macro;
 
-  using EmitToken = std::function<void(const Tok*)>;
-
+  template <typename EmitToken>
   [[nodiscard]] auto expand(const EmitToken& emitToken) -> PreprocessingState;
 
   [[nodiscard]] auto expandTokens(TokIterator it, TokIterator last,
                                   bool inConditionalExpression) -> TokIterator;
 
+  template <typename EmitToken>
   [[nodiscard]] auto expandOne(TokIterator it, TokIterator last,
                                bool inConditionalExpression,
                                const EmitToken& emitToken) -> TokIterator;
 
+  template <typename EmitToken>
   [[nodiscard]] auto replaceIsDefinedMacro(TokList* ts,
                                            bool inConditionalExpression,
                                            const EmitToken& emitToken)
@@ -1001,10 +1053,12 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto expandMacro(TokList* ts) -> TokList*;
 
-  [[nodiscard]] auto expandObjectLikeMacro(TokList* ts, const Macro* macro)
+  [[nodiscard]] auto expandObjectLikeMacro(TokList* ts, const Macro* macro,
+                                           const cxx::Identifier* ident)
       -> TokList*;
 
-  [[nodiscard]] auto expandFunctionLikeMacro(TokList* ts, const Macro* macro)
+  [[nodiscard]] auto expandFunctionLikeMacro(TokList* ts, const Macro* macro,
+                                             const cxx::Identifier* ident)
       -> TokList*;
 
   struct ParsedIncludeDirective {
@@ -1039,7 +1093,8 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto stringize(TokList* ts) -> const Tok*;
 
-  [[nodiscard]] auto lookupMacro(const Tok* tk) const -> const Macro*;
+  [[nodiscard]] auto lookupMacro(const Tok* tk) const
+      -> std::pair<const Macro*, const cxx::Identifier*>;
 
   [[nodiscard]] auto lookupMacroArgument(TokList*& ts, const Macro* macro,
                                          const std::vector<TokRange>& actuals)
@@ -1592,6 +1647,7 @@ auto Preprocessor::Private::tokenize(const std::string_view& source,
   return ts;
 }
 
+template <typename EmitToken>
 auto Preprocessor::Private::expand(const EmitToken& emitToken)
     -> PreprocessingState {
   if (buffers_.empty()) return ProcessingComplete{};
@@ -1706,6 +1762,7 @@ auto Preprocessor::Private::expandTokens(TokIterator it, TokIterator last,
   return TokIterator{tokens};
 }
 
+template <typename EmitToken>
 auto Preprocessor::Private::expandOne(TokIterator it, TokIterator last,
                                       bool inConditionalExpression,
                                       const EmitToken& emitToken)
@@ -1718,13 +1775,17 @@ auto Preprocessor::Private::expandOne(TokIterator it, TokIterator last,
     return it;
   }
 
-  if (auto continuation = replaceIsDefinedMacro(
-          it.toTokList(), inConditionalExpression, emitToken)) {
-    return TokIterator{continuation};
+  if (inConditionalExpression) {
+    if (auto continuation = replaceIsDefinedMacro(
+            it.toTokList(), inConditionalExpression, emitToken)) {
+      return TokIterator{continuation};
+    }
   }
 
-  if (auto continuation = expandMacro(it.toTokList())) {
-    return TokIterator{continuation};
+  if (it->is(TokenKind::T_IDENTIFIER) && !it->noexpand) {
+    if (auto continuation = expandMacro(it.toTokList())) {
+      return TokIterator{continuation};
+    }
   }
 
   emitToken(&*it);
@@ -1734,14 +1795,11 @@ auto Preprocessor::Private::expandOne(TokIterator it, TokIterator last,
   return it;
 }
 
+template <typename EmitToken>
 auto Preprocessor::Private::replaceIsDefinedMacro(TokList* ts,
                                                   bool inConditionalExpression,
                                                   const EmitToken& emitToken)
     -> TokList* {
-  if (!inConditionalExpression) {
-    return nullptr;
-  }
-
   auto start = ts->tok;
 
   if (!matchId(ts, "defined")) {
@@ -2044,20 +2102,25 @@ auto Preprocessor::Private::parseHeaderName(TokList* ts)
 }
 
 auto Preprocessor::Private::expandMacro(TokList* ts) -> TokList* {
+  auto [macro, ident] = lookupMacro(ts->tok);
+
+  if (!macro) return nullptr;
+
   struct ExpandMacro {
     Private& self;
     TokList* ts = nullptr;
     const Macro* macro = nullptr;
+    const cxx::Identifier* ident = nullptr;
 
     auto operator()(const ObjectMacro&) -> TokList* {
-      return self.expandObjectLikeMacro(ts, macro);
+      return self.expandObjectLikeMacro(ts, macro, ident);
     }
 
     auto operator()(const FunctionMacro&) -> TokList* {
       self.scanPastUntaints(ts->next);
       if (!self.lookat(ts->next, TokenKind::T_LPAREN)) return nullptr;
 
-      return self.expandFunctionLikeMacro(ts, macro);
+      return self.expandFunctionLikeMacro(ts, macro, ident);
     }
 
     auto operator()(const BuiltinObjectMacro& macro) -> TokList* {
@@ -2072,20 +2135,17 @@ auto Preprocessor::Private::expandMacro(TokList* ts) -> TokList* {
     }
   };
 
-  if (auto macro = lookupMacro(ts->tok)) {
-    return std::visit(ExpandMacro{.self = *this, .ts = ts, .macro = macro},
-                      *macro);
-  }
-
-  return nullptr;
+  return std::visit(
+      ExpandMacro{.self = *this, .ts = ts, .macro = macro, .ident = ident},
+      *macro);
 }
 
-auto Preprocessor::Private::expandObjectLikeMacro(TokList* ts, const Macro* m)
+auto Preprocessor::Private::expandObjectLikeMacro(TokList* ts, const Macro* m,
+                                                  const cxx::Identifier* ident)
     -> TokList* {
   auto macro = &std::get<ObjectMacro>(*m);
   const Tok* tk = ts->tok;
 
-  auto ident = control_->getIdentifier(tk->text);
   taint(ident);
 
   auto expanded = substitute(ts, m, {}, {});
@@ -2110,8 +2170,8 @@ auto Preprocessor::Private::expandObjectLikeMacro(TokList* ts, const Macro* m)
   return expanded;
 }
 
-auto Preprocessor::Private::expandFunctionLikeMacro(TokList* ts, const Macro* m)
-    -> TokList* {
+auto Preprocessor::Private::expandFunctionLikeMacro(
+    TokList* ts, const Macro* m, const cxx::Identifier* ident) -> TokList* {
   auto macro = &std::get<FunctionMacro>(*m);
 
   assert(lookat(ts->next, TokenKind::T_LPAREN));
@@ -2128,7 +2188,6 @@ auto Preprocessor::Private::expandFunctionLikeMacro(TokList* ts, const Macro* m)
     expandedArgs.push_back(TokRange{expandedIt, TokIterator{}});
   }
 
-  auto ident = control_->getIdentifier(tk->text);
   taint(ident);
 
   auto expanded = substitute(ts, m, args, expandedArgs);
@@ -2270,7 +2329,8 @@ auto Preprocessor::Private::substitute(
 
   for (auto ip = os; ip; ip = ip->next) {
     auto tk = ip->tok;
-    if (tk->is(TokenKind::T_IDENTIFIER) &&
+    if (tk->is(TokenKind::T_IDENTIFIER) && !tk->text.empty() &&
+        macros_.contains(tk->text) &&
         isTainted(control_->getIdentifier(tk->text))) {
       auto c = copy(tk);
       c->noexpand = true;
@@ -2640,7 +2700,11 @@ auto Preprocessor::Private::stringize(TokList* ts) -> const Tok* {
 }
 
 auto Preprocessor::Private::string(std::string s) -> std::string_view {
-  return std::string_view(scratchBuffer_.emplace_front(std::move(s)));
+  const auto len = s.size();
+  auto* p = static_cast<char*>(pool_.allocate(len + 1, 1));
+  std::memcpy(p, s.data(), len);
+  p[len] = '\0';
+  return std::string_view(p, len);
 }
 
 auto Preprocessor::Private::parseMacroDefinition(TokList* ts) -> Macro {
@@ -2727,19 +2791,21 @@ auto Preprocessor::Private::skipLine(TokIterator it, TokIterator last)
   return it;
 }
 
-auto Preprocessor::Private::lookupMacro(const Tok* tk) const -> const Macro* {
+auto Preprocessor::Private::lookupMacro(const Tok* tk) const
+    -> std::pair<const Macro*, const cxx::Identifier*> {
   if (!tk || tk->isNot(TokenKind::T_IDENTIFIER)) {
-    return nullptr;
+    return {nullptr, nullptr};
   }
 
-  if (tk->noexpand) return nullptr;
+  if (tk->noexpand) return {nullptr, nullptr};
 
   if (auto it = macros_.find(tk->text); it != macros_.end()) {
-    if (!isTainted(control_->getIdentifier(tk->text))) {
-      return &it->second;
+    auto ident = control_->getIdentifier(tk->text);
+    if (!isTainted(ident)) {
+      return {&it->second, ident};
     }
   }
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 static auto wantSpace(TokenKind kind) -> bool {
@@ -3202,11 +3268,22 @@ void DefaultPreprocessorState::operator()(const PendingHasIncludes& status) {
 }
 
 void DefaultPreprocessorState::operator()(const PendingFileContent& request) {
-  std::ifstream in(request.fileName);
-  std::ostringstream out;
-  out << in.rdbuf();
+  std::ifstream in(request.fileName, std::ios::binary | std::ios::ate);
+  if (!in) {
+    request.setContent(std::nullopt);
+    return;
+  }
 
-  request.setContent(out.str());
+  auto size = in.tellg();
+  if (size <= 0) {
+    request.setContent(std::string{});
+    return;
+  }
+
+  std::string content(static_cast<std::size_t>(size), '\0');
+  in.seekg(0);
+  in.read(content.data(), size);
+  request.setContent(std::move(content));
 }
 
 }  // namespace cxx
