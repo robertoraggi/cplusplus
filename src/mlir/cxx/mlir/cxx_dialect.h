@@ -32,7 +32,18 @@
 #include <mlir/Interfaces/CallInterfaces.h>
 #include <mlir/Interfaces/CastInterfaces.h>
 #include <mlir/Interfaces/FunctionInterfaces.h>
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wambiguous-reversed-operator"
+#endif
+
 #include <mlir/Interfaces/InferTypeOpInterface.h>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
 #include <cstdint>
