@@ -66,7 +66,10 @@ static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
 
 Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
                  bool debugInfo)
-    : builder_(&context), unit_(unit), debugInfo_(debugInfo) {}
+    : context_(&context),
+      builder_(&context),
+      unit_(unit),
+      debugInfo_(debugInfo) {}
 
 Codegen::~Codegen() {}
 
@@ -189,7 +192,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   if (!var->parent()->isBlock()) return std::nullopt;
 
   auto type = convertType(var->type());
-  auto ptrType = builder_.getType<mlir::cxx::PointerType>(type);
+  auto ptrType = mlir::cxx::PointerType::get(context_, type);
 
   auto loc = getLocation(var->location());
   auto allocaOp = mlir::cxx::AllocaOp::create(builder_, loc, ptrType,
@@ -218,7 +221,7 @@ auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
         unit_->tokenStartPosition(block->location());
     auto fileAttr = getFileAttr(filename);
     auto lexicalBlock = mlir::LLVM::DILexicalBlockAttr::get(
-        builder_.getContext(), parentScope, fileAttr, line, column);
+        context_, parentScope, fileAttr, line, column);
     diScopes_[symbol] = lexicalBlock;
     return lexicalBlock;
   }
@@ -248,7 +251,7 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
   auto scope = getOrCreateDIScope(symbol->parent());
   if (!scope) return;
 
-  auto ctx = builder_.getContext();
+  auto ctx = context_;
   auto nameAttr = mlir::StringAttr::get(
       ctx, name.empty() ? to_string(symbol->name()) : name);
   auto file =
@@ -272,7 +275,7 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, const Type* type,
   auto scope = getOrCreateDIScope(currentFunctionSymbol_);
   if (!scope) return;
 
-  auto ctx = builder_.getContext();
+  auto ctx = context_;
   auto nameAttr = mlir::StringAttr::get(ctx, name);
   auto typeAttr = convertDebugType(type);
 
@@ -291,7 +294,7 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, const Type* type,
 
 auto Codegen::newTemp(const Type* type, SourceLocation loc)
     -> mlir::cxx::AllocaOp {
-  auto ptrType = builder_.getType<mlir::cxx::PointerType>(convertType(type));
+  auto ptrType = mlir::cxx::PointerType::get(context_, convertType(type));
   return mlir::cxx::AllocaOp::create(builder_, getLocation(loc), ptrType,
                                      getAlignment(type));
 }
@@ -334,8 +337,7 @@ void Codegen::emitBranchWithCleanups(SourceLocation loc, mlir::Block* target,
     return;
   }
 
-  auto destructorsAttr =
-      mlir::ArrayAttr::get(builder_.getContext(), destructors);
+  auto destructorsAttr = mlir::ArrayAttr::get(context_, destructors);
   mlir::cxx::CleanupBranchOp::create(builder_, mlirLoc, addresses,
                                      destructorsAttr, target);
 }
@@ -372,8 +374,8 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   if (!emittedSymbol->isStatic() && emittedSymbol->parent()->isClass()) {
     auto classSymbol = symbol_cast<ClassSymbol>(emittedSymbol->parent());
 
-    inputTypes.push_back(builder_.getType<mlir::cxx::PointerType>(
-        convertType(classSymbol->type())));
+    inputTypes.push_back(mlir::cxx::PointerType::get(
+        context_, convertType(classSymbol->type())));
   }
 
   for (auto paramTy : functionType->parameterTypes()) {
@@ -384,9 +386,8 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     resultTypes.push_back(convertType(returnType));
   }
 
-  auto funcType =
-      mlir::cxx::FunctionType::get(builder_.getContext(), inputTypes,
-                                   resultTypes, functionType->isVariadic());
+  auto funcType = mlir::cxx::FunctionType::get(
+      context_, inputTypes, resultTypes, functionType->isVariadic());
 
   std::string name;
 
@@ -409,8 +410,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     inlineKind = mlir::cxx::InlineKind::InlineHint;
   }
 
-  auto inlineAttr =
-      mlir::cxx::InlineKindAttr::get(builder_.getContext(), inlineKind);
+  auto inlineAttr = mlir::cxx::InlineKindAttr::get(context_, inlineKind);
 
   mlir::cxx::LinkageKind linkageKind = mlir::cxx::LinkageKind::External;
 
@@ -428,8 +428,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
   }
 
-  auto linkageAttr =
-      mlir::cxx::LinkageKindAttr::get(builder_.getContext(), linkageKind);
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(context_, linkageKind);
 
   auto func = mlir::cxx::FuncOp::create(builder_, loc, name, funcType,
                                         linkageAttr, inlineAttr,
@@ -513,8 +512,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     linkageKind = mlir::cxx::LinkageKind::External;
   }
 
-  auto linkageAttr =
-      mlir::cxx::LinkageKindAttr::get(builder_.getContext(), linkageKind);
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(context_, linkageKind);
 
   std::string name;
 
@@ -672,7 +670,7 @@ auto Codegen::getCompileUnitAttr(std::string_view filename)
     return it->second;
   }
 
-  auto ctx = builder_.getContext();
+  auto ctx = context_;
 
   auto distinct = mlir::DistinctAttr::create(builder_.getUnitAttr());
 
@@ -708,9 +706,8 @@ auto Codegen::getFileAttr(const std::string& filename)
 
   auto filePath = absolute(std::filesystem::path{filename});
 
-  auto attr = mlir::LLVM::DIFileAttr::get(builder_.getContext(),
-                                          filePath.filename().string(),
-                                          filePath.parent_path().string());
+  auto attr = mlir::LLVM::DIFileAttr::get(
+      context_, filePath.filename().string(), filePath.parent_path().string());
 
   fileAttrs_.insert_or_assign(filename, attr);
 
@@ -724,8 +721,7 @@ auto Codegen::getFileAttr(std::string_view filename) -> mlir::LLVM::DIFileAttr {
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {
   auto [filename, line, column] = unit_->tokenStartPosition(location);
 
-  auto loc =
-      mlir::FileLineColLoc::get(builder_.getContext(), filename, line, column);
+  auto loc = mlir::FileLineColLoc::get(context_, filename, line, column);
 
   return loc;
 }
@@ -803,15 +799,14 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
   size_t vtableSize = 2 + vtableSlots.size();
 
   auto i8Type = builder_.getI8Type();
-  auto i8PtrType = builder_.getType<mlir::cxx::PointerType>(i8Type);
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
   auto vtableArrayType =
-      builder_.getType<mlir::cxx::ArrayType>(i8PtrType, vtableSize);
-  auto vtablePtrType =
-      builder_.getType<mlir::cxx::PointerType>(vtableArrayType);
+      mlir::cxx::ArrayType::get(context_, i8PtrType, vtableSize);
+  auto vtablePtrType = mlir::cxx::PointerType::get(context_, vtableArrayType);
 
   auto vtableAddr = mlir::cxx::AddressOfOp::create(
       builder_, loc, vtablePtrType,
-      mlir::FlatSymbolRefAttr::get(builder_.getContext(), vtableName));
+      mlir::FlatSymbolRefAttr::get(context_, vtableName));
 
   auto intTy = convertType(control()->getIntType());
   auto twoOp = mlir::arith::ConstantOp::create(
@@ -821,7 +816,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, vtableAddr, twoOp);
 
   auto thisType = convertType(classSymbol->type());
-  auto ptrType = builder_.getType<mlir::cxx::PointerType>(thisType);
+  auto ptrType = mlir::cxx::PointerType::get(context_, thisType);
 
   auto thisPtr = mlir::cxx::LoadOp::create(
       builder_, loc, ptrType, thisValue_,
@@ -830,7 +825,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
   mlir::Value vptrFieldPtr;
   if (layout->hasDirectVtable()) {
     vptrFieldPtr = mlir::cxx::MemberOp::create(
-        builder_, loc, builder_.getType<mlir::cxx::PointerType>(i8PtrType),
+        builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
         thisPtr, layout->vtableIndex());
   } else {
     mlir::Value current = thisPtr;
@@ -851,8 +846,8 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       }
       if (!baseSym) break;
 
-      auto basePtrType = builder_.getType<mlir::cxx::PointerType>(
-          convertType(baseSym->type()));
+      auto basePtrType =
+          mlir::cxx::PointerType::get(context_, convertType(baseSym->type()));
       current = mlir::cxx::MemberOp::create(builder_, loc, basePtrType, current,
                                             baseIdx);
       currentClass = baseSym;
@@ -861,7 +856,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
 
     auto vtableIdx = currentLayout ? currentLayout->vtableIndex() : 0;
     vptrFieldPtr = mlir::cxx::MemberOp::create(
-        builder_, loc, builder_.getType<mlir::cxx::PointerType>(i8PtrType),
+        builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
         current, vtableIdx);
   }
 
@@ -893,16 +888,15 @@ void Codegen::generateVTable(ClassSymbol* classSymbol) {
 
   for (auto func : vtableSlots) {
     auto funcOp = findOrCreateFunction(func);
-    auto funcSymRef = mlir::FlatSymbolRefAttr::get(builder_.getContext(),
-                                                   funcOp.getSymName());
+    auto funcSymRef =
+        mlir::FlatSymbolRefAttr::get(context_, funcOp.getSymName());
     vtableEntries.push_back(funcSymRef);
   }
 
   auto entriesAttr = builder_.getArrayAttr(vtableEntries);
 
   auto linkage = mlir::cxx::LinkageKind::LinkOnceODR;
-  auto linkageAttr =
-      mlir::cxx::LinkageKindAttr::get(builder_.getContext(), linkage);
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(context_, linkage);
 
   auto savedInsertionPoint = builder_.saveInsertionPoint();
 

@@ -167,7 +167,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
 
-  auto ctx = gen.builder_.getContext();
+  auto ctx = gen.context_;
 
   auto compileUnit = gen.getCompileUnitAttr(gen.unit_->fileName());
 

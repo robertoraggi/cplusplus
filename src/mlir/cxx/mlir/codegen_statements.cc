@@ -325,8 +325,7 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     iteratorElementType = arrayType->elementType();
 
     auto elementMlirType = gen.convertType(arrayType->elementType());
-    auto ptrType =
-        gen.builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+    auto ptrType = mlir::cxx::PointerType::get(gen.context_, elementMlirType);
 
     beginVal = rangeResult.value;
 
@@ -468,14 +467,13 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
   // Alloca for the iterator
   auto iterType = beginVal.getType();
-  auto iterPtrType = gen.builder_.getType<mlir::cxx::PointerType>(iterType);
+  auto iterPtrType = mlir::cxx::PointerType::get(gen.context_, iterType);
   auto iterAlloca =
       mlir::cxx::AllocaOp::create(gen.builder_, loc, iterPtrType, 8);
   mlir::cxx::StoreOp::create(gen.builder_, loc, beginVal, iterAlloca, 8);
 
   // Alloca for end
-  auto endPtrType =
-      gen.builder_.getType<mlir::cxx::PointerType>(endVal.getType());
+  auto endPtrType = mlir::cxx::PointerType::get(gen.context_, endVal.getType());
   auto endAlloca =
       mlir::cxx::AllocaOp::create(gen.builder_, loc, endPtrType, 8);
   mlir::cxx::StoreOp::create(gen.builder_, loc, endVal, endAlloca, 8);
