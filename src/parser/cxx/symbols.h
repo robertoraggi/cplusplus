@@ -58,6 +58,40 @@ struct PendingBodyInstantiation {
 [[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
+template <typename S>
+class MaybeRedecl {
+ public:
+  [[nodiscard]] auto canonical() const -> S* {
+    return canonical_ ? canonical_
+                      : const_cast<S*>(static_cast<const S*>(this));
+  }
+
+  void setCanonical(S* canonical) { canonical_ = canonical; }
+
+  [[nodiscard]] auto definition() const -> S* { return definition_; }
+
+  void setDefinition(S* definition) { definition_ = definition; }
+
+  [[nodiscard]] auto redeclarations() const -> const std::vector<S*>& {
+    return redeclarations_;
+  }
+
+  void addRedeclaration(S* redecl) {
+    auto self = static_cast<S*>(this);
+    if (!redecl || redecl == self) cxx_runtime_error("invalid redeclaration");
+    if (canonical_)
+      cxx_runtime_error("addRedeclaration called on non-canonical symbol");
+    if (std::ranges::find(redeclarations_, redecl) != redeclarations_.end())
+      cxx_runtime_error("duplicate redeclaration");
+    redecl->setCanonical(self);
+    redeclarations_.push_back(redecl);
+  }
+
+ private:
+  S* canonical_ = nullptr;
+  S* definition_ = nullptr;
+  std::vector<S*> redeclarations_;
+};
 
 template <typename S, typename D>
 class MaybeTemplate {
@@ -226,11 +260,9 @@ class Symbol {
   [[nodiscard]] auto isHidden() const -> bool { return isHidden_; }
   void setHidden(bool isHidden) { isHidden_ = isHidden; }
 
-  [[nodiscard]] virtual auto canonical() const -> Symbol* {
-    return const_cast<Symbol*>(this);
-  }
+  [[nodiscard]] auto canonical() const -> Symbol*;
 
-  [[nodiscard]] virtual auto definition() const -> Symbol* { return nullptr; }
+  [[nodiscard]] auto definition() const -> Symbol*;
 
 #define PROCESS_SYMBOL(S) \
   [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
@@ -395,18 +427,20 @@ class BaseClassSymbol final : public Symbol {
 };
 
 class ClassSymbol final : public ScopeSymbol,
-                          public MaybeTemplate<ClassSymbol, SpecifierAST> {
+                          public MaybeTemplate<ClassSymbol, SpecifierAST>,
+                          public MaybeRedecl<ClassSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
 
+  using MaybeRedecl<ClassSymbol>::canonical;
+  using MaybeRedecl<ClassSymbol>::setCanonical;
+  using MaybeRedecl<ClassSymbol>::definition;
+  using MaybeRedecl<ClassSymbol>::setDefinition;
+  using MaybeRedecl<ClassSymbol>::redeclarations;
+  using MaybeRedecl<ClassSymbol>::addRedeclaration;
+
   explicit ClassSymbol(ScopeSymbol* enclosingScope);
   ~ClassSymbol() override;
-
-  [[nodiscard]] auto canonical() const -> ClassSymbol* override;
-  void setCanonical(ClassSymbol* canonical);
-
-  [[nodiscard]] auto definition() const -> ClassSymbol* override;
-  void setDefinition(ClassSymbol* definition);
 
   [[nodiscard]] auto isUnion() const -> bool;
   void setIsUnion(bool isUnion);
@@ -470,8 +504,6 @@ class ClassSymbol final : public ScopeSymbol,
   std::vector<FunctionSymbol*> constructors_;
   std::vector<FunctionSymbol*> conversionFunctions_;
   std::unique_ptr<ClassLayout> layout_;
-  ClassSymbol* canonical_ = nullptr;
-  ClassSymbol* definition_ = nullptr;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
   union {
@@ -519,18 +551,20 @@ class ScopedEnumSymbol final : public ScopeSymbol {
 
 class FunctionSymbol final
     : public ScopeSymbol,
-      public MaybeTemplate<FunctionSymbol, FunctionDefinitionAST> {
+      public MaybeTemplate<FunctionSymbol, FunctionDefinitionAST>,
+      public MaybeRedecl<FunctionSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kFunction;
 
+  using MaybeRedecl<FunctionSymbol>::canonical;
+  using MaybeRedecl<FunctionSymbol>::setCanonical;
+  using MaybeRedecl<FunctionSymbol>::definition;
+  using MaybeRedecl<FunctionSymbol>::setDefinition;
+  using MaybeRedecl<FunctionSymbol>::redeclarations;
+  using MaybeRedecl<FunctionSymbol>::addRedeclaration;
+
   explicit FunctionSymbol(ScopeSymbol* enclosingScope);
   ~FunctionSymbol() override;
-
-  [[nodiscard]] auto canonical() const -> FunctionSymbol* override;
-  void setCanonical(FunctionSymbol* canonical);
-
-  [[nodiscard]] auto definition() const -> FunctionSymbol* override;
-  void setDefinition(FunctionSymbol* definition);
 
   [[nodiscard]] auto functionParameters() const -> FunctionParametersSymbol*;
 
@@ -584,8 +618,6 @@ class FunctionSymbol final
   void clearPendingBody();
 
  private:
-  FunctionSymbol* canonical_ = nullptr;
-  FunctionSymbol* definition_ = nullptr;
   std::unique_ptr<PendingBodyInstantiation> pendingBody_;
   union {
     std::uint32_t flags_{};
@@ -686,9 +718,17 @@ class BlockSymbol final : public ScopeSymbol {
 
 class TypeAliasSymbol final
     : public Symbol,
-      public MaybeTemplate<TypeAliasSymbol, SimpleDeclarationAST> {
+      public MaybeTemplate<TypeAliasSymbol, SimpleDeclarationAST>,
+      public MaybeRedecl<TypeAliasSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kTypeAlias;
+
+  using MaybeRedecl<TypeAliasSymbol>::canonical;
+  using MaybeRedecl<TypeAliasSymbol>::setCanonical;
+  using MaybeRedecl<TypeAliasSymbol>::definition;
+  using MaybeRedecl<TypeAliasSymbol>::setDefinition;
+  using MaybeRedecl<TypeAliasSymbol>::redeclarations;
+  using MaybeRedecl<TypeAliasSymbol>::addRedeclaration;
 
   explicit TypeAliasSymbol(ScopeSymbol* enclosingScope);
   ~TypeAliasSymbol() override;
@@ -699,18 +739,20 @@ class TypeAliasSymbol final
 
 class VariableSymbol final
     : public Symbol,
-      public MaybeTemplate<VariableSymbol, SimpleDeclarationAST> {
+      public MaybeTemplate<VariableSymbol, SimpleDeclarationAST>,
+      public MaybeRedecl<VariableSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kVariable;
 
+  using MaybeRedecl<VariableSymbol>::canonical;
+  using MaybeRedecl<VariableSymbol>::setCanonical;
+  using MaybeRedecl<VariableSymbol>::definition;
+  using MaybeRedecl<VariableSymbol>::setDefinition;
+  using MaybeRedecl<VariableSymbol>::redeclarations;
+  using MaybeRedecl<VariableSymbol>::addRedeclaration;
+
   explicit VariableSymbol(ScopeSymbol* enclosingScope);
   ~VariableSymbol() override;
-
-  [[nodiscard]] auto canonical() const -> VariableSymbol* override;
-  void setCanonical(VariableSymbol* canonical);
-
-  [[nodiscard]] auto definition() const -> VariableSymbol* override;
-  void setDefinition(VariableSymbol* definition);
 
   [[nodiscard]] auto isStatic() const -> bool;
   void setStatic(bool isStatic);
@@ -740,8 +782,6 @@ class VariableSymbol final
   void setConstValue(std::optional<ConstValue> value);
 
  private:
-  VariableSymbol* canonical_ = nullptr;
-  VariableSymbol* definition_ = nullptr;
   ExpressionAST* initializer_ = nullptr;
   FunctionSymbol* constructor_ = nullptr;
   std::optional<ConstValue> constValue_;

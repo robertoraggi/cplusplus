@@ -211,6 +211,36 @@ auto Symbol::enclosingNonTemplateParametersScope() const -> ScopeSymbol* {
   return scope;
 }
 
+auto Symbol::canonical() const -> Symbol* {
+  switch (kind()) {
+    case SymbolKind::kClass:
+      return static_cast<const ClassSymbol*>(this)->MaybeRedecl<ClassSymbol>::canonical();
+    case SymbolKind::kFunction:
+      return static_cast<const FunctionSymbol*>(this)->MaybeRedecl<FunctionSymbol>::canonical();
+    case SymbolKind::kVariable:
+      return static_cast<const VariableSymbol*>(this)->MaybeRedecl<VariableSymbol>::canonical();
+    case SymbolKind::kTypeAlias:
+      return static_cast<const TypeAliasSymbol*>(this)->MaybeRedecl<TypeAliasSymbol>::canonical();
+    default:
+      return const_cast<Symbol*>(this);
+  }
+}
+
+auto Symbol::definition() const -> Symbol* {
+  switch (kind()) {
+    case SymbolKind::kClass:
+      return static_cast<const ClassSymbol*>(this)->MaybeRedecl<ClassSymbol>::definition();
+    case SymbolKind::kFunction:
+      return static_cast<const FunctionSymbol*>(this)->MaybeRedecl<FunctionSymbol>::definition();
+    case SymbolKind::kVariable:
+      return static_cast<const VariableSymbol*>(this)->MaybeRedecl<VariableSymbol>::definition();
+    case SymbolKind::kTypeAlias:
+      return static_cast<const TypeAliasSymbol*>(this)->MaybeRedecl<TypeAliasSymbol>::definition();
+    default:
+      return nullptr;
+  }
+}
+
 ScopeSymbol::ScopeSymbol(SymbolKind kind, ScopeSymbol* enclosingScope)
     : Symbol(kind, enclosingScope) {}
 
@@ -584,20 +614,6 @@ ClassSymbol::ClassSymbol(ScopeSymbol* enclosingScope)
 
 ClassSymbol::~ClassSymbol() {}
 
-auto ClassSymbol::canonical() const -> ClassSymbol* {
-  return canonical_ ? canonical_ : const_cast<ClassSymbol*>(this);
-}
-
-void ClassSymbol::setCanonical(ClassSymbol* canonical) {
-  canonical_ = canonical;
-}
-
-auto ClassSymbol::definition() const -> ClassSymbol* { return definition_; }
-
-void ClassSymbol::setDefinition(ClassSymbol* definition) {
-  definition_ = definition;
-}
-
 auto ClassSymbol::flags() const -> std::uint32_t { return flags_; }
 
 void ClassSymbol::setFlags(std::uint32_t flags) { flags_ = flags; }
@@ -911,21 +927,6 @@ FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
-auto FunctionSymbol::canonical() const -> FunctionSymbol* {
-  return canonical_ ? canonical_ : const_cast<FunctionSymbol*>(this);
-}
-
-void FunctionSymbol::setCanonical(FunctionSymbol* canonical) {
-  canonical_ = canonical;
-}
-
-auto FunctionSymbol::definition() const -> FunctionSymbol* {
-  return definition_;
-}
-
-void FunctionSymbol::setDefinition(FunctionSymbol* definition) {
-  definition_ = definition;
-}
 
 auto FunctionSymbol::isDefined() const -> bool { return isDefined_; }
 
@@ -1129,21 +1130,6 @@ VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
 
 VariableSymbol::~VariableSymbol() {}
 
-auto VariableSymbol::canonical() const -> VariableSymbol* {
-  return canonical_ ? canonical_ : const_cast<VariableSymbol*>(this);
-}
-
-void VariableSymbol::setCanonical(VariableSymbol* canonical) {
-  canonical_ = canonical;
-}
-
-auto VariableSymbol::definition() const -> VariableSymbol* {
-  return definition_;
-}
-
-void VariableSymbol::setDefinition(VariableSymbol* definition) {
-  definition_ = definition;
-}
 
 auto VariableSymbol::isStatic() const -> bool { return isStatic_; }
 

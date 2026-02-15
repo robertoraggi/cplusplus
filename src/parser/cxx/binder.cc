@@ -598,7 +598,8 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
   ast->symbol->setDeclaration(ast);
 
-  ast->symbol->canonical()->setDefinition(ast->symbol);
+  auto classCanon = ast->symbol->canonical();
+  classCanon->setDefinition(ast->symbol);
 
   if (declSpecs.templateHead) {
     ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
@@ -907,7 +908,17 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
   }
 
   if (addSymbolToParentScope) {
-    declaringScope()->addSymbol(symbol);
+    auto scope = declaringScope();
+
+    for (auto candidate : scope->find(name)) {
+      if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
+        auto canon = existing->canonical();
+        canon->addRedeclaration(symbol);
+        break;
+      }
+    }
+
+    scope->addSymbol(symbol);
   }
 
   return symbol;
@@ -1279,6 +1290,15 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   auto symbol = control()->newTypeAliasSymbol(scope(), decl.location());
   symbol->setName(name);
   symbol->setType(type);
+
+  for (auto candidate : scope()->find(name)) {
+    if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
+      auto canon = existing->canonical();
+      canon->addRedeclaration(symbol);
+      break;
+    }
+  }
+
   scope()->addSymbol(symbol);
 
   if (auto classType = type_cast<ClassType>(symbol->type())) {
@@ -1463,7 +1483,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
       if (auto otherFunction = symbol_cast<FunctionSymbol>(candidate)) {
         if (binder.is_parsing_c()) {
-          functionSymbol->setCanonical(otherFunction);
+          auto canon = otherFunction->canonical();
+          canon->addRedeclaration(functionSymbol);
           mergeRedeclaration();
           break;
         }
@@ -1478,16 +1499,20 @@ struct [[nodiscard]] Binder::DeclareFunction {
     }
 
     if (overloadSet) {
+      bool isRedecl = false;
+
       for (auto existingFunction : overloadSet->functions()) {
         if (control()->is_same(existingFunction->type(),
                                functionSymbol->type())) {
-          functionSymbol->setCanonical(existingFunction->canonical());
+          auto canon = existingFunction->canonical();
+          canon->addRedeclaration(functionSymbol);
           mergeRedeclaration();
+          isRedecl = true;
           break;
         }
       }
 
-      overloadSet->addFunction(functionSymbol);
+      if (!isRedecl) overloadSet->addFunction(functionSymbol);
     } else {
       if (functionSymbol->isFriend() && !declaringScope->isClass()) {
         functionSymbol->setHidden(true);
@@ -1507,7 +1532,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
     for (auto ctor : enclosingClass->constructors()) {
       if (control()->is_same(ctor->type(), functionSymbol->type())) {
-        functionSymbol->setCanonical(ctor->canonical());
+        auto canon = ctor->canonical();
+        canon->addRedeclaration(functionSymbol);
         mergeRedeclaration();
         break;
       }
@@ -1529,11 +1555,14 @@ struct [[nodiscard]] Binder::DeclareFunction {
       return;
     }
 
-    if (scope()->isNamespace()) {
+    if (scope()->isClass()) {
+      // member functions always have C++ linkage
       functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
       return;
     }
 
+    // namespace-scope functions inherit the active language linkage,
+    // which is kC inside extern "C" blocks and kCXX otherwise.
     functionSymbol->setLanguageLinkage(binder.languageLinkage_);
   }
 
@@ -1669,7 +1698,8 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
           continue;
         }
 
-        symbol->setCanonical(existing->canonical());
+        auto canon = existing->canonical();
+        canon->addRedeclaration(symbol);
         break;
       }
     }
