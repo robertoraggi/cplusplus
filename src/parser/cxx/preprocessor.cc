@@ -705,6 +705,20 @@ struct Preprocessor::Private {
   [[nodiscard]] auto expandFunctionLikeMacroAcrossBoundary(
       const Macro* macro, const cxx::Identifier* ident) -> bool;
 
+  struct FilteredArgs {
+    TokVector tokens;
+    const Tok* rest = nullptr;
+  };
+
+  [[nodiscard]] auto hasDirectivesInArgRange(const Tok* lparen,
+                                             const Tok* end) const -> bool;
+
+  [[nodiscard]] auto filterDirectivesInArgs(const Tok* lparen, const Tok* end)
+      -> FilteredArgs;
+
+  void handleConditionalDirective(PreprocessorDirectiveKind kind, const Tok* ts,
+                                  const Tok* lineEnd);
+
   using TokRange = std::pair<const Tok*, const Tok*>;
 
   [[nodiscard]] auto substitute(const Tok& pointOfSubstitution,
@@ -781,8 +795,7 @@ struct Preprocessor::Private {
 
   template <typename TryCandidate>
   [[nodiscard]] auto resolveNext(const TryCandidate& tryCandidate,
-                                 const std::string& curDir,
-                                 bool isQuoted) const
+                                 const std::string& curDir, bool isQuoted) const
       -> std::optional<ResolveResult>;
 
   [[nodiscard]] auto buildSearchDirs(const std::string& curDir,
@@ -1835,6 +1848,191 @@ auto Preprocessor::Private::expandObjectLikeMacro(Cursor& cursor,
   return true;
 }
 
+auto Preprocessor::Private::hasDirectivesInArgRange(const Tok* lparen,
+                                                    const Tok* end) const
+    -> bool {
+  if (lparen >= end || lparen->isNot(TokenKind::T_LPAREN)) return false;
+  const Tok* pos = lparen + 1;
+  int depth = 0;
+  while (pos < end) {
+    if (pos->is(TokenKind::T_RPAREN) && depth == 0) return false;
+    if (pos->is(TokenKind::T_LPAREN))
+      ++depth;
+    else if (pos->is(TokenKind::T_RPAREN))
+      --depth;
+    if (pos->bol && pos->is(TokenKind::T_HASH)) return true;
+    ++pos;
+  }
+  return false;
+}
+
+void Preprocessor::Private::handleConditionalDirective(
+    PreprocessorDirectiveKind kind, const Tok* ts, const Tok* lineEnd) {
+  const auto [skipping, evaluating] = state();
+
+  switch (kind) {
+    case PreprocessorDirectiveKind::T_IF: {
+      if (skipping) {
+        pushState({true, false});
+      } else {
+        auto expr = prepareConstantExpression(ts, lineEnd);
+        const Tok* ep = expr.data();
+        const Tok* ee = ep + expr.size();
+        auto value = evaluateConstantExpression(ep, ee);
+        if (value)
+          pushState({skipping, false});
+        else
+          pushState({true, !skipping});
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_IFDEF: {
+      if (ts < lineEnd) {
+        auto value = isDefined(*ts);
+        if (value)
+          pushState({skipping, false});
+        else
+          pushState({true, !skipping});
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_IFNDEF: {
+      if (ts < lineEnd) {
+        auto value = !isDefined(*ts);
+        if (value)
+          pushState({skipping, false});
+        else
+          pushState({true, !skipping});
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ELIF: {
+      if (!evaluating) {
+        setState({true, false});
+      } else {
+        auto expr = prepareConstantExpression(ts, lineEnd);
+        const Tok* ep = expr.data();
+        const Tok* ee = ep + expr.size();
+        auto value = evaluateConstantExpression(ep, ee);
+        if (value)
+          setState({!evaluating, false});
+        else
+          setState({true, evaluating});
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ELIFDEF: {
+      if (!evaluating) {
+        setState({true, false});
+      } else if (ts < lineEnd) {
+        auto value = isDefined(*ts);
+        if (value)
+          setState({!evaluating, false});
+        else
+          setState({true, evaluating});
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ELIFNDEF: {
+      if (!evaluating) {
+        setState({true, false});
+      } else if (ts < lineEnd) {
+        auto value = isDefined(*ts);
+        if (!value)
+          setState({!evaluating, false});
+        else
+          setState({true, evaluating});
+      }
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ELSE: {
+      setState({!evaluating, false});
+      break;
+    }
+
+    case PreprocessorDirectiveKind::T_ENDIF: {
+      popState();
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
+auto Preprocessor::Private::filterDirectivesInArgs(const Tok* lparen,
+                                                   const Tok* end)
+    -> FilteredArgs {
+  FilteredArgs result;
+  if (lparen >= end || lparen->isNot(TokenKind::T_LPAREN)) return result;
+
+  // Save and isolate the condition stack
+  auto savedSkipping = std::exchange(skipping_, {false});
+  auto savedEvaluating = std::exchange(evaluating_, {true});
+
+  result.tokens.push_back(*lparen);
+  const Tok* pos = lparen + 1;
+  int parenDepth = 0;
+
+  auto findLineEnd = [&](const Tok* p) {
+    while (p < end && !p->bol && p->isNot(TokenKind::T_EOF_SYMBOL)) ++p;
+    return p;
+  };
+
+  while (pos < end) {
+    if (pos->is(TokenKind::T_RPAREN) && parenDepth == 0) {
+      result.tokens.push_back(*pos);
+      result.rest = pos + 1;
+      break;
+    }
+
+    if (pos->bol && pos->is(TokenKind::T_HASH)) {
+      ++pos;
+
+      if (pos >= end || pos->bol || pos->isNot(TokenKind::T_IDENTIFIER)) {
+        pos = findLineEnd(pos);
+        continue;
+      }
+
+      auto text = getText(*pos);
+      auto kind =
+          classifyDirective(text.data(), static_cast<int>(text.length()));
+      ++pos;
+
+      auto lineEnd = findLineEnd(pos);
+      handleConditionalDirective(kind, pos, lineEnd);
+      pos = lineEnd;
+      continue;
+    }
+
+    if (std::get<0>(state())) {
+      ++pos;
+      continue;
+    }
+
+    if (pos->is(TokenKind::T_LPAREN))
+      ++parenDepth;
+    else if (pos->is(TokenKind::T_RPAREN))
+      --parenDepth;
+    result.tokens.push_back(*pos);
+    ++pos;
+  }
+
+  if (!result.rest) result.rest = pos;
+
+  // Restore the condition stack
+  skipping_ = std::move(savedSkipping);
+  evaluating_ = std::move(savedEvaluating);
+
+  return result;
+}
+
 auto Preprocessor::Private::expandFunctionLikeMacro(
     Cursor& cursor, const Macro* m, const cxx::Identifier* ident) -> bool {
   const auto* macro = std::get_if<FunctionMacro>(m);
@@ -1844,12 +2042,30 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
   auto tk = cursor.current();
 
-  auto argsResult = parseArguments(cursor.pos + 1, cursor.end,
-                                   macro->formals.size(), macro->variadic);
+  FilteredArgs filteredArgs;
+  const Tok* originalRest = nullptr;
+
+  if (hasDirectivesInArgRange(cursor.pos + 1, cursor.end)) {
+    filteredArgs = filterDirectivesInArgs(cursor.pos + 1, cursor.end);
+    originalRest = filteredArgs.rest;
+  }
+
+  const Tok* argBegin;
+  const Tok* argEnd;
+  if (!filteredArgs.tokens.empty()) {
+    argBegin = filteredArgs.tokens.data();
+    argEnd = filteredArgs.tokens.data() + filteredArgs.tokens.size();
+  } else {
+    argBegin = cursor.pos + 1;
+    argEnd = cursor.end;
+  }
+
+  auto argsResult =
+      parseArguments(argBegin, argEnd, macro->formals.size(), macro->variadic);
   if (!argsResult.rest) return false;
 
   auto actuals = argsResult.args;
-  auto rest = argsResult.rest;
+  auto rest = originalRest ? originalRest : argsResult.rest;
 
   std::vector<TokRange> expandedArgs;
   expandedArgs.reserve(actuals.size());
@@ -1888,24 +2104,41 @@ auto Preprocessor::Private::expandFunctionLikeMacroAcrossBoundary(
   auto curIdx = cursors_.size() - 1;
   if (curIdx == 0) return false;  // no parent cursor
 
-  auto& parent = cursors_[curIdx - 1];
-  const Tok* parentPeek = parent.pos;
-  while (parentPeek < parent.end && parentPeek->is(TokenKind::T_IDENTIFIER) &&
-         parentPeek->noexpand)
-    ++parentPeek;
-  if (parentPeek >= parent.end || parentPeek->isNot(TokenKind::T_LPAREN))
-    return false;
+  std::size_t parentIdx = curIdx - 1;
+  const Tok* parentPeek = nullptr;
 
-  auto& cur = cursors_[curIdx];
+  while (true) {
+    auto& ancestor = cursors_[parentIdx];
+    parentPeek = ancestor.pos;
+    while (parentPeek < ancestor.end &&
+           parentPeek->is(TokenKind::T_IDENTIFIER) && parentPeek->noexpand)
+      ++parentPeek;
+    if (parentPeek < ancestor.end) break;
+    if (parentIdx == 0) return false;
+    --parentIdx;
+  }
+
+  if (parentPeek->isNot(TokenKind::T_LPAREN)) return false;
+
   TokVector combined;
-  combined.reserve(static_cast<std::size_t>(cur.end - cur.pos) +
-                   static_cast<std::size_t>(parent.end - parent.pos));
-  combined.insert(combined.end(), cur.pos, cur.end);
-  combined.insert(combined.end(), parent.pos, parent.end);
+  {
+    auto& cur = cursors_[curIdx];
+    combined.insert(combined.end(), cur.pos, cur.end);
+  }
 
-  auto untaintId = cur.untaintOnPop;
-  cursors_.pop_back();
-  if (untaintId) untaint(untaintId);
+  for (std::size_t i = curIdx - 1; i > parentIdx; --i) {
+    auto& mid = cursors_[i];
+    combined.insert(combined.end(), mid.pos, mid.end);
+  }
+
+  combined.insert(combined.end(), cursors_[parentIdx].pos,
+                  cursors_[parentIdx].end);
+
+  while (cursors_.size() > parentIdx + 1) {
+    auto untaintId = cursors_.back().untaintOnPop;
+    cursors_.pop_back();
+    if (untaintId) untaint(untaintId);
+  }
 
   auto& target = cursors_.back();
   target.ownedTokens = std::move(combined);
@@ -2176,25 +2409,12 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
       break;
     }
 
-    case PreprocessorDirectiveKind::T_IFDEF: {
-      if (ts < directiveEnd) {
-        const auto value = isDefined(*ts);
-        if (value)
-          pushState(std::tuple(skipping, false));
-        else
-          pushState(std::tuple(true, !skipping));
-      }
-      break;
-    }
-
-    case PreprocessorDirectiveKind::T_IFNDEF: {
-      if (ts < directiveEnd) {
-        const auto value = !isDefined(*ts);
-        if (value)
-          pushState(std::tuple(skipping, false));
-        else
-          pushState(std::tuple(true, !skipping));
-      }
+    case PreprocessorDirectiveKind::T_IFDEF:
+    case PreprocessorDirectiveKind::T_IFNDEF:
+    case PreprocessorDirectiveKind::T_ELIFDEF:
+    case PreprocessorDirectiveKind::T_ELIFNDEF:
+    case PreprocessorDirectiveKind::T_ELSE: {
+      handleConditionalDirective(directiveKind, ts, directiveEnd);
       break;
     }
 
@@ -2252,39 +2472,8 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
       break;
     }
 
-    case PreprocessorDirectiveKind::T_ELIFDEF: {
-      if (!evaluating) {
-        setState(std::tuple(true, false));
-      } else if (ts < directiveEnd) {
-        const auto value = isDefined(*ts);
-        if (value)
-          setState(std::tuple(!evaluating, false));
-        else
-          setState(std::tuple(true, evaluating));
-      }
-      break;
-    }
-
-    case PreprocessorDirectiveKind::T_ELIFNDEF: {
-      if (!evaluating) {
-        setState(std::tuple(true, false));
-      } else if (ts < directiveEnd) {
-        const auto value = isDefined(*ts);
-        if (!value)
-          setState(std::tuple(!evaluating, false));
-        else
-          setState(std::tuple(true, evaluating));
-      }
-      break;
-    }
-
-    case PreprocessorDirectiveKind::T_ELSE: {
-      setState(std::tuple(!evaluating, false));
-      break;
-    }
-
     case PreprocessorDirectiveKind::T_ENDIF: {
-      popState();
+      handleConditionalDirective(directiveKind, ts, directiveEnd);
       if (evaluating_.empty()) {
         error(directiveLine + 1, "unexpected '#endif'");
       }
@@ -2533,6 +2722,32 @@ auto Preprocessor::Private::checkHeaderProtection(const TokVector& tokens) const
   ++ts;
   if (ts >= end || ts->bol) return {};
   if (getText(*ts) != protName) return {};
+
+  int depth = 1;
+  ++ts;
+  while (ts < end && ts->isNot(TokenKind::T_EOF_SYMBOL)) {
+    if (ts->bol && ts->is(TokenKind::T_HASH)) {
+      auto dir = ts + 1;
+      if (dir < end && !dir->bol && dir->is(TokenKind::T_IDENTIFIER)) {
+        auto text = getText(*dir);
+        if (text == "if" || text == "ifdef" || text == "ifndef") {
+          ++depth;
+        } else if (text == "endif") {
+          --depth;
+          if (depth == 0) {
+            auto p = dir + 1;
+            while (p < end && !p->bol && p->isNot(TokenKind::T_EOF_SYMBOL)) ++p;
+            while (p < end && p->isNot(TokenKind::T_EOF_SYMBOL)) {
+              return {};
+            }
+            return protName;
+          }
+        }
+      }
+    }
+    ++ts;
+  }
+
   return protName;
 }
 
@@ -2591,15 +2806,15 @@ auto Preprocessor::Private::buildSearchDirs(const std::string& curDir,
   if (isQuoted) {
     if (!disableCurrentDirSearch_ && !curDir.empty())
       dirs.push_back({&curDir, false});
-    for (auto it = quoteIncludePaths_.rbegin();
-         it != quoteIncludePaths_.rend(); ++it)
+    for (auto it = quoteIncludePaths_.rbegin(); it != quoteIncludePaths_.rend();
+         ++it)
       dirs.push_back({&*it, false});
   }
-  for (auto it = userIncludePaths_.rbegin();
-       it != userIncludePaths_.rend(); ++it)
+  for (auto it = userIncludePaths_.rbegin(); it != userIncludePaths_.rend();
+       ++it)
     dirs.push_back({&*it, false});
-  for (auto it = systemIncludePaths_.rbegin();
-       it != systemIncludePaths_.rend(); ++it)
+  for (auto it = systemIncludePaths_.rbegin(); it != systemIncludePaths_.rend();
+       ++it)
     dirs.push_back({&*it, true});
   return dirs;
 }
@@ -2610,8 +2825,7 @@ auto Preprocessor::Private::resolveNormal(const TryCandidate& tryCandidate,
                                           bool isQuoted) const
     -> std::optional<ResolveResult> {
   for (auto& [dir, isSys] : buildSearchDirs(curDir, isQuoted)) {
-    if (auto r = tryCandidate(*dir))
-      return ResolveResult{std::move(*r), isSys};
+    if (auto r = tryCandidate(*dir)) return ResolveResult{std::move(*r), isSys};
   }
   return std::nullopt;
 }
@@ -3106,8 +3320,7 @@ void Preprocessor::addUserIncludePath(std::string path) {
   d->userIncludePaths_.push_back(std::move(path));
 }
 
-auto Preprocessor::userIncludePaths() const
-    -> const std::vector<std::string>& {
+auto Preprocessor::userIncludePaths() const -> const std::vector<std::string>& {
   return d->userIncludePaths_;
 }
 
@@ -3249,9 +3462,8 @@ void Preprocessor::requestCodeCompletionAt(std::uint32_t line,
   d->codeCompletionLocation_ = SourcePosition{{}, line, column};
 }
 
-void PendingInclude::resolveWith(
-    std::optional<std::string> resolvedFileName,
-    bool isSystemHeader) const {
+void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
+                                 bool isSystemHeader) const {
   auto d = preprocessor.d.get();
 
   if (!resolvedFileName.has_value()) {
