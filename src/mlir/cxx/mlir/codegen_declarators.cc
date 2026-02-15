@@ -422,10 +422,10 @@ auto Codegen::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
   }
 
   auto memberPtrType =
-      gen.builder_.getType<mlir::cxx::PointerType>(gen.convertType(targetType));
+      mlir::cxx::PointerType::get(gen.context_, gen.convertType(targetType));
 
-  auto thisPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-      gen.convertType(classSymbol->type()));
+  auto thisPtrType = mlir::cxx::PointerType::get(
+      gen.context_, gen.convertType(classSymbol->type()));
 
   auto thisPtr = mlir::cxx::LoadOp::create(
       gen.builder_, loc, thisPtrType, gen.thisValue_,
@@ -508,10 +508,10 @@ auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
   }
 
   auto memberPtrType =
-      gen.builder_.getType<mlir::cxx::PointerType>(gen.convertType(targetType));
+      mlir::cxx::PointerType::get(gen.context_, gen.convertType(targetType));
 
-  auto thisPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-      gen.convertType(classSymbol->type()));
+  auto thisPtrType = mlir::cxx::PointerType::get(
+      gen.context_, gen.convertType(classSymbol->type()));
 
   auto thisPtr = mlir::cxx::LoadOp::create(
       gen.builder_, loc, thisPtrType, gen.thisValue_,

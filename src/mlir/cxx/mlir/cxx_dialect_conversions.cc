@@ -474,7 +474,7 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
 
       auto llvmFuncType = LLVM::LLVMFunctionType::get(
           rewriter.getContext(),
-          resultTypes.empty() ? rewriter.getType<LLVM::LLVMVoidType>()
+          resultTypes.empty() ? LLVM::LLVMVoidType::get(rewriter.getContext())
                               : resultTypes.front(),
           argTypes, /*isVarArg=*/false);
 
@@ -577,7 +577,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     if (!funcOp) {
       auto funcType = LLVM::LLVMFunctionType::get(
           rewriter.getContext(),
-          resultTypes.empty() ? rewriter.getType<LLVM::LLVMVoidType>()
+          resultTypes.empty() ? LLVM::LLVMVoidType::get(rewriter.getContext())
                               : resultTypes.front(),
           argTypes, /*isVarArg=*/false);
 

@@ -236,7 +236,7 @@ void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
 
   if (auto ptrType = mlir::dyn_cast<mlir::cxx::PointerType>(val.getType())) {
     auto nullOp = mlir::cxx::NullPtrConstantOp::create(builder_, loc, ptrType);
-    auto i1Type = mlir::IntegerType::get(builder_.getContext(), 1);
+    auto i1Type = mlir::IntegerType::get(context_, 1);
     auto ptrIntTy = builder_.getI64Type();
     auto lhsInt = mlir::cxx::PtrToIntOp::create(builder_, loc, ptrIntTy, val);
     auto rhsInt = mlir::cxx::PtrToIntOp::create(builder_, loc, ptrIntTy,
@@ -333,7 +333,7 @@ auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(NullptrLiteralExpressionAST* ast)
     -> ExpressionResult {
   auto loc = gen.getLocation(ast->literalLoc);
-  auto context = gen.builder_.getContext();
+  auto context = gen.context_;
   auto resultType =
       mlir::cxx::PointerType::get(context, mlir::cxx::VoidType::get(context));
   auto op = mlir::cxx::NullPtrConstantOp::create(gen.builder_, loc, resultType);
@@ -376,7 +376,7 @@ auto Codegen::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
     auto x = mlir::OpBuilder(gen.module_->getContext());
     x.setInsertionPointToEnd(gen.module_.getBody());
     auto linkage = mlir::cxx::LinkageKindAttr::get(
-        gen.builder_.getContext(), mlir::cxx::LinkageKind::Internal);
+        gen.context_, mlir::cxx::LinkageKind::Internal);
     mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), type, true,
                                 name.getValue(), initializer, linkage);
 
@@ -448,7 +448,7 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     } else if (auto global = gen.findOrCreateGlobal(var)) {
       auto loc = gen.getLocation(ast->firstSourceLocation());
       auto resultType = mlir::cxx::PointerType::get(
-          gen.builder_.getContext(), gen.convertType(var->type()));
+          gen.context_, gen.convertType(var->type()));
       val = mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType,
                                            global->getSymName());
       found = true;
@@ -607,7 +607,7 @@ auto Codegen::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     // Allocate storage for the closure object
     auto loc = gen.getLocation(ast->firstSourceLocation());
     auto mlirType = gen.convertType(classType);
-    auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(mlirType);
+    auto ptrType = mlir::cxx::PointerType::get(gen.context_, mlirType);
     auto closureAlloca = mlir::cxx::AllocaOp::create(
         gen.builder_, loc, ptrType, gen.getAlignment(classType));
 
@@ -925,10 +925,10 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     }
 
     auto i8Type = gen.builder_.getI8Type();
-    auto i8PtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
-    auto i8PtrPtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8PtrType);
+    auto i8PtrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
+    auto i8PtrPtrType = mlir::cxx::PointerType::get(gen.context_, i8PtrType);
     auto i8PtrPtrPtrType =
-        gen.builder_.getType<mlir::cxx::PointerType>(i8PtrPtrType);
+        mlir::cxx::PointerType::get(gen.context_, i8PtrPtrType);
 
     auto vptrFieldPtr = mlir::cxx::MemberOp::create(
         gen.builder_, loc, i8PtrPtrPtrType, objectPtr, 0);
@@ -1264,7 +1264,7 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
         gen.builder_, loc, elementTy, expressionResult.value,
         gen.getAlignment(ast->baseExpression->type));
     auto resultTy = gen.convertType(ast->baseExpression->type);
-    auto intTy = mlir::IntegerType::get(gen.builder_.getContext(), 32);
+    auto intTy = mlir::IntegerType::get(gen.context_, 32);
     auto oneOp = mlir::arith::ConstantOp::create(
         gen.builder_, loc, intTy,
         gen.builder_.getIntegerAttr(
@@ -1863,7 +1863,7 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
       gen.builder_.getIntegerAttr(sizeTy, objectSize));
 
   auto objectMlirType = gen.convertType(objectType);
-  auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(objectMlirType);
+  auto ptrType = mlir::cxx::PointerType::get(gen.context_, objectMlirType);
 
   mlir::Value rawPtr;
 
@@ -1890,13 +1890,13 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
 
       mlir::SmallVector<mlir::Type> paramTypes{sizeTy};
       mlir::SmallVector<mlir::Type> resultTypes{ptrType};
-      auto funcType = mlir::cxx::FunctionType::get(gen.builder_.getContext(),
-                                                   paramTypes, resultTypes,
-                                                   /*isVariadic=*/false);
+      auto funcType =
+          mlir::cxx::FunctionType::get(gen.context_, paramTypes, resultTypes,
+                                       /*isVariadic=*/false);
       auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
-          gen.builder_.getContext(), mlir::cxx::LinkageKind::External);
+          gen.context_, mlir::cxx::LinkageKind::External);
       auto inlineAttr = mlir::cxx::InlineKindAttr::get(
-          gen.builder_.getContext(), mlir::cxx::InlineKind::NoInline);
+          gen.context_, mlir::cxx::InlineKind::NoInline);
       existingFunc = mlir::cxx::FuncOp::create(
           gen.builder_, loc, operatorNewName, funcType, linkageAttr, inlineAttr,
           mlir::ArrayAttr{}, mlir::ArrayAttr{});
@@ -1986,11 +1986,11 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
       if (auto dtorSymbol = classSymbol->destructor()) {
         if (dtorSymbol->isVirtual()) {
           auto i8Type = gen.builder_.getI8Type();
-          auto i8PtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
+          auto i8PtrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
           auto i8PtrPtrType =
-              gen.builder_.getType<mlir::cxx::PointerType>(i8PtrType);
+              mlir::cxx::PointerType::get(gen.context_, i8PtrType);
           auto i8PtrPtrPtrType =
-              gen.builder_.getType<mlir::cxx::PointerType>(i8PtrPtrType);
+              mlir::cxx::PointerType::get(gen.context_, i8PtrPtrType);
 
           auto vptrFieldPtr = mlir::cxx::MemberOp::create(
               gen.builder_, loc, i8PtrPtrPtrType, ptrValue, 0);
@@ -2033,7 +2033,7 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
   auto operatorDeleteName = std::string(isArrayDelete ? "_ZdaPv" : "_ZdlPv");
 
   auto i8Type = gen.builder_.getI8Type();
-  auto i8PtrType = gen.builder_.getType<mlir::cxx::PointerType>(i8Type);
+  auto i8PtrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
 
   auto existingFunc =
       gen.module_.lookupSymbol<mlir::cxx::FuncOp>(operatorDeleteName);
@@ -2043,13 +2043,13 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
 
     mlir::SmallVector<mlir::Type> paramTypes{i8PtrType};
     mlir::SmallVector<mlir::Type> resultTypes;
-    auto funcType = mlir::cxx::FunctionType::get(gen.builder_.getContext(),
-                                                 paramTypes, resultTypes,
-                                                 /*isVariadic=*/false);
+    auto funcType =
+        mlir::cxx::FunctionType::get(gen.context_, paramTypes, resultTypes,
+                                     /*isVariadic=*/false);
     auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
-        gen.builder_.getContext(), mlir::cxx::LinkageKind::External);
+        gen.context_, mlir::cxx::LinkageKind::External);
     auto inlineAttr = mlir::cxx::InlineKindAttr::get(
-        gen.builder_.getContext(), mlir::cxx::InlineKind::NoInline);
+        gen.context_, mlir::cxx::InlineKind::NoInline);
     existingFunc = mlir::cxx::FuncOp::create(
         gen.builder_, loc, operatorDeleteName, funcType, linkageAttr,
         inlineAttr, mlir::ArrayAttr{}, mlir::ArrayAttr{});
@@ -3284,7 +3284,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto type = gen.convertType(ast->type);
-  auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(type);
+  auto ptrType = mlir::cxx::PointerType::get(gen.context_, type);
   auto temp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType,
                                           gen.getAlignment(ast->type));
 
@@ -3338,7 +3338,7 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
 
   auto elementType = control()->get_element_type(type);
   auto elementMlirType = convertType(elementType);
-  auto resultType = builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+  auto resultType = mlir::cxx::PointerType::get(context_, elementMlirType);
   auto intType = builder_.getIntegerType(32);
 
   int index = 0;
@@ -3373,7 +3373,7 @@ void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
   if (control()->is_array(type)) {
     auto elementType = control()->get_element_type(type);
     auto elementMlirType = convertType(elementType);
-    auto resultType = builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+    auto resultType = mlir::cxx::PointerType::get(context_, elementMlirType);
     auto intType = builder_.getIntegerType(32);
 
     int index = 0;
@@ -3433,7 +3433,7 @@ void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
 
       auto memberMlirType = convertType(targetField->type());
       auto memberPtrType =
-          builder_.getType<mlir::cxx::PointerType>(memberMlirType);
+          mlir::cxx::PointerType::get(context_, memberMlirType);
       auto elemLoc = getLocation(expr->firstSourceLocation());
 
       auto memberAddr = mlir::cxx::MemberOp::create(
@@ -3487,7 +3487,7 @@ void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
 
         auto memberMlirType = convertType(field->type());
         auto memberPtrType =
-            builder_.getType<mlir::cxx::PointerType>(memberMlirType);
+            mlir::cxx::PointerType::get(context_, memberMlirType);
         auto elemLoc = getLocation(node->firstSourceLocation());
 
         auto memberAddr = mlir::cxx::MemberOp::create(
@@ -3540,7 +3540,7 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
 
       auto memberMlirType = convertType(field->type());
       auto memberPtrType =
-          builder_.getType<mlir::cxx::PointerType>(memberMlirType);
+          mlir::cxx::PointerType::get(context_, memberMlirType);
       auto elemLoc = getLocation(dot->firstSourceLocation());
 
       currentAddr = mlir::cxx::MemberOp::create(
@@ -3550,8 +3550,7 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
     } else if (auto subscript = ast_cast<SubscriptDesignatorAST>(designator)) {
       auto elementType = control()->get_element_type(currentType);
       auto elementMlirType = convertType(elementType);
-      auto resultType =
-          builder_.getType<mlir::cxx::PointerType>(elementMlirType);
+      auto resultType = mlir::cxx::PointerType::get(context_, elementMlirType);
       auto elemLoc = getLocation(subscript->firstSourceLocation());
 
       auto indexVal = expression(subscript->expression);

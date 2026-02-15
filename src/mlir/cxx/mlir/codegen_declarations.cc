@@ -318,7 +318,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
           auto elementType = refType->elementType();
           auto mlirElementType = gen.convertType(elementType);
           auto tempPtrType =
-              gen.builder_.getType<mlir::cxx::PointerType>(mlirElementType);
+              mlir::cxx::PointerType::get(gen.context_, mlirElementType);
           auto tempAlloca = mlir::cxx::AllocaOp::create(
               gen.builder_, loc, tempPtrType, gen.getAlignment(elementType));
 
@@ -469,7 +469,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto functionSymbol = ast->symbol;
   if (functionSymbol && functionSymbol->templateDeclaration()) return {};
 
-  auto ctx = gen.builder_.getContext();
+  auto ctx = gen.context_;
 
   const auto functionType = type_cast<FunctionType>(functionSymbol->type());
   const auto returnType = functionType->returnType();
@@ -586,7 +586,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto exitValueLoc =
         gen.getLocation(ast->functionBody->firstSourceLocation());
     auto exitValueType = gen.convertType(returnType);
-    auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(exitValueType);
+    auto ptrType = mlir::cxx::PointerType::get(gen.context_, exitValueType);
     exitValue = mlir::cxx::AllocaOp::create(gen.builder_, exitValueLoc, ptrType,
                                             gen.getAlignment(returnType));
 
@@ -624,7 +624,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
     auto thisType = gen.convertType(classSymbol->type());
-    auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(thisType);
+    auto ptrType = mlir::cxx::PointerType::get(gen.context_, thisType);
 
     auto allocaOp = gen.newTemp(gen.control()->add_pointer(classSymbol->type()),
                                 ast->firstSourceLocation());
@@ -656,7 +656,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       if (!arg) continue;
 
       auto type = gen.convertType(arg->type());
-      auto ptrType = gen.builder_.getType<mlir::cxx::PointerType>(type);
+      auto ptrType = mlir::cxx::PointerType::get(gen.context_, type);
 
       auto loc = gen.getLocation(arg->location());
       auto allocaOp = mlir::cxx::AllocaOp::create(
@@ -697,8 +697,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     if (classSymbol) {
       auto layout = classSymbol->layout();
 
-      auto thisPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-          gen.convertType(classSymbol->type()));
+      auto thisPtrType = mlir::cxx::PointerType::get(
+          gen.context_, gen.convertType(classSymbol->type()));
 
       auto thisPtr = mlir::cxx::LoadOp::create(
           gen.builder_, endLoc, thisPtrType, gen.thisValue_,
@@ -719,8 +719,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
           }
         }
 
-        auto basePtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-            gen.convertType(baseClassSymbol->type()));
+        auto basePtrType = mlir::cxx::PointerType::get(
+            gen.context_, gen.convertType(baseClassSymbol->type()));
 
         auto basePtr = mlir::cxx::MemberOp::create(gen.builder_, endLoc,
                                                    basePtrType, thisPtr, index);
@@ -930,8 +930,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
   if (!sourceLoc) sourceLoc = functionSymbol->location();
   auto loc = gen.getLocation(sourceLoc);
 
-  auto thisPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-      gen.convertType(classSymbol->type()));
+  auto thisPtrType = mlir::cxx::PointerType::get(
+      gen.context_, gen.convertType(classSymbol->type()));
 
   auto thisPtr = mlir::cxx::LoadOp::create(
       gen.builder_, loc, thisPtrType, gen.thisValue_,
@@ -961,8 +961,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
         }
       }
 
-      auto basePtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-          gen.convertType(baseClassSymbol->type()));
+      auto basePtrType = mlir::cxx::PointerType::get(
+          gen.context_, gen.convertType(baseClassSymbol->type()));
 
       auto thisBasePtr = mlir::cxx::MemberOp::create(
           gen.builder_, loc, basePtrType, thisPtr, index);
@@ -985,8 +985,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
       }
 
       auto fieldType = field->type();
-      auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-          gen.convertType(fieldType));
+      auto memberPtrType =
+          mlir::cxx::PointerType::get(gen.context_, gen.convertType(fieldType));
 
       auto thisFieldPtr = mlir::cxx::MemberOp::create(
           gen.builder_, loc, memberPtrType, thisPtr, index);
@@ -1040,8 +1040,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
       }
     }
 
-    auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-        gen.convertType(baseClassSymbol->type()));
+    auto memberPtrType = mlir::cxx::PointerType::get(
+        gen.context_, gen.convertType(baseClassSymbol->type()));
 
     auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc,
                                                 memberPtrType, thisPtr, index);
@@ -1060,8 +1060,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
       }
     }
 
-    auto memberPtrType = gen.builder_.getType<mlir::cxx::PointerType>(
-        gen.convertType(field->type()));
+    auto memberPtrType = mlir::cxx::PointerType::get(
+        gen.context_, gen.convertType(field->type()));
 
     auto fieldType = gen.control()->remove_cv(field->type());
     auto classType = type_cast<ClassType>(fieldType);

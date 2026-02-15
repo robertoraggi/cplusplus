@@ -384,6 +384,7 @@ class Codegen {
   [[nodiscard]] auto getOrCreateDIScope(Symbol* symbol)
       -> mlir::LLVM::DIScopeAttr;
 
+  mlir::MLIRContext* context_;
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp function_;

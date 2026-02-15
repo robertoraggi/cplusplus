@@ -114,7 +114,7 @@ struct Codegen::ConvertDebugType {
                      const Type* type = nullptr) -> mlir::LLVM::DITypeAttr;
 
   [[nodiscard]] auto context() const -> mlir::MLIRContext* {
-    return gen.builder_.getContext();
+    return gen.context_;
   }
 };
 
