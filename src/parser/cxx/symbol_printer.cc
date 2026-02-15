@@ -224,6 +224,9 @@ struct DumpSymbols {
       out << std::format("{} {}", classKey, to_string(symbol->name()));
       if (symbol->isFriend()) out << " friend";
       if (symbol->isHidden()) out << " hidden";
+      if (symbol->isFinal()) out << " final";
+      if (symbol->isPolymorphic()) out << " polymorphic";
+      if (symbol->isAbstract()) out << " abstract";
       out << "\n";
     }
     for (auto baseClass : symbol->baseClasses()) {
@@ -306,6 +309,9 @@ struct DumpSymbols {
     if (symbol->isConsteval()) out << " consteval";
     if (symbol->isInline()) out << " inline";
     if (symbol->isVirtual()) out << " virtual";
+    if (symbol->isPure()) out << " pure";
+    if (symbol->isOverride()) out << " override";
+    if (symbol->isFinal()) out << " final";
     if (symbol->isExplicit()) out << " explicit";
     if (symbol->isDeleted()) out << " deleted";
     if (symbol->isDefaulted()) out << " defaulted";

@@ -400,6 +400,7 @@ class Codegen {
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
   std::vector<FunctionSymbol*> pendingFunctions_;
   std::unordered_set<FunctionSymbol*> enqueuedFunctions_;
+  std::unordered_set<ClassSymbol*> emittedVTables_;
   std::unordered_map<VariableSymbol*, mlir::cxx::GlobalOp> globalOps_;
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;

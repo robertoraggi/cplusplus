@@ -783,6 +783,9 @@ void Binder::complete(ClassSpecifierAST* ast) {
     if (!status.has_value()) {
       error(ast->symbol->location(), status.error());
     }
+
+    // Compute cached polymorphic flags on the class symbol.
+    computeClassFlags(ast->symbol);
   }
 
   ast->symbol->setComplete(true);
@@ -975,6 +978,15 @@ void Binder::bind(BaseSpecifierAST* ast) {
             "base class specifier must be a class");
     }
     return;
+  }
+
+  // Check if the base class is final
+  if (auto baseClass = symbol_cast<ClassSymbol>(symbol)) {
+    if (baseClass->isFinal()) {
+      error(ast->unqualifiedId->firstSourceLocation(),
+            std::format("cannot derive from 'final' class '{}'",
+                        to_string(baseClass->name())));
+    }
   }
 
   auto location = ast->unqualifiedId->firstSourceLocation();
@@ -1387,6 +1399,114 @@ void applyDefaultArguments(
 
 }  // namespace
 
+void Binder::computeClassFlags(ClassSymbol* classSymbol) {
+  // Compute isPolymorphic: class has virtual functions or a base is polymorphic
+  bool polymorphic = false;
+  for (auto fn : classSymbol->members() | views::virtual_functions) {
+    (void)fn;
+    polymorphic = true;
+    break;
+  }
+  if (!polymorphic) {
+    for (auto base : classSymbol->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (baseClass && baseClass->isPolymorphic()) {
+        polymorphic = true;
+        break;
+      }
+    }
+  }
+  classSymbol->setPolymorphic(polymorphic);
+
+  bool abstract = false;
+
+  // Check own pure virtuals first
+  for (auto fn : classSymbol->members() | views::virtual_functions) {
+    if (fn->isPure()) {
+      abstract = true;
+      break;
+    }
+  }
+
+  if (!abstract) {
+    // Helper: check if classSymbol provides a non-pure override of fn
+    auto overridesInClass = [&](FunctionSymbol* fn) -> bool {
+      for (auto member : classSymbol->members() | views::member_functions) {
+        if (fn->isDestructor() && member->isDestructor())
+          return !member->isPure();
+        if (fn->name() == member->name() &&
+            control()->is_same(fn->type(), member->type()))
+          return !member->isPure();
+      }
+      return false;
+    };
+
+    for (auto base : classSymbol->baseClasses()) {
+      if (abstract) break;
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass || !baseClass->isAbstract()) continue;
+
+      // Check pure virtuals declared in this abstract base
+      for (auto fn : baseClass->members() | views::virtual_functions) {
+        if (!fn->isPure()) continue;
+        if (!overridesInClass(fn)) {
+          abstract = true;
+          break;
+        }
+      }
+
+      if (!abstract) {
+        // Walk up through the base's abstract ancestors
+        std::vector<ClassSymbol*> worklist;
+        std::unordered_set<ClassSymbol*> visitedAncestors;
+        for (auto bb : baseClass->baseClasses()) {
+          auto bbc = symbol_cast<ClassSymbol>(bb->symbol());
+          if (bbc && bbc->isAbstract() && visitedAncestors.insert(bbc).second)
+            worklist.push_back(bbc);
+        }
+        while (!worklist.empty() && !abstract) {
+          auto ancestor = worklist.back();
+          worklist.pop_back();
+          for (auto fn : ancestor->members() | views::virtual_functions) {
+            if (!fn->isPure()) continue;
+            // Check if baseClass or this class overrides it
+            bool resolved = false;
+            for (auto m : baseClass->members() | views::member_functions) {
+              if (fn->isDestructor() && m->isDestructor()) {
+                resolved = !m->isPure();
+                break;
+              }
+              if (fn->name() == m->name() &&
+                  control()->is_same(fn->type(), m->type())) {
+                resolved = !m->isPure();
+                break;
+              }
+            }
+            if (!resolved) resolved = overridesInClass(fn);
+            if (!resolved) {
+              abstract = true;
+              break;
+            }
+          }
+          if (!abstract) {
+            for (auto ab : ancestor->baseClasses()) {
+              auto abc = symbol_cast<ClassSymbol>(ab->symbol());
+              if (abc && abc->isAbstract() &&
+                  visitedAncestors.insert(abc).second)
+                worklist.push_back(abc);
+            }
+          }
+        }
+      }
+    }
+  }
+  classSymbol->setAbstract(abstract);
+
+  // Compute hasVirtualDestructor
+  auto dtor = classSymbol->destructor();
+  classSymbol->setHasVirtualDestructor(dtor && dtor->isVirtual());
+}
+
 void Binder::mergeDefaultArguments(FunctionSymbol* functionSymbol,
                                    DeclaratorAST* declarator) {
   if (!functionSymbol) return;
@@ -1566,31 +1686,97 @@ struct [[nodiscard]] Binder::DeclareFunction {
     functionSymbol->setLanguageLinkage(binder.languageLinkage_);
   }
 
-  void checkVirtualSpecifier() {
-    // todo: find the shadowed function and check if it's virtual,
-    // if so this is also virtual
+  auto findOverriddenFunction(ClassSymbol* cls, FunctionSymbol* fn)
+      -> FunctionSymbol* {
+    std::unordered_set<ClassSymbol*> visited;
+    return findOverriddenFunctionImpl(cls, fn, visited);
+  }
 
-    if (functionDeclarator->isOverride) {
-      functionSymbol->setVirtual(true);
+  auto findOverriddenFunctionImpl(ClassSymbol* cls, FunctionSymbol* fn,
+                                  std::unordered_set<ClassSymbol*>& visited)
+      -> FunctionSymbol* {
+    for (auto base : cls->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass || !visited.insert(baseClass).second) continue;
+
+      for (auto member : baseClass->members() | views::virtual_functions) {
+        if (fn->isDestructor() && member->isDestructor()) return member;
+
+        // Non-destructors: match by name and signature
+        if (fn->name() == member->name() &&
+            control()->is_same(fn->type(), member->type())) {
+          return member;
+        }
+      }
+
+      if (auto result = findOverriddenFunctionImpl(baseClass, fn, visited))
+        return result;
     }
+    return nullptr;
+  }
 
+  void checkVirtualSpecifier() {
+    // Propagate override/final from AST to symbol
+    if (functionDeclarator->isOverride) functionSymbol->setOverride(true);
+    if (functionDeclarator->isFinal) functionSymbol->setFinal(true);
+
+    // Pure specifier (= 0) implies virtual
     if (functionDeclarator->isPure) {
       functionSymbol->setPure(true);
       functionSymbol->setVirtual(true);
     }
 
-    if (!functionSymbol->isVirtual() && functionSymbol->isDestructor()) {
-      if (auto enclosingClass = symbol_cast<ClassSymbol>(scope())) {
-        for (auto base : enclosingClass->baseClasses()) {
-          auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-          if (!baseClass) continue;
-          auto baseDtor = baseClass->destructor();
-          if (baseDtor && baseDtor->isVirtual()) {
-            functionSymbol->setVirtual(true);
-            break;
-          }
-        }
+    auto enclosingClass = symbol_cast<ClassSymbol>(scope());
+
+    // virtual/override/final/pure on non-member functions is invalid
+    if (!enclosingClass) {
+      if (functionSymbol->isVirtual()) {
+        binder.error(functionSymbol->location(),
+                     "'virtual' can only appear on non-static member "
+                     "functions");
+        functionSymbol->setVirtual(false);
       }
+      if (functionSymbol->isOverride()) {
+        binder.error(functionSymbol->location(),
+                     "'override' can only appear on non-static member "
+                     "functions");
+      }
+      if (functionSymbol->isFinal()) {
+        binder.error(functionSymbol->location(),
+                     "'final' can only appear on non-static member functions");
+      }
+      return;
+    }
+
+    // Constructors cannot be virtual
+    if (functionSymbol->isConstructor()) return;
+
+    // Look up the overridden virtual function in base classes
+    auto overridden = findOverriddenFunction(enclosingClass, functionSymbol);
+
+    if (overridden) {
+      functionSymbol->setVirtual(true);
+
+      // Check if the base function is final
+      if (overridden->isFinal()) {
+        binder.error(
+            functionSymbol->location(),
+            std::format("declaration of '{}' overrides a 'final' function",
+                        to_string(functionSymbol->name())));
+      }
+    }
+
+    if (functionSymbol->isOverride() && !overridden) {
+      binder.error(functionSymbol->location(),
+                   std::format("'{}' marked 'override' but does not override "
+                               "any member function",
+                               to_string(functionSymbol->name())));
+    }
+
+    if (functionSymbol->isFinal() && !functionSymbol->isVirtual()) {
+      binder.error(functionSymbol->location(),
+                   std::format("'{}' marked 'final' but is not virtual",
+                               to_string(functionSymbol->name())));
     }
   }
 
@@ -1610,6 +1796,9 @@ struct [[nodiscard]] Binder::DeclareFunction {
     if (canonical->isInline()) functionSymbol->setInline(true);
     if (canonical->isVirtual()) functionSymbol->setVirtual(true);
     if (canonical->isExplicit()) functionSymbol->setExplicit(true);
+    if (canonical->isOverride()) functionSymbol->setOverride(true);
+    if (canonical->isFinal()) functionSymbol->setFinal(true);
+    if (canonical->isPure()) functionSymbol->setPure(true);
     if (canonical->hasCLinkage())
       functionSymbol->setLanguageLinkage(LanguageKind::kC);
 

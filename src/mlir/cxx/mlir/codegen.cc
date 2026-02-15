@@ -870,6 +870,8 @@ void Codegen::generateVTable(ClassSymbol* classSymbol) {
     return;
   }
 
+  if (!emittedVTables_.insert(classSymbol).second) return;
+
   auto vtableSlots = computeVtableSlots(classSymbol);
 
   ExternalNameEncoder encoder;
