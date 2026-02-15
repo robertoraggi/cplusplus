@@ -430,7 +430,8 @@ class ReturnOpLowering : public OpConversionPattern<cxx::ReturnOp> {
   auto matchAndRewrite(cxx::ReturnOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
-    rewriter.replaceOpWithNewOp<LLVM::ReturnOp>(op, adaptor.getOperands());
+    rewriter.replaceOp(op, LLVM::ReturnOp::create(rewriter, op.getLoc(),
+                                                  adaptor.getOperands()));
     return success();
   }
 };
@@ -608,8 +609,9 @@ class AddressOfOpLowering : public OpConversionPattern<cxx::AddressOfOp> {
                                          "failed to convert address of type");
     }
 
-    rewriter.replaceOpWithNewOp<LLVM::AddressOfOp>(op, resultType,
-                                                   adaptor.getSymName());
+    rewriter.replaceOp(
+        op, LLVM::AddressOfOp::create(rewriter, op.getLoc(), resultType,
+                                      adaptor.getSymName()));
 
     return success();
   }
@@ -651,8 +653,10 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
         typeConverter->convertType(rewriter.getIndexType()),
         rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
 
-    auto x = rewriter.replaceOpWithNewOp<LLVM::AllocaOp>(
-        op, resultType, elementType, size, op.getAlignment());
+    auto x = LLVM::AllocaOp::create(rewriter, op.getLoc(), resultType,
+                                    elementType, size, op.getAlignment());
+
+    rewriter.replaceOp(op, x);
 
     if (auto diLocal =
             op->getAttrOfType<LLVM::DILocalVariableAttr>("cxx.di_local")) {
@@ -688,10 +692,12 @@ class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
       auto i8Type = getBoolMemoryType(context);
       auto loaded = LLVM::LoadOp::create(rewriter, op.getLoc(), i8Type,
                                          adaptor.getAddr(), op.getAlignment());
-      rewriter.replaceOpWithNewOp<LLVM::TruncOp>(op, resultType, loaded);
+      rewriter.replaceOp(
+          op, LLVM::TruncOp::create(rewriter, op.getLoc(), resultType, loaded));
     } else {
-      rewriter.replaceOpWithNewOp<LLVM::LoadOp>(
-          op, resultType, adaptor.getAddr(), op.getAlignment());
+      rewriter.replaceOp(
+          op, LLVM::LoadOp::create(rewriter, op.getLoc(), resultType,
+                                   adaptor.getAddr(), op.getAlignment()));
     }
 
     return success();
@@ -726,11 +732,13 @@ class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
       auto i8Type = getBoolMemoryType(context);
       auto extended = LLVM::ZExtOp::create(rewriter, op.getLoc(), i8Type,
                                            adaptor.getValue());
-      rewriter.replaceOpWithNewOp<LLVM::StoreOp>(
-          op, extended, adaptor.getAddr(), op.getAlignment());
+      rewriter.replaceOp(
+          op, LLVM::StoreOp::create(rewriter, op.getLoc(), extended,
+                                    adaptor.getAddr(), op.getAlignment()));
     } else {
-      rewriter.replaceOpWithNewOp<LLVM::StoreOp>(
-          op, adaptor.getValue(), adaptor.getAddr(), op.getAlignment());
+      rewriter.replaceOp(
+          op, LLVM::StoreOp::create(rewriter, op.getLoc(), adaptor.getValue(),
+                                    adaptor.getAddr(), op.getAlignment()));
     }
 
     return success();
@@ -763,9 +771,10 @@ class MemSetZeroOpLowering : public OpConversionPattern<cxx::MemSetZeroOp> {
         LLVM::ConstantOp::create(rewriter, loc, rewriter.getI64Type(),
                                  rewriter.getI64IntegerAttr(op.getSize()));
 
-    rewriter.replaceOpWithNewOp<LLVM::MemsetOp>(op, adaptor.getAddr(), zeroVal,
-                                                sizeVal,
-                                                /*isVolatile=*/false);
+    rewriter.replaceOp(
+        op, LLVM::MemsetOp::create(rewriter, op.getLoc(), adaptor.getAddr(),
+                                   zeroVal, sizeVal,
+                                   /*isVolatile=*/false));
 
     return success();
   }
@@ -807,8 +816,9 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
     auto resultType = LLVM::LLVMPointerType::get(context);
     auto elementType = typeConverter->convertType(ptrType.getElementType());
 
-    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
-                                             adaptor.getBase(), indices);
+    rewriter.replaceOp(
+        op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
+                                adaptor.getBase(), indices));
 
     return success();
   }
@@ -849,8 +859,9 @@ class PtrAddOpLowering : public OpConversionPattern<cxx::PtrAddOp> {
 
     indices.push_back(adaptor.getOffset());
 
-    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
-                                             adaptor.getBase(), indices);
+    rewriter.replaceOp(
+        op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
+                                adaptor.getBase(), indices));
 
     return success();
   }
@@ -899,7 +910,8 @@ class PtrDiffOpLowering : public OpConversionPattern<cxx::PtrDiffOp> {
     auto rhs =
         LLVM::PtrToIntOp::create(rewriter, loc, resultType, adaptor.getRhs());
 
-    rewriter.replaceOpWithNewOp<LLVM::SubOp>(op, resultType, lhs, rhs);
+    rewriter.replaceOp(
+        op, LLVM::SubOp::create(rewriter, op.getLoc(), resultType, lhs, rhs));
 
     return success();
   }
@@ -944,8 +956,9 @@ class MemberOpLowering : public OpConversionPattern<cxx::MemberOp> {
     indices.push_back(0);
     indices.push_back(memberIndex);
 
-    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
-                                             adaptor.getBase(), indices);
+    rewriter.replaceOp(
+        op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
+                                adaptor.getBase(), indices));
 
     return success();
   }
@@ -971,7 +984,8 @@ class NullPtrConstantOpLowering
           op, "failed to convert nullptr constant type");
     }
 
-    rewriter.replaceOpWithNewOp<LLVM::ZeroOp>(op, resultType);
+    rewriter.replaceOp(op,
+                       LLVM::ZeroOp::create(rewriter, op.getLoc(), resultType));
 
     return success();
   }
@@ -1009,8 +1023,9 @@ class ArrayToPointerOpLowering
     auto resultType = LLVM::LLVMPointerType::get(context);
     auto elementType = typeConverter->convertType(ptrType.getElementType());
 
-    rewriter.replaceOpWithNewOp<LLVM::GEPOp>(op, resultType, elementType,
-                                             adaptor.getValue(), indices);
+    rewriter.replaceOp(
+        op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
+                                adaptor.getValue(), indices));
 
     return success();
   }
@@ -1031,8 +1046,9 @@ class PtrToIntOpLowering : public OpConversionPattern<cxx::PtrToIntOp> {
                                          "failed to convert ptr to int type");
     }
 
-    rewriter.replaceOpWithNewOp<LLVM::PtrToIntOp>(op, resultType,
-                                                  adaptor.getValue());
+    rewriter.replaceOp(
+        op, LLVM::PtrToIntOp::create(rewriter, op.getLoc(), resultType,
+                                     adaptor.getValue()));
 
     return success();
   }
