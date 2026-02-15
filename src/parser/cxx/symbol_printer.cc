@@ -145,6 +145,20 @@ struct DumpSymbols {
     depth -= 2;
   }
 
+  template <typename T>
+  void dumpRedeclarations(T* symbol) {
+    auto& redecls = symbol->redeclarations();
+    if (redecls.empty()) return;
+    ++depth;
+    indent();
+    out << "[redeclarations]\n";
+    ++depth;
+    for (auto redecl : redecls) {
+      visit(*this, redecl);
+    }
+    depth -= 2;
+  }
+
   void indent() { out << std::format("{:{}}", "", depth * 2); }
 
   void operator()(NamespaceSymbol* symbol) {
@@ -228,6 +242,7 @@ struct DumpSymbols {
     }
     dumpScope(symbol);
     dumpSpecializations(symbol->specializations());
+    dumpRedeclarations(symbol);
   }
 
   void operator()(ConceptSymbol* symbol) {
@@ -271,45 +286,39 @@ struct DumpSymbols {
   }
 
   void operator()(FunctionSymbol* symbol) {
-    // If this canonical symbol has a separate definition, use the definition
-    // for printing scope contents (parameters, blocks, etc.)
-    auto effective = symbol;
-    if (auto def = symbol->definition()) {
-      effective = def;
-    }
-
     indent();
 
-    if (effective->templateParameters()) {
+    if (symbol->templateParameters()) {
       out << std::format("template ");
     }
 
-    if (effective->isConstructor()) {
+    if (symbol->isConstructor()) {
       out << std::format("constructor");
     } else {
       out << std::format("function");
     }
 
-    if (effective->isStatic()) out << " static";
-    if (effective->isExtern()) out << " extern";
-    if (effective->isFriend()) out << " friend";
-    if (effective->isHidden()) out << " hidden";
-    if (effective->isConstexpr()) out << " constexpr";
-    if (effective->isConsteval()) out << " consteval";
-    if (effective->isInline()) out << " inline";
-    if (effective->isVirtual()) out << " virtual";
-    if (effective->isExplicit()) out << " explicit";
-    if (effective->isDeleted()) out << " deleted";
-    if (effective->isDefaulted()) out << " defaulted";
+    if (symbol->isStatic()) out << " static";
+    if (symbol->isExtern()) out << " extern";
+    if (symbol->isFriend()) out << " friend";
+    if (symbol->isHidden()) out << " hidden";
+    if (symbol->isConstexpr()) out << " constexpr";
+    if (symbol->isConsteval()) out << " consteval";
+    if (symbol->isInline()) out << " inline";
+    if (symbol->isVirtual()) out << " virtual";
+    if (symbol->isExplicit()) out << " explicit";
+    if (symbol->isDeleted()) out << " deleted";
+    if (symbol->isDefaulted()) out << " defaulted";
+    if (symbol->hasCLinkage()) out << " extern \"C\"";
 
-    out << std::format(" {}\n",
-                       to_string(effective->type(), effective->name()));
+    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
 
-    if (effective->templateParameters()) {
-      dumpScope(effective->templateParameters());
+    if (symbol->templateParameters()) {
+      dumpScope(symbol->templateParameters());
     }
 
-    dumpScope(effective);
+    dumpScope(symbol);
+    dumpRedeclarations(symbol);
   }
 
   void operator()(LambdaSymbol* symbol) {
@@ -355,6 +364,7 @@ struct DumpSymbols {
       out << std::format("typealias {}\n",
                          to_string(symbol->type(), symbol->name()));
     }
+    dumpRedeclarations(symbol);
   }
 
   void operator()(VariableSymbol* symbol) {
@@ -390,6 +400,7 @@ struct DumpSymbols {
     }
 
     dumpSpecializations(symbol->specializations());
+    dumpRedeclarations(symbol);
   }
 
   void operator()(FieldSymbol* symbol) {

@@ -25,11 +25,15 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:      constructor defaulted void iterator(::list::iterator&&)
 // CHECK-NEXT:      function defaulted void ~iterator()
 // CHECK-NEXT:    function ::list::iterator begin()
-// CHECK-NEXT:      block
-// CHECK-NEXT:        variable static constexpr const char __func__[6]
+// CHECK-NEXT:      [redeclarations]
+// CHECK-NEXT:        function ::list::iterator begin()
+// CHECK-NEXT:          block
+// CHECK-NEXT:            variable static constexpr const char __func__[6]
 // CHECK-NEXT:    function int at(int)
-// CHECK-NEXT:      parameters
-// CHECK-NEXT:        parameter int
-// CHECK-NEXT:        block
-// CHECK-NEXT:          variable static constexpr const char __func__[3]
+// CHECK-NEXT:      [redeclarations]
+// CHECK-NEXT:        function int at(int)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter int
+// CHECK-NEXT:            block
+// CHECK-NEXT:              variable static constexpr const char __func__[3]
 // CHECK-NEXT:    function defaulted void ~list()
