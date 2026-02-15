@@ -208,6 +208,8 @@ struct DumpSymbols {
       out << std::format(">\n");
     } else {
       out << std::format("{} {}", classKey, to_string(symbol->name()));
+      if (symbol->isFriend()) out << " friend";
+      if (symbol->isHidden()) out << " hidden";
       out << "\n";
     }
     for (auto baseClass : symbol->baseClasses()) {
@@ -291,6 +293,7 @@ struct DumpSymbols {
     if (effective->isStatic()) out << " static";
     if (effective->isExtern()) out << " extern";
     if (effective->isFriend()) out << " friend";
+    if (effective->isHidden()) out << " hidden";
     if (effective->isConstexpr()) out << " constexpr";
     if (effective->isConsteval()) out << " consteval";
     if (effective->isInline()) out << " inline";

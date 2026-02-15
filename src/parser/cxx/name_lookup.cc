@@ -279,6 +279,9 @@ auto Lookup::lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
   }
 
   for (auto candidate : scope->find(id)) {
+    // Skip hidden friend declarations — they are only visible via ADL.
+    if (candidate->isHidden()) continue;
+
     if (auto u = symbol_cast<UsingDeclarationSymbol>(candidate);
         u && u->target()) {
       candidate = u->target();
@@ -339,15 +342,6 @@ auto Lookup::argumentDependentLookup(
         addCandidate(func);
       } else if (auto ovl = symbol_cast<OverloadSetSymbol>(symbol)) {
         for (auto f : ovl->functions()) addCandidate(f);
-      }
-    }
-  }
-
-  // Also search friend functions declared in associated classes
-  for (auto cls : classes) {
-    for (auto symbol : cls->find(name)) {
-      if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
-        if (func->isFriend()) addCandidate(func);
       }
     }
   }

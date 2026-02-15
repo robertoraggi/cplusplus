@@ -223,6 +223,9 @@ class Symbol {
 
   [[nodiscard]] auto next() const -> Symbol*;
 
+  [[nodiscard]] auto isHidden() const -> bool { return isHidden_; }
+  void setHidden(bool isHidden) { isHidden_ = isHidden; }
+
   [[nodiscard]] virtual auto canonical() const -> Symbol* {
     return const_cast<Symbol*>(this);
   }
@@ -251,6 +254,7 @@ class Symbol {
   ScopeSymbol* parent_ = nullptr;
   Symbol* link_ = nullptr;
   SourceLocation location_;
+  bool isHidden_ = false;
 };
 
 class ScopeSymbol : public Symbol {
@@ -437,6 +441,9 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto isComplete() const -> bool;
   void setComplete(bool isComplete);
 
+  [[nodiscard]] auto isFriend() const -> bool;
+  void setFriend(bool isFriend);
+
   [[nodiscard]] auto sizeInBytes() const -> int;
   void setSizeInBytes(int sizeInBytes);
 
@@ -473,6 +480,7 @@ class ClassSymbol final : public ScopeSymbol,
       std::uint32_t isUnion_ : 1;
       std::uint32_t isFinal_ : 1;
       std::uint32_t isComplete_ : 1;
+      std::uint32_t isFriend_ : 1;
     };
   };
 };
