@@ -237,6 +237,7 @@ struct SourceFile {
   int headerProtectionLevel = 0;
   int id = 0;
   bool pragmaOnceProtected = false;
+  bool isSystemHeader = false;
 
   SourceFile() noexcept = default;
   SourceFile(const SourceFile&) = default;
@@ -465,8 +466,11 @@ struct Preprocessor::Private {
   CommentHandler* commentHandler_ = nullptr;
   LanguageKind language_ = LanguageKind::kCXX;
   bool canResolveFiles_ = true;
+  bool disableCurrentDirSearch_ = false;
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
+  std::vector<std::string> userIncludePaths_;
+  std::vector<std::pair<std::string, bool>> includedFiles_;
   std::unordered_map<std::string, Macro, TransparentStringHash,
                      TransparentStringEqual>
       macros_;
@@ -505,6 +509,11 @@ struct Preprocessor::Private {
 
   std::vector<TokVector> expansionPool_;
 
+  struct ResolveResult {
+    std::string fileName;
+    bool isSystemHeader = false;
+  };
+
   struct IncludeCacheKey {
     bool isQuoted = false;
     bool isIncludeNext = false;
@@ -514,7 +523,7 @@ struct Preprocessor::Private {
     auto operator<=>(const IncludeCacheKey& other) const = default;
   };
 
-  mutable std::map<IncludeCacheKey, std::optional<std::string>> resolveCache_;
+  mutable std::map<IncludeCacheKey, std::optional<ResolveResult>> resolveCache_;
 
   Private();
 
@@ -757,12 +766,28 @@ struct Preprocessor::Private {
       -> bool;
 
   [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
-      -> std::optional<std::string>;
+      -> std::optional<ResolveResult>;
 
   [[nodiscard]] auto resolveUncached(const Include& include, bool isIncludeNext,
                                      const std::string& headerName,
                                      bool isQuoted) const
-      -> std::optional<std::string>;
+      -> std::optional<ResolveResult>;
+
+  template <typename TryCandidate>
+  [[nodiscard]] auto resolveNormal(const TryCandidate& tryCandidate,
+                                   const std::string& curDir,
+                                   bool isQuoted) const
+      -> std::optional<ResolveResult>;
+
+  template <typename TryCandidate>
+  [[nodiscard]] auto resolveNext(const TryCandidate& tryCandidate,
+                                 const std::string& curDir,
+                                 bool isQuoted) const
+      -> std::optional<ResolveResult>;
+
+  [[nodiscard]] auto buildSearchDirs(const std::string& curDir,
+                                     bool isQuoted) const
+      -> std::vector<std::pair<const std::string*, bool>>;
 
   [[nodiscard]] auto isDefined(std::string_view id) const -> bool {
     return macros_.contains(id);
@@ -2513,7 +2538,7 @@ auto Preprocessor::Private::checkHeaderProtection(const TokVector& tokens) const
 
 auto Preprocessor::Private::resolve(const Include& include,
                                     bool isIncludeNext) const
-    -> std::optional<std::string> {
+    -> std::optional<ResolveResult> {
   if (!canResolveFiles_) return std::nullopt;
 
   const auto headerName = getHeaderName(include);
@@ -2540,59 +2565,76 @@ auto Preprocessor::Private::resolveUncached(const Include& include,
                                             bool isIncludeNext,
                                             const std::string& headerName,
                                             bool isQuoted) const
-    -> std::optional<std::string> {
+    -> std::optional<ResolveResult> {
   auto tryCandidate =
       [&](const std::string& dir) -> std::optional<std::string> {
     auto candidate = fs::path(dir) / headerName;
-    if (fileExists(candidate)) {
-      return candidate.string();
-    }
+    if (fileExists(candidate)) return candidate.string();
     return std::nullopt;
   };
 
   auto curDir = currentPath_.string();
 
   if (!isIncludeNext) {
-    if (isQuoted) {
-      if (!curDir.empty()) {
-        if (auto r = tryCandidate(curDir)) return r;
-      }
-      for (auto it = quoteIncludePaths_.rbegin();
-           it != quoteIncludePaths_.rend(); ++it) {
-        if (auto r = tryCandidate(*it)) return r;
-      }
-    }
-    for (auto it = systemIncludePaths_.rbegin();
-         it != systemIncludePaths_.rend(); ++it) {
-      if (auto r = tryCandidate(*it)) return r;
-    }
+    if (auto r = resolveNormal(tryCandidate, curDir, isQuoted)) return r;
   } else {
-    std::vector<const std::string*> searchDirs;
-    if (isQuoted) {
-      if (!curDir.empty()) searchDirs.push_back(&curDir);
-      for (auto it = quoteIncludePaths_.rbegin();
-           it != quoteIncludePaths_.rend(); ++it) {
-        searchDirs.push_back(&*it);
-      }
-    }
-    for (auto it = systemIncludePaths_.rbegin();
-         it != systemIncludePaths_.rend(); ++it) {
-      searchDirs.push_back(&*it);
-    }
+    if (auto r = resolveNext(tryCandidate, curDir, isQuoted)) return r;
+  }
 
-    std::size_t startIndex = 0;
-    for (std::size_t i = 0; i < searchDirs.size(); ++i) {
-      if (*searchDirs[i] == curDir) {
-        startIndex = i + 1;
-        break;
-      }
-    }
+  return std::nullopt;
+}
 
-    for (std::size_t i = startIndex; i < searchDirs.size(); ++i) {
-      if (auto r = tryCandidate(*searchDirs[i])) return r;
+auto Preprocessor::Private::buildSearchDirs(const std::string& curDir,
+                                            bool isQuoted) const
+    -> std::vector<std::pair<const std::string*, bool>> {
+  std::vector<std::pair<const std::string*, bool>> dirs;
+  if (isQuoted) {
+    if (!disableCurrentDirSearch_ && !curDir.empty())
+      dirs.push_back({&curDir, false});
+    for (auto it = quoteIncludePaths_.rbegin();
+         it != quoteIncludePaths_.rend(); ++it)
+      dirs.push_back({&*it, false});
+  }
+  for (auto it = userIncludePaths_.rbegin();
+       it != userIncludePaths_.rend(); ++it)
+    dirs.push_back({&*it, false});
+  for (auto it = systemIncludePaths_.rbegin();
+       it != systemIncludePaths_.rend(); ++it)
+    dirs.push_back({&*it, true});
+  return dirs;
+}
+
+template <typename TryCandidate>
+auto Preprocessor::Private::resolveNormal(const TryCandidate& tryCandidate,
+                                          const std::string& curDir,
+                                          bool isQuoted) const
+    -> std::optional<ResolveResult> {
+  for (auto& [dir, isSys] : buildSearchDirs(curDir, isQuoted)) {
+    if (auto r = tryCandidate(*dir))
+      return ResolveResult{std::move(*r), isSys};
+  }
+  return std::nullopt;
+}
+
+template <typename TryCandidate>
+auto Preprocessor::Private::resolveNext(const TryCandidate& tryCandidate,
+                                        const std::string& curDir,
+                                        bool isQuoted) const
+    -> std::optional<ResolveResult> {
+  auto dirs = buildSearchDirs(curDir, isQuoted);
+
+  std::size_t startIndex = 0;
+  for (std::size_t i = 0; i < dirs.size(); ++i) {
+    if (*dirs[i].first == curDir) {
+      startIndex = i + 1;
+      break;
     }
   }
 
+  for (std::size_t i = startIndex; i < dirs.size(); ++i) {
+    if (auto r = tryCandidate(*dirs[i].first))
+      return ResolveResult{std::move(*r), dirs[i].second};
+  }
   return std::nullopt;
 }
 
@@ -2942,54 +2984,91 @@ auto Preprocessor::continuePreprocessing(std::vector<Token>& tokens)
 
 void Preprocessor::getPreprocessedText(const std::vector<Token>& tokens,
                                        std::ostream& out) const {
-  std::size_t index = 1;
-  std::uint32_t lastFileId = std::numeric_limits<std::uint32_t>::max();
+  struct FileEntry {
+    std::uint32_t fileId;
+    bool isSystemHeader;
+  };
 
+  std::vector<FileEntry> fileStack;
+  if (d->mainSourceFileId_) {
+    fileStack.push_back(
+        {static_cast<std::uint32_t>(d->mainSourceFileId_), false});
+  }
+  std::uint32_t lastFileId = std::numeric_limits<std::uint32_t>::max();
   bool atStartOfLine = true;
 
-  while (index + 1 < tokens.size()) {
-    const auto& token = tokens[index++];
+  auto emitLineMarker = [&](const Token& token, std::uint32_t fileId) {
+    if (lastFileId != std::numeric_limits<std::uint32_t>::max()) out << '\n';
+    const auto pos = tokenStartPosition(token);
+    const bool isSys = isSystemHeader(fileId);
+    std::string flags;
 
-    if (d->builtinsFileId_ && token.fileId() == d->builtinsFileId_) continue;
-
-    if (const auto fileId = token.fileId();
-        !d->omitLineMarkers_ && fileId && fileId != lastFileId) {
-      if (lastFileId != std::numeric_limits<std::uint32_t>::max()) {
-        out << '\n';
+    if (fileStack.empty() || fileStack.back().fileId != fileId) {
+      bool returning = false;
+      for (int i = static_cast<int>(fileStack.size()) - 1; i >= 0; --i) {
+        if (fileStack[i].fileId == fileId) {
+          fileStack.resize(i + 1);
+          returning = true;
+          break;
+        }
       }
-      const auto pos = tokenStartPosition(token);
-      out << std::format("# {} \"{}\"\n", pos.line, pos.fileName);
-      lastFileId = fileId;
-      atStartOfLine = true;
-    } else if (token.startOfLine()) {
+      if (returning) {
+        flags += " 2";
+      } else {
+        flags += " 1";
+        fileStack.push_back({fileId, isSys});
+      }
+    }
+
+    if (isSys) flags += " 3";
+    out << std::format("# {} \"{}\"{}\n", pos.line, pos.fileName, flags);
+    lastFileId = fileId;
+    atStartOfLine = true;
+  };
+
+  auto emitTokenSpacing = [&](const Token& token, std::size_t index,
+                              const std::vector<Token>& toks) {
+    if (token.startOfLine()) {
       atStartOfLine = true;
       out << '\n';
     } else if (token.leadingSpace()) {
       atStartOfLine = false;
       out << ' ';
     } else if (index > 2) {
-      const auto& prevToken = tokens[index - 2];
+      const auto& prevToken = toks[index - 2];
       std::string s = prevToken.spell();
       s += token.spell();
       Lexer lex(s, d->language_);
       lex.next();
-      if (lex.tokenKind() != prevToken.kind()) {
-        out << ' ';
-      } else if (lex.tokenLength() != prevToken.length()) {
+      if (lex.tokenKind() != prevToken.kind() ||
+          lex.tokenLength() != prevToken.length()) {
         out << ' ';
       }
     }
+  };
 
-    if (atStartOfLine) {
-      const auto pos = tokenStartPosition(token);
-      if (pos.column > 0) {
-        for (std::uint32_t i = 0; i < pos.column - 1; ++i) {
-          out << ' ';
-        }
-      }
-      atStartOfLine = false;
+  auto emitColumnPadding = [&](const Token& token) {
+    if (!atStartOfLine) return;
+    const auto pos = tokenStartPosition(token);
+    if (pos.column > 0) {
+      for (std::uint32_t i = 0; i < pos.column - 1; ++i) out << ' ';
+    }
+    atStartOfLine = false;
+  };
+
+  std::size_t index = 1;
+  while (index + 1 < tokens.size()) {
+    const auto& token = tokens[index++];
+    if (d->builtinsFileId_ && token.fileId() == d->builtinsFileId_) continue;
+
+    const auto fileId = token.fileId();
+    if (!d->omitLineMarkers_ && fileId && fileId != lastFileId) {
+      emitLineMarker(token, fileId);
+    } else {
+      emitTokenSpacing(token, index, tokens);
     }
 
+    emitColumnPadding(token);
     out << token.spell();
   }
 
@@ -3001,11 +3080,49 @@ auto Preprocessor::systemIncludePaths() const
   return d->systemIncludePaths_;
 }
 
-void Preprocessor::addSystemIncludePath(std::string path) {
+static void stripTrailingSep(std::string& path) {
   while (path.length() > 1 && path.ends_with(fs::path::preferred_separator)) {
     path.pop_back();
   }
+}
+
+void Preprocessor::addSystemIncludePath(std::string path) {
+  stripTrailingSep(path);
   d->systemIncludePaths_.push_back(std::move(path));
+}
+
+void Preprocessor::addQuoteIncludePath(std::string path) {
+  stripTrailingSep(path);
+  d->quoteIncludePaths_.push_back(std::move(path));
+}
+
+auto Preprocessor::quoteIncludePaths() const
+    -> const std::vector<std::string>& {
+  return d->quoteIncludePaths_;
+}
+
+void Preprocessor::addUserIncludePath(std::string path) {
+  stripTrailingSep(path);
+  d->userIncludePaths_.push_back(std::move(path));
+}
+
+auto Preprocessor::userIncludePaths() const
+    -> const std::vector<std::string>& {
+  return d->userIncludePaths_;
+}
+
+auto Preprocessor::includedFiles() const
+    -> const std::vector<std::pair<std::string, bool>>& {
+  return d->includedFiles_;
+}
+
+auto Preprocessor::isSystemHeader(std::uint32_t sourceFileId) const -> bool {
+  if (sourceFileId == 0 || sourceFileId > d->sourceFiles_.size()) return false;
+  return d->sourceFiles_[sourceFileId - 1]->isSystemHeader;
+}
+
+void Preprocessor::setDisableCurrentDirSearch(bool disable) {
+  d->disableCurrentDirSearch_ = disable;
 }
 
 void Preprocessor::defineMacro(const std::string& name,
@@ -3122,7 +3239,9 @@ auto Preprocessor::getTokenText(const Token& token) const -> std::string_view {
 
 auto Preprocessor::resolve(const Include& include, bool isIncludeNext) const
     -> std::optional<std::string> {
-  return d->resolve(include, isIncludeNext);
+  auto result = d->resolve(include, isIncludeNext);
+  if (!result) return std::nullopt;
+  return result->fileName;
 }
 
 void Preprocessor::requestCodeCompletionAt(std::uint32_t line,
@@ -3131,7 +3250,8 @@ void Preprocessor::requestCodeCompletionAt(std::uint32_t line,
 }
 
 void PendingInclude::resolveWith(
-    std::optional<std::string> resolvedFileName) const {
+    std::optional<std::string> resolvedFileName,
+    bool isSystemHeader) const {
   auto d = preprocessor.d.get();
 
   if (!resolvedFileName.has_value()) {
@@ -3153,6 +3273,7 @@ void PendingInclude::resolveWith(
       PendingFileContent request{
           .preprocessor = preprocessor,
           .fileName = fileName,
+          .isSystemHeader = isSystemHeader,
       };
       return request;
     }
@@ -3174,6 +3295,7 @@ void PendingInclude::resolveWith(
     fileCursor.includeDepth = d->includeDepth_ + 1;
     fileCursor.initFromSourceFile();
     d->cursors_.push_back(std::move(fileCursor));
+    d->includedFiles_.emplace_back(fileName, isSystemHeader);
 
     if (d->willIncludeHeader_) {
       d->willIncludeHeader_(fileName, d->includeDepth_ + 1);
@@ -3197,6 +3319,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
   if (!content.has_value()) return;
 
   auto sourceFile = d->createSourceFile(fileName, std::move(*content));
+  sourceFile->isSystemHeader = isSystemHeader;
 
   sourceFile->pragmaOnceProtected =
       d->checkPragmaOnceProtected(sourceFile->tokens);
@@ -3219,6 +3342,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
   fileCursor.includeDepth = d->includeDepth_ + 1;
   fileCursor.initFromSourceFile();
   d->cursors_.push_back(std::move(fileCursor));
+  d->includedFiles_.emplace_back(fileName, sourceFile->isSystemHeader);
 
   if (d->willIncludeHeader_) {
     d->willIncludeHeader_(fileName, d->includeDepth_ + 1);
@@ -3232,8 +3356,13 @@ void DefaultPreprocessorState::operator()(const ProcessingComplete&) {
 void DefaultPreprocessorState::operator()(const CanContinuePreprocessing&) {}
 
 void DefaultPreprocessorState::operator()(const PendingInclude& status) {
-  auto resolvedInclude = self.resolve(status.include, status.isIncludeNext);
-  status.resolveWith(resolvedInclude);
+  auto d = self.d.get();
+  auto result = d->resolve(status.include, status.isIncludeNext);
+  if (result) {
+    status.resolveWith(result->fileName, result->isSystemHeader);
+  } else {
+    status.resolveWith(std::nullopt);
+  }
 }
 
 void DefaultPreprocessorState::operator()(const PendingHasIncludes& status) {
@@ -3263,5 +3392,9 @@ void DefaultPreprocessorState::operator()(const PendingFileContent& request) {
   in.read(content.data(), size);
   request.setContent(std::move(content));
 }
+
+void DefaultPreprocessorState::operator()(const EnteringFile&) {}
+
+void DefaultPreprocessorState::operator()(const LeavingFile&) {}
 
 }  // namespace cxx

@@ -117,6 +117,18 @@ std::vector<CLIOptionDescr> options{
      "Use <directory> as the root directory for headers and libraries",
      CLIOptionDescrKind::kJoined},
 
+    {"-isysroot", "<directory>",
+     "Set the system root directory (usually used for SDK paths)",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-isystem", "<directory>",
+     "Add directory to SYSTEM include search path",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-iquote", "<directory>",
+     "Add directory to QUOTE include search path",
+     CLIOptionDescrKind::kSeparated},
+
     {"-E", "Preprocess only; do not compile, assemble or link", &CLI::opt_E},
 
     {"-Eonly", "Just run preprocessor, no output (for timings)",
@@ -212,6 +224,33 @@ std::vector<CLIOptionDescr> options{
     {"-j", "<n>", "Run <n> jobs in parallel.", CLIOptionDescrKind::kSeparated},
 
     {"-v", "Show commands to run and use verbose output", &CLI::opt_v},
+
+    {"-M", "Like -MD, but also implies -E and writes to stdout by default",
+     &CLI::opt_M},
+
+    {"-MD", "Write a depfile containing user and system headers",
+     &CLI::opt_MD},
+
+    {"-MM",
+     "Like -MMD, but also implies -E and writes to stdout by default",
+     &CLI::opt_MM},
+
+    {"-MMD", "Write a depfile containing user headers", &CLI::opt_MMD},
+
+    {"-MF", "<file>",
+     "Write depfile output from -MMD, -MD, -MM, or -M to <file>",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-MT", "<value>", "Specify name of main file output in depfile",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-MQ", "<value>",
+     "Specify name of main file output to quote in depfile",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-MP",
+     "Create phony target for each dependency (other than main file)",
+     &CLI::opt_MP},
 
 };
 

@@ -108,6 +108,23 @@ class Preprocessor {
 
   void addSystemIncludePath(std::string path);
 
+  [[nodiscard]] auto quoteIncludePaths() const
+      -> const std::vector<std::string>&;
+
+  void addQuoteIncludePath(std::string path);
+
+  [[nodiscard]] auto userIncludePaths() const
+      -> const std::vector<std::string>&;
+
+  void addUserIncludePath(std::string path);
+
+  [[nodiscard]] auto includedFiles() const
+      -> const std::vector<std::pair<std::string, bool>>&;
+
+  [[nodiscard]] auto isSystemHeader(std::uint32_t sourceFileId) const -> bool;
+
+  void setDisableCurrentDirSearch(bool disable);
+
   void defineMacro(const std::string& name, const std::string& body);
 
   void undefMacro(const std::string& name);
@@ -143,6 +160,7 @@ class Preprocessor {
   struct ParseArguments;
   friend struct PendingInclude;
   friend struct PendingFileContent;
+  friend class DefaultPreprocessorState;
   std::unique_ptr<Private> d;
 };
 
@@ -160,6 +178,8 @@ class DefaultPreprocessorState {
   void operator()(const PendingInclude& status);
   void operator()(const PendingHasIncludes& status);
   void operator()(const PendingFileContent& status);
+  void operator()(const EnteringFile&);
+  void operator()(const LeavingFile&);
 };
 
 }  // namespace cxx

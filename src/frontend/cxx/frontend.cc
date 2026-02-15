@@ -112,6 +112,7 @@ struct Frontend::Private {
   void emitCode();
   void emitObjectFile();
   void printPreprocessedText();
+  void writeDepFile();
   void dumpMacros(std::ostream& out);
 
   [[nodiscard]] auto readAll(const std::string& fileName, std::istream& in)
@@ -174,6 +175,7 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
 
   actions_.emplace_back([this]() { showSearchPaths(std::cerr); });
   actions_.emplace_back([this]() { preprocess(); });
+  actions_.emplace_back([this]() { writeDepFile(); });
   actions_.emplace_back([this]() { printPreprocessedText(); });
   actions_.emplace_back([this]() { dumpMacros(std::cout); });
   actions_.emplace_back([this]() { dumpTokens(std::cout); });
@@ -266,6 +268,71 @@ void Frontend::Private::printPreprocessedText() {
   });
 }
 
+static auto quoteDepfileTarget(const std::string& target) -> std::string {
+  std::string result;
+  for (char ch : target) {
+    if (ch == '$') result += '$';
+    if (ch == '#' || ch == ' ' || ch == '\t') result += '\\';
+    result += ch;
+  }
+  return result;
+}
+
+static void formatDepFile(std::ostream& out, const std::string& target,
+                          const std::vector<std::string>& deps, bool phony) {
+  out << target << ':';
+  for (const auto& dep : deps) out << " \\\n  " << dep;
+  out << '\n';
+  if (!phony) return;
+  for (const auto& dep : deps) out << '\n' << dep << ":\n";
+}
+
+void Frontend::Private::writeDepFile() {
+  bool toStdout = cli.opt_M || cli.opt_MM;
+  bool toFile = cli.opt_MD || cli.opt_MMD;
+  if (!toStdout && !toFile) return;
+
+  bool skipSystem = cli.opt_MM || cli.opt_MMD;
+  auto preprocessor = unit_->preprocessor();
+
+  std::vector<std::string> deps;
+  deps.push_back(fileName_);
+  for (const auto& [f, isSys] : preprocessor->includedFiles()) {
+    if (skipSystem && isSys) continue;
+    deps.push_back(f);
+  }
+
+  auto mqTarget = cli.getSingle("-MQ");
+  auto mtTarget = cli.getSingle("-MT");
+  std::string target;
+  if (mqTarget) {
+    target = quoteDepfileTarget(*mqTarget);
+  } else if (mtTarget) {
+    target = *mtTarget;
+  } else {
+    auto inputFile = fs::path{fileName_}.filename();
+    target = inputFile.replace_extension(".o").string();
+  }
+
+  if (toStdout) {
+    formatDepFile(std::cout, target, deps, cli.opt_MP);
+    shouldExit_ = true;
+    return;
+  }
+
+  auto mfPath = cli.getSingle("-MF");
+  std::string depFileName;
+  if (mfPath) {
+    depFileName = *mfPath;
+  } else {
+    auto inputFile = fs::path{fileName_}.filename();
+    depFileName = inputFile.replace_extension(".d").string();
+  }
+
+  std::ofstream depOut(depFileName);
+  formatDepFile(depOut, target, deps, cli.opt_MP);
+}
+
 void Frontend::Private::preprocess() {
   auto source = readAll(fileName_);
 
@@ -310,15 +377,22 @@ void Frontend::Private::prepare() {
   }
 
   if (toolchainId == "darwin" || toolchainId == "macos") {
-    // on macOS we default to aarch64, since it is the most common
     std::string host = "aarch64";
 
 #if __x86_64__
     host = "x86_64";
 #endif
 
-    toolchain_ = std::make_unique<MacOSToolchain>(
+    auto macToolchain = std::make_unique<MacOSToolchain>(
         preprocessor, cli.getSingle("-arch").value_or(host));
+
+    if (auto paths = cli.get("-isysroot"); !paths.empty()) {
+      macToolchain->setSysroot(paths.back());
+    } else if (auto paths = cli.get("--sysroot"); !paths.empty()) {
+      macToolchain->setSysroot(paths.back());
+    }
+
+    toolchain_ = std::move(macToolchain);
 
   } else if (toolchainId == "wasm32") {
     auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
@@ -402,7 +476,15 @@ void Frontend::Private::preparePreprocessor() {
 
   toolchain_->addPredefinedMacros();
 
+  for (const auto& path : cli.get("-iquote")) {
+    preprocessor->addQuoteIncludePath(path);
+  }
+
   for (const auto& path : cli.get("-I")) {
+    preprocessor->addUserIncludePath(path);
+  }
+
+  for (const auto& path : cli.get("-isystem")) {
     preprocessor->addSystemIncludePath(path);
   }
 
@@ -536,11 +618,18 @@ void Frontend::Private::serializeAst() {
 void Frontend::Private::showSearchPaths(std::ostream& out) {
   if (!cli.opt_v) return;
 
+  auto preprocessor = unit_->preprocessor();
+
+  out << std::format("#include \"...\" search starts here:\n");
+  for (const auto& path : preprocessor->quoteIncludePaths() | std::views::reverse) {
+    out << std::format(" {}\n", path);
+  }
+  for (const auto& path : preprocessor->userIncludePaths() | std::views::reverse) {
+    out << std::format(" {}\n", path);
+  }
+
   out << std::format("#include <...> search starts here:\n");
-
-  const auto& searchPaths = unit_->preprocessor()->systemIncludePaths();
-
-  for (const auto& path : searchPaths | std::views::reverse) {
+  for (const auto& path : preprocessor->systemIncludePaths() | std::views::reverse) {
     out << std::format(" {}\n", path);
   }
 
