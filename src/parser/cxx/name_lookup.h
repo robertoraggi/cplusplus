@@ -154,6 +154,8 @@ class Lookup {
     cache.push_back(scope);
 
     for (auto symbol : scope->find(name)) {
+      if (symbol->isHidden()) continue;
+
       if (auto u = symbol_cast<UsingDeclarationSymbol>(symbol);
           u && u->target()) {
         if (std::invoke(accept, u->target())) {

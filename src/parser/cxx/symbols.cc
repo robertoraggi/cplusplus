@@ -630,6 +630,10 @@ auto ClassSymbol::isComplete() const -> bool { return isComplete_; }
 
 void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
 
+auto ClassSymbol::isFriend() const -> bool { return isFriend_; }
+
+void ClassSymbol::setFriend(bool isFriend) { isFriend_ = isFriend; }
+
 auto ClassSymbol::sizeInBytes() const -> int { return sizeInBytes_; }
 
 void ClassSymbol::setSizeInBytes(int sizeInBytes) {

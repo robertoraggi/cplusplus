@@ -5,13 +5,13 @@ extern "C" void abort();
 // clang-format off
 
 void test_pointer_eq_false(int* p) {
-  if (p == false)
-    abort();  // expected-error {{invalid operands to binary expression ('int*' and 'bool')}}
+  if (p == false) // expected-error {{invalid operands to binary expression ('int*' and 'bool')}}
+    abort();
 }
 
 void test_pointer_ne_false(int* p) {
-  if (p != false)
-    abort();  // expected-error {{invalid operands to binary expression ('int*' and 'bool')}}
+  if (p != false) // expected-error {{invalid operands to binary expression ('int*' and 'bool')}}
+    abort();
 }
 
 void test_pointer_eq_zero(int* p) {
@@ -28,6 +28,6 @@ void test_pointer_eq_paren_zero(int* p) {
 }
 
 void test_pointer_eq_paren_false(int* p) {
-  if (p == (false))
-    abort();  // expected-error {{invalid operands to binary expression ('int*' and 'bool')}}
+  if (p == (false)) // expected-error {{invalid operands to binary expression ('int*' and 'bool')}}
+    abort();
 }

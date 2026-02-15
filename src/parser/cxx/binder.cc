@@ -384,14 +384,23 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       return false;
     };
 
+    auto targetScope = [&]() -> ScopeSymbol* {
+      if (!declSpecs.isFriend) return declaringScope();
+      auto ds = declaringScope();
+      if (ds->isNamespace()) return ds;
+      if (auto ns = ds->enclosingNamespace()) return ns;
+      return ds;
+    }();
+
     auto candidate =
-        Lookup{scope()}.lookup(ast->nestedNameSpecifier, name, is_class);
+        declSpecs.isFriend
+            ? Lookup{targetScope}.lookup(nullptr, name, is_class)
+            : Lookup{scope()}.lookup(ast->nestedNameSpecifier, name, is_class);
 
     auto classSymbol = symbol_cast<ClassSymbol>(candidate);
 
     if (classSymbol && isDeclaration &&
-        classSymbol->enclosingNonTemplateParametersScope() !=
-            declaringScope()) {
+        classSymbol->enclosingNonTemplateParametersScope() != targetScope) {
       // the class is declared in a different scope
       classSymbol = nullptr;
     }
@@ -403,7 +412,12 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       classSymbol->setIsUnion(isUnion);
       classSymbol->setName(name);
       classSymbol->setTemplateDeclaration(declSpecs.templateHead);
-      declaringScope()->addSymbol(classSymbol);
+      targetScope->addSymbol(classSymbol);
+
+      if (declSpecs.isFriend) {
+        classSymbol->setFriend(true);
+        classSymbol->setHidden(true);
+      }
 
       classSymbol->setDeclaration(ast);
     }
@@ -565,6 +579,10 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
     error(location,
           std::format("redefinition of class '{}'", to_string(className)));
     classSymbol = nullptr;
+  }
+
+  if (classSymbol && classSymbol->isHidden()) {
+    classSymbol->setHidden(false);
   }
 
   if (!classSymbol) {
@@ -1429,7 +1447,13 @@ struct [[nodiscard]] Binder::DeclareFunction {
   }
 
   void checkRedeclaration() {
-    auto declaringScope = binder.declaringScope();
+    auto declaringScope = [&]() -> ScopeSymbol* {
+      if (!functionSymbol->isFriend()) return binder.declaringScope();
+      auto ds = binder.declaringScope();
+      if (ds->isNamespace()) return ds;
+      if (auto ns = ds->enclosingNamespace()) return ns;
+      return ds;
+    }();
 
     OverloadSetSymbol* overloadSet = nullptr;
 
@@ -1465,6 +1489,9 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
       overloadSet->addFunction(functionSymbol);
     } else {
+      if (functionSymbol->isFriend() && !declaringScope->isClass()) {
+        functionSymbol->setHidden(true);
+      }
       declaringScope->addSymbol(functionSymbol);
     }
 
@@ -1541,6 +1568,10 @@ struct [[nodiscard]] Binder::DeclareFunction {
   void mergeRedeclaration() {
     auto canonical = functionSymbol->canonical();
     if (!canonical || canonical == functionSymbol) return;
+
+    if (!functionSymbol->isFriend() && canonical->isHidden()) {
+      canonical->setHidden(false);
+    }
 
     if (canonical->isStatic()) functionSymbol->setStatic(true);
     if (canonical->isExtern()) functionSymbol->setExtern(true);
