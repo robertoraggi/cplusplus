@@ -33,6 +33,9 @@ class MacOSToolchain final : public Toolchain {
 
   [[nodiscard]] auto arch() const -> std::string { return arch_; }
 
+  [[nodiscard]] auto sysroot() const -> const std::string& { return sysroot_; }
+  void setSysroot(std::string sysroot);
+
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
@@ -41,6 +44,7 @@ class MacOSToolchain final : public Toolchain {
   std::string platformPath_;
   std::string toolchainPath_;
   std::string arch_;
+  std::string sysroot_;
 };
 
 }  // namespace cxx

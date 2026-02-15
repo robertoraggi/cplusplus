@@ -51,13 +51,20 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch)
   }
 }
 
+void MacOSToolchain::setSysroot(std::string sysroot) {
+  sysroot_ = std::move(sysroot);
+  if (!sysroot_.empty() && sysroot_.back() == '/') sysroot_.pop_back();
+}
+
 void MacOSToolchain::addSystemIncludePaths() {
+  auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
+
   addSystemIncludePath(
-      std::format("{}/System/Library/Frameworks", platformPath_));
+      std::format("{}/System/Library/Frameworks", platform));
 
   addSystemIncludePath(std::format("{}/usr/include", toolchainPath_));
 
-  addSystemIncludePath(std::format("{}/usr/include", platformPath_));
+  addSystemIncludePath(std::format("{}/usr/include", platform));
 
   std::vector<std::string_view> versions{
       "17.0.0",
@@ -75,7 +82,8 @@ void MacOSToolchain::addSystemIncludePaths() {
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {
-  addSystemIncludePath(std::format("{}/usr/include/c++/v1", platformPath_));
+  auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
+  addSystemIncludePath(std::format("{}/usr/include/c++/v1", platform));
 }
 
 void MacOSToolchain::addPredefinedMacros() {

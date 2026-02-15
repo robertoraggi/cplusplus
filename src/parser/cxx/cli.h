@@ -79,6 +79,11 @@ class CLI {
   bool opt_lsp = false;
   bool opt_lsp_test = false;
   bool opt_g = false;
+  bool opt_M = false;
+  bool opt_MD = false;
+  bool opt_MM = false;
+  bool opt_MMD = false;
+  bool opt_MP = false;
 
   void parse(int& argc, char**& argv);
 

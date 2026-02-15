@@ -59,7 +59,8 @@ struct PendingInclude {
   void* loc = nullptr;
   std::function<auto()->std::vector<std::string>> candidates;
 
-  void resolveWith(std::optional<std::string> fileName) const;
+  void resolveWith(std::optional<std::string> fileName,
+                   bool isSystemHeader = false) const;
 };
 
 struct PendingHasIncludes {
@@ -78,6 +79,7 @@ struct PendingHasIncludes {
 struct PendingFileContent {
   Preprocessor& preprocessor;
   std::string fileName;
+  bool isSystemHeader = false;
 
   void setContent(std::optional<std::string> content) const;
 };
@@ -86,8 +88,22 @@ struct CanContinuePreprocessing {};
 
 struct ProcessingComplete {};
 
+struct EnteringFile {
+  Preprocessor& preprocessor;
+  std::string fileName;
+  bool isSystemHeader = false;
+  int depth = 0;
+};
+
+struct LeavingFile {
+  Preprocessor& preprocessor;
+  std::string fileName;
+  int depth = 0;
+};
+
 using PreprocessingState =
     std::variant<PendingInclude, PendingHasIncludes, PendingFileContent,
-                 CanContinuePreprocessing, ProcessingComplete>;
+                 CanContinuePreprocessing, ProcessingComplete, EnteringFile,
+                 LeavingFile>;
 
 }  // namespace cxx
