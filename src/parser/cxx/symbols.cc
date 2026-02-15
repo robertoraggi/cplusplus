@@ -455,21 +455,16 @@ auto needsVtablePointer(ClassSymbol* classSymbol) -> bool {
     }
   }
 
-  for (auto member : views::members(classSymbol)) {
-    if (auto func = symbol_cast<FunctionSymbol>(member)) {
-      if (func->isVirtual()) return true;
-    }
-  }
-
-  return false;
+  return views::any_function(classSymbol->members(), [](FunctionSymbol* func) {
+    return func->isVirtual();
+  });
 }
 
 auto hasAnyVtable(ClassSymbol* classSymbol) -> bool {
-  for (auto member : views::members(classSymbol)) {
-    if (auto func = symbol_cast<FunctionSymbol>(member)) {
-      if (func->isVirtual()) return true;
-    }
-  }
+  if (views::any_function(classSymbol->members(), [](FunctionSymbol* func) {
+        return func->isVirtual();
+      }))
+    return true;
 
   for (auto base : classSymbol->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
@@ -718,12 +713,9 @@ void ClassSymbol::addConversionFunction(FunctionSymbol* conversionFunction) {
 }
 
 auto ClassSymbol::destructor() const -> FunctionSymbol* {
-  for (auto member : members()) {
-    auto func = symbol_cast<FunctionSymbol>(member);
-    if (!func) continue;
-    if (name_cast<DestructorId>(func->name())) return func;
-  }
-  return nullptr;
+  return views::find_function(members(), [](FunctionSymbol* func) {
+    return name_cast<DestructorId>(func->name()) != nullptr;
+  });
 }
 
 auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
@@ -777,9 +769,54 @@ auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
   return nullptr;
 }
 
+auto ClassSymbol::copyAssignmentOperator() const -> FunctionSymbol* {
+  return views::find_function(
+      find(TokenKind::T_EQUAL), [this](FunctionSymbol* func) {
+        auto funcType = type_cast<FunctionType>(func->type());
+        if (!funcType) return false;
+        auto& params = funcType->parameterTypes();
+        if (params.size() != 1) return false;
+        auto ref = type_cast<LvalueReferenceType>(params[0]);
+        if (!ref) return false;
+        auto inner = ref->elementType();
+        if (auto qual = type_cast<QualType>(inner)) {
+          if (!qual->isConst()) return false;
+          inner = qual->elementType();
+        }
+        auto classType = type_cast<ClassType>(inner);
+        return classType && classType->symbol() == this;
+      });
+}
+
+auto ClassSymbol::moveAssignmentOperator() const -> FunctionSymbol* {
+  return views::find_function(
+      find(TokenKind::T_EQUAL), [this](FunctionSymbol* func) {
+        auto funcType = type_cast<FunctionType>(func->type());
+        if (!funcType) return false;
+        auto& params = funcType->parameterTypes();
+        if (params.size() != 1) return false;
+        auto ref = type_cast<RvalueReferenceType>(params[0]);
+        if (!ref) return false;
+        auto classType = type_cast<ClassType>(ref->elementType());
+        return classType && classType->symbol() == this;
+      });
+}
+
 auto ClassSymbol::hasUserDeclaredConstructors() const -> bool {
   for (auto ctor : constructors_) {
     if (!ctor->isDefaulted()) return true;
+  }
+  return false;
+}
+
+auto ClassSymbol::hasVirtualFunctions() const -> bool {
+  return views::any_function(
+      members(), [](FunctionSymbol* fn) { return fn->isVirtual(); });
+}
+
+auto ClassSymbol::hasVirtualBaseClasses() const -> bool {
+  for (auto base : baseClasses_) {
+    if (base->isVirtual()) return true;
   }
   return false;
 }
@@ -829,14 +866,8 @@ auto ClassSymbol::buildClassLayout(Control* control)
       }
     }
     if (!hasPolymorphicBase) {
-      for (auto member : members()) {
-        if (auto func = symbol_cast<FunctionSymbol>(member)) {
-          if (func->isVirtual()) {
-            needsOwnVptr = true;
-            break;
-          }
-        }
-      }
+      needsOwnVptr = views::any_function(
+          members(), [](FunctionSymbol* f) { return f->isVirtual(); });
     }
     if (needsOwnVptr) {
       auto ptrSize = static_cast<int>(memoryLayout->sizeOfPointer());

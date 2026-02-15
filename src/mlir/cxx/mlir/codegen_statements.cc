@@ -28,6 +28,7 @@
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 // mlir
 #include <llvm/ADT/TypeSwitch.h>
@@ -353,19 +354,11 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     FunctionSymbol* beginFunc = nullptr;
     FunctionSymbol* endFunc = nullptr;
 
-    for (auto sym : classSymbol->find(beginName)) {
-      if (auto func = symbol_cast<FunctionSymbol>(sym)) {
-        beginFunc = func;
-        break;
-      }
-    }
+    beginFunc = views::find_function(classSymbol->find(beginName),
+                                     [](FunctionSymbol*) { return true; });
 
-    for (auto sym : classSymbol->find(endName)) {
-      if (auto func = symbol_cast<FunctionSymbol>(sym)) {
-        endFunc = func;
-        break;
-      }
-    }
+    endFunc = views::find_function(classSymbol->find(endName),
+                                   [](FunctionSymbol*) { return true; });
 
     if (!beginFunc || !endFunc) {
       ScopeSymbol* lookupScope = ast->symbol
@@ -428,29 +421,17 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
         auto plusPlusOp = control()->getOperatorId(TokenKind::T_PLUS_PLUS);
         auto neqOp = control()->getOperatorId(TokenKind::T_EXCLAIM_EQUAL);
 
-        for (auto sym : iterClass->find(starOp)) {
-          if (auto func = symbol_cast<FunctionSymbol>(sym)) {
-            derefFunc = func;
-            break;
-          }
-        }
+        derefFunc = views::find_function(iterClass->find(starOp),
+                                         [](FunctionSymbol*) { return true; });
 
-        for (auto sym : iterClass->find(plusPlusOp)) {
-          if (auto func = symbol_cast<FunctionSymbol>(sym)) {
-            auto ft = type_cast<FunctionType>(func->type());
-            if (ft && ft->parameterTypes().empty()) {
-              incrFunc = func;
-              break;
-            }
-          }
-        }
+        incrFunc = views::find_function(
+            iterClass->find(plusPlusOp), [](FunctionSymbol* func) {
+              auto ft = type_cast<FunctionType>(func->type());
+              return ft && ft->parameterTypes().empty();
+            });
 
-        for (auto sym : iterClass->find(neqOp)) {
-          if (auto func = symbol_cast<FunctionSymbol>(sym)) {
-            neqFunc = func;
-            break;
-          }
-        }
+        neqFunc = views::find_function(iterClass->find(neqOp),
+                                       [](FunctionSymbol*) { return true; });
 
         if (!neqFunc) {
           ScopeSymbol* lookupScope =

@@ -23,6 +23,8 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:      constructor defaulted void iterator()
 // CHECK-NEXT:      constructor defaulted void iterator(const ::list::iterator&)
 // CHECK-NEXT:      constructor defaulted void iterator(::list::iterator&&)
+// CHECK-NEXT:      function defaulted ::list::iterator& operator =(const ::list::iterator&)
+// CHECK-NEXT:      function defaulted ::list::iterator& operator =(::list::iterator&&)
 // CHECK-NEXT:      function defaulted void ~iterator()
 // CHECK-NEXT:    function ::list::iterator begin()
 // CHECK-NEXT:      [redeclarations]
@@ -36,4 +38,6 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:            block
 // CHECK-NEXT:              variable static constexpr const char __func__[3]
+// CHECK-NEXT:    function defaulted ::list& operator =(const ::list&)
+// CHECK-NEXT:    function defaulted ::list& operator =(::list&&)
 // CHECK-NEXT:    function defaulted void ~list()

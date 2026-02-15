@@ -38,6 +38,8 @@ auto main() -> int {
 // CHECK-NEXT:    constructor defaulted void Base(::Base&&)
 // CHECK-NEXT:    function bool operator bool() const
 // CHECK-NEXT:    function void f()
+// CHECK-NEXT:    function defaulted ::Base& operator =(const ::Base&)
+// CHECK-NEXT:    function defaulted ::Base& operator =(::Base&&)
 // CHECK-NEXT:    function defaulted void ~Base()
 // CHECK-NEXT:  class Derived
 // CHECK-NEXT:    base class Base
@@ -46,6 +48,8 @@ auto main() -> int {
 // CHECK-NEXT:    constructor defaulted void Derived(::Derived&&)
 // CHECK-NEXT:    using bool operator bool() const
 // CHECK-NEXT:    using void f()
+// CHECK-NEXT:    function defaulted ::Derived& operator =(const ::Derived&)
+// CHECK-NEXT:    function defaulted ::Derived& operator =(::Derived&&)
 // CHECK-NEXT:    function defaulted void ~Derived()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block

@@ -18,6 +18,8 @@ Pack<int, int> q;
 // CHECK-NEXT:        constructor defaulted void Pack()
 // CHECK-NEXT:        constructor defaulted void Pack(const ::Pack<>&)
 // CHECK-NEXT:        constructor defaulted void Pack(::Pack<>&&)
+// CHECK-NEXT:        function defaulted ::Pack<>& operator =(const ::Pack<>&)
+// CHECK-NEXT:        function defaulted ::Pack<>& operator =(::Pack<>&&)
 // CHECK-NEXT:        function defaulted void ~Pack()
 // CHECK-NEXT:  template typealias type-param<0, 0> Alias
 // CHECK-NEXT:    parameter typename<0, 0> T

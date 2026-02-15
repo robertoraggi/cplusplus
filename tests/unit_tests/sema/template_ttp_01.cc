@@ -38,12 +38,16 @@ Multi<Holder> m1;
 // CHECK-NEXT:        constructor defaulted void Holder(const ::Holder<int>&)
 // CHECK-NEXT:        constructor defaulted void Holder(::Holder<int>&&)
 // CHECK-NEXT:        field int value
+// CHECK-NEXT:        function defaulted ::Holder<int>& operator =(const ::Holder<int>&)
+// CHECK-NEXT:        function defaulted ::Holder<int>& operator =(::Holder<int>&&)
 // CHECK-NEXT:        function defaulted void ~Holder()
 // CHECK-NEXT:      class Holder<double>
 // CHECK-NEXT:        constructor defaulted void Holder()
 // CHECK-NEXT:        constructor defaulted void Holder(const ::Holder<double>&)
 // CHECK-NEXT:        constructor defaulted void Holder(::Holder<double>&&)
 // CHECK-NEXT:        field double value
+// CHECK-NEXT:        function defaulted ::Holder<double>& operator =(const ::Holder<double>&)
+// CHECK-NEXT:        function defaulted ::Holder<double>& operator =(::Holder<double>&&)
 // CHECK-NEXT:        function defaulted void ~Holder()
 // CHECK-NEXT:  template class Wrap<template-type-param<0, 0>, type-param<1, 0>>
 // CHECK-NEXT:    parameter template<0, 0> C
@@ -55,6 +59,8 @@ Multi<Holder> m1;
 // CHECK-NEXT:        constructor defaulted void Wrap(const ::Wrap<::Holder, int>&)
 // CHECK-NEXT:        constructor defaulted void Wrap(::Wrap<::Holder, int>&&)
 // CHECK-NEXT:        field ::Holder<int> member
+// CHECK-NEXT:        function defaulted ::Wrap<::Holder, int>& operator =(const ::Wrap<::Holder, int>&)
+// CHECK-NEXT:        function defaulted ::Wrap<::Holder, int>& operator =(::Wrap<::Holder, int>&&)
 // CHECK-NEXT:        function defaulted void ~Wrap()
 // CHECK-NEXT:  variable ::Wrap<::Holder, int> w1
 // CHECK-NEXT:  template class ApplyInt<template-type-param<0, 0>>
@@ -66,6 +72,8 @@ Multi<Holder> m1;
 // CHECK-NEXT:        constructor defaulted void ApplyInt(const ::ApplyInt<::Holder>&)
 // CHECK-NEXT:        constructor defaulted void ApplyInt(::ApplyInt<::Holder>&&)
 // CHECK-NEXT:        typealias ::Holder<int> type
+// CHECK-NEXT:        function defaulted ::ApplyInt<::Holder>& operator =(const ::ApplyInt<::Holder>&)
+// CHECK-NEXT:        function defaulted ::ApplyInt<::Holder>& operator =(::ApplyInt<::Holder>&&)
 // CHECK-NEXT:        function defaulted void ~ApplyInt()
 // CHECK-NEXT:  variable ::ApplyInt<::Holder> a1
 // CHECK-NEXT:  template class Multi<template-type-param<0, 0>>
@@ -79,5 +87,7 @@ Multi<Holder> m1;
 // CHECK-NEXT:        constructor defaulted void Multi(::Multi<::Holder>&&)
 // CHECK-NEXT:        field ::Holder<int> a
 // CHECK-NEXT:        field ::Holder<double> b
+// CHECK-NEXT:        function defaulted ::Multi<::Holder>& operator =(const ::Multi<::Holder>&)
+// CHECK-NEXT:        function defaulted ::Multi<::Holder>& operator =(::Multi<::Holder>&&)
 // CHECK-NEXT:        function defaulted void ~Multi()
 // CHECK-NEXT:  variable ::Multi<::Holder> m1

@@ -19,6 +19,8 @@ Box<k> c;
 // CHECK-NEXT:        constructor defaulted void Box()
 // CHECK-NEXT:        constructor defaulted void Box(const ::Box<int>&)
 // CHECK-NEXT:        constructor defaulted void Box(::Box<int>&&)
+// CHECK-NEXT:        function defaulted ::Box<int>& operator =(const ::Box<int>&)
+// CHECK-NEXT:        function defaulted ::Box<int>& operator =(::Box<int>&&)
 // CHECK-NEXT:        function defaulted void ~Box()
 // CHECK-NEXT:  function constexpr int three()
 // CHECK-NEXT:    block

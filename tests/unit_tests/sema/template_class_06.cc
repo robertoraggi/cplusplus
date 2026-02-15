@@ -58,6 +58,8 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void A(::A<void>&&)
 // CHECK-NEXT:        typealias void T
 // CHECK-NEXT:        field int v
+// CHECK-NEXT:        function defaulted ::A<void>& operator =(const ::A<void>&)
+// CHECK-NEXT:        function defaulted ::A<void>& operator =(::A<void>&&)
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<::A<void>>
 // CHECK-NEXT:        constructor defaulted void A()
@@ -65,6 +67,8 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void A(::A<::A<void>>&&)
 // CHECK-NEXT:        typealias ::A<void> T
 // CHECK-NEXT:        field int v
+// CHECK-NEXT:        function defaulted ::A<::A<void>>& operator =(const ::A<::A<void>>&)
+// CHECK-NEXT:        function defaulted ::A<::A<void>>& operator =(::A<::A<void>>&&)
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<double>
 // CHECK-NEXT:        constructor defaulted void A()
@@ -72,6 +76,8 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void A(::A<double>&&)
 // CHECK-NEXT:        typealias double T
 // CHECK-NEXT:        field int v
+// CHECK-NEXT:        function defaulted ::A<double>& operator =(const ::A<double>&)
+// CHECK-NEXT:        function defaulted ::A<double>& operator =(::A<double>&&)
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:  template typealias const ::A B
 // CHECK-NEXT:    parameter typename<0, 0> T
@@ -84,6 +90,8 @@ auto main() -> int {
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable ::A<void> t
+// CHECK-NEXT:    function defaulted ::D& operator =(const ::D&)
+// CHECK-NEXT:    function defaulted ::D& operator =(::D&&)
 // CHECK-NEXT:    function defaulted void ~D()
 // CHECK-NEXT:  template class D2<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
@@ -103,6 +111,8 @@ auto main() -> int {
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable double t
 // CHECK-NEXT:        field double t
+// CHECK-NEXT:        function defaulted ::D2<int>& operator =(const ::D2<int>&)
+// CHECK-NEXT:        function defaulted ::D2<int>& operator =(::D2<int>&&)
 // CHECK-NEXT:        function defaulted void ~D2()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block

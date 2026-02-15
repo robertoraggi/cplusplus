@@ -1609,6 +1609,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_ASSIGNABLE:
         return control()->is_trivially_assignable(firstType, secondType);
 
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_COPYABLE:
+        return control()->is_trivially_copyable(firstType);
+
       case BuiltinTypeTraitKind::T_NONE: {
         // not a builtin
         break;

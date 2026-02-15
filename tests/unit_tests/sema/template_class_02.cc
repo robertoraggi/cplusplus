@@ -83,9 +83,13 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:            function const char& operator *() const
 // CHECK-NEXT:            function bool operator ==(const std::basic_string<char>::iterator&) const
 // CHECK-NEXT:            function bool operator !=(const std::basic_string<char>::iterator&) const
+// CHECK-NEXT:            function defaulted std::basic_string<char>::iterator& operator =(const std::basic_string<char>::iterator&)
+// CHECK-NEXT:            function defaulted std::basic_string<char>::iterator& operator =(std::basic_string<char>::iterator&&)
 // CHECK-NEXT:            function defaulted void ~iterator()
 // CHECK-NEXT:          function std::basic_string<char>::iterator begin()
 // CHECK-NEXT:          function std::basic_string<char>::iterator end()
+// CHECK-NEXT:          function defaulted std::basic_string<char>& operator =(const std::basic_string<char>&)
+// CHECK-NEXT:          function defaulted std::basic_string<char>& operator =(std::basic_string<char>&&)
 // CHECK-NEXT:          function defaulted void ~basic_string()
 // CHECK-NEXT:        class basic_string<char8_t>
 // CHECK-NEXT:          constructor void basic_string()
@@ -110,9 +114,13 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:            function const char8_t& operator *() const
 // CHECK-NEXT:            function bool operator ==(const std::basic_string<char8_t>::iterator&) const
 // CHECK-NEXT:            function bool operator !=(const std::basic_string<char8_t>::iterator&) const
+// CHECK-NEXT:            function defaulted std::basic_string<char8_t>::iterator& operator =(const std::basic_string<char8_t>::iterator&)
+// CHECK-NEXT:            function defaulted std::basic_string<char8_t>::iterator& operator =(std::basic_string<char8_t>::iterator&&)
 // CHECK-NEXT:            function defaulted void ~iterator()
 // CHECK-NEXT:          function std::basic_string<char8_t>::iterator begin()
 // CHECK-NEXT:          function std::basic_string<char8_t>::iterator end()
+// CHECK-NEXT:          function defaulted std::basic_string<char8_t>& operator =(const std::basic_string<char8_t>&)
+// CHECK-NEXT:          function defaulted std::basic_string<char8_t>& operator =(std::basic_string<char8_t>&&)
 // CHECK-NEXT:          function defaulted void ~basic_string()
 // CHECK-NEXT:    typealias std::basic_string<char> string
 // CHECK-NEXT:    typealias std::basic_string<char8_t> u8string

@@ -131,6 +131,29 @@ inline auto overloads(Symbol* symbol)
   return std::views::empty<FunctionSymbol*>;
 }
 
+template <std::ranges::input_range R, typename Pred>
+  requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&
+           std::predicate<Pred, FunctionSymbol*>
+auto find_function(R&& symbols, Pred pred) -> FunctionSymbol* {
+  for (auto* sym : symbols) {
+    if (auto* func = symbol_cast<FunctionSymbol>(sym)) {
+      if (pred(func)) return func;
+    } else if (auto* os = symbol_cast<OverloadSetSymbol>(sym)) {
+      for (auto* f : os->functions()) {
+        if (pred(f)) return f;
+      }
+    }
+  }
+  return nullptr;
+}
+
+template <std::ranges::input_range R, typename Pred>
+  requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&
+           std::predicate<Pred, FunctionSymbol*>
+auto any_function(R&& symbols, Pred pred) -> bool {
+  return find_function(std::forward<R>(symbols), std::move(pred)) != nullptr;
+}
+
 }  // namespace views
 
 }  // namespace cxx

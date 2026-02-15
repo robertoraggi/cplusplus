@@ -36,6 +36,8 @@ A<void*> a2;
 // CHECK-NEXT:        function void set_a(const int&)
 // CHECK-NEXT:        typealias int type
 // CHECK-NEXT:        typealias int& reference
+// CHECK-NEXT:        function defaulted ::A<int>& operator =(const ::A<int>&)
+// CHECK-NEXT:        function defaulted ::A<int>& operator =(::A<int>&&)
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<void*>
 // CHECK-NEXT:        constructor defaulted void A()
@@ -47,6 +49,8 @@ A<void*> a2;
 // CHECK-NEXT:        function void set_a(void* const&)
 // CHECK-NEXT:        typealias void* type
 // CHECK-NEXT:        typealias void*& reference
+// CHECK-NEXT:        function defaulted ::A<void*>& operator =(const ::A<void*>&)
+// CHECK-NEXT:        function defaulted ::A<void*>& operator =(::A<void*>&&)
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:  variable ::A<int> a1
 // CHECK-NEXT:  variable ::A<void*> a2

@@ -227,11 +227,11 @@ auto Binder::control() const -> Control* {
   return unit_ ? unit_->control() : nullptr;
 }
 
-auto Binder::is_parsing_c() const {
+auto Binder::is_parsing_c() const -> bool {
   return unit_->language() == LanguageKind::kC;
 }
 
-auto Binder::is_parsing_cxx() const {
+auto Binder::is_parsing_cxx() const -> bool {
   return unit_->language() == LanguageKind::kCXX;
 }
 
@@ -609,186 +609,6 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
 
   declSpecs.setTypeSpecifier(ast);
   declSpecs.setType(ast->symbol->type());
-}
-
-void Binder::complete(ClassSpecifierAST* ast) {
-  if (!inTemplate()) {
-    if (is_parsing_cxx() && ast->symbol->constructors().empty() &&
-        ast->symbol->name()) {
-      auto classSymbol = ast->symbol;
-      auto pool = unit_->arena();
-
-      auto functionSymbol =
-          control()->newFunctionSymbol(classSymbol, classSymbol->location());
-      functionSymbol->setName(classSymbol->name());
-      functionSymbol->setType(
-          control()->getFunctionType(control()->getVoidType(), {}));
-      functionSymbol->setDefined(true);
-      functionSymbol->setDefaulted(true);
-      functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
-
-      classSymbol->addConstructor(functionSymbol);
-
-      auto defaultBody = DefaultFunctionBodyAST::create(pool);
-
-      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
-
-      auto nameId = NameIdAST::create(pool, classIdentifier);
-
-      auto idDecl = IdDeclaratorAST::create(pool);
-      idDecl->unqualifiedId = nameId;
-
-      auto funcChunk = FunctionDeclaratorChunkAST::create(pool);
-
-      auto declarator = DeclaratorAST::create(
-          pool, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
-          /*declaratorChunkList=*/
-          make_list_node<DeclaratorChunkAST>(pool, funcChunk));
-
-      auto funcDef = FunctionDefinitionAST::create(pool);
-      funcDef->declarator = declarator;
-      funcDef->functionBody = defaultBody;
-      funcDef->symbol = functionSymbol;
-      functionSymbol->setDeclaration(funcDef);
-    }
-
-    if (is_parsing_cxx() && ast->symbol->name() &&
-        !ast->symbol->copyConstructor()) {
-      auto classSymbol = ast->symbol;
-      auto pool = unit_->arena();
-
-      auto classType = classSymbol->type();
-      auto constClassType = control()->getConstType(classType);
-      auto constRefType = control()->getLvalueReferenceType(constClassType);
-
-      auto copyCtorSymbol =
-          control()->newFunctionSymbol(classSymbol, classSymbol->location());
-      copyCtorSymbol->setName(classSymbol->name());
-      copyCtorSymbol->setType(
-          control()->getFunctionType(control()->getVoidType(), {constRefType}));
-      copyCtorSymbol->setDefined(true);
-      copyCtorSymbol->setDefaulted(true);
-      copyCtorSymbol->setLanguageLinkage(LanguageKind::kCXX);
-
-      classSymbol->addConstructor(copyCtorSymbol);
-
-      auto defaultBody = DefaultFunctionBodyAST::create(pool);
-      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
-      auto nameId = NameIdAST::create(pool, classIdentifier);
-      auto idDecl = IdDeclaratorAST::create(pool);
-      idDecl->unqualifiedId = nameId;
-      auto funcChunk = FunctionDeclaratorChunkAST::create(pool);
-      auto declarator = DeclaratorAST::create(
-          pool, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
-          /*declaratorChunkList=*/
-          make_list_node<DeclaratorChunkAST>(pool, funcChunk));
-      auto funcDef = FunctionDefinitionAST::create(pool);
-      funcDef->declarator = declarator;
-      funcDef->functionBody = defaultBody;
-      funcDef->symbol = copyCtorSymbol;
-      copyCtorSymbol->setDeclaration(funcDef);
-    }
-
-    if (is_parsing_cxx() && ast->symbol->name() &&
-        !ast->symbol->moveConstructor()) {
-      auto classSymbol = ast->symbol;
-      auto ar = unit_->arena();
-
-      // Parameter type: T&&
-      auto classType = classSymbol->type();
-      auto rvalRefType = control()->getRvalueReferenceType(classType);
-
-      auto moveCtorSymbol =
-          control()->newFunctionSymbol(classSymbol, classSymbol->location());
-      moveCtorSymbol->setName(classSymbol->name());
-      moveCtorSymbol->setType(
-          control()->getFunctionType(control()->getVoidType(), {rvalRefType}));
-      moveCtorSymbol->setDefined(true);
-      moveCtorSymbol->setDefaulted(true);
-      moveCtorSymbol->setLanguageLinkage(LanguageKind::kCXX);
-
-      classSymbol->addConstructor(moveCtorSymbol);
-
-      auto defaultBody = DefaultFunctionBodyAST::create(ar);
-      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
-      auto nameId = NameIdAST::create(ar, classIdentifier);
-      auto idDecl = IdDeclaratorAST::create(ar);
-      idDecl->unqualifiedId = nameId;
-      auto funcChunk = FunctionDeclaratorChunkAST::create(ar);
-      auto declarator = DeclaratorAST::create(
-          ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
-          /*declaratorChunkList=*/
-          make_list_node<DeclaratorChunkAST>(ar, funcChunk));
-      auto funcDef = FunctionDefinitionAST::create(ar);
-      funcDef->declarator = declarator;
-      funcDef->functionBody = defaultBody;
-      funcDef->symbol = moveCtorSymbol;
-      moveCtorSymbol->setDeclaration(funcDef);
-    }
-
-    if (is_parsing_cxx() && ast->symbol->name() && !ast->symbol->destructor()) {
-      auto classSymbol = ast->symbol;
-      auto ar = unit_->arena();
-
-      auto dtorName = control()->getDestructorId(classSymbol->name());
-
-      auto dtorSymbol =
-          control()->newFunctionSymbol(classSymbol, classSymbol->location());
-      dtorSymbol->setName(dtorName);
-      dtorSymbol->setType(
-          control()->getFunctionType(control()->getVoidType(), {}));
-      dtorSymbol->setDefined(true);
-      dtorSymbol->setDefaulted(true);
-      dtorSymbol->setLanguageLinkage(LanguageKind::kCXX);
-
-      for (auto base : classSymbol->baseClasses()) {
-        auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-        if (!baseClass) continue;
-        auto baseDtor = baseClass->destructor();
-        if (baseDtor && baseDtor->isVirtual()) {
-          dtorSymbol->setVirtual(true);
-          break;
-        }
-      }
-
-      classSymbol->addSymbol(dtorSymbol);
-
-      auto defaultBody = DefaultFunctionBodyAST::create(ar);
-
-      auto dtorIdAST = DestructorIdAST::create(ar);
-      auto classIdentifier = name_cast<Identifier>(classSymbol->name());
-      if (classIdentifier) {
-        auto innerNameId = NameIdAST::create(ar, classIdentifier);
-        dtorIdAST->id = innerNameId;
-      }
-
-      auto idDecl = IdDeclaratorAST::create(ar);
-      idDecl->unqualifiedId = dtorIdAST;
-
-      auto funcChunk = FunctionDeclaratorChunkAST::create(ar);
-
-      auto declarator = DeclaratorAST::create(
-          ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
-          /*declaratorChunkList=*/
-          make_list_node<DeclaratorChunkAST>(ar, funcChunk));
-
-      auto funcDef = FunctionDefinitionAST::create(ar);
-      funcDef->declarator = declarator;
-      funcDef->functionBody = defaultBody;
-      funcDef->symbol = dtorSymbol;
-      dtorSymbol->setDeclaration(funcDef);
-    }
-
-    auto status = ast->symbol->buildClassLayout(control());
-    if (!status.has_value()) {
-      error(ast->symbol->location(), status.error());
-    }
-
-    // Compute cached polymorphic flags on the class symbol.
-    computeClassFlags(ast->symbol);
-  }
-
-  ast->symbol->setComplete(true);
 }
 
 void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
@@ -1401,12 +1221,10 @@ void applyDefaultArguments(
 
 void Binder::computeClassFlags(ClassSymbol* classSymbol) {
   // Compute isPolymorphic: class has virtual functions or a base is polymorphic
-  bool polymorphic = false;
-  for (auto fn : classSymbol->members() | views::virtual_functions) {
-    (void)fn;
-    polymorphic = true;
-    break;
-  }
+  bool polymorphic =
+      views::any_function(classSymbol->members(),
+                          [](FunctionSymbol* fn) { return fn->isVirtual(); });
+
   if (!polymorphic) {
     for (auto base : classSymbol->baseClasses()) {
       auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
@@ -1418,27 +1236,19 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
   }
   classSymbol->setPolymorphic(polymorphic);
 
-  bool abstract = false;
-
-  // Check own pure virtuals first
-  for (auto fn : classSymbol->members() | views::virtual_functions) {
-    if (fn->isPure()) {
-      abstract = true;
-      break;
-    }
-  }
+  bool abstract = views::any_function(
+      classSymbol->members(),
+      [](FunctionSymbol* fn) { return fn->isVirtual() && fn->isPure(); });
 
   if (!abstract) {
-    // Helper: check if classSymbol provides a non-pure override of fn
     auto overridesInClass = [&](FunctionSymbol* fn) -> bool {
-      for (auto member : classSymbol->members() | views::member_functions) {
-        if (fn->isDestructor() && member->isDestructor())
-          return !member->isPure();
-        if (fn->name() == member->name() &&
-            control()->is_same(fn->type(), member->type()))
-          return !member->isPure();
-      }
-      return false;
+      auto match = views::find_function(
+          classSymbol->members(), [&](FunctionSymbol* member) {
+            if (fn->isDestructor() && member->isDestructor()) return true;
+            return fn->name() == member->name() &&
+                   control()->is_same(fn->type(), member->type());
+          });
+      return match && !match->isPure();
     };
 
     for (auto base : classSymbol->baseClasses()) {
@@ -1446,17 +1256,16 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
       auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClass || !baseClass->isAbstract()) continue;
 
-      // Check pure virtuals declared in this abstract base
-      for (auto fn : baseClass->members() | views::virtual_functions) {
-        if (!fn->isPure()) continue;
-        if (!overridesInClass(fn)) {
-          abstract = true;
-          break;
-        }
+      auto unresolvedPure =
+          views::find_function(baseClass->members(), [&](FunctionSymbol* fn) {
+            return fn->isVirtual() && fn->isPure() && !overridesInClass(fn);
+          });
+      if (unresolvedPure) {
+        abstract = true;
+        break;
       }
 
       if (!abstract) {
-        // Walk up through the base's abstract ancestors
         std::vector<ClassSymbol*> worklist;
         std::unordered_set<ClassSymbol*> visitedAncestors;
         for (auto bb : baseClass->baseClasses()) {
@@ -1464,29 +1273,29 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
           if (bbc && bbc->isAbstract() && visitedAncestors.insert(bbc).second)
             worklist.push_back(bbc);
         }
+
+        auto overridesInBaseOrClass = [&](FunctionSymbol* fn) -> bool {
+          auto match = views::find_function(
+              baseClass->members(), [&](FunctionSymbol* m) {
+                if (fn->isDestructor() && m->isDestructor()) return true;
+                return fn->name() == m->name() &&
+                       control()->is_same(fn->type(), m->type());
+              });
+          if (match && !match->isPure()) return true;
+          return overridesInClass(fn);
+        };
+
         while (!worklist.empty() && !abstract) {
           auto ancestor = worklist.back();
           worklist.pop_back();
-          for (auto fn : ancestor->members() | views::virtual_functions) {
-            if (!fn->isPure()) continue;
-            // Check if baseClass or this class overrides it
-            bool resolved = false;
-            for (auto m : baseClass->members() | views::member_functions) {
-              if (fn->isDestructor() && m->isDestructor()) {
-                resolved = !m->isPure();
-                break;
-              }
-              if (fn->name() == m->name() &&
-                  control()->is_same(fn->type(), m->type())) {
-                resolved = !m->isPure();
-                break;
-              }
-            }
-            if (!resolved) resolved = overridesInClass(fn);
-            if (!resolved) {
-              abstract = true;
-              break;
-            }
+          auto unresolvedAncestor = views::find_function(
+              ancestor->members(), [&](FunctionSymbol* fn) {
+                return fn->isVirtual() && fn->isPure() &&
+                       !overridesInBaseOrClass(fn);
+              });
+          if (unresolvedAncestor) {
+            abstract = true;
+            break;
           }
           if (!abstract) {
             for (auto ab : ancestor->baseClasses()) {

@@ -18,6 +18,8 @@ Box<Alias<int>> b;
 // CHECK-NEXT:        constructor defaulted void Box()
 // CHECK-NEXT:        constructor defaulted void Box(const ::Box<int>&)
 // CHECK-NEXT:        constructor defaulted void Box(::Box<int>&&)
+// CHECK-NEXT:        function defaulted ::Box<int>& operator =(const ::Box<int>&)
+// CHECK-NEXT:        function defaulted ::Box<int>& operator =(::Box<int>&&)
 // CHECK-NEXT:        function defaulted void ~Box()
 // CHECK-NEXT:  template typealias type-param<0, 0> Alias
 // CHECK-NEXT:    parameter typename<0, 0> T
