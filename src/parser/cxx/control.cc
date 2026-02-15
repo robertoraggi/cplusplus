@@ -1077,20 +1077,7 @@ auto Control::is_polymorphic(const Type* type) -> bool {
   if (!classType) return false;
   auto cls = classType->symbol();
   if (!cls || !cls->isComplete()) return false;
-  for (auto fn : cls->members() | views::virtual_functions) {
-    (void)fn;
-    return true;
-  }
-  // check base classes for polymorphism
-  for (auto base : cls->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    for (auto fn : baseClass->members() | views::virtual_functions) {
-      (void)fn;
-      return true;
-    }
-  }
-  return false;
+  return cls->isPolymorphic();
 }
 
 auto Control::is_final(const Type* type) -> bool {
@@ -1108,10 +1095,7 @@ auto Control::is_trivially_constructible(const Type* type) -> bool {
     auto cls = classType->symbol();
     if (!cls || !cls->isComplete()) return false;
     if (cls->hasUserDeclaredConstructors()) return false;
-    for (auto fn : cls->members() | views::virtual_functions) {
-      (void)fn;
-      return false;
-    }
+    if (cls->isPolymorphic()) return false;
     return true;
   }
   if (is_array(unqual)) return true;
@@ -1131,10 +1115,7 @@ auto Control::is_abstract(const Type* type) -> bool {
   if (!classType) return false;
   auto cls = classType->symbol();
   if (!cls || !cls->isComplete()) return false;
-  for (auto fn : cls->members() | views::virtual_functions) {
-    if (fn->isPure()) return true;
-  }
-  return false;
+  return cls->isAbstract();
 }
 
 auto Control::has_virtual_destructor(const Type* type) -> bool {
@@ -1142,8 +1123,7 @@ auto Control::has_virtual_destructor(const Type* type) -> bool {
   if (!classType) return false;
   auto cls = classType->symbol();
   if (!cls || !cls->isComplete()) return false;
-  auto dtor = cls->destructor();
-  return dtor && dtor->isVirtual();
+  return cls->hasVirtualDestructor();
 }
 
 }  // namespace cxx

@@ -214,13 +214,17 @@ auto Symbol::enclosingNonTemplateParametersScope() const -> ScopeSymbol* {
 auto Symbol::canonical() const -> Symbol* {
   switch (kind()) {
     case SymbolKind::kClass:
-      return static_cast<const ClassSymbol*>(this)->MaybeRedecl<ClassSymbol>::canonical();
+      return static_cast<const ClassSymbol*>(this)
+          ->MaybeRedecl<ClassSymbol>::canonical();
     case SymbolKind::kFunction:
-      return static_cast<const FunctionSymbol*>(this)->MaybeRedecl<FunctionSymbol>::canonical();
+      return static_cast<const FunctionSymbol*>(this)
+          ->MaybeRedecl<FunctionSymbol>::canonical();
     case SymbolKind::kVariable:
-      return static_cast<const VariableSymbol*>(this)->MaybeRedecl<VariableSymbol>::canonical();
+      return static_cast<const VariableSymbol*>(this)
+          ->MaybeRedecl<VariableSymbol>::canonical();
     case SymbolKind::kTypeAlias:
-      return static_cast<const TypeAliasSymbol*>(this)->MaybeRedecl<TypeAliasSymbol>::canonical();
+      return static_cast<const TypeAliasSymbol*>(this)
+          ->MaybeRedecl<TypeAliasSymbol>::canonical();
     default:
       return const_cast<Symbol*>(this);
   }
@@ -229,13 +233,17 @@ auto Symbol::canonical() const -> Symbol* {
 auto Symbol::definition() const -> Symbol* {
   switch (kind()) {
     case SymbolKind::kClass:
-      return static_cast<const ClassSymbol*>(this)->MaybeRedecl<ClassSymbol>::definition();
+      return static_cast<const ClassSymbol*>(this)
+          ->MaybeRedecl<ClassSymbol>::definition();
     case SymbolKind::kFunction:
-      return static_cast<const FunctionSymbol*>(this)->MaybeRedecl<FunctionSymbol>::definition();
+      return static_cast<const FunctionSymbol*>(this)
+          ->MaybeRedecl<FunctionSymbol>::definition();
     case SymbolKind::kVariable:
-      return static_cast<const VariableSymbol*>(this)->MaybeRedecl<VariableSymbol>::definition();
+      return static_cast<const VariableSymbol*>(this)
+          ->MaybeRedecl<VariableSymbol>::definition();
     case SymbolKind::kTypeAlias:
-      return static_cast<const TypeAliasSymbol*>(this)->MaybeRedecl<TypeAliasSymbol>::definition();
+      return static_cast<const TypeAliasSymbol*>(this)
+          ->MaybeRedecl<TypeAliasSymbol>::definition();
     default:
       return nullptr;
   }
@@ -650,6 +658,24 @@ auto ClassSymbol::isFriend() const -> bool { return isFriend_; }
 
 void ClassSymbol::setFriend(bool isFriend) { isFriend_ = isFriend; }
 
+auto ClassSymbol::isPolymorphic() const -> bool { return isPolymorphic_; }
+
+void ClassSymbol::setPolymorphic(bool isPolymorphic) {
+  isPolymorphic_ = isPolymorphic;
+}
+
+auto ClassSymbol::isAbstract() const -> bool { return isAbstract_; }
+
+void ClassSymbol::setAbstract(bool isAbstract) { isAbstract_ = isAbstract; }
+
+auto ClassSymbol::hasVirtualDestructor() const -> bool {
+  return hasVirtualDestructor_;
+}
+
+void ClassSymbol::setHasVirtualDestructor(bool hasVirtualDestructor) {
+  hasVirtualDestructor_ = hasVirtualDestructor;
+}
+
 auto ClassSymbol::sizeInBytes() const -> int { return sizeInBytes_; }
 
 void ClassSymbol::setSizeInBytes(int sizeInBytes) {
@@ -927,7 +953,6 @@ FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
 
 FunctionSymbol::~FunctionSymbol() {}
 
-
 auto FunctionSymbol::isDefined() const -> bool { return isDefined_; }
 
 void FunctionSymbol::setDefined(bool isDefined) { isDefined_ = isDefined; }
@@ -981,6 +1006,14 @@ void FunctionSymbol::setDefaulted(bool isDefaulted) {
 auto FunctionSymbol::isPure() const -> bool { return isPure_; }
 
 void FunctionSymbol::setPure(bool isPure) { isPure_ = isPure; }
+
+auto FunctionSymbol::isOverride() const -> bool { return isOverride_; }
+
+void FunctionSymbol::setOverride(bool isOverride) { isOverride_ = isOverride; }
+
+auto FunctionSymbol::isFinal() const -> bool { return isFinal_; }
+
+void FunctionSymbol::setFinal(bool isFinal) { isFinal_ = isFinal; }
 
 auto FunctionSymbol::isConstructor() const -> bool {
   auto p = symbol_cast<ClassSymbol>(parent());
@@ -1129,7 +1162,6 @@ VariableSymbol::VariableSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
 VariableSymbol::~VariableSymbol() {}
-
 
 auto VariableSymbol::isStatic() const -> bool { return isStatic_; }
 

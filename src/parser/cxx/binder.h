@@ -184,6 +184,8 @@ class Binder {
   void mergeDefaultArguments(FunctionSymbol* functionSymbol,
                              DeclaratorAST* declarator);
 
+  void computeClassFlags(ClassSymbol* classSymbol);
+
  private:
   struct DeclareFunction;
 

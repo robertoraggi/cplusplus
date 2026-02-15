@@ -478,6 +478,15 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto isFriend() const -> bool;
   void setFriend(bool isFriend);
 
+  [[nodiscard]] auto isPolymorphic() const -> bool;
+  void setPolymorphic(bool isPolymorphic);
+
+  [[nodiscard]] auto isAbstract() const -> bool;
+  void setAbstract(bool isAbstract);
+
+  [[nodiscard]] auto hasVirtualDestructor() const -> bool;
+  void setHasVirtualDestructor(bool hasVirtualDestructor);
+
   [[nodiscard]] auto sizeInBytes() const -> int;
   void setSizeInBytes(int sizeInBytes);
 
@@ -513,6 +522,9 @@ class ClassSymbol final : public ScopeSymbol,
       std::uint32_t isFinal_ : 1;
       std::uint32_t isComplete_ : 1;
       std::uint32_t isFriend_ : 1;
+      std::uint32_t isPolymorphic_ : 1;
+      std::uint32_t isAbstract_ : 1;
+      std::uint32_t hasVirtualDestructor_ : 1;
     };
   };
 };
@@ -604,6 +616,12 @@ class FunctionSymbol final
   [[nodiscard]] auto isPure() const -> bool;
   void setPure(bool isPure);
 
+  [[nodiscard]] auto isOverride() const -> bool;
+  void setOverride(bool isOverride);
+
+  [[nodiscard]] auto isFinal() const -> bool;
+  void setFinal(bool isFinal);
+
   [[nodiscard]] auto isConstructor() const -> bool;
   [[nodiscard]] auto isDestructor() const -> bool;
 
@@ -635,6 +653,8 @@ class FunctionSymbol final
       std::uint32_t isDefaulted_ : 1;
       std::uint32_t isPure_ : 1;
       std::uint32_t hasCLinkage_ : 1;
+      std::uint32_t isOverride_ : 1;
+      std::uint32_t isFinal_ : 1;
     };
   };
 };
