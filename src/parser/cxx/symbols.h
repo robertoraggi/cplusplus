@@ -464,7 +464,11 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto defaultConstructor() const -> FunctionSymbol*;
   [[nodiscard]] auto copyConstructor() const -> FunctionSymbol*;
   [[nodiscard]] auto moveConstructor() const -> FunctionSymbol*;
+  [[nodiscard]] auto copyAssignmentOperator() const -> FunctionSymbol*;
+  [[nodiscard]] auto moveAssignmentOperator() const -> FunctionSymbol*;
   [[nodiscard]] auto hasUserDeclaredConstructors() const -> bool;
+  [[nodiscard]] auto hasVirtualFunctions() const -> bool;
+  [[nodiscard]] auto hasVirtualBaseClasses() const -> bool;
 
   [[nodiscard]] auto convertingConstructors() const
       -> std::vector<FunctionSymbol*>;

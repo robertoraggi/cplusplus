@@ -45,6 +45,7 @@ add_library(cxx-parser
     cxx/ast.cc
     cxx/base_classes.cc
     cxx/binder.cc
+    cxx/binder_complete_class.cc
     cxx/cli.cc
     cxx/const_value.cc
     cxx/control.cc

@@ -758,24 +758,28 @@ auto Codegen::computeVtableSlots(ClassSymbol* classSymbol)
   }
 
   for (auto member : views::members(classSymbol)) {
-    if (auto func = symbol_cast<FunctionSymbol>(member)) {
-      if (func->isVirtual()) {
-        bool foundOverride = false;
-        for (size_t i = 0; i < vtableSlots.size(); ++i) {
-          auto isOverride = vtableSlots[i]->name() == func->name() ||
-                            (name_cast<DestructorId>(vtableSlots[i]->name()) &&
-                             name_cast<DestructorId>(func->name()));
-          if (isOverride) {
-            vtableSlots[i] = func;
-            foundOverride = true;
-            break;
-          }
-        }
-
-        if (!foundOverride) {
-          vtableSlots.push_back(func);
+    auto processFunc = [&](FunctionSymbol* func) {
+      if (!func->isVirtual()) return;
+      bool foundOverride = false;
+      for (size_t i = 0; i < vtableSlots.size(); ++i) {
+        auto isOverride = vtableSlots[i]->name() == func->name() ||
+                          (name_cast<DestructorId>(vtableSlots[i]->name()) &&
+                           name_cast<DestructorId>(func->name()));
+        if (isOverride) {
+          vtableSlots[i] = func;
+          foundOverride = true;
+          break;
         }
       }
+      if (!foundOverride) {
+        vtableSlots.push_back(func);
+      }
+    };
+
+    if (auto func = symbol_cast<FunctionSymbol>(member)) {
+      processFunc(func);
+    } else if (auto ovl = symbol_cast<OverloadSetSymbol>(member)) {
+      for (auto* f : ovl->functions()) processFunc(f);
     }
   }
 

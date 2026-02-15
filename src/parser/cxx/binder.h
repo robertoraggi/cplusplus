@@ -178,8 +178,8 @@ class Binder {
     ~ScopeGuard() { p->setScope(savedScope); }
   };
 
-  [[nodiscard]] auto is_parsing_c() const;
-  [[nodiscard]] auto is_parsing_cxx() const;
+  [[nodiscard]] auto is_parsing_c() const -> bool;
+  [[nodiscard]] auto is_parsing_cxx() const -> bool;
 
   void mergeDefaultArguments(FunctionSymbol* functionSymbol,
                              DeclaratorAST* declarator);
@@ -187,6 +187,7 @@ class Binder {
   void computeClassFlags(ClassSymbol* classSymbol);
 
  private:
+  struct CompleteClass;
   struct DeclareFunction;
 
  private:

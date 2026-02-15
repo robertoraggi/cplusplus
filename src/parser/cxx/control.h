@@ -279,6 +279,7 @@ class Control {
 
   // arrays
   [[nodiscard]] auto remove_extent(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_all_extents(const Type* type) -> const Type*;
   [[nodiscard]] auto get_element_type(const Type* type) -> const Type*;
 
   // cv qualifiers
@@ -315,6 +316,7 @@ class Control {
   [[nodiscard]] auto is_trivially_constructible(const Type* type) -> bool;
   [[nodiscard]] auto is_trivially_assignable(const Type* from, const Type* to)
       -> bool;
+  [[nodiscard]] auto is_trivially_copyable(const Type* type) -> bool;
   [[nodiscard]] auto is_abstract(const Type* type) -> bool;
   [[nodiscard]] auto has_virtual_destructor(const Type* type) -> bool;
 

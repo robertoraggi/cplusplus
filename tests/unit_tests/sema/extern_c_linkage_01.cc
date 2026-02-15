@@ -58,5 +58,7 @@ void test() {
 // CHECK-NEXT:    constructor defaulted void Widget(const ::Widget&)
 // CHECK-NEXT:    constructor defaulted void Widget(::Widget&&)
 // CHECK-NEXT:    function void draw()
+// CHECK-NEXT:    function defaulted ::Widget& operator =(const ::Widget&)
+// CHECK-NEXT:    function defaulted ::Widget& operator =(::Widget&&)
 // CHECK-NEXT:    function defaulted void ~Widget()
 // CHECK-NEXT:  function void test()
