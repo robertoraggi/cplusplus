@@ -187,6 +187,7 @@ class Binder {
   void computeClassFlags(ClassSymbol* classSymbol);
 
  private:
+  struct BindClass;
   struct CompleteClass;
   struct DeclareFunction;
 
