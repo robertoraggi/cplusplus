@@ -187,8 +187,10 @@ class Binder {
   void computeClassFlags(ClassSymbol* classSymbol);
 
  private:
+  struct BindClass;
   struct CompleteClass;
   struct DeclareFunction;
+  struct ResolveUnqualifiedId;
 
  private:
   TranslationUnit* unit_ = nullptr;

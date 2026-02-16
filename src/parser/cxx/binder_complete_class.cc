@@ -28,8 +28,6 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
-#include <format>
-
 namespace cxx {
 
 struct [[nodiscard]] Binder::CompleteClass {
@@ -43,7 +41,12 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   auto control() const -> Control* { return binder.control(); }
 
-  void operator()();
+  void complete();
+
+  void markComplete();
+  auto shouldSynthesizeSpecialMembers() const -> bool;
+  void synthesizeSpecialMembers();
+  auto hasVirtualBaseDestructor() const -> bool;
 
   auto newDefaultedFunction(const Name* name, const Type* type)
       -> FunctionSymbol*;
@@ -57,29 +60,53 @@ struct [[nodiscard]] Binder::CompleteClass {
   void addDestructor();
 };
 
-void Binder::complete(ClassSpecifierAST* ast) { CompleteClass{*this, ast}(); }
+void Binder::complete(ClassSpecifierAST* ast) {
+  CompleteClass{*this, ast}.complete();
+}
 
-void Binder::CompleteClass::operator()() {
+void Binder::CompleteClass::markComplete() { ast->symbol->setComplete(true); }
+
+auto Binder::CompleteClass::shouldSynthesizeSpecialMembers() const -> bool {
+  if (!binder.is_parsing_cxx()) return false;
+  if (!classSymbol->name()) return false;
+  return true;
+}
+
+void Binder::CompleteClass::synthesizeSpecialMembers() {
+  addDefaultConstructor();
+  addCopyConstructor();
+  addMoveConstructor();
+  addCopyAssignmentOperator();
+  addMoveAssignmentOperator();
+  addDestructor();
+}
+
+auto Binder::CompleteClass::hasVirtualBaseDestructor() const -> bool {
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+
+    auto dtor = baseClass->destructor();
+    if (dtor && dtor->isVirtual()) return true;
+  }
+
+  return false;
+}
+
+void Binder::CompleteClass::complete() {
   if (binder.inTemplate()) {
-    ast->symbol->setComplete(true);
+    markComplete();
     return;
   }
 
-  if (binder.is_parsing_cxx() && classSymbol->name()) {
-    addDefaultConstructor();
-    addCopyConstructor();
-    addMoveConstructor();
-    addCopyAssignmentOperator();
-    addMoveAssignmentOperator();
-    addDestructor();
-  }
+  if (shouldSynthesizeSpecialMembers()) synthesizeSpecialMembers();
 
   auto status = classSymbol->buildClassLayout(control());
   if (!status.has_value())
     binder.error(classSymbol->location(), status.error());
 
   binder.computeClassFlags(classSymbol);
-  ast->symbol->setComplete(true);
+  markComplete();
 }
 
 auto Binder::CompleteClass::newDefaultedFunction(const Name* name,
@@ -188,14 +215,7 @@ void Binder::CompleteClass::addDestructor() {
       control()->getDestructorId(classSymbol->name()),
       control()->getFunctionType(control()->getVoidType(), {}));
 
-  for (auto base : classSymbol->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    if (auto dtor = baseClass->destructor(); dtor && dtor->isVirtual()) {
-      symbol->setVirtual(true);
-      break;
-    }
-  }
+  if (hasVirtualBaseDestructor()) symbol->setVirtual(true);
 
   classSymbol->addSymbol(symbol);
 
