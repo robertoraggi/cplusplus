@@ -2806,14 +2806,13 @@ auto Preprocessor::Private::buildSearchDirs(const std::string& curDir,
   if (isQuoted) {
     if (!disableCurrentDirSearch_ && !curDir.empty())
       dirs.push_back({&curDir, false});
-    for (auto it = quoteIncludePaths_.rbegin(); it != quoteIncludePaths_.rend();
+    for (auto it = quoteIncludePaths_.begin(); it != quoteIncludePaths_.end();
          ++it)
       dirs.push_back({&*it, false});
   }
-  for (auto it = userIncludePaths_.rbegin(); it != userIncludePaths_.rend();
-       ++it)
+  for (auto it = userIncludePaths_.begin(); it != userIncludePaths_.end(); ++it)
     dirs.push_back({&*it, false});
-  for (auto it = systemIncludePaths_.rbegin(); it != systemIncludePaths_.rend();
+  for (auto it = systemIncludePaths_.begin(); it != systemIncludePaths_.end();
        ++it)
     dirs.push_back({&*it, true});
   return dirs;
@@ -3112,8 +3111,7 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
 
   d->mainSourceFileId_ = sourceFile->id;
 
-  auto dirpath = fs::path(sourceFile->fileName);
-  dirpath.remove_filename();
+  auto dirpath = fs::path(sourceFile->fileName).parent_path();
 
   Private::Cursor mainCursor;
   mainCursor.kind = Private::Cursor::FileCursor;
@@ -3544,8 +3542,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
                                               sourceFile->headerGuardName);
   }
 
-  auto dirpath = fs::path(sourceFile->fileName);
-  dirpath.remove_filename();
+  auto dirpath = fs::path(sourceFile->fileName).parent_path();
 
   Preprocessor::Private::Cursor fileCursor;
   fileCursor.kind = Preprocessor::Private::Cursor::FileCursor;
