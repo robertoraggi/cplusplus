@@ -59,6 +59,17 @@ struct [[nodiscard]] Binder::DeclareFunction {
     return name_cast<DestructorId>(decl.getName()) != nullptr;
   }
 
+  auto declaringScopeForFunction() const -> ScopeSymbol*;
+  void mergeAsCRedeclaration(FunctionSymbol* otherFunction);
+  auto createOverloadSet(ScopeSymbol* declaringScope,
+                         FunctionSymbol* otherFunction) -> OverloadSetSymbol*;
+  auto mergeWithMatchingOverload(OverloadSetSymbol* overloadSet) -> bool;
+
+  void applyVirtualFlagsFromDeclarator();
+  auto enclosingClass() const -> ClassSymbol*;
+  void checkVirtualSpecifierOutsideClass();
+  void checkOverrideAndFinalSpecifiers(FunctionSymbol* overridden);
+
   auto declare() -> FunctionSymbol*;
 
   void checkRedeclaration();
@@ -106,14 +117,55 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   return functionSymbol;
 }
 
+auto Binder::DeclareFunction::declaringScopeForFunction() const
+    -> ScopeSymbol* {
+  if (!functionSymbol->isFriend()) return binder.declaringScope();
+
+  auto declaringScope = binder.declaringScope();
+  if (declaringScope->isNamespace()) return declaringScope;
+
+  auto enclosingNamespace = declaringScope->enclosingNamespace();
+  if (enclosingNamespace) return enclosingNamespace;
+
+  return declaringScope;
+}
+
+void Binder::DeclareFunction::mergeAsCRedeclaration(
+    FunctionSymbol* otherFunction) {
+  auto canonical = otherFunction->canonical();
+  canonical->addRedeclaration(functionSymbol);
+  mergeRedeclaration();
+}
+
+auto Binder::DeclareFunction::createOverloadSet(ScopeSymbol* declaringScope,
+                                                FunctionSymbol* otherFunction)
+    -> OverloadSetSymbol* {
+  auto overloadSet = control()->newOverloadSetSymbol(declaringScope,
+                                                     otherFunction->location());
+  overloadSet->setName(otherFunction->name());
+  overloadSet->addFunction(otherFunction);
+  declaringScope->replaceSymbol(otherFunction, overloadSet);
+  return overloadSet;
+}
+
+auto Binder::DeclareFunction::mergeWithMatchingOverload(
+    OverloadSetSymbol* overloadSet) -> bool {
+  for (auto existingFunction : overloadSet->functions()) {
+    if (!control()->is_same(existingFunction->type(), functionSymbol->type())) {
+      continue;
+    }
+
+    auto canonical = existingFunction->canonical();
+    canonical->addRedeclaration(functionSymbol);
+    mergeRedeclaration();
+    return true;
+  }
+
+  return false;
+}
+
 void Binder::DeclareFunction::checkRedeclaration() {
-  auto declaringScope = [&]() -> ScopeSymbol* {
-    if (!functionSymbol->isFriend()) return binder.declaringScope();
-    auto ds = binder.declaringScope();
-    if (ds->isNamespace()) return ds;
-    if (auto ns = ds->enclosingNamespace()) return ns;
-    return ds;
-  }();
+  auto declaringScope = declaringScopeForFunction();
 
   OverloadSetSymbol* overloadSet = nullptr;
 
@@ -123,42 +175,29 @@ void Binder::DeclareFunction::checkRedeclaration() {
 
     if (auto otherFunction = symbol_cast<FunctionSymbol>(candidate)) {
       if (binder.is_parsing_c()) {
-        auto canon = otherFunction->canonical();
-        canon->addRedeclaration(functionSymbol);
-        mergeRedeclaration();
+        mergeAsCRedeclaration(otherFunction);
         break;
       }
 
-      overloadSet = control()->newOverloadSetSymbol(declaringScope,
-                                                    otherFunction->location());
-      overloadSet->setName(otherFunction->name());
-      overloadSet->addFunction(otherFunction);
-      declaringScope->replaceSymbol(otherFunction, overloadSet);
+      overloadSet = createOverloadSet(declaringScope, otherFunction);
       break;
     }
   }
 
   if (overloadSet) {
-    bool isRedecl = false;
-
-    for (auto existingFunction : overloadSet->functions()) {
-      if (control()->is_same(existingFunction->type(),
-                             functionSymbol->type())) {
-        auto canon = existingFunction->canonical();
-        canon->addRedeclaration(functionSymbol);
-        mergeRedeclaration();
-        isRedecl = true;
-        break;
-      }
+    if (!mergeWithMatchingOverload(overloadSet)) {
+      overloadSet->addFunction(functionSymbol);
     }
 
-    if (!isRedecl) overloadSet->addFunction(functionSymbol);
-  } else {
-    if (functionSymbol->isFriend() && !declaringScope->isClass()) {
-      functionSymbol->setHidden(true);
-    }
-    declaringScope->addSymbol(functionSymbol);
+    binder.mergeDefaultArguments(functionSymbol, declarator);
+    return;
   }
+
+  if (functionSymbol->isFriend() && !declaringScope->isClass()) {
+    functionSymbol->setHidden(true);
+  }
+
+  declaringScope->addSymbol(functionSymbol);
 
   binder.mergeDefaultArguments(functionSymbol, declarator);
 }
@@ -206,6 +245,61 @@ void Binder::DeclareFunction::checkExternalLinkageSpec() {
   functionSymbol->setLanguageLinkage(binder.languageLinkage_);
 }
 
+void Binder::DeclareFunction::applyVirtualFlagsFromDeclarator() {
+  if (functionDeclarator->isOverride) functionSymbol->setOverride(true);
+  if (functionDeclarator->isFinal) functionSymbol->setFinal(true);
+
+  if (!functionDeclarator->isPure) return;
+
+  functionSymbol->setPure(true);
+  functionSymbol->setVirtual(true);
+}
+
+auto Binder::DeclareFunction::enclosingClass() const -> ClassSymbol* {
+  return symbol_cast<ClassSymbol>(scope());
+}
+
+void Binder::DeclareFunction::checkVirtualSpecifierOutsideClass() {
+  if (!functionSymbol->isVirtual() && !functionSymbol->isOverride() &&
+      !functionSymbol->isFinal()) {
+    return;
+  }
+
+  if (functionSymbol->isVirtual()) {
+    binder.error(functionSymbol->location(),
+                 "'virtual' can only appear on non-static member "
+                 "functions");
+    functionSymbol->setVirtual(false);
+  }
+
+  if (functionSymbol->isOverride()) {
+    binder.error(functionSymbol->location(),
+                 "'override' can only appear on non-static member "
+                 "functions");
+  }
+
+  if (functionSymbol->isFinal()) {
+    binder.error(functionSymbol->location(),
+                 "'final' can only appear on non-static member functions");
+  }
+}
+
+void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
+    FunctionSymbol* overridden) {
+  if (functionSymbol->isOverride() && !overridden) {
+    binder.error(functionSymbol->location(),
+                 std::format("'{}' marked 'override' but does not override "
+                             "any member function",
+                             to_string(functionSymbol->name())));
+  }
+
+  if (!functionSymbol->isFinal() || functionSymbol->isVirtual()) return;
+
+  binder.error(functionSymbol->location(),
+               std::format("'{}' marked 'final' but is not virtual",
+                           to_string(functionSymbol->name())));
+}
+
 auto Binder::DeclareFunction::findOverriddenFunction(ClassSymbol* cls,
                                                      FunctionSymbol* fn)
     -> FunctionSymbol* {
@@ -237,35 +331,11 @@ auto Binder::DeclareFunction::findOverriddenFunctionImpl(
 }
 
 void Binder::DeclareFunction::checkVirtualSpecifier() {
-  // Propagate override/final from AST to symbol
-  if (functionDeclarator->isOverride) functionSymbol->setOverride(true);
-  if (functionDeclarator->isFinal) functionSymbol->setFinal(true);
+  applyVirtualFlagsFromDeclarator();
 
-  // Pure specifier (= 0) implies virtual
-  if (functionDeclarator->isPure) {
-    functionSymbol->setPure(true);
-    functionSymbol->setVirtual(true);
-  }
-
-  auto enclosingClass = symbol_cast<ClassSymbol>(scope());
-
-  // virtual/override/final/pure on non-member functions is invalid
-  if (!enclosingClass) {
-    if (functionSymbol->isVirtual()) {
-      binder.error(functionSymbol->location(),
-                   "'virtual' can only appear on non-static member "
-                   "functions");
-      functionSymbol->setVirtual(false);
-    }
-    if (functionSymbol->isOverride()) {
-      binder.error(functionSymbol->location(),
-                   "'override' can only appear on non-static member "
-                   "functions");
-    }
-    if (functionSymbol->isFinal()) {
-      binder.error(functionSymbol->location(),
-                   "'final' can only appear on non-static member functions");
-    }
+  auto cls = enclosingClass();
+  if (!cls) {
+    checkVirtualSpecifierOutsideClass();
     return;
   }
 
@@ -273,7 +343,7 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
   if (functionSymbol->isConstructor()) return;
 
   // Look up the overridden virtual function in base classes
-  auto overridden = findOverriddenFunction(enclosingClass, functionSymbol);
+  auto overridden = findOverriddenFunction(cls, functionSymbol);
 
   if (overridden) {
     functionSymbol->setVirtual(true);
@@ -287,18 +357,7 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
     }
   }
 
-  if (functionSymbol->isOverride() && !overridden) {
-    binder.error(functionSymbol->location(),
-                 std::format("'{}' marked 'override' but does not override "
-                             "any member function",
-                             to_string(functionSymbol->name())));
-  }
-
-  if (functionSymbol->isFinal() && !functionSymbol->isVirtual()) {
-    binder.error(functionSymbol->location(),
-                 std::format("'{}' marked 'final' but is not virtual",
-                             to_string(functionSymbol->name())));
-  }
+  checkOverrideAndFinalSpecifiers(overridden);
 }
 
 void Binder::DeclareFunction::mergeRedeclaration() {

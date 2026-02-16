@@ -42,6 +42,21 @@ struct [[nodiscard]] Binder::BindClass {
   DeclSpecs& declSpecs;
 
   auto control() const -> Control* { return binder.control(); }
+  auto className() const -> const Identifier*;
+  auto classLocation() const -> SourceLocation;
+
+  auto findExistingClass(const Identifier* className) const -> ClassSymbol*;
+  auto createClassSymbol(const Identifier* className, SourceLocation location)
+      -> ClassSymbol*;
+  void initializeClassSymbol(ClassSymbol* classSymbol);
+
+  auto findPrimaryTemplateSymbol(SimpleTemplateIdAST* templateId) const
+      -> ClassSymbol*;
+  auto templateParameterCount(TemplateDeclarationAST* templateDecl) const
+      -> int;
+  auto hasPackTemplateParameter(TemplateDeclarationAST* templateDecl) const
+      -> bool;
+  auto isTrueRedefinition(ClassSymbol* specialization) const -> bool;
 
   void bind();
   void check_optional_nested_name_specifier();
@@ -52,67 +67,141 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
   BindClass{*this, ast, declSpecs}.bind();
 }
 
-void Binder::BindClass::bind() {
-  check_optional_nested_name_specifier();
+auto Binder::BindClass::className() const -> const Identifier* {
+  auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId);
+  if (!nameId) return nullptr;
+  return nameId->identifier;
+}
 
-  if (check_template_specialization()) return;
+auto Binder::BindClass::classLocation() const -> SourceLocation {
+  if (ast->unqualifiedId) return ast->unqualifiedId->firstSourceLocation();
+  return ast->classLoc;
+}
 
-  // get the component anme
-  const Identifier* className = nullptr;
+auto Binder::BindClass::findExistingClass(const Identifier* className) const
+    -> ClassSymbol* {
+  if (!className) return nullptr;
 
-  if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-    className = nameId->identifier;
+  for (auto candidate :
+       binder.declaringScope()->find(className) | views::classes) {
+    return candidate;
   }
 
-  const auto location = ast->unqualifiedId
-                            ? ast->unqualifiedId->firstSourceLocation()
-                            : ast->classLoc;
+  return nullptr;
+}
 
-  ClassSymbol* classSymbol = nullptr;
+auto Binder::BindClass::createClassSymbol(const Identifier* className,
+                                          SourceLocation location)
+    -> ClassSymbol* {
+  const auto isUnion = ast->classKey == TokenKind::T_UNION;
+  auto classSymbol = control()->newClassSymbol(binder.scope(), location);
+  classSymbol->setIsUnion(isUnion);
+  classSymbol->setName(className);
+  return classSymbol;
+}
 
-  if (className) {
-    for (auto candidate :
-         binder.declaringScope()->find(className) | views::classes) {
-      classSymbol = candidate;
-      break;
-    }
-  }
-
-  if (classSymbol && classSymbol->isComplete()) {
-    // not a template-id, but a class with the same name already exists
-    binder.error(location, std::format("redefinition of class '{}'",
-                                       to_string(className)));
-    classSymbol = nullptr;
-  }
-
-  if (classSymbol && classSymbol->isHidden()) {
-    classSymbol->setHidden(false);
-  }
-
-  if (!classSymbol) {
-    const auto isUnion = ast->classKey == TokenKind::T_UNION;
-    classSymbol = control()->newClassSymbol(binder.scope(), location);
-    classSymbol->setIsUnion(isUnion);
-    classSymbol->setName(className);
-
-    binder.declaringScope()->addSymbol(classSymbol);
-  }
-
+void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   ast->symbol = classSymbol;
-
   ast->symbol->setDeclaration(ast);
-
-  auto classCanon = ast->symbol->canonical();
-  classCanon->setDefinition(ast->symbol);
+  ast->symbol->setFinal(ast->isFinal);
 
   if (declSpecs.templateHead) {
     ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
   }
 
-  ast->symbol->setFinal(ast->isFinal);
+  auto classCanon = ast->symbol->canonical();
+  classCanon->setDefinition(ast->symbol);
 
   declSpecs.setTypeSpecifier(ast);
   declSpecs.setType(ast->symbol->type());
+}
+
+auto Binder::BindClass::findPrimaryTemplateSymbol(
+    SimpleTemplateIdAST* templateId) const -> ClassSymbol* {
+  for (auto candidate :
+       binder.declaringScope()->find(templateId->identifier) | views::classes) {
+    return candidate;
+  }
+
+  return nullptr;
+}
+
+auto Binder::BindClass::templateParameterCount(
+    TemplateDeclarationAST* templateDecl) const -> int {
+  if (!templateDecl) return 0;
+
+  int count = 0;
+  for (auto parameter : ListView{templateDecl->templateParameterList}) {
+    (void)parameter;
+    ++count;
+  }
+  return count;
+}
+
+auto Binder::BindClass::hasPackTemplateParameter(
+    TemplateDeclarationAST* templateDecl) const -> bool {
+  if (!templateDecl) return false;
+
+  for (auto parameter : ListView{templateDecl->templateParameterList}) {
+    auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter);
+    if (typeParameter && typeParameter->isPack) return true;
+  }
+
+  return false;
+}
+
+auto Binder::BindClass::isTrueRedefinition(ClassSymbol* specialization) const
+    -> bool {
+  if (!specialization) return false;
+
+  bool isRedefinition = true;
+  if (!declSpecs.templateHead) return isRedefinition;
+
+  auto existingTemplateDecl = specialization->templateDeclaration();
+  if (!existingTemplateDecl) return isRedefinition;
+
+  if (templateParameterCount(existingTemplateDecl) !=
+      templateParameterCount(declSpecs.templateHead)) {
+    return false;
+  }
+
+  if (hasPackTemplateParameter(existingTemplateDecl) !=
+      hasPackTemplateParameter(declSpecs.templateHead)) {
+    return false;
+  }
+
+  if (existingTemplateDecl->requiresClause ||
+      declSpecs.templateHead->requiresClause) {
+    return false;
+  }
+
+  return isRedefinition;
+}
+
+void Binder::BindClass::bind() {
+  check_optional_nested_name_specifier();
+
+  if (check_template_specialization()) return;
+
+  const auto* name = className();
+  const auto location = classLocation();
+  auto classSymbol = findExistingClass(name);
+
+  if (classSymbol && classSymbol->isComplete()) {
+    // not a template-id, but a class with the same name already exists
+    binder.error(location,
+                 std::format("redefinition of class '{}'", to_string(name)));
+    classSymbol = nullptr;
+  }
+
+  if (classSymbol && classSymbol->isHidden()) classSymbol->setHidden(false);
+
+  if (!classSymbol) {
+    classSymbol = createClassSymbol(name, location);
+    binder.declaringScope()->addSymbol(classSymbol);
+  }
+
+  initializeClassSymbol(classSymbol);
 }
 
 void Binder::BindClass::check_optional_nested_name_specifier() {
@@ -134,14 +223,7 @@ auto Binder::BindClass::check_template_specialization() -> bool {
   if (!templateId) return false;
 
   const auto location = templateId->identifierLoc;
-
-  ClassSymbol* primaryTemplateSymbol = nullptr;
-
-  for (auto candidate :
-       binder.declaringScope()->find(templateId->identifier) | views::classes) {
-    primaryTemplateSymbol = candidate;
-    break;
-  }
+  auto primaryTemplateSymbol = findPrimaryTemplateSymbol(templateId);
 
   if (!primaryTemplateSymbol || !primaryTemplateSymbol->templateParameters()) {
     binder.error(location,
@@ -152,82 +234,21 @@ auto Binder::BindClass::check_template_specialization() -> bool {
 
   std::vector<TemplateArgument> templateArguments;
   ClassSymbol* specialization = nullptr;
-
   if (primaryTemplateSymbol) {
     templateArguments = ASTRewriter::make_substitution(
         binder.unit_, primaryTemplateSymbol->templateDeclaration(),
         templateId->templateArgumentList);
 
-    specialization =
-        primaryTemplateSymbol
-            ? symbol_cast<ClassSymbol>(
-                  primaryTemplateSymbol->findSpecialization(templateArguments))
-            : nullptr;
-
-    if (specialization) {
-      bool isTrueRedefinition = true;
-      if (declSpecs.templateHead) {
-        auto existingSpec = symbol_cast<ClassSymbol>(specialization);
-
-        auto existingTemplDecl =
-            existingSpec ? existingSpec->templateDeclaration() : nullptr;
-
-        if (existingTemplDecl) {
-          int existingCount = 0, newCount = 0;
-          bool existingHasPack = false, newHasPack = false;
-
-          for (auto p : ListView{existingTemplDecl->templateParameterList}) {
-            ++existingCount;
-
-            if (auto tp = ast_cast<TypenameTypeParameterAST>(p))
-              if (tp->isPack) existingHasPack = true;
-          }
-
-          for (auto p :
-               ListView{declSpecs.templateHead->templateParameterList}) {
-            ++newCount;
-
-            if (auto tp = ast_cast<TypenameTypeParameterAST>(p))
-              if (tp->isPack) newHasPack = true;
-          }
-
-          if (existingCount != newCount || existingHasPack != newHasPack) {
-            isTrueRedefinition = false;
-          }
-
-          if (existingTemplDecl->requiresClause ||
-              declSpecs.templateHead->requiresClause) {
-            isTrueRedefinition = false;
-          }
-        }
-      }
-
-      if (isTrueRedefinition) {
-        binder.error(location,
-                     std::format("redefinition of specialization '{}'",
-                                 templateId->identifier->name()));
-      }
-
-      // return true;
+    specialization = symbol_cast<ClassSymbol>(
+        primaryTemplateSymbol->findSpecialization(templateArguments));
+    if (specialization && isTrueRedefinition(specialization)) {
+      binder.error(location, std::format("redefinition of specialization '{}'",
+                                         templateId->identifier->name()));
     }
   }
 
-  const auto isUnion = ast->classKey == TokenKind::T_UNION;
-
-  auto classSymbol = control()->newClassSymbol(binder.scope(), location);
-  ast->symbol = classSymbol;
-
-  classSymbol->setIsUnion(isUnion);
-  classSymbol->setName(templateId->identifier);
-  ast->symbol->setDeclaration(ast);
-  ast->symbol->setFinal(ast->isFinal);
-
-  declSpecs.setTypeSpecifier(ast);
-  declSpecs.setType(ast->symbol->type());
-
-  if (declSpecs.templateHead) {
-    ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
-  }
+  auto classSymbol = createClassSymbol(templateId->identifier, location);
+  initializeClassSymbol(classSymbol);
 
   if (primaryTemplateSymbol) {
     primaryTemplateSymbol->addSpecialization(std::move(templateArguments),

@@ -29,9 +29,6 @@
 #include <cxx/translation_unit.h>
 #include <cxx/views/symbols.h>
 
-// std
-#include <format>
-
 namespace cxx {
 
 namespace {
@@ -217,6 +214,20 @@ struct [[nodiscard]] Binder::ResolveUnqualifiedId {
   auto control() const -> Control* { return binder.control(); }
   auto inTemplate() const -> bool { return binder.inTemplate_; }
 
+  auto resolveTemplateId(SimpleTemplateIdAST* templateId) -> Symbol*;
+  auto shouldKeepTemplateIdAsDependent(SimpleTemplateIdAST* templateId) const
+      -> bool;
+  auto hasDependentTemplateArguments(SimpleTemplateIdAST* templateId) const
+      -> bool;
+  auto isDependentTypeArgument(TypeTemplateArgumentAST* typeArg) const -> bool;
+  auto isDependentExpressionArgument(
+      ExpressionTemplateArgumentAST* expressionArg) const -> bool;
+  auto resolveClassTemplateId(SimpleTemplateIdAST* templateId,
+                              ClassSymbol* classSymbol) -> Symbol*;
+  auto resolveTypeAliasTemplateId(SimpleTemplateIdAST* templateId,
+                                  TypeAliasSymbol* typeAliasSymbol) -> Symbol*;
+  auto resolveNameId() -> Symbol*;
+
   auto resolve() -> Symbol*;
 };
 
@@ -228,79 +239,106 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
       .resolve();
 }
 
-auto Binder::ResolveUnqualifiedId::resolve() -> Symbol* {
-  if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
-    if (!checkTemplates) return templateId->symbol;
+auto Binder::ResolveUnqualifiedId::isDependentTypeArgument(
+    TypeTemplateArgumentAST* typeArg) const -> bool {
+  if (!typeArg || !typeArg->typeId) return false;
+  return containsDependentType(typeArg->typeId->type);
+}
 
-    if (inTemplate()) {
-      if (symbol_cast<TemplateTypeParameterSymbol>(templateId->symbol)) {
-        return templateId->symbol;
-      }
+auto Binder::ResolveUnqualifiedId::isDependentExpressionArgument(
+    ExpressionTemplateArgumentAST* expressionArg) const -> bool {
+  if (!expressionArg) return false;
+  return ContainsDependentExpr{}.check(expressionArg->expression);
+}
 
-      bool hasDependentArgs = false;
-      for (auto arg : ListView{templateId->templateArgumentList}) {
-        if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-          if (typeArg->typeId && containsDependentType(typeArg->typeId->type)) {
-            hasDependentArgs = true;
-            break;
-          }
-        }
-
-        if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-          if (ContainsDependentExpr{}.check(exprArg->expression)) {
-            hasDependentArgs = true;
-            break;
-          }
-        }
-      }
-      if (hasDependentArgs) {
-        return templateId->symbol;
-      }
+auto Binder::ResolveUnqualifiedId::hasDependentTemplateArguments(
+    SimpleTemplateIdAST* templateId) const -> bool {
+  for (auto arg : ListView{templateId->templateArgumentList}) {
+    if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+      if (isDependentTypeArgument(typeArg)) return true;
+      continue;
     }
 
-    if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiate(
-          binder.unit_, templateId->templateArgumentList, classSymbol);
-
-      if (!instance && classSymbol->templateDeclaration()) {
-        auto templateArgs = ASTRewriter::make_substitution(
-            binder.unit_, classSymbol->templateDeclaration(),
-            templateId->templateArgumentList);
-
-        if (!templateArgs.empty()) {
-          if (auto cached = classSymbol->findSpecialization(templateArgs))
-            return cached;
-
-          auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
-          auto spec = control()->newClassSymbol(parentScope, {});
-          spec->setName(classSymbol->name());
-          classSymbol->addSpecialization(std::move(templateArgs), spec);
-          instance = spec;
-        }
-      }
-
-      return instance;
-    }
-
-    if (auto typeAliasSymbol =
-            symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
-      auto instance = ASTRewriter::instantiate(
-          binder.unit_, templateId->templateArgumentList, typeAliasSymbol);
-
-      return instance;
-    }
-
-    return templateId->symbol;
+    auto expressionArg = ast_cast<ExpressionTemplateArgumentAST>(arg);
+    if (isDependentExpressionArgument(expressionArg)) return true;
   }
 
+  return false;
+}
+
+auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
+    SimpleTemplateIdAST* templateId) const -> bool {
+  if (!inTemplate()) return false;
+  if (symbol_cast<TemplateTypeParameterSymbol>(templateId->symbol)) {
+    return true;
+  }
+  return hasDependentTemplateArguments(templateId);
+}
+
+auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
+    SimpleTemplateIdAST* templateId, ClassSymbol* classSymbol) -> Symbol* {
+  auto instance = ASTRewriter::instantiate(
+      binder.unit_, templateId->templateArgumentList, classSymbol);
+
+  if (instance) return instance;
+  if (!classSymbol->templateDeclaration()) return instance;
+
+  auto templateArgs = ASTRewriter::make_substitution(
+      binder.unit_, classSymbol->templateDeclaration(),
+      templateId->templateArgumentList);
+
+  if (templateArgs.empty()) return instance;
+
+  if (auto cached = classSymbol->findSpecialization(templateArgs)) {
+    return cached;
+  }
+
+  auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
+  auto spec = control()->newClassSymbol(parentScope, {});
+  spec->setName(classSymbol->name());
+  classSymbol->addSpecialization(std::move(templateArgs), spec);
+  return spec;
+}
+
+auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
+    SimpleTemplateIdAST* templateId, TypeAliasSymbol* typeAliasSymbol)
+    -> Symbol* {
+  return ASTRewriter::instantiate(
+      binder.unit_, templateId->templateArgumentList, typeAliasSymbol);
+}
+
+auto Binder::ResolveUnqualifiedId::resolveTemplateId(
+    SimpleTemplateIdAST* templateId) -> Symbol* {
+  if (!checkTemplates) return templateId->symbol;
+  if (shouldKeepTemplateIdAsDependent(templateId)) return templateId->symbol;
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
+    return resolveClassTemplateId(templateId, classSymbol);
+  }
+
+  if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
+    return resolveTypeAliasTemplateId(templateId, typeAliasSymbol);
+  }
+
+  return templateId->symbol;
+}
+
+auto Binder::ResolveUnqualifiedId::resolveNameId() -> Symbol* {
   auto name = ast_cast<NameIdAST>(unqualifiedId);
+  if (!name) return nullptr;
 
   auto symbol =
       Lookup{binder.scope()}.lookupType(nestedNameSpecifier, name->identifier);
-
   if (!is_type(symbol)) return nullptr;
-
   return symbol;
+}
+
+auto Binder::ResolveUnqualifiedId::resolve() -> Symbol* {
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    return resolveTemplateId(templateId);
+  }
+
+  return resolveNameId();
 }
 
 }  // namespace cxx
