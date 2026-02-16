@@ -466,12 +466,12 @@ void Frontend::Private::preparePreprocessor() {
     preprocessor->setOmitLineMarkers(true);
   }
 
-  if (!cli.opt_nostdinc) {
-    toolchain_->addSystemIncludePaths();
-  }
-
   if (!cli.opt_nostdincpp) {
     toolchain_->addSystemCppIncludePaths();
+  }
+
+  if (!cli.opt_nostdinc) {
+    toolchain_->addSystemIncludePaths();
   }
 
   toolchain_->addPredefinedMacros();
@@ -621,15 +621,15 @@ void Frontend::Private::showSearchPaths(std::ostream& out) {
   auto preprocessor = unit_->preprocessor();
 
   out << std::format("#include \"...\" search starts here:\n");
-  for (const auto& path : preprocessor->quoteIncludePaths() | std::views::reverse) {
+  for (const auto& path : preprocessor->quoteIncludePaths()) {
     out << std::format(" {}\n", path);
   }
-  for (const auto& path : preprocessor->userIncludePaths() | std::views::reverse) {
+  for (const auto& path : preprocessor->userIncludePaths()) {
     out << std::format(" {}\n", path);
   }
 
   out << std::format("#include <...> search starts here:\n");
-  for (const auto& path : preprocessor->systemIncludePaths() | std::views::reverse) {
+  for (const auto& path : preprocessor->systemIncludePaths()) {
     out << std::format(" {}\n", path);
   }
 
