@@ -190,6 +190,7 @@ class Binder {
   struct BindClass;
   struct CompleteClass;
   struct DeclareFunction;
+  struct ResolveUnqualifiedId;
 
  private:
   TranslationUnit* unit_ = nullptr;

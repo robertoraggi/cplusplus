@@ -46,6 +46,7 @@ add_library(cxx-parser
     cxx/base_classes.cc
     cxx/binder.cc
     cxx/binder_complete_class.cc
+    cxx/binder_resolve_id.cc
     cxx/bind_class.cc
     cxx/cli.cc
     cxx/const_value.cc
