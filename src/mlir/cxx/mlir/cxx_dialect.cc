@@ -292,7 +292,7 @@ auto ClassType::getNamed(MLIRContext* context, StringRef name) -> ClassType {
 }
 
 auto ClassType::setBody(llvm::ArrayRef<Type> body) -> LogicalResult {
-  Base::mutate(body);
+  return Base::mutate(body);
 }
 
 void ClassType::print(AsmPrinter& p) const {

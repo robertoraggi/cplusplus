@@ -216,7 +216,10 @@ export const BUILTIN_TYPE_TRAITS: string[] = [
   "__is_class",
   "__is_compound",
   "__is_const",
+  "__is_constructible",
+  "__is_convertible",
   "__is_convertible_to",
+  "__is_destructible",
   "__is_empty",
   "__is_enum",
   "__is_final",
@@ -230,6 +233,7 @@ export const BUILTIN_TYPE_TRAITS: string[] = [
   "__is_member_function_pointer",
   "__is_member_object_pointer",
   "__is_member_pointer",
+  "__is_nothrow_constructible",
   "__is_null_pointer",
   "__is_object",
   "__is_pod",
@@ -274,6 +278,11 @@ export const UNARY_BUILTIN_TYPE_SPECIFIERS: string[] = [
 ];
 
 export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
+
+export const BUILTIN_TEMPLATES: string[] = [
+  "__make_integer_seq",
+  "__type_pack_element",
+];
 
 import { BUILTIN_NAMES } from "./builtins.ts";
 export const BUILTIN_FUNCTIONS: string[] = BUILTIN_NAMES;

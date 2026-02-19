@@ -235,7 +235,10 @@ class Token;
   V(__IS_CLASS, "__is_class")                                     \
   V(__IS_COMPOUND, "__is_compound")                               \
   V(__IS_CONST, "__is_const")                                     \
+  V(__IS_CONSTRUCTIBLE, "__is_constructible")                     \
+  V(__IS_CONVERTIBLE, "__is_convertible")                         \
   V(__IS_CONVERTIBLE_TO, "__is_convertible_to")                   \
+  V(__IS_DESTRUCTIBLE, "__is_destructible")                       \
   V(__IS_EMPTY, "__is_empty")                                     \
   V(__IS_ENUM, "__is_enum")                                       \
   V(__IS_FINAL, "__is_final")                                     \
@@ -249,6 +252,7 @@ class Token;
   V(__IS_MEMBER_FUNCTION_POINTER, "__is_member_function_pointer") \
   V(__IS_MEMBER_OBJECT_POINTER, "__is_member_object_pointer")     \
   V(__IS_MEMBER_POINTER, "__is_member_pointer")                   \
+  V(__IS_NOTHROW_CONSTRUCTIBLE, "__is_nothrow_constructible")     \
   V(__IS_NULL_POINTER, "__is_null_pointer")                       \
   V(__IS_OBJECT, "__is_object")                                   \
   V(__IS_POD, "__is_pod")                                         \
@@ -346,6 +350,9 @@ class Token;
   V(__BUILTIN_COSHF, "__builtin_coshf")                                 \
   V(__BUILTIN_COSHL, "__builtin_coshl")                                 \
   V(__BUILTIN_COSL, "__builtin_cosl")                                   \
+  V(__BUILTIN_CTZ, "__builtin_ctz")                                     \
+  V(__BUILTIN_CTZL, "__builtin_ctzl")                                   \
+  V(__BUILTIN_CTZLL, "__builtin_ctzll")                                 \
   V(__BUILTIN_ERF, "__builtin_erf")                                     \
   V(__BUILTIN_ERFC, "__builtin_erfc")                                   \
   V(__BUILTIN_ERFCF, "__builtin_erfcf")                                 \
@@ -402,7 +409,14 @@ class Token;
   V(__BUILTIN_ILOGBF, "__builtin_ilogbf")                               \
   V(__BUILTIN_ILOGBL, "__builtin_ilogbl")                               \
   V(__BUILTIN_INDEX, "__builtin_index")                                 \
+  V(__BUILTIN_INF, "__builtin_inf")                                     \
+  V(__BUILTIN_INFF, "__builtin_inff")                                   \
+  V(__BUILTIN_INFL, "__builtin_infl")                                   \
   V(__BUILTIN_IS_CONSTANT_EVALUATED, "__builtin_is_constant_evaluated") \
+  V(__BUILTIN_ISFINITE, "__builtin_isfinite")                           \
+  V(__BUILTIN_ISINF, "__builtin_isinf")                                 \
+  V(__BUILTIN_ISNAN, "__builtin_isnan")                                 \
+  V(__BUILTIN_ISNORMAL, "__builtin_isnormal")                           \
   V(__BUILTIN_LABS, "__builtin_labs")                                   \
   V(__BUILTIN_LDEXP, "__builtin_ldexp")                                 \
   V(__BUILTIN_LDEXPF, "__builtin_ldexpf")                               \
@@ -533,9 +547,14 @@ class Token;
   V(__BUILTIN_TRUNC, "__builtin_trunc")                                 \
   V(__BUILTIN_TRUNCF, "__builtin_truncf")                               \
   V(__BUILTIN_TRUNCL, "__builtin_truncl")                               \
+  V(__BUILTIN_UNREACHABLE, "__builtin_unreachable")                     \
   V(__BUILTIN_VA_COPY, "__builtin_va_copy")                             \
   V(__BUILTIN_VA_END, "__builtin_va_end")                               \
   V(__BUILTIN_VA_START, "__builtin_va_start")
+
+#define FOR_EACH_BUILTIN_TEMPLATE(V)          \
+  V(__MAKE_INTEGER_SEQ, "__make_integer_seq") \
+  V(__TYPE_PACK_ELEMENT, "__type_pack_element")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
@@ -602,6 +621,11 @@ enum class BinaryBuiltinTypeKind {
 enum class BuiltinFunctionKind {
   T_NONE,
   FOR_EACH_BUILTIN_FUNCTION(TOKEN_ENUM)
+};
+
+enum class BuiltinTemplateKind {
+  T_NONE,
+  FOR_EACH_BUILTIN_TEMPLATE(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM

@@ -57,6 +57,7 @@ enum class IdentifierInfoKind {
   kTypeTrait,
   kUnaryBuiltinType,
   kBuiltinFunction,
+  kBuiltinTemplate,
 };
 
 class IdentifierInfo;

@@ -25,7 +25,9 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -202,7 +204,61 @@ void DeclSpecs::Visitor::operator()(BuiltinTypeSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(UnaryBuiltinTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  // ### todo
+  if (!ast->typeId || !ast->typeId->type) return;
+  if (isDependent(specs.translationUnit(), ast->typeId)) return;
+  auto inputType = ast->typeId->type;
+  switch (ast->builtinKind) {
+    case UnaryBuiltinTypeKind::T___REMOVE_CV:
+      specs.type_ = control()->remove_cv(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_CONST:
+      specs.type_ = control()->remove_const(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_VOLATILE:
+      specs.type_ = control()->remove_volatile(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_CVREF:
+      specs.type_ = control()->remove_cvref(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_REFERENCE_T:
+      specs.type_ = control()->remove_reference(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_POINTER:
+      specs.type_ = control()->remove_pointer(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_EXTENT:
+      specs.type_ = control()->remove_extent(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_ALL_EXTENTS:
+      specs.type_ = control()->remove_all_extents(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___ADD_LVALUE_REFERENCE:
+      specs.type_ = control()->add_lvalue_reference(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___ADD_RVALUE_REFERENCE:
+      specs.type_ = control()->add_rvalue_reference(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___ADD_POINTER:
+      specs.type_ = control()->add_pointer(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___DECAY:
+      specs.type_ = control()->decay(inputType);
+      break;
+    case UnaryBuiltinTypeKind::T___MAKE_SIGNED:
+      // TODO: implement make_signed
+      specs.type_ = inputType;
+      break;
+    case UnaryBuiltinTypeKind::T___MAKE_UNSIGNED:
+      // TODO: implement make_unsigned
+      specs.type_ = inputType;
+      break;
+    case UnaryBuiltinTypeKind::T___REMOVE_RESTRICT:
+      // restrict is not modeled, so this is a no-op
+      specs.type_ = inputType;
+      break;
+    default:
+      break;
+  }
 }
 
 void DeclSpecs::Visitor::operator()(BinaryBuiltinTypeSpecifierAST* ast) {
@@ -302,11 +358,12 @@ void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
-  if (ast->symbol)
+  if (ast->symbol) {
     specs.type_ = ast->symbol->type();
-  else
+  } else {
     specs.type_ = control()->getUnresolvedNameType(
-        specs.unit_, ast->nestedNameSpecifier, ast->unqualifiedId);
+        specs.translationUnit(), ast->nestedNameSpecifier, ast->unqualifiedId);
+  }
 }
 
 void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
@@ -324,8 +381,8 @@ void DeclSpecs::Visitor::operator()(UnderlyingTypeSpecifierAST* ast) {
                    type_cast<ScopedEnumType>(ast->typeId->type)) {
       specs.type_ = scopedEnumType->underlyingType();
     } else {
-      specs.type_ =
-          control()->getUnresolvedUnderlyingType(specs.unit_, ast->typeId);
+      specs.type_ = control()->getUnresolvedUnderlyingType(
+          specs.translationUnit(), ast->typeId);
     }
   }
 }
@@ -378,16 +435,27 @@ void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  specs.type_ = control()->getUnresolvedNameType(
-      specs.unit_, ast->nestedNameSpecifier, ast->unqualifiedId);
 
-  // ### todo
+  // Resolve the typename when the NNS scope is known.
+  if (ast->nestedNameSpecifier && ast->nestedNameSpecifier->symbol) {
+    if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
+      auto symbol = lookupType(ast->nestedNameSpecifier->symbol,
+                               ast->nestedNameSpecifier, nameId->identifier);
+      if (symbol) {
+        specs.type_ = symbol->type();
+        return;
+      }
+    }
+  }
+
+  specs.type_ = control()->getUnresolvedNameType(
+      specs.translationUnit(), ast->nestedNameSpecifier, ast->unqualifiedId);
 }
 
 void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
-  auto interp = ASTInterpreter{specs.unit_};
+  auto interp = ASTInterpreter{specs.translationUnit()};
   auto value = interp.evaluate(ast->splicer->expression);
   if (!value.has_value()) return;
 
@@ -404,10 +472,11 @@ void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
 
 DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit_(unit) {}
 
-DeclSpecs::DeclSpecs(ASTRewriter* rewriter)
-    : rewriter_(rewriter), unit_(rewriter->translationUnit()) {}
+auto DeclSpecs::translationUnit() const -> TranslationUnit* { return unit_; }
 
-auto DeclSpecs::control() const -> Control* { return unit_->control(); }
+auto DeclSpecs::control() const -> Control* {
+  return translationUnit()->control();
+}
 
 void DeclSpecs::accept(SpecifierAST* specifier) {
   if (!specifier) return;

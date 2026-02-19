@@ -14,7 +14,6 @@ void test_float_to_int() {
 }
 
 void test_double_to_float() {
-  // expected-warning@1 {{narrowing conversion from 'double' to 'float' in braced-init-list}}
   float b = {1.5};
 }
 

@@ -25,7 +25,6 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
-#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -35,6 +34,86 @@
 #include <format>
 
 namespace cxx {
+
+namespace {
+
+auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
+  if (auto bounded = type_cast<BoundedArrayType>(type)) {
+    return std::to_string(bounded->size());
+  }
+  return std::nullopt;
+}
+
+auto isEffectivelyUnboundedArray(Control* control, const Type* type) -> bool {
+  if (!control || !type) return false;
+  if (control->is_unbounded_array(type)) return true;
+
+  auto unresolved = type_cast<UnresolvedBoundedArrayType>(type);
+  if (!unresolved) return false;
+  return !arrayBoundToString(type).has_value();
+}
+
+auto areRedeclarationTypesCompatible(Control* control, const Type* lhs,
+                                     const Type* rhs) -> bool {
+  if (!control || !lhs || !rhs) return false;
+
+  while (auto qual = type_cast<QualType>(lhs)) {
+    lhs = qual->elementType();
+  }
+  while (auto qual = type_cast<QualType>(rhs)) {
+    rhs = qual->elementType();
+  }
+
+  if (control->is_same(lhs, rhs)) return true;
+
+  if (!control->is_array(lhs) || !control->is_array(rhs)) return false;
+
+  auto lhsElement = control->get_element_type(lhs);
+  auto rhsElement = control->get_element_type(rhs);
+  if (!areRedeclarationTypesCompatible(control, lhsElement, rhsElement)) {
+    return false;
+  }
+
+  if (isEffectivelyUnboundedArray(control, lhs) ||
+      isEffectivelyUnboundedArray(control, rhs)) {
+    return true;
+  }
+
+  auto lhsBound = arrayBoundToString(lhs);
+  auto rhsBound = arrayBoundToString(rhs);
+  if (!lhsBound || !rhsBound) return true;
+  return *lhsBound == *rhsBound;
+}
+
+auto areFunctionSignaturesEquivalentForRedeclaration(Control* control,
+                                                     const Type* lhs,
+                                                     const Type* rhs) -> bool {
+  if (!control || !lhs || !rhs) return false;
+  if (control->is_same(lhs, rhs)) return true;
+
+  auto lhsFn = type_cast<FunctionType>(lhs);
+  auto rhsFn = type_cast<FunctionType>(rhs);
+  if (!lhsFn || !rhsFn) return false;
+
+  if (!control->is_same(lhsFn->returnType(), rhsFn->returnType())) return false;
+  if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
+  if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
+  if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
+
+  const auto& lhsParams = lhsFn->parameterTypes();
+  const auto& rhsParams = rhsFn->parameterTypes();
+  if (lhsParams.size() != rhsParams.size()) return false;
+
+  for (std::size_t i = 0; i < lhsParams.size(); ++i) {
+    if (!areRedeclarationTypesCompatible(control, lhsParams[i], rhsParams[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+}  // namespace
 
 struct [[nodiscard]] Binder::DeclareFunction {
   Binder& binder;
@@ -49,7 +128,6 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
   auto control() const -> Control* { return binder.control(); }
   auto scope() const -> ScopeSymbol* { return binder.scope(); }
-  auto lookup() const -> Lookup { return Lookup{scope()}; }
 
   auto isTemplateFunction() const -> bool {
     return scope()->isTemplateParameters();
@@ -151,7 +229,8 @@ auto Binder::DeclareFunction::createOverloadSet(ScopeSymbol* declaringScope,
 auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
   for (auto existingFunction : overloadSet->functions()) {
-    if (!control()->is_same(existingFunction->type(), functionSymbol->type())) {
+    if (!areFunctionSignaturesEquivalentForRedeclaration(
+            control(), existingFunction->type(), functionSymbol->type())) {
       continue;
     }
 
@@ -203,14 +282,21 @@ void Binder::DeclareFunction::checkRedeclaration() {
 }
 
 void Binder::DeclareFunction::checkConstructor() {
-  auto enclosingClass = symbol_cast<ClassSymbol>(binder.scope());
+  // For constructor templates, binder.scope() is the TemplateParametersSymbol.
+  // Look through to find the enclosing class.
+  auto classScope = binder.scope();
+  if (classScope && classScope->isTemplateParameters()) {
+    classScope = classScope->enclosingNonTemplateParametersScope();
+  }
+  auto enclosingClass = symbol_cast<ClassSymbol>(classScope);
 
   if (!enclosingClass) {
     cxx_runtime_error("constructor must be declared inside a class");
   }
 
   for (auto ctor : enclosingClass->constructors()) {
-    if (control()->is_same(ctor->type(), functionSymbol->type())) {
+    if (areFunctionSignaturesEquivalentForRedeclaration(
+            control(), ctor->type(), functionSymbol->type())) {
       auto canon = ctor->canonical();
       canon->addRedeclaration(functionSymbol);
       mergeRedeclaration();

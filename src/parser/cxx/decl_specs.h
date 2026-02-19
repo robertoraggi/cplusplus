@@ -29,34 +29,34 @@ class Control;
 class TranslationUnit;
 class ASTRewriter;
 
-class DeclSpecs {
+class [[nodiscard]] DeclSpecs {
   struct Visitor;
 
+  TranslationUnit* unit_ = nullptr;
   const Type* type_ = nullptr;
   SpecifierAST* typeSpecifier_ = nullptr;
   ASTRewriter* rewriter_ = nullptr;
-  TranslationUnit* unit_ = nullptr;
   bool finished_ = false;
 
  public:
-  explicit DeclSpecs(TranslationUnit* unit = nullptr);
-  explicit DeclSpecs(ASTRewriter* rewriter);
+  explicit DeclSpecs(TranslationUnit* unit);
 
-  [[nodiscard]] auto control() const -> Control*;
+  auto translationUnit() const -> TranslationUnit*;
+  auto control() const -> Control*;
 
   void finish();
 
-  [[nodiscard]] auto type() const -> const Type*;
+  auto type() const -> const Type*;
   void setType(const Type* type);
 
-  [[nodiscard]] auto hasTypeSpecifier() const -> bool;
+  auto hasTypeSpecifier() const -> bool;
 
-  [[nodiscard]] auto typeSpecifier() const -> SpecifierAST*;
+  auto typeSpecifier() const -> SpecifierAST*;
   void setTypeSpecifier(SpecifierAST* specifier);
 
-  [[nodiscard]] auto hasTypeOrSizeSpecifier() const -> bool;
-  [[nodiscard]] auto hasClassOrElaboratedTypeSpecifier() const -> bool;
-  [[nodiscard]] auto hasPlaceholderTypeSpecifier() const -> bool;
+  auto hasTypeOrSizeSpecifier() const -> bool;
+  auto hasClassOrElaboratedTypeSpecifier() const -> bool;
+  auto hasPlaceholderTypeSpecifier() const -> bool;
 
   void accept(SpecifierAST* specifier);
 

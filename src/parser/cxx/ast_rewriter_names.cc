@@ -26,12 +26,13 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/dependent_types.h>
+#include <cxx/name_lookup.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 #include <format>
-#include <iostream>
 
 namespace cxx {
 
@@ -414,6 +415,40 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   copy->identifier = ast->identifier;
   copy->scopeLoc = ast->scopeLoc;
 
+  if (!copy->symbol && copy->identifier) {
+    auto instantiating = rewrite.binder_.instantiatingSymbol();
+    auto templateParamsScope =
+        instantiating ? instantiating->parent() : nullptr;
+
+    if (templateParamsScope) {
+      auto typeParam = lookupType(templateParamsScope,
+                                  copy->nestedNameSpecifier, copy->identifier);
+
+      if (auto tps = symbol_cast<TypeParameterSymbol>(typeParam)) {
+        auto paramType = type_cast<TypeParameterType>(tps->type());
+        if (paramType && paramType->depth() == rewrite.depth_ &&
+            paramType->index() <
+                static_cast<int>(rewrite.templateArguments_.size())) {
+          auto index = paramType->index();
+          if (auto sym =
+                  std::get_if<Symbol*>(&rewrite.templateArguments_[index])) {
+            if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
+              if (rewrite.elementIndex_.has_value()) {
+                auto elemIdx = *rewrite.elementIndex_;
+                if (elemIdx < static_cast<int>(pack->elements().size())) {
+                  copy->symbol = binder()->resolveNestedNameSpecifier(
+                      pack->elements()[elemIdx]);
+                }
+              }
+            } else {
+              copy->symbol = binder()->resolveNestedNameSpecifier(*sym);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return copy;
 }
 
@@ -442,12 +477,43 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   copy->scopeLoc = ast->scopeLoc;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(copy->symbol);
+  bool hasDependentArgs = false;
+  if (copy->templateId) {
+    for (auto arg : ListView{copy->templateId->templateArgumentList}) {
+      if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+        if (isDependent(rewrite.unit_, typeArg->typeId)) {
+          hasDependentArgs = true;
+          break;
+        }
+      }
+      if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+        if (isDependent(rewrite.unit_, exprArg->expression)) {
+          hasDependentArgs = true;
+          break;
+        }
+      }
+    }
+  }
 
-  auto instance = ASTRewriter::instantiate(
-      translationUnit(), copy->templateId->templateArgumentList, classSymbol);
+  if (hasDependentArgs) return copy;
 
-  copy->symbol = symbol_cast<ClassSymbol>(instance);
+  if (auto primaryClass = symbol_cast<ClassSymbol>(copy->templateId->symbol)) {
+    auto instance = ASTRewriter::instantiate(
+        rewrite.unit_, copy->templateId->templateArgumentList, primaryClass);
+    copy->symbol = symbol_cast<ClassSymbol>(instance);
+  } else if (auto aliasSymbol =
+                 symbol_cast<TypeAliasSymbol>(copy->templateId->symbol)) {
+    auto instance = ASTRewriter::instantiate(
+        rewrite.unit_, copy->templateId->templateArgumentList, aliasSymbol);
+    if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
+      if (auto classType =
+              type_cast<ClassType>(control()->remove_cv(alias->type()))) {
+        copy->symbol = classType->symbol();
+      }
+    } else {
+      copy->symbol = symbol_cast<ScopeSymbol>(instance);
+    }
+  }
 
   return copy;
 }

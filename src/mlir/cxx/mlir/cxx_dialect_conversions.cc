@@ -1054,6 +1054,166 @@ class PtrToIntOpLowering : public OpConversionPattern<cxx::PtrToIntOp> {
   }
 };
 
+class BitfieldLoadOpLowering : public OpConversionPattern<cxx::BitfieldLoadOp> {
+ public:
+  BitfieldLoadOpLowering(const TypeConverter& typeConverter,
+                         const DataLayout& dataLayout, MLIRContext* context,
+                         PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::BitfieldLoadOp>(typeConverter, context,
+                                                 benefit),
+        dataLayout_(dataLayout) {}
+
+  auto matchAndRewrite(cxx::BitfieldLoadOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto context = getContext();
+    auto loc = op.getLoc();
+    auto typeConverter = getTypeConverter();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert bitfield load result type");
+    }
+
+    auto storageSizeBytes =
+        static_cast<unsigned>(op.getAlignment());  // repurposed as size
+    auto storageSizeBits = storageSizeBytes * 8;
+    auto bitOffset = static_cast<unsigned>(op.getBitOffset());
+    auto bitWidth = static_cast<unsigned>(op.getBitWidth());
+    bool isSigned = op.getIsSigned();
+
+    auto storageType = IntegerType::get(context, storageSizeBits);
+
+    // Load the entire storage unit
+    auto loaded = LLVM::LoadOp::create(rewriter, loc, storageType,
+                                       adaptor.getAddr(), storageSizeBytes);
+
+    mlir::Value extracted;
+    if (isSigned) {
+      // Signed: shift left to put the field in the MSB, then arithmetic
+      // shift right
+      auto shlAmount = storageSizeBits - bitOffset - bitWidth;
+      auto shrAmount = storageSizeBits - bitWidth;
+
+      auto shlConst = LLVM::ConstantOp::create(
+          rewriter, loc, storageType,
+          rewriter.getIntegerAttr(storageType, shlAmount));
+      auto shifted = LLVM::ShlOp::create(rewriter, loc, loaded, shlConst);
+
+      auto shrConst = LLVM::ConstantOp::create(
+          rewriter, loc, storageType,
+          rewriter.getIntegerAttr(storageType, shrAmount));
+      extracted = LLVM::AShrOp::create(rewriter, loc, shifted, shrConst);
+    } else {
+      // Unsigned: shift right, then mask
+      auto shrConst = LLVM::ConstantOp::create(
+          rewriter, loc, storageType,
+          rewriter.getIntegerAttr(storageType, bitOffset));
+      auto shifted = LLVM::LShrOp::create(rewriter, loc, loaded, shrConst);
+
+      auto mask = (1ULL << bitWidth) - 1;
+      auto maskConst =
+          LLVM::ConstantOp::create(rewriter, loc, storageType,
+                                   rewriter.getIntegerAttr(storageType, mask));
+      extracted = LLVM::AndOp::create(rewriter, loc, shifted, maskConst);
+    }
+
+    // Convert to result type (may need trunc or ext)
+    auto resultBits = resultType.getIntOrFloatBitWidth();
+    if (resultBits < storageSizeBits) {
+      extracted = LLVM::TruncOp::create(rewriter, loc, resultType, extracted);
+    } else if (resultBits > storageSizeBits) {
+      if (isSigned) {
+        extracted = LLVM::SExtOp::create(rewriter, loc, resultType, extracted);
+      } else {
+        extracted = LLVM::ZExtOp::create(rewriter, loc, resultType, extracted);
+      }
+    }
+
+    rewriter.replaceOp(op, extracted);
+    return success();
+  }
+
+ private:
+  const DataLayout& dataLayout_;
+};
+
+class BitfieldStoreOpLowering
+    : public OpConversionPattern<cxx::BitfieldStoreOp> {
+ public:
+  BitfieldStoreOpLowering(const TypeConverter& typeConverter,
+                          const DataLayout& dataLayout, MLIRContext* context,
+                          PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::BitfieldStoreOp>(typeConverter, context,
+                                                  benefit),
+        dataLayout_(dataLayout) {}
+
+  auto matchAndRewrite(cxx::BitfieldStoreOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto context = getContext();
+    auto loc = op.getLoc();
+
+    auto storageSizeBytes =
+        static_cast<unsigned>(op.getAlignment());  // repurposed as size
+    auto storageSizeBits = storageSizeBytes * 8;
+    auto bitOffset = static_cast<unsigned>(op.getBitOffset());
+    auto bitWidth = static_cast<unsigned>(op.getBitWidth());
+
+    auto storageType = IntegerType::get(context, storageSizeBits);
+
+    // Load current storage value
+    auto loaded = LLVM::LoadOp::create(rewriter, loc, storageType,
+                                       adaptor.getAddr(), storageSizeBytes);
+
+    // Prepare the value to store — truncate/extend to storage type
+    auto value = adaptor.getValue();
+    auto valueBits = value.getType().getIntOrFloatBitWidth();
+    if (valueBits > storageSizeBits) {
+      value = LLVM::TruncOp::create(rewriter, loc, storageType, value);
+    } else if (valueBits < storageSizeBits) {
+      value = LLVM::ZExtOp::create(rewriter, loc, storageType, value);
+    }
+
+    // Mask the value to bitWidth bits
+    auto fieldMask = (1ULL << bitWidth) - 1;
+    auto fieldMaskConst = LLVM::ConstantOp::create(
+        rewriter, loc, storageType,
+        rewriter.getIntegerAttr(storageType, fieldMask));
+    auto maskedValue =
+        LLVM::AndOp::create(rewriter, loc, value, fieldMaskConst);
+
+    // Shift value into position
+    auto shiftConst = LLVM::ConstantOp::create(
+        rewriter, loc, storageType,
+        rewriter.getIntegerAttr(storageType, bitOffset));
+    auto shiftedValue =
+        LLVM::ShlOp::create(rewriter, loc, maskedValue, shiftConst);
+
+    // Clear the target bits in the loaded value
+    auto clearMask = ~(fieldMask << bitOffset);
+    auto clearMaskConst = LLVM::ConstantOp::create(
+        rewriter, loc, storageType,
+        rewriter.getIntegerAttr(storageType, clearMask));
+    auto clearedLoaded =
+        LLVM::AndOp::create(rewriter, loc, loaded, clearMaskConst);
+
+    // Combine
+    auto combined =
+        LLVM::OrOp::create(rewriter, loc, clearedLoaded, shiftedValue);
+
+    // Store back
+    rewriter.replaceOp(
+        op, LLVM::StoreOp::create(rewriter, loc, combined, adaptor.getAddr(),
+                                  storageSizeBytes));
+    return success();
+  }
+
+ private:
+  const DataLayout& dataLayout_;
+};
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -1180,7 +1340,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   DataLayout dataLayout{module};
 
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
-                  MemSetZeroOpLowering, SubscriptOpLowering, MemberOpLowering>(
+                  MemSetZeroOpLowering, SubscriptOpLowering, MemberOpLowering,
+                  BitfieldLoadOpLowering, BitfieldStoreOpLowering>(
       typeConverter, dataLayout, context);
 
   // cast operations

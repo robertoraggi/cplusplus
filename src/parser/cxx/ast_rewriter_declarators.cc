@@ -358,7 +358,7 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
     attributeList = &(*attributeList)->next;
   }
 
-  auto cvQualifierListCtx = DeclSpecs{rewriter()};
+  auto cvQualifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto cvQualifierList = &copy->cvQualifierList;
        auto node : ListView{ast->cvQualifierList}) {
     auto value = rewrite.specifier(node);
@@ -403,7 +403,7 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
     attributeList = &(*attributeList)->next;
   }
 
-  auto cvQualifierListCtx = DeclSpecs{rewriter()};
+  auto cvQualifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto cvQualifierList = &copy->cvQualifierList;
        auto node : ListView{ast->cvQualifierList}) {
     auto value = rewrite.specifier(node);
@@ -485,7 +485,7 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
         copy->parameterDeclarationClause->functionParametersSymbol);
   }
 
-  auto cvQualifierListCtx = DeclSpecs{rewriter()};
+  auto cvQualifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto cvQualifierList = &copy->cvQualifierList;
        auto node : ListView{ast->cvQualifierList}) {
     auto value = rewrite.specifier(node);
@@ -520,7 +520,7 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
 
   copy->lbracketLoc = ast->lbracketLoc;
 
-  auto typeQualifierListCtx = DeclSpecs{rewriter()};
+  auto typeQualifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto typeQualifierList = &copy->typeQualifierList;
        auto node : ListView{ast->typeQualifierList}) {
     auto value = rewrite.specifier(node);

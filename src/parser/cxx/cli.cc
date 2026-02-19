@@ -121,12 +121,10 @@ std::vector<CLIOptionDescr> options{
      "Set the system root directory (usually used for SDK paths)",
      CLIOptionDescrKind::kSeparated},
 
-    {"-isystem", "<directory>",
-     "Add directory to SYSTEM include search path",
+    {"-isystem", "<directory>", "Add directory to SYSTEM include search path",
      CLIOptionDescrKind::kSeparated},
 
-    {"-iquote", "<directory>",
-     "Add directory to QUOTE include search path",
+    {"-iquote", "<directory>", "Add directory to QUOTE include search path",
      CLIOptionDescrKind::kSeparated},
 
     {"-E", "Preprocess only; do not compile, assemble or link", &CLI::opt_E},
@@ -228,11 +226,9 @@ std::vector<CLIOptionDescr> options{
     {"-M", "Like -MD, but also implies -E and writes to stdout by default",
      &CLI::opt_M},
 
-    {"-MD", "Write a depfile containing user and system headers",
-     &CLI::opt_MD},
+    {"-MD", "Write a depfile containing user and system headers", &CLI::opt_MD},
 
-    {"-MM",
-     "Like -MMD, but also implies -E and writes to stdout by default",
+    {"-MM", "Like -MMD, but also implies -E and writes to stdout by default",
      &CLI::opt_MM},
 
     {"-MMD", "Write a depfile containing user headers", &CLI::opt_MMD},
@@ -244,12 +240,10 @@ std::vector<CLIOptionDescr> options{
     {"-MT", "<value>", "Specify name of main file output in depfile",
      CLIOptionDescrKind::kSeparated},
 
-    {"-MQ", "<value>",
-     "Specify name of main file output to quote in depfile",
+    {"-MQ", "<value>", "Specify name of main file output to quote in depfile",
      CLIOptionDescrKind::kSeparated},
 
-    {"-MP",
-     "Create phony target for each dependency (other than main file)",
+    {"-MP", "Create phony target for each dependency (other than main file)",
      &CLI::opt_MP},
 
 };

@@ -314,6 +314,7 @@ void Toolchain::addCommonC23Macros() {
 void Toolchain::addCommonCxx26Macros() {
   defineMacro("__DEPRECATED", "1");
   defineMacro("__cplusplus", "202400L");
+  // defineMacro("__cplusplus", "201402L"); // c++14
   defineMacro("__cpp_aggregate_bases", "201603L");
   defineMacro("__cpp_aggregate_nsdmi", "201304L");
   defineMacro("__cpp_aggregate_paren_init", "201902L");

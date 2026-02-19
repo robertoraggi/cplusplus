@@ -10,9 +10,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::abs",
-      "args": [
-        "int"
-      ],
+      "args": ["int"],
       "ret": "int"
     }
   },
@@ -22,9 +20,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::abs",
-      "args": [
-        "long"
-      ],
+      "args": ["long"],
       "ret": "long"
     }
   },
@@ -34,9 +30,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::abs",
-      "args": [
-        "long long"
-      ],
+      "args": ["long long"],
       "ret": "long long"
     }
   },
@@ -76,9 +70,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::acos",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -88,9 +80,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::acos",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -100,9 +90,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::acos",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -112,9 +100,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::acosh",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -124,9 +110,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::acosh",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -136,9 +120,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::acosh",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -148,9 +130,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::asin",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -160,9 +140,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::asin",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -172,9 +150,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::asin",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -184,9 +160,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::asinh",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -196,9 +170,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::asinh",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -208,9 +180,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::asinh",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -220,9 +190,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atan",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -232,9 +200,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atan",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -244,9 +210,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atan",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -256,10 +220,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atan2",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -269,10 +230,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atan2",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -282,10 +240,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atan2",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -295,9 +250,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atanh",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -307,9 +260,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atanh",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -319,9 +270,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::atanh",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -331,9 +280,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cbrt",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -343,9 +290,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cbrt",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -355,9 +300,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cbrt",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -367,9 +310,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ceil",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -379,9 +320,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ceil",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -391,9 +330,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ceil",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -403,10 +340,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::copysign",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -416,10 +350,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::copysign",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -429,10 +360,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::copysign",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -442,9 +370,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cos",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -454,9 +380,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cos",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -466,9 +390,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cos",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -478,9 +400,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cosh",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -490,9 +410,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cosh",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -502,9 +420,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::cosh",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -524,9 +440,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::erf",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -536,9 +450,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::erf",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -548,9 +460,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::erf",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -560,9 +470,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::erfc",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -572,9 +480,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::erfc",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -584,9 +490,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::erfc",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -596,9 +500,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::exp",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -608,9 +510,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::exp",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -620,9 +520,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::exp",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -632,9 +530,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::exp2",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -644,9 +540,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::exp2",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -656,9 +550,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::exp2",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -668,9 +560,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::expm1",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -680,9 +570,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::expm1",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -692,9 +580,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::expm1",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -704,9 +590,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fabs",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -716,9 +600,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fabs",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -728,9 +610,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fabs",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -740,10 +620,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fdim",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -753,10 +630,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fdim",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -766,10 +640,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fdim",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -779,9 +650,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::isfinite",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "int"
     }
   },
@@ -791,9 +660,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::isfinite",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "int"
     }
   },
@@ -803,9 +670,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::isfinite",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "int"
     }
   },
@@ -815,9 +680,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::floor",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -827,9 +690,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::floor",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -839,9 +700,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::floor",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -851,11 +710,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fma",
-      "args": [
-        "float",
-        "float",
-        "float"
-      ],
+      "args": ["float", "float", "float"],
       "ret": "float"
     }
   },
@@ -865,11 +720,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fma",
-      "args": [
-        "double",
-        "double",
-        "double"
-      ],
+      "args": ["double", "double", "double"],
       "ret": "double"
     }
   },
@@ -879,11 +730,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fma",
-      "args": [
-        "long double",
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double", "long double"],
       "ret": "long double"
     }
   },
@@ -893,10 +740,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmax",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -906,10 +750,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmax",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -919,10 +760,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmax",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -947,10 +785,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmin",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -960,10 +795,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmin",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -973,10 +805,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmin",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1001,10 +830,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmod",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -1014,10 +840,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmod",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -1027,10 +850,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::fmod",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1055,10 +875,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::hypot",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -1068,10 +885,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::hypot",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -1081,10 +895,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::hypot",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1094,9 +905,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ilogb",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "int"
     }
   },
@@ -1106,9 +915,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ilogb",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "int"
     }
   },
@@ -1118,9 +925,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ilogb",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "int"
     }
   },
@@ -1130,10 +935,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ldexp",
-      "args": [
-        "float",
-        "int"
-      ],
+      "args": ["float", "int"],
       "ret": "float"
     }
   },
@@ -1143,10 +945,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ldexp",
-      "args": [
-        "double",
-        "int"
-      ],
+      "args": ["double", "int"],
       "ret": "double"
     }
   },
@@ -1156,10 +955,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::ldexp",
-      "args": [
-        "long double",
-        "int"
-      ],
+      "args": ["long double", "int"],
       "ret": "long double"
     }
   },
@@ -1169,9 +965,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lgamma",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1181,9 +975,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lgamma",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1193,9 +985,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lgamma",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1205,9 +995,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::llrint",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "long long"
     }
   },
@@ -1217,9 +1005,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::llrint",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "long long"
     }
   },
@@ -1229,9 +1015,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::llrint",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long long"
     }
   },
@@ -1241,9 +1025,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::llround",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "long long"
     }
   },
@@ -1253,9 +1035,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::llround",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "long long"
     }
   },
@@ -1265,9 +1045,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::llround",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long long"
     }
   },
@@ -1277,9 +1055,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1289,9 +1065,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1301,9 +1075,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1313,9 +1085,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log1p",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1325,9 +1095,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log1p",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1337,9 +1105,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log1p",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1349,9 +1115,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log2",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1361,9 +1125,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log2",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1373,9 +1135,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log2",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1385,9 +1145,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log10",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1397,9 +1155,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log10",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1409,9 +1165,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::log10",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1421,9 +1175,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::logb",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1433,9 +1185,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::logb",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1445,9 +1195,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::logb",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1457,9 +1205,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lrint",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "long"
     }
   },
@@ -1469,9 +1215,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lrint",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "long"
     }
   },
@@ -1481,9 +1225,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lrint",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long"
     }
   },
@@ -1493,9 +1235,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lround",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "long"
     }
   },
@@ -1505,9 +1245,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lround",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "long"
     }
   },
@@ -1517,9 +1255,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::lround",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long"
     }
   },
@@ -1559,9 +1295,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nearbyint",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1571,9 +1305,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nearbyint",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1583,9 +1315,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nearbyint",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1595,10 +1325,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nextafter",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -1608,10 +1335,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nextafter",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -1621,10 +1345,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nextafter",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1634,10 +1355,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nexttoward",
-      "args": [
-        "float",
-        "long double"
-      ],
+      "args": ["float", "long double"],
       "ret": "float"
     }
   },
@@ -1647,10 +1365,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nexttoward",
-      "args": [
-        "double",
-        "long double"
-      ],
+      "args": ["double", "long double"],
       "ret": "double"
     }
   },
@@ -1660,10 +1375,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::nexttoward",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1698,10 +1410,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::pow",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -1711,10 +1420,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::pow",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -1724,10 +1430,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::pow",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1737,10 +1440,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::remainder",
-      "args": [
-        "float",
-        "float"
-      ],
+      "args": ["float", "float"],
       "ret": "float"
     }
   },
@@ -1750,10 +1450,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::remainder",
-      "args": [
-        "double",
-        "double"
-      ],
+      "args": ["double", "double"],
       "ret": "double"
     }
   },
@@ -1763,10 +1460,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::remainder",
-      "args": [
-        "long double",
-        "long double"
-      ],
+      "args": ["long double", "long double"],
       "ret": "long double"
     }
   },
@@ -1791,9 +1485,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::rint",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1803,9 +1495,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::rint",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1815,9 +1505,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::rint",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1827,9 +1515,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::round",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1839,9 +1525,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::round",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1851,9 +1535,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::round",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -1878,10 +1560,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::scalbln",
-      "args": [
-        "float",
-        "long"
-      ],
+      "args": ["float", "long"],
       "ret": "float"
     }
   },
@@ -1891,10 +1570,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::scalbln",
-      "args": [
-        "double",
-        "long"
-      ],
+      "args": ["double", "long"],
       "ret": "double"
     }
   },
@@ -1904,10 +1580,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::scalbln",
-      "args": [
-        "long double",
-        "long"
-      ],
+      "args": ["long double", "long"],
       "ret": "long double"
     }
   },
@@ -1917,10 +1590,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::scalbn",
-      "args": [
-        "float",
-        "int"
-      ],
+      "args": ["float", "int"],
       "ret": "float"
     }
   },
@@ -1930,10 +1600,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::scalbn",
-      "args": [
-        "double",
-        "int"
-      ],
+      "args": ["double", "int"],
       "ret": "double"
     }
   },
@@ -1943,10 +1610,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::scalbn",
-      "args": [
-        "long double",
-        "int"
-      ],
+      "args": ["long double", "int"],
       "ret": "long double"
     }
   },
@@ -1956,9 +1620,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sin",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -1968,9 +1630,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sin",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -1980,9 +1640,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sin",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2007,9 +1665,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sinh",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -2019,9 +1675,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sinh",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -2031,9 +1685,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sinh",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2053,9 +1705,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sqrt",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -2065,9 +1715,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sqrt",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -2077,9 +1725,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::sqrt",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2089,9 +1735,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tan",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -2101,9 +1745,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tan",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -2113,9 +1755,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tan",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2125,9 +1765,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tanh",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -2137,9 +1775,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tanh",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -2149,9 +1785,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tanh",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2171,9 +1805,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tgamma",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -2183,9 +1815,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tgamma",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -2195,9 +1825,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::tgamma",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2207,9 +1835,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::trunc",
-      "args": [
-        "float"
-      ],
+      "args": ["float"],
       "ret": "float"
     }
   },
@@ -2219,9 +1845,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::trunc",
-      "args": [
-        "double"
-      ],
+      "args": ["double"],
       "ret": "double"
     }
   },
@@ -2231,9 +1855,7 @@
     "constexpr": true,
     "eval": {
       "fn": "std::trunc",
-      "args": [
-        "long double"
-      ],
+      "args": ["long double"],
       "ret": "long double"
     }
   },
@@ -2415,6 +2037,61 @@
   {
     "name": "__builtin_strxfrm",
     "prototype": "__SIZE_TYPE__ __builtin_strxfrm(char*, const char*, __SIZE_TYPE__)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_ctz",
+    "prototype": "constexpr int __builtin_ctz(unsigned int)",
+    "constexpr": true
+  },
+  {
+    "name": "__builtin_ctzl",
+    "prototype": "constexpr int __builtin_ctzl(unsigned long)",
+    "constexpr": true
+  },
+  {
+    "name": "__builtin_ctzll",
+    "prototype": "constexpr int __builtin_ctzll(unsigned long long)",
+    "constexpr": true
+  },
+  {
+    "name": "__builtin_inf",
+    "prototype": "constexpr double __builtin_inf()",
+    "constexpr": true
+  },
+  {
+    "name": "__builtin_inff",
+    "prototype": "constexpr float __builtin_inff()",
+    "constexpr": true
+  },
+  {
+    "name": "__builtin_infl",
+    "prototype": "constexpr long double __builtin_infl()",
+    "constexpr": true
+  },
+  {
+    "name": "__builtin_isfinite",
+    "prototype": "bool __builtin_isfinite(double)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_isinf",
+    "prototype": "bool __builtin_isinf(double)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_isnan",
+    "prototype": "bool __builtin_isnan(double)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_isnormal",
+    "prototype": "bool __builtin_isnormal(double)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_unreachable",
+    "prototype": "void __builtin_unreachable()",
     "constexpr": false
   }
 ]

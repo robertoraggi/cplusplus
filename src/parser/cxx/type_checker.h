@@ -37,9 +37,7 @@ class TypeChecker {
  public:
   explicit TypeChecker(TranslationUnit* unit);
 
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return unit_;
-  }
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
 
   [[nodiscard]] auto reportErrors() const -> bool { return reportErrors_; }
   void setReportErrors(bool reportErrors) { reportErrors_ = reportErrors; }
@@ -130,9 +128,12 @@ class TypeChecker {
   [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
 
  private:
+  void check_reference_initialization(VariableSymbol* var,
+                                      InitDeclaratorAST* ast);
+
   struct Visitor;
 
-  TranslationUnit* unit_;
+  TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;
   bool reportErrors_ = false;
   bool lastOperatorLookupAmbiguous_ = false;

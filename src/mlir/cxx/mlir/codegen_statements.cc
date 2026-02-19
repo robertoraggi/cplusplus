@@ -360,16 +360,17 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
                                    [](FunctionSymbol*) { return true; });
 
     if (!beginFunc || !endFunc) {
-      ScopeSymbol* lookupScope = ast->symbol
-                                     ? static_cast<ScopeSymbol*>(ast->symbol)
-                                     : static_cast<ScopeSymbol*>(classSymbol);
+      ScopeSymbol* lookupScope = nullptr;
+
+      if (ast->symbol)
+        lookupScope = ast->symbol;
+      else
+        lookupScope = classSymbol;
 
       std::vector<const Type*> argTypes = {rangeType};
 
-      auto beginCandidates =
-          Lookup{lookupScope}.argumentDependentLookup(beginName, argTypes);
-      auto endCandidates =
-          Lookup{lookupScope}.argumentDependentLookup(endName, argTypes);
+      auto beginCandidates = argumentDependentLookup(beginName, argTypes);
+      auto endCandidates = argumentDependentLookup(endName, argTypes);
 
       if (!beginCandidates.empty()) beginFunc = beginCandidates.front();
       if (!endCandidates.empty()) endFunc = endCandidates.front();
@@ -437,8 +438,7 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
               ast->symbol ? static_cast<ScopeSymbol*>(ast->symbol)
                           : static_cast<ScopeSymbol*>(iterClass);
           std::vector<const Type*> cmpArgTypes = {iterType, iterType};
-          auto neqCandidates =
-              Lookup{lookupScope}.argumentDependentLookup(neqOp, cmpArgTypes);
+          auto neqCandidates = argumentDependentLookup(neqOp, cmpArgTypes);
           if (!neqCandidates.empty()) neqFunc = neqCandidates.front();
         }
       }

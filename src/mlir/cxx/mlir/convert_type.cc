@@ -305,8 +305,6 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     name = std::format("$class_{}", loc.index());
   }
 
-  // Use mangled type name for template instantiations to avoid collisions
-  // between e.g. Test<int> and Test<double> which both have name "Test".
   if (!classSymbol->templateArguments().empty()) {
     ExternalNameEncoder encoder;
     name = encoder.encode(type);
@@ -338,26 +336,59 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     memberTypes.push_back(arrayType);
 
   } else {
+    std::map<std::uint32_t, mlir::Type> memberMap;
+
     auto layout = classSymbol->layout();
-    if (layout && layout->hasDirectVtable()) {
-      auto i8Type = mlir::IntegerType::get(gen.context_, 8);
-      auto ptrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
-      memberTypes.push_back(ptrType);
-    }
-
-    // Layout of parent classes
-    for (auto base : classSymbol->baseClasses()) {
-      const Type* baseType = base->type();
-      if (!baseType && base->symbol()) {
-        baseType = base->symbol()->type();
+    if (layout) {
+      if (layout->hasDirectVtable()) {
+        auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+        auto ptrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
+        memberMap[layout->vtableIndex()] = ptrType;
       }
-      memberTypes.push_back(gen.convertType(baseType));
-    }
 
-    // Layout of members
-    for (auto field : views::members(classSymbol) | views::non_static_fields) {
-      auto memberType = gen.convertType(field->type());
-      memberTypes.push_back(memberType);
+      // Layout of parent classes
+      for (auto base : classSymbol->baseClasses()) {
+        auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
+        if (!baseSym) continue;
+
+        if (auto info = layout->getBaseInfo(baseSym)) {
+          const Type* baseType = base->type();
+          if (!baseType && base->symbol()) {
+            baseType = base->symbol()->type();
+          }
+          memberMap[info->index] = gen.convertType(baseType);
+        }
+      }
+
+      // Layout of members
+      for (auto field :
+           views::members(classSymbol) | views::non_static_fields) {
+        if (auto info = layout->getFieldInfo(field)) {
+          if (memberMap.find(info->index) == memberMap.end()) {
+            if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
+              // Bitfield: use [N x i8] for the alloc unit storage
+              auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+              auto arrayType = mlir::cxx::ArrayType::get(
+                  gen.context_, i8Type, info->allocUnitSizeBytes);
+              memberMap[info->index] = arrayType;
+            } else {
+              memberMap[info->index] = gen.convertType(field->type());
+            }
+          }
+        }
+      }
+
+      // Fill memberTypes ensuring correct index mapping
+      if (!memberMap.empty()) {
+        // Find maximum index to size the vector
+        auto maxIndex = memberMap.rbegin()->first;
+        memberTypes.resize(maxIndex + 1);
+
+        // Fill explicitly
+        for (auto const& [index, type] : memberMap) {
+          memberTypes[index] = type;
+        }
+      }
     }
   }
 

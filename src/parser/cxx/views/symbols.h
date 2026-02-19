@@ -71,10 +71,6 @@ inline auto members(ScopeSymbol* symbol) {
   return std::views::all(symbol->members());
 }
 
-inline auto find(ScopeSymbol* scope, const Name* name) {
-  return scope ? scope->find(name) : SymbolChainView{nullptr};
-}
-
 constexpr auto named_symbol = std::views::filter(&Symbol::name);
 
 // Field views

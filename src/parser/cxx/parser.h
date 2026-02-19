@@ -53,7 +53,7 @@ class Parser final {
   ~Parser();
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return unit;
+    return unit_;
   }
 
   [[nodiscard]] auto control() const -> Control* { return control_; }
@@ -844,9 +844,6 @@ class Parser final {
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
 
-  [[nodiscard]] auto implicit_conversion(ExpressionAST*& yyast,
-                                         const Type* targetType) -> bool;
-
   // lookup
 
   [[nodiscard]] auto enterOrCreateNamespace(const Identifier* identifier,
@@ -879,12 +876,12 @@ class Parser final {
   }
 
  private:
-  TranslationUnit* unit = nullptr;
+  TranslationUnit* unit_ = nullptr;
+  Binder binder_;
   Arena* pool_ = nullptr;
   Control* control_ = nullptr;
   DiagnosticsClient* diagnosticClient_ = nullptr;
   ScopeSymbol* globalScope_ = nullptr;
-  Binder binder_;
   LanguageKind lang_ = LanguageKind::kCXX;
   bool skipFunctionBody_ = false;
   bool moduleUnit_ = false;

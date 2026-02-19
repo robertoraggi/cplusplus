@@ -46,7 +46,7 @@ auto main() -> int { return S{.x = 10}.[:^^S::x:]; }
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            return-statement
-// CHECK-NEXT:              expression: splice-member-expression
+// CHECK-NEXT:              expression: splice-member-expression [prvalue ::S]
 // CHECK-NEXT:                access-op: .
 // CHECK-NEXT:                base-expression: braced-type-construction [prvalue ::S]
 // CHECK-NEXT:                  type-specifier: named-type-specifier

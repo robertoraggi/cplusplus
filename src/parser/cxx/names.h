@@ -85,6 +85,21 @@ class BuiltinFunctionIdentifierInfo final : public IdentifierInfo {
   BuiltinFunctionKind builtinKind_;
 };
 
+class BuiltinTemplateIdentifierInfo final : public IdentifierInfo {
+ public:
+  static constexpr auto Kind = IdentifierInfoKind::kBuiltinTemplate;
+
+  explicit BuiltinTemplateIdentifierInfo(BuiltinTemplateKind builtinKind)
+      : IdentifierInfo(Kind), builtinKind_(builtinKind) {}
+
+  [[nodiscard]] auto builtinKind() const -> BuiltinTemplateKind {
+    return builtinKind_;
+  }
+
+ private:
+  BuiltinTemplateKind builtinKind_;
+};
+
 class Name {
  public:
   Name(NameKind kind, std::size_t hashValue)
@@ -121,6 +136,8 @@ class Identifier final : public Name {
   [[nodiscard]] auto builtinTypeTrait() const -> BuiltinTypeTraitKind;
 
   [[nodiscard]] auto builtinFunction() const -> BuiltinFunctionKind;
+
+  [[nodiscard]] auto builtinTemplate() const -> BuiltinTemplateKind;
 
   [[nodiscard]] auto info() const -> const IdentifierInfo* { return info_; }
   void setInfo(const IdentifierInfo* info) const { info_ = info; }

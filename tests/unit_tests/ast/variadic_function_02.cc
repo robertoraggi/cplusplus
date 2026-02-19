@@ -53,11 +53,9 @@ void ff(int count, ...) {
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_start
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  implicit-cast-expression [prvalue __builtin_va_list]
-// CHECK-NEXT:                    cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                    expression: id-expression [lvalue __builtin_va_list]
-// CHECK-NEXT:                      unqualified-id: name-id
-// CHECK-NEXT:                        identifier: args
+// CHECK-NEXT:                  id-expression [lvalue __builtin_va_list]
+// CHECK-NEXT:                    unqualified-id: name-id
+// CHECK-NEXT:                      identifier: args
 // CHECK-NEXT:                  implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                    cast-kind: lvalue-to-rvalue-conversion
 // CHECK-NEXT:                    expression: id-expression [lvalue int]
