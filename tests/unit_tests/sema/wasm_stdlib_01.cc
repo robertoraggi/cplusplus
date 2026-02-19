@@ -23,6 +23,7 @@
 #include <cuchar>
 #include <cwchar>
 #include <cwctype>
+#include <initializer_list>
 #include <limits>
 #include <type_traits>
 

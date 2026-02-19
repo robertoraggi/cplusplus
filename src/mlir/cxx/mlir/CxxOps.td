@@ -339,3 +339,18 @@ def Cxx_TodoStmtOp : Cxx_Op<"todo.stmt"> {
   let results = (outs);
   let assemblyFormat = "$message attr-dict";
 }
+
+def BitfieldLoadOp : Cxx_Op<"bitfield.load"> {
+  let arguments = (ins Cxx_PointerType:$addr,
+                       I32Attr:$bit_offset, I32Attr:$bit_width,
+                       I64Attr:$alignment, BoolAttr:$is_signed);
+  let results = (outs AnySignlessInteger:$result);
+  let assemblyFormat = "$addr attr-dict `:` type($addr) `->` type($result)";
+}
+
+def BitfieldStoreOp : Cxx_Op<"bitfield.store"> {
+  let arguments = (ins AnySignlessInteger:$value, Cxx_PointerType:$addr,
+                       I32Attr:$bit_offset, I32Attr:$bit_width,
+                       I64Attr:$alignment);
+  let assemblyFormat = "$value `,` $addr attr-dict `:` type($value) `,` type($addr)";
+}

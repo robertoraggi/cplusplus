@@ -70,6 +70,12 @@ export function gen_token_fwd_h({ output }: { output: string }) {
   );
 
   emit();
+  emit("#define FOR_EACH_BUILTIN_TEMPLATE(V) \\");
+  tokens.BUILTIN_TEMPLATES.forEach((tk) =>
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+  );
+
+  emit();
   emit("#define FOR_EACH_TOKEN_ALIAS(V) \\");
   Object.entries(tokens.C_AND_CXX_TOKEN_ALIASES).forEach(([tk, other]) =>
     emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
@@ -126,6 +132,11 @@ enum class BinaryBuiltinTypeKind {
 enum class BuiltinFunctionKind {
   T_NONE,
   FOR_EACH_BUILTIN_FUNCTION(TOKEN_ENUM)
+};
+
+enum class BuiltinTemplateKind {
+  T_NONE,
+  FOR_EACH_BUILTIN_TEMPLATE(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM

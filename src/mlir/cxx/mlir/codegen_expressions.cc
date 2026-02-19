@@ -50,6 +50,9 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
     return type_cast<BoolType>(control()->remove_cv(type));
   }
 
+  [[nodiscard]] auto emitMemberAccess(MemberExpressionAST* ast)
+      -> std::optional<std::pair<mlir::Value, ClassLayout::MemberInfo>>;
+
   auto operator()(CharLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(BoolLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(IntLiteralExpressionAST* ast) -> ExpressionResult;
@@ -870,15 +873,33 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     return {op};
   }
 
+  std::vector<ExpressionResult> callArguments;
+  for (auto node : ListView{ast->expressionList}) {
+    callArguments.push_back(gen.expression(node));
+  }
+
+  const auto& paramTypes = functionType->parameterTypes();
+  auto callLoc = gen.getLocation(ast->lparenLoc);
+
+  for (size_t i = 0; i < callArguments.size() && i < paramTypes.size(); ++i) {
+    if (!control()->is_reference(paramTypes[i])) continue;
+    auto val = callArguments[i].value;
+    if (mlir::isa<mlir::cxx::PointerType>(val.getType())) continue;
+    auto elemType = control()->remove_reference(paramTypes[i]);
+    auto temp = gen.newTemp(elemType, ast->lparenLoc);
+    mlir::cxx::StoreOp::create(gen.builder_, callLoc, val, temp,
+                               gen.getAlignment(elemType));
+    callArguments[i] = {temp.getResult()};
+  }
+
   mlir::SmallVector<mlir::Value> arguments;
 
   if (thisValue.value) {
     arguments.push_back(thisValue.value);
   }
 
-  for (auto node : ListView{ast->expressionList}) {
-    auto value = gen.expression(node);
-    arguments.push_back(value.value);
+  for (size_t i = 0; i < callArguments.size(); ++i) {
+    arguments.push_back(callArguments[i].value);
   }
 
   mlir::SmallVector<mlir::Type> resultTypes;
@@ -886,7 +907,7 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     resultTypes.push_back(gen.convertType(functionType->returnType()));
   }
 
-  auto loc = gen.getLocation(ast->lparenLoc);
+  auto loc = callLoc;
 
   mlir::cxx::CallOp callOp;
 
@@ -1096,8 +1117,35 @@ static auto isDerivedFrom(ClassSymbol* derived, ClassSymbol* base) -> bool {
   return false;
 }
 
-auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
-    -> ExpressionResult {
+// Check if `target` class is an ancestor of `from` through anonymous
+// struct/union member chains (not base class inheritance).
+static auto isReachableViaAnonymous(ClassSymbol* from, ClassSymbol* target)
+    -> bool {
+  if (from == target) return true;
+  for (auto member : from->members()) {
+    auto nested = symbol_cast<ClassSymbol>(member);
+    if (!nested || nested->name()) continue;
+    if (isReachableViaAnonymous(nested, target)) return true;
+  }
+  return false;
+}
+
+// Check if `target` is reachable from `from` through both base classes
+// and anonymous member chains.
+static auto isReachableFrom(ClassSymbol* from, ClassSymbol* target) -> bool {
+  if (from == target) return true;
+  // Check anonymous members
+  if (isReachableViaAnonymous(from, target)) return true;
+  // Check base classes
+  for (auto b : from->baseClasses()) {
+    auto bs = symbol_cast<ClassSymbol>(b->symbol());
+    if (bs && isReachableFrom(bs, target)) return true;
+  }
+  return false;
+}
+
+auto Codegen::ExpressionVisitor::emitMemberAccess(MemberExpressionAST* ast)
+    -> std::optional<std::pair<mlir::Value, ClassLayout::MemberInfo>> {
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
       field && !field->isStatic()) {
     auto baseExpressionResult = gen.expression(ast->baseExpression);
@@ -1106,15 +1154,16 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
 
     if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
       baseType =
-          control()->remove_cv(gen.control()->get_element_type(baseType));
+          gen.control()->remove_cv(gen.control()->get_element_type(baseType));
     }
 
     auto classType = type_cast<ClassType>(baseType);
 
     if (!classType) {
-      return {gen.emitTodoExpr(
+      gen.emitTodoExpr(
           ast->firstSourceLocation(),
-          std::format("base not class type '{}'", to_string(baseType)))};
+          std::format("base not class type '{}'", to_string(baseType)));
+      return std::nullopt;
     }
 
     auto startClass = classType->symbol();
@@ -1122,18 +1171,52 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
 
     if (startClass != fieldClass) {
       std::function<mlir::Value(mlir::Value, ClassSymbol*, ClassSymbol*)>
-          castToStruct;
-      castToStruct = [&](mlir::Value value, ClassSymbol* from,
-                         ClassSymbol* to) -> mlir::Value {
+          navigateToClass;
+      navigateToClass = [&](mlir::Value value, ClassSymbol* from,
+                            ClassSymbol* to) -> mlir::Value {
         if (from == to) return value;
 
         auto fromLayout = from->layout();
 
+        // Check anonymous struct/union members first
+        for (auto member : from->members()) {
+          auto nested = symbol_cast<ClassSymbol>(member);
+          if (!nested || nested->name()) continue;
+          if (!isReachableViaAnonymous(nested, to)) continue;
+
+          // Find the anonymous FieldSymbol for this nested class
+          if (!fromLayout) break;
+          FieldSymbol* anonField = nullptr;
+          for (auto m : from->members()) {
+            auto f = symbol_cast<FieldSymbol>(m);
+            if (!f) continue;
+            if (auto ct = type_cast<ClassType>(f->type())) {
+              if (ct->symbol() == nested) {
+                anonField = f;
+                break;
+              }
+            }
+          }
+          if (!anonField) continue;
+
+          auto anonInfo = fromLayout->getFieldInfo(anonField);
+          if (!anonInfo) continue;
+
+          auto loc = value.getLoc();
+          auto ptrType =
+              gen.convertType(gen.control()->getPointerType(nested->type()));
+
+          auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, ptrType,
+                                                value, anonInfo->index);
+          return navigateToClass(op, nested, to);
+        }
+
+        // Check base classes
         for (auto base : from->baseClasses()) {
           auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
           if (!baseSym) continue;
 
-          if (isDerivedFrom(baseSym, to)) {
+          if (isReachableFrom(baseSym, to)) {
             std::uint32_t baseIndex = 0;
             if (fromLayout) {
               if (auto bi = fromLayout->getBaseInfo(baseSym)) {
@@ -1148,26 +1231,26 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
             auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, ptrType,
                                                   value, baseIndex);
 
-            return castToStruct(op, baseSym, to);
+            return navigateToClass(op, baseSym, to);
           }
         }
         return value;
       };
 
       baseExpressionResult.value =
-          castToStruct(baseExpressionResult.value, startClass, fieldClass);
+          navigateToClass(baseExpressionResult.value, startClass, fieldClass);
     }
 
     auto layout = fieldClass->layout();
     if (!layout) {
-      return {gen.emitTodoExpr(ast->firstSourceLocation(),
-                               "class layout not computed")};
+      gen.emitTodoExpr(ast->firstSourceLocation(), "class layout not computed");
+      return std::nullopt;
     }
 
     auto fieldInfo = layout->getFieldInfo(field);
     if (!fieldInfo) {
-      return {gen.emitTodoExpr(ast->firstSourceLocation(),
-                               "field not found in layout")};
+      gen.emitTodoExpr(ast->firstSourceLocation(), "field not found in layout");
+      return std::nullopt;
     }
 
     auto loc = gen.getLocation(ast->firstSourceLocation());
@@ -1177,6 +1260,29 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     auto op = mlir::cxx::MemberOp::create(gen.builder_, loc, resultType,
                                           baseExpressionResult.value,
                                           fieldInfo->index);
+    return std::pair{op, *fieldInfo};
+  }
+  return std::nullopt;
+}
+
+auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
+    -> ExpressionResult {
+  if (auto access = emitMemberAccess(ast)) {
+    auto [op, info] = *access;
+
+    if (info.bitWidth > 0) {
+      auto loc = gen.getLocation(ast->firstSourceLocation());
+      auto fieldSym = symbol_cast<FieldSymbol>(ast->symbol);
+      bool isSigned = fieldSym && gen.control()->is_signed(fieldSym->type());
+      auto loadOp = gen.builder_.create<mlir::cxx::BitfieldLoadOp>(
+          loc, gen.convertType(ast->type), op,
+          gen.builder_.getI32IntegerAttr(info.bitOffset),
+          gen.builder_.getI32IntegerAttr(info.bitWidth),
+          gen.builder_.getI64IntegerAttr(info.allocUnitSizeBytes),
+          gen.builder_.getBoolAttr(isSigned));
+      return {loadOp};
+    }
+
     return {op};
   }
 
@@ -2993,6 +3099,25 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
   }
 
   if (ast->op == TokenKind::T_EQUAL) {
+    // Handle bitfield assignment
+    if (auto member = ast_cast<MemberExpressionAST>(ast->leftExpression)) {
+      if (auto field = symbol_cast<FieldSymbol>(member->symbol);
+          field && field->isBitField()) {
+        if (auto access = emitMemberAccess(member)) {
+          auto [addr, info] = *access;
+          auto rhs = gen.expression(ast->rightExpression);
+          auto loc = gen.getLocation(ast->firstSourceLocation());
+
+          gen.builder_.create<mlir::cxx::BitfieldStoreOp>(
+              loc, rhs.value, addr,
+              gen.builder_.getI32IntegerAttr(info.bitOffset),
+              gen.builder_.getI32IntegerAttr(info.bitWidth),
+              gen.builder_.getI64IntegerAttr(info.allocUnitSizeBytes));
+          return rhs;
+        }
+      }
+    }
+
     auto leftExpressionResult = gen.expression(ast->leftExpression);
     auto rightExpressionResult = gen.expression(ast->rightExpression);
 

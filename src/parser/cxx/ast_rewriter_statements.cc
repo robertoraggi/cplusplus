@@ -38,7 +38,7 @@ struct ASTRewriter::StatementVisitor {
   }
 
   [[nodiscard]] auto typeChecker() -> TypeChecker {
-    auto typeChecker = TypeChecker{translationUnit()};
+    auto typeChecker = TypeChecker{rewrite.unit_};
     typeChecker.setScope(binder()->scope());
     return typeChecker;
   }
@@ -650,7 +650,7 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
     attributeList = &(*attributeList)->next;
   }
 
-  auto typeSpecifierListCtx = DeclSpecs{rewriter()};
+  auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = rewrite.specifier(node);

@@ -26,6 +26,7 @@
 #include <cxx/control.h>
 #include <cxx/decl_specs.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -35,6 +36,60 @@
 #include <format>
 
 namespace cxx {
+
+namespace {
+
+auto getInnerTemplateId(TypeTemplateArgumentAST* typeArg)
+    -> SimpleTemplateIdAST* {
+  if (!typeArg || !typeArg->typeId) return nullptr;
+  for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
+    if (auto named = ast_cast<NamedTypeSpecifierAST>(spec))
+      return ast_cast<SimpleTemplateIdAST>(named->unqualifiedId);
+  }
+  return nullptr;
+}
+
+auto templateArgListsEquivalent(List<TemplateArgumentAST*>* a,
+                                List<TemplateArgumentAST*>* b) -> bool {
+  auto itA = a;
+  auto itB = b;
+  for (; itA && itB; itA = itA->next, itB = itB->next) {
+    auto typeA = ast_cast<TypeTemplateArgumentAST>(itA->value);
+    auto typeB = ast_cast<TypeTemplateArgumentAST>(itB->value);
+    if (typeA && typeB) {
+      // Compare the resolved types on the TypeId.
+      auto tA = typeA->typeId ? typeA->typeId->type : nullptr;
+      auto tB = typeB->typeId ? typeB->typeId->type : nullptr;
+      if (tA != tB) return false;
+
+      auto innerA = getInnerTemplateId(typeA);
+      auto innerB = getInnerTemplateId(typeB);
+      if (innerA && innerB) {
+        if (!templateArgListsEquivalent(innerA->templateArgumentList,
+                                        innerB->templateArgumentList))
+          return false;
+      } else if (innerA || innerB) {
+        return false;
+      }
+      continue;
+    }
+
+    auto exprA = ast_cast<ExpressionTemplateArgumentAST>(itA->value);
+    auto exprB = ast_cast<ExpressionTemplateArgumentAST>(itB->value);
+    if (exprA && exprB) {
+      if (exprA->expression == exprB->expression) continue;
+      if (!exprA->expression || !exprB->expression) return false;
+      if (exprA->expression->type != exprB->expression->type) return false;
+      continue;
+    }
+
+    return false;
+  }
+
+  return !itA && !itB;
+}
+
+}  // namespace
 
 struct [[nodiscard]] Binder::BindClass {
   Binder& binder;
@@ -56,7 +111,8 @@ struct [[nodiscard]] Binder::BindClass {
       -> int;
   auto hasPackTemplateParameter(TemplateDeclarationAST* templateDecl) const
       -> bool;
-  auto isTrueRedefinition(ClassSymbol* specialization) const -> bool;
+  auto isTrueRedefinition(ClassSymbol* specialization,
+                          SimpleTemplateIdAST* newTemplateId) const -> bool;
 
   void bind();
   void check_optional_nested_name_specifier();
@@ -150,15 +206,19 @@ auto Binder::BindClass::hasPackTemplateParameter(
   return false;
 }
 
-auto Binder::BindClass::isTrueRedefinition(ClassSymbol* specialization) const
+auto Binder::BindClass::isTrueRedefinition(
+    ClassSymbol* specialization, SimpleTemplateIdAST* newTemplateId) const
     -> bool {
   if (!specialization) return false;
+
+  if (!specialization->isComplete()) return false;
 
   bool isRedefinition = true;
   if (!declSpecs.templateHead) return isRedefinition;
 
   auto existingTemplateDecl = specialization->templateDeclaration();
-  if (!existingTemplateDecl) return isRedefinition;
+
+  if (!existingTemplateDecl) return false;
 
   if (templateParameterCount(existingTemplateDecl) !=
       templateParameterCount(declSpecs.templateHead)) {
@@ -175,6 +235,22 @@ auto Binder::BindClass::isTrueRedefinition(ClassSymbol* specialization) const
     return false;
   }
 
+  if (newTemplateId) {
+    auto existingClassSpec =
+        ast_cast<ClassSpecifierAST>(specialization->declaration());
+    if (existingClassSpec) {
+      auto existingTemplateId =
+          ast_cast<SimpleTemplateIdAST>(existingClassSpec->unqualifiedId);
+      if (existingTemplateId) {
+        if (!templateArgListsEquivalent(
+                existingTemplateId->templateArgumentList,
+                newTemplateId->templateArgumentList)) {
+          return false;
+        }
+      }
+    }
+  }
+
   return isRedefinition;
 }
 
@@ -188,7 +264,6 @@ void Binder::BindClass::bind() {
   auto classSymbol = findExistingClass(name);
 
   if (classSymbol && classSymbol->isComplete()) {
-    // not a template-id, but a class with the same name already exists
     binder.error(location,
                  std::format("redefinition of class '{}'", to_string(name)));
     classSymbol = nullptr;
@@ -199,6 +274,8 @@ void Binder::BindClass::bind() {
   if (!classSymbol) {
     classSymbol = createClassSymbol(name, location);
     binder.declaringScope()->addSymbol(classSymbol);
+  } else {
+    classSymbol->setParent(binder.scope());
   }
 
   initializeClassSymbol(classSymbol);
@@ -210,8 +287,10 @@ void Binder::BindClass::check_optional_nested_name_specifier() {
   auto parent = ast->nestedNameSpecifier->symbol;
 
   if (!parent || !parent->isClassOrNamespace()) {
-    binder.error(ast->nestedNameSpecifier->firstSourceLocation(),
-                 "nested name specifier must be a class or namespace");
+    if (!binder.inTemplate()) {
+      binder.error(ast->nestedNameSpecifier->firstSourceLocation(),
+                   "nested name specifier must be a class or namespace");
+    }
     return;
   }
 
@@ -235,13 +314,14 @@ auto Binder::BindClass::check_template_specialization() -> bool {
   std::vector<TemplateArgument> templateArguments;
   ClassSymbol* specialization = nullptr;
   if (primaryTemplateSymbol) {
-    templateArguments = ASTRewriter::make_substitution(
-        binder.unit_, primaryTemplateSymbol->templateDeclaration(),
-        templateId->templateArgumentList);
+    templateArguments =
+        Substitution(binder.unit_, primaryTemplateSymbol->templateDeclaration(),
+                     templateId->templateArgumentList)
+            .templateArguments();
 
     specialization = symbol_cast<ClassSymbol>(
         primaryTemplateSymbol->findSpecialization(templateArguments));
-    if (specialization && isTrueRedefinition(specialization)) {
+    if (specialization && isTrueRedefinition(specialization, templateId)) {
       binder.error(location, std::format("redefinition of specialization '{}'",
                                          templateId->identifier->name()));
     }

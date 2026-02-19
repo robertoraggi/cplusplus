@@ -446,152 +446,12 @@ auto BaseClassSymbol::symbol() const -> Symbol* { return symbol_; }
 
 void BaseClassSymbol::setSymbol(Symbol* symbol) { symbol_ = symbol; }
 
-namespace {
-auto needsVtablePointer(ClassSymbol* classSymbol) -> bool {
-  for (auto base : classSymbol->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (baseClass && baseClass->layout() && baseClass->layout()->hasVtable()) {
-      return false;
-    }
-  }
-
-  return views::any_function(classSymbol->members(), [](FunctionSymbol* func) {
-    return func->isVirtual();
-  });
+void ClassLayout::setFieldInfo(FieldSymbol* field, const MemberInfo& info) {
+  fields_[field] = info;
 }
 
-auto hasAnyVtable(ClassSymbol* classSymbol) -> bool {
-  if (views::any_function(classSymbol->members(), [](FunctionSymbol* func) {
-        return func->isVirtual();
-      }))
-    return true;
-
-  for (auto base : classSymbol->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (baseClass && baseClass->layout() && baseClass->layout()->hasVtable()) {
-      return true;
-    }
-  }
-
-  return false;
-}
-}  // namespace
-
-void ClassLayout::computeLayout(ClassSymbol* classSymbol, Control* control) {
-  fields_.clear();
-  bases_.clear();
-  size_ = 0;
-  alignment_ = 1;
-  hasVtable_ = false;
-
-  const bool isUnion = classSymbol->isUnion();
-  std::uint64_t currentOffset = 0;
-  std::uint32_t currentIndex = 0;
-
-  auto memoryLayout = control->memoryLayout();
-
-  if (!isUnion && needsVtablePointer(classSymbol)) {
-    hasVtable_ = true;
-    hasDirectVtable_ = true;
-    vtableIndex_ = currentIndex++;
-
-    auto ptrSize = memoryLayout->sizeOfPointer();
-    auto ptrAlign = ptrSize;
-
-    currentOffset = ptrSize;
-    alignment_ = std::max(alignment_, static_cast<std::uint64_t>(ptrAlign));
-  } else if (!isUnion && hasAnyVtable(classSymbol)) {
-    hasVtable_ = true;
-    vtableIndex_ = 0;
-  }
-
-  if (!isUnion) {
-    bool foundPolymorphicBase = false;
-    for (auto* base : classSymbol->baseClasses()) {
-      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClassSymbol) continue;
-
-      auto baseAlignment = baseClassSymbol->alignment();
-      if (baseAlignment > 0) {
-        currentOffset = align_to(currentOffset, baseAlignment);
-      }
-
-      MemberInfo baseInfo;
-      baseInfo.offset = currentOffset;
-      baseInfo.index = currentIndex++;
-      bases_[baseClassSymbol] = baseInfo;
-
-      auto baseLayout = baseClassSymbol->layout();
-      if (!foundPolymorphicBase && baseLayout && baseLayout->hasVtable()) {
-        vtableIndex_ = baseInfo.index;
-        foundPolymorphicBase = true;
-      }
-
-      currentOffset += baseClassSymbol->sizeInBytes();
-      alignment_ =
-          std::max(alignment_, static_cast<std::uint64_t>(baseAlignment));
-    }
-  }
-
-  // Process direct fields
-  for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    auto type = field->type();
-    auto fieldSize = memoryLayout->sizeOf(type).value_or(0);
-    auto fieldAlign = memoryLayout->alignmentOf(type).value_or(1);
-
-    if (isUnion) {
-      MemberInfo fieldInfo;
-      fieldInfo.offset = 0;
-      fieldInfo.index = 0;
-      fields_[field] = fieldInfo;
-
-      alignment_ = std::max(alignment_, static_cast<std::uint64_t>(fieldAlign));
-      currentOffset =
-          std::max(currentOffset, static_cast<std::uint64_t>(fieldSize));
-    } else {
-      if (fieldAlign > 0) {
-        currentOffset = align_to(currentOffset, fieldAlign);
-      }
-
-      MemberInfo fieldInfo;
-      fieldInfo.offset = currentOffset;
-      fieldInfo.index = currentIndex++;
-      fields_[field] = fieldInfo;
-
-      alignment_ = std::max(alignment_, static_cast<std::uint64_t>(fieldAlign));
-      currentOffset += fieldSize;
-    }
-  }
-
-  for (auto* base : classSymbol->baseClasses()) {
-    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClassSymbol) continue;
-
-    auto baseLayout = baseClassSymbol->layout();
-    if (!baseLayout) continue;
-
-    auto baseInfo = getBaseInfo(baseClassSymbol);
-    if (!baseInfo) continue;
-
-    for (auto field :
-         views::members(baseClassSymbol) | views::non_static_fields) {
-      auto baseFieldInfo = baseLayout->getFieldInfo(field);
-      if (baseFieldInfo) {
-        MemberInfo adjustedInfo;
-        adjustedInfo.offset = baseInfo->offset + baseFieldInfo->offset;
-        adjustedInfo.index = baseFieldInfo->index;  // Index within the base
-        fields_[field] = adjustedInfo;
-      }
-    }
-  }
-
-  // Align struct size
-  if (alignment_ > 0) {
-    currentOffset = align_to(currentOffset, alignment_);
-  }
-
-  size_ = currentOffset;
-  if (size_ == 0) size_ = 1;
+void ClassLayout::setBaseInfo(ClassSymbol* base, const MemberInfo& info) {
+  bases_[base] = info;
 }
 
 auto ClassLayout::getFieldInfo(FieldSymbol* field) const
@@ -834,113 +694,8 @@ auto ClassSymbol::convertingConstructors() const
   return result;
 }
 
-auto ClassSymbol::buildClassLayout(Control* control)
-    -> std::expected<bool, std::string> {
-  // Validate that all base classes are complete
-  for (auto base : baseClasses()) {
-    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClassSymbol) {
-      return std::unexpected(
-          std::format("base class '{}' not found", to_string(base->name())));
-    }
-    if (!baseClassSymbol->isComplete()) {
-      return std::unexpected(std::format("base class '{}' is incomplete",
-                                         to_string(baseClassSymbol->name())));
-    }
-  }
-
-  auto memoryLayout = control->memoryLayout();
-  FieldSymbol* lastField = nullptr;
-  int calculatedSize = 0;
-  int calculatedAlignment = 1;
-
-  bool needsOwnVptr = false;
-  if (!isUnion()) {
-    bool hasPolymorphicBase = false;
-    for (auto base : baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (baseClass && baseClass->layout() &&
-          baseClass->layout()->hasVtable()) {
-        hasPolymorphicBase = true;
-        break;
-      }
-    }
-    if (!hasPolymorphicBase) {
-      needsOwnVptr = views::any_function(
-          members(), [](FunctionSymbol* f) { return f->isVirtual(); });
-    }
-    if (needsOwnVptr) {
-      auto ptrSize = static_cast<int>(memoryLayout->sizeOfPointer());
-      calculatedSize = ptrSize;
-      calculatedAlignment = ptrSize;
-    }
-  }
-
-  for (auto base : baseClasses()) {
-    auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClassSymbol) continue;
-
-    calculatedSize = align_to(calculatedSize, baseClassSymbol->alignment());
-    calculatedSize += baseClassSymbol->sizeInBytes();
-    calculatedAlignment =
-        std::max(calculatedAlignment, baseClassSymbol->alignment());
-  }
-
-  for (auto field : members() | views::non_static_fields) {
-    if (lastField && control->is_unbounded_array(lastField->type())) {
-      return std::unexpected(
-          std::format("size of incomplete type '{}'",
-                      to_string(lastField->type(), lastField->name())));
-    }
-
-    if (!field->alignment()) {
-      return std::unexpected(
-          std::format("alignment of incomplete type '{}'",
-                      to_string(field->type(), field->name())));
-    }
-
-    std::optional<std::size_t> size;
-    if (control->is_unbounded_array(field->type())) {
-      size = 0;
-    } else {
-      size = memoryLayout->sizeOf(field->type());
-    }
-
-    if (!size.has_value()) {
-      return std::unexpected(
-          std::format("size of incomplete type '{}'",
-                      to_string(field->type(), field->name())));
-    }
-
-    if (isUnion()) {
-      field->setLocalOffset(0);
-      calculatedSize = std::max(calculatedSize, int(size.value()));
-    } else {
-      calculatedSize = align_to(calculatedSize, field->alignment());
-      field->setLocalOffset(calculatedSize);
-      calculatedSize += size.value();
-    }
-
-    calculatedAlignment = std::max(calculatedAlignment, field->alignment());
-    lastField = field;
-  }
-
-  calculatedSize = align_to(calculatedSize, calculatedAlignment);
-
-  if (calculatedSize == 0) {
-    calculatedSize = 1;
-  }
-
-  setAlignment(calculatedAlignment);
-  setSizeInBytes(calculatedSize);
-
-  if (!layout_) {
-    layout_ = std::make_unique<ClassLayout>();
-  }
-
-  layout_->computeLayout(this, control);
-
-  return true;
+void ClassSymbol::setLayout(std::unique_ptr<ClassLayout> layout) {
+  layout_ = std::move(layout);
 }
 
 auto ClassSymbol::layout() const -> const ClassLayout* { return layout_.get(); }
@@ -1047,7 +802,13 @@ auto FunctionSymbol::isFinal() const -> bool { return isFinal_; }
 void FunctionSymbol::setFinal(bool isFinal) { isFinal_ = isFinal; }
 
 auto FunctionSymbol::isConstructor() const -> bool {
-  auto p = symbol_cast<ClassSymbol>(parent());
+  // For constructor templates, parent() is the TemplateParametersSymbol.
+  // Look through it to find the enclosing class.
+  ScopeSymbol* enclosing = parent();
+  if (enclosing && enclosing->isTemplateParameters()) {
+    enclosing = enclosing->enclosingNonTemplateParametersScope();
+  }
+  auto p = symbol_cast<ClassSymbol>(enclosing);
   if (!p) return false;
 
   auto functionType = type_cast<FunctionType>(type());

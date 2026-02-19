@@ -24,6 +24,16 @@
       }
     },
     {
+      "inherits": "debug",
+      "name": "debug-asan",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g -O1",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g -O1",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address"
+      }
+    },
+    {
       "name": "emscripten",
       "displayName": "emscripten",
       "generator": "Ninja",

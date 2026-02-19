@@ -167,6 +167,7 @@ struct Control::Private {
   std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
   std::forward_list<UnaryBuiltinTypeInfo> unaryBuiltinTypeInfos;
   std::forward_list<BuiltinFunctionIdentifierInfo> builtinFunctionInfos;
+  std::forward_list<BuiltinTemplateIdentifierInfo> builtinTemplateInfos;
 
   int anonymousIdCount = 0;
 
@@ -200,11 +201,22 @@ struct Control::Private {
 
 #undef PROCESS_BUILTIN_FUNCTION
   }
+
+  void initBuiltinTemplates() {
+#define PROCESS_BUILTIN_TEMPLATE(id, name) \
+  getIdentifier(name)->setInfo(            \
+      &builtinTemplateInfos.emplace_front(BuiltinTemplateKind::T_##id));
+
+    FOR_EACH_BUILTIN_TEMPLATE(PROCESS_BUILTIN_TEMPLATE)
+
+#undef PROCESS_BUILTIN_TEMPLATE
+  }
 };
 
 Control::Control() : d(std::make_unique<Private>(this)) {
   d->initBuiltinTypeTraits();
   d->initBuiltinFunctions();
+  d->initBuiltinTemplates();
 }
 
 Control::~Control() = default;
@@ -896,6 +908,28 @@ auto Control::remove_cv(const Type* type) -> const Type* {
   return d->traits.remove_cv(type);
 }
 
+auto Control::remove_const(const Type* type) -> const Type* {
+  if (auto qualType = type_cast<QualType>(type)) {
+    if (qualType->isConst()) {
+      if (qualType->isVolatile())
+        return getQualType(qualType->elementType(), CvQualifiers::kVolatile);
+      return qualType->elementType();
+    }
+  }
+  return type;
+}
+
+auto Control::remove_volatile(const Type* type) -> const Type* {
+  if (auto qualType = type_cast<QualType>(type)) {
+    if (qualType->isVolatile()) {
+      if (qualType->isConst())
+        return getQualType(qualType->elementType(), CvQualifiers::kConst);
+      return qualType->elementType();
+    }
+  }
+  return type;
+}
+
 auto Control::remove_cvref(const Type* type) -> const Type* {
   return d->traits.remove_cvref(type);
 }
@@ -955,6 +989,55 @@ auto Control::is_base_of(const Type* base, const Type* derived) -> bool {
 
 auto Control::is_same(const Type* a, const Type* b) -> bool {
   return d->traits.is_same(a, b);
+}
+
+auto Control::is_convertible(const Type* from, const Type* to) -> bool {
+  if (!from || !to) return false;
+
+  auto fromUnqual = remove_cv(from);
+  auto toUnqual = remove_cv(to);
+
+  // void -> void is convertible
+  if (is_void(fromUnqual) && is_void(toUnqual)) return true;
+
+  // nothing else converts to/from void
+  if (is_void(fromUnqual) || is_void(toUnqual)) return false;
+
+  // same type is always convertible
+  if (is_same(fromUnqual, toUnqual)) return true;
+
+  // arithmetic conversions
+  if (is_arithmetic(fromUnqual) && is_arithmetic(toUnqual)) return true;
+
+  // null pointer to any pointer
+  if (is_null_pointer(fromUnqual) && is_pointer(toUnqual)) return true;
+
+  // enum to integral
+  if (is_enum(fromUnqual) && is_integral(toUnqual)) return true;
+
+  // pointer conversions: derived* -> base*
+  if (is_pointer(fromUnqual) && is_pointer(toUnqual)) {
+    auto fromPointee = remove_pointer(fromUnqual);
+    auto toPointee = remove_pointer(toUnqual);
+    if (is_void(remove_cv(toPointee))) return true;
+    if (is_base_of(remove_cv(toPointee), remove_cv(fromPointee))) return true;
+  }
+
+  // derived -> base reference binding (class types)
+  if (auto fromClass = type_cast<ClassType>(fromUnqual)) {
+    if (auto toClass = type_cast<ClassType>(toUnqual)) {
+      if (is_base_of(toUnqual, fromUnqual)) return true;
+    }
+  }
+
+  // bool conversions: arithmetic, pointer, enum -> bool
+  if (type_cast<BoolType>(toUnqual)) {
+    if (is_arithmetic(fromUnqual) || is_pointer(fromUnqual) ||
+        is_enum(fromUnqual) || is_null_pointer(fromUnqual))
+      return true;
+  }
+
+  return false;
 }
 
 auto Control::decay(const Type* type) -> const Type* {
@@ -1110,6 +1193,167 @@ auto Control::is_final(const Type* type) -> bool {
   return cls->isFinal();
 }
 
+auto Control::is_constructible(const Type* type,
+                               std::span<const Type* const> argTypes) -> bool {
+  if (!type) return false;
+  auto unqual = remove_cv(type);
+
+  // References require exactly one argument
+  if (is_reference(unqual)) {
+    if (argTypes.size() != 1) return false;
+    // Simplified: allow reference binding
+    return true;
+  }
+
+  // Scalar types
+  if (is_scalar(unqual)) {
+    // Default construction (zero args) is valid for scalars
+    if (argTypes.empty()) return true;
+    // Scalars can be constructed from a single convertible arg
+    if (argTypes.size() == 1) return true;
+    return false;
+  }
+
+  // Array types: constructible if element type is constructible
+  if (is_array(unqual)) {
+    if (!argTypes.empty()) return false;
+    return is_constructible(remove_all_extents(unqual), argTypes);
+  }
+
+  // Class types
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+
+    // Check default construction (no args)
+    if (argTypes.empty()) {
+      auto defCtor = cls->defaultConstructor();
+      if (!defCtor) return !cls->hasUserDeclaredConstructors();
+      return !defCtor->isDeleted();
+    }
+
+    // Check copy construction (one arg, same type or const ref)
+    if (argTypes.size() == 1) {
+      auto argUnqual = remove_cvref(argTypes[0]);
+      if (is_same(argUnqual, unqual)) {
+        // Copy or move construction
+        if (is_rvalue_reference(argTypes[0]) ||
+            (!is_reference(argTypes[0]) && !is_const(argTypes[0]))) {
+          // Try move constructor first
+          auto moveCtor = cls->moveConstructor();
+          if (moveCtor && !moveCtor->isDeleted()) return true;
+        }
+        auto copyCtor = cls->copyConstructor();
+        if (copyCtor && !copyCtor->isDeleted()) return true;
+        // If no user-declared constructors, implicit copy/move are available
+        if (!cls->hasUserDeclaredConstructors()) return true;
+      }
+    }
+
+    // General case: check if any constructor matches the arity
+    for (auto ctor : cls->constructors()) {
+      if (ctor->isDeleted()) continue;
+      auto ctorType = type_cast<FunctionType>(ctor->type());
+      if (!ctorType) continue;
+      auto params = ctorType->parameterTypes();
+      // Skip the implicit 'this' parameter if present
+      if (params.size() == argTypes.size()) return true;
+      if (ctorType->isVariadic() && params.size() <= argTypes.size())
+        return true;
+    }
+
+    return false;
+  }
+
+  // void type
+  if (is_void(unqual)) return false;
+
+  return false;
+}
+
+auto Control::is_nothrow_constructible(const Type* type,
+                                       std::span<const Type* const> argTypes)
+    -> bool {
+  if (!type) return false;
+  auto unqual = remove_cv(type);
+
+  // First check if it's constructible at all
+  if (!is_constructible(type, argTypes)) return false;
+
+  // References are nothrow
+  if (is_reference(unqual)) return true;
+
+  // Scalar types are always nothrow constructible
+  if (is_scalar(unqual)) return true;
+
+  // Array types
+  if (is_array(unqual))
+    return is_nothrow_constructible(remove_all_extents(unqual), argTypes);
+
+  // Class types: check if the matching constructor is noexcept
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+
+    if (argTypes.empty()) {
+      auto defCtor = cls->defaultConstructor();
+      if (!defCtor) {
+        if (!cls->hasUserDeclaredConstructors()) return true;
+        return false;
+      }
+      if (defCtor->isDeleted()) return false;
+      // Implicitly-declared/defaulted constructors are noexcept unless
+      // they need to call a non-noexcept constructor
+      if (defCtor->isDefaulted() || !cls->hasUserDeclaredConstructors()) {
+        // Check bases and members for non-noexcept default constructors
+        for (auto base : cls->baseClasses()) {
+          auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+          if (!baseClass) continue;
+          std::span<const Type* const> empty;
+          if (!is_nothrow_constructible(baseClass->type(), empty)) return false;
+        }
+        return true;
+      }
+      auto ctorType = type_cast<FunctionType>(defCtor->type());
+      return ctorType && ctorType->isNoexcept();
+    }
+
+    if (argTypes.size() == 1) {
+      auto argUnqual = remove_cvref(argTypes[0]);
+      if (is_same(argUnqual, unqual)) {
+        if (is_rvalue_reference(argTypes[0]) ||
+            (!is_reference(argTypes[0]) && !is_const(argTypes[0]))) {
+          auto moveCtor = cls->moveConstructor();
+          if (moveCtor && !moveCtor->isDeleted()) {
+            auto ctorType = type_cast<FunctionType>(moveCtor->type());
+            return ctorType && ctorType->isNoexcept();
+          }
+        }
+        auto copyCtor = cls->copyConstructor();
+        if (copyCtor && !copyCtor->isDeleted()) {
+          auto ctorType = type_cast<FunctionType>(copyCtor->type());
+          return ctorType && ctorType->isNoexcept();
+        }
+        if (!cls->hasUserDeclaredConstructors()) return true;
+      }
+    }
+
+    for (auto ctor : cls->constructors()) {
+      if (ctor->isDeleted()) continue;
+      auto ctorType = type_cast<FunctionType>(ctor->type());
+      if (!ctorType) continue;
+      auto params = ctorType->parameterTypes();
+      if (params.size() == argTypes.size()) return ctorType->isNoexcept();
+      if (ctorType->isVariadic() && params.size() <= argTypes.size())
+        return ctorType->isNoexcept();
+    }
+
+    return false;
+  }
+
+  return false;
+}
+
 auto Control::is_trivially_constructible(const Type* type) -> bool {
   auto unqual = remove_cv(type);
   if (is_scalar(unqual)) return true;
@@ -1136,6 +1380,97 @@ auto Control::is_trivially_constructible(const Type* type) -> bool {
   if (is_array(unqual)) {
     return is_trivially_constructible(remove_all_extents(unqual));
   }
+  return false;
+}
+
+auto Control::is_assignable(const Type* to, const Type* from) -> bool {
+  if (!to || !from) return false;
+
+  // __is_assignable(T, U) checks whether declval<T>() = declval<U>() is
+  // well-formed. T must be an lvalue reference for non-class types (since
+  // assignment to a prvalue is not allowed).
+
+  // If T is an lvalue reference, we can assign to its referent.
+  if (is_lvalue_reference(to)) {
+    auto targetType = remove_reference(to);
+
+    // Can't assign to const.
+    if (is_const(targetType)) return false;
+
+    auto target = remove_cv(targetType);
+    auto source = remove_cvref(from);
+
+    // Scalar types: any convertible source.
+    if (is_scalar(target)) {
+      return is_convertible(source, target);
+    }
+
+    // Class types: check for assignment operators.
+    if (auto classType = type_cast<ClassType>(target)) {
+      auto cls = classType->symbol();
+      if (!cls || !cls->isComplete()) return false;
+
+      // Check if source is the same class (copy/move assignment).
+      if (is_same(source, target)) {
+        // For rvalue ref source → move assignment.
+        if (is_rvalue_reference(from)) {
+          auto moveOp = cls->moveAssignmentOperator();
+          if (moveOp && !moveOp->isDeleted()) return true;
+        }
+        // Copy assignment.
+        auto copyOp = cls->copyAssignmentOperator();
+        if (copyOp && !copyOp->isDeleted()) return true;
+        // Implicit copy/move assignment is available if no user-declared
+        // special members suppress it.
+        if (!cls->hasUserDeclaredConstructors()) return true;
+        return false;
+      }
+
+      // General case: check for any operator= that accepts the source type.
+      // Conservative: accept for now — full overload resolution is complex.
+      return true;
+    }
+
+    // Enum, array, etc.
+    return false;
+  }
+
+  // If T is an rvalue reference to a class type, class rvalue assignment may be
+  // valid (e.g., MyClass{} = other;).
+  if (is_rvalue_reference(to)) {
+    auto targetType = remove_reference(to);
+    if (is_const(targetType)) return false;
+    auto target = remove_cv(targetType);
+
+    if (auto classType = type_cast<ClassType>(target)) {
+      auto cls = classType->symbol();
+      if (!cls || !cls->isComplete()) return false;
+      // Classes can be assigned to as rvalues (operator= is not
+      // ref-qualified by default).
+      auto copyOp = cls->copyAssignmentOperator();
+      if (copyOp && !copyOp->isDeleted()) return true;
+      auto moveOp = cls->moveAssignmentOperator();
+      if (moveOp && !moveOp->isDeleted()) return true;
+      if (!cls->hasUserDeclaredConstructors()) return true;
+      return false;
+    }
+
+    return false;
+  }
+
+  // T is not a reference.  Assignment to a non-class prvalue is invalid.
+  // For class prvalues, operator= on rvalues may still be valid.
+  if (auto classType = type_cast<ClassType>(remove_cv(to))) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+    auto copyOp = cls->copyAssignmentOperator();
+    if (copyOp && !copyOp->isDeleted()) return true;
+    auto moveOp = cls->moveAssignmentOperator();
+    if (moveOp && !moveOp->isDeleted()) return true;
+    if (!cls->hasUserDeclaredConstructors()) return true;
+    return false;
+  }
+
   return false;
 }
 
@@ -1183,6 +1518,50 @@ auto Control::is_abstract(const Type* type) -> bool {
   auto cls = classType->symbol();
   if (!cls || !cls->isComplete()) return false;
   return cls->isAbstract();
+}
+
+auto Control::is_destructible(const Type* type) -> bool {
+  if (!type) return false;
+
+  auto unqual = remove_cv(type);
+
+  // References are destructible.
+  if (is_reference(unqual)) return true;
+
+  // void is not destructible.
+  if (is_void(unqual)) return false;
+
+  // Function types are not destructible.
+  if (is_function(unqual)) return false;
+
+  // Unbounded arrays are not destructible.
+  if (is_unbounded_array(unqual)) return false;
+
+  // Bounded arrays: destructible if element type is destructible.
+  if (is_bounded_array(unqual)) {
+    return is_destructible(remove_all_extents(unqual));
+  }
+
+  // Scalar types are destructible.
+  if (is_scalar(unqual)) return true;
+
+  // Class types: destructible if destructor is accessible and not deleted.
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->symbol();
+    if (!cls || !cls->isComplete()) return false;
+
+    auto dtor = cls->destructor();
+    if (dtor && dtor->isDeleted()) return false;
+
+    // If there's a destructor and it's not deleted, it's destructible.
+    // If there's no explicit destructor, the implicit one is available.
+    return true;
+  }
+
+  // Enum types are destructible (scalar).
+  if (is_enum(unqual)) return true;
+
+  return false;
 }
 
 auto Control::has_virtual_destructor(const Type* type) -> bool {

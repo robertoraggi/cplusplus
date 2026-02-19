@@ -695,11 +695,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return var->constValue();
   }
 
+  if (auto var = symbol_cast<VariableSymbol>(ast->symbol);
+      var && !var->isConstexpr() && var->constValue().has_value() &&
+      control()->is_const(var->type()) &&
+      control()->is_integral_or_unscoped_enum(
+          control()->remove_cvref(var->type()))) {
+    return var->constValue();
+  }
+
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
-      field && field->isConstexpr() && field->isStatic()) {
-    if (field->initializer()) {
-      return interp.expression(field->initializer());
-    }
+      field && field->isStatic() && field->initializer()) {
+    return interp.expression(field->initializer());
   }
 
   if (ast->symbol) {
@@ -864,6 +870,15 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     if (func && func->isConstexpr()) {
       auto baseVal = interp.evaluate(memberExpr->baseExpression);
       if (baseVal.has_value()) {
+        if (auto* initList =
+                std::get_if<std::shared_ptr<InitializerList>>(&*baseVal)) {
+          if (auto* nameId = ast_cast<NameIdAST>(memberExpr->unqualifiedId)) {
+            if (nameId->identifier && nameId->identifier->value() == "size") {
+              return ConstValue(std::intmax_t((*initList)->elements.size()));
+            }
+          }
+        }
+
         if (auto* objPtr =
                 std::get_if<std::shared_ptr<ConstObject>>(&*baseVal)) {
           auto savedThis = interp.thisObject();
@@ -879,6 +894,22 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   if (func && func->isConstexpr()) {
     return interp.evaluateCall(func, std::move(args));
+  }
+
+  if (auto* idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
+    if (auto* classSym = symbol_cast<ClassSymbol>(idExpr->symbol)) {
+      auto* classType = classSym->type();
+      for (auto* ctor : classSym->constructors()) {
+        if (ctor->isConstexpr()) {
+          return interp.evaluateConstructor(ctor, classType, std::move(args));
+        }
+        // A defaulted constructor with no arguments is implicitly constexpr.
+        if (ctor->isDefaulted() && args.empty()) {
+          auto obj = std::make_shared<ConstObject>(classType);
+          return ConstValue{std::move(obj)};
+        }
+      }
+    }
   }
 
   return ExpressionResult{std::nullopt};
@@ -1567,12 +1598,18 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
         return control()->is_aggregate(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ASSIGNABLE: {
-        break;
+        if (!secondType) break;
+        return control()->is_assignable(firstType, secondType);
       }
 
+      case BuiltinTypeTraitKind::T___IS_CONVERTIBLE:
       case BuiltinTypeTraitKind::T___IS_CONVERTIBLE_TO: {
-        break;
+        if (!secondType) break;
+        return control()->is_convertible(firstType, secondType);
       }
+
+      case BuiltinTypeTraitKind::T___IS_DESTRUCTIBLE:
+        return control()->is_destructible(firstType);
 
       case BuiltinTypeTraitKind::T___IS_EMPTY:
         return control()->is_empty(firstType);
@@ -1611,6 +1648,20 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_COPYABLE:
         return control()->is_trivially_copyable(firstType);
+
+      case BuiltinTypeTraitKind::T___IS_CONSTRUCTIBLE:
+      case BuiltinTypeTraitKind::T___IS_NOTHROW_CONSTRUCTIBLE: {
+        std::vector<const Type*> argTypes;
+        if (auto next = ast->typeIdList ? ast->typeIdList->next : nullptr) {
+          for (auto node : ListView{next}) {
+            if (node->type) argTypes.push_back(node->type);
+          }
+        }
+        if (ast->typeTrait ==
+            BuiltinTypeTraitKind::T___IS_NOTHROW_CONSTRUCTIBLE)
+          return control()->is_nothrow_constructible(firstType, argTypes);
+        return control()->is_constructible(firstType, argTypes);
+      }
 
       case BuiltinTypeTraitKind::T_NONE: {
         // not a builtin

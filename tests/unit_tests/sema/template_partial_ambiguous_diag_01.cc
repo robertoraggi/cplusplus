@@ -14,4 +14,4 @@ struct S<int, U> {
   enum { value = 2 };
 };
 
-using X = S<int, int>;
+template struct S<int, int>;

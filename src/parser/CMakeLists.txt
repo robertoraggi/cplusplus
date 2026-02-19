@@ -35,7 +35,12 @@ add_library(cxx-parser
     cxx/ast_rewriter_declarations.cc
     cxx/ast_rewriter_declarators.cc
     cxx/ast_rewriter_expressions.cc
+    cxx/ast_rewriter_instantiate.cc
     cxx/ast_rewriter_names.cc
+    cxx/ast_rewriter_packs.cc
+    cxx/ast_rewriter_partial_specialization.cc
+    cxx/ast_rewriter_pending_body.cc
+    cxx/ast_rewriter_requires.cc
     cxx/ast_rewriter_specifiers.cc
     cxx/ast_rewriter_statements.cc
     cxx/ast_rewriter_units.cc
@@ -55,6 +60,7 @@ add_library(cxx-parser
     cxx/cxx.cc
     cxx/decl_specs.cc
     cxx/decl.cc
+    cxx/dependent_types.cc
     cxx/diagnostic.cc
     cxx/diagnostics_client.cc
     cxx/external_name_encoder.cc
@@ -70,6 +76,7 @@ add_library(cxx-parser
     cxx/path.cc
     cxx/preprocessor.cc
     cxx/source_location.cc
+    cxx/substitution.cc
     cxx/symbol_chain_view.cc
     cxx/symbol_printer.cc
     cxx/symbols.cc

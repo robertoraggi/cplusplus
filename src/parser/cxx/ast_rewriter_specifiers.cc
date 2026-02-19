@@ -300,7 +300,7 @@ auto ASTRewriter::typeId(TypeIdAST* ast) -> TypeIdAST* {
 
   auto copy = TypeIdAST::create(arena());
 
-  auto typeSpecifierListCtx = DeclSpecs{rewriter()};
+  auto typeSpecifierListCtx = DeclSpecs{unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = specifier(node);
@@ -780,7 +780,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
       ast_cast<NameIdAST>(rewrite.unqualifiedId(ast->unqualifiedId));
   copy->colonLoc = ast->colonLoc;
 
-  auto typeSpecifierListCtx = DeclSpecs{rewriter()};
+  auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -967,7 +967,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
 
   for (const auto& [newAst, oldAst] : delayedFunctions) {
     if (newAst->symbol && newAst->symbol->hasPendingBody()) {
-      ASTRewriter::completePendingBody(rewrite.unit_, newAst->symbol);
+      rewrite.completePendingBody(newAst->symbol);
     }
   }
 

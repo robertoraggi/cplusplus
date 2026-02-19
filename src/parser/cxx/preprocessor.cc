@@ -67,6 +67,8 @@ std::unordered_set<std::string_view> enabledBuiltins{
     "__is_class",
     "__is_compound",
     "__is_const",
+    "__is_convertible",
+    "__is_destructible",
     "__is_empty",
     "__is_enum",
     "__is_final",

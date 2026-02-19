@@ -266,5 +266,16 @@ char* __builtin_strndup(const char*, __SIZE_TYPE__);
 constexpr char* __builtin_strpbrk(const char*, const char*);
 constexpr char* __builtin_strrchr(const char*, int);
 __SIZE_TYPE__ __builtin_strxfrm(char*, const char*, __SIZE_TYPE__);
+constexpr int __builtin_ctz(unsigned int);
+constexpr int __builtin_ctzl(unsigned long);
+constexpr int __builtin_ctzll(unsigned long long);
+constexpr double __builtin_inf();
+constexpr float __builtin_inff();
+constexpr long double __builtin_infl();
+bool __builtin_isfinite(double);
+bool __builtin_isinf(double);
+bool __builtin_isnan(double);
+bool __builtin_isnormal(double);
+void __builtin_unreachable();
 )";
 // clang-format on

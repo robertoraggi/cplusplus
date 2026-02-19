@@ -23,7 +23,10 @@
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 
+#include <algorithm>
 #include <format>
+#include <ranges>
+#include <regex>
 
 namespace cxx {
 
@@ -56,29 +59,92 @@ void MacOSToolchain::setSysroot(std::string sysroot) {
   if (!sysroot_.empty() && sysroot_.back() == '/') sysroot_.pop_back();
 }
 
+namespace {
+struct Version {
+  int major{};
+  std::optional<int> minor;
+  std::optional<int> patch;
+
+  static auto parse(const std::string& s) -> std::optional<Version> {
+    // parse version numbers of the form "major[.minor[.patch]]", don't
+    // throw exception, just return nullopt if the format is invalid
+    std::regex versionRe(R"(^(\d+)(?:\.(\d+))?(?:\.(\d+))?$)");
+    std::smatch match;
+    if (!std::regex_match(s, match, versionRe)) return std::nullopt;
+
+    Version version;
+    version.major = std::stoi(match[1].str());
+    if (match[2].matched) version.minor = std::stoi(match[2].str());
+    if (match[3].matched) version.patch = std::stoi(match[3].str());
+    return version;
+  }
+
+  auto operator<(const Version& other) const {
+    if (major != other.major) return major < other.major;
+
+    auto maxInt = std::numeric_limits<int>::max();
+
+    if (minor != other.minor)
+      return minor.value_or(maxInt) < other.minor.value_or(maxInt);
+
+    return patch.value_or(maxInt) < other.patch.value_or(maxInt);
+  }
+};
+
+auto to_string(const Version& version) -> std::string {
+  if (version.patch.has_value())
+    return std::format("{}.{}.{}", version.major, version.minor.value_or(0),
+                       version.patch.value());
+
+  if (version.minor.has_value())
+    return std::format("{}.{}", version.major, version.minor.value());
+
+  return std::format("{}", version.major);
+}
+
+}  // namespace
+
 void MacOSToolchain::addSystemIncludePaths() {
   auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
 
-  addSystemIncludePath(
-      std::format("{}/System/Library/Frameworks", platform));
+  const auto clangLibDir =
+      std::filesystem::path{toolchainPath_} / "usr" / "lib" / "clang";
 
-  addSystemIncludePath(std::format("{}/usr/include", toolchainPath_));
+  struct VersionedResourcePath {
+    std::filesystem::path path;
+    Version version;
+  };
+
+  std::vector<VersionedResourcePath> candidates;
+
+  if (fs::exists(clangLibDir) && std::filesystem::is_directory(clangLibDir)) {
+    for (const auto& e : std::filesystem::directory_iterator(clangLibDir)) {
+      if (!e.is_directory()) continue;
+
+      auto version = Version::parse(e.path().filename().string());
+      if (!version) continue;
+
+      if (!is_directory(e.path() / "include")) continue;
+
+      candidates.emplace_back(e.path(), version.value());
+    }
+  }
+
+  std::ranges::sort(candidates, std::less<>{}, &VersionedResourcePath::version);
+
+  for (const auto& candidate : candidates | std::ranges::views::reverse) {
+    addSystemIncludePath((candidate.path / "include").string());
+    break;
+  }
 
   addSystemIncludePath(std::format("{}/usr/include", platform));
 
-  std::vector<std::string_view> versions{
-      "17.0.0",
-      "16.0.0",
-      "15.0.0",
-  };
+  addSystemIncludePath(std::format("{}/usr/include", toolchainPath_));
 
-  for (auto version : versions) {
-    const std::string path =
-        std::format("{}/usr/lib/clang/{}/include", toolchainPath_, version);
-    if (fs::exists(path)) {
-      addSystemIncludePath(path);
-    }
-  }
+  addSystemIncludePath(std::format("{}/System/Library/Frameworks", platform));
+
+  addSystemIncludePath(
+      std::format("{}/System/Library/SubFrameworks", platform));
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {

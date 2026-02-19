@@ -34,40 +34,36 @@ class TranslationUnit;
 class Control;
 class Arena;
 
-class ASTRewriter {
- public:
-  [[nodiscard]] static auto instantiate(
-      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-      Symbol* symbol) -> Symbol*;
-
-  static void completePendingBody(TranslationUnit* unit, FunctionSymbol* func);
-
+class [[nodiscard]] ASTRewriter {
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
-                       const std::vector<TemplateArgument>& templateArguments);
+                       std::vector<TemplateArgument> templateArguments);
+
+ public:
   ~ASTRewriter();
 
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return unit_;
-  }
+  static auto paste(TranslationUnit* unit, ScopeSymbol* scope,
+                    StatementAST* ast) -> StatementAST*;
 
-  [[nodiscard]] auto declaration(DeclarationAST* ast,
-                                 TemplateDeclarationAST* templateHead = nullptr)
+  static auto instantiate(TranslationUnit* unit,
+                          List<TemplateArgumentAST*>* templateArgumentList,
+                          Symbol* symbol) -> Symbol*;
+
+  auto translationUnit() const -> TranslationUnit* { return unit_; }
+
+  auto declaration(DeclarationAST* ast,
+                   TemplateDeclarationAST* templateHead = nullptr)
       -> DeclarationAST*;
 
-  [[nodiscard]] auto specifier(SpecifierAST* ast,
-                               TemplateDeclarationAST* templateHead = nullptr)
+  auto specifier(SpecifierAST* ast,
+                 TemplateDeclarationAST* templateHead = nullptr)
       -> SpecifierAST*;
 
-  [[nodiscard]] static auto make_substitution(
-      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-      List<TemplateArgumentAST*>* templateArgumentList)
-      -> std::vector<TemplateArgument>;
-
-  [[nodiscard]] auto statement(StatementAST* ast) -> StatementAST*;
+  auto statement(StatementAST* ast) -> StatementAST*;
 
  private:
-  [[nodiscard]] auto templateArguments() const
-      -> const std::vector<TemplateArgument>& {
+  void completePendingBody(FunctionSymbol* func);
+
+  auto templateArguments() const -> const std::vector<TemplateArgument>& {
     return templateArguments_;
   }
 
@@ -76,103 +72,87 @@ class ASTRewriter {
 
   void check(ExpressionAST* ast);
 
-  [[nodiscard]] auto binder() -> Binder& { return binder_; }
-
-  [[nodiscard]] static auto tryPartialSpecialization(
+  static auto tryPartialSpecialization(
       TranslationUnit* unit, ClassSymbol* classSymbol,
       const std::vector<TemplateArgument>& templateArguments) -> Symbol*;
 
-  [[nodiscard]] static auto checkRequiresClause(
+  static auto tryPartialSpecialization(
+      TranslationUnit* unit, VariableSymbol* variableSymbol,
+      const std::vector<TemplateArgument>& templateArguments) -> Symbol*;
+
+  static auto checkRequiresClause(
       TranslationUnit* unit, Symbol* symbol, RequiresClauseAST* clause,
       const std::vector<TemplateArgument>& templateArguments, int depth)
       -> bool;
 
-  [[nodiscard]] auto control() const -> Control*;
-  [[nodiscard]] auto arena() const -> Arena*;
+  auto control() const -> Control*;
+  auto arena() const -> Arena*;
+  auto binder() -> Binder& { return binder_; }
 
-  [[nodiscard]] auto restrictedToDeclarations() const -> bool;
+  auto restrictedToDeclarations() const -> bool;
   void setRestrictedToDeclarations(bool restrictedToDeclarations);
 
   // run on the base nodes
-  [[nodiscard]] auto unit(UnitAST* ast) -> UnitAST*;
-  [[nodiscard]] auto expression(ExpressionAST* ast) -> ExpressionAST*;
-  [[nodiscard]] auto genericAssociation(GenericAssociationAST* ast)
-      -> GenericAssociationAST*;
-  [[nodiscard]] auto designator(DesignatorAST* ast) -> DesignatorAST*;
-  [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
-      -> TemplateParameterAST*;
-  [[nodiscard]] auto ptrOperator(PtrOperatorAST* ast) -> PtrOperatorAST*;
-  [[nodiscard]] auto coreDeclarator(CoreDeclaratorAST* ast)
-      -> CoreDeclaratorAST*;
-  [[nodiscard]] auto declaratorChunk(DeclaratorChunkAST* ast)
-      -> DeclaratorChunkAST*;
-  [[nodiscard]] auto unqualifiedId(UnqualifiedIdAST* ast) -> UnqualifiedIdAST*;
-  [[nodiscard]] auto nestedNameSpecifier(NestedNameSpecifierAST* ast)
+  auto unit(UnitAST* ast) -> UnitAST*;
+  auto expression(ExpressionAST* ast) -> ExpressionAST*;
+  auto genericAssociation(GenericAssociationAST* ast) -> GenericAssociationAST*;
+  auto designator(DesignatorAST* ast) -> DesignatorAST*;
+  auto templateParameter(TemplateParameterAST* ast) -> TemplateParameterAST*;
+  auto ptrOperator(PtrOperatorAST* ast) -> PtrOperatorAST*;
+  auto coreDeclarator(CoreDeclaratorAST* ast) -> CoreDeclaratorAST*;
+  auto declaratorChunk(DeclaratorChunkAST* ast) -> DeclaratorChunkAST*;
+  auto unqualifiedId(UnqualifiedIdAST* ast) -> UnqualifiedIdAST*;
+  auto nestedNameSpecifier(NestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
-  [[nodiscard]] auto functionBody(FunctionBodyAST* ast) -> FunctionBodyAST*;
-  [[nodiscard]] auto templateArgument(TemplateArgumentAST* ast)
-      -> TemplateArgumentAST*;
-  [[nodiscard]] auto exceptionSpecifier(ExceptionSpecifierAST* ast)
-      -> ExceptionSpecifierAST*;
-  [[nodiscard]] auto requirement(RequirementAST* ast) -> RequirementAST*;
-  [[nodiscard]] auto newInitializer(NewInitializerAST* ast)
-      -> NewInitializerAST*;
-  [[nodiscard]] auto memInitializer(MemInitializerAST* ast)
-      -> MemInitializerAST*;
-  [[nodiscard]] auto lambdaCapture(LambdaCaptureAST* ast) -> LambdaCaptureAST*;
-  [[nodiscard]] auto exceptionDeclaration(ExceptionDeclarationAST* ast)
+  auto functionBody(FunctionBodyAST* ast) -> FunctionBodyAST*;
+  auto templateArgument(TemplateArgumentAST* ast) -> TemplateArgumentAST*;
+  auto exceptionSpecifier(ExceptionSpecifierAST* ast) -> ExceptionSpecifierAST*;
+  auto requirement(RequirementAST* ast) -> RequirementAST*;
+  auto newInitializer(NewInitializerAST* ast) -> NewInitializerAST*;
+  auto memInitializer(MemInitializerAST* ast) -> MemInitializerAST*;
+  auto lambdaCapture(LambdaCaptureAST* ast) -> LambdaCaptureAST*;
+  auto exceptionDeclaration(ExceptionDeclarationAST* ast)
       -> ExceptionDeclarationAST*;
-  [[nodiscard]] auto attributeSpecifier(AttributeSpecifierAST* ast)
-      -> AttributeSpecifierAST*;
-  [[nodiscard]] auto attributeToken(AttributeTokenAST* ast)
-      -> AttributeTokenAST*;
+  auto attributeSpecifier(AttributeSpecifierAST* ast) -> AttributeSpecifierAST*;
+  auto attributeToken(AttributeTokenAST* ast) -> AttributeTokenAST*;
 
   // run on the misc nodes
-  [[nodiscard]] auto splicer(SplicerAST* ast) -> SplicerAST*;
-  [[nodiscard]] auto globalModuleFragment(GlobalModuleFragmentAST* ast)
+  auto splicer(SplicerAST* ast) -> SplicerAST*;
+  auto globalModuleFragment(GlobalModuleFragmentAST* ast)
       -> GlobalModuleFragmentAST*;
-  [[nodiscard]] auto privateModuleFragment(PrivateModuleFragmentAST* ast)
+  auto privateModuleFragment(PrivateModuleFragmentAST* ast)
       -> PrivateModuleFragmentAST*;
-  [[nodiscard]] auto moduleDeclaration(ModuleDeclarationAST* ast)
-      -> ModuleDeclarationAST*;
-  [[nodiscard]] auto moduleName(ModuleNameAST* ast) -> ModuleNameAST*;
-  [[nodiscard]] auto moduleQualifier(ModuleQualifierAST* ast)
-      -> ModuleQualifierAST*;
-  [[nodiscard]] auto modulePartition(ModulePartitionAST* ast)
-      -> ModulePartitionAST*;
-  [[nodiscard]] auto importName(ImportNameAST* ast) -> ImportNameAST*;
-  [[nodiscard]] auto initDeclarator(InitDeclaratorAST* ast,
-                                    const DeclSpecs& declSpecs)
+  auto moduleDeclaration(ModuleDeclarationAST* ast) -> ModuleDeclarationAST*;
+  auto moduleName(ModuleNameAST* ast) -> ModuleNameAST*;
+  auto moduleQualifier(ModuleQualifierAST* ast) -> ModuleQualifierAST*;
+  auto modulePartition(ModulePartitionAST* ast) -> ModulePartitionAST*;
+  auto importName(ImportNameAST* ast) -> ImportNameAST*;
+  auto initDeclarator(InitDeclaratorAST* ast, const DeclSpecs& declSpecs)
       -> InitDeclaratorAST*;
-  [[nodiscard]] auto declarator(DeclaratorAST* ast) -> DeclaratorAST*;
-  [[nodiscard]] auto usingDeclarator(UsingDeclaratorAST* ast)
-      -> UsingDeclaratorAST*;
-  [[nodiscard]] auto enumerator(EnumeratorAST* ast) -> EnumeratorAST*;
-  [[nodiscard]] auto typeId(TypeIdAST* ast) -> TypeIdAST*;
-  [[nodiscard]] auto handler(HandlerAST* ast) -> HandlerAST*;
-  [[nodiscard]] auto baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST*;
-  [[nodiscard]] auto requiresClause(RequiresClauseAST* ast)
-      -> RequiresClauseAST*;
-  [[nodiscard]] auto parameterDeclarationClause(
-      ParameterDeclarationClauseAST* ast) -> ParameterDeclarationClauseAST*;
-  [[nodiscard]] auto trailingReturnType(TrailingReturnTypeAST* ast)
-      -> TrailingReturnTypeAST*;
-  [[nodiscard]] auto lambdaSpecifier(LambdaSpecifierAST* ast)
-      -> LambdaSpecifierAST*;
-  [[nodiscard]] auto typeConstraint(TypeConstraintAST* ast)
-      -> TypeConstraintAST*;
-  [[nodiscard]] auto attributeArgumentClause(AttributeArgumentClauseAST* ast)
+  auto declarator(DeclaratorAST* ast) -> DeclaratorAST*;
+  auto usingDeclarator(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
+  auto enumerator(EnumeratorAST* ast) -> EnumeratorAST*;
+  auto typeId(TypeIdAST* ast) -> TypeIdAST*;
+  auto handler(HandlerAST* ast) -> HandlerAST*;
+  auto baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST*;
+  auto requiresClause(RequiresClauseAST* ast) -> RequiresClauseAST*;
+  auto parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
+      -> ParameterDeclarationClauseAST*;
+  auto trailingReturnType(TrailingReturnTypeAST* ast) -> TrailingReturnTypeAST*;
+  auto lambdaSpecifier(LambdaSpecifierAST* ast) -> LambdaSpecifierAST*;
+  auto typeConstraint(TypeConstraintAST* ast) -> TypeConstraintAST*;
+  auto attributeArgumentClause(AttributeArgumentClauseAST* ast)
       -> AttributeArgumentClauseAST*;
-  [[nodiscard]] auto attribute(AttributeAST* ast) -> AttributeAST*;
-  [[nodiscard]] auto attributeUsingPrefix(AttributeUsingPrefixAST* ast)
+  auto attribute(AttributeAST* ast) -> AttributeAST*;
+  auto attributeUsingPrefix(AttributeUsingPrefixAST* ast)
       -> AttributeUsingPrefixAST*;
-  [[nodiscard]] auto newPlacement(NewPlacementAST* ast) -> NewPlacementAST*;
-  [[nodiscard]] auto nestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast)
+  auto newPlacement(NewPlacementAST* ast) -> NewPlacementAST*;
+  auto nestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast)
       -> NestedNamespaceSpecifierAST*;
-  [[nodiscard]] auto asmOperand(AsmOperandAST* ast) -> AsmOperandAST*;
-  [[nodiscard]] auto asmQualifier(AsmQualifierAST* ast) -> AsmQualifierAST*;
-  [[nodiscard]] auto asmClobber(AsmClobberAST* ast) -> AsmClobberAST*;
-  [[nodiscard]] auto asmGotoLabel(AsmGotoLabelAST* ast) -> AsmGotoLabelAST*;
+  auto asmOperand(AsmOperandAST* ast) -> AsmOperandAST*;
+  auto asmQualifier(AsmQualifierAST* ast) -> AsmQualifierAST*;
+  auto asmClobber(AsmClobberAST* ast) -> AsmClobberAST*;
+  auto asmGotoLabel(AsmGotoLabelAST* ast) -> AsmGotoLabelAST*;
 
  private:
   struct UnitVisitor;
@@ -200,20 +180,18 @@ class ASTRewriter {
   struct AttributeTokenVisitor;
 
  private:
-  [[nodiscard]] auto rewriter() -> ASTRewriter* { return this; }
+  auto rewriter() -> ASTRewriter* { return this; }
 
-  [[nodiscard]] auto getParameterPack(ExpressionAST* ast)
-      -> ParameterPackSymbol*;
+  auto getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol*;
 
-  [[nodiscard]] auto getTypeParameterPack(SpecifierAST* ast)
-      -> ParameterPackSymbol*;
+  auto getTypeParameterPack(SpecifierAST* ast) -> ParameterPackSymbol*;
 
-  [[nodiscard]] auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
+  auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
+  TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
   ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
-  TranslationUnit* unit_ = nullptr;
   Binder binder_;
   int depth_ = 0;
   bool restrictedToDeclarations_ = false;

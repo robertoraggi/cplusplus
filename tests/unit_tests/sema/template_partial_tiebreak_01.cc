@@ -3,6 +3,7 @@
 template <typename T, typename U>
 struct S;
 
+// expected-error@+2 {{partial specialization is ambiguous}}
 template <typename T>
 struct S<T, int> {
   enum { value = 1 };
@@ -13,4 +14,4 @@ struct S<int, U> {
   enum { value = 2 };
 };
 
-static_assert(S<int, int>::value == 1);
+template struct S<int, int>;

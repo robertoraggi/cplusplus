@@ -156,7 +156,7 @@ export function new_ast_rewriter_cc({
           // check the base type has a context that must be passed
           switch (m.type) {
             case "SpecifierAST":
-              emit(`  auto ${m.name}Ctx = DeclSpecs{rewriter()};`);
+              emit(`  auto ${m.name}Ctx = DeclSpecs{rewrite.sema_};`);
               break;
 
             default:

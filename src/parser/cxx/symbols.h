@@ -367,17 +367,29 @@ class ClassLayout {
   struct MemberInfo {
     std::uint64_t offset = 0;
     std::uint32_t index = 0;
+    std::uint32_t bitOffset = 0;
+    std::uint32_t bitWidth = 0;
+    std::uint32_t allocUnitSizeBytes = 0;
   };
 
   ClassLayout() = default;
-
-  void computeLayout(ClassSymbol* classSymbol, Control* control);
 
   [[nodiscard]] auto getFieldInfo(FieldSymbol* field) const
       -> std::optional<MemberInfo>;
 
   [[nodiscard]] auto getBaseInfo(ClassSymbol* base) const
       -> std::optional<MemberInfo>;
+
+  void setFieldInfo(FieldSymbol* field, const MemberInfo& info);
+  void setBaseInfo(ClassSymbol* base, const MemberInfo& info);
+
+  void setSize(std::uint64_t size) { size_ = size; }
+  void setAlignment(std::uint64_t alignment) { alignment_ = alignment; }
+  void setHasVtable(bool hasVtable) { hasVtable_ = hasVtable; }
+  void setHasDirectVtable(bool hasDirectVtable) {
+    hasDirectVtable_ = hasDirectVtable;
+  }
+  void setVtableIndex(std::uint32_t vtableIndex) { vtableIndex_ = vtableIndex; }
 
   [[nodiscard]] auto size() const -> std::uint64_t { return size_; }
   [[nodiscard]] auto alignment() const -> std::uint64_t { return alignment_; }
@@ -502,8 +514,7 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto flags() const -> std::uint32_t;
   void setFlags(std::uint32_t flags);
 
-  [[nodiscard]] auto buildClassLayout(Control* control)
-      -> std::expected<bool, std::string>;
+  void setLayout(std::unique_ptr<ClassLayout> layout);
 
   [[nodiscard]] auto layout() const -> const ClassLayout*;
 

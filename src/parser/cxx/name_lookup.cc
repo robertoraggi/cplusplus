@@ -153,133 +153,36 @@ struct AssociatedNamespaceCollector {
 
 }  // namespace
 
-Lookup::Lookup(ScopeSymbol* scope) : scope_(scope) {}
+namespace {
 
-auto Lookup::lookupNamespace(NestedNameSpecifierAST* nestedNameSpecifier,
-                             const Identifier* id) const -> NamespaceSymbol* {
-  std::vector<ScopeSymbol*> set;
-
-  if (!nestedNameSpecifier) {
-    // unqualified lookup, start with the current scope and go up.
-    for (auto scope = scope_; scope; scope = scope->parent()) {
-      if (auto ns = lookupNamespaceHelper(scope, id, set)) {
-        return ns;
-      }
-    }
-
-    return nullptr;
-  }
-
-  auto base = symbol_cast<NamespaceSymbol>(nestedNameSpecifier->symbol);
-
-  if (!base) return nullptr;
-
-  return lookupNamespaceHelper(base, id, set);
-}
-
-auto Lookup::lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
-                                   std::vector<ScopeSymbol*>& set) const
+auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
+                           std::vector<ScopeSymbol*>& visited)
     -> NamespaceSymbol* {
-  if (std::ranges::contains(set, scope)) {
-    return nullptr;
-  }
-
-  set.push_back(scope);
+  if (std::ranges::contains(visited, scope)) return nullptr;
+  visited.push_back(scope);
 
   for (auto candidate : scope->find(id) | views::namespaces) {
     return candidate;
   }
 
   for (auto u : scope->usingDirectives()) {
-    if (auto ns = lookupNamespaceHelper(u, id, set)) {
-      return ns;
-    }
+    if (auto ns = lookupNamespaceHelper(u, id, visited)) return ns;
   }
 
   return nullptr;
 }
 
-auto Lookup::lookupType(NestedNameSpecifierAST* nestedNameSpecifier,
-                        const Identifier* id) const -> Symbol* {
-  std::vector<ScopeSymbol*> set;
+auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
+                      std::vector<ScopeSymbol*>& visited) -> Symbol* {
+  if (std::ranges::contains(visited, scope)) return nullptr;
+  visited.push_back(scope);
 
-  if (!nestedNameSpecifier) {
-    // unqualified lookup, start with the current scope and go up.
-    for (auto scope = scope_; scope; scope = scope->parent()) {
-      if (auto symbol = lookupTypeHelper(scope, id, set)) {
-        return symbol;
-      }
-    }
-
-    return nullptr;
-  }
-
-  if (!nestedNameSpecifier->symbol) return nullptr;
-
-  switch (nestedNameSpecifier->symbol->kind()) {
-    case SymbolKind::kNamespace:
-    case SymbolKind::kClass:
-    case SymbolKind::kEnum:
-    case SymbolKind::kScopedEnum: {
-      auto scopeSymbol = static_cast<ScopeSymbol*>(nestedNameSpecifier->symbol);
-      return lookupTypeHelper(scopeSymbol, id, set);
-    }
-
-    case SymbolKind::kTypeAlias: {
-      auto alias = symbol_cast<TypeAliasSymbol>(nestedNameSpecifier->symbol);
-      auto classType = type_cast<ClassType>(alias->type());
-      if (classType) {
-        auto classSymbol = classType->symbol();
-        return lookupTypeHelper(classSymbol, id, set);
-      }
-      return nullptr;
-    }
-
-    case SymbolKind::kUsingDeclaration: {
-      auto usingDeclaration =
-          symbol_cast<UsingDeclarationSymbol>(nestedNameSpecifier->symbol);
-
-      if (!usingDeclaration->target()) return nullptr;
-
-      if (auto classSymbol =
-              symbol_cast<ClassSymbol>(usingDeclaration->target())) {
-        return lookupTypeHelper(classSymbol, id, set);
-      }
-
-      if (auto enumSymbol =
-              symbol_cast<EnumSymbol>(usingDeclaration->target())) {
-        return lookupTypeHelper(enumSymbol, id, set);
-      }
-
-      if (auto scopedEnumSymbol =
-              symbol_cast<ScopedEnumSymbol>(usingDeclaration->target())) {
-        return lookupTypeHelper(scopedEnumSymbol, id, set);
-      }
-
-      return nullptr;
-    }
-
-    default:
-      return nullptr;
-  }  // swotch
-}
-
-auto Lookup::lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
-                              std::vector<ScopeSymbol*>& set) const -> Symbol* {
-  if (std::ranges::contains(set, scope)) {
-    return nullptr;
-  }
-
-  set.push_back(scope);
-
+  // Injected class name
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
-    if (classSymbol->name() == id) {
-      return classSymbol;
-    }
+    if (classSymbol->name() == id) return classSymbol;
   }
 
   for (auto candidate : scope->find(id)) {
-    // Skip hidden friend declarations — they are only visible via ADL.
     if (candidate->isHidden()) continue;
 
     if (auto u = symbol_cast<UsingDeclarationSymbol>(candidate);
@@ -287,35 +190,93 @@ auto Lookup::lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
       candidate = u->target();
     }
 
-    if (is_type(candidate) || candidate->isNamespace()) {
-      return candidate;
-    }
+    if (is_type(candidate) || candidate->isNamespace()) return candidate;
   }
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
     for (const auto& base : classSymbol->baseClasses()) {
       auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClass) continue;
-      if (auto ns = lookupTypeHelper(baseClass, id, set)) {
-        return ns;
-      }
+      if (auto s = lookupTypeHelper(baseClass, id, visited)) return s;
     }
   }
 
   for (auto u : scope->usingDirectives()) {
-    if (auto ns = lookupTypeHelper(u, id, set)) {
-      return ns;
-    }
+    if (auto s = lookupTypeHelper(u, id, visited)) return s;
   }
 
   return nullptr;
 }
 
-auto Lookup::argumentDependentLookup(
-    const Name* name, std::span<const Type* const> argumentTypes) const
+// Resolve NNS symbol to a ScopeSymbol* for type lookup, handling aliases.
+auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
+  if (!symbol) return nullptr;
+
+  switch (symbol->kind()) {
+    case SymbolKind::kNamespace:
+    case SymbolKind::kClass:
+    case SymbolKind::kEnum:
+    case SymbolKind::kScopedEnum:
+      return symbol->asScopeSymbol();
+
+    case SymbolKind::kTypeAlias: {
+      auto alias = symbol_cast<TypeAliasSymbol>(symbol);
+      if (auto ct = type_cast<ClassType>(alias->type())) return ct->symbol();
+      return nullptr;
+    }
+
+    case SymbolKind::kUsingDeclaration: {
+      auto ud = symbol_cast<UsingDeclarationSymbol>(symbol);
+      if (!ud->target()) return nullptr;
+      if (auto cls = symbol_cast<ClassSymbol>(ud->target())) return cls;
+      if (auto en = symbol_cast<EnumSymbol>(ud->target())) return en;
+      if (auto se = symbol_cast<ScopedEnumSymbol>(ud->target())) return se;
+      return nullptr;
+    }
+
+    default:
+      return nullptr;
+  }
+}
+
+}  // namespace
+
+auto lookupType(ScopeSymbol* startScope, NestedNameSpecifierAST* nns,
+                const Identifier* id) -> Symbol* {
+  std::vector<ScopeSymbol*> visited;
+
+  if (!nns) {
+    for (auto scope = startScope; scope; scope = scope->parent()) {
+      if (auto s = lookupTypeHelper(scope, id, visited)) return s;
+    }
+    return nullptr;
+  }
+
+  auto resolved = resolveTypeScope(nns->symbol);
+  if (!resolved) return nullptr;
+  return lookupTypeHelper(resolved, id, visited);
+}
+
+auto lookupNamespace(ScopeSymbol* startScope, NestedNameSpecifierAST* nns,
+                     const Identifier* id) -> NamespaceSymbol* {
+  std::vector<ScopeSymbol*> visited;
+
+  if (!nns) {
+    for (auto scope = startScope; scope; scope = scope->parent()) {
+      if (auto ns = lookupNamespaceHelper(scope, id, visited)) return ns;
+    }
+    return nullptr;
+  }
+
+  auto base = symbol_cast<NamespaceSymbol>(nns->symbol);
+  if (!base) return nullptr;
+  return lookupNamespaceHelper(base, id, visited);
+}
+
+auto argumentDependentLookup(const Name* name,
+                             std::span<const Type* const> argumentTypes)
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> result;
-
   if (!name) return result;
 
   std::vector<NamespaceSymbol*> namespaces;
@@ -323,17 +284,11 @@ auto Lookup::argumentDependentLookup(
   std::vector<const Type*> visited;
 
   AssociatedNamespaceCollector collector{namespaces, classes, visited};
+  for (auto argType : argumentTypes) collector.collect(argType);
 
-  for (auto argType : argumentTypes) {
-    collector.collect(argType);
-  }
-
-  // Search for functions with the given name in each associated namespace
   auto addCandidate = [&](FunctionSymbol* func) {
     auto canonical = func->canonical();
-    if (!std::ranges::contains(result, canonical)) {
-      result.push_back(canonical);
-    }
+    if (!std::ranges::contains(result, canonical)) result.push_back(canonical);
   };
 
   for (auto ns : namespaces) {

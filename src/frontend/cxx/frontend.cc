@@ -544,6 +544,87 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
 
   auto globalScope = unit_->globalScope();
 
+  auto classKeyword = [](ClassSymbol* cls) -> std::string_view {
+    return cls->isUnion() ? "union" : "struct";
+  };
+
+  // Recursively dump the members of a class at a given indentation level.
+  // baseOffset is the absolute offset from the top-level record being dumped.
+  std::function<void(ClassSymbol*, const ClassLayout*, int indent,
+                     std::uint64_t baseOffset)>
+      dumpClassMembers;
+
+  dumpClassMembers = [&](ClassSymbol* classSymbol, const ClassLayout* layout,
+                         int indent, std::uint64_t baseOffset) {
+    std::string pad(indent * 2, ' ');
+
+    // Dump base classes
+    for (auto base : classSymbol->baseClasses()) {
+      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClassSymbol) continue;
+
+      auto baseInfo = layout->getBaseInfo(baseClassSymbol);
+      if (!baseInfo) continue;
+
+      auto absOffset = baseOffset + baseInfo->offset;
+      out << std::format("{:>9} |{}{} {} (base)\n", absOffset, pad,
+                         classKeyword(baseClassSymbol),
+                         to_string(baseClassSymbol->name()));
+
+      auto baseLayout = baseClassSymbol->layout();
+      if (baseLayout) {
+        dumpClassMembers(baseClassSymbol, baseLayout, indent + 1, absOffset);
+      }
+    }
+
+    // Dump fields
+    for (auto field :
+         cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
+      auto fieldInfo = layout->getFieldInfo(field);
+      if (!fieldInfo) continue;
+
+      auto absOffset = baseOffset + fieldInfo->offset;
+
+      // Anonymous struct/union field: show inline with nested members
+      if (!field->name()) {
+        if (auto classType = type_cast<ClassType>(field->type())) {
+          auto nestedClass = classType->symbol();
+          if (nestedClass && !nestedClass->name()) {
+            out << std::format("{:>9} |{}{} (anonymous) \n", absOffset, pad,
+                               classKeyword(nestedClass));
+
+            auto nestedLayout = nestedClass->layout();
+            if (nestedLayout) {
+              dumpClassMembers(nestedClass, nestedLayout, indent + 1,
+                               absOffset);
+            }
+            continue;
+          }
+        }
+      }
+
+      auto typeStr = to_string(field->type());
+      auto nameStr = field->name() ? to_string(field->name()) : "";
+
+      if (field->isBitField() && fieldInfo->bitWidth > 0) {
+        auto absByte = absOffset + fieldInfo->bitOffset / 8;
+        auto startBit = static_cast<int>(fieldInfo->bitOffset % 8);
+        auto endBit = startBit + static_cast<int>(fieldInfo->bitWidth) - 1;
+        auto offsetStr = std::format("{}:{}-{}", absByte, startBit, endBit);
+        out << std::format("{:>9} |{}{} {}\n", offsetStr, pad, typeStr,
+                           nameStr);
+      } else if (field->isBitField() && fieldInfo->bitWidth == 0) {
+        auto absByte = absOffset + fieldInfo->bitOffset / 8;
+        auto startBit = static_cast<int>(fieldInfo->bitOffset % 8);
+        auto offsetStr = std::format("{}:{}-", absByte, startBit);
+        out << std::format("{:>9} |{}{}\n", offsetStr, pad, typeStr);
+      } else {
+        out << std::format("{:>9} |{}{} {}\n", absOffset, pad, typeStr,
+                           nameStr);
+      }
+    }
+  };
+
   std::function<void(ScopeSymbol*)> visitScope;
   visitScope = [&](ScopeSymbol* scope) {
     for (auto member : scope->members()) {
@@ -551,40 +632,16 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
         auto layout = classSymbol->layout();
         if (!layout) continue;
 
-        out << std::format("\n*** Dumping layout for '{}' ***\n",
+        out << std::format("\n*** Dumping AST Record Layout\n");
+        out << std::format("{:>9} | {} {}\n", 0, classKeyword(classSymbol),
                            to_string(classSymbol->name()));
-        out << std::format("   size={} align={}\n", layout->size(),
-                           layout->alignment());
 
-        // Dump vtable pointer if it's a direct member (not inherited)
-        if (layout->hasDirectVtable()) {
-          out << std::format("   vtable pointer offset=0 index={}\n",
-                             layout->vtableIndex());
-        }
+        dumpClassMembers(classSymbol, layout, 1, 0);
 
-        // Dump base classes
-        for (auto base : classSymbol->baseClasses()) {
-          auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
-          if (!baseClassSymbol) continue;
-
-          auto baseInfo = layout->getBaseInfo(baseClassSymbol);
-          if (baseInfo) {
-            out << std::format("   base '{}' offset={} index={}\n",
-                               to_string(baseClassSymbol->name()),
-                               baseInfo->offset, baseInfo->index);
-          }
-        }
-
-        // Dump fields
-        for (auto field :
-             cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
-          auto fieldInfo = layout->getFieldInfo(field);
-          if (fieldInfo) {
-            out << std::format("   field '{}' offset={} index={}\n",
-                               to_string(field->name()), fieldInfo->offset,
-                               fieldInfo->index);
-          }
-        }
+        out << std::format("{:>9} | [sizeof={}, dsize={}, align={},\n", "",
+                           layout->size(), layout->size(), layout->alignment());
+        out << std::format("{:>9} |  nvsize={}, nvalign={}]\n", "",
+                           layout->size(), layout->alignment());
       }
 
       if (auto nestedScope = symbol_cast<ScopeSymbol>(member)) {
@@ -666,9 +723,8 @@ void Frontend::Private::emitCxxIR() {
     flags.enableDebugInfo(true, prettyForm);
   }
 
-  withRawOutputStream(std::nullopt, [&](llvm::raw_ostream& out) {
-    module_->print(out, flags);
-  });
+  withRawOutputStream(
+      "mlir", [&](llvm::raw_ostream& out) { module_->print(out, flags); });
 
 #endif
 }
@@ -708,9 +764,8 @@ void Frontend::Private::emitMLIR() {
     flags.enableDebugInfo(true, prettyForm);
   }
 
-  withRawOutputStream(std::nullopt, [&](llvm::raw_ostream& out) {
-    module_->print(out, flags);
-  });
+  withRawOutputStream(
+      "mlir", [&](llvm::raw_ostream& out) { module_->print(out, flags); });
 
 #endif
 }

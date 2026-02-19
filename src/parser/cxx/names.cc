@@ -112,8 +112,9 @@ struct ConvertToName {
   }
 
   auto operator()(DecltypeIdAST* ast) const -> const Name* {
-    cxx_runtime_error("DecltypeIdAST not implemented");
-    return {};
+    // decltype-id has no corresponding Name subclass.
+    // Return nullptr; callers guard against null names.
+    return nullptr;
   }
 
   auto operator()(OperatorFunctionIdAST* ast) const -> const Name* {
@@ -181,6 +182,16 @@ auto Identifier::builtinFunction() const -> BuiltinFunctionKind {
     return BuiltinFunctionKind::T_NONE;
 
   return static_cast<const BuiltinFunctionIdentifierInfo*>(info_)
+      ->builtinKind();
+}
+
+auto Identifier::builtinTemplate() const -> BuiltinTemplateKind {
+  if (!info_) return BuiltinTemplateKind::T_NONE;
+
+  if (info_->kind() != IdentifierInfoKind::kBuiltinTemplate)
+    return BuiltinTemplateKind::T_NONE;
+
+  return static_cast<const BuiltinTemplateIdentifierInfo*>(info_)
       ->builtinKind();
 }
 

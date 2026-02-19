@@ -28,6 +28,7 @@
 #include <cxx/types_fwd.h>
 
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -284,6 +285,8 @@ class Control {
 
   // cv qualifiers
   [[nodiscard]] auto remove_cv(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_const(const Type* type) -> const Type*;
+  [[nodiscard]] auto remove_volatile(const Type* type) -> const Type*;
   [[nodiscard]] auto remove_cvref(const Type* type) -> const Type*;
   [[nodiscard]] auto add_const_ref(const Type* type) -> const Type*;
   [[nodiscard]] auto add_const(const Type* type) -> const Type*;
@@ -303,6 +306,7 @@ class Control {
 
   // type relationships
   [[nodiscard]] auto is_same(const Type* a, const Type* b) -> bool;
+  [[nodiscard]] auto is_convertible(const Type* from, const Type* to) -> bool;
   [[nodiscard]] auto decay(const Type* type) -> const Type*;
 
   [[nodiscard]] auto is_pod(const Type* type) -> bool;
@@ -313,11 +317,18 @@ class Control {
   [[nodiscard]] auto is_empty(const Type* type) -> bool;
   [[nodiscard]] auto is_polymorphic(const Type* type) -> bool;
   [[nodiscard]] auto is_final(const Type* type) -> bool;
+  [[nodiscard]] auto is_constructible(const Type* type,
+                                      std::span<const Type* const> argTypes)
+      -> bool;
+  [[nodiscard]] auto is_nothrow_constructible(
+      const Type* type, std::span<const Type* const> argTypes) -> bool;
   [[nodiscard]] auto is_trivially_constructible(const Type* type) -> bool;
+  [[nodiscard]] auto is_assignable(const Type* to, const Type* from) -> bool;
   [[nodiscard]] auto is_trivially_assignable(const Type* from, const Type* to)
       -> bool;
   [[nodiscard]] auto is_trivially_copyable(const Type* type) -> bool;
   [[nodiscard]] auto is_abstract(const Type* type) -> bool;
+  [[nodiscard]] auto is_destructible(const Type* type) -> bool;
   [[nodiscard]] auto has_virtual_destructor(const Type* type) -> bool;
 
  private:

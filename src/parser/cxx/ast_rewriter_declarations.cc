@@ -263,7 +263,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     attributeList = &(*attributeList)->next;
   }
 
-  auto declSpecifierListCtx = DeclSpecs{rewriter()};
+  auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node, templateHead);
@@ -492,7 +492,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
       ast_cast<NameIdAST>(rewrite.unqualifiedId(ast->unqualifiedId));
   copy->colonLoc = ast->colonLoc;
 
-  auto typeSpecifierListCtx = DeclSpecs{rewriter()};
+  auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -518,7 +518,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     attributeList = &(*attributeList)->next;
   }
 
-  auto declSpecifierListCtx = DeclSpecs{rewriter()};
+  auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -802,7 +802,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   copy->thisLoc = ast->thisLoc;
 
-  auto typeSpecifierListCtx = DeclSpecs{rewriter()};
+  auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -861,7 +861,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(
     attributeList = &(*attributeList)->next;
   }
 
-  auto declSpecifierListCtx = DeclSpecs{rewriter()};
+  auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node);

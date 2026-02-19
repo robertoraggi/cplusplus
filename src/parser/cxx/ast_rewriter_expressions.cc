@@ -28,7 +28,6 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/literals.h>
-#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -1349,7 +1348,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NewExpressionAST* ast)
   copy->newPlacement = rewrite.newPlacement(ast->newPlacement);
   copy->lparenLoc = ast->lparenLoc;
 
-  auto typeSpecifierListCtx = DeclSpecs{rewriter()};
+  auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -1580,7 +1579,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     attributeList = &(*attributeList)->next;
   }
 
-  auto declSpecifierListCtx = DeclSpecs{rewriter()};
+  auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node);

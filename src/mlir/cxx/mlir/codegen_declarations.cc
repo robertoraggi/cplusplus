@@ -259,6 +259,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
       if (auto ctor = var->constructor()) {
         std::vector<ExpressionResult> args;
+
         if (node->initializer) {
           if (auto paren = ast_cast<ParenInitializerAST>(node->initializer)) {
             for (auto it = paren->expressionList; it; it = it->next) {
@@ -271,7 +272,14 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
             }
           } else if (auto equal =
                          ast_cast<EqualInitializerAST>(node->initializer)) {
-            args.push_back(gen.expression(equal->expression));
+            if (auto braced =
+                    ast_cast<BracedInitListAST>(equal->expression)) {
+              for (auto it = braced->expressionList; it; it = it->next) {
+                args.push_back(gen.expression(it->value));
+              }
+            } else {
+              args.push_back(gen.expression(equal->expression));
+            }
           }
         }
         (void)gen.emitCall(node->initializer

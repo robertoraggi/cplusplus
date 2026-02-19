@@ -264,7 +264,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_void_;
 
   struct {
@@ -274,7 +274,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_null_pointer_;
 
   struct {
@@ -316,7 +316,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
 
   } is_integral_;
 
@@ -331,7 +331,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_floating_point_;
 
   struct {
@@ -359,7 +359,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_signed_;
 
   struct {
@@ -389,7 +389,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_unsigned_;
 
   struct {
@@ -401,7 +401,7 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_array_;
 
   struct {
@@ -413,7 +413,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type* type) const -> bool { return false; }
   } is_enum_;
 
   struct {
@@ -423,7 +423,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_scoped_enum_;
 
   struct {
@@ -433,7 +433,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_class_;
 
   struct {
@@ -445,13 +445,13 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_union_;
 
   struct {
     auto operator()(const FunctionType*) const -> bool { return true; }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_function_;
 
   struct {
@@ -461,7 +461,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_pointer_;
 
   struct {
@@ -473,7 +473,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_member_object_pointer_;
 
   struct {
@@ -485,7 +485,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_member_function_pointer_;
 
   struct {
@@ -495,13 +495,13 @@ class TypeTraits {
       return true;
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_bounded_array_;
 
   struct {
     auto operator()(const UnboundedArrayType*) const -> bool { return true; }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_unbounded_array_;
 
   struct {
@@ -521,7 +521,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_const_;
 
   struct {
@@ -541,19 +541,19 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_volatile_;
 
   struct {
     auto operator()(const LvalueReferenceType*) const -> bool { return true; }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_lvalue_reference_;
 
   struct {
     auto operator()(const RvalueReferenceType*) const -> bool { return true; }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_rvalue_reference_;
 
   struct {
@@ -561,7 +561,7 @@ class TypeTraits {
 
     auto operator()(const RvalueReferenceType*) const -> bool { return true; }
 
-    auto operator()(auto) const -> bool { return false; }
+    auto operator()(const Type*) const -> bool { return false; }
   } is_reference_;
 
   struct {
@@ -575,7 +575,7 @@ class TypeTraits {
       return visit(*this, type->elementType());
     }
 
-    auto operator()(auto) const -> bool { return true; }
+    auto operator()(const Type*) const -> bool { return true; }
   } is_complete_;
 
   struct {
@@ -635,8 +635,12 @@ class TypeTraits {
       return control()->getRvalueReferenceType(type);
     }
 
+    auto operator()(const LvalueReferenceType* type) const -> const Type* {
+      return type;
+    }
+
     auto operator()(const RvalueReferenceType* type) const -> const Type* {
-      return control()->getRvalueReferenceType(type->elementType());
+      return type;
     }
 
     auto operator()(const FunctionType* type) const -> const Type* {

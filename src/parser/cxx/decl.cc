@@ -397,15 +397,22 @@ auto Decl::getReturnType(ScopeSymbol* currentScope) const -> const Type* {
       returnType = control->getVoidType();
     } else if (auto castId = name_cast<ConversionFunctionId>(name)) {
       returnType = castId->type();
-    } else if (auto id = name_cast<Identifier>(name);
-               id && currentScope && currentScope->isClass()) {
-      bool isCtor = (id == currentScope->name());
-      if (!isCtor && currentScope->name()) {
-        if (auto typeName = name_cast<Identifier>(currentScope->name())) {
-          if (typeName->name() == id->name()) isCtor = true;
-        }
+    } else if (auto id = name_cast<Identifier>(name)) {
+      // For constructor templates, scope may be TemplateParametersSymbol.
+      // Look through to find the enclosing class.
+      auto classScope = currentScope;
+      if (classScope && classScope->isTemplateParameters()) {
+        classScope = classScope->enclosingNonTemplateParametersScope();
       }
-      if (isCtor) returnType = control->getVoidType();
+      if (id && classScope && classScope->isClass()) {
+        bool isCtor = (id == classScope->name());
+        if (!isCtor && classScope->name()) {
+          if (auto typeName = name_cast<Identifier>(classScope->name())) {
+            if (typeName->name() == id->name()) isCtor = true;
+          }
+        }
+        if (isCtor) returnType = control->getVoidType();
+      }
     }
   }
 

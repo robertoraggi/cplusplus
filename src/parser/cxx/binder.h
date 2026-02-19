@@ -27,6 +27,7 @@
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <expected>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -45,11 +46,9 @@ class Binder {
     SourceLocation location = {};
   };
 
-  explicit Binder(TranslationUnit* unit = nullptr);
+  explicit Binder(TranslationUnit* unit);
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
-  void setTranslationUnit(TranslationUnit* unit);
-
   [[nodiscard]] auto control() const -> Control*;
 
   [[nodiscard]] auto reportErrors() const -> bool;
@@ -93,6 +92,8 @@ class Binder {
 
   [[nodiscard]] auto declareField(DeclaratorAST* declarator, const Decl& decl)
       -> FieldSymbol*;
+
+  void declareAnonymousField(ClassSpecifierAST* classSpecifier);
 
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
                                      const Decl& decl,
@@ -186,8 +187,12 @@ class Binder {
 
   void computeClassFlags(ClassSymbol* classSymbol);
 
+  [[nodiscard]] auto buildRecordLayout(ClassSymbol* classSymbol)
+      -> std::expected<bool, std::string>;
+
  private:
   struct BindClass;
+  struct BuildRecordLayout;
   struct CompleteClass;
   struct DeclareFunction;
   struct ResolveUnqualifiedId;
