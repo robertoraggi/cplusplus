@@ -1340,7 +1340,8 @@ void TypeChecker::Visitor::resolve_call_overload(
                                                  explicitTemplateArguments);
       if (!deducedArgs.has_value()) continue;
       auto instantiated =
-          ASTRewriter::instantiate(check.unit_, *deducedArgs, func);
+          ASTRewriter::instantiate(check.unit_, *deducedArgs, func, {},
+                                  /*sfinaeContext=*/true);
       if (!instantiated) continue;
       auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
       if (!instFunc) continue;
@@ -1650,7 +1651,8 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
                                                explicitTemplateArguments);
     if (!deducedArgs.has_value()) return;
     auto instantiated =
-        ASTRewriter::instantiate(check.unit_, *deducedArgs, funcSym);
+        ASTRewriter::instantiate(check.unit_, *deducedArgs, funcSym, {},
+                                 /*sfinaeContext=*/true);
     if (!instantiated) return;
     auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
     if (!instFunc) return;

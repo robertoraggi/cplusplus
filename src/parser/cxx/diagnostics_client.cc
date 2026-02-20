@@ -79,6 +79,7 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
       (diag.severity() == Severity::Error && fatalErrors_)) {
     exit(EXIT_FAILURE);
   }
+  // Note diagnostics never abort compilation.
 }
 
 }  // namespace cxx

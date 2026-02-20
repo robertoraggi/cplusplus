@@ -307,7 +307,8 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
   }
 
   auto instance = ASTRewriter::instantiate(
-      binder.unit_, templateId->templateArgumentList, classSymbol);
+      binder.unit_, templateId->templateArgumentList, classSymbol,
+      templateId->identifierLoc);
 
   if (instance) return instance;
   if (!classSymbol->templateDeclaration()) return instance;
@@ -339,7 +340,8 @@ auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
   }
 
   return ASTRewriter::instantiate(
-      binder.unit_, templateId->templateArgumentList, typeAliasSymbol);
+      binder.unit_, templateId->templateArgumentList, typeAliasSymbol,
+      templateId->identifierLoc);
 }
 
 auto Binder::ResolveUnqualifiedId::resolveBuiltinMakeIntegerSeq(

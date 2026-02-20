@@ -27,6 +27,8 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <format>
+
 namespace cxx {
 
 namespace {
@@ -223,6 +225,57 @@ auto templateParameterCount(TemplateDeclarationAST* templateDecl) -> int {
   return count;
 }
 
+auto computeInstantiationClassName(
+    Symbol* primaryTemplate,
+    const std::vector<TemplateArgument>& templateArguments) -> std::string {
+  if (!primaryTemplate) return "template";
+  std::string className = to_string(primaryTemplate->name());
+  className += '<';
+  std::string_view sep;
+  for (const auto& arg : templateArguments) {
+    if (auto s = std::get_if<Symbol*>(&arg)) {
+      if (auto a = symbol_cast<TypeAliasSymbol>(*s)) {
+        className += std::format("{}{}", sep, to_string(a->type()));
+      } else if (*s) {
+        className += std::format("{}{}", sep, to_string((*s)->name()));
+      }
+    } else if (auto t = std::get_if<const Type*>(&arg)) {
+      className += std::format("{}{}", sep, to_string(*t));
+    }
+    sep = ", ";
+  }
+  className += '>';
+  return className;
+}
+
+struct CapturingDiagnosticsClient final : DiagnosticsClient {
+  DiagnosticsClient* parent = nullptr;
+  std::vector<Diagnostic> diagnostics;
+
+  explicit CapturingDiagnosticsClient(DiagnosticsClient* parent)
+      : parent(parent) {}
+
+  void report(const Diagnostic& diagnostic) override {
+    diagnostics.push_back(diagnostic);
+    if (parent) parent->report(diagnostic);
+  }
+};
+
+auto findMutableSpecialization(Symbol* primary, Symbol* spec)
+    -> TemplateSpecialization* {
+  if (!primary || !spec) return nullptr;
+  auto search = [spec](auto* sym) -> TemplateSpecialization* {
+    for (auto& s : sym->mutableSpecializations())
+      if (s.symbol == spec) return &s;
+    return nullptr;
+  };
+  if (auto cs = symbol_cast<ClassSymbol>(primary)) return search(cs);
+  if (auto as = symbol_cast<TypeAliasSymbol>(primary)) return search(as);
+  if (auto vs = symbol_cast<VariableSymbol>(primary)) return search(vs);
+  if (auto fs = symbol_cast<FunctionSymbol>(primary)) return search(fs);
+  return nullptr;
+}
+
 }  // namespace
 
 auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
@@ -234,7 +287,8 @@ auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
 
 auto ASTRewriter::instantiate(TranslationUnit* unit,
                               List<TemplateArgumentAST*>* templateArgumentList,
-                              Symbol* symbol) -> Symbol* {
+                              Symbol* symbol, SourceLocation instantiationLoc,
+                              bool sfinaeContext) -> Symbol* {
   if (!symbol) return nullptr;
 
   auto templateDecl = visit(GetTemplateDeclaration{}, symbol);
@@ -258,7 +312,23 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   if (auto cached = visit(GetSpecialization{templateArguments}, symbol)) {
     auto cachedClass = symbol_cast<ClassSymbol>(cached);
     if (!cachedClass) return cached;
-    if (cachedClass->declaration()) return cached;
+    if (cachedClass->declaration()) {
+      if (!sfinaeContext && instantiationLoc) {
+        if (auto* spec = findMutableSpecialization(symbol, cached)) {
+          if (!spec->instantiationErrors.empty()) {
+            for (auto& diag : spec->instantiationErrors)
+              unit->diagnosticsClient()->report(diag);
+            auto className =
+                computeInstantiationClassName(symbol, templateArguments);
+            unit->note(instantiationLoc,
+                       std::format("in instantiation of template class '{}' "
+                                   "requested here",
+                                   className));
+          }
+        }
+      }
+      return cached;
+    }
   }
 
   if (!checkRequiresClause(unit, symbol, templateDecl->requiresClause,
@@ -289,8 +359,30 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
   rewriter.depth_ = templateDecl->depth;
   rewriter.binder().setInstantiatingSymbol(symbol);
+  rewriter.binder().setInstantiationLoc(instantiationLoc);
+  if (sfinaeContext) rewriter.binder().setReportErrors(false);
+
+  if (sfinaeContext) return visit(Instantiate{rewriter}, symbol);
+
+  CapturingDiagnosticsClient capturing{unit->diagnosticsClient()};
+  (void)unit->changeDiagnosticsClient(&capturing);
 
   auto instantiatedSymbol = visit(Instantiate{rewriter}, symbol);
+
+  (void)unit->changeDiagnosticsClient(capturing.parent);
+
+  if (!capturing.diagnostics.empty()) {
+    if (auto* spec = findMutableSpecialization(symbol, instantiatedSymbol)) {
+      spec->instantiationErrors = capturing.diagnostics;
+    }
+    if (instantiationLoc) {
+      auto className = computeInstantiationClassName(symbol, templateArguments);
+      unit->note(instantiationLoc,
+                 std::format("in instantiation of template class '{}' "
+                             "requested here",
+                             className));
+    }
+  }
 
   return instantiatedSymbol;
 }
