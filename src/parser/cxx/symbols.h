@@ -22,13 +22,13 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
+#include <cxx/diagnostic.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
-#include <expected>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -46,6 +46,7 @@ class TemplateSpecialization {
   Symbol* templateSymbol = nullptr;
   std::vector<TemplateArgument> arguments;
   Symbol* symbol = nullptr;
+  std::vector<Diagnostic> instantiationErrors;
 };
 
 struct PendingBodyInstantiation {
@@ -161,6 +162,11 @@ class MaybeTemplate {
     return template_->specializations_;
   }
 
+  [[nodiscard]] auto mutableSpecializations()
+      -> std::span<TemplateSpecialization> {
+    if (!template_) return {};
+    return template_->specializations_;
+  }
   [[nodiscard]] auto templateArguments() const
       -> std::span<const TemplateArgument> {
     if (!template_) return {};

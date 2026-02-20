@@ -146,6 +146,14 @@ void Binder::setInstantiatingSymbol(Symbol* symbol) {
   instantiatingSymbol_ = symbol;
 }
 
+auto Binder::instantiationLoc() const -> SourceLocation {
+  return instantiationLoc_;
+}
+
+void Binder::setInstantiationLoc(SourceLocation loc) {
+  instantiationLoc_ = loc;
+}
+
 auto Binder::declaringScope() const -> ScopeSymbol* {
   if (!scope_) return nullptr;
   if (!scope_->isTemplateParameters()) return scope_;
@@ -1753,8 +1761,11 @@ void Binder::bind(IdExpressionAST* ast) {
           if (!templateSymbol) templateSymbol = func;
           // Defer function template instantiation inside template contexts.
           if (inTemplate()) continue;
+          // Function template instantiation is SFINAE — suppress errors
+          // so substitution failures are silent (not hard errors).
           auto instance = ASTRewriter::instantiate(
-              unit_, templateId->templateArgumentList, func);
+              unit_, templateId->templateArgumentList, func, {},
+              /*sfinaeContext=*/true);
           if (instance) {
             ast->symbol = instance;
             templateSymbol = func;
@@ -1788,8 +1799,13 @@ void Binder::bind(IdExpressionAST* ast) {
         // instantiation time when concrete types are available.
         if (inTemplate()) return;
 
+        // Function template instantiation is SFINAE — suppress errors so
+        // substitution failures are silent.
+        const bool isFuncTemplate =
+            symbol_cast<FunctionSymbol>(templateSymbol) != nullptr;
         auto instance = ASTRewriter::instantiate(
-            unit_, templateId->templateArgumentList, templateSymbol);
+            unit_, templateId->templateArgumentList, templateSymbol, {},
+            /*sfinaeContext=*/isFuncTemplate);
         if (!instance) {
           if (!inTemplate()) {
             error(templateId->firstSourceLocation(),

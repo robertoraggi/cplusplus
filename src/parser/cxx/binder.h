@@ -71,6 +71,9 @@ class Binder {
   [[nodiscard]] auto instantiatingSymbol() const -> Symbol*;
   void setInstantiatingSymbol(Symbol* symbol);
 
+  [[nodiscard]] auto instantiationLoc() const -> SourceLocation;
+  void setInstantiationLoc(SourceLocation loc);
+
   [[nodiscard]] auto declaringScope() const -> ScopeSymbol*;
 
   [[nodiscard]] auto currentTemplateParameters() const
@@ -202,6 +205,7 @@ class Binder {
   TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;
   Symbol* instantiatingSymbol_ = nullptr;
+  SourceLocation instantiationLoc_{};
   LanguageKind languageLinkage_ = LanguageKind::kCXX;
   int lambdaCount_ = 0;
   bool inTemplate_ = false;

@@ -415,16 +415,31 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   copy->identifier = ast->identifier;
   copy->scopeLoc = ast->scopeLoc;
 
-  if (!copy->symbol && copy->identifier) {
+  auto needsSubstitution =
+      (!copy->symbol || symbol_cast<TypeParameterSymbol>(copy->symbol));
+  if (needsSubstitution && copy->identifier) {
     auto instantiating = rewrite.binder_.instantiatingSymbol();
     auto templateParamsScope =
         instantiating ? instantiating->parent() : nullptr;
 
-    if (templateParamsScope) {
-      auto typeParam = lookupType(templateParamsScope,
-                                  copy->nestedNameSpecifier, copy->identifier);
+    auto emitNonScopeError = [&](SourceLocation loc, Symbol* argSym) {
+      auto alias = symbol_cast<TypeAliasSymbol>(argSym);
+      if (!alias || !alias->type()) return;
+      if (isDependent(rewrite.unit_, alias->type())) return;
+      rewrite.error(loc, std::format("type '{}' cannot be used prior to '::' "
+                                     "because it has no members",
+                                     to_string(alias->type())));
+    };
 
-      if (auto tps = symbol_cast<TypeParameterSymbol>(typeParam)) {
+    if (templateParamsScope) {
+      TypeParameterSymbol* tps = symbol_cast<TypeParameterSymbol>(copy->symbol);
+      if (!tps) {
+        auto typeParam = lookupType(
+            templateParamsScope, copy->nestedNameSpecifier, copy->identifier);
+        tps = symbol_cast<TypeParameterSymbol>(typeParam);
+      }
+
+      if (tps) {
         auto paramType = type_cast<TypeParameterType>(tps->type());
         if (paramType && paramType->depth() == rewrite.depth_ &&
             paramType->index() <
@@ -438,10 +453,14 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
                 if (elemIdx < static_cast<int>(pack->elements().size())) {
                   copy->symbol = binder()->resolveNestedNameSpecifier(
                       pack->elements()[elemIdx]);
+                  if (!copy->symbol)
+                    emitNonScopeError(ast->identifierLoc,
+                                      pack->elements()[elemIdx]);
                 }
               }
             } else {
               copy->symbol = binder()->resolveNestedNameSpecifier(*sym);
+              if (!copy->symbol) emitNonScopeError(ast->identifierLoc, *sym);
             }
           }
         }
@@ -499,12 +518,14 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   if (auto primaryClass = symbol_cast<ClassSymbol>(copy->templateId->symbol)) {
     auto instance = ASTRewriter::instantiate(
-        rewrite.unit_, copy->templateId->templateArgumentList, primaryClass);
+        rewrite.unit_, copy->templateId->templateArgumentList, primaryClass,
+        copy->templateId->identifierLoc);
     copy->symbol = symbol_cast<ClassSymbol>(instance);
   } else if (auto aliasSymbol =
                  symbol_cast<TypeAliasSymbol>(copy->templateId->symbol)) {
     auto instance = ASTRewriter::instantiate(
-        rewrite.unit_, copy->templateId->templateArgumentList, aliasSymbol);
+        rewrite.unit_, copy->templateId->templateArgumentList, aliasSymbol,
+        copy->templateId->identifierLoc);
     if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
       if (auto classType =
               type_cast<ClassType>(control()->remove_cv(alias->type()))) {

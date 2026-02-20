@@ -46,7 +46,8 @@ class [[nodiscard]] ASTRewriter {
 
   static auto instantiate(TranslationUnit* unit,
                           List<TemplateArgumentAST*>* templateArgumentList,
-                          Symbol* symbol) -> Symbol*;
+                          Symbol* symbol, SourceLocation instantiationLoc = {},
+                          bool sfinaeContext = false) -> Symbol*;
 
   auto translationUnit() const -> TranslationUnit* { return unit_; }
 

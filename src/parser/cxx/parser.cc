@@ -1111,14 +1111,16 @@ auto Parser::parse_template_nested_name_specifier(
 
     if (!hasDependentArgs) {
       if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
-        auto instance = ASTRewriter::instantiate(
-            unit_, templateId->templateArgumentList, classSymbol);
+        auto instance =
+            ASTRewriter::instantiate(unit_, templateId->templateArgumentList,
+                                     classSymbol, templateId->identifierLoc);
 
         ast->symbol = symbol_cast<ClassSymbol>(instance);
       } else if (auto typeAliasSymbol =
                      symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
         auto instance = ASTRewriter::instantiate(
-            unit_, templateId->templateArgumentList, typeAliasSymbol);
+            unit_, templateId->templateArgumentList, typeAliasSymbol,
+            templateId->identifierLoc);
 
         if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
           // Follow the alias to the underlying class type so that
