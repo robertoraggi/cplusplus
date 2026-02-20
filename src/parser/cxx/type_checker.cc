@@ -1341,7 +1341,7 @@ void TypeChecker::Visitor::resolve_call_overload(
       if (!deducedArgs.has_value()) continue;
       auto instantiated =
           ASTRewriter::instantiate(check.unit_, *deducedArgs, func, {},
-                                  /*sfinaeContext=*/true);
+                                   /*sfinaeContext=*/true);
       if (!instantiated) continue;
       auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
       if (!instFunc) continue;
@@ -2879,6 +2879,13 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
     return;
   }
 
+  if (control()->is_scoped_enum(ast->leftExpression->type)) {
+    if (control()->is_same(control()->remove_cv(ast->leftExpression->type),
+                           control()->remove_cv(ast->rightExpression->type))) {
+      return;
+    }
+  }
+
   if (control()->is_pointer(ast->leftExpression->type) &&
       control()->is_pointer(ast->rightExpression->type)) {
     auto compositeType =
@@ -2911,6 +2918,15 @@ void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
   if (usual_arithmetic_conversion(ast->leftExpression, ast->rightExpression)) {
     ast->type = control()->getBoolType();
     return;
+  }
+
+  // Scoped enum equality: both sides must be the same scoped enum type.
+  {
+    auto leftBase = control()->remove_cv(ast->leftExpression->type);
+    auto rightBase = control()->remove_cv(ast->rightExpression->type);
+    if (control()->is_scoped_enum(leftBase) &&
+        control()->is_same(leftBase, rightBase))
+      return;
   }
 
   if ((control()->is_pointer(ast->leftExpression->type) ||

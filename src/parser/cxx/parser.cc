@@ -2217,6 +2217,8 @@ auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
                                             const ExprContext& ctx) -> bool {
+  if (!is_parsing_cxx()) return false;
+
   auto lookat_function_call = [&] {
     LookaheadParser lookahead{this};
 
@@ -2227,8 +2229,16 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
 
     if (!lookat(TokenKind::T_LPAREN)) return false;
 
-    // ### prefer function calls to cpp-cast expressions for now.
-    if (ast_cast<NamedTypeSpecifierAST>(typeSpecifier)) return true;
+    if (auto namedTypeSpec = ast_cast<NamedTypeSpecifierAST>(typeSpecifier)) {
+      if (!config().checkTypes) {
+        // if we're not checking types, we can't be sure if this is a type or an
+        // expression, so we'll assume it's an expression to allow for more code
+        // to be parsed
+        if (!namedTypeSpec->symbol || !is_type(namedTypeSpec->symbol)) {
+          return true;
+        }
+      }
+    }
 
     return false;
   };
@@ -6907,6 +6917,29 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     match(TokenKind::T_COMMA, ast->commaLoc);
 
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
+  }
+
+  if (is_parsing_cxx()) {
+    if (auto enumSym = symbol_cast<EnumSymbol>(ast->symbol)) {
+      if (!enumSym->hasFixedUnderlyingType() && ast->enumeratorList) {
+        bool hasNegative = false;
+        for (auto it = ast->enumeratorList; it; it = it->next) {
+          auto sym = it->value ? it->value->symbol : nullptr;
+          if (!sym) continue;
+          if (const auto& val = sym->value()) {
+            if (auto iv = std::get_if<std::intmax_t>(&*val)) {
+              if (*iv < 0) {
+                hasNegative = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!hasNegative) {
+          enumSym->setUnderlyingType(control_->getUnsignedIntType());
+        }
+      }
+    }
   }
 
   return true;
