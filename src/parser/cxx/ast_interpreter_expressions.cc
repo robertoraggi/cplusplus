@@ -1611,6 +1611,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       case BuiltinTypeTraitKind::T___IS_DESTRUCTIBLE:
         return control()->is_destructible(firstType);
 
+      case BuiltinTypeTraitKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
+        return control()->is_trivially_destructible(firstType);
+
       case BuiltinTypeTraitKind::T___IS_EMPTY:
         return control()->is_empty(firstType);
 

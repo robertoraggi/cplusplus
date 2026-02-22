@@ -236,8 +236,8 @@ class Token;
   V(__IS_COMPOUND, "__is_compound")                               \
   V(__IS_CONST, "__is_const")                                     \
   V(__IS_CONSTRUCTIBLE, "__is_constructible")                     \
-  V(__IS_CONVERTIBLE, "__is_convertible")                         \
   V(__IS_CONVERTIBLE_TO, "__is_convertible_to")                   \
+  V(__IS_CONVERTIBLE, "__is_convertible")                         \
   V(__IS_DESTRUCTIBLE, "__is_destructible")                       \
   V(__IS_EMPTY, "__is_empty")                                     \
   V(__IS_ENUM, "__is_enum")                                       \
@@ -271,6 +271,7 @@ class Token;
   V(__IS_TRIVIALLY_ASSIGNABLE, "__is_trivially_assignable")       \
   V(__IS_TRIVIALLY_CONSTRUCTIBLE, "__is_trivially_constructible") \
   V(__IS_TRIVIALLY_COPYABLE, "__is_trivially_copyable")           \
+  V(__IS_TRIVIALLY_DESTRUCTIBLE, "__is_trivially_destructible")   \
   V(__IS_UNBOUNDED_ARRAY, "__is_unbounded_array")                 \
   V(__IS_UNION, "__is_union")                                     \
   V(__IS_UNSIGNED, "__is_unsigned")                               \

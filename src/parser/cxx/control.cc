@@ -1564,6 +1564,23 @@ auto Control::is_destructible(const Type* type) -> bool {
   return false;
 }
 
+auto Control::is_trivially_destructible(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_reference(unqual)) return true;
+  if (is_void(unqual)) return false;
+  if (is_function(unqual)) return false;
+  if (is_unbounded_array(unqual)) return false;
+  if (is_bounded_array(unqual)) {
+    return is_trivially_destructible(remove_all_extents(unqual));
+  }
+  if (is_scalar(unqual)) return true;
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    return is_trivial(classType);
+  }
+  if (is_enum(unqual)) return true;
+  return false;
+}
+
 auto Control::has_virtual_destructor(const Type* type) -> bool {
   auto classType = type_cast<ClassType>(remove_cvref(type));
   if (!classType) return false;
