@@ -69,6 +69,7 @@ class [[nodiscard]] ASTRewriter {
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
+  void note(SourceLocation loc, std::string message);
 
   void check(ExpressionAST* ast);
 

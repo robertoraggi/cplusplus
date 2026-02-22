@@ -35,7 +35,6 @@
 #include <memory>
 #include <span>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace cxx {
@@ -88,6 +87,7 @@ class TranslationUnit {
 
   void error(SourceLocation loc, std::string message) const;
   void warning(SourceLocation loc, std::string message) const;
+  void note(SourceLocation loc, std::string message) const;
 
   // tokens
   [[nodiscard]] inline auto tokenCount() const -> unsigned {

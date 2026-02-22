@@ -55,6 +55,8 @@ void VerifyDiagnosticsClient::handleComment(Preprocessor* preprocessor,
 
   if (match[1] == "warning") {
     severity = Severity::Warning;
+  } else if (match[1] == "note") {
+    severity = Severity::Note;
   }
 
   std::string offset = match[2];

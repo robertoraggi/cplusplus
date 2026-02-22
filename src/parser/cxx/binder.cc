@@ -121,6 +121,12 @@ void Binder::warning(SourceLocation loc, std::string message) {
   unit_->warning(loc, std::move(message));
 }
 
+void Binder::note(SourceLocation loc, std::string message) {
+  if (!reportErrors_) return;
+  if (!unit_->config().checkTypes) return;
+  unit_->note(loc, std::move(message));
+}
+
 auto Binder::inTemplate() const -> bool { return inTemplate_; }
 
 auto Binder::currentTemplateParameters() const -> TemplateParametersSymbol* {

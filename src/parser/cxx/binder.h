@@ -56,6 +56,7 @@ class Binder {
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
+  void note(SourceLocation loc, std::string message);
 
   [[nodiscard]] auto scope() const -> ScopeSymbol*;
   void setScope(ScopeSymbol* scope);

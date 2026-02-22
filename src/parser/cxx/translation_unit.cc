@@ -116,6 +116,10 @@ void TranslationUnit::warning(SourceLocation loc, std::string message) const {
                                               std::move(message));
 }
 
+void TranslationUnit::note(SourceLocation loc, std::string message) const {
+  diagnosticsClient_->report(tokenAt(loc), Severity::Note, std::move(message));
+}
+
 auto TranslationUnit::tokenLength(SourceLocation loc) const -> int {
   const auto& tk = tokenAt(loc);
   if (tk.kind() == TokenKind::T_IDENTIFIER) {
