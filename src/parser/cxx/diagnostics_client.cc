@@ -40,6 +40,9 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
     case Severity::Message:
       severity = "message";
       break;
+    case Severity::Note:
+      severity = "note";
+      break;
     case Severity::Warning:
       severity = "warning";
       break;

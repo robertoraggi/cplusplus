@@ -62,7 +62,7 @@ class VerifyDiagnosticsClient : public DiagnosticsClient,
 
  private:
   std::regex rx{
-      R"(^//\s*expected-(error|warning)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
+      R"(^//\s*expected-(error|warning|note)(?:@([+-]?\d+))?\s*\{\{(.+)\}\})"};
 
   std::list<Diagnostic> reportedDiagnostics_;
   std::list<ExpectedDiagnostic> expectedDiagnostics_;

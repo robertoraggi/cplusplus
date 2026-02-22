@@ -52,6 +52,10 @@ void ASTRewriter::warning(SourceLocation loc, std::string message) {
   binder_.warning(loc, std::move(message));
 }
 
+void ASTRewriter::note(SourceLocation loc, std::string message) {
+  binder_.note(loc, std::move(message));
+}
+
 void ASTRewriter::error(SourceLocation loc, std::string message) {
   binder_.error(loc, std::move(message));
 }
