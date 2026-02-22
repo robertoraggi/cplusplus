@@ -329,6 +329,7 @@ class Control {
   [[nodiscard]] auto is_trivially_copyable(const Type* type) -> bool;
   [[nodiscard]] auto is_abstract(const Type* type) -> bool;
   [[nodiscard]] auto is_destructible(const Type* type) -> bool;
+  [[nodiscard]] auto is_trivially_destructible(const Type* type) -> bool;
   [[nodiscard]] auto has_virtual_destructor(const Type* type) -> bool;
 
  private:
