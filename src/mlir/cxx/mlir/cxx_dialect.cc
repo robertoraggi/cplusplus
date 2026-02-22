@@ -87,6 +87,18 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
       }
     }
 
+    if (auto ptrType = dyn_cast<PointerType>(type)) {
+      auto pointee = ptrType.getElementType();
+      os << "ptr_";
+      return AliasResult::FinalAlias;
+    }
+
+    if (auto arrayType = dyn_cast<ArrayType>(type)) {
+      auto elementType = arrayType.getElementType();
+      os << "array_";
+      return AliasResult::FinalAlias;
+    }
+
     if (isa<VoidType>(type)) {
       os << "void";
       return AliasResult::FinalAlias;
