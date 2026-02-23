@@ -51,6 +51,10 @@ class [[nodiscard]] ASTRewriter {
 
   auto translationUnit() const -> TranslationUnit* { return unit_; }
 
+  auto templateArguments() const -> const std::vector<TemplateArgument>& {
+    return templateArguments_;
+  }
+
   auto declaration(DeclarationAST* ast,
                    TemplateDeclarationAST* templateHead = nullptr)
       -> DeclarationAST*;
@@ -63,10 +67,6 @@ class [[nodiscard]] ASTRewriter {
 
  private:
   void completePendingBody(FunctionSymbol* func);
-
-  auto templateArguments() const -> const std::vector<TemplateArgument>& {
-    return templateArguments_;
-  }
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
@@ -195,9 +195,10 @@ class [[nodiscard]] ASTRewriter {
   ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
   Binder binder_;
+  std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
+  TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
   bool restrictedToDeclarations_ = false;
-  std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
 };
 
 }  // namespace cxx

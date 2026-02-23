@@ -163,6 +163,12 @@ struct GetDeclaratorType {
   }
 
   void operator()(ReferenceOperatorAST* ast) {
+    if (control()->is_void(type_)) {
+      unit->error(ast->firstSourceLocation(),
+                  "reference to void type is not allowed");
+      return;
+    }
+
     if (ast->refOp == TokenKind::T_AMP_AMP) {
       type_ = control()->add_rvalue_reference(type_);
     } else {
