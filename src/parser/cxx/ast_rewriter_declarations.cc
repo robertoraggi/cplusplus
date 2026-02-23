@@ -599,7 +599,12 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
   copy->greaterLoc = ast->greaterLoc;
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
+
+  // Make the rewritten TemplateDeclarationAST visible to initDeclarator so
+  // that function symbols declared inside it get their templateDeclaration set.
+  auto savedTemplateHead = std::exchange(rewrite.currentTemplateHead_, copy);
   copy->declaration = rewrite.declaration(ast->declaration, copy);
+  rewrite.currentTemplateHead_ = savedTemplateHead;
 
   return copy;
 }

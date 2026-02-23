@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -32,6 +33,16 @@
 namespace cxx {
 
 namespace {
+
+struct SfinaeDiagnosticsClient final : DiagnosticsClient {
+  bool hadError = false;
+
+  void report(const Diagnostic& diagnostic) override {
+    if (diagnostic.severity() == Severity::Error) {
+      hadError = true;
+    }
+  }
+};
 
 struct GetTemplateDeclaration {
   auto operator()(ClassSymbol* symbol) -> TemplateDeclarationAST* {
@@ -360,9 +371,19 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   rewriter.depth_ = templateDecl->depth;
   rewriter.binder().setInstantiatingSymbol(symbol);
   rewriter.binder().setInstantiationLoc(instantiationLoc);
-  if (sfinaeContext) rewriter.binder().setReportErrors(false);
 
-  if (sfinaeContext) return visit(Instantiate{rewriter}, symbol);
+  // if (sfinaeContext) {
+  //   rewriter.binder().setReportErrors(false);
+  // }
+
+  if (sfinaeContext) {
+    SfinaeDiagnosticsClient sfinaeClient;
+    auto was = unit->changeDiagnosticsClient(&sfinaeClient);
+    auto instance = visit(Instantiate{rewriter}, symbol);
+    (void)unit->changeDiagnosticsClient(was);
+    if (sfinaeClient.hadError) return nullptr;
+    return instance;
+  }
 
   CapturingDiagnosticsClient capturing{unit->diagnosticsClient()};
   (void)unit->changeDiagnosticsClient(&capturing);

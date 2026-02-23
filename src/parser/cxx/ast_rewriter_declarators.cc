@@ -289,6 +289,9 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
         copy->symbol = typedefSymbol;
       } else if (getFunctionPrototype(copy->declarator)) {
         auto functionSymbol = binder_.declareFunction(copy->declarator, decl);
+        if (currentTemplateHead_) {
+          functionSymbol->setTemplateDeclaration(currentTemplateHead_);
+        }
         copy->symbol = functionSymbol;
       } else {
         auto variableSymbol = binder_.declareVariable(copy->declarator, decl,

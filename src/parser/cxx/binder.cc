@@ -1635,7 +1635,7 @@ auto isTemplateArgumentCompatibleWithParameter(TemplateArgumentAST* argument,
     case TemplateParameterKind::kTemplate:
     case TemplateParameterKind::kConstraint: {
       auto typeArg = ast_cast<TypeTemplateArgumentAST>(argument);
-      return typeArg && typeArg->typeId && typeArg->typeId->type;
+      return typeArg && typeArg->typeId;
     }
 
     case TemplateParameterKind::kNonType: {
@@ -1749,7 +1749,10 @@ void Binder::bind(IdExpressionAST* ast) {
           }
         }
       } else if (auto ovl = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
-        for (auto func : ovl->functions()) {
+        // Copy the function list before iterating: ASTRewriter::instantiate
+        // may call ovl->addFunction().
+        const auto ovlFunctions = ovl->functions();
+        for (auto func : ovlFunctions) {
           if (!func->templateDeclaration()) continue;
           hasTemplateCandidate = true;
           if (!isTemplateArityMatch(func->templateDeclaration(),
@@ -1776,9 +1779,11 @@ void Binder::bind(IdExpressionAST* ast) {
         if (instantiated) return;
 
         if (templateSymbol && !inTemplate()) {
-          error(templateId->firstSourceLocation(),
-                std::format("invalid template-id '{}'",
-                            to_string(templateIdName)));
+          if (reportErrors_) {
+            error(templateId->firstSourceLocation(),
+                  std::format("invalid template-id '{}'",
+                              to_string(templateIdName)));
+          }
           return;
         }
       }

@@ -673,6 +673,55 @@ struct TypeChecker::Visitor {
       auto tpt = type_cast<TypeParameterType>(bareParam);
 
       if (!tpt) {
+        // Handle pointer parameter patterns: T*, T const*, T volatile*, etc.
+        if (auto ptrParam =
+                type_cast<PointerType>(control()->remove_cv(bareParam))) {
+          // Extract cv_P and the inner type from P's element.
+          CvQualifiers cvP = CvQualifiers::kNone;
+          const Type* paramElemBase = ptrParam->elementType();
+          if (auto qual = type_cast<QualType>(paramElemBase)) {
+            cvP = qual->cvQualifiers();
+            paramElemBase = qual->elementType();
+          }
+          if (auto elemTpt = type_cast<TypeParameterType>(paramElemBase)) {
+            // A must also be a pointer type (after stripping reference).
+            const Type* argElemType = nullptr;
+            if (auto ptrArg = type_cast<PointerType>(control()->remove_cv(
+                    control()->remove_reference(argType)))) {
+              argElemType = ptrArg->elementType();
+            }
+            if (argElemType) {
+              // Extract cv_A and the base type from A's element.
+              CvQualifiers cvA = CvQualifiers::kNone;
+              const Type* argElemBase = argElemType;
+              if (auto qual = type_cast<QualType>(argElemType)) {
+                cvA = qual->cvQualifiers();
+                argElemBase = qual->elementType();
+              }
+              // T's cv = cv bits in A's element that P's element doesn't
+              // already fix: cv_T = cv_A & ~cv_P.
+              CvQualifiers cvT = CvQualifiers::kNone;
+              if (is_const(cvA) && !is_const(cvP))
+                cvT = cvT | CvQualifiers::kConst;
+              if (is_volatile(cvA) && !is_volatile(cvP))
+                cvT = cvT | CvQualifiers::kVolatile;
+              const Type* deducedT =
+                  cvT != CvQualifiers::kNone
+                      ? control()->getQualType(argElemBase, cvT)
+                      : argElemBase;
+              auto idx = elemTpt->index();
+              if (idx >= 0 && idx < static_cast<int>(templateParams.size())) {
+                if (!deducedTypes[idx]) {
+                  deducedTypes[idx] = deducedT;
+                } else if (!control()->is_same(deducedTypes[idx], deducedT)) {
+                  return std::nullopt;
+                }
+                ++paramIt;
+                continue;
+              }
+            }
+          }
+        }
         ++paramIt;
         continue;
       }
