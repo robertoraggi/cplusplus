@@ -49,6 +49,8 @@ namespace cxx {
   V(ConstraintTypeParameter)   \
   V(OverloadSet)               \
   V(BaseClass)                 \
+  V(InjectedClassName)         \
+  V(Unresolved)                \
   V(UsingDeclaration)
 
 class Symbol;

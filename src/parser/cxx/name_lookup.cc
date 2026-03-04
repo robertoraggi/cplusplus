@@ -24,6 +24,7 @@
 #include <cxx/ast.h>
 #include <cxx/const_value.h>
 #include <cxx/names.h>
+#include <cxx/scope.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -177,11 +178,6 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
   if (std::ranges::contains(visited, scope)) return nullptr;
   visited.push_back(scope);
 
-  // Injected class name
-  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
-    if (classSymbol->name() == id) return classSymbol;
-  }
-
   for (auto candidate : scope->find(id)) {
     if (candidate->isHidden()) continue;
 
@@ -208,7 +204,6 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
   return nullptr;
 }
 
-// Resolve NNS symbol to a ScopeSymbol* for type lookup, handling aliases.
 auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
   if (!symbol) return nullptr;
 
@@ -218,6 +213,11 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
     case SymbolKind::kEnum:
     case SymbolKind::kScopedEnum:
       return symbol->asScopeSymbol();
+
+    case SymbolKind::kInjectedClassName: {
+      auto injected = symbol_cast<InjectedClassNameSymbol>(symbol);
+      return injected->classSymbol();
+    }
 
     case SymbolKind::kTypeAlias: {
       auto alias = symbol_cast<TypeAliasSymbol>(symbol);
@@ -241,35 +241,39 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 
 }  // namespace
 
-auto lookupType(ScopeSymbol* startScope, NestedNameSpecifierAST* nns,
-                const Identifier* id) -> Symbol* {
+auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id)
+    -> Symbol* {
   std::vector<ScopeSymbol*> visited;
-
-  if (!nns) {
-    for (auto scope = startScope; scope; scope = scope->parent()) {
-      if (auto s = lookupTypeHelper(scope, id, visited)) return s;
-    }
-    return nullptr;
+  for (auto sc = lexicalScope; sc; sc = sc->parent) {
+    if (!sc->symbol) continue;
+    if (auto s = lookupTypeHelper(sc->symbol, id, visited)) return s;
   }
+  return nullptr;
+}
 
-  auto resolved = resolveTypeScope(nns->symbol);
+auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id)
+    -> Symbol* {
+  auto resolved = resolveTypeScope(scopeOrAlias);
   if (!resolved) return nullptr;
+  std::vector<ScopeSymbol*> visited;
   return lookupTypeHelper(resolved, id, visited);
 }
 
-auto lookupNamespace(ScopeSymbol* startScope, NestedNameSpecifierAST* nns,
-                     const Identifier* id) -> NamespaceSymbol* {
+auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
+    -> NamespaceSymbol* {
   std::vector<ScopeSymbol*> visited;
-
-  if (!nns) {
-    for (auto scope = startScope; scope; scope = scope->parent()) {
-      if (auto ns = lookupNamespaceHelper(scope, id, visited)) return ns;
-    }
-    return nullptr;
+  for (auto sc = lexicalScope; sc; sc = sc->parent) {
+    if (!sc->symbol) continue;
+    if (auto ns = lookupNamespaceHelper(sc->symbol, id, visited)) return ns;
   }
+  return nullptr;
+}
 
-  auto base = symbol_cast<NamespaceSymbol>(nns->symbol);
+auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
+    -> NamespaceSymbol* {
+  auto base = symbol_cast<NamespaceSymbol>(scopeOrAlias);
   if (!base) return nullptr;
+  std::vector<ScopeSymbol*> visited;
   return lookupNamespaceHelper(base, id, visited);
 }
 

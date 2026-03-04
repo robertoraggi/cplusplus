@@ -99,6 +99,7 @@ class MaybeTemplate {
   struct Template {
     std::vector<TemplateSpecialization> specializations_;
     TemplateDeclarationAST* templateDeclaration_ = nullptr;
+    TemplateParametersSymbol* templateParameters_ = nullptr;
   };
 
   struct TemplateSpecializationRef {
@@ -132,6 +133,16 @@ class MaybeTemplate {
   void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration) {
     ensure_template();
     template_->templateDeclaration_ = templateDeclaration;
+  }
+
+  [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
+    if (!template_) return nullptr;
+    return template_->templateParameters_;
+  }
+
+  void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
+    ensure_template();
+    template_->templateParameters_ = templateParameters;
   }
 
   [[nodiscard]] auto isSpecialization() const -> bool {
@@ -257,8 +268,6 @@ class Symbol {
 
   [[nodiscard]] auto enclosingFunction() const -> FunctionSymbol*;
 
-  [[nodiscard]] auto templateParameters() -> TemplateParametersSymbol*;
-
   [[nodiscard]] auto hasEnclosingSymbol(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto next() const -> Symbol*;
@@ -271,7 +280,7 @@ class Symbol {
   [[nodiscard]] auto definition() const -> Symbol*;
 
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -358,7 +367,9 @@ class NamespaceSymbol final : public ScopeSymbol {
   bool isInline_ = false;
 };
 
-class ConceptSymbol final : public Symbol {
+class ConceptSymbol final
+    : public Symbol,
+      public MaybeTemplate<ConceptSymbol, ConceptDefinitionAST> {
  public:
   constexpr static auto Kind = SymbolKind::kConcept;
 
@@ -442,6 +453,30 @@ class BaseClassSymbol final : public Symbol {
   Symbol* symbol_ = nullptr;
   AccessSpecifier accessSpecifier_ = AccessSpecifier::kPublic;
   bool isVirtual_ = false;
+};
+
+class InjectedClassNameSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kInjectedClassName;
+
+  explicit InjectedClassNameSymbol(ScopeSymbol* enclosingScope);
+  ~InjectedClassNameSymbol() override;
+
+  [[nodiscard]] auto classSymbol() const -> ClassSymbol* {
+    return classSymbol_;
+  }
+  void setClassSymbol(ClassSymbol* classSymbol) { classSymbol_ = classSymbol; }
+
+ private:
+  ClassSymbol* classSymbol_ = nullptr;
+};
+
+class UnresolvedSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kUnresolved;
+
+  explicit UnresolvedSymbol(ScopeSymbol* enclosingScope);
+  ~UnresolvedSymbol() override;
 };
 
 class ClassSymbol final : public ScopeSymbol,
@@ -1047,7 +1082,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
+  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

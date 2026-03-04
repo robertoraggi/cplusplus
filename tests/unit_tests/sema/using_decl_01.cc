@@ -36,6 +36,7 @@ auto main() -> int {
 // CHECK-NEXT:    constructor defaulted void Base()
 // CHECK-NEXT:    constructor defaulted void Base(const ::Base&)
 // CHECK-NEXT:    constructor defaulted void Base(::Base&&)
+// CHECK-NEXT:    injected class name Base
 // CHECK-NEXT:    function bool operator bool() const
 // CHECK-NEXT:    function void f()
 // CHECK-NEXT:    function defaulted ::Base& operator =(const ::Base&)
@@ -46,6 +47,7 @@ auto main() -> int {
 // CHECK-NEXT:    constructor defaulted void Derived()
 // CHECK-NEXT:    constructor defaulted void Derived(const ::Derived&)
 // CHECK-NEXT:    constructor defaulted void Derived(::Derived&&)
+// CHECK-NEXT:    injected class name Derived
 // CHECK-NEXT:    using bool operator bool() const
 // CHECK-NEXT:    using void f()
 // CHECK-NEXT:    function defaulted ::Derived& operator =(const ::Derived&)

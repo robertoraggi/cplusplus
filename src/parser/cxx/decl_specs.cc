@@ -28,6 +28,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -437,13 +438,17 @@ void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
   // Resolve the typename when the NNS scope is known.
-  if (ast->nestedNameSpecifier && ast->nestedNameSpecifier->symbol) {
-    if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-      auto symbol = lookupType(ast->nestedNameSpecifier->symbol,
-                               ast->nestedNameSpecifier, nameId->identifier);
-      if (symbol) {
-        specs.type_ = symbol->type();
-        return;
+  if (ast->nestedNameSpecifier) {
+    if (auto scope = ast->nestedNameSpecifier->symbol
+                         ? ast->nestedNameSpecifier->symbol->asScopeSymbol()
+                         : nullptr) {
+      if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
+        auto symbol = qualifiedLookup(scope, nameId->identifier,
+                                      [](Symbol* s) { return is_type(s); });
+        if (symbol) {
+          specs.type_ = symbol->type();
+          return;
+        }
       }
     }
   }

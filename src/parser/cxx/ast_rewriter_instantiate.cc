@@ -296,11 +296,29 @@ auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
   return result;
 }
 
+auto ASTRewriter::substituteDefaultTypeId(
+    TranslationUnit* unit, TypeIdAST* typeId,
+    const std::vector<TemplateArgument>& templateArguments, int depth,
+    TemplateParametersSymbol* templateParams) -> TypeIdAST* {
+  if (!typeId) return nullptr;
+  auto rewriter = ASTRewriter{unit, nullptr,
+                              std::vector<TemplateArgument>(templateArguments)};
+  rewriter.depth_ = depth;
+
+  if (templateParams) {
+    rewriter.binder().setScope(templateParams);
+  }
+
+  return rewriter.typeId(typeId);
+}
+
 auto ASTRewriter::instantiate(TranslationUnit* unit,
                               List<TemplateArgumentAST*>* templateArgumentList,
                               Symbol* symbol, SourceLocation instantiationLoc,
                               bool sfinaeContext) -> Symbol* {
   if (!symbol) return nullptr;
+
+  if (!unit->config().checkTypes) return nullptr;
 
   auto templateDecl = visit(GetTemplateDeclaration{}, symbol);
   if (!templateDecl) return nullptr;
@@ -308,21 +326,40 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   auto declaration = visit(GetDeclaration{}, symbol);
   if (!declaration) return nullptr;
 
-  auto templateArguments =
-      Substitution(unit, templateDecl, templateArgumentList)
-          .templateArguments();
+  std::optional<SfinaeDiagnosticsClient> sfinaeClient;
+  DiagnosticsClient* savedDiagClient = nullptr;
+  if (sfinaeContext) {
+    sfinaeClient.emplace();
+    savedDiagClient = unit->changeDiagnosticsClient(&*sfinaeClient);
+  }
+
+  auto subst = Substitution::make(unit, templateDecl, templateArgumentList);
+
+  if (!subst) {
+    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
+    return nullptr;
+  }
+
+  auto templateArguments = std::move(*subst).templateArguments();
 
   if (symbol_cast<FunctionSymbol>(symbol) &&
       static_cast<int>(templateArguments.size()) <
           templateParameterCount(templateDecl)) {
+    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return symbol;
   }
 
-  if (isPrimaryTemplate(templateArguments)) return symbol;
+  if (isPrimaryTemplate(templateArguments)) {
+    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
+    return symbol;
+  }
 
   if (auto cached = visit(GetSpecialization{templateArguments}, symbol)) {
     auto cachedClass = symbol_cast<ClassSymbol>(cached);
-    if (!cachedClass) return cached;
+    if (!cachedClass) {
+      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
+      return cached;
+    }
     if (cachedClass->declaration()) {
       if (!sfinaeContext && instantiationLoc) {
         if (auto* spec = findMutableSpecialization(symbol, cached)) {
@@ -338,18 +375,21 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
           }
         }
       }
+      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
       return cached;
     }
   }
 
   if (!checkRequiresClause(unit, symbol, templateDecl->requiresClause,
                            templateArguments, templateDecl->depth)) {
+    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return nullptr;
   }
 
   if (auto functionDef = ast_cast<FunctionDefinitionAST>(declaration)) {
     if (!checkRequiresClause(unit, symbol, functionDef->requiresClause,
                              templateArguments, templateDecl->depth)) {
+      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
       return nullptr;
     }
   }
@@ -357,13 +397,19 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
     auto partial =
         tryPartialSpecialization(unit, classSymbol, templateArguments);
-    if (partial) return partial;
+    if (partial) {
+      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
+      return partial;
+    }
   }
 
   if (auto variableSymbol = symbol_cast<VariableSymbol>(symbol)) {
     auto partial =
         tryPartialSpecialization(unit, variableSymbol, templateArguments);
-    if (partial) return partial;
+    if (partial) {
+      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
+      return partial;
+    }
   }
 
   auto parentScope = symbol->enclosingNonTemplateParametersScope();
@@ -372,16 +418,10 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   rewriter.binder().setInstantiatingSymbol(symbol);
   rewriter.binder().setInstantiationLoc(instantiationLoc);
 
-  // if (sfinaeContext) {
-  //   rewriter.binder().setReportErrors(false);
-  // }
-
   if (sfinaeContext) {
-    SfinaeDiagnosticsClient sfinaeClient;
-    auto was = unit->changeDiagnosticsClient(&sfinaeClient);
     auto instance = visit(Instantiate{rewriter}, symbol);
-    (void)unit->changeDiagnosticsClient(was);
-    if (sfinaeClient.hadError) return nullptr;
+    (void)unit->changeDiagnosticsClient(savedDiagClient);
+    if (sfinaeClient->hadError) return nullptr;
     return instance;
   }
 

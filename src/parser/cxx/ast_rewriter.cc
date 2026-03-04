@@ -22,7 +22,9 @@
 
 // cxx
 #include <cxx/control.h>
+#include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/views/symbol_chain.h>
 
 namespace cxx {
 
@@ -35,6 +37,38 @@ ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
 }
 
 ASTRewriter::~ASTRewriter() {}
+
+void ASTRewriter::addSymbolRemap(Symbol* oldSym, Symbol* newSym) {
+  if (oldSym && newSym && oldSym != newSym) {
+    symbolRemap_[oldSym] = newSym;
+  }
+}
+
+auto ASTRewriter::remapSymbol(Symbol* sym) const -> Symbol* {
+  if (!sym) return nullptr;
+  auto it = symbolRemap_.find(sym);
+  if (it != symbolRemap_.end()) return it->second;
+
+  if (auto ovl = symbol_cast<OverloadSetSymbol>(sym)) {
+    for (auto func : ovl->functions()) {
+      auto remappedIt = symbolRemap_.find(func);
+      if (remappedIt == symbolRemap_.end()) continue;
+      auto remapped = remappedIt->second;
+      for (auto scope = remapped->parent(); scope; scope = scope->parent()) {
+        if (scope->isTemplateParameters()) continue;
+        for (auto candidate : scope->find(ovl->name())) {
+          if (auto newOvl = symbol_cast<OverloadSetSymbol>(candidate)) {
+            return newOvl;
+          }
+        }
+        break;
+      }
+      return remapped;
+    }
+  }
+
+  return sym;
+}
 
 auto ASTRewriter::control() const -> Control* { return unit_->control(); }
 

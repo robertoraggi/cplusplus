@@ -19,6 +19,7 @@ A<void*> a2;
 //      CHECK:namespace
 // CHECK-NEXT:  template class A<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
+// CHECK-NEXT:    injected class name A
 // CHECK-NEXT:    field type-param<0, 0> a
 // CHECK-NEXT:    field ::A* next
 // CHECK-NEXT:    function type-param<0, 0> get_a()
@@ -30,6 +31,7 @@ A<void*> a2;
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<int>&)
 // CHECK-NEXT:        constructor defaulted void A(::A<int>&&)
+// CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        field int a
 // CHECK-NEXT:        field ::A<int>* next
 // CHECK-NEXT:        function int get_a()
@@ -43,6 +45,7 @@ A<void*> a2;
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<void*>&)
 // CHECK-NEXT:        constructor defaulted void A(::A<void*>&&)
+// CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        field void* a
 // CHECK-NEXT:        field ::A<void*>* next
 // CHECK-NEXT:        function void* get_a()

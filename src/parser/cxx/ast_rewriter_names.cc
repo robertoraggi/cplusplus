@@ -27,7 +27,6 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
-#include <cxx/name_lookup.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -418,10 +417,6 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   auto needsSubstitution =
       (!copy->symbol || symbol_cast<TypeParameterSymbol>(copy->symbol));
   if (needsSubstitution && copy->identifier) {
-    auto instantiating = rewrite.binder_.instantiatingSymbol();
-    auto templateParamsScope =
-        instantiating ? instantiating->parent() : nullptr;
-
     auto emitNonScopeError = [&](SourceLocation loc, Symbol* argSym) {
       auto alias = symbol_cast<TypeAliasSymbol>(argSym);
       if (!alias || !alias->type()) return;
@@ -431,37 +426,30 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
                                      to_string(alias->type())));
     };
 
-    if (templateParamsScope) {
-      TypeParameterSymbol* tps = symbol_cast<TypeParameterSymbol>(copy->symbol);
-      if (!tps) {
-        auto typeParam = lookupType(
-            templateParamsScope, copy->nestedNameSpecifier, copy->identifier);
-        tps = symbol_cast<TypeParameterSymbol>(typeParam);
-      }
+    TypeParameterSymbol* tps = symbol_cast<TypeParameterSymbol>(copy->symbol);
 
-      if (tps) {
-        auto paramType = type_cast<TypeParameterType>(tps->type());
-        if (paramType && paramType->depth() == rewrite.depth_ &&
-            paramType->index() <
-                static_cast<int>(rewrite.templateArguments_.size())) {
-          auto index = paramType->index();
-          if (auto sym =
-                  std::get_if<Symbol*>(&rewrite.templateArguments_[index])) {
-            if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
-              if (rewrite.elementIndex_.has_value()) {
-                auto elemIdx = *rewrite.elementIndex_;
-                if (elemIdx < static_cast<int>(pack->elements().size())) {
-                  copy->symbol = binder()->resolveNestedNameSpecifier(
-                      pack->elements()[elemIdx]);
-                  if (!copy->symbol)
-                    emitNonScopeError(ast->identifierLoc,
-                                      pack->elements()[elemIdx]);
-                }
+    if (tps) {
+      auto paramType = type_cast<TypeParameterType>(tps->type());
+      if (paramType && paramType->depth() == rewrite.depth_ &&
+          paramType->index() <
+              static_cast<int>(rewrite.templateArguments_.size())) {
+        auto index = paramType->index();
+        if (auto sym =
+                std::get_if<Symbol*>(&rewrite.templateArguments_[index])) {
+          if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
+            if (rewrite.elementIndex_.has_value()) {
+              auto elemIdx = *rewrite.elementIndex_;
+              if (elemIdx < static_cast<int>(pack->elements().size())) {
+                copy->symbol = binder()->resolveNestedNameSpecifier(
+                    pack->elements()[elemIdx]);
+                if (!copy->symbol)
+                  emitNonScopeError(ast->identifierLoc,
+                                    pack->elements()[elemIdx]);
               }
-            } else {
-              copy->symbol = binder()->resolveNestedNameSpecifier(*sym);
-              if (!copy->symbol) emitNonScopeError(ast->identifierLoc, *sym);
             }
+          } else {
+            copy->symbol = binder()->resolveNestedNameSpecifier(*sym);
+            if (!copy->symbol) emitNonScopeError(ast->identifierLoc, *sym);
           }
         }
       }

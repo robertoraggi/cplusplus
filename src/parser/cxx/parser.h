@@ -23,6 +23,7 @@
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/parser_fwd.h>
+#include <cxx/scope.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/translation_unit.h>
@@ -76,6 +77,24 @@ class Parser final {
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
+  struct CombinedScopeGuard;
+
+  struct ScopeRAII {
+    ScopeRAII(const ScopeRAII&) = delete;
+    auto operator=(const ScopeRAII&) -> ScopeRAII& = delete;
+
+    Parser* p;
+    Scope* savedScope;
+
+    explicit ScopeRAII(Parser* p) : p(p), savedScope(p->lexicalScope_) {}
+
+    ScopeRAII(Parser* p, ScopeSymbol* symbol)
+        : p(p), savedScope(p->lexicalScope_) {
+      p->pushScope(symbol);
+    }
+
+    ~ScopeRAII() { p->lexicalScope_ = savedScope; }
+  };
 
   enum class BindingContext {
     kNamespace,
@@ -163,6 +182,7 @@ class Parser final {
   void parse_top_level_declaration_seq(UnitAST*& yyast);
   void parse_declaration_seq(List<DeclarationAST*>*& yyast);
   void parse_skip_declaration(bool& skipping);
+  void parse_skip_member_declaration(bool& skipping);
   [[nodiscard]] auto parse_primary_expression(ExpressionAST*& yyast,
                                               const ExprContext& ctx) -> bool;
 
@@ -836,6 +856,10 @@ class Parser final {
   [[nodiscard]] auto scope() const -> ScopeSymbol*;
   void setScope(ScopeSymbol* scope);
 
+  void pushScope(ScopeSymbol* symbol);
+
+  [[nodiscard]] auto lexicalScope() const -> Scope* { return lexicalScope_; }
+
   void check(ExpressionAST* ast);
   void check(StatementAST* ast);
   void check(DeclarationAST* ast);
@@ -865,9 +889,8 @@ class Parser final {
   void mark_maybe_template_name(UnqualifiedIdAST* name);
   void mark_maybe_template_name(DeclaratorAST* declarator);
 
-  [[nodiscard]] auto synthesizeAbbreviatedFunctionTemplate(
-      FunctionDeclaratorChunkAST* functionDeclarator)
-      -> TemplateDeclarationAST*;
+  void synthesizeAbbreviatedTemplateParams(
+      ParameterDeclarationClauseAST* params);
 
   [[nodiscard]] auto is_parsing_c() const { return lang_ == LanguageKind::kC; }
 
@@ -882,6 +905,7 @@ class Parser final {
   Control* control_ = nullptr;
   DiagnosticsClient* diagnosticClient_ = nullptr;
   ScopeSymbol* globalScope_ = nullptr;
+  Scope* lexicalScope_ = nullptr;
   LanguageKind lang_ = LanguageKind::kCXX;
   bool skipFunctionBody_ = false;
   bool moduleUnit_ = false;
@@ -896,6 +920,8 @@ class Parser final {
   int anonNamespaceCount_ = 0;
   int templateParameterDepth_ = -1;
   int templateParameterCount_ = 0;
+  TemplateDeclarationAST* abbreviatedTemplateHead_ = nullptr;
+  int abbreviatedTemplateParamCount_ = 0;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 

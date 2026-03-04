@@ -163,8 +163,20 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     return std::nullopt;
   }
 
+  auto typeId = parameter->typeId;
+
+  if (isDependent(subst.unit_, typeId->type) &&
+      !subst.templateArguments_.empty() && subst.templateDecl_) {
+    auto substituted = ASTRewriter::substituteDefaultTypeId(
+        subst.unit_, typeId, subst.templateArguments_,
+        subst.templateDecl_->depth, subst.templateDecl_->symbol);
+    if (substituted && substituted->type) {
+      typeId = substituted;
+    }
+  }
+
   auto argument = control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(parameter->typeId->type);
+  argument->setType(typeId->type);
   return argument;
 }
 
@@ -175,8 +187,20 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     return std::nullopt;
   }
 
+  auto typeId = parameter->typeId;
+
+  if (isDependent(subst.unit_, typeId->type) &&
+      !subst.templateArguments_.empty() && subst.templateDecl_) {
+    auto substituted = ASTRewriter::substituteDefaultTypeId(
+        subst.unit_, typeId, subst.templateArguments_,
+        subst.templateDecl_->depth, subst.templateDecl_->symbol);
+    if (substituted && substituted->type) {
+      typeId = substituted;
+    }
+  }
+
   auto argument = control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(parameter->typeId->type);
+  argument->setType(typeId->type);
   return argument;
 }
 
@@ -290,10 +314,19 @@ Substitution::Substitution(TranslationUnit* unit,
     : unit_(unit),
       templateDecl_(templateDecl),
       templateArgumentList_(templateArgumentList) {
-  make();
+  doMake();
 }
 
-void Substitution::make() {
+auto Substitution::make(TranslationUnit* unit,
+                        TemplateDeclarationAST* templateDecl,
+                        List<TemplateArgumentAST*>* templateArgumentList)
+    -> std::optional<Substitution> {
+  Substitution subst{unit, templateDecl, templateArgumentList};
+  if (subst.hadError_) return std::nullopt;
+  return std::optional<Substitution>{std::move(subst)};
+}
+
+void Substitution::doMake() {
   if (!templateDecl_) {
     cxx_runtime_error("no template declaration");
   }
@@ -399,6 +432,7 @@ void Substitution::maybeReportMissingTemplateArgument(SourceLocation loc) {
 }
 
 void Substitution::error(SourceLocation loc, std::string message) {
+  hadError_ = true;
   auto unit = unit_;
   if (!unit->config().checkTypes) return;
   unit->error(loc, std::move(message));

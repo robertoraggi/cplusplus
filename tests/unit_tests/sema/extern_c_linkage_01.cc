@@ -57,8 +57,14 @@ void test() {
 // CHECK-NEXT:    constructor defaulted void Widget()
 // CHECK-NEXT:    constructor defaulted void Widget(const ::Widget&)
 // CHECK-NEXT:    constructor defaulted void Widget(::Widget&&)
+// CHECK-NEXT:    injected class name Widget
 // CHECK-NEXT:    function void draw()
 // CHECK-NEXT:    function defaulted ::Widget& operator =(const ::Widget&)
 // CHECK-NEXT:    function defaulted ::Widget& operator =(::Widget&&)
 // CHECK-NEXT:    function defaulted void ~Widget()
 // CHECK-NEXT:  function void test()
+// CHECK-NEXT:    block
+// CHECK-NEXT:      variable static constexpr const char __func__[5]
+// CHECK-NEXT:      variable char buf[32]
+// CHECK-NEXT:      variable int r
+// CHECK-NEXT:      variable void* p

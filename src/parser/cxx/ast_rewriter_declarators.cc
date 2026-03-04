@@ -291,6 +291,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
         auto functionSymbol = binder_.declareFunction(copy->declarator, decl);
         if (currentTemplateHead_) {
           functionSymbol->setTemplateDeclaration(currentTemplateHead_);
+          functionSymbol->setTemplateParameters(currentTemplateHead_->symbol);
         }
         copy->symbol = functionSymbol;
       } else {
@@ -310,6 +311,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
   copy->requiresClause = requiresClause(ast->requiresClause);
   copy->initializer = expression(ast->initializer);
+
+  addSymbolRemap(ast->symbol, copy->symbol);
 
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol)) {
     if (copy->initializer) {

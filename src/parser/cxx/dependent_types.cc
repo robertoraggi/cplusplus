@@ -286,7 +286,7 @@ struct IsDependent {
   auto operator()(ElaboratedTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(DecltypeAutoSpecifierAST* ast) -> bool { return false; }
 
-  auto operator()(DecltypeSpecifierAST* ast) -> bool { 
+  auto operator()(DecltypeSpecifierAST* ast) -> bool {
     if (ast->type && isDependent(ast->type)) return true;
     if (ast->expression && !ast->type) return true;
     if (ast->expression && isDependent(ast->expression)) return true;
@@ -310,6 +310,8 @@ struct IsDependent {
 auto IsDependent::isDependent(NestedNameSpecifierAST* ast) -> bool {
   if (!ast) return false;
   if (!ast->symbol) return true;
+  if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
+  if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
   if (visit(*this, ast)) return true;
   return false;
 }

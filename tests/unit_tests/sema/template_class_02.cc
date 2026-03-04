@@ -45,12 +45,14 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:          parameter const type-param<0, 0>* p
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[13]
+// CHECK-NEXT:      injected class name basic_string
 // CHECK-NEXT:      function void append(const type-param<0, 0>*)
 // CHECK-NEXT:      function const type-param<0, 0>* c_str() const
 // CHECK-NEXT:      function unsigned long size() const
 // CHECK-NEXT:      function const type-param<0, 0>& operator [](unsigned long) const
 // CHECK-NEXT:      function type-param<0, 0>& operator [](unsigned long)
 // CHECK-NEXT:      class iterator
+// CHECK-NEXT:        injected class name iterator
 // CHECK-NEXT:        function std::basic_string::iterator& operator ++()
 // CHECK-NEXT:        function std::basic_string::iterator operator ++(int)
 // CHECK-NEXT:        function type-param<0, 0>& operator *()
@@ -68,6 +70,7 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:              block
 // CHECK-NEXT:          constructor defaulted void basic_string(const std::basic_string<char>&)
 // CHECK-NEXT:          constructor defaulted void basic_string(std::basic_string<char>&&)
+// CHECK-NEXT:          injected class name basic_string
 // CHECK-NEXT:          function void append(const char*)
 // CHECK-NEXT:          function const char* c_str() const
 // CHECK-NEXT:          function unsigned long size() const
@@ -77,6 +80,7 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:            constructor defaulted void iterator()
 // CHECK-NEXT:            constructor defaulted void iterator(const std::basic_string<char>::iterator&)
 // CHECK-NEXT:            constructor defaulted void iterator(std::basic_string<char>::iterator&&)
+// CHECK-NEXT:            injected class name iterator
 // CHECK-NEXT:            function std::basic_string<char>::iterator& operator ++()
 // CHECK-NEXT:            function std::basic_string<char>::iterator operator ++(int)
 // CHECK-NEXT:            function char& operator *()
@@ -99,6 +103,7 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:              block
 // CHECK-NEXT:          constructor defaulted void basic_string(const std::basic_string<char8_t>&)
 // CHECK-NEXT:          constructor defaulted void basic_string(std::basic_string<char8_t>&&)
+// CHECK-NEXT:          injected class name basic_string
 // CHECK-NEXT:          function void append(const char8_t*)
 // CHECK-NEXT:          function const char8_t* c_str() const
 // CHECK-NEXT:          function unsigned long size() const
@@ -108,6 +113,7 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:            constructor defaulted void iterator()
 // CHECK-NEXT:            constructor defaulted void iterator(const std::basic_string<char8_t>::iterator&)
 // CHECK-NEXT:            constructor defaulted void iterator(std::basic_string<char8_t>::iterator&&)
+// CHECK-NEXT:            injected class name iterator
 // CHECK-NEXT:            function std::basic_string<char8_t>::iterator& operator ++()
 // CHECK-NEXT:            function std::basic_string<char8_t>::iterator operator ++(int)
 // CHECK-NEXT:            function char8_t& operator *()

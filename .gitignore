@@ -10,3 +10,4 @@ node_modules
 *.pch
 __pycache__
 *.pyc
+/tmp/

@@ -105,29 +105,20 @@ template <typename Predicate>
       std::vector<ScopeSymbol*> visited;
       return searchScope(scopeSymbol->asScopeSymbol(), name, visited, accept);
     }
+    case SymbolKind::kInjectedClassName: {
+      auto injected = symbol_cast<InjectedClassNameSymbol>(scopeSymbol);
+      if (auto cls = injected->classSymbol()) {
+        std::vector<ScopeSymbol*> visited;
+        return searchScope(cls, name, visited, accept);
+      }
+      return nullptr;
+    }
     default:
       return nullptr;
   }
 }
 
 }  // namespace detail
-
-template <typename Predicate>
-  requires std::predicate<Predicate, Symbol*>
-[[nodiscard]] auto unqualifiedLookup(ScopeSymbol* startScope, const Name* name,
-                                     Predicate accept) -> Symbol* {
-  if (!name) return nullptr;
-  std::vector<ScopeSymbol*> visited;
-  for (auto scope = startScope; scope; scope = scope->parent()) {
-    if (auto s = detail::searchScope(scope, name, visited, accept)) return s;
-  }
-  return nullptr;
-}
-
-[[nodiscard]] inline auto unqualifiedLookup(ScopeSymbol* startScope,
-                                            const Name* name) -> Symbol* {
-  return unqualifiedLookup(startScope, name, [](Symbol*) { return true; });
-}
 
 template <typename Predicate>
   requires std::predicate<Predicate, Symbol*>
@@ -157,30 +148,12 @@ template <typename Predicate>
   return qualifiedLookup(scopeOrAlias, name, [](Symbol*) { return true; });
 }
 
-template <typename Predicate>
-  requires std::predicate<Predicate, Symbol*>
-[[nodiscard]] auto lookupName(ScopeSymbol* startScope,
-                              NestedNameSpecifierAST* nns, const Name* name,
-                              Predicate accept) -> Symbol* {
-  if (!name) return nullptr;
-  if (!nns) return unqualifiedLookup(startScope, name, accept);
-  if (!nns->symbol) return nullptr;
-  return detail::resolveAndSearch(nns->symbol, name, accept);
-}
+[[nodiscard]] auto qualifiedLookupType(Symbol* scopeOrAlias,
+                                       const Identifier* id) -> Symbol*;
 
-[[nodiscard]] inline auto lookupName(ScopeSymbol* startScope,
-                                     NestedNameSpecifierAST* nns,
-                                     const Name* name) -> Symbol* {
-  return lookupName(startScope, nns, name, [](Symbol*) { return true; });
-}
-
-[[nodiscard]] auto lookupType(ScopeSymbol* startScope,
-                              NestedNameSpecifierAST* nns, const Identifier* id)
-    -> Symbol*;
-
-[[nodiscard]] auto lookupNamespace(ScopeSymbol* startScope,
-                                   NestedNameSpecifierAST* nns,
-                                   const Identifier* id) -> NamespaceSymbol*;
+[[nodiscard]] auto qualifiedLookupNamespace(Symbol* scopeOrAlias,
+                                            const Identifier* id)
+    -> NamespaceSymbol*;
 
 [[nodiscard]] auto argumentDependentLookup(
     const Name* name, std::span<const Type* const> argumentTypes)

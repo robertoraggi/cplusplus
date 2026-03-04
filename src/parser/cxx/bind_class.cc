@@ -163,6 +163,7 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
 
   if (declSpecs.templateHead) {
     ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
+    ast->symbol->setTemplateParameters(declSpecs.templateHead->symbol);
   }
 
   auto classCanon = ast->symbol->canonical();
@@ -170,6 +171,15 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
 
   declSpecs.setTypeSpecifier(ast);
   declSpecs.setType(ast->symbol->type());
+
+  if (classSymbol->name()) {
+    auto injected = control()->newInjectedClassNameSymbol(
+        classSymbol, classSymbol->location());
+    injected->setName(classSymbol->name());
+    injected->setType(classSymbol->type());
+    injected->setClassSymbol(classSymbol);
+    classSymbol->addSymbol(injected);
+  }
 }
 
 auto Binder::BindClass::findPrimaryTemplateSymbol(
@@ -294,7 +304,7 @@ void Binder::BindClass::check_optional_nested_name_specifier() {
     return;
   }
 
-  binder.setScope(parent);
+  binder.setScope(parent->asScopeSymbol());
 }
 
 auto Binder::BindClass::check_template_specialization() -> bool {

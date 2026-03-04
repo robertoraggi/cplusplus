@@ -142,6 +142,8 @@ struct Control::Private {
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
   std::forward_list<BaseClassSymbol> baseClassSymbols;
+  std::forward_list<InjectedClassNameSymbol> injectedClassNameSymbols;
+  std::forward_list<UnresolvedSymbol> unresolvedSymbols;
   std::forward_list<ClassSymbol> classSymbols;
   std::forward_list<EnumSymbol> enumSymbols;
   std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
@@ -583,6 +585,21 @@ auto Control::newConceptSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
 auto Control::newBaseClassSymbol(ScopeSymbol* enclosingScope,
                                  SourceLocation loc) -> BaseClassSymbol* {
   auto symbol = &d->baseClassSymbols.emplace_front(enclosingScope);
+  symbol->setLocation(loc);
+  return symbol;
+}
+
+auto Control::newInjectedClassNameSymbol(ScopeSymbol* enclosingScope,
+                                         SourceLocation loc)
+    -> InjectedClassNameSymbol* {
+  auto symbol = &d->injectedClassNameSymbols.emplace_front(enclosingScope);
+  symbol->setLocation(loc);
+  return symbol;
+}
+
+auto Control::newUnresolvedSymbol(ScopeSymbol* enclosingScope,
+                                  SourceLocation loc) -> UnresolvedSymbol* {
+  auto symbol = &d->unresolvedSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1412,7 +1429,7 @@ auto Control::is_assignable(const Type* to, const Type* from) -> bool {
 
       // Check if source is the same class (copy/move assignment).
       if (is_same(source, target)) {
-        // For rvalue ref source → move assignment.
+        // For rvalue ref source -> move assignment.
         if (is_rvalue_reference(from)) {
           auto moveOp = cls->moveAssignmentOperator();
           if (moveOp && !moveOp->isDeleted()) return true;

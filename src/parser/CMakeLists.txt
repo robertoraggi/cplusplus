@@ -71,15 +71,19 @@ add_library(cxx-parser
     cxx/memory_layout.cc
     cxx/name_lookup.cc
     cxx/name_printer.cc
+    cxx/overload_resolution.cc
     cxx/names.cc
     cxx/parser.cc
     cxx/path.cc
     cxx/preprocessor.cc
+    cxx/scope.cc
     cxx/source_location.cc
+    cxx/standard_conversion.cc
     cxx/substitution.cc
     cxx/symbol_chain_view.cc
     cxx/symbol_printer.cc
     cxx/symbols.cc
+    cxx/template_argument_deduction.cc
     cxx/token.cc
     cxx/toolchain.cc
     cxx/translation_unit.cc

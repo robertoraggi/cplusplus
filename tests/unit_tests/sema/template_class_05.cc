@@ -17,8 +17,10 @@ template struct Outer<int>::Inner<char>;
 //      CHECK:namespace
 // CHECK-NEXT:  template class Outer<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
+// CHECK-NEXT:    injected class name Outer
 // CHECK-NEXT:    template class Inner<type-param<0, 1>>
 // CHECK-NEXT:      parameter typename<0, 1> U
+// CHECK-NEXT:      injected class name Inner
 // CHECK-NEXT:      field type-param<0, 0> t
 // CHECK-NEXT:      field type-param<0, 1> u
 // CHECK-NEXT:    [specializations]
@@ -26,8 +28,10 @@ template struct Outer<int>::Inner<char>;
 // CHECK-NEXT:        constructor defaulted void Outer()
 // CHECK-NEXT:        constructor defaulted void Outer(const ::Outer<float>&)
 // CHECK-NEXT:        constructor defaulted void Outer(::Outer<float>&&)
+// CHECK-NEXT:        injected class name Outer
 // CHECK-NEXT:        template class Inner<type-param<0, 1>>
 // CHECK-NEXT:          parameter typename<0, 1> U
+// CHECK-NEXT:          injected class name Inner
 // CHECK-NEXT:          field float t
 // CHECK-NEXT:          field type-param<0, 1> u
 // CHECK-NEXT:        function defaulted ::Outer<float>& operator =(const ::Outer<float>&)
@@ -37,8 +41,10 @@ template struct Outer<int>::Inner<char>;
 // CHECK-NEXT:        constructor defaulted void Outer()
 // CHECK-NEXT:        constructor defaulted void Outer(const ::Outer<int>&)
 // CHECK-NEXT:        constructor defaulted void Outer(::Outer<int>&&)
+// CHECK-NEXT:        injected class name Outer
 // CHECK-NEXT:        template class Inner<type-param<0, 1>>
 // CHECK-NEXT:          parameter typename<0, 1> U
+// CHECK-NEXT:          injected class name Inner
 // CHECK-NEXT:          field int t
 // CHECK-NEXT:          field type-param<0, 1> u
 // CHECK-NEXT:          [specializations]
@@ -46,6 +52,7 @@ template struct Outer<int>::Inner<char>;
 // CHECK-NEXT:              constructor defaulted void Inner()
 // CHECK-NEXT:              constructor defaulted void Inner(const ::Outer<int>::Inner<char>&)
 // CHECK-NEXT:              constructor defaulted void Inner(::Outer<int>::Inner<char>&&)
+// CHECK-NEXT:              injected class name Inner
 // CHECK-NEXT:              field int t
 // CHECK-NEXT:              field char u
 // CHECK-NEXT:              function defaulted ::Outer<int>::Inner<char>& operator =(const ::Outer<int>::Inner<char>&)

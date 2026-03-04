@@ -13177,7 +13177,7 @@ auto GlobalNestedNameSpecifierAST::create(Arena* arena)
 }
 
 auto GlobalNestedNameSpecifierAST::create(Arena* arena, SourceLocation scopeLoc,
-                                          ScopeSymbol* symbol)
+                                          Symbol* symbol)
     -> GlobalNestedNameSpecifierAST* {
   auto node = new (arena) GlobalNestedNameSpecifierAST();
   node->scopeLoc = scopeLoc;
@@ -13185,7 +13185,7 @@ auto GlobalNestedNameSpecifierAST::create(Arena* arena, SourceLocation scopeLoc,
   return node;
 }
 
-auto GlobalNestedNameSpecifierAST::create(Arena* arena, ScopeSymbol* symbol)
+auto GlobalNestedNameSpecifierAST::create(Arena* arena, Symbol* symbol)
     -> GlobalNestedNameSpecifierAST* {
   auto node = new (arena) GlobalNestedNameSpecifierAST();
   node->symbol = symbol;
@@ -13216,8 +13216,7 @@ auto SimpleNestedNameSpecifierAST::create(Arena* arena)
 auto SimpleNestedNameSpecifierAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     SourceLocation identifierLoc, const Identifier* identifier,
-    SourceLocation scopeLoc, ScopeSymbol* symbol)
-    -> SimpleNestedNameSpecifierAST* {
+    SourceLocation scopeLoc, Symbol* symbol) -> SimpleNestedNameSpecifierAST* {
   auto node = new (arena) SimpleNestedNameSpecifierAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->identifierLoc = identifierLoc;
@@ -13229,7 +13228,7 @@ auto SimpleNestedNameSpecifierAST::create(
 
 auto SimpleNestedNameSpecifierAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
-    const Identifier* identifier, ScopeSymbol* symbol)
+    const Identifier* identifier, Symbol* symbol)
     -> SimpleNestedNameSpecifierAST* {
   auto node = new (arena) SimpleNestedNameSpecifierAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
@@ -13259,7 +13258,7 @@ auto DecltypeNestedNameSpecifierAST::create(Arena* arena)
 
 auto DecltypeNestedNameSpecifierAST::create(
     Arena* arena, DecltypeSpecifierAST* decltypeSpecifier,
-    SourceLocation scopeLoc, ScopeSymbol* symbol)
+    SourceLocation scopeLoc, Symbol* symbol)
     -> DecltypeNestedNameSpecifierAST* {
   auto node = new (arena) DecltypeNestedNameSpecifierAST();
   node->decltypeSpecifier = decltypeSpecifier;
@@ -13269,7 +13268,7 @@ auto DecltypeNestedNameSpecifierAST::create(
 }
 
 auto DecltypeNestedNameSpecifierAST::create(
-    Arena* arena, DecltypeSpecifierAST* decltypeSpecifier, ScopeSymbol* symbol)
+    Arena* arena, DecltypeSpecifierAST* decltypeSpecifier, Symbol* symbol)
     -> DecltypeNestedNameSpecifierAST* {
   auto node = new (arena) DecltypeNestedNameSpecifierAST();
   node->decltypeSpecifier = decltypeSpecifier;
@@ -13304,7 +13303,7 @@ auto TemplateNestedNameSpecifierAST::create(Arena* arena)
 auto TemplateNestedNameSpecifierAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     SourceLocation templateLoc, SimpleTemplateIdAST* templateId,
-    SourceLocation scopeLoc, bool isTemplateIntroduced, ScopeSymbol* symbol)
+    SourceLocation scopeLoc, bool isTemplateIntroduced, Symbol* symbol)
     -> TemplateNestedNameSpecifierAST* {
   auto node = new (arena) TemplateNestedNameSpecifierAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
@@ -13318,8 +13317,8 @@ auto TemplateNestedNameSpecifierAST::create(
 
 auto TemplateNestedNameSpecifierAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
-    SimpleTemplateIdAST* templateId, bool isTemplateIntroduced,
-    ScopeSymbol* symbol) -> TemplateNestedNameSpecifierAST* {
+    SimpleTemplateIdAST* templateId, bool isTemplateIntroduced, Symbol* symbol)
+    -> TemplateNestedNameSpecifierAST* {
   auto node = new (arena) TemplateNestedNameSpecifierAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->templateId = templateId;

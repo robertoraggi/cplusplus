@@ -474,9 +474,9 @@ class TemplateTypeParameterType final
 };
 
 struct TypeParamInfo {
-  int index;
-  int depth;
-  bool isPack;
+  int index = 0;
+  int depth = 0;
+  bool isPack = false;
 };
 
 class UnresolvedNameType final

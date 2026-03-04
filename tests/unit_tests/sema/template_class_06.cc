@@ -49,6 +49,7 @@ auto main() -> int {
 //      CHECK:namespace
 // CHECK-NEXT:  template class A<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> X
+// CHECK-NEXT:    injected class name A
 // CHECK-NEXT:    typealias type-param<0, 0> T
 // CHECK-NEXT:    field int v
 // CHECK-NEXT:    [specializations]
@@ -56,6 +57,7 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<void>&)
 // CHECK-NEXT:        constructor defaulted void A(::A<void>&&)
+// CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        typealias void T
 // CHECK-NEXT:        field int v
 // CHECK-NEXT:        function defaulted ::A<void>& operator =(const ::A<void>&)
@@ -65,6 +67,7 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<::A<void>>&)
 // CHECK-NEXT:        constructor defaulted void A(::A<::A<void>>&&)
+// CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        typealias ::A<void> T
 // CHECK-NEXT:        field int v
 // CHECK-NEXT:        function defaulted ::A<::A<void>>& operator =(const ::A<::A<void>>&)
@@ -74,6 +77,7 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<double>&)
 // CHECK-NEXT:        constructor defaulted void A(::A<double>&&)
+// CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        typealias double T
 // CHECK-NEXT:        field int v
 // CHECK-NEXT:        function defaulted ::A<double>& operator =(const ::A<double>&)
@@ -86,6 +90,7 @@ auto main() -> int {
 // CHECK-NEXT:    constructor defaulted void D()
 // CHECK-NEXT:    constructor defaulted void D(const ::D&)
 // CHECK-NEXT:    constructor defaulted void D(::D&&)
+// CHECK-NEXT:    injected class name D
 // CHECK-NEXT:    function inline void f()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
@@ -96,6 +101,7 @@ auto main() -> int {
 // CHECK-NEXT:  template class D2<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    base class A
+// CHECK-NEXT:    injected class name D2
 // CHECK-NEXT:    function inline double f()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
@@ -107,6 +113,7 @@ auto main() -> int {
 // CHECK-NEXT:        constructor defaulted void D2()
 // CHECK-NEXT:        constructor defaulted void D2(const ::D2<int>&)
 // CHECK-NEXT:        constructor defaulted void D2(::D2<int>&&)
+// CHECK-NEXT:        injected class name D2
 // CHECK-NEXT:        function double f()
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable double t

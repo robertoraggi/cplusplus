@@ -18,11 +18,13 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:    constructor defaulted void list()
 // CHECK-NEXT:    constructor defaulted void list(const ::list&)
 // CHECK-NEXT:    constructor defaulted void list(::list&&)
+// CHECK-NEXT:    injected class name list
 // CHECK-NEXT:    typealias int value_type
 // CHECK-NEXT:    class iterator
 // CHECK-NEXT:      constructor defaulted void iterator()
 // CHECK-NEXT:      constructor defaulted void iterator(const ::list::iterator&)
 // CHECK-NEXT:      constructor defaulted void iterator(::list::iterator&&)
+// CHECK-NEXT:      injected class name iterator
 // CHECK-NEXT:      function defaulted ::list::iterator& operator =(const ::list::iterator&)
 // CHECK-NEXT:      function defaulted ::list::iterator& operator =(::list::iterator&&)
 // CHECK-NEXT:      function defaulted void ~iterator()

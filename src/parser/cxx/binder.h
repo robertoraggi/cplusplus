@@ -114,7 +114,7 @@ class Binder {
   void bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpec);
 
   void bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
-            bool isDeclaration);
+            bool isDeclaration, Symbol* unqualifiedCandidate = nullptr);
 
   void bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs);
 
@@ -130,7 +130,7 @@ class Binder {
 
   void bind(UsingDeclaratorAST* ast, Symbol* target);
 
-  void bind(BaseSpecifierAST* ast);
+  void bind(BaseSpecifierAST* ast, Symbol* resolvedType = nullptr);
 
   void bind(NonTypeTemplateParameterAST* ast, int index, int depth);
 
@@ -150,15 +150,21 @@ class Binder {
 
   void bind(ParameterDeclarationClauseAST* ast);
 
-  void bind(UsingDirectiveAST* ast);
+  void bind(UsingDirectiveAST* ast,
+            NamespaceSymbol* resolvedNamespace = nullptr);
 
   void bind(TypeIdAST* ast, const Decl& decl);
 
   void bind(IdExpressionAST* ast);
 
+  void resolveIdExpression(IdExpressionAST* ast);
+
+  void qualifiedLookupIdExpression(IdExpressionAST* ast);
+
   [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
                              UnqualifiedIdAST* unqualifiedId,
-                             bool checkTemplates) -> Symbol*;
+                             bool checkTemplates,
+                             Symbol* resolvedType = nullptr) -> Symbol*;
 
   [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol*;
 

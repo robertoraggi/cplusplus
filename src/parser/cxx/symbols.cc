@@ -145,10 +145,6 @@ auto Symbol::EnclosingSymbolIterator::operator++(int)
   return it;
 }
 
-auto Symbol::templateParameters() -> TemplateParametersSymbol* {
-  return symbol_cast<TemplateParametersSymbol>(parent());
-}
-
 auto Symbol::hasEnclosingSymbol(Symbol* symbol) const -> bool {
   for (auto enclosingSymbol : enclosingSymbols()) {
     if (enclosingSymbol == symbol) return true;
@@ -445,6 +441,16 @@ void BaseClassSymbol::setAccessSpecifier(AccessSpecifier accessSpecifier) {
 auto BaseClassSymbol::symbol() const -> Symbol* { return symbol_; }
 
 void BaseClassSymbol::setSymbol(Symbol* symbol) { symbol_ = symbol; }
+
+InjectedClassNameSymbol::InjectedClassNameSymbol(ScopeSymbol* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+InjectedClassNameSymbol::~InjectedClassNameSymbol() {}
+
+UnresolvedSymbol::UnresolvedSymbol(ScopeSymbol* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+UnresolvedSymbol::~UnresolvedSymbol() {}
 
 void ClassLayout::setFieldInfo(FieldSymbol* field, const MemberInfo& info) {
   fields_[field] = info;
@@ -1198,6 +1204,7 @@ bool is_type(Symbol* symbol) {
     case SymbolKind::kTemplateTypeParameter:
     case SymbolKind::kTypeAlias:
     case SymbolKind::kClass:
+    case SymbolKind::kInjectedClassName:
     case SymbolKind::kEnum:
     case SymbolKind::kScopedEnum:
       return true;

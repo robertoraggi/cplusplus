@@ -564,6 +564,19 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   if (!rewrite.restrictedToDeclarations()) {
+    if (auto oldFunc = symbol_cast<FunctionSymbol>(ast->symbol)) {
+      if (auto oldParams = oldFunc->functionParameters()) {
+        if (auto newParams = functionSymbol->functionParameters()) {
+          auto& oldMembers = oldParams->members();
+          auto& newMembers = newParams->members();
+          auto n = std::min(oldMembers.size(), newMembers.size());
+          for (std::size_t i = 0; i < n; ++i) {
+            rewrite.addSymbolRemap(oldMembers[i], newMembers[i]);
+          }
+        }
+      }
+    }
+
     copy->functionBody = rewrite.functionBody(ast->functionBody);
   }
 

@@ -170,9 +170,15 @@ class Control {
   [[nodiscard]] auto newBaseClassSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> BaseClassSymbol*;
+  [[nodiscard]] auto newInjectedClassNameSymbol(ScopeSymbol* enclosingScope,
+                                                SourceLocation sourceLocation)
+      -> InjectedClassNameSymbol*;
   [[nodiscard]] auto newClassSymbol(ScopeSymbol* enclosingScope,
                                     SourceLocation sourceLocation)
       -> ClassSymbol*;
+  [[nodiscard]] auto newUnresolvedSymbol(ScopeSymbol* enclosingScope,
+                                         SourceLocation sourceLocation)
+      -> UnresolvedSymbol*;
   [[nodiscard]] auto newEnumSymbol(ScopeSymbol* enclosingScope,
                                    SourceLocation sourceLocation)
       -> EnumSymbol*;

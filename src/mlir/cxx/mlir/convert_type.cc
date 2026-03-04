@@ -331,9 +331,25 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     auto alignment = classSymbol->alignment();
     if (alignment == 0) alignment = 1;
 
-    auto byteType = mlir::IntegerType::get(gen.context_, 8);
-    auto arrayType = mlir::cxx::ArrayType::get(gen.context_, byteType, size);
-    memberTypes.push_back(arrayType);
+    // todo: generalize, this is to try to get the alignment of unions right.
+    unsigned scalarBits = 8;
+    if (alignment >= 8)
+      scalarBits = 64;
+    else if (alignment >= 4)
+      scalarBits = 32;
+    else if (alignment >= 2)
+      scalarBits = 16;
+    auto scalarType = mlir::IntegerType::get(gen.context_, scalarBits);
+
+    auto scalarBytes = scalarBits / 8;
+    auto count = (size + scalarBytes - 1) / scalarBytes;  // round up
+    if (count <= 1) {
+      memberTypes.push_back(scalarType);
+    } else {
+      auto arrayType =
+          mlir::cxx::ArrayType::get(gen.context_, scalarType, count);
+      memberTypes.push_back(arrayType);
+    }
 
   } else {
     std::map<std::uint32_t, mlir::Type> memberMap;

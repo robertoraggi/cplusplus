@@ -1274,8 +1274,8 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
       auto loc = gen.getLocation(ast->firstSourceLocation());
       auto fieldSym = symbol_cast<FieldSymbol>(ast->symbol);
       bool isSigned = fieldSym && gen.control()->is_signed(fieldSym->type());
-      auto loadOp = gen.builder_.create<mlir::cxx::BitfieldLoadOp>(
-          loc, gen.convertType(ast->type), op,
+      auto loadOp = mlir::cxx::BitfieldLoadOp::create(
+          gen.builder_, loc, gen.convertType(ast->type), op,
           gen.builder_.getI32IntegerAttr(info.bitOffset),
           gen.builder_.getI32IntegerAttr(info.bitWidth),
           gen.builder_.getI64IntegerAttr(info.allocUnitSizeBytes),
@@ -3108,8 +3108,8 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
           auto rhs = gen.expression(ast->rightExpression);
           auto loc = gen.getLocation(ast->firstSourceLocation());
 
-          gen.builder_.create<mlir::cxx::BitfieldStoreOp>(
-              loc, rhs.value, addr,
+          mlir::cxx::BitfieldStoreOp::create(
+              gen.builder_, loc, rhs.value, addr,
               gen.builder_.getI32IntegerAttr(info.bitOffset),
               gen.builder_.getI32IntegerAttr(info.bitWidth),
               gen.builder_.getI64IntegerAttr(info.allocUnitSizeBytes));

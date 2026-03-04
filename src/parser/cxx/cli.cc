@@ -246,6 +246,10 @@ std::vector<CLIOptionDescr> options{
     {"-MP", "Create phony target for each dependency (other than main file)",
      &CLI::opt_MP},
 
+    {"-ferror-limit", "<N>",
+     "Set the maximum number of errors to emit before stopping (0 = no limit)",
+     CLIOptionDescrKind::kSeparated},
+
 };
 
 #ifndef CXX_NO_FILESYSTEM

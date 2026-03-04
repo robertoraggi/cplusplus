@@ -255,7 +255,7 @@ class NestedNameSpecifierAST : public AST {
  public:
   using AST::AST;
 
-  ScopeSymbol* symbol = nullptr;
+  Symbol* symbol = nullptr;
 
   [[nodiscard]] auto clone(Arena* arena)
       -> NestedNameSpecifierAST* override = 0;
@@ -6949,10 +6949,10 @@ class GlobalNestedNameSpecifierAST final : public NestedNameSpecifierAST {
       -> GlobalNestedNameSpecifierAST*;
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation scopeLoc,
-                                   ScopeSymbol* symbol)
+                                   Symbol* symbol)
       -> GlobalNestedNameSpecifierAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ScopeSymbol* symbol)
+  [[nodiscard]] static auto create(Arena* arena, Symbol* symbol)
       -> GlobalNestedNameSpecifierAST*;
 
  protected:
@@ -6983,13 +6983,12 @@ class SimpleNestedNameSpecifierAST final : public NestedNameSpecifierAST {
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    SourceLocation identifierLoc,
                                    const Identifier* identifier,
-                                   SourceLocation scopeLoc, ScopeSymbol* symbol)
+                                   SourceLocation scopeLoc, Symbol* symbol)
       -> SimpleNestedNameSpecifierAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
-                                   const Identifier* identifier,
-                                   ScopeSymbol* symbol)
+                                   const Identifier* identifier, Symbol* symbol)
       -> SimpleNestedNameSpecifierAST*;
 
  protected:
@@ -7016,12 +7015,12 @@ class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
 
   [[nodiscard]] static auto create(Arena* arena,
                                    DecltypeSpecifierAST* decltypeSpecifier,
-                                   SourceLocation scopeLoc, ScopeSymbol* symbol)
+                                   SourceLocation scopeLoc, Symbol* symbol)
       -> DecltypeNestedNameSpecifierAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    DecltypeSpecifierAST* decltypeSpecifier,
-                                   ScopeSymbol* symbol)
+                                   Symbol* symbol)
       -> DecltypeNestedNameSpecifierAST*;
 
  protected:
@@ -7049,17 +7048,18 @@ class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
   [[nodiscard]] static auto create(Arena* arena)
       -> TemplateNestedNameSpecifierAST*;
 
-  [[nodiscard]] static auto create(
-      Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
-      SourceLocation templateLoc, SimpleTemplateIdAST* templateId,
-      SourceLocation scopeLoc, bool isTemplateIntroduced, ScopeSymbol* symbol)
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NestedNameSpecifierAST* nestedNameSpecifier,
+                                   SourceLocation templateLoc,
+                                   SimpleTemplateIdAST* templateId,
+                                   SourceLocation scopeLoc,
+                                   bool isTemplateIntroduced, Symbol* symbol)
       -> TemplateNestedNameSpecifierAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    SimpleTemplateIdAST* templateId,
-                                   bool isTemplateIntroduced,
-                                   ScopeSymbol* symbol)
+                                   bool isTemplateIntroduced, Symbol* symbol)
       -> TemplateNestedNameSpecifierAST*;
 
  protected:

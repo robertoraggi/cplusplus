@@ -14,11 +14,13 @@ Box<k> c;
 //      CHECK:namespace
 // CHECK-NEXT:  template class Box<int>
 // CHECK-NEXT:    parameter constant<0, 0, int> N
+// CHECK-NEXT:    injected class name Box
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Box<3>
 // CHECK-NEXT:        constructor defaulted void Box()
 // CHECK-NEXT:        constructor defaulted void Box(const ::Box<int>&)
 // CHECK-NEXT:        constructor defaulted void Box(::Box<int>&&)
+// CHECK-NEXT:        injected class name Box
 // CHECK-NEXT:        function defaulted ::Box<int>& operator =(const ::Box<int>&)
 // CHECK-NEXT:        function defaulted ::Box<int>& operator =(::Box<int>&&)
 // CHECK-NEXT:        function defaulted void ~Box()
