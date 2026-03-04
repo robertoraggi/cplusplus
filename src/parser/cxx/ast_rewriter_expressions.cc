@@ -28,6 +28,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/literals.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -549,8 +550,15 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
     copy->symbol = *symbolPtr;
 
-  } else {
-    binder()->bind(copy);
+  } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
+    binder()->qualifiedLookupIdExpression(copy);
+  } else if (ast->symbol) {
+    copy->symbol = rewrite.remapSymbol(ast->symbol);
+    binder()->resolveIdExpression(copy);
+
+    if (copy->symbol != ast->symbol && copy->symbol) {
+      copy->type = copy->symbol->type();
+    }
   }
 
   return copy;
@@ -969,6 +977,91 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   copy->rparenLoc = ast->rparenLoc;
 
+  if (auto idExpr = ast_cast<IdExpressionAST>(copy->baseExpression)) {
+    auto func = symbol_cast<FunctionSymbol>(idExpr->symbol);
+    auto ovl = symbol_cast<OverloadSetSymbol>(idExpr->symbol);
+
+    int argCount = 0;
+    for (auto it = copy->expressionList; it; it = it->next) ++argCount;
+
+    bool needsResolve = false;
+
+    if (func) {
+      if (auto funcType = type_cast<FunctionType>(func->type())) {
+        auto paramCount = static_cast<int>(funcType->parameterTypes().size());
+        needsResolve = (argCount != paramCount && !funcType->isVariadic());
+      }
+    } else if (ovl) {
+      needsResolve = true;
+    } else if (!idExpr->symbol) {
+      // todo: Symbol is null
+      needsResolve = true;
+    }
+
+    if (needsResolve) {
+      // Collect concrete argument types.
+      std::vector<const Type*> argTypes;
+      for (auto it = copy->expressionList; it; it = it->next)
+        argTypes.push_back(it->value ? it->value->type : nullptr);
+
+      const Name* name = nullptr;
+      if (func) {
+        name = func->name();
+      } else if (ovl) {
+        name = ovl->name();
+      } else if (auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
+        name = nameId->identifier;
+      }
+
+      if (name) {
+        FunctionSymbol* best = nullptr;
+
+        // check whether a candidate function matches.
+        auto tryCandidate = [&](FunctionSymbol* cand) {
+          if (best) return;
+          auto ct = type_cast<FunctionType>(cand->type());
+          if (!ct) return;
+          auto cp = static_cast<int>(ct->parameterTypes().size());
+          if (cp != argCount && !ct->isVariadic()) return;
+          // Verify argument types are convertible to parameter types.
+          auto pit = ct->parameterTypes().begin();
+          for (int i = 0; i < argCount && pit != ct->parameterTypes().end();
+               ++i, ++pit) {
+            if (!argTypes[i] || !*pit) continue;
+            if (!control()->is_convertible(argTypes[i], *pit)) return;
+          }
+          best = cand;
+        };
+
+        auto adlCandidates = argumentDependentLookup(name, argTypes);
+        for (auto* cand : adlCandidates) tryCandidate(cand);
+
+        // Also check the overload set or the parent scope of the function.
+        if (!best) {
+          if (ovl) {
+            for (auto* cand : ovl->functions()) tryCandidate(cand);
+          } else if (func) {
+            if (auto* parent = func->parent()) {
+              auto* found = qualifiedLookup(parent, name);
+              if (auto* o = symbol_cast<OverloadSetSymbol>(found)) {
+                for (auto* cand : o->functions()) tryCandidate(cand);
+              } else if (auto* cand = symbol_cast<FunctionSymbol>(found)) {
+                tryCandidate(cand);
+              }
+            }
+          }
+        }
+
+        if (best) {
+          idExpr->symbol = best;
+          idExpr->type = best->type();
+          if (auto bestType = type_cast<FunctionType>(best->type()))
+            copy->type = bestType->returnType();
+        }
+      }
+    }
+  }
+
   return copy;
 }
 
@@ -1035,9 +1128,43 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
       rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
-  copy->symbol = ast->symbol;
+  copy->symbol = rewrite.remapSymbol(ast->symbol);
   copy->accessOp = ast->accessOp;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+
+  if (copy->symbol && copy->symbol != ast->symbol) {
+    copy->type = copy->symbol->type();
+  }
+
+  if (!copy->symbol && copy->baseExpression) {
+    const Type* objectType = copy->baseExpression->type;
+    if (objectType) {
+      if (copy->accessOp == TokenKind::T_MINUS_GREATER) {
+        objectType =
+            control()->remove_cv(control()->get_element_type(objectType));
+      } else {
+        objectType = control()->remove_cv(objectType);
+      }
+
+      if (auto classType = type_cast<ClassType>(objectType)) {
+        auto classSymbol = classType->symbol();
+        auto memberName = get_name(control(), copy->unqualifiedId);
+        if (classSymbol && memberName) {
+          auto symbol = qualifiedLookup(classSymbol, memberName);
+          if (symbol) {
+            copy->symbol = symbol;
+            copy->type = symbol->type();
+
+            // Propagate value category from the base expression.
+            if (auto field = symbol_cast<FieldSymbol>(symbol);
+                field && !field->isStatic()) {
+              copy->valueCategory = ast->valueCategory;
+            }
+          }
+        }
+      }
+    }
+  }
 
   return copy;
 }
@@ -1598,6 +1725,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
 
   copy->symbol = binder()->declareVariable(copy->declarator, declaratorDecl,
                                            /*addSymbolToParentScope=*/true);
+
+  if (ast->symbol && copy->symbol) {
+    rewrite.addSymbolRemap(ast->symbol, copy->symbol);
+  }
+
+  if (copy->symbol) {
+    copy->type = copy->symbol->type();
+  }
 
   return copy;
 }

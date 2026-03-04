@@ -48,41 +48,11 @@ auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool {
          symbol_cast<TemplateTypeParameterSymbol>(symbol);
 }
 
-auto lookupDependentTypeParameterInScopeChain(Control* control,
-                                              ScopeSymbol* scope,
-                                              const Identifier* identifier)
-    -> Symbol* {
-  if (!control || !scope || !identifier) return nullptr;
-
-  for (auto current = scope; current; current = current->parent()) {
-    auto candidate = lookupType(current, nullptr, identifier);
-    if (isDependentTypeParameterSymbol(candidate)) return candidate;
-  }
-
-  return nullptr;
-}
-
-auto isDependentNestedNameSpecifier(Control* control, ScopeSymbol* scope,
-                                    NestedNameSpecifierAST* ast) -> bool {
-  if (!scope || !ast) return false;
-  if (ast->symbol) return false;
-
-  auto simple = ast_cast<SimpleNestedNameSpecifierAST>(ast);
-  if (!simple || !simple->identifier) return false;
-
-  if (isDependentNestedNameSpecifier(control, scope,
-                                     simple->nestedNameSpecifier)) {
-    return true;
-  }
-
-  if (lookupDependentTypeParameterInScopeChain(control, scope,
-                                               simple->identifier)) {
-    return true;
-  }
-
-  auto symbol =
-      lookupType(scope, simple->nestedNameSpecifier, simple->identifier);
-  return isDependentTypeParameterSymbol(symbol);
+auto isDependentNestedNameSpecifier(NestedNameSpecifierAST* ast) -> bool {
+  if (!ast) return false;
+  if (ast->symbol && ast->symbol->asScopeSymbol()) return false;
+  if (isDependentTypeParameterSymbol(ast->symbol)) return true;
+  return false;
 }
 
 }  // namespace
@@ -237,7 +207,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
 }
 
 void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
-                  bool isDeclaration) {
+                  bool isDeclaration, Symbol* unqualifiedCandidate) {
   const auto _ = ScopeGuard{this};
 
   if (ast->nestedNameSpecifier) {
@@ -245,10 +215,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
 
     if (!parent || !parent->isClassOrNamespace()) {
       const bool isDependentNested =
-          isDependentNestedNameSpecifier(control(), scope(),
-                                         ast->nestedNameSpecifier) ||
-          isDependentNestedNameSpecifier(control(), declaringScope(),
-                                         ast->nestedNameSpecifier);
+          isDependentNestedNameSpecifier(ast->nestedNameSpecifier);
       if (!inTemplate() && !isDependentNested) {
         error(ast->nestedNameSpecifier->firstSourceLocation(),
               "nested name specifier must be a class or namespace");
@@ -256,7 +223,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       return;
     }
 
-    setScope(static_cast<ScopeSymbol*>(parent));
+    setScope(parent->asScopeSymbol());
   }
 
   auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
@@ -285,10 +252,18 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       return ds;
     }();
 
-    auto candidate =
-        declSpecs.isFriend
-            ? unqualifiedLookup(targetScope, name, is_class)
-            : lookupName(scope(), ast->nestedNameSpecifier, name, is_class);
+    auto candidate = [&]() -> Symbol* {
+      if (declSpecs.isFriend) {
+        for (auto s = targetScope; s; s = s->parent()) {
+          if (auto found = qualifiedLookup(s, name, is_class)) return found;
+        }
+        return nullptr;
+      }
+      if (ast->nestedNameSpecifier)
+        return qualifiedLookup(ast->nestedNameSpecifier->symbol, name,
+                               is_class);
+      return unqualifiedCandidate;
+    }();
 
     auto classSymbol = symbol_cast<ClassSymbol>(candidate);
 
@@ -305,6 +280,8 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       classSymbol->setIsUnion(isUnion);
       classSymbol->setName(name);
       classSymbol->setTemplateDeclaration(declSpecs.templateHead);
+      if (declSpecs.templateHead)
+        classSymbol->setTemplateParameters(declSpecs.templateHead->symbol);
       targetScope->addSymbol(classSymbol);
 
       if (declSpecs.isFriend) {
@@ -516,10 +493,7 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
 void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
     const bool isDependentNested =
-        isDependentNestedNameSpecifier(control(), scope(),
-                                       ast->nestedNameSpecifier) ||
-        isDependentNestedNameSpecifier(control(), declaringScope(),
-                                       ast->nestedNameSpecifier);
+        isDependentNestedNameSpecifier(ast->nestedNameSpecifier);
     if (!inTemplate() && !isDependentNested) {
       error(ast->nestedNameSpecifier->firstSourceLocation(),
             "nested name specifier must be a class or namespace");
@@ -555,15 +529,12 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   scope()->addSymbol(symbol);
 }
 
-void Binder::bind(BaseSpecifierAST* ast) {
+void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   const auto checkTemplates = unit_->config().checkTypes;
 
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
     const bool isDependentNested =
-        isDependentNestedNameSpecifier(control(), scope(),
-                                       ast->nestedNameSpecifier) ||
-        isDependentNestedNameSpecifier(control(), declaringScope(),
-                                       ast->nestedNameSpecifier);
+        isDependentNestedNameSpecifier(ast->nestedNameSpecifier);
     if (!inTemplate() && !isDependentNested) {
       error(ast->nestedNameSpecifier->firstSourceLocation(),
             "nested name specifier must be a class or namespace");
@@ -579,8 +550,8 @@ void Binder::bind(BaseSpecifierAST* ast) {
       symbol = classType->symbol();
     }
   } else {
-    symbol =
-        resolve(ast->nestedNameSpecifier, ast->unqualifiedId, checkTemplates);
+    symbol = resolve(ast->nestedNameSpecifier, ast->unqualifiedId,
+                     checkTemplates, resolvedType);
   }
 
   // dealias
@@ -601,7 +572,28 @@ void Binder::bind(BaseSpecifierAST* ast) {
       return;
     }
 
-    if (symbol_cast<TypeParameterSymbol>(symbol)) {
+    if (auto typeParam = symbol_cast<TypeParameterSymbol>(symbol)) {
+      auto location = ast->unqualifiedId->firstSourceLocation();
+      auto baseClassSymbol = control()->newBaseClassSymbol(scope(), location);
+      ast->symbol = baseClassSymbol;
+
+      baseClassSymbol->setVirtual(ast->isVirtual);
+      baseClassSymbol->setSymbol(typeParam);
+      baseClassSymbol->setName(typeParam->name());
+
+      switch (ast->accessSpecifier) {
+        case TokenKind::T_PRIVATE:
+          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
+          break;
+        case TokenKind::T_PROTECTED:
+          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
+          break;
+        case TokenKind::T_PUBLIC:
+          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
+          break;
+        default:
+          break;
+      }
       return;
     }
     if (!inTemplate()) {
@@ -702,6 +694,10 @@ void Binder::bind(ConceptDefinitionAST* ast) {
 
   auto symbol = control()->newConceptSymbol(scope(), ast->identifierLoc);
   symbol->setName(ast->identifier);
+  if (templateParameters) {
+    symbol->setTemplateParameters(templateParameters);
+  }
+  ast->symbol = symbol;
 
   declaringScope()->addSymbol(symbol);
 }
@@ -907,10 +903,15 @@ void Binder::bind(ParameterDeclarationClauseAST* ast) {
       control()->newFunctionParametersSymbol(scope(), {});
 }
 
-void Binder::bind(UsingDirectiveAST* ast) {
+void Binder::bind(UsingDirectiveAST* ast, NamespaceSymbol* resolvedNamespace) {
   auto id = ast->unqualifiedId->identifier;
 
-  auto namespaceSymbol = lookupNamespace(scope(), ast->nestedNameSpecifier, id);
+  NamespaceSymbol* namespaceSymbol = nullptr;
+  if (ast->nestedNameSpecifier && ast->nestedNameSpecifier->symbol)
+    namespaceSymbol =
+        qualifiedLookupNamespace(ast->nestedNameSpecifier->symbol, id);
+  else
+    namespaceSymbol = resolvedNamespace;
 
   if (namespaceSymbol) {
     scope()->addUsingDirective(namespaceSymbol);
@@ -1471,6 +1472,9 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
 auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) return classSymbol;
 
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol))
+    return injected->classSymbol();
+
   if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
     return namespaceSymbol;
 
@@ -1583,14 +1587,14 @@ auto templateArgumentCount(List<TemplateArgumentAST*>* templateArgumentList)
 }
 
 auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
-                          List<TemplateArgumentAST*>* templateArgumentList)
-    -> bool {
+                          List<TemplateArgumentAST*>* templateArgumentList,
+                          bool isFunctionTemplate = false) -> bool {
   if (!templateDecl) return true;
 
   auto arity = computeTemplateArity(templateDecl);
   auto argc = templateArgumentCount(templateArgumentList);
 
-  if (argc < arity.minArgs) return false;
+  if (!isFunctionTemplate && argc < arity.minArgs) return false;
   if (!arity.hasParameterPack && argc > arity.maxArgs) return false;
 
   return true;
@@ -1705,67 +1709,98 @@ void Binder::bind(IdExpressionAST* ast) {
     return;
   }
 
-  auto name = get_name(control(), ast->unqualifiedId);
-
-  const Name* componentName = name;
-
-  if (auto templateId = name_cast<TemplateId>(name)) {
-    componentName = templateId->name();
-  }
-
   if (ast->nestedNameSpecifier) {
     if (!ast->nestedNameSpecifier->symbol) {
       return;
     }
+
+    auto name = get_name(control(), ast->unqualifiedId);
+
+    const Name* componentName = name;
+
+    if (auto templateId = name_cast<TemplateId>(name)) {
+      componentName = templateId->name();
+    }
+
+    ast->symbol =
+        qualifiedLookup(ast->nestedNameSpecifier->symbol, componentName);
   }
 
-  ast->symbol = lookupName(scope(), ast->nestedNameSpecifier, componentName);
+  // For unqualified ids, the parser has already resolved ast->symbol
+  // via unqualified lookup before calling bind().
 
+  resolveIdExpression(ast);
+}
+
+void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
+  if (!ast->unqualifiedId) return;
+  if (!ast->nestedNameSpecifier || !ast->nestedNameSpecifier->symbol) return;
+
+  auto name = get_name(control(), ast->unqualifiedId);
+  const Name* componentName = name;
+  if (auto templateId = name_cast<TemplateId>(name))
+    componentName = templateId->name();
+
+  ast->symbol =
+      qualifiedLookup(ast->nestedNameSpecifier->symbol, componentName);
+
+  resolveIdExpression(ast);
+}
+
+void Binder::resolveIdExpression(IdExpressionAST* ast) {
   if (unit_->config().checkTypes) {
     if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
       auto templateIdName = get_name(control(), templateId);
-      // Try to find a template symbol to instantiate
       Symbol* templateSymbol = nullptr;
       bool instantiated = false;
       bool hasTemplateCandidate = false;
+      bool hasDeferredFunctionTemplate = false;
+
+      auto needsCallSiteDeduction =
+          [&](TemplateDeclarationAST* templateDecl) -> bool {
+        auto arity = computeTemplateArity(templateDecl);
+        auto argc = templateArgumentCount(templateId->templateArgumentList);
+        return argc < arity.minArgs;
+      };
 
       if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
-        // Defer variable template instantiation when inside a template
-        // and the template arguments may be dependent.
         if (!inTemplate()) {
           templateSymbol = var;
         }
       } else if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
         if (func->templateDeclaration()) {
           hasTemplateCandidate = true;
-          // Defer function template instantiation inside template contexts
-          // to avoid cascading instantiation of dependent types.
           if (!inTemplate() &&
               isTemplateArityMatch(func->templateDeclaration(),
-                                   templateId->templateArgumentList) &&
+                                   templateId->templateArgumentList,
+                                   /*isFunctionTemplate=*/true) &&
               isTemplateArgumentKindMatch(func->templateDeclaration(),
                                           templateId->templateArgumentList)) {
-            templateSymbol = func;
+            if (needsCallSiteDeduction(func->templateDeclaration())) {
+              hasDeferredFunctionTemplate = true;
+            } else {
+              templateSymbol = func;
+            }
           }
         }
       } else if (auto ovl = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
-        // Copy the function list before iterating: ASTRewriter::instantiate
-        // may call ovl->addFunction().
         const auto ovlFunctions = ovl->functions();
         for (auto func : ovlFunctions) {
           if (!func->templateDeclaration()) continue;
           hasTemplateCandidate = true;
           if (!isTemplateArityMatch(func->templateDeclaration(),
-                                    templateId->templateArgumentList) ||
+                                    templateId->templateArgumentList,
+                                    /*isFunctionTemplate=*/true) ||
               !isTemplateArgumentKindMatch(func->templateDeclaration(),
                                            templateId->templateArgumentList)) {
             continue;
           }
+          if (needsCallSiteDeduction(func->templateDeclaration())) {
+            hasDeferredFunctionTemplate = true;
+            continue;
+          }
           if (!templateSymbol) templateSymbol = func;
-          // Defer function template instantiation inside template contexts.
           if (inTemplate()) continue;
-          // Function template instantiation is SFINAE — suppress errors
-          // so substitution failures are silent (not hard errors).
           auto instance = ASTRewriter::instantiate(
               unit_, templateId->templateArgumentList, func, {},
               /*sfinaeContext=*/true);
@@ -1778,6 +1813,8 @@ void Binder::bind(IdExpressionAST* ast) {
         }
         if (instantiated) return;
 
+        if (hasDeferredFunctionTemplate) return;
+
         if (templateSymbol && !inTemplate()) {
           if (reportErrors_) {
             error(templateId->firstSourceLocation(),
@@ -1787,6 +1824,8 @@ void Binder::bind(IdExpressionAST* ast) {
           return;
         }
       }
+
+      if (hasDeferredFunctionTemplate) return;
 
       if (!templateSymbol) {
         if (!inTemplate()) {
@@ -1800,12 +1839,8 @@ void Binder::bind(IdExpressionAST* ast) {
           }
         }
       } else {
-        // Don't try to instantiate inside template contexts — defer to
-        // instantiation time when concrete types are available.
         if (inTemplate()) return;
 
-        // Function template instantiation is SFINAE — suppress errors so
-        // substitution failures are silent.
         const bool isFuncTemplate =
             symbol_cast<FunctionSymbol>(templateSymbol) != nullptr;
         auto instance = ASTRewriter::instantiate(

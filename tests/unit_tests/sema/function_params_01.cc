@@ -12,10 +12,18 @@ struct C {
 };
 
 // clang-format off
-// CHECK: class C
-// CHECK:   function void aa() const
-// CHECK:   function void bb() volatile
-// CHECK:   function void cc() const volatile
-// CHECK:   function void dd() &
-// CHECK:   function void ee() &&
-// CHECK:   function void ff() const volatile & noexcept
+//      CHECK:namespace
+// CHECK-NEXT:  class C
+// CHECK-NEXT:    constructor defaulted void C()
+// CHECK-NEXT:    constructor defaulted void C(const ::C&)
+// CHECK-NEXT:    constructor defaulted void C(::C&&)
+// CHECK-NEXT:    injected class name C
+// CHECK-NEXT:    function void aa() const
+// CHECK-NEXT:    function void bb() volatile
+// CHECK-NEXT:    function void cc() const volatile
+// CHECK-NEXT:    function void dd() &
+// CHECK-NEXT:    function void ee() &&
+// CHECK-NEXT:    function void ff() const volatile & noexcept
+// CHECK-NEXT:    function defaulted ::C& operator =(const ::C&)
+// CHECK-NEXT:    function defaulted ::C& operator =(::C&&)
+// CHECK-NEXT:    function defaulted void ~C()

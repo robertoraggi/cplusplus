@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/implicit_conversion_sequence.h>
+#include <cxx/overload_resolution.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
@@ -92,9 +93,6 @@ class TypeChecker {
 
   void applyImplicitConversion(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
-
-  [[nodiscard]] static auto mapImplicitCastKind(ImplicitConversionKind kind)
-      -> std::optional<ImplicitCastKind>;
 
   void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
                             ExpressionAST*& expr);

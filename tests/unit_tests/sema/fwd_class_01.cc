@@ -17,11 +17,18 @@ struct Codegen {
 }  // namespace cxx
 
 // clang-format off
-// CHECK:namespace
-// CHECK:  namespace cxx
-// CHECK:    class BasicBlock
-// CHECK:    class ExpressionAST
-// CHECK:    namespace ir
-// CHECK:      class BasicBlock
-// CHECK:    class Codegen
-// CHECK:      function void cg_condition(cxx::ExpressionAST*, ir::BasicBlock*, ir::BasicBlock*)
+//      CHECK:namespace
+// CHECK-NEXT:  namespace cxx
+// CHECK-NEXT:    class BasicBlock
+// CHECK-NEXT:    class ExpressionAST
+// CHECK-NEXT:    namespace ir
+// CHECK-NEXT:      class BasicBlock
+// CHECK-NEXT:    class Codegen
+// CHECK-NEXT:      constructor defaulted void Codegen()
+// CHECK-NEXT:      constructor defaulted void Codegen(const cxx::Codegen&)
+// CHECK-NEXT:      constructor defaulted void Codegen(cxx::Codegen&&)
+// CHECK-NEXT:      injected class name Codegen
+// CHECK-NEXT:      function void cg_condition(cxx::ExpressionAST*, ir::BasicBlock*, ir::BasicBlock*)
+// CHECK-NEXT:      function defaulted cxx::Codegen& operator =(const cxx::Codegen&)
+// CHECK-NEXT:      function defaulted cxx::Codegen& operator =(cxx::Codegen&&)
+// CHECK-NEXT:      function defaulted void ~Codegen()

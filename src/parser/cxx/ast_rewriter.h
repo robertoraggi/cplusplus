@@ -49,6 +49,11 @@ class [[nodiscard]] ASTRewriter {
                           Symbol* symbol, SourceLocation instantiationLoc = {},
                           bool sfinaeContext = false) -> Symbol*;
 
+  static auto substituteDefaultTypeId(
+      TranslationUnit* unit, TypeIdAST* typeId,
+      const std::vector<TemplateArgument>& templateArguments, int depth,
+      TemplateParametersSymbol* templateParams) -> TypeIdAST*;
+
   auto translationUnit() const -> TranslationUnit* { return unit_; }
 
   auto templateArguments() const -> const std::vector<TemplateArgument>& {
@@ -190,12 +195,19 @@ class [[nodiscard]] ASTRewriter {
 
   auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
+  void addSymbolRemap(Symbol* oldSym, Symbol* newSym);
+
+  void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
+
+  [[nodiscard]] auto remapSymbol(Symbol* sym) const -> Symbol*;
+
   TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
   ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
   Binder binder_;
   std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
+  std::unordered_map<Symbol*, Symbol*> symbolRemap_;
   TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
   bool restrictedToDeclarations_ = false;

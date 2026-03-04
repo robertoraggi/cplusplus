@@ -21,6 +21,7 @@ struct WithDtor {
 // CHECK-NEXT:    constructor defaulted void Pod()
 // CHECK-NEXT:    constructor defaulted void Pod(const ::Pod&)
 // CHECK-NEXT:    constructor defaulted void Pod(::Pod&&)
+// CHECK-NEXT:    injected class name Pod
 // CHECK-NEXT:    field int x
 // CHECK-NEXT:    field float y
 // CHECK-NEXT:    function defaulted ::Pod& operator =(const ::Pod&)
@@ -32,6 +33,7 @@ struct WithDtor {
 // CHECK-NEXT:        variable static constexpr const char __func__[9]
 // CHECK-NEXT:    constructor defaulted void WithCtor(const ::WithCtor&)
 // CHECK-NEXT:    constructor defaulted void WithCtor(::WithCtor&&)
+// CHECK-NEXT:    injected class name WithCtor
 // CHECK-NEXT:    field int val
 // CHECK-NEXT:    function defaulted ::WithCtor& operator =(const ::WithCtor&)
 // CHECK-NEXT:    function defaulted ::WithCtor& operator =(::WithCtor&&)
@@ -40,6 +42,7 @@ struct WithDtor {
 // CHECK-NEXT:    constructor defaulted void WithDtor()
 // CHECK-NEXT:    constructor defaulted void WithDtor(const ::WithDtor&)
 // CHECK-NEXT:    constructor defaulted void WithDtor(::WithDtor&&)
+// CHECK-NEXT:    injected class name WithDtor
 // CHECK-NEXT:    function inline void ~WithDtor()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[10]

@@ -24,7 +24,7 @@ void other_func(auto&&...);
 // CHECK-NEXT:                      identifier: args
 // CHECK-NEXT:                      is-pack: true
 // CHECK-NEXT:                      type-specifier-list
-// CHECK-NEXT:                        auto-type-specifier
+// CHECK-NEXT:                        named-type-specifier
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        core-declarator: parameter-pack
 // CHECK-NEXT:                          core-declarator: id-declarator
@@ -46,7 +46,7 @@ void other_func(auto&&...);
 // CHECK-NEXT:                    parameter-declaration
 // CHECK-NEXT:                      is-pack: true
 // CHECK-NEXT:                      type-specifier-list
-// CHECK-NEXT:                        auto-type-specifier
+// CHECK-NEXT:                        named-type-specifier
 // CHECK-NEXT:                      declarator: declarator
 // CHECK-NEXT:                        ptr-op-list
 // CHECK-NEXT:                          reference-operator

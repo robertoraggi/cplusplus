@@ -6,6 +6,6 @@ auto k(int x) -> decltype((x));
 
 // clang-format off
 //      CHECK:namespace
-// CHECK-NEXT: function int f(int)
-// CHECK-NEXT: function int* g(int, int*)
-// CHECK-NEXT: function int& k(int)
+// CHECK-NEXT:  function int f(int)
+// CHECK-NEXT:  function int* g(int, int*)
+// CHECK-NEXT:  function int& k(int)

@@ -174,6 +174,16 @@ struct DumpSymbols {
     out << std::format("base class {}\n", to_string(symbol->name()));
   }
 
+  void operator()(InjectedClassNameSymbol* symbol) {
+    indent();
+    out << std::format("injected class name {}\n", to_string(symbol->name()));
+  }
+
+  void operator()(UnresolvedSymbol* symbol) {
+    indent();
+    out << std::format("unresolved {}\n", to_string(symbol->name()));
+  }
+
   void operator()(ClassSymbol* symbol) {
     indent();
     std::string_view classKey = symbol->isUnion() ? "union" : "class";
@@ -324,6 +334,7 @@ struct DumpSymbols {
     }
 
     dumpScope(symbol);
+    dumpSpecializations(symbol->specializations());
     dumpRedeclarations(symbol);
   }
 

@@ -137,6 +137,12 @@ struct ASTRewriter::SpecifierVisitor {
   [[nodiscard]] auto operator()(TypenameSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(SplicerTypeSpecifierAST* ast) -> SpecifierAST*;
+
+ private:
+  void rewriteBaseSpecifiers(ClassSpecifierAST* ast, ClassSpecifierAST* copy,
+                             ClassSymbol* classSymbol);
+
+  void rewriteClassBody(ClassSpecifierAST* ast, ClassSpecifierAST* copy);
 };
 
 struct ASTRewriter::AttributeSpecifierVisitor {
@@ -222,9 +228,120 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   copy->isVirtual = ast->isVirtual;
   copy->isVariadic = ast->isVariadic;
   copy->accessSpecifier = ast->accessSpecifier;
-  copy->symbol = ast->symbol;
 
-  binder_.bind(copy);
+  if (ast->symbol) {
+    if (auto typeParam =
+            symbol_cast<TypeParameterSymbol>(ast->symbol->symbol())) {
+      auto paramType = type_cast<TypeParameterType>(typeParam->type());
+      if (paramType && paramType->depth() == depth_ &&
+          paramType->index() < static_cast<int>(templateArguments_.size())) {
+        auto index = paramType->index();
+        if (auto sym = std::get_if<Symbol*>(&templateArguments_[index])) {
+          Symbol* resolved = *sym;
+          if (auto alias = symbol_cast<TypeAliasSymbol>(resolved)) {
+            if (auto classType =
+                    type_cast<ClassType>(control()->remove_cv(alias->type()))) {
+              resolved = classType->symbol();
+            }
+          }
+          if (resolved && resolved->isClass()) {
+            auto location = ast->unqualifiedId
+                                ? ast->unqualifiedId->firstSourceLocation()
+                                : SourceLocation{};
+            auto baseClassSym =
+                control()->newBaseClassSymbol(binder_.scope(), location);
+            baseClassSym->setSymbol(resolved);
+            baseClassSym->setName(resolved->name());
+            baseClassSym->setVirtual(ast->isVirtual);
+            switch (ast->accessSpecifier) {
+              case TokenKind::T_PRIVATE:
+                baseClassSym->setAccessSpecifier(AccessSpecifier::kPrivate);
+                break;
+              case TokenKind::T_PROTECTED:
+                baseClassSym->setAccessSpecifier(AccessSpecifier::kProtected);
+                break;
+              case TokenKind::T_PUBLIC:
+                baseClassSym->setAccessSpecifier(AccessSpecifier::kPublic);
+                break;
+              default:
+                break;
+            }
+            copy->symbol = baseClassSym;
+            return copy;
+          }
+        }
+      }
+    }
+  }
+
+  const auto checkTemplates = binder_.translationUnit()->config().checkTypes;
+
+  const bool hasResolvedNNS =
+      copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
+
+  const bool isTemplateId =
+      ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId) != nullptr;
+
+  Symbol* resolved = nullptr;
+  if (hasResolvedNNS || isTemplateId) {
+    resolved = binder_.resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
+                               checkTemplates);
+  }
+
+  if (auto typeAlias = symbol_cast<TypeAliasSymbol>(resolved)) {
+    if (auto classType =
+            type_cast<ClassType>(control()->remove_cv(typeAlias->type()))) {
+      resolved = classType->symbol();
+    }
+  }
+
+  if (resolved && resolved->isClass()) {
+    auto location = ast->unqualifiedId
+                        ? ast->unqualifiedId->firstSourceLocation()
+                        : SourceLocation{};
+    auto baseClassSym =
+        control()->newBaseClassSymbol(binder_.scope(), location);
+    baseClassSym->setSymbol(resolved);
+    baseClassSym->setName(resolved->name());
+    baseClassSym->setVirtual(ast->isVirtual);
+    switch (ast->accessSpecifier) {
+      case TokenKind::T_PRIVATE:
+        baseClassSym->setAccessSpecifier(AccessSpecifier::kPrivate);
+        break;
+      case TokenKind::T_PROTECTED:
+        baseClassSym->setAccessSpecifier(AccessSpecifier::kProtected);
+        break;
+      case TokenKind::T_PUBLIC:
+        baseClassSym->setAccessSpecifier(AccessSpecifier::kPublic);
+        break;
+      default:
+        break;
+    }
+    copy->symbol = baseClassSym;
+  } else if (ast->symbol) {
+    auto location = ast->unqualifiedId
+                        ? ast->unqualifiedId->firstSourceLocation()
+                        : SourceLocation{};
+    auto baseClassSym =
+        control()->newBaseClassSymbol(binder_.scope(), location);
+    baseClassSym->setSymbol(ast->symbol->symbol());
+    baseClassSym->setName(ast->symbol->name());
+    baseClassSym->setVirtual(ast->isVirtual);
+    switch (ast->accessSpecifier) {
+      case TokenKind::T_PRIVATE:
+        baseClassSym->setAccessSpecifier(AccessSpecifier::kPrivate);
+        break;
+      case TokenKind::T_PROTECTED:
+        baseClassSym->setAccessSpecifier(AccessSpecifier::kProtected);
+        break;
+      case TokenKind::T_PUBLIC:
+        baseClassSym->setAccessSpecifier(AccessSpecifier::kPublic);
+        break;
+      default:
+        break;
+    }
+    copy->symbol = baseClassSym;
+  }
 
   return copy;
 }
@@ -611,11 +728,21 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
       }
     }
   } else {
-    // If the symbol is unresolved, we need to resolve it.
-    if (auto s =
-            binder()->resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
-                              /*checkTemplates=*/true)) {
+    const bool hasResolvedNNS =
+        copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
+    const bool isTemplateId =
+        ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId) != nullptr;
+
+    Symbol* s = nullptr;
+    if (hasResolvedNNS || isTemplateId) {
+      s = binder()->resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
+                            /*checkTemplates=*/true);
+    }
+
+    if (s) {
       copy->symbol = s;
+    } else {
+      copy->symbol = rewrite.remapSymbol(ast->symbol);
     }
   }
 
@@ -841,18 +968,50 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   classSymbol->setFinal(ast->isFinal);
   classSymbol->setDeclaration(copy);
   classSymbol->setTemplateDeclaration(templateHead);
+  if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
 
   if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
     ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
   } else {
-    // If we are not instantiating a template, we can add the class symbol to
-    // the scope.
     binder()->declaringScope()->addSymbol(classSymbol);
   }
 
-  // enter the class scope
+  rewrite.addSymbolRemap(ast->symbol, classSymbol);
+
   binder()->setScope(classSymbol);
 
+  if (classSymbol->name()) {
+    auto injected = control()->newInjectedClassNameSymbol(
+        classSymbol, classSymbol->location());
+    injected->setName(classSymbol->name());
+    injected->setType(classSymbol->type());
+    injected->setClassSymbol(classSymbol);
+    classSymbol->addSymbol(injected);
+  }
+
+  rewriteBaseSpecifiers(ast, copy, classSymbol);
+
+  copy->lbraceLoc = ast->lbraceLoc;
+
+  rewriteClassBody(ast, copy);
+
+  copy->rbraceLoc = ast->rbraceLoc;
+  copy->classKey = ast->classKey;
+  copy->isFinal = ast->isFinal;
+
+  binder()->complete(copy);
+
+  if (!classSymbol->layout() && !classSymbol->templateDeclaration()) {
+    auto status = binder()->buildRecordLayout(classSymbol);
+    if (!status.has_value())
+      binder()->error(classSymbol->location(), status.error());
+  }
+
+  return copy;
+}
+
+void ASTRewriter::SpecifierVisitor::rewriteBaseSpecifiers(
+    ClassSpecifierAST* ast, ClassSpecifierAST* copy, ClassSymbol* classSymbol) {
   for (auto baseSpecifierList = &copy->baseSpecifierList;
        auto node : ListView{ast->baseSpecifierList}) {
     if (node->isVariadic) {
@@ -888,11 +1047,10 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
           value->accessSpecifier = node->accessSpecifier;
           value->isVirtual = node->isVirtual;
 
-          auto location = node->unqualifiedId
-                              ? node->unqualifiedId->firstSourceLocation()
-                              : SourceLocation{};
-          auto baseClassSym =
-              control()->newBaseClassSymbol(classSymbol, location);
+          auto loc = node->unqualifiedId
+                         ? node->unqualifiedId->firstSourceLocation()
+                         : SourceLocation{};
+          auto baseClassSym = control()->newBaseClassSymbol(classSymbol, loc);
           baseClassSym->setSymbol(baseResolvedSym);
           baseClassSym->setName(baseResolvedSym->name());
           value->symbol = baseClassSym;
@@ -918,9 +1076,10 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
       classSymbol->addBaseClass(value->symbol);
     }
   }
+}
 
-  copy->lbraceLoc = ast->lbraceLoc;
-
+void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
+                                                     ClassSpecifierAST* copy) {
   struct DelayedFunction {
     FunctionDefinitionAST* newAst = nullptr;
     FunctionDefinitionAST* oldAst = nullptr;
@@ -970,15 +1129,6 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
       rewrite.completePendingBody(newAst->symbol);
     }
   }
-
-  copy->rbraceLoc = ast->rbraceLoc;
-  copy->classKey = ast->classKey;
-  // copy->symbol = ast->symbol; // TODO: remove done by the binder
-  copy->isFinal = ast->isFinal;
-
-  binder()->complete(copy);
-
-  return copy;
 }
 
 auto ASTRewriter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)

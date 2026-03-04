@@ -37,16 +37,29 @@ class Substitution {
  public:
   Substitution() = delete;
   Substitution(const Substitution&) = delete;
+  Substitution(Substitution&&) = default;
+  auto operator=(Substitution&&) -> Substitution& = default;
 
   Substitution(TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
                List<TemplateArgumentAST*>* templateArgumentList);
 
-  auto templateArguments() const -> const std::vector<TemplateArgument>& {
+  [[nodiscard]] static auto make(
+      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
+      List<TemplateArgumentAST*>* templateArgumentList)
+      -> std::optional<Substitution>;
+
+  auto templateArguments() const& -> const std::vector<TemplateArgument>& {
     return templateArguments_;
   }
 
+  auto templateArguments() && -> std::vector<TemplateArgument> {
+    return std::move(templateArguments_);
+  }
+
+  [[nodiscard]] auto hadError() const -> bool { return hadError_; }
+
  private:
-  void make();
+  void doMake();
 
   [[nodiscard]] auto isDependentTypeArgument(TypeTemplateArgumentAST* typeArg)
       -> bool;
@@ -82,6 +95,7 @@ class Substitution {
   TemplateDeclarationAST* templateDecl_ = nullptr;
   List<TemplateArgumentAST*>* templateArgumentList_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
+  bool hadError_ = false;
 };
 
 }  // namespace cxx

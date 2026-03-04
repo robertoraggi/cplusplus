@@ -15,9 +15,9 @@ static_assert(D == 2);
 enum X x;
 
 //      CHECK:namespace
-// CHECK-NEXT:enum X : int
-// CHECK-NEXT:enumerator X A
-// CHECK-NEXT:enumerator X B
-// CHECK-NEXT:enumerator X C
-// CHECK-NEXT:enumerator X D
-// CHECK-NEXT:variable X x
+// CHECK-NEXT:  enum X : int
+// CHECK-NEXT:  enumerator X A = 0
+// CHECK-NEXT:  enumerator X B = 1
+// CHECK-NEXT:  enumerator X C = 1
+// CHECK-NEXT:  enumerator X D = 2
+// CHECK-NEXT:  variable X x

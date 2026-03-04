@@ -52,6 +52,6 @@ struct object {
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list
 // CHECK-NEXT:                    return-statement
-// CHECK-NEXT:                      expression: id-expression
+// CHECK-NEXT:                      expression: id-expression [lvalue type-param<0, 0>]
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: self

@@ -512,10 +512,18 @@ void Frontend::Private::preparePreprocessor() {
 }
 
 void Frontend::Private::parse() {
+  if (auto errorLimitStr = cli.getSingle("-ferror-limit")) {
+    int limit = std::atoi(errorLimitStr->c_str());
+    if (limit > 0) diagnosticsClient_->setErrorLimit(limit);
+  }
+
   unit_->parse(ParserConfiguration{
       .checkTypes =
           cli.opt_fcheck || needsIR() || unit_->language() == LanguageKind::kC,
       .fuzzyTemplateResolution = true,
+      .stopParsingPredicate = [this]() -> bool {
+        return diagnosticsClient_->errorLimitReached();
+      },
   });
 
   if (cli.opt_freport_missing_types) {

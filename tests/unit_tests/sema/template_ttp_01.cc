@@ -31,12 +31,14 @@ Multi<Holder> m1;
 //      CHECK:namespace
 // CHECK-NEXT:  template class Holder<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
+// CHECK-NEXT:    injected class name Holder
 // CHECK-NEXT:    field type-param<0, 0> value
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Holder<int>
 // CHECK-NEXT:        constructor defaulted void Holder()
 // CHECK-NEXT:        constructor defaulted void Holder(const ::Holder<int>&)
 // CHECK-NEXT:        constructor defaulted void Holder(::Holder<int>&&)
+// CHECK-NEXT:        injected class name Holder
 // CHECK-NEXT:        field int value
 // CHECK-NEXT:        function defaulted ::Holder<int>& operator =(const ::Holder<int>&)
 // CHECK-NEXT:        function defaulted ::Holder<int>& operator =(::Holder<int>&&)
@@ -45,6 +47,7 @@ Multi<Holder> m1;
 // CHECK-NEXT:        constructor defaulted void Holder()
 // CHECK-NEXT:        constructor defaulted void Holder(const ::Holder<double>&)
 // CHECK-NEXT:        constructor defaulted void Holder(::Holder<double>&&)
+// CHECK-NEXT:        injected class name Holder
 // CHECK-NEXT:        field double value
 // CHECK-NEXT:        function defaulted ::Holder<double>& operator =(const ::Holder<double>&)
 // CHECK-NEXT:        function defaulted ::Holder<double>& operator =(::Holder<double>&&)
@@ -52,12 +55,14 @@ Multi<Holder> m1;
 // CHECK-NEXT:  template class Wrap<template-type-param<0, 0>, type-param<1, 0>>
 // CHECK-NEXT:    parameter template<0, 0> C
 // CHECK-NEXT:    parameter typename<1, 0> T
+// CHECK-NEXT:    injected class name Wrap
 // CHECK-NEXT:    field template-type-param<0, 0> member
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Wrap<::Holder, int>
 // CHECK-NEXT:        constructor defaulted void Wrap()
 // CHECK-NEXT:        constructor defaulted void Wrap(const ::Wrap<::Holder, int>&)
 // CHECK-NEXT:        constructor defaulted void Wrap(::Wrap<::Holder, int>&&)
+// CHECK-NEXT:        injected class name Wrap
 // CHECK-NEXT:        field ::Holder<int> member
 // CHECK-NEXT:        function defaulted ::Wrap<::Holder, int>& operator =(const ::Wrap<::Holder, int>&)
 // CHECK-NEXT:        function defaulted ::Wrap<::Holder, int>& operator =(::Wrap<::Holder, int>&&)
@@ -65,12 +70,14 @@ Multi<Holder> m1;
 // CHECK-NEXT:  variable ::Wrap<::Holder, int> w1
 // CHECK-NEXT:  template class ApplyInt<template-type-param<0, 0>>
 // CHECK-NEXT:    parameter template<0, 0> C
+// CHECK-NEXT:    injected class name ApplyInt
 // CHECK-NEXT:    typealias template-type-param<0, 0> type
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class ApplyInt<::Holder>
 // CHECK-NEXT:        constructor defaulted void ApplyInt()
 // CHECK-NEXT:        constructor defaulted void ApplyInt(const ::ApplyInt<::Holder>&)
 // CHECK-NEXT:        constructor defaulted void ApplyInt(::ApplyInt<::Holder>&&)
+// CHECK-NEXT:        injected class name ApplyInt
 // CHECK-NEXT:        typealias ::Holder<int> type
 // CHECK-NEXT:        function defaulted ::ApplyInt<::Holder>& operator =(const ::ApplyInt<::Holder>&)
 // CHECK-NEXT:        function defaulted ::ApplyInt<::Holder>& operator =(::ApplyInt<::Holder>&&)
@@ -78,6 +85,7 @@ Multi<Holder> m1;
 // CHECK-NEXT:  variable ::ApplyInt<::Holder> a1
 // CHECK-NEXT:  template class Multi<template-type-param<0, 0>>
 // CHECK-NEXT:    parameter template<0, 0> C
+// CHECK-NEXT:    injected class name Multi
 // CHECK-NEXT:    field template-type-param<0, 0> a
 // CHECK-NEXT:    field template-type-param<0, 0> b
 // CHECK-NEXT:    [specializations]
@@ -85,6 +93,7 @@ Multi<Holder> m1;
 // CHECK-NEXT:        constructor defaulted void Multi()
 // CHECK-NEXT:        constructor defaulted void Multi(const ::Multi<::Holder>&)
 // CHECK-NEXT:        constructor defaulted void Multi(::Multi<::Holder>&&)
+// CHECK-NEXT:        injected class name Multi
 // CHECK-NEXT:        field ::Holder<int> a
 // CHECK-NEXT:        field ::Holder<double> b
 // CHECK-NEXT:        function defaulted ::Multi<::Holder>& operator =(const ::Multi<::Holder>&)

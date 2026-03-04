@@ -29,6 +29,22 @@
 
 namespace cxx {
 
+void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
+                                    ScopeSymbol* newScope) {
+  if (!oldScope || !newScope || oldScope == newScope) return;
+  auto& oldMembers = oldScope->members();
+  auto& newMembers = newScope->members();
+  auto n = std::min(oldMembers.size(), newMembers.size());
+  for (std::size_t i = 0; i < n; ++i) {
+    addSymbolRemap(oldMembers[i], newMembers[i]);
+    if (auto oldNested = symbol_cast<ClassSymbol>(oldMembers[i])) {
+      if (auto newNested = symbol_cast<ClassSymbol>(newMembers[i])) {
+        remapScopeMembers(oldNested, newNested);
+      }
+    }
+  }
+}
+
 void ASTRewriter::completePendingBody(FunctionSymbol* func) {
   if (!func || !func->hasPendingBody()) return;
 
@@ -48,6 +64,25 @@ void ASTRewriter::completePendingBody(FunctionSymbol* func) {
 
   auto rewriter = ASTRewriter{unit_, parentScope, templateArguments};
   rewriter.depth_ = depth;
+
+  if (auto oldFunc = symbol_cast<FunctionSymbol>(originalDef->symbol)) {
+    auto oldClass = symbol_cast<ClassSymbol>(oldFunc->parent());
+    auto newClass = symbol_cast<ClassSymbol>(func->parent());
+    if (oldClass && newClass && oldClass != newClass) {
+      rewriter.remapScopeMembers(oldClass, newClass);
+    }
+
+    if (auto oldParams = oldFunc->functionParameters()) {
+      if (auto newParams = func->functionParameters()) {
+        auto& oldPMembers = oldParams->members();
+        auto& newPMembers = newParams->members();
+        auto n = std::min(oldPMembers.size(), newPMembers.size());
+        for (std::size_t i = 0; i < n; ++i) {
+          rewriter.addSymbolRemap(oldPMembers[i], newPMembers[i]);
+        }
+      }
+    }
+  }
 
   auto functionDeclarator = getFunctionPrototype(newAst->declarator);
   if (!functionDeclarator) {

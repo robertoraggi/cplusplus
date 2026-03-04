@@ -46,41 +46,11 @@ auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool {
          symbol_cast<TemplateTypeParameterSymbol>(symbol);
 }
 
-auto lookupDependentTypeParameterInScopeChain(Control* control,
-                                              ScopeSymbol* scope,
-                                              const Identifier* identifier)
-    -> Symbol* {
-  if (!control || !scope || !identifier) return nullptr;
-
-  for (auto current = scope; current; current = current->parent()) {
-    auto candidate = lookupType(current, nullptr, identifier);
-    if (isDependentTypeParameterSymbol(candidate)) return candidate;
-  }
-
-  return nullptr;
-}
-
-auto isDependentNestedNameSpecifier(Control* control, ScopeSymbol* scope,
-                                    NestedNameSpecifierAST* ast) -> bool {
-  if (!scope || !ast) return false;
-  if (ast->symbol) return false;
-
-  auto simple = ast_cast<SimpleNestedNameSpecifierAST>(ast);
-  if (!simple || !simple->identifier) return false;
-
-  if (isDependentNestedNameSpecifier(control, scope,
-                                     simple->nestedNameSpecifier)) {
-    return true;
-  }
-
-  if (lookupDependentTypeParameterInScopeChain(control, scope,
-                                               simple->identifier)) {
-    return true;
-  }
-
-  auto symbol =
-      lookupType(scope, simple->nestedNameSpecifier, simple->identifier);
-  return isDependentTypeParameterSymbol(symbol);
+auto isDependentNestedNameSpecifier(NestedNameSpecifierAST* ast) -> bool {
+  if (!ast) return false;
+  if (ast->symbol && ast->symbol->asScopeSymbol()) return false;
+  if (isDependentTypeParameterSymbol(ast->symbol)) return true;
+  return false;
 }
 
 struct TemplateArity {
@@ -190,6 +160,7 @@ struct [[nodiscard]] Binder::ResolveUnqualifiedId {
   NestedNameSpecifierAST* nestedNameSpecifier;
   UnqualifiedIdAST* unqualifiedId;
   bool checkTemplates;
+  Symbol* resolvedType = nullptr;
 
   auto control() const -> Control* { return binder.control(); }
   auto inTemplate() const -> bool { return binder.inTemplate_; }
@@ -224,10 +195,10 @@ struct [[nodiscard]] Binder::ResolveUnqualifiedId {
 };
 
 auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
-                     UnqualifiedIdAST* unqualifiedId, bool checkTemplates)
-    -> Symbol* {
+                     UnqualifiedIdAST* unqualifiedId, bool checkTemplates,
+                     Symbol* resolvedType) -> Symbol* {
   return visit(ResolveUnqualifiedId{*this, nestedNameSpecifier, unqualifiedId,
-                                    checkTemplates},
+                                    checkTemplates, resolvedType},
                unqualifiedId);
 }
 
@@ -253,8 +224,7 @@ auto Binder::ResolveUnqualifiedId::isDependentTypeArgument(
       if (!alias->type()) return true;
       if (isDependent(unit, alias->type())) return true;
     }
-    if (isDependentNestedNameSpecifier(binder.control(), binder.scope(),
-                                       named->nestedNameSpecifier)) {
+    if (isDependentNestedNameSpecifier(named->nestedNameSpecifier)) {
       return true;
     }
 
@@ -306,9 +276,9 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
     return nullptr;
   }
 
-  auto instance = ASTRewriter::instantiate(
-      binder.unit_, templateId->templateArgumentList, classSymbol,
-      templateId->identifierLoc);
+  auto instance =
+      ASTRewriter::instantiate(binder.unit_, templateId->templateArgumentList,
+                               classSymbol, templateId->identifierLoc);
 
   if (instance) return instance;
   if (!classSymbol->templateDeclaration()) return instance;
@@ -339,9 +309,9 @@ auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
     return nullptr;
   }
 
-  return ASTRewriter::instantiate(
-      binder.unit_, templateId->templateArgumentList, typeAliasSymbol,
-      templateId->identifierLoc);
+  return ASTRewriter::instantiate(binder.unit_,
+                                  templateId->templateArgumentList,
+                                  typeAliasSymbol, templateId->identifierLoc);
 }
 
 auto Binder::ResolveUnqualifiedId::resolveBuiltinMakeIntegerSeq(
@@ -476,11 +446,16 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
 
   if (shouldKeepTemplateIdAsDependent(templateId)) return templateId->symbol;
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
+  auto resolvedSymbol = templateId->symbol;
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(resolvedSymbol)) {
+    resolvedSymbol = injected->classSymbol();
+  }
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(resolvedSymbol)) {
     return resolveClassTemplateId(templateId, classSymbol);
   }
 
-  if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
+  if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(resolvedSymbol)) {
     return resolveTypeAliasTemplateId(templateId, typeAliasSymbol);
   }
 
@@ -488,10 +463,19 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
 }
 
 auto Binder::ResolveUnqualifiedId::operator()(NameIdAST* nameId) -> Symbol* {
-  auto symbol =
-      lookupType(binder.scope(), nestedNameSpecifier, nameId->identifier);
+  Symbol* symbol = nullptr;
+  if (nestedNameSpecifier && nestedNameSpecifier->symbol)
+    symbol =
+        qualifiedLookupType(nestedNameSpecifier->symbol, nameId->identifier);
+  else {
+    symbol = resolvedType;
+  }
 
   if (!is_type(symbol)) return nullptr;
+
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol)) {
+    if (auto cls = injected->classSymbol()) return cls;
+  }
 
   return symbol;
 }

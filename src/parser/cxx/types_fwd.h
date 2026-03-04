@@ -105,12 +105,26 @@ enum class CvQualifiers {
   return CvQualifiers(std::to_underlying(a) & std::to_underlying(b));
 }
 
+[[nodiscard]] inline auto operator~(CvQualifiers a) -> CvQualifiers {
+  return CvQualifiers(~std::to_underlying(a) &
+                      std::to_underlying(CvQualifiers::kConstVolatile));
+}
+
+[[nodiscard]] inline auto operator<(CvQualifiers a, CvQualifiers b) -> bool {
+  return std::to_underlying(a) < std::to_underlying(b);
+}
+
 [[nodiscard]] inline auto is_const(CvQualifiers cv) -> bool {
   return (cv & CvQualifiers::kConst) != CvQualifiers::kNone;
 }
 
 [[nodiscard]] inline auto is_volatile(CvQualifiers cv) -> bool {
   return (cv & CvQualifiers::kVolatile) != CvQualifiers::kNone;
+}
+
+[[nodiscard]] inline auto cv_is_subset_of(CvQualifiers a, CvQualifiers b)
+    -> bool {
+  return (a & ~b) == CvQualifiers::kNone;
 }
 
 enum class RefQualifier {

@@ -41,13 +41,16 @@ auto X<T>::self() -> X* {
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:            block
 // CHECK-NEXT:              variable static constexpr const char __func__[2]
+// CHECK-NEXT:    injected class name X
 // CHECK-NEXT:    function const ::X* self() const
 // CHECK-NEXT:      [redeclarations]
-// CHECK-NEXT:        function const ::X* self() const
+// CHECK-NEXT:        template function const ::X* self() const
+// CHECK-NEXT:          parameter typename<0, 0> T
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[5]
 // CHECK-NEXT:    function ::X* self()
 // CHECK-NEXT:      [redeclarations]
-// CHECK-NEXT:        function ::X* self()
+// CHECK-NEXT:        template function ::X* self()
+// CHECK-NEXT:          parameter typename<0, 0> T
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[5]

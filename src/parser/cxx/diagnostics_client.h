@@ -48,6 +48,15 @@ class DiagnosticsClient {
   [[nodiscard]] auto fatalErrors() const -> bool { return fatalErrors_; }
   void setFatalErrors(bool fatalErrors) { fatalErrors_ = fatalErrors; }
 
+  [[nodiscard]] auto errorCount() const -> int { return errorCount_; }
+
+  [[nodiscard]] auto errorLimit() const -> int { return errorLimit_; }
+  void setErrorLimit(int errorLimit) { errorLimit_ = errorLimit; }
+
+  [[nodiscard]] auto errorLimitReached() const -> bool {
+    return errorLimit_ > 0 && errorCount_ >= errorLimit_;
+  }
+
   [[nodiscard]] auto shouldReportErrors() const -> bool {
     return !blockErrors_;
   }
@@ -60,6 +69,11 @@ class DiagnosticsClient {
   void report(const Token& token, Severity severity, std::string message) {
     if (blockErrors_) return;
 
+    if (severity == Severity::Error || severity == Severity::Fatal) {
+      ++errorCount_;
+      if (errorLimit_ > 0 && errorCount_ > errorLimit_) return;
+    }
+
     Diagnostic diag{severity, token, std::move(message)};
 
     report(diag);
@@ -67,6 +81,8 @@ class DiagnosticsClient {
 
  private:
   Preprocessor* preprocessor_ = nullptr;
+  int errorCount_ = 0;
+  int errorLimit_ = 0;
   bool blockErrors_ = false;
   bool fatalErrors_ = false;
 };

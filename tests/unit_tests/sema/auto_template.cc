@@ -1,4 +1,5 @@
-// RUN: %cxx -verify -fcheck %s
+// clang-format off
+// RUN: %cxx -verify -fcheck -dump-symbols %s | %filecheck %s
 
 extern "C" {
 int printf(const char* format, ...);
@@ -6,6 +7,7 @@ int printf(const char* format, ...);
 
 auto id(auto x) -> decltype(x) { return x; }
 
+// x and y are dependent — operator+ is resolved during instantiation
 auto add(auto x, auto y) -> decltype(x + y) { return x + y; }
 
 auto id_ref(auto& x) -> decltype(x) { return x; }
@@ -30,3 +32,30 @@ auto main() -> int {
   w.apply(42);
   return 0;
 }
+
+// CHECK: template function type-param<0, 0> id(type-param<0, 0>)
+// CHECK-NEXT:   parameter typename<0, 0> __auto_0
+// CHECK:   [specializations]
+// CHECK-NEXT:     function type-param<0, 0> id(int)
+// CHECK:     function type-param<0, 0> id(double)
+
+// CHECK: template function type-param<0, 0> add(type-param<0, 0>, type-param<1, 0>)
+// CHECK-NEXT:   parameter typename<0, 0> __auto_0
+// CHECK-NEXT:   parameter typename<1, 0> __auto_1
+// CHECK:   [specializations]
+// CHECK-NEXT:     function type-param<0, 0> add(int, int)
+
+// CHECK: template function type-param<0, 0>& id_ref(type-param<0, 0>&)
+// CHECK-NEXT:   parameter typename<0, 0> __auto_0
+// CHECK:   [specializations]
+// CHECK-NEXT:     function type-param<0, 0>& id_ref(int&)
+
+// CHECK: template function type-param<0, 0>& id_cref(type-param<0, 0>&)
+// CHECK-NEXT:   parameter typename<0, 0> __auto_0
+// CHECK:   [specializations]
+// CHECK-NEXT:     function type-param<0, 0>& id_cref(const int&)
+
+// CHECK: template function inline type-param<0, 0> apply(type-param<0, 0>)
+// CHECK-NEXT:     parameter typename<0, 0> __auto_0
+// CHECK:     [specializations]
+// CHECK-NEXT:       function type-param<0, 0> apply(int)

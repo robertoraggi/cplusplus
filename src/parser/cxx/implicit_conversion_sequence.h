@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <vector>
@@ -27,23 +28,6 @@
 namespace cxx {
 
 class FunctionSymbol;
-
-enum class ImplicitConversionKind {
-  kIdentity,
-  kLValueToRValue,
-  kArrayToPointer,
-  kFunctionToPointer,
-  kIntegralPromotion,
-  kFloatingPointPromotion,
-  kIntegralConversion,
-  kFloatingPointConversion,
-  kFloatingIntegralConversion,
-  kPointerConversion,
-  kPointerToMemberConversion,
-  kBooleanConversion,
-  kQualificationConversion,
-  kUserDefinedConversion,
-};
 
 enum class ConversionRank {
   kNone,
@@ -63,7 +47,7 @@ struct ImplicitConversionSequence {
   ConversionSequenceKind kind = ConversionSequenceKind::kStandard;
 
   struct Step {
-    ImplicitConversionKind kind;
+    ImplicitCastKind kind;
     const Type* type = nullptr;
   };
 
@@ -73,6 +57,8 @@ struct ImplicitConversionSequence {
   ConversionRank secondStandardConversionRank = ConversionRank::kNone;
 
   bool bindsToRvalueRef = false;
+  bool bindsToReference = false;
+  CvQualifiers referenceCv = CvQualifiers::kNone;
 
   [[nodiscard]] auto isBetterThan(const ImplicitConversionSequence& other) const
       -> bool {
@@ -87,6 +73,11 @@ struct ImplicitConversionSequence {
 
       if (bindsToRvalueRef != other.bindsToRvalueRef) {
         return bindsToRvalueRef;
+      }
+
+      if (bindsToReference && other.bindsToReference &&
+          referenceCv != other.referenceCv) {
+        return referenceCv < other.referenceCv;
       }
 
       return false;
