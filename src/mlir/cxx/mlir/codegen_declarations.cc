@@ -272,8 +272,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
             }
           } else if (auto equal =
                          ast_cast<EqualInitializerAST>(node->initializer)) {
-            if (auto braced =
-                    ast_cast<BracedInitListAST>(equal->expression)) {
+            if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
               for (auto it = braced->expressionList; it; it = it->next) {
                 args.push_back(gen.expression(it->value));
               }
@@ -491,89 +490,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   if (gen.debugInfo_) {
-    mlir::DistinctAttr id =
-        mlir::DistinctAttr::create(gen.builder_.getUnitAttr());
-
-    mlir::LLVM::DIScopeAttr scope;
-
-    if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
-      auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
-      if (classSymbol) {
-        scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
-            gen.convertDebugType(classSymbol->type()));
-      }
-    }
-
-    mlir::StringAttr name = mlir::StringAttr::get(ctx, func.getSymName());
-
-    mlir::StringAttr linkageName = name;
-
-    auto declaratorId = getDeclaratorId(ast->declarator);
-
-    mlir::LLVM::DIFileAttr fileAttr;
-    unsigned line = 0;
-    unsigned scopeLine = 0;
-    std::string_view fileName;
-
-    if (declaratorId && declaratorId->firstSourceLocation()) {
-      auto funcLoc =
-          gen.unit_->tokenStartPosition(declaratorId->firstSourceLocation());
-      fileAttr = gen.getFileAttr(funcLoc.fileName);
-      line = funcLoc.line;
-      fileName = funcLoc.fileName;
-    }
-
-    if (ast->functionBody) {
-      auto bodyLoc = ast->functionBody->firstSourceLocation();
-      if (bodyLoc) {
-        scopeLine = gen.unit_->tokenStartPosition(bodyLoc).line;
-      }
-    }
-
-    if (!fileAttr) {
-      auto classLoc = functionSymbol->location();
-      if (classLoc) {
-        auto pos = gen.unit_->tokenStartPosition(classLoc);
-        fileAttr = gen.getFileAttr(pos.fileName);
-        line = pos.line;
-        scopeLine = pos.line;
-        fileName = pos.fileName;
-      } else {
-        fileAttr = gen.getFileAttr(std::string_view{""});
-        fileName = "";
-      }
-    }
-
-    mlir::LLVM::DISubprogramFlags subprogramFlags =
-        mlir::LLVM::DISubprogramFlags::Definition;
-
-    mlir::SmallVector<mlir::LLVM::DITypeAttr> signatureType;
-    signatureType.push_back(gen.convertDebugType(functionType->returnType()));
-    if (auto classType = type_cast<ClassType>(functionSymbol->parent()->type());
-        classType && !functionSymbol->isStatic()) {
-      signatureType.push_back(
-          gen.convertDebugType(gen.control()->add_pointer(classType)));
-    }
-    for (auto paramType : functionType->parameterTypes()) {
-      signatureType.push_back(gen.convertDebugType(paramType));
-    }
-
-    mlir::LLVM::DISubroutineTypeAttr type =
-        mlir::LLVM::DISubroutineTypeAttr::get(ctx, signatureType);
-
-    mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
-    mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
-
-    auto compileUnitAttr = gen.getCompileUnitAttr(fileName);
-
-    auto subprogram = mlir::LLVM::DISubprogramAttr::get(
-        ctx, id, compileUnitAttr, scope, name, linkageName,
-        compileUnitAttr.getFile(), line, scopeLine, subprogramFlags, type,
-        retainedNodes, annotations);
-
-    func->setLoc(mlir::FusedLoc::get({loc}, subprogram, ctx));
-
-    gen.diScopes_[functionSymbol] = subprogram;
+    gen.buildSubprogramAttr(functionSymbol, ast, func, loc);
   }
 
   gen.returnType_ = returnType;

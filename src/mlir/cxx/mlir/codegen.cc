@@ -36,6 +36,7 @@
 #include <cxx/views/symbols.h>
 
 // mlir
+#include <cxx/decl.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -299,6 +300,10 @@ auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
     return getOrCreateDIScope(symbol->parent());
 
   if (auto* block = symbol_cast<BlockSymbol>(symbol)) {
+    if (symbol_cast<FunctionParametersSymbol>(block->parent()) ||
+        symbol_cast<FunctionSymbol>(block->parent()))
+      return getOrCreateDIScope(block->parent());
+
     auto parentScope = getOrCreateDIScope(block->parent());
     if (!parentScope) return {};
     auto [filename, line, column] =
@@ -374,6 +379,103 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, const Type* type,
       ctx, scope, nameAttr, file, line, arg, 0, typeAttr, flags);
 
   allocaOp->setAttr("cxx.di_local", localVar);
+}
+
+auto Codegen::buildSubroutineTypeAttr(FunctionSymbol* functionSymbol)
+    -> mlir::LLVM::DISubroutineTypeAttr {
+  auto functionType = type_cast<FunctionType>(functionSymbol->type());
+
+  mlir::SmallVector<mlir::LLVM::DITypeAttr> signatureType;
+  signatureType.push_back(convertDebugType(functionType->returnType()));
+
+  if (auto classType = type_cast<ClassType>(functionSymbol->parent()->type());
+      classType && !functionSymbol->isStatic()) {
+    signatureType.push_back(
+        convertDebugType(control()->add_pointer(classType)));
+  }
+
+  for (auto paramType : functionType->parameterTypes()) {
+    signatureType.push_back(convertDebugType(paramType));
+  }
+
+  return mlir::LLVM::DISubroutineTypeAttr::get(context_, signatureType);
+}
+
+void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
+                                  FunctionDefinitionAST* ast,
+                                  mlir::cxx::FuncOp func, mlir::Location loc) {
+  auto ctx = context_;
+
+  mlir::DistinctAttr id = mlir::DistinctAttr::create(builder_.getUnitAttr());
+
+  mlir::LLVM::DIScopeAttr scope;
+
+  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+    if (classSymbol) {
+      scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
+          convertDebugType(classSymbol->type()));
+    }
+  }
+
+  mlir::StringAttr name = mlir::StringAttr::get(ctx, func.getSymName());
+  mlir::StringAttr linkageName = name;
+
+  auto declaratorId = getDeclaratorId(ast->declarator);
+
+  mlir::LLVM::DIFileAttr fileAttr;
+  unsigned line = 0;
+  unsigned scopeLine = 0;
+  std::string_view fileName;
+
+  if (declaratorId && declaratorId->firstSourceLocation()) {
+    auto funcLoc =
+        unit_->tokenStartPosition(declaratorId->firstSourceLocation());
+    fileAttr = getFileAttr(funcLoc.fileName);
+    line = funcLoc.line;
+    fileName = funcLoc.fileName;
+  }
+
+  if (ast->functionBody) {
+    auto bodyLoc = ast->functionBody->firstSourceLocation();
+    if (bodyLoc) {
+      scopeLine = unit_->tokenStartPosition(bodyLoc).line;
+    }
+  }
+
+  if (!fileAttr) {
+    auto classLoc = functionSymbol->location();
+    if (classLoc) {
+      auto pos = unit_->tokenStartPosition(classLoc);
+      fileAttr = getFileAttr(pos.fileName);
+      line = pos.line;
+      scopeLine = pos.line;
+      fileName = pos.fileName;
+    } else {
+      fileAttr = getFileAttr(std::string_view{""});
+      fileName = "";
+    }
+  }
+
+  if (!scope) scope = fileAttr;
+
+  auto subprogramFlags = mlir::LLVM::DISubprogramFlags::Definition;
+
+  auto type = buildSubroutineTypeAttr(functionSymbol);
+
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
+
+  auto compileUnitAttr = getCompileUnitAttr(fileName);
+
+  auto subprogram = mlir::LLVM::DISubprogramAttr::get(
+      ctx, id, compileUnitAttr, scope, name, linkageName,
+      compileUnitAttr.getFile(), line, scopeLine, subprogramFlags, type,
+      retainedNodes, annotations);
+
+  func->setLoc(mlir::FusedLoc::get({loc}, subprogram, ctx));
+
+  diScopes_[functionSymbol] = subprogram;
 }
 
 auto Codegen::newTemp(const Type* type, SourceLocation loc)

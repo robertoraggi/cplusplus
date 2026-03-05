@@ -1574,5 +1574,9 @@ auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext& context)
   auto llvmModule = mlir::translateModuleToLLVMIR(module, context);
   module->getContext()->loadDialect<mlir::LLVM::LLVMDialect>();
 
+  if (llvmModule) {
+    llvmModule->addModuleFlag(llvm::Module::Max, "Dwarf Version", 5);
+  }
+
   return llvmModule;
 }

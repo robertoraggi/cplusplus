@@ -388,6 +388,13 @@ class Codegen {
   [[nodiscard]] auto getOrCreateDIScope(Symbol* symbol)
       -> mlir::LLVM::DIScopeAttr;
 
+  void buildSubprogramAttr(FunctionSymbol* functionSymbol,
+                           FunctionDefinitionAST* ast, mlir::cxx::FuncOp func,
+                           mlir::Location loc);
+
+  [[nodiscard]] auto buildSubroutineTypeAttr(FunctionSymbol* functionSymbol)
+      -> mlir::LLVM::DISubroutineTypeAttr;
+
   mlir::MLIRContext* context_;
   mlir::OpBuilder builder_;
   mlir::ModuleOp module_;
