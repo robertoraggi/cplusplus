@@ -3045,6 +3045,9 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
   d->mainSourceFileId_ = sourceFile->id;
 
   auto dirpath = fs::path(sourceFile->fileName).parent_path();
+  if (dirpath.empty()) {
+    dirpath = ".";
+  }
 
   Private::Cursor mainCursor;
   mainCursor.kind = Private::Cursor::FileCursor;
