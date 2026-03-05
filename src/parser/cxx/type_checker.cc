@@ -965,6 +965,27 @@ auto TypeChecker::Visitor::resolve_function_type(CallExpressionAST* ast)
     -> const FunctionType* {
   auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
 
+  if (functionType) {
+    // If the base expression has a function type (not pointer-to-function),
+    // check whether it's a named function reference. If not, apply
+    // function-to-pointer decay so codegen sees a pointer-to-function.
+    auto* stripped = ast->baseExpression;
+
+    while (auto* nested = ast_cast<NestedExpressionAST>(stripped))
+      stripped = nested->expression;
+
+    bool isDirectCall = false;
+
+    if (auto* idExpr = ast_cast<IdExpressionAST>(stripped))
+      isDirectCall = symbol_cast<FunctionSymbol>(idExpr->symbol) != nullptr;
+    else if (auto* memberExpr = ast_cast<MemberExpressionAST>(stripped))
+      isDirectCall = symbol_cast<FunctionSymbol>(memberExpr->symbol) != nullptr;
+
+    if (!isDirectCall) {
+      (void)stdconv_.functionToPointer(ast->baseExpression);
+    }
+  }
+
   if (!functionType && control()->is_pointer(ast->baseExpression->type)) {
     functionType = type_cast<FunctionType>(
         control()->get_element_type(ast->baseExpression->type));

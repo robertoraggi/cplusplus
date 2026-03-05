@@ -174,6 +174,90 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
   return std::nullopt;
 }
 
+auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
+                                 const Type* type, const ConstValue& value)
+    -> mlir::Value {
+  auto interp = ASTInterpreter{unit_};
+
+  if (control()->is_integral_or_unscoped_enum(type)) {
+    auto mlirType = convertType(type);
+    auto constValue = interp.toInt(value);
+    return mlir::arith::ConstantOp::create(
+        builder, loc, mlirType,
+        builder.getIntegerAttr(mlirType, constValue.value_or(0)));
+  }
+
+  if (control()->is_floating_point(type)) {
+    auto mlirType = convertType(type);
+    auto floatType = mlir::cast<mlir::FloatType>(mlirType);
+    auto constValue = interp.toDouble(value);
+    return mlir::arith::ConstantOp::create(
+        builder, loc, floatType,
+        mlir::FloatAttr::get(floatType, constValue.value_or(0.0)));
+  }
+
+  if (control()->is_pointer(type)) {
+    auto ptrType = convertType(type);
+    return mlir::cxx::NullPtrConstantOp::create(
+        builder, loc, mlir::cast<mlir::cxx::PointerType>(ptrType));
+  }
+
+  if (control()->is_class_or_union(type)) {
+    auto classType = type_cast<ClassType>(control()->remove_cv(type));
+    auto mlirType = convertType(type);
+
+    if (classType && classType->isUnion()) {
+      // Union initialization: check if the first member value is zero
+      if (auto initListPtr =
+              std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+        auto& initList = *initListPtr;
+        if (!initList->elements.empty()) {
+          auto& [elemValue, elemType] = initList->elements[0];
+
+          // Check if the value is zero
+          bool isZero = false;
+          if (auto intVal = std::get_if<std::intmax_t>(&elemValue)) {
+            isZero = (*intVal == 0);
+          } else if (auto floatVal = std::get_if<float>(&elemValue)) {
+            isZero = (*floatVal == 0.0f);
+          } else if (auto doubleVal = std::get_if<double>(&elemValue)) {
+            isZero = (*doubleVal == 0.0);
+          }
+
+          if (isZero) {
+            return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
+          }
+
+          // bitcast the scalar value to the union type
+          auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
+          return mlir::cxx::BitcastOp::create(builder, loc, mlirType, elemVal);
+        }
+      }
+      return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
+    }
+
+    // Struct: undef + insertvalue per field
+    if (auto initListPtr =
+            std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+      auto& initList = *initListPtr;
+      mlir::Value result = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+      for (size_t i = 0; i < initList->elements.size(); ++i) {
+        auto& [elemValue, elemType] = initList->elements[i];
+        auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
+        result = mlir::cxx::InsertValueOp::create(
+            builder, loc, mlirType, result, elemVal, static_cast<int64_t>(i));
+      }
+      return result;
+    }
+
+    return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
+  }
+
+  // Fallback: zero
+  auto mlirType = convertType(type);
+  return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
+}
+
 void Codegen::branch(mlir::Location loc, mlir::Block* block,
                      mlir::ValueRange operands) {
   if (currentBlockMightHaveTerminator()) return;
@@ -539,6 +623,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   resultTypes.push_back(varType);
 
   mlir::Attribute initializer;
+  bool needsRegionInit = false;
 
   auto value = variableSymbol->constValue();
 
@@ -590,19 +675,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
             builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
       }
     } else if (control()->is_class(variableSymbol->type())) {
-      if (auto constArrayPtr =
-              std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
-        auto constArray = *constArrayPtr;
-        std::vector<mlir::Attribute> elements;
-
-        for (const auto& [elemValue, elemType] : constArray->elements) {
-          if (auto attr = constValueToAttr(elemValue, elemType)) {
-            elements.push_back(*attr);
-          }
-        }
-
-        initializer = builder_.getArrayAttr(elements);
-      }
+      needsRegionInit = true;
     }
   }
 
@@ -657,6 +730,16 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   auto var = mlir::cxx::GlobalOp::create(
       builder_, loc, mlir::TypeRange(), varType, isConstant,
       llvm::StringRef(name), initializer, linkageAttr);
+
+  if (needsRegionInit && value.has_value()) {
+    auto& region = var.getInitializer();
+    auto* block = new mlir::Block();
+    region.push_back(block);
+    mlir::OpBuilder initBuilder(block, block->begin());
+    auto result =
+        emitConstInitValue(initBuilder, loc, variableSymbol->type(), *value);
+    mlir::cxx::ReturnOp::create(initBuilder, loc, result);
+  }
 
   globalOps_.insert_or_assign(canonicalVar, var);
 

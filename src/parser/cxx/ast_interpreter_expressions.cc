@@ -1169,6 +1169,37 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       break;
     }
 
+    case TokenKind::T_TILDE: {
+      if (expressionResult.has_value() &&
+          control()->is_integral_or_unscoped_enum(ast->expression->type)) {
+        const auto sz = memoryLayout()->sizeOf(ast->expression->type);
+
+        if (sz <= 4) {
+          if (control()->is_unsigned(ast->expression->type)) {
+            return toValue(~toUInt32(expressionResult.value()));
+          }
+
+          return ExpressionResult(
+              static_cast<std::intmax_t>(~toInt32(expressionResult.value())));
+        }
+
+        if (control()->is_unsigned(ast->expression->type)) {
+          return toValue(~toUInt64(expressionResult.value()));
+        }
+
+        return ExpressionResult(~toInt64(expressionResult.value()));
+      }
+      break;
+    }
+
+    case TokenKind::T_PLUS: {
+      if (expressionResult.has_value() &&
+          control()->is_integral_or_unscoped_enum(ast->expression->type)) {
+        return expressionResult;
+      }
+      break;
+    }
+
     default:
       break;
   }  // switch

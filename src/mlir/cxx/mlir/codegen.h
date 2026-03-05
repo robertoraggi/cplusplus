@@ -319,6 +319,10 @@ class Codegen {
   [[nodiscard]] auto constValueToAttr(const ConstValue& value, const Type* type)
       -> std::optional<mlir::Attribute>;
 
+  [[nodiscard]] auto emitConstInitValue(mlir::OpBuilder& builder,
+                                        mlir::Location loc, const Type* type,
+                                        const ConstValue& value) -> mlir::Value;
+
   void branch(mlir::Location loc, mlir::Block* block,
               mlir::ValueRange operands = {});
 

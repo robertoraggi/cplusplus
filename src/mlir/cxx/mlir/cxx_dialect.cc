@@ -288,6 +288,12 @@ void GlobalOp::print(OpAsmPrinter& p) {
     p.printAttribute(*val);
   }
 
+  auto& region = getInitializer();
+  if (!region.empty()) {
+    p << ' ';
+    p.printRegion(region);
+  }
+
   p.printOptionalAttrDict(
       (*this)->getAttrs(),
       {"sym_name", "global_type", "constant", "value", "linkage_kind"});
