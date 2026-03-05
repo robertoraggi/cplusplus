@@ -725,6 +725,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
+  if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
+    return std::make_shared<ConstAddress>(func);
+  }
+
   return std::nullopt;
 }
 
@@ -1196,6 +1200,15 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       if (expressionResult.has_value() &&
           control()->is_integral_or_unscoped_enum(ast->expression->type)) {
         return expressionResult;
+      }
+      break;
+    }
+
+    case TokenKind::T_AMP: {
+      if (auto* idExpr = ast_cast<IdExpressionAST>(ast->expression)) {
+        if (idExpr->symbol) {
+          return std::make_shared<ConstAddress>(idExpr->symbol);
+        }
       }
       break;
     }
