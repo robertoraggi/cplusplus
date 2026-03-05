@@ -1363,13 +1363,10 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
   }
   if (control()->is_pointer(ast->baseExpression->type)) {
     auto loc = gen.getLocation(ast->firstSourceLocation());
-    auto ptrTy =
-        mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
-    auto elementTy = ptrTy.getElementType();
-    auto loadOp = mlir::cxx::LoadOp::create(
-        gen.builder_, loc, elementTy, expressionResult.value,
-        gen.getAlignment(ast->baseExpression->type));
     auto resultTy = gen.convertType(ast->baseExpression->type);
+    auto loadOp = mlir::cxx::LoadOp::create(
+        gen.builder_, loc, resultTy, expressionResult.value,
+        gen.getAlignment(ast->baseExpression->type));
     auto intTy = mlir::IntegerType::get(gen.context_, 32);
     auto oneOp = mlir::arith::ConstantOp::create(
         gen.builder_, loc, intTy,
@@ -1740,14 +1737,12 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrPointer(
       gen.builder_, loc, intTy,
       gen.builder_.getIntegerAttr(
           intTy, ast->op == TokenKind::T_MINUS_MINUS ? -1 : 1));
-  auto ptrTy =
-      mlir::cast<mlir::cxx::PointerType>(expressionResult.value.getType());
-  auto elementTy = ptrTy.getElementType();
+  auto resultType = gen.convertType(ast->expression->type);
   auto loadOp = mlir::cxx::LoadOp::create(
-      gen.builder_, loc, elementTy, expressionResult.value,
+      gen.builder_, loc, resultType, expressionResult.value,
       gen.getAlignment(ast->expression->type));
   auto addOp =
-      mlir::cxx::PtrAddOp::create(gen.builder_, loc, elementTy, loadOp, one);
+      mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultType, loadOp, one);
   mlir::cxx::StoreOp::create(gen.builder_, loc, addOp, expressionResult.value,
                              gen.getAlignment(ast->expression->type));
 
@@ -1755,7 +1750,7 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrPointer(
     return expressionResult;
   }
 
-  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, elementTy,
+  auto op = mlir::cxx::LoadOp::create(gen.builder_, loc, resultType,
                                       expressionResult.value,
                                       gen.getAlignment(ast->expression->type));
   return {op};
@@ -2327,6 +2322,7 @@ auto Codegen::ExpressionVisitor::emitPointerConversion(
 
   switch (ast->castKind) {
     case ImplicitCastKind::kFunctionToPointerConversion:
+    case ImplicitCastKind::kFunctionPointerConversion:
     case ImplicitCastKind::kQualificationConversion:
       return expressionResult;
 
@@ -2336,6 +2332,13 @@ auto Codegen::ExpressionVisitor::emitPointerConversion(
         auto op =
             mlir::cxx::NullPtrConstantOp::create(gen.builder_, loc, resultType);
 
+        return {op};
+      }
+
+      if (expressionResult.value &&
+          expressionResult.value.getType() != resultType) {
+        auto op = mlir::cxx::BitcastOp::create(gen.builder_, loc, resultType,
+                                               expressionResult.value);
         return {op};
       }
 
@@ -2465,6 +2468,7 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
       return emitNumericConversion(ast);
 
     case ImplicitCastKind::kFunctionToPointerConversion:
+    case ImplicitCastKind::kFunctionPointerConversion:
     case ImplicitCastKind::kArrayToPointerConversion:
     case ImplicitCastKind::kQualificationConversion:
     case ImplicitCastKind::kPointerConversion:
@@ -2723,9 +2727,15 @@ auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpPointer(
     mlir::Value right) -> ExpressionResult {
   auto mlirLoc = gen.getLocation(loc);
   switch (op) {
-    case TokenKind::T_PLUS:
+    case TokenKind::T_PLUS: {
+      auto base = left;
+      auto offset = right;
+      if (!mlir::isa<mlir::cxx::PointerType>(left.getType())) {
+        std::swap(base, offset);
+      }
       return {mlir::cxx::PtrAddOp::create(gen.builder_, mlirLoc, resultType,
-                                          left, right)};
+                                          base, offset)};
+    }
     case TokenKind::T_MINUS: {
       if (mlir::isa<mlir::cxx::PointerType>(right.getType())) {
         return {mlir::cxx::PtrDiffOp::create(

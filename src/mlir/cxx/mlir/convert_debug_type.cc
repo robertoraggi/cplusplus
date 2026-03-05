@@ -163,8 +163,7 @@ auto Codegen::ConvertDebugType::derivedType(unsigned tag, const Type* type,
       name.isTriviallyEmpty() ? mlir::StringAttr::get(context(), "")
                               : mlir::StringAttr::get(context(), name.str()),
       baseType, sizeInBits, alignInBits, offsetInBits, {},
-      /*extraData=*/{}
-  );
+      /*extraData=*/{});
 }
 
 auto Codegen::ConvertDebugType::compositeType(

@@ -145,6 +145,8 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
   );
 
+  let regions = (region AnyRegion:$initializer);
+
   let hasCustomAssemblyFormat = 1;
 }
 
@@ -158,7 +160,7 @@ def Cxx_VTableOp : Cxx_Op<"vtable"> {
   let hasCustomAssemblyFormat = 1;
 }
 
-def Cxx_ReturnOp : Cxx_Op<"return", [Pure, HasParent<"FuncOp">, Terminator]> {
+def Cxx_ReturnOp : Cxx_Op<"return", [Pure, Terminator]> {
   let arguments = (ins Variadic<AnyType>:$input);
 
   let assemblyFormat = "($input^ `:` type($input))? attr-dict";
@@ -268,6 +270,42 @@ def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
   let results = (outs Cxx_PointerType:$result);
 
   let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
+}
+
+def Cxx_BitcastOp : Cxx_Op<"bitcast"> {
+  let arguments = (ins AnyType:$value);
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
+}
+
+def Cxx_ZeroOp : Cxx_Op<"zero", [Pure]> {
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "attr-dict `:` type($result)";
+}
+
+def Cxx_UndefOp : Cxx_Op<"undef", [Pure]> {
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "attr-dict `:` type($result)";
+}
+
+def Cxx_InsertValueOp : Cxx_Op<"insertvalue", [AllTypesMatch<["container", "result"]>]> {
+  let arguments = (ins AnyType:$container, AnyType:$value, I64Attr:$position);
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$value `,` $container `[` $position `]` attr-dict `:` type($container) `,` type($value)";
+
+  let builders = [
+    OpBuilder<(ins "Type":$resultType, "Value":$container, "Value":$value, "int64_t":$position),
+    [{
+      build($_builder, $_state, resultType, container, value,
+            $_builder.getI64IntegerAttr(position));
+    }]>
+  ];
 }
 
 def Cxx_PtrToIntOp : Cxx_Op<"ptrtoint"> {

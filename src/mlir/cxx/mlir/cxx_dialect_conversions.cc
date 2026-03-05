@@ -271,8 +271,11 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
     auto linkage = convertLinkage(
         op.getLinkageKind().value_or(cxx::LinkageKind::External));
 
+    const auto hasRegionInit = !op.getInitializer().empty();
+
     Attribute value = adaptor.getValueAttr();
-    if (!value && linkage != LLVM::linkage::Linkage::External) {
+    if (!value && !hasRegionInit &&
+        linkage != LLVM::linkage::Linkage::External) {
       value = rewriter.getZeroAttr(elementType);
     }
 
@@ -295,14 +298,22 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
                               (isa<LLVM::LLVMStructType>(elementType) ||
                                isa<LLVM::LLVMArrayType>(elementType));
 
-    auto globalOp = LLVM::GlobalOp::create(
-        rewriter, op.getLoc(), elementType, op.getConstant(), linkage,
-        op.getSymName(),
-        (needsZeroPtrInit || needsWideStringInit || needsAggregateInit)
-            ? Attribute{}
-            : value);
+    auto globalOp =
+        LLVM::GlobalOp::create(rewriter, op.getLoc(), elementType,
+                               op.getConstant(), linkage, op.getSymName(),
+                               (needsZeroPtrInit || needsWideStringInit ||
+                                needsAggregateInit || hasRegionInit)
+                                   ? Attribute{}
+                                   : value);
 
-    if (needsZeroPtrInit) {
+    if (hasRegionInit) {
+      auto& llvmRegion = globalOp.getInitializerRegion();
+      rewriter.inlineRegionBefore(op.getInitializer(), llvmRegion,
+                                  llvmRegion.end());
+      if (failed(rewriter.convertRegionTypes(&llvmRegion, *typeConverter))) {
+        return failure();
+      }
+    } else if (needsZeroPtrInit) {
       auto& region = globalOp.getInitializerRegion();
       auto* block = rewriter.createBlock(&region);
       rewriter.setInsertionPointToStart(block);
@@ -847,13 +858,30 @@ class PtrAddOpLowering : public OpConversionPattern<cxx::PtrAddOp> {
           op, "failed to convert pointer addition result type");
     }
 
-    auto elementType = typeConverter->convertType(
-        dyn_cast<cxx::PointerType>(op.getBase().getType()).getElementType());
+    auto ptrType = dyn_cast<cxx::PointerType>(op.getType());
+    if (!ptrType) {
+      return rewriter.notifyMatchFailure(
+          op, "expected pointer result type for ptradd");
+    }
+
+    auto cxxElementType = ptrType.getElementType();
+
+    mlir::Type elementType;
+    if (cxxElementType && !isa<cxx::VoidType>(cxxElementType)) {
+      elementType = typeConverter->convertType(cxxElementType);
+    } else {
+      // treat void* and unknown pointer arithmetic like i8*
+      elementType = IntegerType::get(context, 8);
+    }
+
+    if (!elementType) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert element type for ptradd");
+    }
 
     SmallVector<LLVM::GEPArg> indices;
 
-    if (isa<cxx::ArrayType>(dyn_cast<cxx::PointerType>(op.getBase().getType())
-                                .getElementType())) {
+    if (cxxElementType && isa<cxx::ArrayType>(cxxElementType)) {
       indices.push_back(0);  // dereference the array pointer
     }
 
@@ -1050,6 +1078,120 @@ class PtrToIntOpLowering : public OpConversionPattern<cxx::PtrToIntOp> {
         op, LLVM::PtrToIntOp::create(rewriter, op.getLoc(), resultType,
                                      adaptor.getValue()));
 
+    return success();
+  }
+};
+
+class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::BitcastOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "failed to convert bitcast type");
+    }
+
+    auto inputType = adaptor.getValue().getType();
+
+    if (isa<LLVM::LLVMPointerType>(inputType) &&
+        isa<LLVM::LLVMPointerType>(resultType)) {
+      rewriter.replaceOp(op, adaptor.getValue());
+      return success();
+    }
+
+    if (isa<LLVM::LLVMStructType>(resultType) &&
+        !isa<LLVM::LLVMStructType>(inputType)) {
+      auto one =
+          LLVM::ConstantOp::create(rewriter, op.getLoc(), rewriter.getI32Type(),
+                                   rewriter.getI32IntegerAttr(1));
+
+      auto alloca = LLVM::AllocaOp::create(
+          rewriter, op.getLoc(), LLVM::LLVMPointerType::get(getContext()),
+          resultType, one, /*alignment=*/0);
+
+      LLVM::StoreOp::create(rewriter, op.getLoc(), adaptor.getValue(), alloca);
+
+      auto load =
+          LLVM::LoadOp::create(rewriter, op.getLoc(), resultType, alloca);
+
+      rewriter.replaceOp(op, load.getResult());
+
+      return success();
+    }
+
+    if (inputType == resultType) {
+      // nop
+      rewriter.replaceOp(op, adaptor.getValue());
+      return success();
+    }
+
+    // LLVM bitcast for other cases
+    rewriter.replaceOp(
+        op, LLVM::BitcastOp::create(rewriter, op.getLoc(), resultType,
+                                    adaptor.getValue()));
+    return success();
+  }
+};
+
+class ZeroOpLowering : public OpConversionPattern<cxx::ZeroOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::ZeroOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "failed to convert zero type");
+    }
+
+    rewriter.replaceOp(op,
+                       LLVM::ZeroOp::create(rewriter, op.getLoc(), resultType));
+    return success();
+  }
+};
+
+class UndefOpLowering : public OpConversionPattern<cxx::UndefOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::UndefOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op, "failed to convert undef type");
+    }
+
+    rewriter.replaceOp(
+        op, LLVM::UndefOp::create(rewriter, op.getLoc(), resultType));
+    return success();
+  }
+};
+
+class InsertValueOpLowering : public OpConversionPattern<cxx::InsertValueOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::InsertValueOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert insertvalue type");
+    }
+
+    rewriter.replaceOp(op, LLVM::InsertValueOp::create(
+                               rewriter, op.getLoc(), adaptor.getContainer(),
+                               adaptor.getValue(), op.getPosition()));
     return success();
   }
 };
@@ -1345,11 +1487,13 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       typeConverter, dataLayout, context);
 
   // cast operations
-  patterns.insert<ArrayToPointerOpLowering, PtrToIntOpLowering>(typeConverter,
-                                                                context);
+  patterns
+      .insert<ArrayToPointerOpLowering, PtrToIntOpLowering, BitcastOpLowering>(
+          typeConverter, context);
 
   // constant operations
-  patterns.insert<NullPtrConstantOpLowering>(typeConverter, context);
+  patterns.insert<NullPtrConstantOpLowering, ZeroOpLowering, UndefOpLowering,
+                  InsertValueOpLowering>(typeConverter, context);
 
   // pointer arithmetic operations
   patterns.insert<PtrAddOpLowering, PtrDiffOpLowering>(typeConverter,
