@@ -78,6 +78,10 @@ struct ConstValueHash {
     }
     return seed;
   }
+  auto operator()(const std::shared_ptr<ConstAddress>& value) const
+      -> std::size_t {
+    return std::hash<const void*>{}(value->symbol());
+  }
 };
 
 struct TemplateArgumentHash {

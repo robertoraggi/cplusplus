@@ -86,6 +86,11 @@ struct ArithmeticCast {
     return T{};
   }
 
+  auto operator()(const std::shared_ptr<ConstAddress>&) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
   auto operator()(auto value) const -> T { return static_cast<T>(value); }
 };
 
@@ -105,6 +110,11 @@ struct ASTInterpreter::ToBool {
   auto operator()(const std::shared_ptr<ConstObject>&) const
       -> std::optional<bool> {
     return std::nullopt;
+  }
+
+  auto operator()(const std::shared_ptr<ConstAddress>&) const
+      -> std::optional<bool> {
+    return true;
   }
 
   auto operator()(const auto& value) const -> std::optional<bool> {

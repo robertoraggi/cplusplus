@@ -37,6 +37,11 @@ void test_conditional(bool x) {
   static_assert(__is_same(int*, decltype(x ? int_ptr : nullptr)));
   static_assert(__is_same(int*, decltype(x ? nullptr : int_ptr)));
 
+  static_assert(__is_same(int*, decltype(x ? int_ptr : 0)));
+  static_assert(__is_same(int*, decltype(x ? 0 : int_ptr)));
+  static_assert(__is_same(void*, decltype(x ? void_ptr : 0)));
+  static_assert(__is_same(void*, decltype(x ? 0 : void_ptr)));
+
   static_assert(__is_same(void*, decltype(x ? void_ptr : int_ptr)));
   static_assert(__is_same(void*, decltype(x ? int_ptr : void_ptr)));
 
@@ -69,18 +74,18 @@ void test_conditional(bool x) {
 
   static_assert(__is_same(Base*, decltype(true ? b : d)));
 
-  char (*a10)[10];
-  char (*a100)[100];
-  char (*a)[];
-  const char (*ca)[];
+  char(*a10)[10];
+  char(*a100)[100];
+  char(*a)[];
+  const char(*ca)[];
 
   // clang-format off
   // expected-error@1 {{left operand to ? is 'char (*)[10]', but right operand is of type 'char (*)[100]'}}
   x ? a10 : a100;
   // clang-format on
 
-  static_assert(__is_same(char (*&)[10], decltype(x ? a10 : a10)));
-  static_assert(__is_same(const char (*)[], decltype(x ? a10 : a)));
-  static_assert(__is_same(char (*&)[], decltype(x ? a : a)));
-  static_assert(__is_same(const char (*)[], decltype(x ? a : ca)));
+  static_assert(__is_same(char(*&)[10], decltype(x ? a10 : a10)));
+  static_assert(__is_same(const char(*)[], decltype(x ? a10 : a)));
+  static_assert(__is_same(char(*&)[], decltype(x ? a : a)));
+  static_assert(__is_same(const char(*)[], decltype(x ? a : ca)));
 }

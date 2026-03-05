@@ -155,7 +155,7 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
       str.push_back('\0');
       return builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
     }
-    return builder_.getUnitAttr();
+    return std::nullopt;
   }
 
   if (control()->is_array(type) || control()->is_class(type)) {
@@ -166,6 +166,8 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
       for (const auto& [elemValue, elemType] : constArray->elements) {
         if (auto attr = constValueToAttr(elemValue, elemType)) {
           elements.push_back(*attr);
+        } else {
+          return std::nullopt;
         }
       }
       return builder_.getArrayAttr(elements);
@@ -199,8 +201,49 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
 
   if (control()->is_pointer(type)) {
     auto ptrType = convertType(type);
-    return mlir::cxx::NullPtrConstantOp::create(
-        builder, loc, mlir::cast<mlir::cxx::PointerType>(ptrType));
+    auto mlirPtrType = mlir::cast<mlir::cxx::PointerType>(ptrType);
+
+    // Check if the value is a ConstAddress, address-of variable or function.
+    if (auto addrPtr = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
+      auto* symbol = (*addrPtr)->symbol();
+      if (auto varSym = symbol_cast<VariableSymbol>(symbol)) {
+        if (auto glo = findOrCreateGlobal(symbol)) {
+          return mlir::cxx::AddressOfOp::create(builder, loc, mlirPtrType,
+                                                glo->getSymName());
+        }
+      } else if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
+        auto funcOp = findOrCreateFunction(funcSym);
+        return mlir::cxx::AddressOfOp::create(builder, loc, mlirPtrType,
+                                              funcOp.getSymName());
+      }
+    }
+
+    // Handle string literal used as a pointer value.
+    if (auto strLitPtr = std::get_if<const StringLiteral*>(&value)) {
+      auto stringLiteral = *strLitPtr;
+      stringLiteral->initialize(stringLiteral->encoding());
+      std::string str(stringLiteral->stringValue());
+      str.push_back('\0');
+
+      auto i8Type = mlir::IntegerType::get(context_, 8);
+      auto arrayType = mlir::cxx::ArrayType::get(context_, i8Type, str.size());
+      auto strAttr =
+          builder.getStringAttr(llvm::StringRef(str.data(), str.size()));
+      auto strName = builder.getStringAttr(newUniqueSymbolName(".str"));
+
+      {
+        auto guard = mlir::OpBuilder::InsertionGuard(builder);
+        builder.setInsertionPointToStart(module_.getBody());
+        auto linkage = mlir::cxx::LinkageKindAttr::get(
+            context_, mlir::cxx::LinkageKind::Internal);
+        mlir::cxx::GlobalOp::create(builder, loc, mlir::TypeRange(), arrayType,
+                                    true, strName.getValue(), strAttr, linkage);
+      }
+
+      return mlir::cxx::AddressOfOp::create(builder, loc, mlirPtrType, strName);
+    }
+
+    return mlir::cxx::NullPtrConstantOp::create(builder, loc, mlirPtrType);
   }
 
   if (control()->is_class_or_union(type)) {
@@ -251,6 +294,23 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
       return result;
     }
 
+    return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
+  }
+
+  if (control()->is_array(type)) {
+    auto mlirType = convertType(type);
+    if (auto initListPtr =
+            std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+      auto& initList = *initListPtr;
+      mlir::Value result = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+      for (size_t i = 0; i < initList->elements.size(); ++i) {
+        auto& [elemValue, elemType] = initList->elements[i];
+        auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
+        result = mlir::cxx::InsertValueOp::create(
+            builder, loc, mlirType, result, elemVal, static_cast<int64_t>(i));
+      }
+      return result;
+    }
     return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
   }
 
@@ -742,13 +802,22 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
               std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
         auto constArray = *constArrayPtr;
         std::vector<mlir::Attribute> elements;
+        bool allConverted = true;
 
         for (const auto& [elemValue, elemType] : constArray->elements) {
           if (auto attr = constValueToAttr(elemValue, elemType)) {
             elements.push_back(*attr);
+          } else {
+            allConverted = false;
+            break;
           }
         }
-        initializer = builder_.getArrayAttr(elements);
+
+        if (allConverted) {
+          initializer = builder_.getArrayAttr(elements);
+        } else {
+          needsRegionInit = true;
+        }
       } else if (auto constStringPtr =
                      std::get_if<const StringLiteral*>(&*value)) {
         auto stringLiteral = *constStringPtr;
@@ -778,6 +847,12 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
       }
     } else if (control()->is_class(variableSymbol->type())) {
       needsRegionInit = true;
+    } else if (control()->is_pointer(variableSymbol->type())) {
+      if (auto attr = constValueToAttr(*value, variableSymbol->type())) {
+        initializer = *attr;
+      } else {
+        needsRegionInit = true;
+      }
     }
   }
 

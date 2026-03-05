@@ -2028,6 +2028,15 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
     if (srcPtr && tgtPtr &&
         casts_away_constness(srcPtr->elementType(), tgtPtr->elementType()))
       return false;
+    if (!control()->is_same(control()->remove_cv(sourceType),
+                            control()->remove_cv(targetType))) {
+      auto cast = ImplicitCastExpressionAST::create(arena());
+      cast->castKind = ImplicitCastKind::kPointerConversion;
+      cast->expression = expression;
+      cast->type = targetType;
+      cast->valueCategory = ValueCategory::kPrValue;
+      expression = cast;
+    }
     return true;
   }
 
@@ -2623,8 +2632,18 @@ auto TypeChecker::Visitor::check_reinterpret_cast_permissive(
       control()->is_pointer(targetType))
     return true;
 
-  if (control()->is_pointer(sourceType) && control()->is_pointer(targetType))
+  if (control()->is_pointer(sourceType) && control()->is_pointer(targetType)) {
+    if (!control()->is_same(control()->remove_cv(sourceType),
+                            control()->remove_cv(targetType))) {
+      auto cast = ImplicitCastExpressionAST::create(arena());
+      cast->castKind = ImplicitCastKind::kPointerConversion;
+      cast->expression = expression;
+      cast->type = targetType;
+      cast->valueCategory = ValueCategory::kPrValue;
+      expression = cast;
+    }
     return true;
+  }
 
   if (control()->is_member_pointer(sourceType) &&
       control()->is_member_pointer(targetType))
@@ -3035,6 +3054,20 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
     ast->valueCategory = ValueCategory::kPrValue;
 
     if (!ast->type) return false;
+
+    auto insert_pointer_cast = [&](ExpressionAST*& expr) {
+      if (!control()->is_same(expr->type, ast->type)) {
+        auto cast = ImplicitCastExpressionAST::create(arena());
+        cast->castKind = ImplicitCastKind::kPointerConversion;
+        cast->expression = expr;
+        cast->type = ast->type;
+        cast->valueCategory = ValueCategory::kPrValue;
+        expr = cast;
+      }
+    };
+
+    insert_pointer_cast(ast->iftrueExpression);
+    insert_pointer_cast(ast->iffalseExpression);
 
     return true;
   };

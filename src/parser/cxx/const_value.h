@@ -38,11 +38,13 @@ namespace cxx {
 class Meta;
 class InitializerList;
 class ConstObject;
+class ConstAddress;
 
-using ConstValue = std::variant<std::intmax_t, const StringLiteral*, float,
-                                double, long double, std::shared_ptr<Meta>,
-                                std::shared_ptr<InitializerList>,
-                                std::shared_ptr<ConstObject>>;
+using ConstValue =
+    std::variant<std::intmax_t, const StringLiteral*, float, double,
+                 long double, std::shared_ptr<Meta>,
+                 std::shared_ptr<InitializerList>, std::shared_ptr<ConstObject>,
+                 std::shared_ptr<ConstAddress>>;
 
 class InitializerList {
  public:
@@ -110,6 +112,16 @@ class Meta {
   };
 
   std::variant<const Type*, const Symbol*, ConstExpr> value;
+};
+
+class ConstAddress {
+ public:
+  explicit ConstAddress(Symbol* symbol) : symbol_(symbol) {}
+
+  [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
+
+ private:
+  Symbol* symbol_ = nullptr;
 };
 
 }  // namespace cxx
