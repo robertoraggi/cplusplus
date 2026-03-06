@@ -38,6 +38,7 @@
 // mlir
 #include <cxx/decl.h>
 #include <llvm/BinaryFormat/Dwarf.h>
+#include <llvm/TargetParser/Triple.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
@@ -63,6 +64,13 @@ static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
     }
   }
   return false;
+}
+
+static auto targetNeedsAppleNameTable(mlir::ModuleOp module) -> bool {
+  auto tripleAttr = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
+  if (!tripleAttr) return false;
+  llvm::Triple triple(tripleAttr.getValue());
+  return triple.isAppleMachO();
 }
 
 Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
@@ -946,8 +954,9 @@ auto Codegen::getCompileUnitAttr(std::string_view filename)
   mlir::LLVM::DINameTableKind nameTableKind =
       mlir::LLVM::DINameTableKind::Default;
 
-  // for apple triple
-  nameTableKind = mlir::LLVM::DINameTableKind::Apple;
+  if (targetNeedsAppleNameTable(module_)) {
+    nameTableKind = mlir::LLVM::DINameTableKind::Apple;
+  }
 
   auto compileUnit = mlir::LLVM::DICompileUnitAttr::get(
       distinct, sourceLanguage, fileAttr, producer, isOptimized, emissionKind,

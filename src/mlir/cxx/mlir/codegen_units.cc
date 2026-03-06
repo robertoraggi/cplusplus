@@ -169,8 +169,6 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   auto ctx = gen.context_;
 
-  auto compileUnit = gen.getCompileUnitAttr(gen.unit_->fileName());
-
   auto loc = mlir::FileLineColLoc::get(ctx, gen.unit_->fileName(), 0, 0);
 
   auto module =
@@ -213,6 +211,8 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
                             llvmDataLayout.getStringRepresentation()));
 
   std::swap(gen.module_, module);
+
+  auto compileUnit = gen.getCompileUnitAttr(gen.unit_->fileName());
 
   visitGlobals(gen.unit_->globalScope());
 
