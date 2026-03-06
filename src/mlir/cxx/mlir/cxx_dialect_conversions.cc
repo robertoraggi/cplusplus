@@ -93,7 +93,6 @@ static auto getOrCreateComdat(OpBuilder& rewriter, ModuleOp module,
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
     comdatOp = LLVM::ComdatOp::create(rewriter, module.getLoc(), "__comdat");
-    comdatOp.getBody().emplaceBlock();
   }
 
   auto& comdatBlock = comdatOp.getBody().front();
