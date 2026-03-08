@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/binder.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -307,12 +308,13 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
   ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 
   // decay the type of the parameters
-  if (control()->is_array(ast->type))
-    ast->type = control()->add_pointer(control()->remove_extent(ast->type));
-  else if (control()->is_function(ast->type))
-    ast->type = control()->add_pointer(ast->type);
-  else if (control()->is_scalar(ast->type))
-    ast->type = control()->remove_cv(ast->type);
+  if (unit_->typeTraits().is_array(ast->type))
+    ast->type = unit_->typeTraits().add_pointer(
+        unit_->typeTraits().remove_extent(ast->type));
+  else if (unit_->typeTraits().is_function(ast->type))
+    ast->type = unit_->typeTraits().add_pointer(ast->type);
+  else if (unit_->typeTraits().is_scalar(ast->type))
+    ast->type = unit_->typeTraits().remove_cv(ast->type);
 
   if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
     auto paramName = get_name(control(), declId->unqualifiedId);
@@ -341,9 +343,11 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
     if (member->symbol) ast->type = member->symbol->type();
   } else if (ast->expression && ast->expression->type) {
     if (is_lvalue(ast->expression)) {
-      ast->type = control()->add_lvalue_reference(ast->expression->type);
+      ast->type =
+          unit_->typeTraits().add_lvalue_reference(ast->expression->type);
     } else if (is_xvalue(ast->expression)) {
-      ast->type = control()->add_rvalue_reference(ast->expression->type);
+      ast->type =
+          unit_->typeTraits().add_rvalue_reference(ast->expression->type);
     } else {
       ast->type = ast->expression->type;
     }
@@ -458,7 +462,7 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
     for (auto candidate : scope->find(name)) {
       if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
         if (existing->type() && symbol->type() &&
-            !control()->is_same(existing->type(), symbol->type())) {
+            !unit_->typeTraits().is_same(existing->type(), symbol->type())) {
           if (should_report_conflict(identifierLoc)) {
             error(identifierLoc, std::format("conflicting declaration of '{}'",
                                              to_string(name)));
@@ -545,8 +549,8 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   Symbol* symbol = nullptr;
 
   if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
-    if (auto classType = type_cast<ClassType>(
-            control()->remove_cv(decltypeId->decltypeSpecifier->type))) {
+    if (auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(
+            decltypeId->decltypeSpecifier->type))) {
       symbol = classType->symbol();
     }
   } else {
@@ -556,8 +560,8 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
 
   // dealias
   if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (auto classType =
-            type_cast<ClassType>(control()->remove_cv(typeAlias->type()))) {
+    if (auto classType = type_cast<ClassType>(
+            unit_->typeTraits().remove_cv(typeAlias->type()))) {
       symbol = classType->symbol();
     }
   }
@@ -603,7 +607,10 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
     return;
   }
 
-  // Check if the base class is final
+  if (auto baseClass = symbol_cast<ClassSymbol>(symbol)) {
+    unit_->typeTraits().requireCompleteClass(baseClass);
+  }
+
   if (auto baseClass = symbol_cast<ClassSymbol>(symbol)) {
     if (baseClass->isFinal()) {
       error(ast->unqualifiedId->firstSourceLocation(),
@@ -730,7 +737,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
     for (auto it = params->parameterDeclarationList; it; it = it->next) {
       auto paramType = it->value->type;
 
-      if (control()->is_void(paramType)) {
+      if (unit_->typeTraits().is_void(paramType)) {
         continue;
       }
 
@@ -968,7 +975,7 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   for (auto candidate : scope()->find(name)) {
     if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
       if (existing->type() && symbol->type() &&
-          !control()->is_same(existing->type(), symbol->type())) {
+          !unit_->typeTraits().is_same(existing->type(), symbol->type())) {
         if (should_report_conflict(decl.location())) {
           error(decl.location(), std::format("conflicting declaration of '{}'",
                                              to_string(name)));
@@ -1029,18 +1036,20 @@ auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
   return std::nullopt;
 }
 
-auto isEffectivelyUnboundedArray(Control* control, const Type* type) -> bool {
-  if (!control || !type) return false;
-  if (control->is_unbounded_array(type)) return true;
+auto isEffectivelyUnboundedArray(TranslationUnit* unit, const Type* type)
+    -> bool {
+  if (!unit || !type) return false;
+  if (unit->typeTraits().is_unbounded_array(type)) return true;
 
   auto unresolved = type_cast<UnresolvedBoundedArrayType>(type);
   if (!unresolved) return false;
   return !arrayBoundToString(type).has_value();
 }
 
-auto areRedeclarationTypesCompatible(Control* control, const Type* existingType,
+auto areRedeclarationTypesCompatible(TranslationUnit* unit,
+                                     const Type* existingType,
                                      const Type* incomingType) -> bool {
-  if (!control || !existingType || !incomingType) return false;
+  if (!unit || !existingType || !incomingType) return false;
 
   while (auto qual = type_cast<QualType>(existingType)) {
     existingType = qual->elementType();
@@ -1049,21 +1058,22 @@ auto areRedeclarationTypesCompatible(Control* control, const Type* existingType,
     incomingType = qual->elementType();
   }
 
-  if (control->is_same(existingType, incomingType)) return true;
+  if (unit->typeTraits().is_same(existingType, incomingType)) return true;
 
-  if (!control->is_array(existingType) || !control->is_array(incomingType)) {
+  if (!unit->typeTraits().is_array(existingType) ||
+      !unit->typeTraits().is_array(incomingType)) {
     return false;
   }
 
-  auto existingElementType = control->get_element_type(existingType);
-  auto incomingElementType = control->get_element_type(incomingType);
-  if (!areRedeclarationTypesCompatible(control, existingElementType,
+  auto existingElementType = unit->typeTraits().get_element_type(existingType);
+  auto incomingElementType = unit->typeTraits().get_element_type(incomingType);
+  if (!areRedeclarationTypesCompatible(unit, existingElementType,
                                        incomingElementType)) {
     return false;
   }
 
-  if (isEffectivelyUnboundedArray(control, existingType) ||
-      isEffectivelyUnboundedArray(control, incomingType)) {
+  if (isEffectivelyUnboundedArray(unit, existingType) ||
+      isEffectivelyUnboundedArray(unit, incomingType)) {
     return true;
   }
 
@@ -1073,43 +1083,45 @@ auto areRedeclarationTypesCompatible(Control* control, const Type* existingType,
   return *existingBound == *incomingBound;
 }
 
-auto preferredRedeclarationType(Control* control, const Type* existingType,
+auto preferredRedeclarationType(TranslationUnit* unit, const Type* existingType,
                                 const Type* incomingType) -> const Type* {
-  if (!control || !existingType || !incomingType) return existingType;
-  if (control->is_same(existingType, incomingType)) return existingType;
+  if (!unit || !existingType || !incomingType) return existingType;
+  if (unit->typeTraits().is_same(existingType, incomingType))
+    return existingType;
 
-  if (isEffectivelyUnboundedArray(control, existingType) &&
-      control->is_array(incomingType) &&
-      !isEffectivelyUnboundedArray(control, incomingType) &&
+  if (isEffectivelyUnboundedArray(unit, existingType) &&
+      unit->typeTraits().is_array(incomingType) &&
+      !isEffectivelyUnboundedArray(unit, incomingType) &&
       areRedeclarationTypesCompatible(
-          control, control->get_element_type(existingType),
-          control->get_element_type(incomingType))) {
+          unit, unit->typeTraits().get_element_type(existingType),
+          unit->typeTraits().get_element_type(incomingType))) {
     return incomingType;
   }
 
   auto existingBounded = type_cast<BoundedArrayType>(existingType);
-  auto incomingUnbounded = isEffectivelyUnboundedArray(control, incomingType);
+  auto incomingUnbounded = isEffectivelyUnboundedArray(unit, incomingType);
   if (existingBounded && incomingUnbounded &&
       areRedeclarationTypesCompatible(
-          control, existingBounded->elementType(),
-          control->get_element_type(incomingType))) {
+          unit, existingBounded->elementType(),
+          unit->typeTraits().get_element_type(incomingType))) {
     return existingType;
   }
 
   return existingType;
 }
 
-auto areFunctionSignaturesEquivalentForRedeclaration(Control* control,
+auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
                                                      const Type* lhs,
                                                      const Type* rhs) -> bool {
-  if (!control || !lhs || !rhs) return false;
-  if (control->is_same(lhs, rhs)) return true;
+  if (!unit || !lhs || !rhs) return false;
+  if (unit->typeTraits().is_same(lhs, rhs)) return true;
 
   auto lhsFn = type_cast<FunctionType>(lhs);
   auto rhsFn = type_cast<FunctionType>(rhs);
   if (!lhsFn || !rhsFn) return false;
 
-  if (!control->is_same(lhsFn->returnType(), rhsFn->returnType())) return false;
+  if (!unit->typeTraits().is_same(lhsFn->returnType(), rhsFn->returnType()))
+    return false;
   if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
   if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
   if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
@@ -1119,7 +1131,7 @@ auto areFunctionSignaturesEquivalentForRedeclaration(Control* control,
   if (lhsParams.size() != rhsParams.size()) return false;
 
   for (std::size_t i = 0; i < lhsParams.size(); ++i) {
-    if (!areRedeclarationTypesCompatible(control, lhsParams[i], rhsParams[i])) {
+    if (!areRedeclarationTypesCompatible(unit, lhsParams[i], rhsParams[i])) {
       return false;
     }
   }
@@ -1214,7 +1226,7 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
           classSymbol->members(), [&](FunctionSymbol* member) {
             if (fn->isDestructor() && member->isDestructor()) return true;
             return fn->name() == member->name() &&
-                   control()->is_same(fn->type(), member->type());
+                   unit_->typeTraits().is_same(fn->type(), member->type());
           });
       return match && !match->isPure();
     };
@@ -1247,7 +1259,7 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
               baseClass->members(), [&](FunctionSymbol* m) {
                 if (fn->isDestructor() && m->isDestructor()) return true;
                 return fn->name() == m->name() &&
-                       control()->is_same(fn->type(), m->type());
+                       unit_->typeTraits().is_same(fn->type(), m->type());
               });
           if (match && !match->isPure()) return true;
           return overridesInClass(fn);
@@ -1342,8 +1354,8 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   if (decl.isBitField()) {
     fieldSymbol->setBitField(true);
 
-    if (!control()->is_integral(type) && !control()->is_enum(type) &&
-        !inTemplate()) {
+    if (!unit_->typeTraits().is_integral(type) &&
+        !unit_->typeTraits().is_enum(type) && !inTemplate()) {
       error(decl.location(), "bit-field has non-integral type");
     }
 
@@ -1402,13 +1414,17 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);
+  if (auto classType =
+          type_cast<ClassType>(unit_->typeTraits().remove_cv(type))) {
+    unit_->typeTraits().requireCompleteClass(classType->symbol());
+  }
   if (addSymbolToParentScope) {
     auto scope = declaringScope();
 
     // Check for redeclaration of an existing variable with the same name
     for (auto candidate : scope->find(name)) {
       if (auto existing = symbol_cast<VariableSymbol>(candidate)) {
-        if (!areRedeclarationTypesCompatible(control(), existing->type(),
+        if (!areRedeclarationTypesCompatible(unit_, existing->type(),
                                              symbol->type())) {
           error(
               symbol->location(),
@@ -1417,8 +1433,8 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
         }
 
         auto canon = existing->canonical();
-        auto mergedType = preferredRedeclarationType(control(), canon->type(),
-                                                     symbol->type());
+        auto mergedType =
+            preferredRedeclarationType(unit_, canon->type(), symbol->type());
         canon->setType(mergedType);
         symbol->setType(mergedType);
         canon->addRedeclaration(symbol);
@@ -1470,10 +1486,15 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
 }
 
 auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
-  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) return classSymbol;
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    unit_->typeTraits().requireCompleteClass(classSymbol);
+    return classSymbol;
+  }
 
-  if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol))
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol)) {
+    unit_->typeTraits().requireCompleteClass(injected->classSymbol());
     return injected->classSymbol();
+  }
 
   if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
     return namespaceSymbol;
@@ -1484,8 +1505,10 @@ auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
     return scopedEnumSymbol;
 
   if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (auto classType = type_cast<ClassType>(typeAliasSymbol->type()))
+    if (auto classType = type_cast<ClassType>(typeAliasSymbol->type())) {
+      unit_->typeTraits().requireCompleteClass(classType->symbol());
       return classType->symbol();
+    }
 
     if (auto enumType = type_cast<EnumType>(typeAliasSymbol->type()))
       return enumType->symbol();
@@ -1872,8 +1895,8 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type)
   if (auto parentClass = symbol_cast<ClassSymbol>(parentScope);
       parentClass && parentClass->name() == name) {
     for (auto ctor : parentClass->constructors()) {
-      if (areFunctionSignaturesEquivalentForRedeclaration(control(),
-                                                          ctor->type(), type)) {
+      if (areFunctionSignaturesEquivalentForRedeclaration(unit_, ctor->type(),
+                                                          type)) {
         return ctor;
       }
     }
@@ -1882,13 +1905,13 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type)
   for (auto candidate : scope->find(name)) {
     if (auto function = symbol_cast<FunctionSymbol>(candidate)) {
       if (areFunctionSignaturesEquivalentForRedeclaration(
-              control(), function->type(), type)) {
+              unit_, function->type(), type)) {
         return function;
       }
     } else if (auto overloads = symbol_cast<OverloadSetSymbol>(candidate)) {
       for (auto function : overloads->functions()) {
         if (areFunctionSignaturesEquivalentForRedeclaration(
-                control(), function->type(), type)) {
+                unit_, function->type(), type)) {
           return function;
         }
       }

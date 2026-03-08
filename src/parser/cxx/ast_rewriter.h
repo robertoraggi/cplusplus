@@ -49,6 +49,9 @@ class [[nodiscard]] ASTRewriter {
                           Symbol* symbol, SourceLocation instantiationLoc = {},
                           bool sfinaeContext = false) -> Symbol*;
 
+  static auto ensureCompleteClass(TranslationUnit* unit,
+                                  ClassSymbol* classSymbol) -> bool;
+
   static auto substituteDefaultTypeId(
       TranslationUnit* unit, TypeIdAST* typeId,
       const std::vector<TemplateArgument>& templateArguments, int depth,

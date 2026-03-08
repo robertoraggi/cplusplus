@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 #include <cxx/mlir/codegen.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -311,7 +313,7 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     (void)gen.emitTodoStmt(ast->firstSourceLocation(), "for-range: no type");
     return;
   }
-  rangeType = control()->remove_cvref(rangeType);
+  rangeType = gen.unit_->typeTraits().remove_cvref(rangeType);
 
   mlir::Value beginVal, endVal;
   bool isPointerIterator = false;
@@ -406,11 +408,12 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
       return;
     }
 
-    auto iterType = control()->remove_cvref(beginFuncType->returnType());
+    auto iterType =
+        gen.unit_->typeTraits().remove_cvref(beginFuncType->returnType());
 
-    if (control()->is_pointer(iterType)) {
+    if (gen.unit_->typeTraits().is_pointer(iterType)) {
       isPointerIterator = true;
-      iteratorElementType = control()->get_element_type(iterType);
+      iteratorElementType = gen.unit_->typeTraits().get_element_type(iterType);
     } else if (auto iterClassType = type_cast<ClassType>(iterType)) {
       auto iterClass = iterClassType->symbol();
       if (iterClass && iterClass->definition())
@@ -550,16 +553,17 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
           mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
 
       if (isPointerIterator) {
-        if (control()->is_reference(loopVar->type())) {
+        if (gen.unit_->typeTraits().is_reference(loopVar->type())) {
           mlir::cxx::StoreOp::create(gen.builder_, loc, iterInBody,
                                      local.value(),
                                      gen.getAlignment(loopVar->type()));
         } else {
-          auto elemType =
-              gen.convertType(control()->remove_cvref(loopVar->type()));
+          auto elemType = gen.convertType(
+              gen.unit_->typeTraits().remove_cvref(loopVar->type()));
           auto elem = mlir::cxx::LoadOp::create(
               gen.builder_, loc, elemType, iterInBody,
-              gen.getAlignment(control()->remove_cvref(loopVar->type())));
+              gen.getAlignment(
+                  gen.unit_->typeTraits().remove_cvref(loopVar->type())));
           mlir::cxx::StoreOp::create(gen.builder_, loc, elem, local.value(),
                                      gen.getAlignment(loopVar->type()));
         }

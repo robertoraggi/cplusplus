@@ -47,6 +47,9 @@ class TemplateSpecialization {
   std::vector<TemplateArgument> arguments;
   Symbol* symbol = nullptr;
   std::vector<Diagnostic> instantiationErrors;
+  List<TemplateArgumentAST*>* pendingArgumentList = nullptr;
+  SourceLocation pendingInstantiationLoc;
+  bool isPendingInstantiation = false;
 };
 
 struct PendingBodyInstantiation {
@@ -280,7 +283,7 @@ class Symbol {
   [[nodiscard]] auto definition() const -> Symbol*;
 
 #define PROCESS_SYMBOL(S) \
-  [[nodiscard]] auto is##S() const->bool { return kind_ == SymbolKind::k##S; }
+  [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #undef PROCESS_SYMBOL
 
@@ -1082,7 +1085,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
 }
 
 #define PROCESS_SYMBOL(S)                                \
-  inline auto is##S##Symbol(Symbol* symbol)->bool {      \
+  inline auto is##S##Symbol(Symbol* symbol) -> bool {    \
     return symbol && symbol->kind() == SymbolKind::k##S; \
   }
 

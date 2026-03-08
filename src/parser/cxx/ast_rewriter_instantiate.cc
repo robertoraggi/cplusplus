@@ -448,4 +448,47 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   return instantiatedSymbol;
 }
 
+auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
+                                      ClassSymbol* classSymbol) -> bool {
+  if (!classSymbol) return false;
+  if (classSymbol->isComplete()) return true;
+  if (auto def = classSymbol->definition())
+    if (def->isComplete()) return true;
+  if (!classSymbol->isSpecialization()) return false;
+
+  auto primaryTemplate = classSymbol->primaryTemplateSymbol();
+  if (!primaryTemplate) return false;
+
+  TemplateSpecialization* spec = nullptr;
+  for (auto& s : primaryTemplate->mutableSpecializations()) {
+    if (s.symbol == classSymbol) {
+      spec = &s;
+      break;
+    }
+  }
+
+  if (!spec || !spec->isPendingInstantiation) return false;
+
+  auto pendingArgList = spec->pendingArgumentList;
+  auto pendingLoc = spec->pendingInstantiationLoc;
+  spec->isPendingInstantiation = false;
+  spec->pendingArgumentList = nullptr;
+
+  auto result =
+      instantiate(unit, pendingArgList, primaryTemplate, pendingLoc, false);
+
+  if (!result) return false;
+
+  auto resultClass = symbol_cast<ClassSymbol>(result);
+  if (!resultClass || !resultClass->isComplete()) return false;
+
+  if (resultClass != classSymbol) {
+    classSymbol->addRedeclaration(resultClass);
+    classSymbol->setDefinition(resultClass);
+    resultClass->setType(classSymbol->type());
+  }
+
+  return resultClass->isComplete();
+}
+
 }  // namespace cxx

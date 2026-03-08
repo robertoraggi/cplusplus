@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast_rewriter.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -515,13 +516,18 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
         rewrite.unit_, copy->templateId->templateArgumentList, aliasSymbol,
         copy->templateId->identifierLoc);
     if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-      if (auto classType =
-              type_cast<ClassType>(control()->remove_cv(alias->type()))) {
+      if (auto classType = type_cast<ClassType>(
+              translationUnit()->typeTraits().remove_cv(alias->type()))) {
         copy->symbol = classType->symbol();
       }
     } else {
       copy->symbol = symbol_cast<ScopeSymbol>(instance);
     }
+  }
+
+  // Ensure the resolved class is complete so member lookup works.
+  if (auto cls = symbol_cast<ClassSymbol>(copy->symbol)) {
+    translationUnit()->typeTraits().requireCompleteClass(cls);
   }
 
   return copy;

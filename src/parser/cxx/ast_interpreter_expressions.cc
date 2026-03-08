@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast_interpreter.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -97,11 +98,11 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type)) {
+    if (unit()->typeTraits().is_floating_point(type)) {
       return toDouble(*left) * toDouble(*right);
     }
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toValue(toUInt32(*left) * toUInt32(*right));
       return toValue(toUInt64(*left) * toUInt64(*right));
     }
@@ -115,14 +116,14 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type)) {
+    if (unit()->typeTraits().is_floating_point(type)) {
       auto l = toDouble(*left);
       auto r = toDouble(*right);
       if (r == 0.0) return std::nullopt;
       return l / r;
     }
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) {
         auto l = toUInt32(*left);
         auto r = toUInt32(*right);
@@ -154,7 +155,7 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) {
         auto l = toUInt32(*left);
         auto r = toUInt32(*right);
@@ -186,11 +187,11 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type)) {
+    if (unit()->typeTraits().is_floating_point(type)) {
       return toDouble(*left) + toDouble(*right);
     }
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toValue(toUInt32(*left) + toUInt32(*right));
       return toValue(toUInt64(*left) + toUInt64(*right));
     }
@@ -204,11 +205,11 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type)) {
+    if (unit()->typeTraits().is_floating_point(type)) {
       return toDouble(*left) - toDouble(*right);
     }
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toValue(toUInt32(*left) - toUInt32(*right));
       return toValue(toUInt64(*left) - toUInt64(*right));
     }
@@ -222,7 +223,7 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toValue(toUInt32(*left) << toUInt32(*right));
       return toValue(toUInt64(*left) << toUInt64(*right));
     }
@@ -237,7 +238,7 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toValue(toUInt32(*left) >> toUInt32(*right));
       return toValue(toUInt64(*left) >> toUInt64(*right));
     }
@@ -259,10 +260,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return convert(toDouble(*left) <=> toDouble(*right));
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return convert(toUInt32(*left) <=> toUInt32(*right));
       return convert(toUInt64(*left) <=> toUInt64(*right));
     }
@@ -276,10 +277,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) <= toDouble(*right);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toUInt(*left) <= toUInt(*right);
       return toUInt64(*left) <= toUInt64(*right);
     }
@@ -293,10 +294,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) >= toDouble(*right);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toUInt(*left) >= toUInt(*right);
       return toUInt64(*left) >= toUInt64(*right);
     }
@@ -310,10 +311,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) < toDouble(*right);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toUInt(*left) < toUInt(*right);
       return toUInt64(*left) < toUInt64(*right);
     }
@@ -327,10 +328,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) > toDouble(*right);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toUInt(*left) > toUInt(*right);
       return toUInt64(*left) > toUInt64(*right);
     }
@@ -344,10 +345,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) == toDouble(*right);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toUInt(*left) == toUInt(*right);
       return toUInt64(*left) == toUInt64(*right);
     }
@@ -361,10 +362,10 @@ struct ASTInterpreter::ExpressionVisitor {
     const auto type = ast->leftExpression->type;
     const auto sz = memoryLayout()->sizeOf(type);
 
-    if (control()->is_floating_point(type))
+    if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) != toDouble(*right);
 
-    if (control()->is_unsigned(type)) {
+    if (unit()->typeTraits().is_unsigned(type)) {
       if (sz <= 4) return toUInt(*left) != toUInt(*right);
       return toUInt64(*left) != toUInt64(*right);
     }
@@ -697,9 +698,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol);
       var && !var->isConstexpr() && var->constValue().has_value() &&
-      control()->is_const(var->type()) &&
-      control()->is_integral_or_unscoped_enum(
-          control()->remove_cvref(var->type()))) {
+      unit()->typeTraits().is_const(var->type()) &&
+      unit()->typeTraits().is_integral_or_unscoped_enum(
+          unit()->typeTraits().remove_cvref(var->type()))) {
     return var->constValue();
   }
 
@@ -1145,18 +1146,19 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
   switch (ast->op) {
     case TokenKind::T_MINUS: {
       if (expressionResult.has_value() &&
-          control()->is_integral_or_unscoped_enum(ast->expression->type)) {
+          unit()->typeTraits().is_integral_or_unscoped_enum(
+              ast->expression->type)) {
         const auto sz = memoryLayout()->sizeOf(ast->expression->type);
 
         if (sz <= 4) {
-          if (control()->is_unsigned(ast->expression->type)) {
+          if (unit()->typeTraits().is_unsigned(ast->expression->type)) {
             return toValue(-toUInt32(expressionResult.value()));
           }
 
           return ExpressionResult(-toInt32(expressionResult.value()));
         }
 
-        if (control()->is_unsigned(ast->expression->type)) {
+        if (unit()->typeTraits().is_unsigned(ast->expression->type)) {
           return toValue(-toUInt64(expressionResult.value()));
         }
 
@@ -1175,11 +1177,12 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
 
     case TokenKind::T_TILDE: {
       if (expressionResult.has_value() &&
-          control()->is_integral_or_unscoped_enum(ast->expression->type)) {
+          unit()->typeTraits().is_integral_or_unscoped_enum(
+              ast->expression->type)) {
         const auto sz = memoryLayout()->sizeOf(ast->expression->type);
 
         if (sz <= 4) {
-          if (control()->is_unsigned(ast->expression->type)) {
+          if (unit()->typeTraits().is_unsigned(ast->expression->type)) {
             return toValue(~toUInt32(expressionResult.value()));
           }
 
@@ -1187,7 +1190,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
               static_cast<std::intmax_t>(~toInt32(expressionResult.value())));
         }
 
-        if (control()->is_unsigned(ast->expression->type)) {
+        if (unit()->typeTraits().is_unsigned(ast->expression->type)) {
           return toValue(~toUInt64(expressionResult.value()));
         }
 
@@ -1198,7 +1201,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
 
     case TokenKind::T_PLUS: {
       if (expressionResult.has_value() &&
-          control()->is_integral_or_unscoped_enum(ast->expression->type)) {
+          unit()->typeTraits().is_integral_or_unscoped_enum(
+              ast->expression->type)) {
         return expressionResult;
       }
       break;
@@ -1230,6 +1234,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->expression || !ast->expression->type) return std::nullopt;
+  if (auto ct = type_cast<ClassType>(
+          unit()->typeTraits().remove_cv(ast->expression->type)))
+    unit()->typeTraits().requireCompleteClass(ct->symbol());
   auto size = memoryLayout()->sizeOf(ast->expression->type);
   if (!size.has_value()) return std::nullopt;
   return ExpressionResult(
@@ -1239,6 +1246,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->typeId || !ast->typeId->type) return std::nullopt;
+  if (auto ct = type_cast<ClassType>(
+          unit()->typeTraits().remove_cv(ast->typeId->type)))
+    unit()->typeTraits().requireCompleteClass(ct->symbol());
   auto size = memoryLayout()->sizeOf(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
   return ExpressionResult(
@@ -1253,6 +1263,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(
     AlignofTypeExpressionAST* ast) -> ExpressionResult {
   if (!ast->typeId || !ast->typeId->type) return std::nullopt;
+  if (auto ct = type_cast<ClassType>(
+          unit()->typeTraits().remove_cv(ast->typeId->type)))
+    unit()->typeTraits().requireCompleteClass(ct->symbol());
   auto size = memoryLayout()->alignmentOf(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
   return ExpressionResult(
@@ -1338,8 +1351,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     }
 
     default:
-      if (control()->is_integral_or_unscoped_enum(ast->type)) {
-        if (control()->is_unsigned(ast->type)) {
+      if (unit()->typeTraits().is_integral_or_unscoped_enum(ast->type)) {
+        if (unit()->typeTraits().is_unsigned(ast->type)) {
           auto result = interp.toUInt(*value);
           if (!result.has_value()) return std::nullopt;
           return ConstValue{std::bit_cast<std::intmax_t>(result.value())};
@@ -1531,101 +1544,112 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
   }
 
   if (firstType) {
+    if (auto classType =
+            type_cast<ClassType>(unit()->typeTraits().remove_cv(firstType))) {
+      unit()->typeTraits().requireCompleteClass(classType->symbol());
+    }
+    if (secondType) {
+      if (auto classType = type_cast<ClassType>(
+              unit()->typeTraits().remove_cv(secondType))) {
+        unit()->typeTraits().requireCompleteClass(classType->symbol());
+      }
+    }
+
     switch (ast->typeTrait) {
       case BuiltinTypeTraitKind::T___IS_VOID:
-        return control()->is_void(firstType);
+        return unit()->typeTraits().is_void(firstType);
 
       case BuiltinTypeTraitKind::T___IS_NULL_POINTER:
-        return control()->is_null_pointer(firstType);
+        return unit()->typeTraits().is_null_pointer(firstType);
 
       case BuiltinTypeTraitKind::T___IS_INTEGRAL:
-        return control()->is_integral(firstType);
+        return unit()->typeTraits().is_integral(firstType);
 
       case BuiltinTypeTraitKind::T___IS_FLOATING_POINT:
-        return control()->is_floating_point(firstType);
+        return unit()->typeTraits().is_floating_point(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ARRAY:
-        return control()->is_array(firstType);
+        return unit()->typeTraits().is_array(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ENUM:
-        return control()->is_enum(firstType);
+        return unit()->typeTraits().is_enum(firstType);
 
       case BuiltinTypeTraitKind::T___IS_SCOPED_ENUM:
-        return control()->is_scoped_enum(firstType);
+        return unit()->typeTraits().is_scoped_enum(firstType);
 
       case BuiltinTypeTraitKind::T___IS_UNION:
-        return control()->is_union(firstType);
+        return unit()->typeTraits().is_union(firstType);
 
       case BuiltinTypeTraitKind::T___IS_CLASS:
-        return control()->is_class(firstType) &&
-               !control()->is_union(firstType);
+        return unit()->typeTraits().is_class(firstType) &&
+               !unit()->typeTraits().is_union(firstType);
 
       case BuiltinTypeTraitKind::T___IS_FUNCTION:
-        return control()->is_function(firstType);
+        return unit()->typeTraits().is_function(firstType);
 
       case BuiltinTypeTraitKind::T___IS_POINTER:
-        return control()->is_pointer(firstType);
+        return unit()->typeTraits().is_pointer(firstType);
 
       case BuiltinTypeTraitKind::T___IS_MEMBER_OBJECT_POINTER:
-        return control()->is_member_object_pointer(firstType);
+        return unit()->typeTraits().is_member_object_pointer(firstType);
 
       case BuiltinTypeTraitKind::T___IS_MEMBER_FUNCTION_POINTER:
-        return control()->is_member_function_pointer(firstType);
+        return unit()->typeTraits().is_member_function_pointer(firstType);
 
       case BuiltinTypeTraitKind::T___IS_LVALUE_REFERENCE:
-        return control()->is_lvalue_reference(firstType);
+        return unit()->typeTraits().is_lvalue_reference(firstType);
 
       case BuiltinTypeTraitKind::T___IS_RVALUE_REFERENCE:
-        return control()->is_rvalue_reference(firstType);
+        return unit()->typeTraits().is_rvalue_reference(firstType);
 
       case BuiltinTypeTraitKind::T___IS_FUNDAMENTAL:
-        return control()->is_fundamental(firstType);
+        return unit()->typeTraits().is_fundamental(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ARITHMETIC:
-        return control()->is_arithmetic(firstType);
+        return unit()->typeTraits().is_arithmetic(firstType);
 
       case BuiltinTypeTraitKind::T___IS_SCALAR:
-        return control()->is_scalar(firstType);
+        return unit()->typeTraits().is_scalar(firstType);
 
       case BuiltinTypeTraitKind::T___IS_OBJECT:
-        return control()->is_object(firstType);
+        return unit()->typeTraits().is_object(firstType);
 
       case BuiltinTypeTraitKind::T___IS_COMPOUND:
-        return control()->is_compound(firstType);
+        return unit()->typeTraits().is_compound(firstType);
 
       case BuiltinTypeTraitKind::T___IS_REFERENCE:
-        return control()->is_reference(firstType);
+        return unit()->typeTraits().is_reference(firstType);
 
       case BuiltinTypeTraitKind::T___IS_MEMBER_POINTER:
-        return control()->is_member_pointer(firstType);
+        return unit()->typeTraits().is_member_pointer(firstType);
 
       case BuiltinTypeTraitKind::T___IS_BOUNDED_ARRAY:
-        return control()->is_bounded_array(firstType);
+        return unit()->typeTraits().is_bounded_array(firstType);
 
       case BuiltinTypeTraitKind::T___IS_UNBOUNDED_ARRAY:
-        return control()->is_unbounded_array(firstType);
+        return unit()->typeTraits().is_unbounded_array(firstType);
 
       case BuiltinTypeTraitKind::T___IS_CONST:
-        return control()->is_const(firstType);
+        return unit()->typeTraits().is_const(firstType);
 
       case BuiltinTypeTraitKind::T___IS_VOLATILE:
-        return control()->is_volatile(firstType);
+        return unit()->typeTraits().is_volatile(firstType);
 
       case BuiltinTypeTraitKind::T___IS_SIGNED:
-        return control()->is_signed(firstType);
+        return unit()->typeTraits().is_signed(firstType);
 
       case BuiltinTypeTraitKind::T___IS_UNSIGNED:
-        return control()->is_unsigned(firstType);
+        return unit()->typeTraits().is_unsigned(firstType);
 
       case BuiltinTypeTraitKind::T___IS_SAME:
       case BuiltinTypeTraitKind::T___IS_SAME_AS: {
         if (!secondType) break;
-        return control()->is_same(firstType, secondType);
+        return unit()->typeTraits().is_same(firstType, secondType);
       }
 
       case BuiltinTypeTraitKind::T___IS_BASE_OF: {
         if (!secondType) break;
-        return control()->is_base_of(firstType, secondType);
+        return unit()->typeTraits().is_base_of(firstType, secondType);
       }
 
       case BuiltinTypeTraitKind::T___HAS_UNIQUE_OBJECT_REPRESENTATIONS: {
@@ -1633,68 +1657,69 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       }
 
       case BuiltinTypeTraitKind::T___HAS_VIRTUAL_DESTRUCTOR:
-        return control()->has_virtual_destructor(firstType);
+        return unit()->typeTraits().has_virtual_destructor(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ABSTRACT:
-        return control()->is_abstract(firstType);
+        return unit()->typeTraits().is_abstract(firstType);
 
       case BuiltinTypeTraitKind::T___IS_AGGREGATE:
-        return control()->is_aggregate(firstType);
+        return unit()->typeTraits().is_aggregate(firstType);
 
       case BuiltinTypeTraitKind::T___IS_ASSIGNABLE: {
         if (!secondType) break;
-        return control()->is_assignable(firstType, secondType);
+        return unit()->typeTraits().is_assignable(firstType, secondType);
       }
 
       case BuiltinTypeTraitKind::T___IS_CONVERTIBLE:
       case BuiltinTypeTraitKind::T___IS_CONVERTIBLE_TO: {
         if (!secondType) break;
-        return control()->is_convertible(firstType, secondType);
+        return unit()->typeTraits().is_convertible(firstType, secondType);
       }
 
       case BuiltinTypeTraitKind::T___IS_DESTRUCTIBLE:
-        return control()->is_destructible(firstType);
+        return unit()->typeTraits().is_destructible(firstType);
 
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
-        return control()->is_trivially_destructible(firstType);
+        return unit()->typeTraits().is_trivially_destructible(firstType);
 
       case BuiltinTypeTraitKind::T___IS_EMPTY:
-        return control()->is_empty(firstType);
+        return unit()->typeTraits().is_empty(firstType);
 
       case BuiltinTypeTraitKind::T___IS_FINAL:
-        return control()->is_final(firstType);
+        return unit()->typeTraits().is_final(firstType);
 
       case BuiltinTypeTraitKind::T___IS_LAYOUT_COMPATIBLE: {
         break;
       }
 
       case BuiltinTypeTraitKind::T___IS_LITERAL_TYPE:
-        return control()->is_literal_type(firstType);
+        return unit()->typeTraits().is_literal_type(firstType);
 
       case BuiltinTypeTraitKind::T___IS_POD:
-        return control()->is_pod(firstType);
+        return unit()->typeTraits().is_pod(firstType);
 
       case BuiltinTypeTraitKind::T___IS_POLYMORPHIC:
-        return control()->is_polymorphic(firstType);
+        return unit()->typeTraits().is_polymorphic(firstType);
 
       case BuiltinTypeTraitKind::T___IS_STANDARD_LAYOUT:
-        return control()->is_standard_layout(firstType);
+        return unit()->typeTraits().is_standard_layout(firstType);
 
       case BuiltinTypeTraitKind::T___IS_SWAPPABLE_WITH: {
         break;
       }
 
       case BuiltinTypeTraitKind::T___IS_TRIVIAL:
-        return control()->is_trivial(firstType);
+        return unit()->typeTraits().is_trivial(firstType);
 
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_CONSTRUCTIBLE:
-        return control()->is_trivially_constructible(firstType);
+        return unit()->typeTraits().is_trivially_constructible(firstType);
 
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_ASSIGNABLE:
-        return control()->is_trivially_assignable(firstType, secondType);
+        return unit()->typeTraits().is_trivially_assignable(firstType,
+                                                            secondType);
 
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_COPYABLE:
-        return control()->is_trivially_copyable(firstType);
+        return unit()->typeTraits().is_trivially_copyable(firstType);
 
       case BuiltinTypeTraitKind::T___IS_CONSTRUCTIBLE:
       case BuiltinTypeTraitKind::T___IS_NOTHROW_CONSTRUCTIBLE: {
@@ -1706,8 +1731,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
         }
         if (ast->typeTrait ==
             BuiltinTypeTraitKind::T___IS_NOTHROW_CONSTRUCTIBLE)
-          return control()->is_nothrow_constructible(firstType, argTypes);
-        return control()->is_constructible(firstType, argTypes);
+          return unit()->typeTraits().is_nothrow_constructible(firstType,
+                                                               argTypes);
+        return unit()->typeTraits().is_constructible(firstType, argTypes);
       }
 
       case BuiltinTypeTraitKind::T_NONE: {

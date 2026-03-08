@@ -337,13 +337,27 @@ auto Binder::BindClass::check_template_specialization() -> bool {
     }
   }
 
-  auto classSymbol = createClassSymbol(templateId->identifier, location);
-  initializeClassSymbol(classSymbol);
+  ClassSymbol* classSymbol = nullptr;
 
-  if (primaryTemplateSymbol) {
-    primaryTemplateSymbol->addSpecialization(std::move(templateArguments),
-                                             classSymbol);
+  if (specialization && !specialization->isComplete()) {
+    classSymbol = specialization;
+    classSymbol->setIsUnion(ast->classKey == TokenKind::T_UNION);
+    for (auto& s : primaryTemplateSymbol->mutableSpecializations()) {
+      if (s.symbol == specialization) {
+        s.isPendingInstantiation = false;
+        s.pendingArgumentList = nullptr;
+        break;
+      }
+    }
+  } else {
+    classSymbol = createClassSymbol(templateId->identifier, location);
+    if (primaryTemplateSymbol) {
+      primaryTemplateSymbol->addSpecialization(std::move(templateArguments),
+                                               classSymbol);
+    }
   }
+
+  initializeClassSymbol(classSymbol);
 
   return true;
 }

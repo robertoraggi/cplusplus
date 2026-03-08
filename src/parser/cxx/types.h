@@ -357,6 +357,7 @@ class ClassType final : public Type, public std::tuple<ClassSymbol*> {
     return std::get<0>(*this);
   }
 
+  [[nodiscard]] auto definition() const -> ClassSymbol*;
   [[nodiscard]] auto isComplete() const -> bool;
   [[nodiscard]] auto isUnion() const -> bool;
 };

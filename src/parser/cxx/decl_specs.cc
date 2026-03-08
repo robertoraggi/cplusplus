@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/decl_specs.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -210,40 +211,50 @@ void DeclSpecs::Visitor::operator()(UnaryBuiltinTypeSpecifierAST* ast) {
   auto inputType = ast->typeId->type;
   switch (ast->builtinKind) {
     case UnaryBuiltinTypeKind::T___REMOVE_CV:
-      specs.type_ = control()->remove_cv(inputType);
+      specs.type_ = specs.translationUnit()->typeTraits().remove_cv(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_CONST:
-      specs.type_ = control()->remove_const(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_const(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_VOLATILE:
-      specs.type_ = control()->remove_volatile(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_volatile(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_CVREF:
-      specs.type_ = control()->remove_cvref(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_cvref(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_REFERENCE_T:
-      specs.type_ = control()->remove_reference(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_reference(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_POINTER:
-      specs.type_ = control()->remove_pointer(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_pointer(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_EXTENT:
-      specs.type_ = control()->remove_extent(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_extent(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_ALL_EXTENTS:
-      specs.type_ = control()->remove_all_extents(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().remove_all_extents(inputType);
       break;
     case UnaryBuiltinTypeKind::T___ADD_LVALUE_REFERENCE:
-      specs.type_ = control()->add_lvalue_reference(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().add_lvalue_reference(inputType);
       break;
     case UnaryBuiltinTypeKind::T___ADD_RVALUE_REFERENCE:
-      specs.type_ = control()->add_rvalue_reference(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().add_rvalue_reference(inputType);
       break;
     case UnaryBuiltinTypeKind::T___ADD_POINTER:
-      specs.type_ = control()->add_pointer(inputType);
+      specs.type_ =
+          specs.translationUnit()->typeTraits().add_pointer(inputType);
       break;
     case UnaryBuiltinTypeKind::T___DECAY:
-      specs.type_ = control()->decay(inputType);
+      specs.type_ = specs.translationUnit()->typeTraits().decay(inputType);
       break;
     case UnaryBuiltinTypeKind::T___MAKE_SIGNED:
       // TODO: implement make_signed
@@ -571,8 +582,8 @@ void DeclSpecs::finish() {
     }  // switch
   }
 
-  if (isConst) type_ = control()->add_const(type_);
-  if (isVolatile) type_ = control()->add_volatile(type_);
+  if (isConst) type_ = translationUnit()->typeTraits().add_const(type_);
+  if (isVolatile) type_ = translationUnit()->typeTraits().add_volatile(type_);
 }
 
 auto DeclSpecs::hasTypeOrSizeSpecifier() const -> bool {

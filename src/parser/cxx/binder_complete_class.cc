@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/binder.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -92,6 +93,7 @@ auto Binder::CompleteClass::hasVirtualBaseDestructor() const -> bool {
   for (auto base : classSymbol->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClass) continue;
+    if (auto def = baseClass->definition()) baseClass = def;
 
     auto dtor = baseClass->destructor();
     if (dtor && dtor->isVirtual()) return true;
@@ -106,7 +108,13 @@ auto Binder::CompleteClass::buildRecordLayout()
 }
 
 void Binder::CompleteClass::complete() {
-  if (binder.inTemplate()) {
+  auto isFullExplicitSpecialization = [&]() {
+    if (!classSymbol->isSpecialization()) return false;
+    auto tp = classSymbol->templateParameters();
+    return tp && tp->isExplicitTemplateSpecialization();
+  };
+
+  if (binder.inTemplate() && !isFullExplicitSpecialization()) {
     markComplete();
     return;
   }
@@ -303,6 +311,10 @@ auto Binder::BuildRecordLayout::validate() -> std::expected<bool, std::string> {
           std::format("base class '{}' not found", to_string(base->name())));
     }
     if (!baseClassSymbol->isComplete()) {
+      binder.unit_->typeTraits().requireCompleteClass(baseClassSymbol);
+    }
+    if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
+    if (!baseClassSymbol->isComplete()) {
       return std::unexpected(std::format("base class '{}' is incomplete",
                                          to_string(baseClassSymbol->name())));
     }
@@ -316,6 +328,8 @@ void Binder::BuildRecordLayout::layoutVtable() {
   bool hasPolymorphicBase = false;
   for (auto base : classSymbol->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (auto def = baseClass ? baseClass->definition() : nullptr)
+      baseClass = def;
     if (baseClass && baseClass->layout() && baseClass->layout()->hasVtable()) {
       hasPolymorphicBase = true;
       break;
@@ -351,6 +365,7 @@ void Binder::BuildRecordLayout::layoutBases() {
   for (auto* base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
+    if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
 
     auto baseAlignment = baseClassSymbol->alignment();
     if (baseAlignment > 0) {
@@ -495,7 +510,7 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
   closeBitfieldRun();
 
   std::optional<std::size_t> size;
-  if (control()->is_unbounded_array(field->type())) {
+  if (binder.unit_->typeTraits().is_unbounded_array(field->type())) {
     size = 0;
   } else {
     size = memoryLayout->sizeOf(field->type());
@@ -539,7 +554,19 @@ auto Binder::BuildRecordLayout::layoutFields()
   FieldSymbol* lastField = nullptr;
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    if (lastField && control()->is_unbounded_array(lastField->type())) {
+    if (auto classType = type_cast<ClassType>(
+            binder.unit_->typeTraits().remove_cv(field->type()))) {
+      binder.unit_->typeTraits().requireCompleteClass(classType->symbol());
+      if (!field->alignment()) {
+        if (auto alignment =
+                binder.control()->memoryLayout()->alignmentOf(field->type())) {
+          field->setAlignment(alignment.value());
+        }
+      }
+    }
+
+    if (lastField &&
+        binder.unit_->typeTraits().is_unbounded_array(lastField->type())) {
       return std::unexpected(
           std::format("size of incomplete type '{}'",
                       to_string(lastField->type(), lastField->name())));
@@ -568,6 +595,7 @@ void Binder::BuildRecordLayout::propagateBaseFields() {
   for (auto* base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
+    if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
 
     auto baseLayout = baseClassSymbol->layout();
     if (!baseLayout) continue;

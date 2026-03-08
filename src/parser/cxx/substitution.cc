@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/substitution.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -265,8 +266,8 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     return std::nullopt;
   }
 
-  if (!control->is_scalar(argumentType)) {
-    argumentType = control->add_pointer(expression->type);
+  if (!subst.unit_->typeTraits().is_scalar(argumentType)) {
+    argumentType = subst.unit_->typeTraits().add_pointer(expression->type);
   }
 
   templateArgument->setType(argumentType);

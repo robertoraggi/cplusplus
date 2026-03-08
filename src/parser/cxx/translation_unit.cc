@@ -29,6 +29,7 @@
 #include <cxx/parser.h>
 #include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
+#include <cxx/type_traits.h>
 
 #ifndef CXX_NO_FLATBUFFERS
 #include <cxx/private/ast_decoder.h>
@@ -42,8 +43,8 @@
 namespace cxx {
 
 TranslationUnit::TranslationUnit(DiagnosticsClient* diagnosticsClient)
-    : diagnosticsClient_(diagnosticsClient) {
-  control_ = std::make_unique<Control>();
+    : control_(std::make_unique<Control>()) {
+  diagnosticsClient_ = diagnosticsClient;
   arena_ = std::make_unique<Arena>();
   globalNamespace_ = control_->newNamespaceSymbol(nullptr, {});
 
@@ -56,6 +57,8 @@ TranslationUnit::TranslationUnit(DiagnosticsClient* diagnosticsClient)
 }
 
 TranslationUnit::~TranslationUnit() {}
+
+auto TranslationUnit::typeTraits() -> TypeTraits { return TypeTraits{this}; }
 
 auto TranslationUnit::diagnosticsClient() const -> DiagnosticsClient* {
   return diagnosticsClient_;

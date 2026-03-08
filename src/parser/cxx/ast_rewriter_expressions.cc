@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast_rewriter.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -1028,7 +1029,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
           for (int i = 0; i < argCount && pit != ct->parameterTypes().end();
                ++i, ++pit) {
             if (!argTypes[i] || !*pit) continue;
-            if (!control()->is_convertible(argTypes[i], *pit)) return;
+            if (!translationUnit()->typeTraits().is_convertible(argTypes[i],
+                                                                *pit))
+              return;
           }
           best = cand;
         };
@@ -1140,14 +1143,15 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     const Type* objectType = copy->baseExpression->type;
     if (objectType) {
       if (copy->accessOp == TokenKind::T_MINUS_GREATER) {
-        objectType =
-            control()->remove_cv(control()->get_element_type(objectType));
+        objectType = translationUnit()->typeTraits().remove_cv(
+            translationUnit()->typeTraits().get_element_type(objectType));
       } else {
-        objectType = control()->remove_cv(objectType);
+        objectType = translationUnit()->typeTraits().remove_cv(objectType);
       }
 
       if (auto classType = type_cast<ClassType>(objectType)) {
         auto classSymbol = classType->symbol();
+        translationUnit()->typeTraits().requireCompleteClass(classSymbol);
         auto memberName = get_name(control(), copy->unqualifiedId);
         if (classSymbol && memberName) {
           auto symbol = qualifiedLookup(classSymbol, memberName);

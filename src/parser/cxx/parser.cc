@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/parser.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -616,7 +617,8 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           break;
       }
 
-      if (is_parsing_cxx()) elementType = control_->add_const(elementType);
+      if (is_parsing_cxx())
+        elementType = unit_->typeTraits().add_const(elementType);
 
       ast->type = control_->getBoundedArrayType(elementType, extent);
       ast->valueCategory = ValueCategory::kLValue;
@@ -1192,8 +1194,8 @@ auto Parser::parse_template_nested_name_specifier(
           // Follow the alias to the underlying class type so that
           // member lookup through the NNS works (e.g.
           // _BoolConstant<true>::value).
-          if (auto classType =
-                  type_cast<ClassType>(control_->remove_cv(alias->type()))) {
+          if (auto classType = type_cast<ClassType>(
+                  unit_->typeTraits().remove_cv(alias->type()))) {
             ast->symbol = classType->symbol();
           }
         } else {
@@ -1204,6 +1206,11 @@ auto Parser::parse_template_nested_name_specifier(
         // declaration. Resolve through binder which expands the builtin.
         auto resolved = binder_.resolve(nullptr, templateId, true);
         ast->symbol = symbol_cast<ScopeSymbol>(resolved);
+      }
+
+      // Ensure the resolved class is complete so we can look up members.
+      if (auto cls = symbol_cast<ClassSymbol>(ast->symbol)) {
+        unit_->typeTraits().requireCompleteClass(cls);
       }
     } else {
       if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
@@ -3587,7 +3594,7 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
 
   if (value.has_value()) {
     auto interp = ASTInterpreter{unit_};
-    if (control()->is_unsigned(expression->type)) {
+    if (unit_->typeTraits().is_unsigned(expression->type)) {
       ast->caseValue = *interp.toUInt(*value);
     } else {
       ast->caseValue = *interp.toInt(*value);
@@ -7180,7 +7187,7 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
 
       if (lastValue.has_value()) {
         // we have a last value, so we can increment it
-        if (control_->is_unsigned(type)) {
+        if (unit_->typeTraits().is_unsigned(type)) {
           // increment the last value as unsigned
           if (auto v = interp.toUInt(lastValue.value())) {
             lastValue = std::bit_cast<std::intmax_t>(v.value() + 1);
@@ -10606,7 +10613,7 @@ void Parser::check(DeclarationAST* ast) {
 
     auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
     if (!var) continue;
-    if (!unit_->control()->is_reference(var->type())) continue;
+    if (!unit_->typeTraits().is_reference(var->type())) continue;
 
     unit_->error(var->location(),
                  std::format("reference variable of type '{}' must be "
@@ -10626,7 +10633,7 @@ void Parser::check_init_declarator(InitDeclaratorAST* ast) {
 
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
-  if (!unit_->control()->is_reference(var->type())) return;
+  if (!unit_->typeTraits().is_reference(var->type())) return;
 
   unit_->error(var->location(),
                std::format("reference variable of type '{}' must be "

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast_rewriter.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -239,8 +240,8 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
         if (auto sym = std::get_if<Symbol*>(&templateArguments_[index])) {
           Symbol* resolved = *sym;
           if (auto alias = symbol_cast<TypeAliasSymbol>(resolved)) {
-            if (auto classType =
-                    type_cast<ClassType>(control()->remove_cv(alias->type()))) {
+            if (auto classType = type_cast<ClassType>(
+                    translationUnit()->typeTraits().remove_cv(alias->type()))) {
               resolved = classType->symbol();
             }
           }
@@ -289,8 +290,8 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   }
 
   if (auto typeAlias = symbol_cast<TypeAliasSymbol>(resolved)) {
-    if (auto classType =
-            type_cast<ClassType>(control()->remove_cv(typeAlias->type()))) {
+    if (auto classType = type_cast<ClassType>(
+            translationUnit()->typeTraits().remove_cv(typeAlias->type()))) {
       resolved = classType->symbol();
     }
   }
@@ -960,7 +961,32 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   auto location = ast->symbol->location();
   auto className = ast->symbol->name();
 
-  auto classSymbol = control()->newClassSymbol(binder()->scope(), location);
+  ClassSymbol* classSymbol = nullptr;
+  bool reusingExisting = false;
+
+  if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
+    if (auto existing =
+            ast->symbol->findSpecialization(rewrite.templateArguments())) {
+      classSymbol = symbol_cast<ClassSymbol>(existing);
+      if (classSymbol && !classSymbol->isComplete()) {
+        reusingExisting = true;
+        for (auto& s : ast->symbol->mutableSpecializations()) {
+          if (s.symbol == classSymbol) {
+            s.isPendingInstantiation = false;
+            s.pendingArgumentList = nullptr;
+            break;
+          }
+        }
+      } else {
+        classSymbol = nullptr;
+      }
+    }
+  }
+
+  if (!classSymbol) {
+    classSymbol = control()->newClassSymbol(binder()->scope(), location);
+  }
+
   copy->symbol = classSymbol;
 
   classSymbol->setName(className);
@@ -971,7 +997,9 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
 
   if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
-    ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
+    if (!reusingExisting) {
+      ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
+    }
   } else {
     binder()->declaringScope()->addSymbol(classSymbol);
   }
@@ -1035,7 +1063,8 @@ void ASTRewriter::SpecifierVisitor::rewriteBaseSpecifiers(
           Symbol* baseResolvedSym = elem;
           if (auto typeAlias = symbol_cast<TypeAliasSymbol>(baseResolvedSym)) {
             if (auto classType = type_cast<ClassType>(
-                    control()->remove_cv(typeAlias->type()))) {
+                    translationUnit()->typeTraits().remove_cv(
+                        typeAlias->type()))) {
               baseResolvedSym = classType->symbol();
             }
           }

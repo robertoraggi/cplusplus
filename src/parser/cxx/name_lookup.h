@@ -46,6 +46,11 @@ template <typename Predicate>
   if (std::ranges::contains(visited, scope)) return nullptr;
   visited.push_back(scope);
 
+  if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+    if (auto def = cls->definition(); def && def != cls)
+      return searchScope(def, name, visited, accept);
+  }
+
   // 1. Direct members
   for (auto symbol : scope->find(name)) {
     if (symbol->isHidden()) continue;
