@@ -23,6 +23,7 @@
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -158,7 +159,7 @@ auto TemplateArgumentDeduction::isForwardingReference(const Type* paramType)
   auto rrefParam = type_cast<RvalueReferenceType>(paramType);
   if (!rrefParam) return false;
 
-  auto rrefElem = control_->remove_cv(rrefParam->elementType());
+  auto rrefElem = unit_->typeTraits().remove_cv(rrefParam->elementType());
   auto paramTpt = type_cast<TypeParameterType>(rrefElem);
   if (!paramTpt) return false;
 
@@ -167,12 +168,12 @@ auto TemplateArgumentDeduction::isForwardingReference(const Type* paramType)
 
 auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
     -> bool {
-  auto bareParam = control_->remove_cvref(P);
+  auto bareParam = unit_->typeTraits().remove_cvref(P);
   auto tpt = type_cast<TypeParameterType>(bareParam);
 
   if (!tpt) {
     if (auto ptrParam =
-            type_cast<PointerType>(control_->remove_cv(bareParam))) {
+            type_cast<PointerType>(unit_->typeTraits().remove_cv(bareParam))) {
       CvQualifiers cvP = CvQualifiers::kNone;
       const Type* paramElemBase = ptrParam->elementType();
       if (auto qual = type_cast<QualType>(paramElemBase)) {
@@ -182,8 +183,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
 
       if (auto elemTpt = type_cast<TypeParameterType>(paramElemBase)) {
         const Type* argElemType = nullptr;
-        if (auto ptrArg = type_cast<PointerType>(
-                control_->remove_cv(control_->remove_reference(A)))) {
+        if (auto ptrArg = type_cast<PointerType>(unit_->typeTraits().remove_cv(
+                unit_->typeTraits().remove_reference(A)))) {
           argElemType = ptrArg->elementType();
         }
 
@@ -208,7 +209,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
           if (idx >= 0 && idx < static_cast<int>(templateParams_.size())) {
             if (!deducedTypes_[idx]) {
               deducedTypes_[idx] = deducedT;
-            } else if (!control_->is_same(deducedTypes_[idx], deducedT)) {
+            } else if (!unit_->typeTraits().is_same(deducedTypes_[idx],
+                                                    deducedT)) {
               return false;
             }
             return true;
@@ -244,7 +246,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
         return false;
       }
 
-      if (!control_->is_same(explicitTypeArg->typeId->type, deducedArg)) {
+      if (!unit_->typeTraits().is_same(explicitTypeArg->typeId->type,
+                                       deducedArg)) {
         return false;
       }
     }
@@ -263,7 +266,7 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
       return false;
     }
 
-    if (!control_->is_same(explicitTypeArg->typeId->type, deducedArg))
+    if (!unit_->typeTraits().is_same(explicitTypeArg->typeId->type, deducedArg))
       return false;
 
     deducedTypes_[idx] = explicitTypeArg->typeId->type;
@@ -272,7 +275,7 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
 
   if (!deducedTypes_[idx]) {
     deducedTypes_[idx] = deducedArg;
-  } else if (!control_->is_same(deducedTypes_[idx], deducedArg)) {
+  } else if (!unit_->typeTraits().is_same(deducedTypes_[idx], deducedArg)) {
     return false;
   }
 
@@ -285,11 +288,11 @@ auto TemplateArgumentDeduction::deduceFromCallArgument(const Type* P,
     -> bool {
   if (isForwardingReference(P) && argExpr &&
       argExpr->valueCategory == ValueCategory::kLValue) {
-    return deduceTypeFromType(
-        P, control_->add_lvalue_reference(control_->remove_reference(A)));
+    return deduceTypeFromType(P, unit_->typeTraits().add_lvalue_reference(
+                                     unit_->typeTraits().remove_reference(A)));
   }
 
-  return deduceTypeFromType(P, control_->remove_cvref(A));
+  return deduceTypeFromType(P, unit_->typeTraits().remove_cvref(A));
 }
 
 auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
@@ -308,7 +311,7 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
 
     if (!deduceFromCallArgument(P, argType, argIt->value)) return false;
 
-    auto bareParam = control_->remove_cvref(P);
+    auto bareParam = unit_->typeTraits().remove_cvref(P);
     auto tpt = type_cast<TypeParameterType>(bareParam);
     if (!tpt || !templateParams_[tpt->index()].isPack) {
       ++paramIt;

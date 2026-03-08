@@ -30,6 +30,7 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
+#include <cxx/type_traits.h>
 
 #include <functional>
 #include <memory>
@@ -47,6 +48,8 @@ class TranslationUnit {
   [[nodiscard]] auto control() const -> Control* { return control_.get(); }
 
   [[nodiscard]] auto arena() const -> Arena* { return arena_.get(); }
+
+  [[nodiscard]] auto typeTraits() -> TypeTraits;
 
   [[nodiscard]] auto diagnosticsClient() const -> DiagnosticsClient*;
 

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/mlir/codegen.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -215,7 +216,8 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   for (auto node : ListView{ast->initDeclaratorList}) {
     auto var = symbol_cast<VariableSymbol>(node->symbol);
     if (!var) continue;
-    if (!node->initializer && !gen.control()->is_class(var->type())) continue;
+    if (!node->initializer && !gen.unit_->typeTraits().is_class(var->type()))
+      continue;
 
     const auto loc = gen.getLocation(var->location());
 
@@ -242,15 +244,15 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
       continue;
     }
 
-    if (gen.control()->is_array(var->type())) {
+    if (gen.unit_->typeTraits().is_array(var->type())) {
       gen.arrayInit(local.value(), var->type(), node->initializer);
       continue;
     }
 
-    if (gen.control()->is_class(var->type())) {
+    if (gen.unit_->typeTraits().is_class(var->type())) {
       auto registerCleanup = [&] {
-        auto classType =
-            type_cast<ClassType>(gen.control()->remove_cv(var->type()));
+        auto classType = type_cast<ClassType>(
+            gen.unit_->typeTraits().remove_cv(var->type()));
         if (!classType || !classType->symbol()) return;
         auto dtor = classType->symbol()->destructor();
         if (!dtor) return;
@@ -317,7 +319,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
       auto expressionResult = gen.expression(initExpr);
 
-      if (gen.control()->is_reference(var->type())) {
+      if (gen.unit_->typeTraits().is_reference(var->type())) {
         mlir::Value addressToStore = expressionResult.value;
 
         if (initExpr && initExpr->valueCategory == ValueCategory::kPrValue) {
@@ -485,7 +487,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (!func.getBody().empty()) return {};
 
-  const auto needsExitValue = !gen.control()->is_void(returnType);
+  const auto needsExitValue = !gen.unit_->typeTraits().is_void(returnType);
 
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
@@ -551,19 +553,22 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = mlir::cxx::PointerType::get(gen.context_, thisType);
 
-    auto allocaOp = gen.newTemp(gen.control()->add_pointer(classSymbol->type()),
-                                ast->firstSourceLocation());
+    auto allocaOp =
+        gen.newTemp(gen.unit_->typeTraits().add_pointer(classSymbol->type()),
+                    ast->firstSourceLocation());
     thisValue = allocaOp;
 
     if (gen.unit_->language() == LanguageKind::kCXX) {
       gen.attachDebugInfo(
-          allocaOp, gen.control()->add_pointer(classSymbol->type()), "this", 1,
+          allocaOp, gen.unit_->typeTraits().add_pointer(classSymbol->type()),
+          "this", 1,
           mlir::LLVM::DIFlags::Artificial | mlir::LLVM::DIFlags::ObjectPointer);
     }
 
     mlir::cxx::StoreOp::create(
         gen.builder_, loc, gen.entryBlock_->getArgument(0), thisValue,
-        gen.getAlignment(gen.control()->add_pointer(classSymbol->type())));
+        gen.getAlignment(
+            gen.unit_->typeTraits().add_pointer(classSymbol->type())));
   }
 
   FunctionParametersSymbol* params = nullptr;
@@ -627,7 +632,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
       auto thisPtr = mlir::cxx::LoadOp::create(
           gen.builder_, endLoc, thisPtrType, gen.thisValue_,
-          gen.getAlignment(gen.control()->add_pointer(classSymbol->type())));
+          gen.getAlignment(
+              gen.unit_->typeTraits().add_pointer(classSymbol->type())));
 
       auto bases = classSymbol->baseClasses();
       for (auto it = bases.rbegin(); it != bases.rend(); ++it) {
@@ -918,7 +924,7 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
       auto otherFieldPtr = mlir::cxx::MemberOp::create(
           gen.builder_, loc, memberPtrType, otherPtr, index);
 
-      auto unqualFieldType = gen.control()->remove_cv(fieldType);
+      auto unqualFieldType = gen.unit_->typeTraits().remove_cv(fieldType);
       auto fieldClassType = type_cast<ClassType>(unqualFieldType);
 
       if (fieldClassType && fieldClassType->symbol()) {
@@ -988,7 +994,7 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     auto memberPtrType = mlir::cxx::PointerType::get(
         gen.context_, gen.convertType(field->type()));
 
-    auto fieldType = gen.control()->remove_cv(field->type());
+    auto fieldType = gen.unit_->typeTraits().remove_cv(field->type());
     auto classType = type_cast<ClassType>(fieldType);
 
     if (classType) {

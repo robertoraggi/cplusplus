@@ -20,6 +20,7 @@
 
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/control.h>
@@ -282,7 +283,7 @@ auto Codegen::ConvertType::operator()(const FunctionType* type) -> mlir::Type {
     inputs.push_back(gen.convertType(argType));
   }
   mlir::SmallVector<mlir::Type> results;
-  if (!control()->is_void(type->returnType())) {
+  if (!gen.unit_->typeTraits().is_void(type->returnType())) {
     results.push_back(gen.convertType(type->returnType()));
   }
   return mlir::cxx::FunctionType::get(gen.context_, inputs, results,

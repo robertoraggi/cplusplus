@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/mlir/codegen.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -115,7 +116,7 @@ auto Codegen::newUniqueSymbolName(std::string_view prefix) -> std::string {
 auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
                            const Type* type) -> std::optional<mlir::FloatAttr> {
   if (value.has_value()) {
-    auto ty = control()->remove_cvref(type);
+    auto ty = unit_->typeTraits().remove_cvref(type);
 
     auto interp = ASTInterpreter{unit_};
 
@@ -144,7 +145,7 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     -> std::optional<mlir::Attribute> {
   auto interp = ASTInterpreter{unit_};
 
-  if (control()->is_integral_or_unscoped_enum(type)) {
+  if (unit_->typeTraits().is_integral_or_unscoped_enum(type)) {
     auto constValue = interp.toInt(value);
     return builder_.getI64IntegerAttr(constValue.value_or(0));
   }
@@ -153,7 +154,7 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     return *attr;
   }
 
-  if (control()->is_pointer(type)) {
+  if (unit_->typeTraits().is_pointer(type)) {
     if (auto intVal = std::get_if<std::intmax_t>(&value)) {
       if (*intVal == 0) return builder_.getUnitAttr();
     }
@@ -166,7 +167,8 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     return std::nullopt;
   }
 
-  if (control()->is_array(type) || control()->is_class(type)) {
+  if (unit_->typeTraits().is_array(type) ||
+      unit_->typeTraits().is_class(type)) {
     if (auto constArrayPtr =
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto constArray = *constArrayPtr;
@@ -190,7 +192,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     -> mlir::Value {
   auto interp = ASTInterpreter{unit_};
 
-  if (control()->is_integral_or_unscoped_enum(type)) {
+  if (unit_->typeTraits().is_integral_or_unscoped_enum(type)) {
     auto mlirType = convertType(type);
     auto constValue = interp.toInt(value);
     return mlir::arith::ConstantOp::create(
@@ -198,7 +200,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
         builder.getIntegerAttr(mlirType, constValue.value_or(0)));
   }
 
-  if (control()->is_floating_point(type)) {
+  if (unit_->typeTraits().is_floating_point(type)) {
     auto mlirType = convertType(type);
     auto floatType = mlir::cast<mlir::FloatType>(mlirType);
     auto constValue = interp.toDouble(value);
@@ -207,7 +209,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
         mlir::FloatAttr::get(floatType, constValue.value_or(0.0)));
   }
 
-  if (control()->is_pointer(type)) {
+  if (unit_->typeTraits().is_pointer(type)) {
     auto ptrType = convertType(type);
     auto mlirPtrType = mlir::cast<mlir::cxx::PointerType>(ptrType);
 
@@ -254,8 +256,8 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     return mlir::cxx::NullPtrConstantOp::create(builder, loc, mlirPtrType);
   }
 
-  if (control()->is_class_or_union(type)) {
-    auto classType = type_cast<ClassType>(control()->remove_cv(type));
+  if (unit_->typeTraits().is_class_or_union(type)) {
+    auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(type));
     auto mlirType = convertType(type);
 
     if (classType && classType->isUnion()) {
@@ -305,7 +307,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
   }
 
-  if (control()->is_array(type)) {
+  if (unit_->typeTraits().is_array(type)) {
     auto mlirType = convertType(type);
     if (auto initListPtr =
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
@@ -459,7 +461,7 @@ auto Codegen::buildSubroutineTypeAttr(FunctionSymbol* functionSymbol)
   if (auto classType = type_cast<ClassType>(functionSymbol->parent()->type());
       classType && !functionSymbol->isStatic()) {
     signatureType.push_back(
-        convertDebugType(control()->add_pointer(classType)));
+        convertDebugType(unit_->typeTraits().add_pointer(classType)));
   }
 
   for (auto paramType : functionType->parameterTypes()) {
@@ -620,7 +622,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   }
 
   const auto returnType = functionType->returnType();
-  const auto needsExitValue = !control()->is_void(returnType);
+  const auto needsExitValue = !unit_->typeTraits().is_void(returnType);
 
   std::vector<mlir::Type> inputTypes;
   std::vector<mlir::Type> resultTypes;
@@ -800,12 +802,13 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   if (value.has_value()) {
     auto interp = ASTInterpreter{unit_};
 
-    if (control()->is_integral_or_unscoped_enum(variableSymbol->type())) {
+    if (unit_->typeTraits().is_integral_or_unscoped_enum(
+            variableSymbol->type())) {
       auto constValue = interp.toInt(*value);
       initializer = builder_.getI64IntegerAttr(constValue.value_or(0));
     } else if (auto attr = getFloatAttr(value, variableSymbol->type())) {
       initializer = attr.value();
-    } else if (control()->is_array(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_array(variableSymbol->type())) {
       if (auto constArrayPtr =
               std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
         auto constArray = *constArrayPtr;
@@ -853,9 +856,9 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
         initializer =
             builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
       }
-    } else if (control()->is_class(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_class(variableSymbol->type())) {
       needsRegionInit = true;
-    } else if (control()->is_pointer(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_pointer(variableSymbol->type())) {
       if (auto attr = constValueToAttr(*value, variableSymbol->type())) {
         initializer = *attr;
       } else {
@@ -872,20 +875,23 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   }
 
   if (!initializer && !isExternalOnly) {
-    if (control()->is_integral_or_unscoped_enum(variableSymbol->type())) {
+    if (unit_->typeTraits().is_integral_or_unscoped_enum(
+            variableSymbol->type())) {
       initializer = builder_.getI64IntegerAttr(0);
-    } else if (control()->is_floating_point(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_floating_point(variableSymbol->type())) {
       initializer = builder_.getF64FloatAttr(0.0);
-    } else if (control()->is_array(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_array(variableSymbol->type())) {
       auto arrayType = type_cast<BoundedArrayType>(variableSymbol->type());
       if (arrayType) {
         size_t numElements = arrayType->size();
         std::vector<mlir::Attribute> zeroElements;
 
         mlir::Attribute zeroElement;
-        if (control()->is_integral_or_unscoped_enum(arrayType->elementType())) {
+        if (unit_->typeTraits().is_integral_or_unscoped_enum(
+                arrayType->elementType())) {
           zeroElement = builder_.getI64IntegerAttr(0);
-        } else if (control()->is_floating_point(arrayType->elementType())) {
+        } else if (unit_->typeTraits().is_floating_point(
+                       arrayType->elementType())) {
           zeroElement = builder_.getF64FloatAttr(0.0);
         } else {
           auto elementVarType = convertType(arrayType->elementType());
@@ -899,7 +905,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
           initializer = builder_.getArrayAttr(zeroElements);
         }
       }
-    } else if (control()->is_pointer(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_pointer(variableSymbol->type())) {
       initializer = builder_.getUnitAttr();
     } else {
       initializer = builder_.getZeroAttr(varType);
@@ -910,7 +916,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   }
 
   bool isConstant = variableSymbol->isConstexpr() ||
-                    control()->is_const(variableSymbol->type());
+                    unit_->typeTraits().is_const(variableSymbol->type());
 
   auto var = mlir::cxx::GlobalOp::create(
       builder_, loc, mlir::TypeRange(), varType, isConstant,
@@ -1089,7 +1095,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
 
   auto thisPtr = mlir::cxx::LoadOp::create(
       builder_, loc, ptrType, thisValue_,
-      getAlignment(control()->add_pointer(classSymbol->type())));
+      getAlignment(unit_->typeTraits().add_pointer(classSymbol->type())));
 
   mlir::Value vptrFieldPtr;
   if (layout->hasDirectVtable()) {

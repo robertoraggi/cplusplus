@@ -33,8 +33,15 @@ auto ScopedEnumType::underlyingType() const -> const Type* {
   return symbol()->underlyingType();
 }
 
-auto ClassType::isComplete() const -> bool { return symbol()->isComplete(); }
+auto ClassType::definition() const -> ClassSymbol* {
+  if (auto def = symbol()->definition()) return def;
+  return symbol();
+}
 
-auto ClassType::isUnion() const -> bool { return symbol()->isUnion(); }
+auto ClassType::isComplete() const -> bool {
+  return definition()->isComplete();
+}
+
+auto ClassType::isUnion() const -> bool { return definition()->isUnion(); }
 
 }  // namespace cxx

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/decl.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -155,24 +156,24 @@ struct GetDeclaratorType {
 
     for (auto it = ast->cvQualifierList; it; it = it->next) {
       if (ast_cast<ConstQualifierAST>(it->value)) {
-        type_ = control()->add_const(type_);
+        type_ = unit->typeTraits().add_const(type_);
       } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        type_ = control()->add_volatile(type_);
+        type_ = unit->typeTraits().add_volatile(type_);
       }
     }
   }
 
   void operator()(ReferenceOperatorAST* ast) {
-    if (control()->is_void(type_)) {
+    if (unit->typeTraits().is_void(type_)) {
       unit->error(ast->firstSourceLocation(),
                   "reference to void type is not allowed");
       return;
     }
 
     if (ast->refOp == TokenKind::T_AMP_AMP) {
-      type_ = control()->add_rvalue_reference(type_);
+      type_ = unit->typeTraits().add_rvalue_reference(type_);
     } else {
-      type_ = control()->add_lvalue_reference(type_);
+      type_ = unit->typeTraits().add_lvalue_reference(type_);
     }
   }
 
@@ -193,9 +194,9 @@ struct GetDeclaratorType {
 
     for (auto it = ast->cvQualifierList; it; it = it->next) {
       if (ast_cast<ConstQualifierAST>(it->value)) {
-        type_ = control()->add_const(type_);
+        type_ = unit->typeTraits().add_const(type_);
       } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        type_ = control()->add_volatile(type_);
+        type_ = unit->typeTraits().add_volatile(type_);
       }
     }
   }
@@ -221,7 +222,7 @@ struct GetDeclaratorType {
       for (auto it = params->parameterDeclarationList; it; it = it->next) {
         auto paramType = it->value->type;
 
-        if (control()->is_void(paramType)) {
+        if (unit->typeTraits().is_void(paramType)) {
           continue;
         }
 

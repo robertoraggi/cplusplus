@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/binder.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -44,18 +45,19 @@ auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
   return std::nullopt;
 }
 
-auto isEffectivelyUnboundedArray(Control* control, const Type* type) -> bool {
-  if (!control || !type) return false;
-  if (control->is_unbounded_array(type)) return true;
+auto isEffectivelyUnboundedArray(TranslationUnit* unit, const Type* type)
+    -> bool {
+  if (!unit || !type) return false;
+  if (unit->typeTraits().is_unbounded_array(type)) return true;
 
   auto unresolved = type_cast<UnresolvedBoundedArrayType>(type);
   if (!unresolved) return false;
   return !arrayBoundToString(type).has_value();
 }
 
-auto areRedeclarationTypesCompatible(Control* control, const Type* lhs,
+auto areRedeclarationTypesCompatible(TranslationUnit* unit, const Type* lhs,
                                      const Type* rhs) -> bool {
-  if (!control || !lhs || !rhs) return false;
+  if (!unit || !lhs || !rhs) return false;
 
   while (auto qual = type_cast<QualType>(lhs)) {
     lhs = qual->elementType();
@@ -64,18 +66,19 @@ auto areRedeclarationTypesCompatible(Control* control, const Type* lhs,
     rhs = qual->elementType();
   }
 
-  if (control->is_same(lhs, rhs)) return true;
+  if (unit->typeTraits().is_same(lhs, rhs)) return true;
 
-  if (!control->is_array(lhs) || !control->is_array(rhs)) return false;
+  if (!unit->typeTraits().is_array(lhs) || !unit->typeTraits().is_array(rhs))
+    return false;
 
-  auto lhsElement = control->get_element_type(lhs);
-  auto rhsElement = control->get_element_type(rhs);
-  if (!areRedeclarationTypesCompatible(control, lhsElement, rhsElement)) {
+  auto lhsElement = unit->typeTraits().get_element_type(lhs);
+  auto rhsElement = unit->typeTraits().get_element_type(rhs);
+  if (!areRedeclarationTypesCompatible(unit, lhsElement, rhsElement)) {
     return false;
   }
 
-  if (isEffectivelyUnboundedArray(control, lhs) ||
-      isEffectivelyUnboundedArray(control, rhs)) {
+  if (isEffectivelyUnboundedArray(unit, lhs) ||
+      isEffectivelyUnboundedArray(unit, rhs)) {
     return true;
   }
 
@@ -85,17 +88,18 @@ auto areRedeclarationTypesCompatible(Control* control, const Type* lhs,
   return *lhsBound == *rhsBound;
 }
 
-auto areFunctionSignaturesEquivalentForRedeclaration(Control* control,
+auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
                                                      const Type* lhs,
                                                      const Type* rhs) -> bool {
-  if (!control || !lhs || !rhs) return false;
-  if (control->is_same(lhs, rhs)) return true;
+  if (!unit || !lhs || !rhs) return false;
+  if (unit->typeTraits().is_same(lhs, rhs)) return true;
 
   auto lhsFn = type_cast<FunctionType>(lhs);
   auto rhsFn = type_cast<FunctionType>(rhs);
   if (!lhsFn || !rhsFn) return false;
 
-  if (!control->is_same(lhsFn->returnType(), rhsFn->returnType())) return false;
+  if (!unit->typeTraits().is_same(lhsFn->returnType(), rhsFn->returnType()))
+    return false;
   if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
   if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
   if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
@@ -105,7 +109,7 @@ auto areFunctionSignaturesEquivalentForRedeclaration(Control* control,
   if (lhsParams.size() != rhsParams.size()) return false;
 
   for (std::size_t i = 0; i < lhsParams.size(); ++i) {
-    if (!areRedeclarationTypesCompatible(control, lhsParams[i], rhsParams[i])) {
+    if (!areRedeclarationTypesCompatible(unit, lhsParams[i], rhsParams[i])) {
       return false;
     }
   }
@@ -230,7 +234,7 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
   for (auto existingFunction : overloadSet->functions()) {
     if (!areFunctionSignaturesEquivalentForRedeclaration(
-            control(), existingFunction->type(), functionSymbol->type())) {
+            binder.unit_, existingFunction->type(), functionSymbol->type())) {
       continue;
     }
 
@@ -296,7 +300,7 @@ void Binder::DeclareFunction::checkConstructor() {
 
   for (auto ctor : enclosingClass->constructors()) {
     if (areFunctionSignaturesEquivalentForRedeclaration(
-            control(), ctor->type(), functionSymbol->type())) {
+            binder.unit_, ctor->type(), functionSymbol->type())) {
       auto canon = ctor->canonical();
       canon->addRedeclaration(functionSymbol);
       mergeRedeclaration();
@@ -405,7 +409,7 @@ auto Binder::DeclareFunction::findOverriddenFunctionImpl(
 
       // Non-destructors: match by name and signature
       if (fn->name() == member->name() &&
-          control()->is_same(fn->type(), member->type())) {
+          binder.unit_->typeTraits().is_same(fn->type(), member->type())) {
         return member;
       }
     }

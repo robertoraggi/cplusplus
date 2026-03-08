@@ -276,19 +276,14 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
     return nullptr;
   }
 
-  auto instance =
-      ASTRewriter::instantiate(binder.unit_, templateId->templateArgumentList,
-                               classSymbol, templateId->identifierLoc);
-
-  if (instance) return instance;
-  if (!classSymbol->templateDeclaration()) return instance;
+  if (!classSymbol->templateDeclaration()) return nullptr;
 
   auto templateArgs =
       Substitution(binder.unit_, classSymbol->templateDeclaration(),
                    templateId->templateArgumentList)
           .templateArguments();
 
-  if (templateArgs.empty()) return instance;
+  if (templateArgs.empty()) return nullptr;
 
   if (auto cached = classSymbol->findSpecialization(templateArgs)) {
     return cached;
@@ -297,7 +292,18 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
   auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
   auto spec = control()->newClassSymbol(parentScope, {});
   spec->setName(classSymbol->name());
+  spec->setType(control()->getClassType(spec));
   classSymbol->addSpecialization(std::move(templateArgs), spec);
+
+  for (auto& s : classSymbol->mutableSpecializations()) {
+    if (s.symbol == spec) {
+      s.pendingArgumentList = templateId->templateArgumentList;
+      s.pendingInstantiationLoc = templateId->identifierLoc;
+      s.isPendingInstantiation = true;
+      break;
+    }
+  }
+
   return spec;
 }
 

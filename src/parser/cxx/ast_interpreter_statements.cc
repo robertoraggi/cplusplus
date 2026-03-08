@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast_interpreter.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -268,7 +269,7 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
                 ast_cast<ParenInitializerAST>(initDecl->initializer)) {
           auto* var = symbol_cast<VariableSymbol>(initDecl->symbol);
           if (var) {
-            auto varType = interp.control()->remove_cv(var->type());
+            auto varType = interp.unit_->typeTraits().remove_cv(var->type());
             if (auto* classType = type_cast<ClassType>(varType)) {
               std::vector<ConstValue> args;
               bool argsOk = true;

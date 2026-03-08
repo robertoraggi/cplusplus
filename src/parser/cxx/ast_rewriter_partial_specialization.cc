@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast_rewriter.h>
+#include <cxx/type_traits.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -243,7 +244,8 @@ struct PartialSpecMatcher {
 
     auto leftType = existingSymbol->type();
     auto rightType = newSymbol->type();
-    if (leftType && rightType && control()->is_same(leftType, rightType)) {
+    if (leftType && rightType &&
+        unit->typeTraits().is_same(leftType, rightType)) {
       return true;
     }
 

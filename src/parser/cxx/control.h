@@ -36,6 +36,7 @@
 namespace cxx {
 
 class MemoryLayout;
+class TypeTraits;
 
 class Control {
  public:
@@ -239,104 +240,6 @@ class Control {
   [[nodiscard]] auto newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
                                                SourceLocation sourceLocation)
       -> UsingDeclarationSymbol*;
-
-  // primary type categories
-  [[nodiscard]] auto is_void(const Type* type) -> bool;
-  [[nodiscard]] auto is_null_pointer(const Type* type) -> bool;
-  [[nodiscard]] auto is_integral(const Type* type) -> bool;
-  [[nodiscard]] auto is_floating_point(const Type* type) -> bool;
-  [[nodiscard]] auto is_array(const Type* type) -> bool;
-  [[nodiscard]] auto is_enum(const Type* type) -> bool;
-  [[nodiscard]] auto is_union(const Type* type) -> bool;
-  [[nodiscard]] auto is_class(const Type* type) -> bool;
-  [[nodiscard]] auto is_function(const Type* type) -> bool;
-  [[nodiscard]] auto is_pointer(const Type* type) -> bool;
-  [[nodiscard]] auto is_lvalue_reference(const Type* type) -> bool;
-  [[nodiscard]] auto is_rvalue_reference(const Type* type) -> bool;
-  [[nodiscard]] auto is_member_object_pointer(const Type* type) -> bool;
-  [[nodiscard]] auto is_member_function_pointer(const Type* type) -> bool;
-  [[nodiscard]] auto is_complete(const Type* type) -> bool;
-
-  // composite type categories
-  [[nodiscard]] auto is_integer(const Type* type) -> bool;
-  [[nodiscard]] auto is_integral_or_unscoped_enum(const Type* type) -> bool;
-  [[nodiscard]] auto is_arithmetic_or_unscoped_enum(const Type* type) -> bool;
-  [[nodiscard]] auto is_fundamental(const Type* type) -> bool;
-  [[nodiscard]] auto is_arithmetic(const Type* type) -> bool;
-  [[nodiscard]] auto is_scalar(const Type* type) -> bool;
-  [[nodiscard]] auto is_object(const Type* type) -> bool;
-  [[nodiscard]] auto is_compound(const Type* type) -> bool;
-  [[nodiscard]] auto is_reference(const Type* type) -> bool;
-  [[nodiscard]] auto is_member_pointer(const Type* type) -> bool;
-  [[nodiscard]] auto is_class_or_union(const Type* type) -> bool;
-
-  // type properties
-  [[nodiscard]] auto is_const(const Type* type) -> bool;
-  [[nodiscard]] auto is_volatile(const Type* type) -> bool;
-  [[nodiscard]] auto is_signed(const Type* type) -> bool;
-  [[nodiscard]] auto is_unsigned(const Type* type) -> bool;
-  [[nodiscard]] auto is_bounded_array(const Type* type) -> bool;
-  [[nodiscard]] auto is_unbounded_array(const Type* type) -> bool;
-  [[nodiscard]] auto is_scoped_enum(const Type* type) -> bool;
-
-  // references
-  [[nodiscard]] auto remove_reference(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_lvalue_reference(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_rvalue_reference(const Type* type) -> const Type*;
-
-  // arrays
-  [[nodiscard]] auto remove_extent(const Type* type) -> const Type*;
-  [[nodiscard]] auto remove_all_extents(const Type* type) -> const Type*;
-  [[nodiscard]] auto get_element_type(const Type* type) -> const Type*;
-
-  // cv qualifiers
-  [[nodiscard]] auto remove_cv(const Type* type) -> const Type*;
-  [[nodiscard]] auto remove_const(const Type* type) -> const Type*;
-  [[nodiscard]] auto remove_volatile(const Type* type) -> const Type*;
-  [[nodiscard]] auto remove_cvref(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_const_ref(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_const(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_volatile(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_cv(const Type* type, CvQualifiers cv) -> const Type*;
-  [[nodiscard]] auto get_cv_qualifiers(const Type* type) -> CvQualifiers;
-
-  // pointers
-  [[nodiscard]] auto remove_pointer(const Type* type) -> const Type*;
-  [[nodiscard]] auto add_pointer(const Type* type) -> const Type*;
-
-  // functions
-  [[nodiscard]] auto remove_noexcept(const Type* type) -> const Type*;
-
-  // classes
-  [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) -> bool;
-
-  // type relationships
-  [[nodiscard]] auto is_same(const Type* a, const Type* b) -> bool;
-  [[nodiscard]] auto is_convertible(const Type* from, const Type* to) -> bool;
-  [[nodiscard]] auto decay(const Type* type) -> const Type*;
-
-  [[nodiscard]] auto is_pod(const Type* type) -> bool;
-  [[nodiscard]] auto is_trivial(const Type* type) -> bool;
-  [[nodiscard]] auto is_standard_layout(const Type* type) -> bool;
-  [[nodiscard]] auto is_literal_type(const Type* type) -> bool;
-  [[nodiscard]] auto is_aggregate(const Type* type) -> bool;
-  [[nodiscard]] auto is_empty(const Type* type) -> bool;
-  [[nodiscard]] auto is_polymorphic(const Type* type) -> bool;
-  [[nodiscard]] auto is_final(const Type* type) -> bool;
-  [[nodiscard]] auto is_constructible(const Type* type,
-                                      std::span<const Type* const> argTypes)
-      -> bool;
-  [[nodiscard]] auto is_nothrow_constructible(
-      const Type* type, std::span<const Type* const> argTypes) -> bool;
-  [[nodiscard]] auto is_trivially_constructible(const Type* type) -> bool;
-  [[nodiscard]] auto is_assignable(const Type* to, const Type* from) -> bool;
-  [[nodiscard]] auto is_trivially_assignable(const Type* from, const Type* to)
-      -> bool;
-  [[nodiscard]] auto is_trivially_copyable(const Type* type) -> bool;
-  [[nodiscard]] auto is_abstract(const Type* type) -> bool;
-  [[nodiscard]] auto is_destructible(const Type* type) -> bool;
-  [[nodiscard]] auto is_trivially_destructible(const Type* type) -> bool;
-  [[nodiscard]] auto has_virtual_destructor(const Type* type) -> bool;
 
  private:
   struct Private;

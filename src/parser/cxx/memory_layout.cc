@@ -193,7 +193,7 @@ struct SizeOf {
   }
 
   auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
-    return type->symbol()->sizeInBytes();
+    return type->definition()->sizeInBytes();
   }
 
   auto operator()(const EnumType* type) const -> std::optional<std::size_t> {
