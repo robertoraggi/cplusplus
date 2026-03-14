@@ -292,6 +292,13 @@ def Cxx_UndefOp : Cxx_Op<"undef", [Pure]> {
   let assemblyFormat = "attr-dict `:` type($result)";
 }
 
+def Cxx_ReshapeOp : Cxx_Op<"reshape", [Pure]> {
+  let arguments = (ins AnyType:$value);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
+}
+
 def Cxx_InsertValueOp : Cxx_Op<"insertvalue", [AllTypesMatch<["container", "result"]>]> {
   let arguments = (ins AnyType:$container, AnyType:$value, I64Attr:$position);
 
