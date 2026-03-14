@@ -159,12 +159,25 @@ auto Codegen::ConvertDebugType::derivedType(unsigned tag, const Type* type,
     return {};
   }
 
+  auto nameAttr = mlir::StringAttr::get(
+      context(), name.isTriviallyEmpty() ? std::string{} : name.str());
+
+  auto fileAttr = mlir::LLVM::DIFileAttr{};
+
+#if LLVM_VERSION_MAJOR < 23
+  return mlir::LLVM::DIDerivedTypeAttr::get(context(), tag, nameAttr, baseType,
+                                            sizeInBits, alignInBits,
+                                            offsetInBits, {},
+                                            /*extraData=*/{});
+#else
   return mlir::LLVM::DIDerivedTypeAttr::get(
-      context(), tag,
-      name.isTriviallyEmpty() ? mlir::StringAttr::get(context(), "")
-                              : mlir::StringAttr::get(context(), name.str()),
-      baseType, sizeInBits, alignInBits, offsetInBits, {},
-      /*extraData=*/{});
+      context(), tag, nameAttr, fileAttr, /*line=*/0,
+      /*scope=*/mlir::LLVM::DIScopeAttr{}, baseType, sizeInBits, alignInBits,
+      offsetInBits,
+      /*dwarfAddressSpace=*/std::nullopt,
+      /*flags=*/mlir::LLVM::DIFlags{},
+      /*extraData=*/mlir::LLVM::DINodeAttr{});
+#endif
 }
 
 auto Codegen::ConvertDebugType::compositeType(
