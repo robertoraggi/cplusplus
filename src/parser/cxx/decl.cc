@@ -306,6 +306,9 @@ struct GetDeclaratorType {
 
   auto operator()(NoexceptSpecifierAST* ast) -> bool {
     if (!ast->expression) return true;
+    auto interp = ASTInterpreter{unit};
+    auto value = interp.evaluate(ast->expression);
+    if (value.has_value()) return interp.toBool(*value).value_or(false);
     return false;
   }
 };

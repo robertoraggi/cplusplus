@@ -1942,14 +1942,15 @@ auto Codegen::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-auto expressionResult = gen.expression(ast->expression);
-#endif
-
-  return {op};
+  if (ast->value.has_value()) {
+    auto resultType = gen.convertType(ast->type);
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto op = mlir::arith::ConstantOp::create(
+        gen.builder_, loc, resultType,
+        gen.builder_.getIntegerAttr(resultType, *ast->value ? 1 : 0));
+    return {op};
+  }
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
 }
 
 auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)

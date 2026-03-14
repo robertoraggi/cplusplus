@@ -1285,8 +1285,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
     -> ExpressionResult {
-  auto expressionResult = interp.expression(ast->expression);
-
+  if (ast->value.has_value())
+    return ExpressionResult(static_cast<std::intmax_t>(*ast->value ? 1 : 0));
   return ExpressionResult{std::nullopt};
 }
 
