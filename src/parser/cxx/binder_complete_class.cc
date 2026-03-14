@@ -60,6 +60,7 @@ struct [[nodiscard]] Binder::CompleteClass {
       -> FunctionSymbol*;
   void attachDeclaration(FunctionSymbol* symbol, UnqualifiedIdAST* id);
   auto makeCtorNameId() -> NameIdAST*;
+  void addFunctionToClassScope(FunctionSymbol* symbol);
   void addDefaultConstructor();
   void addCopyConstructor();
   void addMoveConstructor();
@@ -164,6 +165,25 @@ auto Binder::CompleteClass::makeCtorNameId() -> NameIdAST* {
   return NameIdAST::create(pool, name_cast<Identifier>(classSymbol->name()));
 }
 
+void Binder::CompleteClass::addFunctionToClassScope(FunctionSymbol* symbol) {
+  auto name = symbol->name();
+  for (auto existing : classSymbol->find(name)) {
+    if (auto os = symbol_cast<OverloadSetSymbol>(existing)) {
+      os->addFunction(symbol);
+      return;
+    }
+    if (auto func = symbol_cast<FunctionSymbol>(existing)) {
+      auto os = control()->newOverloadSetSymbol(classSymbol, func->location());
+      os->setName(name);
+      os->addFunction(func);
+      os->addFunction(symbol);
+      classSymbol->replaceSymbol(func, os);
+      return;
+    }
+  }
+  classSymbol->addSymbol(symbol);
+}
+
 void Binder::CompleteClass::addDefaultConstructor() {
   if (!classSymbol->constructors().empty()) return;
 
@@ -200,7 +220,8 @@ void Binder::CompleteClass::addMoveConstructor() {
 }
 
 void Binder::CompleteClass::addCopyAssignmentOperator() {
-  if (classSymbol->copyAssignmentOperator()) return;
+  auto existing = classSymbol->copyAssignmentOperator();
+  if (existing) return;
 
   auto constRefType = control()->getLvalueReferenceType(
       control()->getConstType(classSymbol->type()));
@@ -209,13 +230,14 @@ void Binder::CompleteClass::addCopyAssignmentOperator() {
   auto symbol =
       newDefaultedFunction(control()->getOperatorId(TokenKind::T_EQUAL),
                            control()->getFunctionType(retType, {constRefType}));
-  classSymbol->addSymbol(symbol);
+  addFunctionToClassScope(symbol);
   attachDeclaration(symbol,
                     OperatorFunctionIdAST::create(pool, TokenKind::T_EQUAL));
 }
 
 void Binder::CompleteClass::addMoveAssignmentOperator() {
-  if (classSymbol->moveAssignmentOperator()) return;
+  auto existingMove = classSymbol->moveAssignmentOperator();
+  if (existingMove) return;
 
   auto rvalRefType = control()->getRvalueReferenceType(classSymbol->type());
   auto retType = control()->getLvalueReferenceType(classSymbol->type());
@@ -223,7 +245,7 @@ void Binder::CompleteClass::addMoveAssignmentOperator() {
   auto symbol =
       newDefaultedFunction(control()->getOperatorId(TokenKind::T_EQUAL),
                            control()->getFunctionType(retType, {rvalRefType}));
-  classSymbol->addSymbol(symbol);
+  addFunctionToClassScope(symbol);
   attachDeclaration(symbol,
                     OperatorFunctionIdAST::create(pool, TokenKind::T_EQUAL));
 }

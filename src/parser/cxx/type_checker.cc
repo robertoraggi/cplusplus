@@ -49,7 +49,138 @@
 
 namespace cxx {
 
-inline auto strip_implicit_initializer_casts(ExpressionAST* expr)
+namespace {
+
+struct IsPotentiallyThrowing {
+  auto operator()(ExpressionAST*) -> bool { return false; }
+
+  auto operator()(ThrowExpressionAST*) -> bool { return true; }
+
+  auto operator()(NoexceptExpressionAST*) -> bool { return false; }
+
+  auto operator()(CallExpressionAST* ast) -> bool {
+    auto* base = ast->baseExpression;
+    if (!base) return true;
+    const FunctionType* ft = type_cast<FunctionType>(base->type);
+    if (!ft)
+      if (auto* pt = type_cast<PointerType>(base->type))
+        ft = type_cast<FunctionType>(pt->elementType());
+    if (!ft || !ft->isNoexcept()) return true;
+    for (auto it = ast->expressionList; it; it = it->next)
+      if (apply(it->value)) return true;
+    return apply(ast->baseExpression);
+  }
+
+  auto operator()(TypeConstructionAST* ast) -> bool {
+    if (auto* classType = type_cast<ClassType>(ast->type)) {
+      auto cls = classType->definition();
+      if (!cls || !cls->isComplete()) return true;
+      auto defCtor = cls->defaultConstructor();
+      if (!defCtor) return cls->hasUserDeclaredConstructors();
+      auto ctorFuncType = type_cast<FunctionType>(defCtor->type());
+      return !ctorFuncType || !ctorFuncType->isNoexcept();
+    }
+    return false;
+  }
+
+  auto operator()(BinaryExpressionAST* ast) -> bool {
+    if (ast->symbol) {
+      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      if (!ft || !ft->isNoexcept()) return true;
+    }
+    return apply(ast->leftExpression) || apply(ast->rightExpression);
+  }
+
+  auto operator()(UnaryExpressionAST* ast) -> bool {
+    if (ast->symbol) {
+      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      if (!ft || !ft->isNoexcept()) return true;
+    }
+    return apply(ast->expression);
+  }
+
+  auto operator()(AssignmentExpressionAST* ast) -> bool {
+    if (ast->symbol) {
+      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      if (!ft || !ft->isNoexcept()) return true;
+    }
+    return apply(ast->leftExpression) || apply(ast->rightExpression);
+  }
+
+  auto operator()(CompoundAssignmentExpressionAST* ast) -> bool {
+    if (ast->symbol) {
+      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      if (!ft || !ft->isNoexcept()) return true;
+    }
+    return apply(ast->targetExpression) || apply(ast->rightExpression);
+  }
+
+  auto operator()(SubscriptExpressionAST* ast) -> bool {
+    if (ast->symbol) {
+      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      if (!ft || !ft->isNoexcept()) return true;
+    }
+    return apply(ast->baseExpression) || apply(ast->indexExpression);
+  }
+
+  auto operator()(DeleteExpressionAST*) -> bool { return true; }
+
+  auto operator()(CppCastExpressionAST* ast) -> bool {
+    if (ast->castOp == TokenKind::T_DYNAMIC_CAST) {
+      if (!ast->type || !type_cast<PointerType>(ast->type)) return true;
+    }
+    return apply(ast->expression);
+  }
+
+  auto operator()(CastExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(PostIncrExpressionAST* ast) -> bool {
+    if (!ast->baseExpression) return false;
+    auto* baseType = ast->baseExpression->type;
+    if (baseType && type_cast<ClassType>(baseType)) return true;
+    return false;
+  }
+
+  auto operator()(BracedTypeConstructionAST* ast) -> bool {
+    if (auto* classType = type_cast<ClassType>(ast->type)) {
+      auto cls = classType->definition();
+      if (!cls || !cls->isComplete()) return true;
+      auto defCtor = cls->defaultConstructor();
+      if (!defCtor) return cls->hasUserDeclaredConstructors();
+      auto ctorFuncType = type_cast<FunctionType>(defCtor->type());
+      return !ctorFuncType || !ctorFuncType->isNoexcept();
+    }
+    return false;
+  }
+
+  auto operator()(NewExpressionAST*) -> bool { return true; }
+
+  auto operator()(ImplicitCastExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(NestedExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(ConditionalExpressionAST* ast) -> bool {
+    return apply(ast->condition) || apply(ast->iftrueExpression) ||
+           apply(ast->iffalseExpression);
+  }
+
+  auto apply(ExpressionAST* expr) -> bool {
+    if (!expr) return false;
+    return visit(*this, expr);
+  }
+};
+
+[[nodiscard]] auto isPotentiallyThrowing(ExpressionAST* expr) -> bool {
+  return IsPotentiallyThrowing{}.apply(expr);
+}
+
+[[nodiscard]] auto strip_implicit_initializer_casts(ExpressionAST* expr)
     -> ExpressionAST* {
   while (auto cast = ast_cast<ImplicitCastExpressionAST>(expr)) {
     expr = cast->expression;
@@ -57,7 +188,7 @@ inline auto strip_implicit_initializer_casts(ExpressionAST* expr)
   return expr;
 }
 
-inline auto single_paren_initializer_expr(ExpressionAST* expr)
+[[nodiscard]] auto single_paren_initializer_expr(ExpressionAST* expr)
     -> ExpressionAST* {
   auto paren = ast_cast<ParenInitializerAST>(expr);
   if (!paren) return nullptr;
@@ -65,7 +196,7 @@ inline auto single_paren_initializer_expr(ExpressionAST* expr)
   return paren->expressionList->value;
 }
 
-inline auto get_braced_initializer(ExpressionAST* initializer)
+[[nodiscard]] auto get_braced_initializer(ExpressionAST* initializer)
     -> BracedInitListAST* {
   initializer = strip_implicit_initializer_casts(initializer);
 
@@ -81,7 +212,7 @@ inline auto get_braced_initializer(ExpressionAST* initializer)
   return nullptr;
 }
 
-inline auto unwrap_single_initializer_expr(ExpressionAST* initializer)
+[[nodiscard]] auto unwrap_single_initializer_expr(ExpressionAST* initializer)
     -> ExpressionAST* {
   initializer = strip_implicit_initializer_casts(initializer);
 
@@ -100,8 +231,9 @@ inline auto unwrap_single_initializer_expr(ExpressionAST* initializer)
   return initializer;
 }
 
-inline auto init_declarator_location(InitDeclaratorAST* ast,
-                                     VariableSymbol* var) -> SourceLocation {
+[[nodiscard]] auto init_declarator_location(InitDeclaratorAST* ast,
+                                            VariableSymbol* var)
+    -> SourceLocation {
   if (!ast) return var ? var->location() : SourceLocation{};
 
   auto loc = ast->firstSourceLocation();
@@ -122,6 +254,8 @@ inline auto init_declarator_location(InitDeclaratorAST* ast,
 
   return var ? var->location() : SourceLocation{};
 }
+
+}  // namespace
 
 struct TypeChecker::Visitor {
   TypeChecker& check;
@@ -2528,6 +2662,10 @@ void TypeChecker::Visitor::operator()(AlignofExpressionAST* ast) {
 void TypeChecker::Visitor::operator()(NoexceptExpressionAST* ast) {
   ast->type = control()->getBoolType();
   ast->valueCategory = ValueCategory::kPrValue;
+
+  if (ast->expression && ast->expression->type) {
+    ast->value = !isPotentiallyThrowing(ast->expression);
+  }
 }
 
 void TypeChecker::Visitor::operator()(NewExpressionAST* ast) {

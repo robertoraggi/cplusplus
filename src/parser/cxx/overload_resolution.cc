@@ -248,6 +248,12 @@ auto OverloadResolution::resolveBinaryOperator(
     ImplicitConversionSequence seq;
     if (!source || !target) return seq;
 
+    if (unit_->typeTraits().is_rvalue_reference(target) &&
+        !unit_->typeTraits().is_rvalue_reference(source)) {
+      // todo: move non-viable
+      return seq;
+    }
+
     auto s = remove_cvref(source);
     auto t = remove_cvref(target);
 
@@ -461,8 +467,9 @@ auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
     if (!classSymbol) return nullptr;
 
     auto candidates = findCandidates(classSymbol, name);
-    if (!candidates.empty())
+    if (!candidates.empty()) {
       return trySelectOperator(candidates, type, rightType);
+    }
   }
 
   {

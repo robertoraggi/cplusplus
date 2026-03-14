@@ -4366,6 +4366,7 @@ class NoexceptExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
+  std::optional<bool> value;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4380,10 +4381,12 @@ class NoexceptExpressionAST final : public ExpressionAST {
                                    SourceLocation lparenLoc,
                                    ExpressionAST* expression,
                                    SourceLocation rparenLoc,
+                                   std::optional<bool> value,
                                    ValueCategory valueCategory,
                                    const Type* type) -> NoexceptExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   std::optional<bool> value,
                                    ValueCategory valueCategory,
                                    const Type* type) -> NoexceptExpressionAST*;
 

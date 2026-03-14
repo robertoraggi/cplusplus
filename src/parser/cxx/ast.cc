@@ -9770,6 +9770,7 @@ auto NoexceptExpressionAST::clone(Arena* arena) -> NoexceptExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
+  node->value = value;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9785,6 +9786,7 @@ auto NoexceptExpressionAST::create(Arena* arena, SourceLocation noexceptLoc,
                                    SourceLocation lparenLoc,
                                    ExpressionAST* expression,
                                    SourceLocation rparenLoc,
+                                   std::optional<bool> value,
                                    ValueCategory valueCategory,
                                    const Type* type) -> NoexceptExpressionAST* {
   auto node = new (arena) NoexceptExpressionAST();
@@ -9792,16 +9794,19 @@ auto NoexceptExpressionAST::create(Arena* arena, SourceLocation noexceptLoc,
   node->lparenLoc = lparenLoc;
   node->expression = expression;
   node->rparenLoc = rparenLoc;
+  node->value = value;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto NoexceptExpressionAST::create(Arena* arena, ExpressionAST* expression,
+                                   std::optional<bool> value,
                                    ValueCategory valueCategory,
                                    const Type* type) -> NoexceptExpressionAST* {
   auto node = new (arena) NoexceptExpressionAST();
   node->expression = expression;
+  node->value = value;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
