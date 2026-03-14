@@ -295,9 +295,21 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto& initList = *initListPtr;
       mlir::Value result = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+      auto fieldTypes =
+          mlir::dyn_cast<mlir::cxx::ClassType>(mlirType).getBody();
       for (size_t i = 0; i < initList->elements.size(); ++i) {
         auto& [elemValue, elemType] = initList->elements[i];
         auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
+        if (i < fieldTypes.size() && elemVal.getType() != fieldTypes[i]) {
+          auto srcArr = mlir::dyn_cast<mlir::cxx::ArrayType>(elemVal.getType());
+          auto dstArr = mlir::dyn_cast<mlir::cxx::ArrayType>(fieldTypes[i]);
+          if (srcArr && dstArr &&
+              srcArr.getElementType() == dstArr.getElementType() &&
+              srcArr.getSize() < dstArr.getSize()) {
+            elemVal =
+                mlir::cxx::ReshapeOp::create(builder, loc, dstArr, elemVal);
+          }
+        }
         result = mlir::cxx::InsertValueOp::create(
             builder, loc, mlirType, result, elemVal, static_cast<int64_t>(i));
       }
