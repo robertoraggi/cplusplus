@@ -270,6 +270,13 @@ class ASTInterpreter {
   [[nodiscard]] auto evaluateBuiltinFunction(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto evaluateBuiltinHugeVal(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinHugeValf(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinHugeVall(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
  private:
   TranslationUnit* unit_ = nullptr;
 

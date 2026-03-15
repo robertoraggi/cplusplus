@@ -192,6 +192,14 @@ def Cxx_AllocaOp : Cxx_Op<"alloca"> {
   let assemblyFormat = "attr-dict `:` type($result) `align` $alignment";
 }
 
+def Cxx_DynAllocaOp : Cxx_Op<"dyn_alloca"> {
+  let arguments = (ins AnyInteger:$size, I64Prop:$alignment);
+
+  let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$size attr-dict `:` type($size) `->` type($result) `align` $alignment";
+}
+
 def Cxx_LoadOp : Cxx_Op<"load"> {
   let arguments = (ins Cxx_PointerType:$addr, I64Prop:$alignment);
 

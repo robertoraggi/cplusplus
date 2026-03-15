@@ -345,6 +345,7 @@ class Token;
   V(__BUILTIN_ACOSHF, "__builtin_acoshf")                                     \
   V(__BUILTIN_ACOSHL, "__builtin_acoshl")                                     \
   V(__BUILTIN_ACOSL, "__builtin_acosl")                                       \
+  V(__BUILTIN_ALLOCA, "__builtin_alloca")                                     \
   V(__BUILTIN_ASIN, "__builtin_asin")                                         \
   V(__BUILTIN_ASINF, "__builtin_asinf")                                       \
   V(__BUILTIN_ASINH, "__builtin_asinh")                                       \
@@ -433,6 +434,9 @@ class Token;
   V(__BUILTIN_FREXP, "__builtin_frexp")                                       \
   V(__BUILTIN_FREXPF, "__builtin_frexpf")                                     \
   V(__BUILTIN_FREXPL, "__builtin_frexpl")                                     \
+  V(__BUILTIN_HUGE_VAL, "__builtin_huge_val")                                 \
+  V(__BUILTIN_HUGE_VALF, "__builtin_huge_valf")                               \
+  V(__BUILTIN_HUGE_VALL, "__builtin_huge_vall")                               \
   V(__BUILTIN_HYPOT, "__builtin_hypot")                                       \
   V(__BUILTIN_HYPOTF, "__builtin_hypotf")                                     \
   V(__BUILTIN_HYPOTL, "__builtin_hypotl")                                     \
@@ -496,6 +500,9 @@ class Token;
   V(__BUILTIN_NAN, "__builtin_nan")                                           \
   V(__BUILTIN_NANF, "__builtin_nanf")                                         \
   V(__BUILTIN_NANL, "__builtin_nanl")                                         \
+  V(__BUILTIN_NANS, "__builtin_nans")                                         \
+  V(__BUILTIN_NANSF, "__builtin_nansf")                                       \
+  V(__BUILTIN_NANSL, "__builtin_nansl")                                       \
   V(__BUILTIN_NEARBYINT, "__builtin_nearbyint")                               \
   V(__BUILTIN_NEARBYINTF, "__builtin_nearbyintf")                             \
   V(__BUILTIN_NEARBYINTL, "__builtin_nearbyintl")                             \
@@ -505,6 +512,7 @@ class Token;
   V(__BUILTIN_NEXTTOWARD, "__builtin_nexttoward")                             \
   V(__BUILTIN_NEXTTOWARDF, "__builtin_nexttowardf")                           \
   V(__BUILTIN_NEXTTOWARDL, "__builtin_nexttowardl")                           \
+  V(__BUILTIN_OPERATOR_NEW, "__builtin_operator_new")                         \
   V(__BUILTIN_POW, "__builtin_pow")                                           \
   V(__BUILTIN_POWF, "__builtin_powf")                                         \
   V(__BUILTIN_POWL, "__builtin_powl")                                         \
