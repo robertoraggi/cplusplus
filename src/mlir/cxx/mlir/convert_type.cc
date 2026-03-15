@@ -257,7 +257,7 @@ auto Codegen::ConvertType::operator()(const BoundedArrayType* type)
 auto Codegen::ConvertType::operator()(const UnboundedArrayType* type)
     -> mlir::Type {
   auto elementType = gen.convertType(type->elementType());
-  return mlir::cxx::PointerType::get(gen.context_, elementType);
+  return mlir::cxx::ArrayType::get(gen.context_, elementType, 0);
 }
 
 auto Codegen::ConvertType::operator()(const PointerType* type) -> mlir::Type {
