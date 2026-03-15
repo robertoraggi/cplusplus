@@ -838,7 +838,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
       if (nameId->identifier) {
         auto builtinKind = nameId->identifier->builtinFunction();
         if (builtinKind != BuiltinFunctionKind::T_NONE) {
-          return interp.evaluateBuiltinCall(builtinKind, std::move(args));
+          return interp.evaluateBuiltinCall(builtinKind, std::move(args), ast);
         }
       }
     }

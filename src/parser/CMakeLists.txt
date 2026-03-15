@@ -30,6 +30,7 @@ add_library(cxx-parser
     cxx/ast_interpreter_statements.cc
     cxx/ast_interpreter_units.cc
     cxx/ast_interpreter.cc
+    cxx/ast_interpreter_builtins.cc
     cxx/ast_pretty_printer.cc
     cxx/ast_printer.cc
     cxx/ast_rewriter_declarations.cc

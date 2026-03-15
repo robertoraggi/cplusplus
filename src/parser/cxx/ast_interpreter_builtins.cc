@@ -18,33 +18,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
+#include <cxx/ast_interpreter.h>
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// cxx
+#include <cxx/ast.h>
+#include <cxx/control.h>
+#include <cxx/literals.h>
+#include <cxx/translation_unit.h>
 
-export interface BuiltinEval {
-  fn: string;
-  args: string[];
-  ret: string;
-  cxx23?: boolean;
+namespace cxx {
+
+auto ASTInterpreter::evaluateBuiltinLine(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  if (!ast) return std::nullopt;
+  auto pos = unit_->tokenStartPosition(ast->firstSourceLocation());
+  return ConstValue{static_cast<std::intmax_t>(pos.line)};
 }
 
-export interface BuiltinDef {
-  name: string;
-  prototype: string;
-  constexpr: boolean;
-  eval?: BuiltinEval;
-  constEval?: string;   // ASTInterpreter method name
-  typeCheck?: string;   // TypeChecker::Visitor method name
-  codegen?: string;     // Codegen::ExpressionVisitor method name
+auto ASTInterpreter::evaluateBuiltinFile(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  if (!ast) return std::nullopt;
+  auto pos = unit_->tokenStartPosition(ast->firstSourceLocation());
+  auto* lit = control()->stringLiteral(pos.fileName);
+  return ConstValue{lit};
 }
 
-const builtinsPath = path.join(__dirname, "builtins.json");
+auto ASTInterpreter::evaluateBuiltinFunction(CallExpressionAST* /*ast*/)
+    -> std::optional<ConstValue> {
+  auto* lit = control()->stringLiteral(currentFunctionName_);
+  return ConstValue{lit};
+}
 
-export const BUILTINS: BuiltinDef[] = JSON.parse(
-  fs.readFileSync(builtinsPath, "utf-8"),
-);
-
-export const BUILTIN_NAMES: string[] = BUILTINS.map((b) => b.name).sort();
+}  // namespace cxx

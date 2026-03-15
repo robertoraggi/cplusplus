@@ -50,6 +50,8 @@ import { gen_ast_pretty_printer_h } from "./gen_ast_pretty_printer_h.ts";
 import { gen_ast_pretty_printer_cc } from "./gen_ast_pretty_printer_cc.ts";
 import { gen_builtins_h } from "./gen_builtins_h.ts";
 import { gen_builtins_interp_h } from "./gen_builtins_interp_h.ts";
+import { gen_builtins_typechecker_h } from "./gen_builtins_typechecker_h.ts";
+import { gen_builtins_codegen_h } from "./gen_builtins_codegen_h.ts";
 
 import * as fs from "fs";
 import * as path from "path";
@@ -136,6 +138,20 @@ gen_builtins_interp_h({
   output: path.join(
     outdir,
     "src/parser/cxx/private/builtins_interpreter-priv.h",
+  ),
+});
+
+gen_builtins_typechecker_h({
+  output: path.join(
+    outdir,
+    "src/parser/cxx/private/builtins_typechecker-priv.h",
+  ),
+});
+
+gen_builtins_codegen_h({
+  output: path.join(
+    outdir,
+    "src/mlir/cxx/mlir/builtins_codegen-priv.h",
   ),
 });
 

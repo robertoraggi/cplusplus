@@ -25,6 +25,7 @@
 #include <cxx/token_fwd.h>
 
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -71,7 +72,8 @@ class ASTInterpreter {
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateBuiltinCall(BuiltinFunctionKind kind,
-                                         std::vector<ConstValue> args)
+                                         std::vector<ConstValue> args,
+                                         CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 
   static constexpr int kMaxDepth = 512;
@@ -261,6 +263,13 @@ class ASTInterpreter {
     thisObject_ = std::move(obj);
   }
 
+  [[nodiscard]] auto evaluateBuiltinLine(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinFile(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinFunction(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
  private:
   TranslationUnit* unit_ = nullptr;
 
@@ -272,6 +281,7 @@ class ASTInterpreter {
   std::optional<ConstValue> returnValue_;
   std::shared_ptr<ConstObject> thisObject_;
 
+  std::string currentFunctionName_;
   int depth_ = 0;
 };
 
