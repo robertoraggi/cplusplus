@@ -3753,12 +3753,32 @@ void TypeChecker::deduce_array_size(VariableSymbol* var) {
   auto bracedInitList = get_braced_initializer(initializer);
 
   if (bracedInitList) {
-    const auto count =
-        std::ranges::distance(ListView{bracedInitList->expressionList});
+    auto interp = ASTInterpreter{unit_};
+    size_t currentIndex = 0;
+    size_t maxIndex = 0;
+    bool hasElements = false;
 
-    if (count > 0) {
-      const auto arrayType =
-          unit_->control()->getBoundedArrayType(ty->elementType(), count);
+    for (auto it = bracedInitList->expressionList; it; it = it->next) {
+      if (auto desig = ast_cast<DesignatedInitializerClauseAST>(it->value)) {
+        if (desig->designatorList) {
+          if (auto subscript = ast_cast<SubscriptDesignatorAST>(
+                  desig->designatorList->value)) {
+            if (auto value = interp.evaluate(subscript->expression)) {
+              if (auto idx = interp.toUInt(*value)) {
+                currentIndex = *idx;
+              }
+            }
+          }
+        }
+      }
+      if (!hasElements || currentIndex > maxIndex) maxIndex = currentIndex;
+      hasElements = true;
+      ++currentIndex;
+    }
+
+    if (hasElements) {
+      const auto arrayType = unit_->control()->getBoundedArrayType(
+          ty->elementType(), maxIndex + 1);
 
       var->setType(arrayType);
     }
@@ -4419,7 +4439,7 @@ void TypeChecker::check_braced_init_list(const Type* type,
         check_braced_init_list(elementType, nested);
       } else if (auto desig =
                      ast_cast<DesignatedInitializerClauseAST>(it->value)) {
-        check_designated_initializer(elementType, desig);
+        check_designated_initializer(type, desig);
       } else if (auto strLit = ast_cast<StringLiteralExpressionAST>(it->value);
                  strLit && unit_->typeTraits().is_array(elementType)) {
         auto destElemType = unit_->typeTraits().remove_cv(
@@ -4650,6 +4670,7 @@ void TypeChecker::check_designated_initializer(
       dot->symbol = field;
       targetType = unit_->typeTraits().remove_cv(field->type());
     } else if (auto subscript = ast_cast<SubscriptDesignatorAST>(designator)) {
+      check(subscript->expression);
       if (!unit_->typeTraits().is_array(targetType)) {
         error(subscript->firstSourceLocation(),
               std::format("array designator on non-array type '{}'",

@@ -783,7 +783,8 @@ auto Codegen::ExpressionVisitor::emitBuiltinCall(
     return {falseVal};
   }
 
-  // __builtin_constant_p: return 1 if arg is a compile-time constant, 0 otherwise.
+  // __builtin_constant_p: return 1 if arg is a compile-time constant, 0
+  // otherwise.
   if (builtinKind == BuiltinFunctionKind::T___BUILTIN_CONSTANT_P) {
     auto intType = gen.convertType(control()->getIntType());
     int result = 0;
@@ -794,7 +795,8 @@ auto Codegen::ExpressionVisitor::emitBuiltinCall(
       result = interp.evaluate(*it).has_value() ? 1 : 0;
     }
     auto val = mlir::arith::ConstantOp::create(
-        gen.builder_, loc, intType, gen.builder_.getIntegerAttr(intType, result));
+        gen.builder_, loc, intType,
+        gen.builder_.getIntegerAttr(intType, result));
     return {val};
   }
 
@@ -3513,6 +3515,28 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
   auto braced = ast_cast<BracedInitListAST>(init);
   if (!braced) return;
 
+  auto loc = getLocation(braced->firstSourceLocation());
+
+  bool hasDesignated = false;
+  for (auto node : ListView{braced->expressionList}) {
+    if (ast_cast<DesignatedInitializerClauseAST>(node)) {
+      hasDesignated = true;
+      break;
+    }
+  }
+
+  if (hasDesignated) {
+    if (auto size = control()->memoryLayout()->sizeOf(type)) {
+      mlir::cxx::MemSetZeroOp::create(builder_, loc, address, *size);
+    }
+    for (auto node : ListView{braced->expressionList}) {
+      if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
+        emitDesignatedInit(address, type, desig);
+      }
+    }
+    return;
+  }
+
   auto elementType = unit_->typeTraits().get_element_type(type);
   auto elementMlirType = convertType(elementType);
   auto resultType = mlir::cxx::PointerType::get(context_, elementMlirType);
@@ -3521,19 +3545,19 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
   int index = 0;
 
   for (auto node : ListView{braced->expressionList}) {
-    auto loc = getLocation(node->firstSourceLocation());
+    auto nodeLoc = getLocation(node->firstSourceLocation());
 
     auto indexOp = mlir::arith::ConstantOp::create(
-        builder_, loc, intType, builder_.getIntegerAttr(intType, index++));
+        builder_, nodeLoc, intType, builder_.getIntegerAttr(intType, index++));
 
     auto elementAddress = mlir::cxx::PtrAddOp::create(
-        builder_, loc, resultType, address, indexOp.getResult());
+        builder_, nodeLoc, resultType, address, indexOp.getResult());
 
     if (unit_->typeTraits().is_array(elementType)) {
       arrayInit(elementAddress, elementType, node);
     } else {
       auto value = expression(node);
-      mlir::cxx::StoreOp::create(builder_, loc, value.value, elementAddress,
+      mlir::cxx::StoreOp::create(builder_, nodeLoc, value.value, elementAddress,
                                  getAlignment(elementType));
     }
   }
@@ -3848,8 +3872,7 @@ auto Codegen::ExpressionVisitor::codegenBuiltinLine(CallExpressionAST* ast)
   auto intType = gen.convertType(control()->getIntType());
   auto op = mlir::arith::ConstantOp::create(
       gen.builder_, loc, intType,
-      gen.builder_.getIntegerAttr(intType,
-                                  static_cast<int64_t>(pos.line)));
+      gen.builder_.getIntegerAttr(intType, static_cast<int64_t>(pos.line)));
   return {op};
 }
 
@@ -3864,7 +3887,8 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFile(CallExpressionAST* ast)
     std::string str(pos.fileName);
     str.push_back('\0');
     auto i8Type = mlir::IntegerType::get(gen.context_, 8);
-    auto arrayType = mlir::cxx::ArrayType::get(gen.context_, i8Type, str.size());
+    auto arrayType =
+        mlir::cxx::ArrayType::get(gen.context_, i8Type, str.size());
     auto initializer =
         gen.builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
     auto name = gen.builder_.getStringAttr(gen.newUniqueSymbolName(".str"));
@@ -3901,7 +3925,8 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFunction(CallExpressionAST* ast)
     std::string str = funcName;
     str.push_back('\0');
     auto i8Type = mlir::IntegerType::get(gen.context_, 8);
-    auto arrayType = mlir::cxx::ArrayType::get(gen.context_, i8Type, str.size());
+    auto arrayType =
+        mlir::cxx::ArrayType::get(gen.context_, i8Type, str.size());
     auto initializer =
         gen.builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
     auto name = gen.builder_.getStringAttr(gen.newUniqueSymbolName(".str"));

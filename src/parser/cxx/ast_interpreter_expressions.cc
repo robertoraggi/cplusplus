@@ -1772,14 +1772,78 @@ auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionResult {
-  auto values = std::vector<std::tuple<ConstValue, const Type*>>();
+  bool hasDesignated = false;
+  for (auto node : ListView{ast->expressionList}) {
+    if (ast_cast<DesignatedInitializerClauseAST>(node)) {
+      hasDesignated = true;
+      break;
+    }
+  }
 
+  if (hasDesignated) {
+    auto arrayType = type_cast<BoundedArrayType>(ast->type);
+    if (!arrayType) return std::nullopt;
+
+    auto elementType = arrayType->elementType();
+    size_t size = arrayType->size();
+
+    ConstValue zeroValue;
+    if (unit()->typeTraits().is_integral_or_unscoped_enum(elementType)) {
+      zeroValue = std::intmax_t{0};
+    } else if (unit()->typeTraits().is_floating_point(elementType)) {
+      zeroValue = double{0.0};
+    } else {
+      return std::nullopt;
+    }
+
+    auto values = std::vector<std::tuple<ConstValue, const Type*>>(
+        size, {zeroValue, elementType});
+
+    size_t currentIndex = 0;
+    for (auto node : ListView{ast->expressionList}) {
+      if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
+        if (desig->designatorList) {
+          if (auto sub = ast_cast<SubscriptDesignatorAST>(
+                  desig->designatorList->value)) {
+            if (auto idxVal = interp.evaluate(sub->expression)) {
+              if (auto idx = interp.toUInt(*idxVal)) {
+                currentIndex = *idx;
+              }
+            }
+          }
+        }
+        ExpressionAST* initExpr = nullptr;
+        if (auto eq = ast_cast<EqualInitializerAST>(desig->initializer)) {
+          initExpr = eq->expression;
+        } else {
+          initExpr = desig->initializer;
+        }
+        if (initExpr && currentIndex < size) {
+          if (auto val = interp.evaluate(initExpr)) {
+            auto initType = initExpr->type ? initExpr->type : elementType;
+            values[currentIndex] = {*val, initType};
+          }
+        }
+      } else {
+        if (currentIndex < size) {
+          if (auto val = interp.evaluate(node)) {
+            values[currentIndex] = {*val,
+                                    node->type ? node->type : elementType};
+          }
+        }
+      }
+      ++currentIndex;
+    }
+
+    return std::make_shared<InitializerList>(std::move(values));
+  }
+
+  auto values = std::vector<std::tuple<ConstValue, const Type*>>();
   for (auto node : ListView{ast->expressionList}) {
     auto value = interp.evaluate(node);
     if (!value) return std::nullopt;
     values.emplace_back(*value, node->type);
   }
-
   return std::make_shared<InitializerList>(std::move(values));
 }
 
