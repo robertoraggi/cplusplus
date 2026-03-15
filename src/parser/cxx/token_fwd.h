@@ -368,6 +368,7 @@ class Token;
   V(__BUILTIN_CEIL, "__builtin_ceil")                                         \
   V(__BUILTIN_CEILF, "__builtin_ceilf")                                       \
   V(__BUILTIN_CEILL, "__builtin_ceill")                                       \
+  V(__BUILTIN_CONSTANT_P, "__builtin_constant_p")                             \
   V(__BUILTIN_COPYSIGN, "__builtin_copysign")                                 \
   V(__BUILTIN_COPYSIGNF, "__builtin_copysignf")                               \
   V(__BUILTIN_COPYSIGNL, "__builtin_copysignl")                               \

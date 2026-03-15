@@ -247,6 +247,10 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(`    -> std::optional<ConstValue> {`);
   lines.push(`  switch (kind) {`);
 
+  lines.push(`    case ${enumName("__builtin_constant_p")}:`);
+  lines.push(`      // Reaching here means the argument was successfully constant-evaluated.`);
+  lines.push(`      return ConstValue{std::intmax_t(1)};`);
+  lines.push(``);
   lines.push(`    case ${enumName("__builtin_is_constant_evaluated")}:`);
   lines.push(`      return ConstValue{std::intmax_t(1)};`);
   lines.push(``);

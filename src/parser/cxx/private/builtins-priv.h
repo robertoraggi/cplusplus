@@ -23,6 +23,7 @@
 
 // clang-format off
 static constexpr const char* builtinsSource = R"(
+constexpr int __builtin_constant_p(...);
 constexpr bool __builtin_is_constant_evaluated();
 constexpr int __builtin_abs(int);
 constexpr long __builtin_labs(long);
