@@ -2567,8 +2567,8 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
 
   switch (ast->op) {
     case TokenKind::T_STAR:
+      (void)stdconv_.ensurePrvalue(ast->expression);
       if (auto pointerType = as_pointer(ast->expression->type)) {
-        (void)stdconv_.ensurePrvalue(ast->expression);
         stdconv_.adjustCv(ast->expression);
         ast->type = pointerType->elementType();
         ast->valueCategory = ValueCategory::kLValue;
