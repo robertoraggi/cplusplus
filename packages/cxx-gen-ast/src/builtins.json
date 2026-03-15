@@ -1,5 +1,10 @@
 [
   {
+    "name": "__builtin_constant_p",
+    "prototype": "constexpr int __builtin_constant_p(...)",
+    "constexpr": true
+  },
+  {
     "name": "__builtin_is_constant_evaluated",
     "prototype": "constexpr bool __builtin_is_constant_evaluated()",
     "constexpr": true

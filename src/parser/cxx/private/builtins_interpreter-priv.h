@@ -27,6 +27,10 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
                                               std::vector<ConstValue> args)
     -> std::optional<ConstValue> {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
+      // Reaching here means the argument was successfully constant-evaluated.
+      return ConstValue{std::intmax_t(1)};
+
     case BuiltinFunctionKind::T___BUILTIN_IS_CONSTANT_EVALUATED:
       return ConstValue{std::intmax_t(1)};
 

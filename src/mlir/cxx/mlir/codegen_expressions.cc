@@ -769,6 +769,21 @@ auto Codegen::ExpressionVisitor::emitBuiltinCall(
     return {falseVal};
   }
 
+  // __builtin_constant_p: return 1 if arg is a compile-time constant, 0 otherwise.
+  if (builtinKind == BuiltinFunctionKind::T___BUILTIN_CONSTANT_P) {
+    auto intType = gen.convertType(control()->getIntType());
+    int result = 0;
+    auto args = ListView{ast->expressionList};
+    auto it = args.begin();
+    if (it != args.end()) {
+      auto interp = ASTInterpreter{gen.unit_};
+      result = interp.evaluate(*it).has_value() ? 1 : 0;
+    }
+    auto val = mlir::arith::ConstantOp::create(
+        gen.builder_, loc, intType, gen.builder_.getIntegerAttr(intType, result));
+    return {val};
+  }
+
   // __builtin_expect(expr, expected) just returns expr at codegen time.
   if (builtinKind == BuiltinFunctionKind::T___BUILTIN_EXPECT) {
     auto args = ListView{ast->expressionList};
