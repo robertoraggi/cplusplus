@@ -24,9 +24,19 @@
 #include <cstring>
 
 auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
-                                              std::vector<ConstValue> args)
+                                              std::vector<ConstValue> args,
+                                              cxx::CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_LINE:
+      return evaluateBuiltinLine(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_FILE:
+      return evaluateBuiltinFile(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_FUNCTION:
+      return evaluateBuiltinFunction(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
       // Reaching here means the argument was successfully constant-evaluated.
       return ConstValue{std::intmax_t(1)};

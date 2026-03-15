@@ -242,10 +242,21 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
     `auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,`,
   );
   lines.push(
-    `                                         std::vector<ConstValue> args)`,
+    `                                         std::vector<ConstValue> args,`,
+  );
+  lines.push(
+    `                                         cxx::CallExpressionAST* ast)`,
   );
   lines.push(`    -> std::optional<ConstValue> {`);
   lines.push(`  switch (kind) {`);
+
+  // Emit constEval dispatch cases before the math loop
+  const constEvalBuiltins = BUILTINS.filter((b) => b.constEval);
+  for (const b of constEvalBuiltins) {
+    lines.push(`    case ${enumName(b.name)}:`);
+    lines.push(`      return ${b.constEval}(ast);`);
+    lines.push(``);
+  }
 
   lines.push(`    case ${enumName("__builtin_constant_p")}:`);
   lines.push(`      // Reaching here means the argument was successfully constant-evaluated.`);
@@ -326,6 +337,7 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
 
   for (const b of BUILTINS) {
     if (!b.eval) continue;
+    if (b.constEval) continue;  // handled by constEval dispatch above
     if (b.eval.cxx23 && !inCxx23Block) {
       lines.push(`#if __cplusplus >= 202302L`);
       inCxx23Block = true;

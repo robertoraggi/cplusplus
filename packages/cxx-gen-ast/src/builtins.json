@@ -2303,5 +2303,26 @@
     "name": "__atomic_is_lock_free",
     "prototype": "int __atomic_is_lock_free(long long, const volatile void*)",
     "constexpr": false
+  },
+  {
+    "name": "__builtin_LINE",
+    "prototype": "constexpr int __builtin_LINE()",
+    "constexpr": true,
+    "constEval": "evaluateBuiltinLine",
+    "codegen": "codegenBuiltinLine"
+  },
+  {
+    "name": "__builtin_FILE",
+    "prototype": "constexpr const char* __builtin_FILE()",
+    "constexpr": true,
+    "constEval": "evaluateBuiltinFile",
+    "codegen": "codegenBuiltinFile"
+  },
+  {
+    "name": "__builtin_FUNCTION",
+    "prototype": "constexpr const char* __builtin_FUNCTION()",
+    "constexpr": true,
+    "constEval": "evaluateBuiltinFunction",
+    "codegen": "codegenBuiltinFunction"
   }
 ]

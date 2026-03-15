@@ -319,5 +319,8 @@ void __atomic_thread_fence(int);
 void __atomic_signal_fence(int);
 int __atomic_always_lock_free(long long, const volatile void*);
 int __atomic_is_lock_free(long long, const volatile void*);
+constexpr int __builtin_LINE();
+constexpr const char* __builtin_FILE();
+constexpr const char* __builtin_FUNCTION();
 )";
 // clang-format on

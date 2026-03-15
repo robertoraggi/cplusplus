@@ -324,6 +324,9 @@ class Token;
   V(__ATOMIC_TEST_AND_SET, "__atomic_test_and_set")                           \
   V(__ATOMIC_THREAD_FENCE, "__atomic_thread_fence")                           \
   V(__ATOMIC_XOR_FETCH, "__atomic_xor_fetch")                                 \
+  V(__BUILTIN_FILE, "__builtin_FILE")                                         \
+  V(__BUILTIN_FUNCTION, "__builtin_FUNCTION")                                 \
+  V(__BUILTIN_LINE, "__builtin_LINE")                                         \
   V(__BUILTIN___COSPI, "__builtin___cospi")                                   \
   V(__BUILTIN___COSPIF, "__builtin___cospif")                                 \
   V(__BUILTIN___EXP10, "__builtin___exp10")                                   \

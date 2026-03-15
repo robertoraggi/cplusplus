@@ -25,6 +25,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -210,6 +211,13 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
   ++depth_;
   pushFrame();
 
+  std::string funcNameStr;
+  if (auto* id = name_cast<Identifier>(func->name())) {
+    funcNameStr = id->value();
+  }
+  auto savedFunctionName =
+      std::exchange(currentFunctionName_, std::move(funcNameStr));
+
   auto* params = func->functionParameters();
   if (params) {
     const auto& members = params->members();
@@ -223,6 +231,7 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
 
   auto result = takeReturnValue();
 
+  currentFunctionName_ = std::move(savedFunctionName);
   popFrame();
   --depth_;
 

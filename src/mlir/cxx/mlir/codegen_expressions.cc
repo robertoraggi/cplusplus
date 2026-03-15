@@ -28,6 +28,7 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -189,6 +190,14 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
 
   auto emitBuiltinCall(CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
       -> ExpressionResult;
+
+  auto codegenBuiltinDispatch(CallExpressionAST* ast,
+                              BuiltinFunctionKind builtinKind)
+      -> std::optional<ExpressionResult>;
+
+  auto codegenBuiltinLine(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinFile(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinFunction(CallExpressionAST* ast) -> ExpressionResult;
 
   auto emitClassConstruction(SourceLocation loc, const Type* classType,
                              List<ExpressionAST*>* argList) -> ExpressionResult;
@@ -759,6 +768,11 @@ static auto builtinFunctionName(BuiltinFunctionKind kind) -> llvm::StringRef {
 auto Codegen::ExpressionVisitor::emitBuiltinCall(
     CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
     -> ExpressionResult {
+  // Dispatch to custom codegen hooks first.
+  if (auto result = codegenBuiltinDispatch(ast, builtinKind)) {
+    return *result;
+  }
+
   auto loc = gen.getLocation(ast->lparenLoc);
 
   // __builtin_is_constant_evaluated() always returns false at runtime.
@@ -3827,4 +3841,86 @@ auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
   return {callOp.getResult()};
 }
 
+auto Codegen::ExpressionVisitor::codegenBuiltinLine(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto pos = gen.unit_->tokenStartPosition(ast->firstSourceLocation());
+  auto intType = gen.convertType(control()->getIntType());
+  auto op = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, intType,
+      gen.builder_.getIntegerAttr(intType,
+                                  static_cast<int64_t>(pos.line)));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinFile(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto pos = gen.unit_->tokenStartPosition(ast->firstSourceLocation());
+  auto* lit = control()->stringLiteral(pos.fileName);
+
+  auto it = gen.stringLiterals_.find(lit);
+  if (it == gen.stringLiterals_.end()) {
+    std::string str(pos.fileName);
+    str.push_back('\0');
+    auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+    auto arrayType = mlir::cxx::ArrayType::get(gen.context_, i8Type, str.size());
+    auto initializer =
+        gen.builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
+    auto name = gen.builder_.getStringAttr(gen.newUniqueSymbolName(".str"));
+    auto x = mlir::OpBuilder(gen.module_->getContext());
+    x.setInsertionPointToEnd(gen.module_.getBody());
+    auto linkage = mlir::cxx::LinkageKindAttr::get(
+        gen.context_, mlir::cxx::LinkageKind::Internal);
+    mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), arrayType, true,
+                                name.getValue(), initializer, linkage);
+    it = gen.stringLiterals_.insert_or_assign(lit, name).first;
+  }
+
+  auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+  auto resultType = mlir::cxx::PointerType::get(gen.context_, i8Type);
+  auto op =
+      mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType, it->second);
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinFunction(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  std::string funcName;
+  if (auto* sym = gen.currentFunctionSymbol_) {
+    if (auto* id = name_cast<Identifier>(sym->name())) {
+      funcName = id->value();
+    }
+  }
+
+  auto* litKey = control()->stringLiteral(funcName);
+  auto it = gen.stringLiterals_.find(litKey);
+  if (it == gen.stringLiterals_.end()) {
+    std::string str = funcName;
+    str.push_back('\0');
+    auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+    auto arrayType = mlir::cxx::ArrayType::get(gen.context_, i8Type, str.size());
+    auto initializer =
+        gen.builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
+    auto name = gen.builder_.getStringAttr(gen.newUniqueSymbolName(".str"));
+    auto x = mlir::OpBuilder(gen.module_->getContext());
+    x.setInsertionPointToEnd(gen.module_.getBody());
+    auto linkage = mlir::cxx::LinkageKindAttr::get(
+        gen.context_, mlir::cxx::LinkageKind::Internal);
+    mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), arrayType, true,
+                                name.getValue(), initializer, linkage);
+    it = gen.stringLiterals_.insert_or_assign(litKey, name).first;
+  }
+
+  auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+  auto resultType = mlir::cxx::PointerType::get(gen.context_, i8Type);
+  auto op =
+      mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType, it->second);
+  return {op};
+}
+
 }  // namespace cxx
+
+#include "builtins_codegen-priv.h"
