@@ -38,6 +38,9 @@
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 
+// llvm
+#include <llvm/ADT/APFloat.h>
+
 #include <format>
 
 namespace cxx {
@@ -198,6 +201,13 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto codegenBuiltinLine(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinFile(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinFunction(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinHugeVal(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinHugeValf(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinHugeVall(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinNans(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinNansf(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinNansl(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinAlloca(CallExpressionAST* ast) -> ExpressionResult;
 
   auto emitClassConstruction(SourceLocation loc, const Type* classType,
                              List<ExpressionAST*>* argList) -> ExpressionResult;
@@ -3944,6 +3954,80 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFunction(CallExpressionAST* ast)
   auto op =
       mlir::cxx::AddressOfOp::create(gen.builder_, loc, resultType, it->second);
   return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinHugeVal(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = gen.convertType(control()->getDoubleType());
+  auto op = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, type,
+      gen.builder_.getF64FloatAttr(std::numeric_limits<double>::infinity()));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinHugeValf(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = gen.convertType(control()->getFloatType());
+  auto op = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, type,
+      gen.builder_.getF32FloatAttr(std::numeric_limits<float>::infinity()));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinHugeVall(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = gen.convertType(control()->getLongDoubleType());
+  auto op = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, type,
+      gen.builder_.getF64FloatAttr(std::numeric_limits<double>::infinity()));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinNans(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = gen.convertType(control()->getDoubleType());
+  auto snan = llvm::APFloat::getSNaN(llvm::APFloat::IEEEdouble());
+  auto op = mlir::arith::ConstantOp::create(gen.builder_, loc, type,
+                                            mlir::FloatAttr::get(type, snan));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinNansf(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = gen.convertType(control()->getFloatType());
+  auto snan = llvm::APFloat::getSNaN(llvm::APFloat::IEEEsingle());
+  auto op = mlir::arith::ConstantOp::create(gen.builder_, loc, type,
+                                            mlir::FloatAttr::get(type, snan));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinNansl(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = gen.convertType(control()->getLongDoubleType());
+  auto snan = llvm::APFloat::getSNaN(llvm::APFloat::IEEEdouble());
+  auto op = mlir::arith::ConstantOp::create(gen.builder_, loc, type,
+                                            mlir::FloatAttr::get(type, snan));
+  return {op};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinAlloca(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto args = ListView{ast->expressionList};
+  auto it = args.begin();
+  if (it == args.end()) return {};
+  auto sizeVal = gen.expression(*it);
+  if (!sizeVal.value) return {};
+  auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+  auto ptrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
+  return {mlir::cxx::DynAllocaOp::create(gen.builder_, loc, ptrType,
+                                         sizeVal.value, /*alignment=*/1)};
 }
 
 }  // namespace cxx

@@ -37,6 +37,15 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     case BuiltinFunctionKind::T___BUILTIN_FUNCTION:
       return evaluateBuiltinFunction(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VAL:
+      return evaluateBuiltinHugeVal(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VALF:
+      return evaluateBuiltinHugeValf(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VALL:
+      return evaluateBuiltinHugeVall(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
       // Reaching here means the argument was successfully constant-evaluated.
       return ConstValue{std::intmax_t(1)};

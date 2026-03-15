@@ -32,6 +32,27 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_FUNCTION:
       return codegenBuiltinFunction(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VAL:
+      return codegenBuiltinHugeVal(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VALF:
+      return codegenBuiltinHugeValf(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VALL:
+      return codegenBuiltinHugeVall(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_NANS:
+      return codegenBuiltinNans(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_NANSF:
+      return codegenBuiltinNansf(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_NANSL:
+      return codegenBuiltinNansl(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ALLOCA:
+      return codegenBuiltinAlloca(ast);
+
     default:
       return std::nullopt;
   }

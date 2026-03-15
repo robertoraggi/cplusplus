@@ -26,6 +26,9 @@
 #include <cxx/literals.h>
 #include <cxx/translation_unit.h>
 
+// cstd
+#include <limits>
+
 namespace cxx {
 
 auto ASTInterpreter::evaluateBuiltinLine(CallExpressionAST* ast)
@@ -47,6 +50,21 @@ auto ASTInterpreter::evaluateBuiltinFunction(CallExpressionAST* /*ast*/)
     -> std::optional<ConstValue> {
   auto* lit = control()->stringLiteral(currentFunctionName_);
   return ConstValue{lit};
+}
+
+auto ASTInterpreter::evaluateBuiltinHugeVal(CallExpressionAST* /*ast*/)
+    -> std::optional<ConstValue> {
+  return ConstValue{std::numeric_limits<double>::infinity()};
+}
+
+auto ASTInterpreter::evaluateBuiltinHugeValf(CallExpressionAST* /*ast*/)
+    -> std::optional<ConstValue> {
+  return ConstValue{std::numeric_limits<float>::infinity()};
+}
+
+auto ASTInterpreter::evaluateBuiltinHugeVall(CallExpressionAST* /*ast*/)
+    -> std::optional<ConstValue> {
+  return ConstValue{std::numeric_limits<long double>::infinity()};
 }
 
 }  // namespace cxx

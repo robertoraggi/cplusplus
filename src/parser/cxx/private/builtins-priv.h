@@ -322,5 +322,13 @@ int __atomic_is_lock_free(long long, const volatile void*);
 constexpr int __builtin_LINE();
 constexpr const char* __builtin_FILE();
 constexpr const char* __builtin_FUNCTION();
+constexpr double __builtin_huge_val();
+constexpr float __builtin_huge_valf();
+constexpr long double __builtin_huge_vall();
+double __builtin_nans(const char*);
+float __builtin_nansf(const char*);
+long double __builtin_nansl(const char*);
+void* __builtin_alloca(__SIZE_TYPE__);
+void* __builtin_operator_new(__SIZE_TYPE__, ...);
 )";
 // clang-format on

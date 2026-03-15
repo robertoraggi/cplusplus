@@ -2324,5 +2324,55 @@
     "constexpr": true,
     "constEval": "evaluateBuiltinFunction",
     "codegen": "codegenBuiltinFunction"
+  },
+  {
+    "name": "__builtin_huge_val",
+    "prototype": "constexpr double __builtin_huge_val()",
+    "constexpr": true,
+    "constEval": "evaluateBuiltinHugeVal",
+    "codegen": "codegenBuiltinHugeVal"
+  },
+  {
+    "name": "__builtin_huge_valf",
+    "prototype": "constexpr float __builtin_huge_valf()",
+    "constexpr": true,
+    "constEval": "evaluateBuiltinHugeValf",
+    "codegen": "codegenBuiltinHugeValf"
+  },
+  {
+    "name": "__builtin_huge_vall",
+    "prototype": "constexpr long double __builtin_huge_vall()",
+    "constexpr": true,
+    "constEval": "evaluateBuiltinHugeVall",
+    "codegen": "codegenBuiltinHugeVall"
+  },
+  {
+    "name": "__builtin_nans",
+    "prototype": "double __builtin_nans(const char*)",
+    "constexpr": false,
+    "codegen": "codegenBuiltinNans"
+  },
+  {
+    "name": "__builtin_nansf",
+    "prototype": "float __builtin_nansf(const char*)",
+    "constexpr": false,
+    "codegen": "codegenBuiltinNansf"
+  },
+  {
+    "name": "__builtin_nansl",
+    "prototype": "long double __builtin_nansl(const char*)",
+    "constexpr": false,
+    "codegen": "codegenBuiltinNansl"
+  },
+  {
+    "name": "__builtin_alloca",
+    "prototype": "void* __builtin_alloca(__SIZE_TYPE__)",
+    "constexpr": false,
+    "codegen": "codegenBuiltinAlloca"
+  },
+  {
+    "name": "__builtin_operator_new",
+    "prototype": "void* __builtin_operator_new(__SIZE_TYPE__, ...)",
+    "constexpr": false
   }
 ]

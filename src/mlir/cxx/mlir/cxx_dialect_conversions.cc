@@ -618,6 +618,29 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       return success();
     }
 
+    if (name == "__builtin_operator_new") {
+      auto context = getContext();
+      auto ptrType = LLVM::LLVMPointerType::get(context);
+      if (adaptor.getInputs().empty()) {
+        return rewriter.notifyMatchFailure(
+            op, "operator_new expects at least 1 argument");
+      }
+      auto argType = adaptor.getInputs()[0].getType();
+      llvm::StringRef opNewName = "_Znwm";
+      auto module = op->getParentOfType<ModuleOp>();
+      if (!module.lookupSymbol<LLVM::LLVMFuncOp>(opNewName)) {
+        auto funcType = LLVM::LLVMFunctionType::get(
+            context, ptrType, ArrayRef<Type>{argType}, false);
+        OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointToStart(module.getBody());
+        LLVM::LLVMFuncOp::create(rewriter, op.getLoc(), opNewName, funcType);
+      }
+      auto callOp = LLVM::CallOp::create(rewriter, op.getLoc(), ptrType,
+                                         opNewName, adaptor.getInputs()[0]);
+      rewriter.replaceOp(op, callOp);
+      return success();
+    }
+
     llvm::StringRef funcName = name;
     if (funcName.starts_with("__builtin_")) {
       funcName = funcName.drop_front(std::strlen("__builtin_"));
@@ -730,6 +753,22 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
 
  private:
   const DataLayout& dataLayout_;
+};
+
+class DynAllocaOpLowering : public OpConversionPattern<cxx::DynAllocaOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::DynAllocaOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto i8Type = rewriter.getIntegerType(8);
+    auto resultType = LLVM::LLVMPointerType::get(getContext());
+    auto x = LLVM::AllocaOp::create(rewriter, op.getLoc(), resultType, i8Type,
+                                    adaptor.getSize(), op.getAlignment());
+    rewriter.replaceOp(op, x);
+    return success();
+  }
 };
 
 class LoadOpLowering : public OpConversionPattern<cxx::LoadOp> {
@@ -1561,7 +1600,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   patterns.insert<GlobalOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<VTableOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<ReturnOpLowering, CallOpLowering, BuiltinCallOpLowering,
-                  AddressOfOpLowering>(typeConverter, context);
+                  AddressOfOpLowering, DynAllocaOpLowering>(typeConverter,
+                                                            context);
 
   // memory operations
   DataLayout dataLayout{module};
