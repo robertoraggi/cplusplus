@@ -28,6 +28,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -1170,6 +1171,24 @@ auto ASTRewriter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+
+  if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
+    if (auto scope =
+            copy->nestedNameSpecifier->symbol->asScopeSymbol()) {
+      if (auto nameId = ast_cast<NameIdAST>(copy->unqualifiedId)) {
+        auto symbol = qualifiedLookup(scope, nameId->identifier,
+                                      [](Symbol* s) { return is_type(s); });
+        if (!symbol) {
+          binder()->error(
+              copy->typenameLoc,
+              std::format("no type named '{}' in '{}'",
+                          nameId->identifier ? nameId->identifier->value()
+                                            : std::string{"<unknown>"},
+                          to_string(scope->type())));
+        }
+      }
+    }
+  }
 
   return copy;
 }
