@@ -536,9 +536,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
 
-  auto functionSymbol = binder()->getFunction(
-      binder()->scope(), declaratorDecl.getName(), declaratorType);
+  const bool isTemplateInstantiation =
+      ast->symbol && ast->symbol->templateDeclaration() &&
+      rewrite.binder().instantiatingSymbol() == ast->symbol;
 
+  FunctionSymbol* functionSymbol = nullptr;
+  if (!isTemplateInstantiation) {
+    functionSymbol = binder()->getFunction(
+        binder()->scope(), declaratorDecl.getName(), declaratorType);
+  }
   if (!functionSymbol) {
     functionSymbol =
         binder()->declareFunction(copy->declarator, declaratorDecl);

@@ -233,6 +233,7 @@ auto Binder::DeclareFunction::createOverloadSet(ScopeSymbol* declaringScope,
 auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
   for (auto existingFunction : overloadSet->functions()) {
+    if (existingFunction->isSpecialization()) continue;
     if (!areFunctionSignaturesEquivalentForRedeclaration(
             binder.unit_, existingFunction->type(), functionSymbol->type())) {
       continue;

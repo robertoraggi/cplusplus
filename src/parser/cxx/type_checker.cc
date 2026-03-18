@@ -959,6 +959,7 @@ void TypeChecker::Visitor::resolve_call_overload(
   std::vector<FunctionSymbol*> allFunctions;
   for (auto func : ovl->symbol()->functions()) {
     if (func->canonical() != func) continue;
+    if (func->isSpecialization()) continue;
     allFunctions.push_back(func);
   }
 
