@@ -171,11 +171,17 @@ auto StandardConversion::arrayToPointer(ExpressionAST*& expr) -> bool {
   if (!unit_->typeTraits().is_array(unref)) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
   cast->expression = expr;
   cast->type =
       unit_->typeTraits().add_pointer(unit_->typeTraits().remove_extent(unref));
   cast->valueCategory = ValueCategory::kPrValue;
+
+  if (type_cast<UnresolvedBoundedArrayType>(unref)) {
+    cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
+  } else {
+    cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
+  }
+
   expr = cast;
   return true;
 }
@@ -749,7 +755,11 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     currentType = unit_->typeTraits().add_pointer(
         unit_->typeTraits().remove_extent(unref));
     currentValCat = ValueCategory::kPrValue;
-    addStep(ImplicitCastKind::kArrayToPointerConversion, currentType);
+    if (type_cast<UnresolvedBoundedArrayType>(unref)) {
+      addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
+    } else {
+      addStep(ImplicitCastKind::kArrayToPointerConversion, currentType);
+    }
   } else if (unit_->typeTraits().is_function(
                  unit_->typeTraits().remove_reference(currentType))) {
     auto unref = unit_->typeTraits().remove_reference(currentType);
@@ -832,6 +842,27 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
           seq.rank = ConversionRank::kConversion;
           addStep(ImplicitCastKind::kPointerConversion, targetType);
           return seq;
+        }
+
+        if (isC_) {
+          auto areVlaCompatible = [&](auto& self, const Type* a,
+                                      const Type* b) -> bool {
+            a = unit_->typeTraits().remove_cv(a);
+            b = unit_->typeTraits().remove_cv(b);
+            if (unit_->typeTraits().is_same(a, b)) return true;
+            auto va = type_cast<UnresolvedBoundedArrayType>(a);
+            auto vb = type_cast<UnresolvedBoundedArrayType>(b);
+            if (va && vb)
+              return self(self, va->elementType(), vb->elementType());
+            return false;
+          };
+          if (type_cast<UnresolvedBoundedArrayType>(fromUnqual) &&
+              type_cast<UnresolvedBoundedArrayType>(toUnqual) &&
+              areVlaCompatible(areVlaCompatible, fromUnqual, toUnqual)) {
+            seq.rank = ConversionRank::kConversion;
+            addStep(ImplicitCastKind::kPointerConversion, targetType);
+            return seq;
+          }
         }
       }
     }

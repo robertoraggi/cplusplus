@@ -146,7 +146,7 @@ struct IsDependent {
   auto operator()(const UnresolvedNameType* type) -> bool { return true; }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
-    return true;
+    return false;
   }
 
   auto operator()(const UnresolvedUnderlyingType* type) -> bool { return true; }

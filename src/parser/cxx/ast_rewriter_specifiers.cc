@@ -1173,8 +1173,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
   if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
-    if (auto scope =
-            copy->nestedNameSpecifier->symbol->asScopeSymbol()) {
+    if (auto scope = copy->nestedNameSpecifier->symbol->asScopeSymbol()) {
       if (auto nameId = ast_cast<NameIdAST>(copy->unqualifiedId)) {
         auto symbol = qualifiedLookup(scope, nameId->identifier,
                                       [](Symbol* s) { return is_type(s); });
@@ -1183,7 +1182,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)
               copy->typenameLoc,
               std::format("no type named '{}' in '{}'",
                           nameId->identifier ? nameId->identifier->value()
-                                            : std::string{"<unknown>"},
+                                             : std::string{"<unknown>"},
                           to_string(scope->type())));
         }
       }

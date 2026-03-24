@@ -456,7 +456,7 @@ auto Codegen::ConvertType::operator()(const UnresolvedNameType* type)
 
 auto Codegen::ConvertType::operator()(const UnresolvedBoundedArrayType* type)
     -> mlir::Type {
-  return getExprType();
+  return gen.convertType(type->elementType());
 }
 
 auto Codegen::ConvertType::operator()(const UnresolvedUnderlyingType* type)

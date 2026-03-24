@@ -358,10 +358,63 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
   if (var->isStatic()) return std::nullopt;
   if (!var->parent()->isBlock()) return std::nullopt;
 
+  auto loc = getLocation(var->location());
+
+  if (auto* vlaType = type_cast<UnresolvedBoundedArrayType>(var->type())) {
+    auto countResult = expression(vlaType->size());
+    if (!countResult.value) return std::nullopt;
+
+    auto countVal = countResult.value;
+    if (mlir::isa<mlir::cxx::PointerType>(countVal.getType())) {
+      auto valueType = convertType(vlaType->size()->type);
+      countVal = mlir::cxx::LoadOp::create(builder_, loc, valueType, countVal,
+                                           getAlignment(vlaType->size()->type));
+    }
+
+    mlir::Value totalElements = countVal;
+    const Type* elemType = vlaType->elementType();
+
+    while (auto* inner = type_cast<UnresolvedBoundedArrayType>(elemType)) {
+      auto innerResult = expression(inner->size());
+      if (!innerResult.value) return std::nullopt;
+      auto innerVal = innerResult.value;
+      if (mlir::isa<mlir::cxx::PointerType>(innerVal.getType())) {
+        auto valueType = convertType(inner->size()->type);
+        innerVal = mlir::cxx::LoadOp::create(builder_, loc, valueType, innerVal,
+                                             getAlignment(inner->size()->type));
+      }
+      if (innerVal.getType() != totalElements.getType())
+        innerVal = mlir::arith::ExtSIOp::create(
+            builder_, loc, totalElements.getType(), innerVal);
+      totalElements = mlir::arith::MulIOp::create(
+          builder_, loc, totalElements.getType(), totalElements, innerVal);
+      elemType = inner->elementType();
+    }
+
+    auto elementType = convertType(elemType);
+    auto ptrType = mlir::cxx::PointerType::get(context_, elementType);
+    auto alignment = getAlignment(elemType);
+
+    auto leafSizeBytes = static_cast<int64_t>(
+        control()->memoryLayout()->sizeOf(elemType).value_or(1));
+    mlir::Value totalBytes = totalElements;
+    if (leafSizeBytes > 1) {
+      auto sizeConst = mlir::arith::ConstantOp::create(
+          builder_, loc, totalElements.getType(),
+          builder_.getIntegerAttr(totalElements.getType(), leafSizeBytes));
+      totalBytes = mlir::arith::MulIOp::create(
+          builder_, loc, totalElements.getType(), totalElements, sizeConst);
+    }
+
+    auto allocaOp = mlir::cxx::DynAllocaOp::create(builder_, loc, ptrType,
+                                                   totalBytes, alignment);
+    locals_.emplace(var, allocaOp);
+    return allocaOp;
+  }
+
   auto type = convertType(var->type());
   auto ptrType = mlir::cxx::PointerType::get(context_, type);
 
-  auto loc = getLocation(var->location());
   auto allocaOp = mlir::cxx::AllocaOp::create(builder_, loc, ptrType,
                                               getAlignment(var->type()));
 

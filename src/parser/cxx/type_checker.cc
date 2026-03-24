@@ -4372,6 +4372,12 @@ void TypeChecker::check_element_init(ExpressionAST*& expr,
 
       return;
     }
+
+    // brace elision
+    auto elementType = unit_->typeTraits().remove_cv(
+        unit_->typeTraits().get_element_type(targetType));
+    check_element_init(expr, elementType, std::move(errorMessage));
+    return;
   }
 
   if (unit_->typeTraits().is_lvalue_reference(targetType)) {
