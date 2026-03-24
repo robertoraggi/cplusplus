@@ -165,6 +165,7 @@ void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
 
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
       if (var->isStatic()) continue;
+      if (type_cast<UnresolvedBoundedArrayType>(var->type())) continue;
 
       auto local = gen.findOrCreateLocal(var);
       if (!local.has_value()) {
@@ -216,7 +217,10 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   for (auto node : ListView{ast->initDeclaratorList}) {
     auto var = symbol_cast<VariableSymbol>(node->symbol);
     if (!var) continue;
-    if (!node->initializer && !gen.unit_->typeTraits().is_class(var->type()))
+    const bool isVLA =
+        type_cast<UnresolvedBoundedArrayType>(var->type()) != nullptr;
+    if (!isVLA && !node->initializer &&
+        !gen.unit_->typeTraits().is_class(var->type()))
       continue;
 
     const auto loc = gen.getLocation(var->location());

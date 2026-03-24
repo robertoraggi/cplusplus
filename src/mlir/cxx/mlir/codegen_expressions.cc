@@ -421,9 +421,38 @@ auto Codegen::ExpressionVisitor::operator()(
 
 auto Codegen::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-  return {op};
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto type = ast->type;
+  auto mlirType = gen.convertType(type);
+  auto ptrType = mlir::cxx::PointerType::get(gen.context_, mlirType);
+  auto allocaOp = mlir::cxx::AllocaOp::create(gen.builder_, loc, ptrType,
+                                              gen.getAlignment(type));
+
+  if (gen.unit_->typeTraits().is_array(type)) {
+    gen.arrayInit(allocaOp, type, ast->bracedInitList);
+  } else if (gen.unit_->typeTraits().is_class(type) && ast->bracedInitList) {
+    ast->bracedInitList->type = type;
+    gen.emitAggregateInit(allocaOp, type, ast->bracedInitList);
+  } else if (ast->bracedInitList) {
+    ExpressionAST* initExpr = nullptr;
+    if (ast->bracedInitList->expressionList) {
+      initExpr = ast->bracedInitList->expressionList->value;
+    }
+    if (initExpr) {
+      auto initResult = gen.expression(initExpr);
+      if (initResult.value) {
+        mlir::cxx::StoreOp::create(gen.builder_, loc, initResult.value,
+                                   allocaOp, gen.getAlignment(type));
+      }
+    } else {
+      auto zero = mlir::arith::ConstantOp::create(
+          gen.builder_, loc, mlirType, gen.builder_.getZeroAttr(mlirType));
+      mlir::cxx::StoreOp::create(gen.builder_, loc, zero, allocaOp,
+                                 gen.getAlignment(type));
+    }
+  }
+
+  return {allocaOp};
 }
 
 auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
@@ -748,11 +777,47 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   auto resultType =
       gen.convertType(gen.unit_->typeTraits().add_pointer(ast->type));
 
-  if (gen.unit_->typeTraits().is_pointer(ast->baseExpression->type)) {
-    auto op = mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultType,
-                                          baseExpressionResult.value,
-                                          indexExpressionResult.value);
+  auto baseType = ast->baseExpression->type;
+  mlir::Value index = indexExpressionResult.value;
 
+  // For multi-dimensional VLA subscripts, scale the index by the product of
+  // inner VLA dimension counts (e.g., arr[i] where arr: int(*)[n] needs i*n).
+  const Type* strideBaseType = nullptr;
+  if (gen.unit_->typeTraits().is_pointer(baseType))
+    strideBaseType = gen.unit_->typeTraits().get_element_type(baseType);
+  else if (auto* vla = type_cast<UnresolvedBoundedArrayType>(baseType))
+    strideBaseType = vla->elementType();
+
+  if (strideBaseType) {
+    mlir::Value stride;
+    const Type* cur = strideBaseType;
+    while (auto* vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
+      auto countResult = gen.expression(vla->size());
+      auto countVal = countResult.value;
+      if (mlir::isa<mlir::cxx::PointerType>(countVal.getType())) {
+        auto valueType = gen.convertType(vla->size()->type);
+        countVal =
+            mlir::cxx::LoadOp::create(gen.builder_, loc, valueType, countVal,
+                                      gen.getAlignment(vla->size()->type));
+      }
+      if (countVal.getType() != index.getType())
+        countVal = mlir::arith::ExtSIOp::create(gen.builder_, loc,
+                                                index.getType(), countVal);
+      stride = stride
+                   ? mlir::arith::MulIOp::create(
+                         gen.builder_, loc, index.getType(), stride, countVal)
+                   : countVal;
+      cur = vla->elementType();
+    }
+    if (stride)
+      index = mlir::arith::MulIOp::create(gen.builder_, loc, index.getType(),
+                                          index, stride);
+  }
+
+  if (gen.unit_->typeTraits().is_pointer(baseType) ||
+      type_cast<UnresolvedBoundedArrayType>(baseType)) {
+    auto op = mlir::cxx::PtrAddOp::create(gen.builder_, loc, resultType,
+                                          baseExpressionResult.value, index);
     return {op};
   }
 
@@ -1903,6 +1968,45 @@ auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     return {op};
   }
 
+  // VLA sizeof: compute runtime size as product of all dimensions * leaf size
+  if (ast->expression && ast->expression->type) {
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto resultType = gen.convertType(ast->type);
+    mlir::Value totalElements;
+    const Type* cur = ast->expression->type;
+    while (auto* vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
+      auto countResult = gen.expression(vla->size());
+      if (!countResult.value) break;
+      auto countVal = countResult.value;
+      if (mlir::isa<mlir::cxx::PointerType>(countVal.getType())) {
+        auto valueType = gen.convertType(vla->size()->type);
+        countVal =
+            mlir::cxx::LoadOp::create(gen.builder_, loc, valueType, countVal,
+                                      gen.getAlignment(vla->size()->type));
+      }
+      if (countVal.getType() != resultType)
+        countVal = mlir::arith::ExtSIOp::create(gen.builder_, loc, resultType,
+                                                countVal);
+      totalElements = totalElements ? mlir::arith::MulIOp::create(
+                                          gen.builder_, loc, resultType,
+                                          totalElements, countVal)
+                                    : countVal;
+      cur = vla->elementType();
+    }
+    if (totalElements) {
+      auto leafSize = static_cast<int64_t>(
+          gen.control()->memoryLayout()->sizeOf(cur).value_or(1));
+      if (leafSize > 1) {
+        auto leafConst = mlir::arith::ConstantOp::create(
+            gen.builder_, loc, resultType,
+            gen.builder_.getIntegerAttr(resultType, leafSize));
+        totalElements = mlir::arith::MulIOp::create(
+            gen.builder_, loc, resultType, totalElements, leafConst);
+      }
+      return {totalElements};
+    }
+  }
+
   auto op =
       gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
 
@@ -1918,6 +2022,46 @@ auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
         gen.builder_, loc, resultlType,
         gen.builder_.getIntegerAttr(resultlType, size.value()));
     return {op};
+  }
+
+  // VLA sizeof(type): compute runtime size
+  auto typeIdType = ast->typeId ? ast->typeId->type : nullptr;
+  if (typeIdType) {
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto resultType = gen.convertType(ast->type);
+    mlir::Value totalElements;
+    const Type* cur = typeIdType;
+    while (auto* vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
+      auto countResult = gen.expression(vla->size());
+      if (!countResult.value) break;
+      auto countVal = countResult.value;
+      if (mlir::isa<mlir::cxx::PointerType>(countVal.getType())) {
+        auto valueType = gen.convertType(vla->size()->type);
+        countVal =
+            mlir::cxx::LoadOp::create(gen.builder_, loc, valueType, countVal,
+                                      gen.getAlignment(vla->size()->type));
+      }
+      if (countVal.getType() != resultType)
+        countVal = mlir::arith::ExtSIOp::create(gen.builder_, loc, resultType,
+                                                countVal);
+      totalElements = totalElements ? mlir::arith::MulIOp::create(
+                                          gen.builder_, loc, resultType,
+                                          totalElements, countVal)
+                                    : countVal;
+      cur = vla->elementType();
+    }
+    if (totalElements) {
+      auto leafSize = static_cast<int64_t>(
+          gen.control()->memoryLayout()->sizeOf(cur).value_or(1));
+      if (leafSize > 1) {
+        auto leafConst = mlir::arith::ConstantOp::create(
+            gen.builder_, loc, resultType,
+            gen.builder_.getIntegerAttr(resultType, leafSize));
+        totalElements = mlir::arith::MulIOp::create(
+            gen.builder_, loc, resultType, totalElements, leafConst);
+      }
+      return {totalElements};
+    }
   }
 
   auto op =
@@ -3324,6 +3468,25 @@ auto Codegen::ExpressionVisitor::operator()(
   std::swap(gen.targetValue_, targetValue);
   auto sourceExpressionResult = gen.expression(ast->adjustExpression);
   std::swap(gen.targetValue_, targetValue);
+
+  if (auto member = ast_cast<MemberExpressionAST>(ast->targetExpression)) {
+    if (auto field = symbol_cast<FieldSymbol>(member->symbol);
+        field && field->isBitField()) {
+      if (auto access = emitMemberAccess(member)) {
+        auto [addr, info] = *access;
+        mlir::cxx::BitfieldStoreOp::create(
+            gen.builder_, loc, sourceExpressionResult.value, addr,
+            gen.builder_.getI32IntegerAttr(info.bitOffset),
+            gen.builder_.getI32IntegerAttr(info.bitWidth),
+            gen.builder_.getI64IntegerAttr(info.allocUnitSizeBytes));
+
+        if (format == ExpressionFormat::kSideEffect) {
+          return {};
+        }
+        return {sourceExpressionResult.value};
+      }
+    }
+  }
 
   mlir::cxx::StoreOp::create(gen.builder_, loc, sourceExpressionResult.value,
                              targetExpressionResult.value,
