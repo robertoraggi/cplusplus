@@ -164,6 +164,10 @@ std::vector<CLIOptionDescr> options{
 
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 
+    {"-fno-strict-prototypes",
+     "Allow unprototyped C declarations (pre-C23 behavior)",
+     &CLI::opt_fno_strict_prototypes},
+
     {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},
 
     {"-emit-ir", "Emit the CXX dialect IR for the source inputs",

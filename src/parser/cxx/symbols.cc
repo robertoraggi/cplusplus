@@ -807,6 +807,12 @@ auto FunctionSymbol::isFinal() const -> bool { return isFinal_; }
 
 void FunctionSymbol::setFinal(bool isFinal) { isFinal_ = isFinal; }
 
+auto FunctionSymbol::hasNoPrototype() const -> bool { return hasNoPrototype_; }
+
+void FunctionSymbol::setNoPrototype(bool hasNoPrototype) {
+  hasNoPrototype_ = hasNoPrototype;
+}
+
 auto FunctionSymbol::isConstructor() const -> bool {
   // For constructor templates, parent() is the TemplateParametersSymbol.
   // Look through it to find the enclosing class.

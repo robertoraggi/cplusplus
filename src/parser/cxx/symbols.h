@@ -681,6 +681,9 @@ class FunctionSymbol final
   [[nodiscard]] auto isFinal() const -> bool;
   void setFinal(bool isFinal);
 
+  [[nodiscard]] auto hasNoPrototype() const -> bool;
+  void setNoPrototype(bool hasNoPrototype);
+
   [[nodiscard]] auto isConstructor() const -> bool;
   [[nodiscard]] auto isDestructor() const -> bool;
 
@@ -714,6 +717,7 @@ class FunctionSymbol final
       std::uint32_t hasCLinkage_ : 1;
       std::uint32_t isOverride_ : 1;
       std::uint32_t isFinal_ : 1;
+      std::uint32_t hasNoPrototype_ : 1;
     };
   };
 };

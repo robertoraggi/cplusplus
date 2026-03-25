@@ -47,6 +47,7 @@ using CodeCompletionContext =
 struct ParserConfiguration {
   bool checkTypes = false;
   bool fuzzyTemplateResolution = false;
+  bool allowUnprototypedFunctions = false;
   std::function<bool()> stopParsingPredicate;
   std::function<void(const CodeCompletionContext&)> complete;
 };
