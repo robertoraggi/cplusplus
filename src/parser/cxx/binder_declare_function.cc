@@ -207,9 +207,15 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
 auto Binder::DeclareFunction::declaringScopeForFunction() const
     -> ScopeSymbol* {
-  if (!functionSymbol->isFriend()) return binder.declaringScope();
-
   auto declaringScope = binder.declaringScope();
+
+  if (!functionSymbol->isFriend()) {
+    if (!declaringScope->isClassOrNamespace()) {
+      if (auto ns = declaringScope->enclosingNamespace()) return ns;
+    }
+    return declaringScope;
+  }
+
   if (declaringScope->isNamespace()) return declaringScope;
 
   auto enclosingNamespace = declaringScope->enclosingNamespace();
