@@ -887,7 +887,7 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
     (void)stdconv_.temporaryMaterialization(base);
     (void)stdconv_.ensurePrvalue(index);
     stdconv_.adjustCv(index);
-    (void)stdconv_.integralPromotion(base);
+    (void)stdconv_.integralPromotion(index);
 
     ast->type = check.unit_->typeTraits().get_element_type(base->type);
     ast->valueCategory = base->valueCategory;
