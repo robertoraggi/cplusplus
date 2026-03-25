@@ -116,12 +116,15 @@ class Meta {
 
 class ConstAddress {
  public:
-  explicit ConstAddress(Symbol* symbol) : symbol_(symbol) {}
+  explicit ConstAddress(Symbol* symbol, std::intmax_t offset = 0)
+      : symbol_(symbol), offset_(offset) {}
 
   [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
+  [[nodiscard]] auto offset() const -> std::intmax_t { return offset_; }
 
  private:
   Symbol* symbol_ = nullptr;
+  std::intmax_t offset_ = 0;
 };
 
 }  // namespace cxx

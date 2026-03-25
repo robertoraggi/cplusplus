@@ -1214,6 +1214,19 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
           return std::make_shared<ConstAddress>(idExpr->symbol);
         }
       }
+
+      auto* subExpr = ast_cast<SubscriptExpressionAST>(ast->expression);
+      if (!subExpr) break;
+
+      auto* idExpr = ast_cast<IdExpressionAST>(subExpr->baseExpression);
+      if (!idExpr || !idExpr->symbol) break;
+
+      auto indexVal = interp.evaluate(subExpr->indexExpression);
+      if (!indexVal) break;
+
+      if (auto idx = interp.toInt(*indexVal))
+        return std::make_shared<ConstAddress>(idExpr->symbol, *idx);
+
       break;
     }
 
