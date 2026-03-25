@@ -321,6 +321,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
 
   if (unit_->typeTraits().is_array(type)) {
     auto mlirType = convertType(type);
+    auto cxxArrType = mlir::dyn_cast<mlir::cxx::ArrayType>(mlirType);
     if (auto initListPtr =
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto& initList = *initListPtr;
@@ -328,6 +329,20 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
       for (size_t i = 0; i < initList->elements.size(); ++i) {
         auto& [elemValue, elemType] = initList->elements[i];
         auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
+        if (cxxArrType) {
+          auto dstElemType = cxxArrType.getElementType();
+          if (elemVal.getType() != dstElemType) {
+            auto srcArr =
+                mlir::dyn_cast<mlir::cxx::ArrayType>(elemVal.getType());
+            auto dstArr = mlir::dyn_cast<mlir::cxx::ArrayType>(dstElemType);
+            if (srcArr && dstArr &&
+                srcArr.getElementType() == dstArr.getElementType() &&
+                srcArr.getSize() < dstArr.getSize()) {
+              elemVal =
+                  mlir::cxx::ReshapeOp::create(builder, loc, dstArr, elemVal);
+            }
+          }
+        }
         result = mlir::cxx::InsertValueOp::create(
             builder, loc, mlirType, result, elemVal, static_cast<int64_t>(i));
       }
