@@ -5273,38 +5273,48 @@ export class GotoStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
+
+  /**
    * Returns the location of the goto token in this node
    */
   getGotoToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
    * Returns the location of the star token in this node
    */
   getStarToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
    * Returns the location of the identifier token in this node
    */
   getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
   }
 
   /**
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
   }
 
   /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 5);
+    const slot = cxx.getASTSlot(this.getHandle(), 6);
     return cxx.getIdentifierValue(slot);
   }
 
@@ -5312,7 +5322,7 @@ export class GotoStatementAST extends StatementAST {
    * Returns the isIndirect attribute of this node
    */
   getIsIndirect(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 7) !== 0;
   }
 }
 

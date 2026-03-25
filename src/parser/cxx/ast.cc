@@ -1227,6 +1227,7 @@ auto CoroutineReturnStatementAST::lastSourceLocation() -> SourceLocation {
 
 auto GotoStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
   if (auto loc = cxx::firstSourceLocation(gotoLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
@@ -1239,6 +1240,7 @@ auto GotoStatementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(starLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(gotoLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
@@ -7370,6 +7372,8 @@ auto GotoStatementAST::clone(Arena* arena) -> GotoStatementAST* {
     }
   }
 
+  if (expression) node->expression = expression->clone(arena);
+
   node->gotoLoc = gotoLoc;
   node->starLoc = starLoc;
   node->identifierLoc = identifierLoc;
@@ -7385,15 +7389,14 @@ auto GotoStatementAST::create(Arena* arena) -> GotoStatementAST* {
   return node;
 }
 
-auto GotoStatementAST::create(Arena* arena,
-                              List<AttributeSpecifierAST*>* attributeList,
-                              SourceLocation gotoLoc, SourceLocation starLoc,
-                              SourceLocation identifierLoc,
-                              SourceLocation semicolonLoc,
-                              const Identifier* identifier, bool isIndirect)
-    -> GotoStatementAST* {
+auto GotoStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    ExpressionAST* expression, SourceLocation gotoLoc, SourceLocation starLoc,
+    SourceLocation identifierLoc, SourceLocation semicolonLoc,
+    const Identifier* identifier, bool isIndirect) -> GotoStatementAST* {
   auto node = new (arena) GotoStatementAST();
   node->attributeList = attributeList;
+  node->expression = expression;
   node->gotoLoc = gotoLoc;
   node->starLoc = starLoc;
   node->identifierLoc = identifierLoc;
@@ -7405,10 +7408,12 @@ auto GotoStatementAST::create(Arena* arena,
 
 auto GotoStatementAST::create(Arena* arena,
                               List<AttributeSpecifierAST*>* attributeList,
+                              ExpressionAST* expression,
                               const Identifier* identifier, bool isIndirect)
     -> GotoStatementAST* {
   auto node = new (arena) GotoStatementAST();
   node->attributeList = attributeList;
+  node->expression = expression;
   node->identifier = identifier;
   node->isIndirect = isIndirect;
   return node;

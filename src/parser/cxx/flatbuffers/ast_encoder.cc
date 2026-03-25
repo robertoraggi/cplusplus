@@ -2472,6 +2472,8 @@ void ASTEncoder::visit(GotoStatementAST* ast) {
   auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
   auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
 
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
   flatbuffers::Offset<flatbuffers::String> identifier;
   if (ast->identifier) {
     if (identifiers_.contains(ast->identifier)) {
@@ -2485,6 +2487,8 @@ void ASTEncoder::visit(GotoStatementAST* ast) {
   io::GotoStatement::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
   builder.add_goto_loc(ast->gotoLoc.index());
   builder.add_star_loc(ast->starLoc.index());
   builder.add_identifier_loc(ast->identifierLoc.index());

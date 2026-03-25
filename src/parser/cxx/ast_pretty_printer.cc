@@ -2271,6 +2271,7 @@ void ASTPrettyPrinter::StatementVisitor::operator()(GotoStatementAST* ast) {
     accept(it->value);
   }
 
+  accept(ast->expression);
   if (ast->gotoLoc) {
     accept.writeToken(ast->gotoLoc);
   }

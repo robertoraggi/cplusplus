@@ -1222,6 +1222,46 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
   }
 };
 
+class LabelAddressOpLowering : public OpConversionPattern<cxx::LabelAddressOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::LabelAddressOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!op.getTagIdAttr() || !op.getFuncNameAttr())
+      return rewriter.notifyMatchFailure(op, "label_address not resolved");
+
+    auto tagId = static_cast<unsigned>(op.getTagId().value());
+    auto funcName = op.getFuncName().value();
+    auto* ctx = op.getContext();
+    auto blockAddrAttr = LLVM::BlockAddressAttr::get(
+        ctx, mlir::FlatSymbolRefAttr::get(ctx, funcName),
+        LLVM::BlockTagAttr::get(ctx, tagId));
+    auto ptrType = LLVM::LLVMPointerType::get(ctx);
+    rewriter.replaceOpWithNewOp<LLVM::BlockAddressOp>(op, ptrType,
+                                                      blockAddrAttr);
+    return success();
+  }
+};
+
+class IndirectGotoOpLowering : public OpConversionPattern<cxx::IndirectGotoOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::IndirectGotoOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto destinations = op.getDestinations();
+    llvm::SmallVector<mlir::Block*> targets(destinations.begin(),
+                                            destinations.end());
+    llvm::SmallVector<mlir::ValueRange> succOperands(targets.size());
+    rewriter.replaceOpWithNewOp<LLVM::IndirectBrOp>(op, adaptor.getTarget(),
+                                                    succOperands, targets);
+    return success();
+  }
+};
+
 class ZeroOpLowering : public OpConversionPattern<cxx::ZeroOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -1615,6 +1655,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   patterns
       .insert<ArrayToPointerOpLowering, PtrToIntOpLowering, BitcastOpLowering>(
           typeConverter, context);
+
+  // indirect goto
+  patterns.insert<LabelAddressOpLowering, IndirectGotoOpLowering>(typeConverter,
+                                                                  context);
 
   // constant operations
   patterns.insert<NullPtrConstantOpLowering, ZeroOpLowering, UndefOpLowering,

@@ -40,6 +40,7 @@
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Target/LLVMIR/Import.h>
@@ -111,6 +112,8 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
     llvm::SmallVector<mlir::cxx::GotoOp> gotoOps;
     llvm::SmallVector<mlir::cxx::LabelOp> labelOps;
     llvm::SmallVector<mlir::cxx::CleanupBranchOp> cleanupBranchOps;
+    llvm::SmallVector<mlir::cxx::LabelAddressOp> labelAddressOps;
+    llvm::SmallVector<mlir::cxx::IndirectGotoOp> indirectGotoOps;
 
     for (auto& block : funcOp.getBody()) {
       for (auto& op : block) {
@@ -120,6 +123,10 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
           labelOps.push_back(labelOp);
         else if (auto cbOp = mlir::dyn_cast<mlir::cxx::CleanupBranchOp>(&op))
           cleanupBranchOps.push_back(cbOp);
+        else if (auto laOp = mlir::dyn_cast<mlir::cxx::LabelAddressOp>(&op))
+          labelAddressOps.push_back(laOp);
+        else if (auto igOp = mlir::dyn_cast<mlir::cxx::IndirectGotoOp>(&op))
+          indirectGotoOps.push_back(igOp);
       }
     }
 
@@ -135,6 +142,46 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
       }
 
       rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(gotoOp, targetBlock);
+    }
+
+    if (!labelAddressOps.empty()) {
+      auto* ctx = funcOp.getContext();
+      auto funcName = funcOp.getSymName();
+      auto funcNameAttr = mlir::StringAttr::get(ctx, funcName);
+      llvm::DenseMap<llvm::StringRef, unsigned> labelToTagId;
+      llvm::SmallVector<mlir::Block*> labelTargets;
+      unsigned nextTagId = 0;
+
+      for (auto labelAddrOp : labelAddressOps) {
+        auto name = labelAddrOp.getLabelName();
+        unsigned tagId;
+        auto it = labelToTagId.find(name);
+        if (it == labelToTagId.end()) {
+          tagId = nextTagId++;
+          labelToTagId[name] = tagId;
+          auto* targetBlock = labels.lookup(name);
+          if (targetBlock) {
+            auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, tagId);
+            rewriter.setInsertionPointToStart(targetBlock);
+            mlir::LLVM::BlockTagOp::create(rewriter, labelAddrOp.getLoc(),
+                                           tagAttr);
+            labelTargets.push_back(targetBlock);
+          }
+        } else {
+          tagId = it->second;
+        }
+        rewriter.modifyOpInPlace(labelAddrOp, [&] {
+          labelAddrOp.setTagIdAttr(
+              mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32), tagId));
+          labelAddrOp.setFuncNameAttr(funcNameAttr);
+        });
+      }
+
+      for (auto igOp : indirectGotoOps) {
+        rewriter.setInsertionPoint(igOp);
+        rewriter.replaceOpWithNewOp<mlir::cxx::IndirectGotoOp>(
+            igOp, igOp.getTarget(), mlir::BlockRange{labelTargets});
+      }
     }
 
     for (auto labelOp : labelOps) {

@@ -1108,6 +1108,7 @@ void ASTPrinter::visit(GotoStatementAST* ast) {
     }
     --indent_;
   }
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(DeclarationStatementAST* ast) {
