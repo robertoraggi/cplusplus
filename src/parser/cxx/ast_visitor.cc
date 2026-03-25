@@ -479,6 +479,7 @@ void ASTVisitor::visit(GotoStatementAST* ast) {
   for (auto node : ListView{ast->attributeList}) {
     accept(node);
   }
+  accept(ast->expression);
 }
 
 void ASTVisitor::visit(DeclarationStatementAST* ast) {

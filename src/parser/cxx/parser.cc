@@ -2593,12 +2593,6 @@ auto Parser::parse_unary_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_label_address(ExpressionAST*& yyast, const ExprContext& ctx)
     -> bool {
-  if (!is_parsing_c()) {
-    // enable only in C mode for now, until we devise a better strategy
-    // to disambiguate conflicts with unresolved C++ code.
-    return false;
-  }
-
   LookaheadParser lookahead{this};
 
   SourceLocation ampAmpLoc;
@@ -4129,11 +4123,14 @@ auto Parser::parse_goto_statement(StatementAST*& yyast,
 
   ast->isIndirect = match(TokenKind::T_STAR, ast->starLoc);
 
-  expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+  if (ast->isIndirect) {
+    parse_assignment_expression(ast->expression, ExprContext{});
+  } else {
+    expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
+    ast->identifier = unit_->identifier(ast->identifierLoc);
+  }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
-
-  ast->identifier = unit_->identifier(ast->identifierLoc);
 
   return true;
 }

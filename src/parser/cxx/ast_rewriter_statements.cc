@@ -550,6 +550,7 @@ auto ASTRewriter::StatementVisitor::operator()(GotoStatementAST* ast)
     attributeList = &(*attributeList)->next;
   }
 
+  copy->expression = rewrite.expression(ast->expression);
   copy->gotoLoc = ast->gotoLoc;
   copy->starLoc = ast->starLoc;
   copy->identifierLoc = ast->identifierLoc;

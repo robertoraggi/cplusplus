@@ -1839,6 +1839,7 @@ table CoroutineReturnStatement /* StatementAST */ {
 
 table GotoStatement /* StatementAST */ {
   attribute_list: [AttributeSpecifier];
+  expression: Expression;
   identifier: string;
   goto_loc: uint32;
   star_loc: uint32;

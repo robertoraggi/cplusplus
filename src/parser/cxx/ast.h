@@ -2731,6 +2731,7 @@ class GotoStatementAST final : public StatementAST {
   static constexpr ASTKind Kind = ASTKind::GotoStatement;
 
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  ExpressionAST* expression = nullptr;
   SourceLocation gotoLoc;
   SourceLocation starLoc;
   SourceLocation identifierLoc;
@@ -2749,12 +2750,13 @@ class GotoStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(
       Arena* arena, List<AttributeSpecifierAST*>* attributeList,
-      SourceLocation gotoLoc, SourceLocation starLoc,
+      ExpressionAST* expression, SourceLocation gotoLoc, SourceLocation starLoc,
       SourceLocation identifierLoc, SourceLocation semicolonLoc,
       const Identifier* identifier, bool isIndirect) -> GotoStatementAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<AttributeSpecifierAST*>* attributeList,
+                                   ExpressionAST* expression,
                                    const Identifier* identifier,
                                    bool isIndirect) -> GotoStatementAST*;
 

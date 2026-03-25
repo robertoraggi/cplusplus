@@ -701,7 +701,19 @@ void Codegen::StatementVisitor::operator()(CoroutineReturnStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
   if (ast->isIndirect) {
-    (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+    auto loc = gen.getLocation(ast->firstSourceLocation());
+    auto ptrResult = gen.expression(ast->expression);
+    auto ptr = ptrResult.value;
+    if (ast->expression &&
+        ast->expression->valueCategory == ValueCategory::kLValue) {
+      auto loadedType = gen.convertType(ast->expression->type);
+      ptr = mlir::cxx::LoadOp::create(gen.builder_, loc, loadedType, ptr,
+                                      gen.getAlignment(ast->expression->type));
+    }
+    mlir::cxx::IndirectGotoOp::create(gen.builder_, loc, ptr,
+                                      mlir::BlockRange{});
+    auto nextBlock = gen.newBlock();
+    gen.builder_.setInsertionPointToEnd(nextBlock);
     return;
   }
 

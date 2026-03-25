@@ -2327,6 +2327,8 @@ auto ASTDecoder::decodeGotoStatement(const io::GotoStatement* node)
       inserter = &(*inserter)->next;
     }
   }
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
   ast->gotoLoc = SourceLocation(node->goto_loc());
   ast->starLoc = SourceLocation(node->star_loc());
   ast->identifierLoc = SourceLocation(node->identifier_loc());

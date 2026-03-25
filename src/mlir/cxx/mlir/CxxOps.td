@@ -347,6 +347,22 @@ def Cxx_GotoOp : Cxx_Op<"goto"> {
   let assemblyFormat = "$label attr-dict";
 }
 
+def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
+  let arguments = (ins StringProp:$label_name,
+                       OptionalAttr<I32Attr>:$tag_id,
+                       OptionalAttr<StrAttr>:$func_name);
+  let results   = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$label_name attr-dict `:` type($result)";
+}
+
+def Cxx_IndirectGotoOp : Cxx_Op<"indirect_goto", [Terminator]> {
+  let arguments = (ins AnyType:$target);
+  let successors = (successor VariadicSuccessor<AnySuccessor>:$destinations);
+
+  let assemblyFormat = "$target `[` $destinations `]` attr-dict `:` type($target)";
+}
+
 def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch", [Terminator]> {
   let arguments = (ins
       Variadic<Cxx_PointerType>:$addresses
