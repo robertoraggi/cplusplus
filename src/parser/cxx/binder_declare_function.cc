@@ -185,6 +185,12 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   functionSymbol->setName(name);
   functionSymbol->setType(type);
 
+  if (binder.is_parsing_c() &&
+      binder.unit_->config().allowUnprototypedFunctions && functionDeclarator &&
+      !functionDeclarator->parameterDeclarationClause) {
+    functionSymbol->setNoPrototype(true);
+  }
+
   checkDeclSpecifiers();
   checkExternalLinkageSpec();
   checkVirtualSpecifier();
@@ -216,6 +222,12 @@ void Binder::DeclareFunction::mergeAsCRedeclaration(
     FunctionSymbol* otherFunction) {
   auto canonical = otherFunction->canonical();
   canonical->addRedeclaration(functionSymbol);
+  // If canonical was unprototyped, adopt the complete prototype's type so
+  // codegen emits the right MLIR function signature.
+  if (canonical->hasNoPrototype() && !functionSymbol->hasNoPrototype()) {
+    canonical->setType(functionSymbol->type());
+    canonical->setNoPrototype(false);
+  }
   mergeRedeclaration();
 }
 
@@ -259,7 +271,22 @@ void Binder::DeclareFunction::checkRedeclaration() {
 
     if (auto otherFunction = symbol_cast<FunctionSymbol>(candidate)) {
       if (binder.is_parsing_c()) {
-        mergeAsCRedeclaration(otherFunction);
+        auto canonical = otherFunction->canonical();
+        const bool canMerge =
+            (binder.unit_->config().allowUnprototypedFunctions &&
+             canonical->hasNoPrototype()) ||
+            areFunctionSignaturesEquivalentForRedeclaration(
+                binder.unit_, canonical->type(), functionSymbol->type());
+        if (canMerge) {
+          mergeAsCRedeclaration(otherFunction);
+        } else {
+          binder.error(functionSymbol->location(),
+                       std::format("conflicting types for '{}'",
+                                   to_string(functionSymbol->name())));
+          binder.note(canonical->location(),
+                      std::format("previous declaration of '{}' is here",
+                                  to_string(canonical->name())));
+        }
         break;
       }
 

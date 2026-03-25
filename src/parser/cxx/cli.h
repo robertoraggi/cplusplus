@@ -73,6 +73,7 @@ class CLI {
   bool opt_fcheck = false;
   bool opt_freport_missing_types = false;
   bool opt_fno_reflect = false;
+  bool opt_fno_strict_prototypes = false;
   bool opt_verify = false;
   bool opt_v = false;
   bool opt_emit_ast = false;

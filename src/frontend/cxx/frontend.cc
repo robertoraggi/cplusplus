@@ -193,6 +193,12 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
     }
   });
   actions_.emplace_back([this]() { generateIR(); });
+  actions_.emplace_back([this]() {
+    if (diagnosticsClient_->hasErrors()) {
+      shouldExit_ = true;
+      exitStatus_ = EXIT_FAILURE;
+    }
+  });
   actions_.emplace_back([this]() { emitCxxIR(); });
   actions_.emplace_back([this]() { lowerIR(); });
   actions_.emplace_back([this]() { emitMLIR(); });
@@ -521,6 +527,7 @@ void Frontend::Private::parse() {
       .checkTypes =
           cli.opt_fcheck || needsIR() || unit_->language() == LanguageKind::kC,
       .fuzzyTemplateResolution = true,
+      .allowUnprototypedFunctions = cli.opt_fno_strict_prototypes,
       .stopParsingPredicate = [this]() -> bool {
         return diagnosticsClient_->errorLimitReached();
       },
