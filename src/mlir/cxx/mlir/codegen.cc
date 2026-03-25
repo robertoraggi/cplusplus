@@ -821,7 +821,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     return {};
   }
 
-  auto varType = convertType(variableSymbol->type());
+  auto defVar =
+      canonicalVar->definition() ? canonicalVar->definition() : canonicalVar;
+
+  auto varType = convertType(defVar->type());
 
   const auto loc = getLocation(variableSymbol->location());
 
@@ -877,18 +880,17 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   mlir::Attribute initializer;
   bool needsRegionInit = false;
 
-  auto value = variableSymbol->constValue();
+  auto value = defVar->constValue();
 
   if (value.has_value()) {
     auto interp = ASTInterpreter{unit_};
 
-    if (unit_->typeTraits().is_integral_or_unscoped_enum(
-            variableSymbol->type())) {
+    if (unit_->typeTraits().is_integral_or_unscoped_enum(defVar->type())) {
       auto constValue = interp.toInt(*value);
       initializer = builder_.getI64IntegerAttr(constValue.value_or(0));
-    } else if (auto attr = getFloatAttr(value, variableSymbol->type())) {
+    } else if (auto attr = getFloatAttr(value, defVar->type())) {
       initializer = attr.value();
-    } else if (unit_->typeTraits().is_array(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_array(defVar->type())) {
       if (auto constArrayPtr =
               std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
         auto constArray = *constArrayPtr;
@@ -936,10 +938,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
         initializer =
             builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
       }
-    } else if (unit_->typeTraits().is_class(variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_class(defVar->type())) {
       needsRegionInit = true;
-    } else if (unit_->typeTraits().is_pointer(variableSymbol->type())) {
-      if (auto attr = constValueToAttr(*value, variableSymbol->type())) {
+    } else if (unit_->typeTraits().is_pointer(defVar->type())) {
+      if (auto attr = constValueToAttr(*value, defVar->type())) {
         initializer = *attr;
       } else {
         needsRegionInit = true;
@@ -955,48 +957,11 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   }
 
   if (!initializer && !isExternalOnly) {
-    if (unit_->typeTraits().is_integral_or_unscoped_enum(
-            variableSymbol->type())) {
-      initializer = builder_.getI64IntegerAttr(0);
-    } else if (unit_->typeTraits().is_floating_point(variableSymbol->type())) {
-      initializer = builder_.getF64FloatAttr(0.0);
-    } else if (unit_->typeTraits().is_array(variableSymbol->type())) {
-      auto arrayType = type_cast<BoundedArrayType>(variableSymbol->type());
-      if (arrayType) {
-        size_t numElements = arrayType->size();
-        std::vector<mlir::Attribute> zeroElements;
-
-        mlir::Attribute zeroElement;
-        if (unit_->typeTraits().is_integral_or_unscoped_enum(
-                arrayType->elementType())) {
-          zeroElement = builder_.getI64IntegerAttr(0);
-        } else if (unit_->typeTraits().is_floating_point(
-                       arrayType->elementType())) {
-          zeroElement = builder_.getF64FloatAttr(0.0);
-        } else {
-          auto elementVarType = convertType(arrayType->elementType());
-          zeroElement = builder_.getZeroAttr(elementVarType);
-        }
-
-        if (zeroElement) {
-          for (size_t i = 0; i < numElements; ++i) {
-            zeroElements.push_back(zeroElement);
-          }
-          initializer = builder_.getArrayAttr(zeroElements);
-        }
-      }
-    } else if (unit_->typeTraits().is_pointer(variableSymbol->type())) {
-      initializer = builder_.getUnitAttr();
-    } else {
-      initializer = builder_.getZeroAttr(varType);
-      if (!initializer) {
-        initializer = builder_.getUnitAttr();
-      }
-    }
+    initializer = mlir::LLVM::ZeroAttr::get(context_);
   }
 
   bool isConstant = variableSymbol->isConstexpr() ||
-                    unit_->typeTraits().is_const(variableSymbol->type());
+                    unit_->typeTraits().is_const(defVar->type());
 
   auto var = mlir::cxx::GlobalOp::create(
       builder_, loc, mlir::TypeRange(), varType, isConstant,
@@ -1007,8 +972,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     auto* block = new mlir::Block();
     region.push_back(block);
     mlir::OpBuilder initBuilder(block, block->begin());
-    auto result =
-        emitConstInitValue(initBuilder, loc, variableSymbol->type(), *value);
+    auto result = emitConstInitValue(initBuilder, loc, defVar->type(), *value);
     mlir::cxx::ReturnOp::create(initBuilder, loc, result);
   }
 

@@ -1190,6 +1190,26 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
 
     if (isa<LLVM::LLVMStructType>(resultType) &&
         !isa<LLVM::LLVMStructType>(inputType)) {
+      auto structType = mlir::cast<LLVM::LLVMStructType>(resultType);
+      if (!structType.getBody().empty()) {
+        auto firstFieldType = structType.getBody()[0];
+        mlir::Value fieldVal = adaptor.getValue();
+        if (inputType != firstFieldType) {
+          if (isa<LLVM::LLVMPointerType>(inputType) &&
+              isa<mlir::IntegerType>(firstFieldType)) {
+            fieldVal = LLVM::PtrToIntOp::create(rewriter, op.getLoc(),
+                                                firstFieldType, fieldVal);
+          }
+        }
+        if (fieldVal.getType() == firstFieldType) {
+          auto undef = LLVM::UndefOp::create(rewriter, op.getLoc(), resultType);
+          rewriter.replaceOp(
+              op, LLVM::InsertValueOp::create(rewriter, op.getLoc(), undef,
+                                              fieldVal, ArrayRef<int64_t>{0}));
+          return success();
+        }
+      }
+
       auto one =
           LLVM::ConstantOp::create(rewriter, op.getLoc(), rewriter.getI32Type(),
                                    rewriter.getI32IntegerAttr(1));
