@@ -285,6 +285,7 @@ class Codegen {
 
   void enqueueFunctionBody(FunctionSymbol* symbol);
   void processPendingFunctions();
+  void resolveLabels();
 
   [[nodiscard]] auto findOrCreateGlobal(Symbol* symbol)
       -> std::optional<mlir::cxx::GlobalOp>;

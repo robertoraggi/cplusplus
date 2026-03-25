@@ -1229,11 +1229,19 @@ class LabelAddressOpLowering : public OpConversionPattern<cxx::LabelAddressOp> {
   auto matchAndRewrite(cxx::LabelAddressOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
-    if (!op.getTagIdAttr() || !op.getFuncNameAttr())
+    if (!op.getTagIdAttr())
       return rewriter.notifyMatchFailure(op, "label_address not resolved");
 
+    llvm::StringRef funcName;
+    if (auto f = op->getParentOfType<cxx::FuncOp>())
+      funcName = f.getSymName();
+    else if (auto f = op->getParentOfType<LLVM::LLVMFuncOp>())
+      funcName = f.getSymName();
+    else
+      return rewriter.notifyMatchFailure(op,
+                                         "label_address not inside a function");
+
     auto tagId = static_cast<unsigned>(op.getTagId().value());
-    auto funcName = op.getFuncName().value();
     auto* ctx = op.getContext();
     auto blockAddrAttr = LLVM::BlockAddressAttr::get(
         ctx, mlir::FlatSymbolRefAttr::get(ctx, funcName),

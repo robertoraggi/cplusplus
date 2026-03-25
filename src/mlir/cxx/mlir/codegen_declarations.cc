@@ -677,6 +677,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     mlir::cxx::ReturnOp::create(gen.builder_, endLoc);
   }
 
+  gen.resolveLabels();
+
   // restore the state
   std::swap(gen.thisValue_, thisValue);
   gen.currentFunctionSymbol_ = prevFunctionSymbol;

@@ -46,7 +46,6 @@
 #include <mlir/Target/LLVMIR/Import.h>
 #include <mlir/Transforms/RegionUtils.h>
 
-#include <filesystem>
 #include <format>
 
 namespace cxx {
@@ -92,121 +91,117 @@ struct Codegen::UnitVisitor {
   }
 };
 
+void Codegen::resolveLabels() {
+  auto funcOp = function_;
+
+  mlir::IRRewriter rewriter(funcOp.getContext());
+
+  llvm::DenseMap<llvm::StringRef, mlir::Block*> labels;
+
+  for (auto& block : funcOp.getBody()) {
+    for (auto& op : block) {
+      if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op))
+        labels[labelOp.getName()] = labelOp->getBlock();
+    }
+  }
+
+  llvm::SmallVector<mlir::cxx::GotoOp> gotoOps;
+  llvm::SmallVector<mlir::cxx::LabelOp> labelOps;
+  llvm::SmallVector<mlir::cxx::CleanupBranchOp> cleanupBranchOps;
+  llvm::SmallVector<mlir::cxx::LabelAddressOp> labelAddressOps;
+  llvm::SmallVector<mlir::cxx::IndirectGotoOp> indirectGotoOps;
+
+  for (auto& block : funcOp.getBody()) {
+    for (auto& op : block) {
+      if (auto gotoOp = mlir::dyn_cast<mlir::cxx::GotoOp>(&op))
+        gotoOps.push_back(gotoOp);
+      else if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op))
+        labelOps.push_back(labelOp);
+      else if (auto cbOp = mlir::dyn_cast<mlir::cxx::CleanupBranchOp>(&op))
+        cleanupBranchOps.push_back(cbOp);
+      else if (auto laOp = mlir::dyn_cast<mlir::cxx::LabelAddressOp>(&op))
+        labelAddressOps.push_back(laOp);
+      else if (auto igOp = mlir::dyn_cast<mlir::cxx::IndirectGotoOp>(&op))
+        indirectGotoOps.push_back(igOp);
+    }
+  }
+
+  for (auto gotoOp : gotoOps) {
+    auto targetBlock = labels.lookup(gotoOp.getLabel());
+    if (!targetBlock) continue;
+
+    rewriter.setInsertionPoint(gotoOp);
+
+    if (auto nextOp = ++gotoOp->getIterator();
+        mlir::isa<mlir::cf::BranchOp>(&*nextOp)) {
+      rewriter.eraseOp(&*nextOp);
+    }
+
+    rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(gotoOp, targetBlock);
+  }
+
+  if (!labelAddressOps.empty()) {
+    auto* ctx = funcOp.getContext();
+    llvm::DenseMap<llvm::StringRef, unsigned> labelToTagId;
+    llvm::SmallVector<mlir::Block*> labelTargets;
+    unsigned nextTagId = 0;
+
+    for (auto labelAddrOp : labelAddressOps) {
+      auto name = labelAddrOp.getLabelName();
+      unsigned tagId;
+      auto it = labelToTagId.find(name);
+      if (it == labelToTagId.end()) {
+        tagId = nextTagId++;
+        labelToTagId[name] = tagId;
+        auto* targetBlock = labels.lookup(name);
+        if (targetBlock) {
+          auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, tagId);
+          rewriter.setInsertionPointToStart(targetBlock);
+          mlir::LLVM::BlockTagOp::create(rewriter, labelAddrOp.getLoc(),
+                                         tagAttr);
+          labelTargets.push_back(targetBlock);
+        }
+      } else {
+        tagId = it->second;
+      }
+      rewriter.modifyOpInPlace(labelAddrOp, [&] {
+        labelAddrOp.setTagIdAttr(
+            mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32), tagId));
+      });
+    }
+
+    for (auto igOp : indirectGotoOps) {
+      rewriter.setInsertionPoint(igOp);
+      rewriter.replaceOpWithNewOp<mlir::cxx::IndirectGotoOp>(
+          igOp, igOp.getTarget(), mlir::BlockRange{labelTargets});
+    }
+  }
+
+  for (auto labelOp : labelOps) {
+    rewriter.eraseOp(labelOp);
+  }
+
+  for (auto cbOp : cleanupBranchOps) {
+    rewriter.setInsertionPoint(cbOp);
+    auto addresses = cbOp.getAddresses();
+    auto destructors = cbOp.getDestructors();
+    for (unsigned i = 0; i < addresses.size(); ++i) {
+      auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
+      mlir::cxx::CallOp::create(rewriter, cbOp.getLoc(), mlir::Type{}, dtorRef,
+                                mlir::ValueRange{addresses[i]},
+                                mlir::TypeAttr{});
+    }
+    rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(cbOp, cbOp.getDest());
+  }
+
+  for (auto& region : funcOp->getRegions()) {
+    eraseUnreachableBlocks(rewriter, region);
+  }
+}
+
 auto Codegen::operator()(UnitAST* ast) -> UnitResult {
   if (!ast) return {};
-  auto result = visit(UnitVisitor{*this}, ast);
-
-  mlir::IRRewriter rewriter(result.module->getContext());
-
-  result.module.walk([&](mlir::cxx::FuncOp funcOp) {
-    llvm::DenseMap<llvm::StringRef, mlir::Block*> labels;
-
-    for (auto& block : funcOp.getBody()) {
-      for (auto& op : block) {
-        if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op)) {
-          labels[labelOp.getName()] = labelOp->getBlock();
-        }
-      }
-    }
-
-    llvm::SmallVector<mlir::cxx::GotoOp> gotoOps;
-    llvm::SmallVector<mlir::cxx::LabelOp> labelOps;
-    llvm::SmallVector<mlir::cxx::CleanupBranchOp> cleanupBranchOps;
-    llvm::SmallVector<mlir::cxx::LabelAddressOp> labelAddressOps;
-    llvm::SmallVector<mlir::cxx::IndirectGotoOp> indirectGotoOps;
-
-    for (auto& block : funcOp.getBody()) {
-      for (auto& op : block) {
-        if (auto gotoOp = mlir::dyn_cast<mlir::cxx::GotoOp>(&op))
-          gotoOps.push_back(gotoOp);
-        else if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op))
-          labelOps.push_back(labelOp);
-        else if (auto cbOp = mlir::dyn_cast<mlir::cxx::CleanupBranchOp>(&op))
-          cleanupBranchOps.push_back(cbOp);
-        else if (auto laOp = mlir::dyn_cast<mlir::cxx::LabelAddressOp>(&op))
-          labelAddressOps.push_back(laOp);
-        else if (auto igOp = mlir::dyn_cast<mlir::cxx::IndirectGotoOp>(&op))
-          indirectGotoOps.push_back(igOp);
-      }
-    }
-
-    for (auto gotoOp : gotoOps) {
-      auto targetBlock = labels.lookup(gotoOp.getLabel());
-      if (!targetBlock) continue;
-
-      rewriter.setInsertionPoint(gotoOp);
-
-      if (auto nextOp = ++gotoOp->getIterator();
-          mlir::isa<mlir::cf::BranchOp>(&*nextOp)) {
-        rewriter.eraseOp(&*nextOp);
-      }
-
-      rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(gotoOp, targetBlock);
-    }
-
-    if (!labelAddressOps.empty()) {
-      auto* ctx = funcOp.getContext();
-      auto funcName = funcOp.getSymName();
-      auto funcNameAttr = mlir::StringAttr::get(ctx, funcName);
-      llvm::DenseMap<llvm::StringRef, unsigned> labelToTagId;
-      llvm::SmallVector<mlir::Block*> labelTargets;
-      unsigned nextTagId = 0;
-
-      for (auto labelAddrOp : labelAddressOps) {
-        auto name = labelAddrOp.getLabelName();
-        unsigned tagId;
-        auto it = labelToTagId.find(name);
-        if (it == labelToTagId.end()) {
-          tagId = nextTagId++;
-          labelToTagId[name] = tagId;
-          auto* targetBlock = labels.lookup(name);
-          if (targetBlock) {
-            auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, tagId);
-            rewriter.setInsertionPointToStart(targetBlock);
-            mlir::LLVM::BlockTagOp::create(rewriter, labelAddrOp.getLoc(),
-                                           tagAttr);
-            labelTargets.push_back(targetBlock);
-          }
-        } else {
-          tagId = it->second;
-        }
-        rewriter.modifyOpInPlace(labelAddrOp, [&] {
-          labelAddrOp.setTagIdAttr(
-              mlir::IntegerAttr::get(mlir::IntegerType::get(ctx, 32), tagId));
-          labelAddrOp.setFuncNameAttr(funcNameAttr);
-        });
-      }
-
-      for (auto igOp : indirectGotoOps) {
-        rewriter.setInsertionPoint(igOp);
-        rewriter.replaceOpWithNewOp<mlir::cxx::IndirectGotoOp>(
-            igOp, igOp.getTarget(), mlir::BlockRange{labelTargets});
-      }
-    }
-
-    for (auto labelOp : labelOps) {
-      rewriter.eraseOp(labelOp);
-    }
-
-    for (auto cbOp : cleanupBranchOps) {
-      rewriter.setInsertionPoint(cbOp);
-      auto addresses = cbOp.getAddresses();
-      auto destructors = cbOp.getDestructors();
-      for (unsigned i = 0; i < addresses.size(); ++i) {
-        auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
-        mlir::cxx::CallOp::create(rewriter, cbOp.getLoc(), mlir::Type{},
-                                  dtorRef, mlir::ValueRange{addresses[i]},
-                                  mlir::TypeAttr{});
-      }
-      rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(cbOp, cbOp.getDest());
-    }
-
-    for (auto& region : funcOp->getRegions()) {
-      eraseUnreachableBlocks(rewriter, region);
-    }
-  });
-
-  return result;
+  return visit(UnitVisitor{*this}, ast);
 }
 
 auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
