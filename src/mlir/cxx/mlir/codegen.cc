@@ -216,10 +216,19 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     // Check if the value is a ConstAddress, address-of variable or function.
     if (auto addrPtr = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
       auto* symbol = (*addrPtr)->symbol();
-      if (auto varSym = symbol_cast<VariableSymbol>(symbol)) {
+      auto offset = (*addrPtr)->offset();
+      if (symbol_cast<VariableSymbol>(symbol)) {
         if (auto glo = findOrCreateGlobal(symbol)) {
-          return mlir::cxx::AddressOfOp::create(builder, loc, mlirPtrType,
-                                                glo->getSymName());
+          mlir::Value result = mlir::cxx::AddressOfOp::create(
+              builder, loc, mlirPtrType, glo->getSymName());
+          if (offset != 0) {
+            auto offsetVal = mlir::arith::ConstantOp::create(
+                builder, loc, builder.getI64Type(),
+                builder.getI64IntegerAttr(offset));
+            result = mlir::cxx::PtrAddOp::create(builder, loc, mlirPtrType,
+                                                 result, offsetVal);
+          }
+          return result;
         }
       } else if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
         auto funcOp = findOrCreateFunction(funcSym);
@@ -952,7 +961,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   auto isExternalOnly = variableSymbol->isExtern();
   if (isExternalOnly) {
     if (auto canon = variableSymbol->canonical()) {
-      if (canon->definition()) isExternalOnly = false;
+      if (canon->definition() || !canon->isExtern()) isExternalOnly = false;
     }
   }
 
@@ -967,6 +976,8 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
       builder_, loc, mlir::TypeRange(), varType, isConstant,
       llvm::StringRef(name), initializer, linkageAttr);
 
+  globalOps_.insert_or_assign(canonicalVar, var);
+
   if (needsRegionInit && value.has_value()) {
     auto& region = var.getInitializer();
     auto* block = new mlir::Block();
@@ -975,8 +986,6 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     auto result = emitConstInitValue(initBuilder, loc, defVar->type(), *value);
     mlir::cxx::ReturnOp::create(initBuilder, loc, result);
   }
-
-  globalOps_.insert_or_assign(canonicalVar, var);
 
   return var;
 }
