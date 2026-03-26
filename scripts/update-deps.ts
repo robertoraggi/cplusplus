@@ -7,7 +7,6 @@ const PACKAGES = [
   "packages/cxx-gen-ast/package.json",
   "packages/cxx-gen-lsp/package.json",
   "packages/cxx-playground/package.json",
-  "templates/cxx-browser-esm-vite/package.json",
   "templates/cxx-parse-esm/package.json",
   "templates/cxx-parse/package.json",
   "package.json",
