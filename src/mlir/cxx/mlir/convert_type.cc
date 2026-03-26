@@ -323,33 +323,33 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     return classType;
   }
 
-  // todo: layout of parent classes, anonymous nested fields, etc.
-
   std::vector<mlir::Type> memberTypes;
 
   if (classSymbol->isUnion()) {
-    auto size = classSymbol->sizeInBytes();
-    auto alignment = classSymbol->alignment();
-    if (alignment == 0) alignment = 1;
+    mlir::Type largestMemberType;
+    std::size_t largestMemberSize = 0;
 
-    // todo: generalize, this is to try to get the alignment of unions right.
-    unsigned scalarBits = 8;
-    if (alignment >= 8)
-      scalarBits = 64;
-    else if (alignment >= 4)
-      scalarBits = 32;
-    else if (alignment >= 2)
-      scalarBits = 16;
-    auto scalarType = mlir::IntegerType::get(gen.context_, scalarBits);
+    for (auto field : views::members(classSymbol) | views::non_static_fields) {
+      auto fieldSizeOpt = memoryLayout()->sizeOf(field->type());
+      if (!fieldSizeOpt) continue;
+      auto fieldSize = *fieldSizeOpt;
+      if (fieldSize > largestMemberSize) {
+        largestMemberSize = fieldSize;
+        largestMemberType = gen.convertType(field->type());
+      }
+    }
 
-    auto scalarBytes = scalarBits / 8;
-    auto count = (size + scalarBytes - 1) / scalarBytes;  // round up
-    if (count <= 1) {
-      memberTypes.push_back(scalarType);
+    if (largestMemberType) {
+      memberTypes.push_back(largestMemberType);
+      auto unionSize = static_cast<std::size_t>(classSymbol->sizeInBytes());
+      if (largestMemberSize < unionSize) {
+        auto i8Type = mlir::IntegerType::get(gen.context_, 8);
+        auto paddingType = mlir::cxx::ArrayType::get(
+            gen.context_, i8Type, unionSize - largestMemberSize);
+        memberTypes.push_back(paddingType);
+      }
     } else {
-      auto arrayType =
-          mlir::cxx::ArrayType::get(gen.context_, scalarType, count);
-      memberTypes.push_back(arrayType);
+      memberTypes.push_back(mlir::IntegerType::get(gen.context_, 8));
     }
 
   } else {

@@ -82,6 +82,10 @@ struct ConstValueHash {
       -> std::size_t {
     return std::hash<const void*>{}(value->symbol());
   }
+  auto operator()(const std::shared_ptr<ConstLabelAddress>& value) const
+      -> std::size_t {
+    return std::hash<std::string>{}(value->name());
+  }
 };
 
 struct TemplateArgumentHash {

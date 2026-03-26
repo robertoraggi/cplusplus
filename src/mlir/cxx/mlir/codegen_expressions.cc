@@ -1901,8 +1901,12 @@ auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
     -> ExpressionResult {
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto ptrType = mlir::cast<mlir::cxx::PointerType>(gen.convertType(ast->type));
+  auto funcNameAttr =
+      gen.function_ ? mlir::StringAttr::get(gen.context_, gen.function_.getSymName())
+                    : mlir::StringAttr{};
   auto op = mlir::cxx::LabelAddressOp::create(
-      gen.builder_, loc, ptrType, ast->identifier->name(), mlir::IntegerAttr{});
+      gen.builder_, loc, ptrType, ast->identifier->name(), mlir::IntegerAttr{},
+      funcNameAttr);
   return {op};
 }
 

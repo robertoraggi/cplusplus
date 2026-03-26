@@ -995,24 +995,11 @@ class PtrDiffOpLowering : public OpConversionPattern<cxx::PtrDiffOp> {
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
-    auto context = getContext();
 
     auto resultType = typeConverter->convertType(op.getType());
     if (!resultType) {
       return rewriter.notifyMatchFailure(
           op, "failed to convert pointer difference result type");
-    }
-
-    auto lhsType = typeConverter->convertType(adaptor.getLhs().getType());
-    if (!lhsType) {
-      return rewriter.notifyMatchFailure(
-          op, "failed to convert pointer difference left-hand side type");
-    }
-
-    auto rhsType = typeConverter->convertType(adaptor.getRhs().getType());
-    if (!rhsType) {
-      return rewriter.notifyMatchFailure(
-          op, "failed to convert pointer difference right-hand side type");
     }
 
     auto loc = op->getLoc();
@@ -1023,9 +1010,28 @@ class PtrDiffOpLowering : public OpConversionPattern<cxx::PtrDiffOp> {
     auto rhs =
         LLVM::PtrToIntOp::create(rewriter, loc, resultType, adaptor.getRhs());
 
-    rewriter.replaceOp(
-        op, LLVM::SubOp::create(rewriter, op.getLoc(), resultType, lhs, rhs));
+    mlir::Value diff = LLVM::SubOp::create(rewriter, loc, resultType, lhs, rhs);
 
+    // divide by sizeof(element_type)
+    auto ptrType = dyn_cast<cxx::PointerType>(op.getLhs().getType());
+    if (ptrType) {
+      auto cxxElementType = ptrType.getElementType();
+      if (cxxElementType && !isa<cxx::VoidType>(cxxElementType)) {
+        if (auto elementType = typeConverter->convertType(cxxElementType)) {
+          auto elementSize = dataLayout_.getTypeSize(elementType);
+          if (elementSize > 1) {
+            auto sizeConst = LLVM::ConstantOp::create(
+                rewriter, loc, resultType,
+                rewriter.getIntegerAttr(resultType,
+                                        static_cast<int64_t>(elementSize)));
+            diff = LLVM::SDivOp::create(rewriter, loc, resultType, diff,
+                                        sizeConst);
+          }
+        }
+      }
+    }
+
+    rewriter.replaceOp(op, diff);
     return success();
   }
 
@@ -1199,6 +1205,15 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
               isa<mlir::IntegerType>(firstFieldType)) {
             fieldVal = LLVM::PtrToIntOp::create(rewriter, op.getLoc(),
                                                 firstFieldType, fieldVal);
+          } else if (isa<mlir::IntegerType>(inputType) &&
+                     isa<mlir::IntegerType>(firstFieldType)) {
+            auto srcWidth = mlir::cast<mlir::IntegerType>(inputType).getWidth();
+            auto dstWidth =
+                mlir::cast<mlir::IntegerType>(firstFieldType).getWidth();
+            if (srcWidth < dstWidth) {
+              fieldVal = LLVM::ZExtOp::create(rewriter, op.getLoc(),
+                                              firstFieldType, fieldVal);
+            }
           }
         }
         if (fieldVal.getType() == firstFieldType) {
@@ -1234,6 +1249,21 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
       return success();
     }
 
+    if (isa<LLVM::LLVMStructType>(inputType) ||
+        isa<LLVM::LLVMArrayType>(inputType)) {
+      auto one =
+          LLVM::ConstantOp::create(rewriter, op.getLoc(), rewriter.getI32Type(),
+                                   rewriter.getI32IntegerAttr(1));
+      auto alloca = LLVM::AllocaOp::create(
+          rewriter, op.getLoc(), LLVM::LLVMPointerType::get(getContext()),
+          inputType, one, /*alignment=*/0);
+      LLVM::StoreOp::create(rewriter, op.getLoc(), adaptor.getValue(), alloca);
+      auto load =
+          LLVM::LoadOp::create(rewriter, op.getLoc(), resultType, alloca);
+      rewriter.replaceOp(op, load.getResult());
+      return success();
+    }
+
     // LLVM bitcast for other cases
     rewriter.replaceOp(
         op, LLVM::BitcastOp::create(rewriter, op.getLoc(), resultType,
@@ -1252,14 +1282,14 @@ class LabelAddressOpLowering : public OpConversionPattern<cxx::LabelAddressOp> {
     if (!op.getTagIdAttr())
       return rewriter.notifyMatchFailure(op, "label_address not resolved");
 
-    llvm::StringRef funcName;
-    if (auto f = op->getParentOfType<cxx::FuncOp>())
-      funcName = f.getSymName();
-    else if (auto f = op->getParentOfType<LLVM::LLVMFuncOp>())
-      funcName = f.getSymName();
-    else
+    auto funcNameAttr = op.getFuncNameAttr();
+
+    if (!funcNameAttr) {
       return rewriter.notifyMatchFailure(op,
-                                         "label_address not inside a function");
+                                         "label_address missing function name");
+    }
+
+    auto funcName = funcNameAttr.getValue();
 
     auto tagId = static_cast<unsigned>(op.getTagId().value());
     auto* ctx = op.getContext();
