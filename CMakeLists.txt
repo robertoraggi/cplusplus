@@ -114,8 +114,8 @@ set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
 
 FetchContent_Declare(
     wasi_sysroot
-    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-29/wasi-sysroot-29.0.tar.gz
-    URL_HASH    SHA256=d99d5c4b277a725b7b56bf9d591609972ecac3207520a66408927280f191f6c7
+    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-32/wasi-sysroot-32.0.tar.gz
+    URL_HASH    SHA256=f2537f6e5804f7f24e32dd140e9371e9670a9fd2646b6a813ddb896b29954b12
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)

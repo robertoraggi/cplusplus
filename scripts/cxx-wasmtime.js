@@ -21,6 +21,11 @@
 // SOFTWARE.
 
 import "zx/globals";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const workspacePath = path.join(__dirname, "../");
 const cxxWasiPrefixPath = path.join(workspacePath, "build.wasi/install");
@@ -35,7 +40,7 @@ const cxxArgs = [
 
 try {
   const result = await $`${wasmtime} ${cxxArgs} ${process.argv.slice(
-    3
+    3,
   )}`.quiet();
 
   echo`${result}`;
