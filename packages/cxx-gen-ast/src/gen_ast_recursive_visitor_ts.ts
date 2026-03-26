@@ -107,8 +107,8 @@ export async function gen_ast_recursive_visitor_ts({
 
   const out = `// Generated file by: gen_ast_recursive_visitor_ts.ts
 ${cpy_header}
-import * as ast from "./AST";
-import { ASTVisitor } from "./ASTVisitor";
+import * as ast from "./AST.js";
+import { ASTVisitor } from "./ASTVisitor.js";
 ${code.join("\n")}
 `;
 

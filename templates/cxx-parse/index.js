@@ -18,8 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-const { Parser, AST, ASTKind, ASTSlot } = require("cxx-frontend");
-const { readFile } = require("fs/promises");
+import { Parser, AST, ASTKind, ASTSlot } from "cxx-frontend";
+import { readFile } from "fs/promises";
+import { fileURLToPath } from "node:url";
 
 const source = `
 template <typename T>
@@ -39,24 +40,23 @@ int main() {
 `;
 
 async function main() {
-  const wasmBinaryFile = require.resolve("cxx-frontend/dist/wasm/cxx-js.wasm");
-  const wasm = await readFile(wasmBinaryFile);
-  await Parser.init({ wasm });
+  const wasmBinaryUrl = import.meta
+    .resolve("cxx-frontend/wasm");
+  const wasmBinaryFile = fileURLToPath(wasmBinaryUrl);
+  const wasmBinary = await readFile(wasmBinaryFile);
 
-  const parser = new Parser({
-    source,
-    path: "source.cc",
-  });
+  // initialize the parser
+  await Parser.init({ wasm: wasmBinary });
 
-  await parser.parse();
+  const parser = new Parser({ source, path: "source.cc" });
+
+  const ast = await parser.parse();
 
   const diagnostics = parser.getDiagnostics();
 
   if (diagnostics.length > 0) {
     console.log("diagnostics", diagnostics);
   }
-
-  const ast = parser.getAST();
 
   for (const { node, slot, depth } of ast?.walk().preVisit() ?? []) {
     if (!(node instanceof AST)) continue;

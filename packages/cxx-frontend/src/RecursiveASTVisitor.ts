@@ -19,8 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as ast from "./AST";
-import { ASTVisitor } from "./ASTVisitor";
+import * as ast from "./AST.js";
+import { ASTVisitor } from "./ASTVisitor.js";
 
 /**
  * RecursiveASTVisitor.

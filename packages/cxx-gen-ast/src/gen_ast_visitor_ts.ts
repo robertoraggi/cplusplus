@@ -75,7 +75,7 @@ export async function gen_ast_visitor_ts({
 
   const out = `// Generated file by: gen_ast_visitor_ts.ts
 ${cpy_header}
-import * as ast from "./AST";
+import * as ast from "./AST.js";
 
 ${code.join("\n")}
 `;

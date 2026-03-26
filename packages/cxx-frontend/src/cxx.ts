@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import makeCxx, { CXX } from "./cxx-js";
+import makeCxx, { type CXX } from "./cxx-js.js";
 
 export let cxx!: CXX;
 

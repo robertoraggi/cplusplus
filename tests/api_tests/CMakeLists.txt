@@ -22,6 +22,11 @@ if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
     return()
 endif()
 
+if (EMSCRIPTEN)
+    # set the executable suffix to .cjs
+    set(CMAKE_EXECUTABLE_SUFFIX ".cjs")
+endif()
+
 add_executable(test_api
     test_control.cc
     test_external_names.cc

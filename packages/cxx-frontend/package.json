@@ -2,16 +2,21 @@
   "name": "cxx-frontend",
   "version": "1.1.27",
   "description": "A compiler front end for the C++ language",
-  "main": "dist/cjs/index.cjs",
-  "module": "dist/esm/index.js",
-  "types": "dist/dts/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./wasm": "./dist/wasm/cxx-js.wasm"
+  },
+  "types": "dist/index.d.ts",
   "type": "module",
   "browser": {
     "url": false
   },
   "scripts": {
     "watch": "watchexec --print-events -r npm run build",
-    "build": "zx scripts/build.js",
+    "build": "tsc",
     "docs": "typedoc src/index.ts",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "
@@ -38,10 +43,8 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "esbuild": "^0.27.4",
     "prettier": "^3.8.1",
     "typedoc": "^0.28.18",
-    "typescript": "^6.0.2",
-    "zx": "^8.8.5"
+    "typescript": "^6.0.2"
   }
 }

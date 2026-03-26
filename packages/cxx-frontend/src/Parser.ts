@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import initCxx, { cxx } from "./cxx";
-import { Unit } from "./Unit";
-import { AST } from "./AST";
+import initCxx, { cxx } from "./cxx.js";
+import { type Unit } from "./Unit.js";
+import { AST } from "./AST.js";
 
 interface ParserParams {
   /**
@@ -63,7 +63,7 @@ export class Parser {
 
   static async initFromURL(
     url: URL,
-    { signal }: { signal?: AbortSignal } = {},
+    { signal = null }: { signal?: AbortSignal | null } = {},
   ) {
     const response = await fetch(url, { signal });
 
@@ -95,7 +95,10 @@ export class Parser {
       throw new TypeError("expected parameter 'source' of type 'string'");
     }
 
-    this.#unit = cxx.createUnit(source, path, { resolve, readFile });
+    this.#unit = cxx.createUnit(source, path, {
+      resolve: resolve!,
+      readFile: readFile!,
+    });
   }
 
   async parse(): Promise<AST> {

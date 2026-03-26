@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx";
-import { SourceLocation } from "./SourceLocation";
-import { TokenKind } from "./TokenKind";
+import { cxx } from "./cxx.js";
+import { type SourceLocation } from "./SourceLocation.js";
+import { TokenKind } from "./TokenKind.js";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;

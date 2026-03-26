@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { AST } from "./AST";
-import { Token } from "./Token";
-import { cxx } from "./cxx";
-import { ASTSlotKind } from "./ASTSlotKind";
-import { ASTSlot } from "./ASTSlot";
+import { AST } from "./AST.js";
+import { Token } from "./Token.js";
+import { cxx } from "./cxx.js";
+import { ASTSlotKind } from "./ASTSlotKind.js";
+import { ASTSlot } from "./ASTSlot.js";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;
@@ -104,24 +104,24 @@ export class ASTCursor {
   /**
    * Returns the current AST node or Token.
    */
-  get node(): AST | Token {
-    return this.#current.owner.node;
+  get node(): AST | Token | undefined {
+    return this.#current?.owner.node;
   }
 
   /**
    * Returns the current AST slot.
    */
   get slot(): ASTSlot | undefined {
-    return this.#current.owner.name;
+    return this.#current?.owner.name;
   }
 
   /**
    * Move the cursor to the first child of the current node.
    */
   gotoFirstChild() {
-    this.#current.restart();
-    if (!this.#current.children) return false;
-    const { value: childNode } = this.#current.children.next();
+    this.#current?.restart();
+    if (!this.#current?.children) return false;
+    const { value: childNode } = this.#current?.children.next();
     if (!childNode) return false;
     this.#stack.push(new StackEntry(childNode, this.#parser));
     return true;
@@ -144,7 +144,7 @@ export class ASTCursor {
    * Move the cursor to the parent of the current node.
    */
   gotoParent() {
-    if (this.#current.owner.node === this.root) return false;
+    if (this.#current?.owner.node === this.root) return false;
     this.#stack.pop();
     return true;
   }
