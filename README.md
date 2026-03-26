@@ -114,15 +114,6 @@ npm install
 node .
 ```
 
-For web-based applications, use these commands to clone, set up, and start a development server:
-
-```sh
-npx degit robertoraggi/cplusplus/templates/cxx-browser-esm-vite cxx-browser-esm-vite
-cd cxx-browser-esm-vite
-npm install
-npm run dev
-```
-
 ## License
 
 Copyright (c) 2026 Roberto Raggi roberto.raggi@gmail.com
