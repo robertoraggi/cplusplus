@@ -157,6 +157,12 @@ struct IsDependent {
 
   auto operator()(const BuiltinMetaInfoType* type) -> bool { return false; }
 
+  auto operator()(const BitIntType* type) -> bool { return false; }
+
+  auto operator()(const UnsignedBitIntType* type) -> bool { return false; }
+
+  auto operator()(const UnresolvedBitIntType* type) -> bool { return true; }
+
   // clang-format off
   [[nodiscard]] auto isDependent(NestedNameSpecifierAST* ast) -> bool;
   auto operator()(GlobalNestedNameSpecifierAST* ast) -> bool;
@@ -282,6 +288,9 @@ struct IsDependent {
   auto operator()(ComplexTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(NamedTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(AtomicTypeSpecifierAST* ast) -> bool { return false; }
+  auto operator()(BitIntTypeSpecifierAST* ast) -> bool {
+    return isDependent(ast->sizeExpression);
+  }
   auto operator()(UnderlyingTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(ElaboratedTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(DecltypeAutoSpecifierAST* ast) -> bool { return false; }

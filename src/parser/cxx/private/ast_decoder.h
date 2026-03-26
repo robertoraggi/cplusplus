@@ -430,6 +430,8 @@ class ASTDecoder {
       -> NamedTypeSpecifierAST*;
   auto decodeAtomicTypeSpecifier(const io::AtomicTypeSpecifier* node)
       -> AtomicTypeSpecifierAST*;
+  auto decodeBitIntTypeSpecifier(const io::BitIntTypeSpecifier* node)
+      -> BitIntTypeSpecifierAST*;
   auto decodeUnderlyingTypeSpecifier(const io::UnderlyingTypeSpecifier* node)
       -> UnderlyingTypeSpecifierAST*;
   auto decodeElaboratedTypeSpecifier(const io::ElaboratedTypeSpecifier* node)

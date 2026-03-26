@@ -101,6 +101,9 @@ struct Codegen::ConvertDebugType {
   auto operator()(const OverloadSetType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const BuiltinVaListType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const BuiltinMetaInfoType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const BitIntType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const UnsignedBitIntType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const UnresolvedBitIntType* type) -> mlir::LLVM::DITypeAttr;
 
   auto basicType(const llvm::Twine& name, const Type* type, unsigned encoding)
       -> mlir::LLVM::DITypeAttr;
@@ -632,6 +635,23 @@ auto Codegen::ConvertDebugType::operator()(const BuiltinVaListType* type)
 
 auto Codegen::ConvertDebugType::operator()(const BuiltinMetaInfoType* type)
     -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto Codegen::ConvertDebugType::operator()(const BitIntType* type)
+    -> mlir::LLVM::DITypeAttr {
+  return basicType(std::format("_BitInt({})", type->numBits()), type,
+                   llvm::dwarf::DW_ATE_signed);
+}
+
+auto Codegen::ConvertDebugType::operator()(const UnsignedBitIntType* type)
+    -> mlir::LLVM::DITypeAttr {
+  return basicType(std::format("unsigned _BitInt({})", type->numBits()), type,
+                   llvm::dwarf::DW_ATE_unsigned);
+}
+
+auto Codegen::ConvertDebugType::operator()(
+    const UnresolvedBitIntType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
 

@@ -68,6 +68,7 @@ struct DeclSpecs::Visitor {
   void operator()(ComplexTypeSpecifierAST* ast);
   void operator()(NamedTypeSpecifierAST* ast);
   void operator()(AtomicTypeSpecifierAST* ast);
+  void operator()(BitIntTypeSpecifierAST* ast);
   void operator()(UnderlyingTypeSpecifierAST* ast);
   void operator()(ElaboratedTypeSpecifierAST* ast);
   void operator()(DecltypeAutoSpecifierAST* ast);
@@ -383,6 +384,16 @@ void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
   // ### todo
 }
 
+void DeclSpecs::Visitor::operator()(BitIntTypeSpecifierAST* ast) {
+  specs.typeSpecifier_ = ast;
+  if (ast->bitCount > 0) {
+    specs.type_ = control()->getBitIntType(ast->bitCount);
+  } else if (ast->sizeExpression) {
+    specs.type_ = control()->getUnresolvedBitIntType(
+        specs.translationUnit(), ast->sizeExpression, false);
+  }
+}
+
 void DeclSpecs::Visitor::operator()(UnderlyingTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
@@ -577,9 +588,49 @@ void DeclSpecs::finish() {
       case TypeKind::kWideChar:
         type_ = control()->getUnsignedIntType();
         break;
+      case TypeKind::kBitInt: {
+        auto bitIntType = type_cast<BitIntType>(type_);
+        type_ = control()->getUnsignedBitIntType(bitIntType->numBits());
+        break;
+      }
+      case TypeKind::kUnresolvedBitInt: {
+        auto ubt = type_cast<UnresolvedBitIntType>(type_);
+        type_ = control()->getUnresolvedBitIntType(translationUnit(),
+                                                   ubt->sizeExpression(), true);
+        break;
+      }
       default:
         break;
     }  // switch
+  }
+
+  if (auto* bitIntSpec = ast_cast<BitIntTypeSpecifierAST>(typeSpecifier_)) {
+    const int bits = bitIntSpec->bitCount;
+    if (isUnsigned) {
+      if (bits < 0 || bits > 128) {
+        translationUnit()->error(
+            bitIntSpec->bitintLoc,
+            "unsigned _BitInt of bit sizes greater than 128 not supported");
+        type_ = control()->getUnsignedBitIntType(1);
+      } else if (bits < 1) {
+        translationUnit()->error(
+            bitIntSpec->bitintLoc,
+            "unsigned _BitInt must have a bit size of at least 1");
+        type_ = control()->getUnsignedBitIntType(1);
+      }
+    } else {
+      if (bits < 0 || bits > 128) {
+        translationUnit()->error(
+            bitIntSpec->bitintLoc,
+            "signed _BitInt of bit sizes greater than 128 not supported");
+        type_ = control()->getBitIntType(2);
+      } else if (bits < 2) {
+        translationUnit()->error(
+            bitIntSpec->bitintLoc,
+            "signed _BitInt must have a bit size of at least 2");
+        type_ = control()->getBitIntType(2);
+      }
+    }
   }
 
   if (isConst) type_ = translationUnit()->typeTraits().add_const(type_);

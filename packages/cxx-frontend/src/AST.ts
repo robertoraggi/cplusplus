@@ -10251,6 +10251,55 @@ export class AtomicTypeSpecifierAST extends SpecifierAST {
 }
 
 /**
+ * BitIntTypeSpecifierAST node.
+ */
+export class BitIntTypeSpecifierAST extends SpecifierAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitBitIntTypeSpecifier(this, context);
+  }
+
+  /**
+   * Returns the location of the bitint token in this node
+   */
+  getBitintToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
+  }
+
+  /**
+   * Returns the location of the lparen token in this node
+   */
+  getLparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the sizeExpression of this node
+   */
+  getSizeExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rparen token in this node
+   */
+  getRparenToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+}
+
+/**
  * UnderlyingTypeSpecifierAST node.
  */
 export class UnderlyingTypeSpecifierAST extends SpecifierAST {
@@ -14071,6 +14120,7 @@ const AST_CONSTRUCTORS: Array<
   ComplexTypeSpecifierAST,
   NamedTypeSpecifierAST,
   AtomicTypeSpecifierAST,
+  BitIntTypeSpecifierAST,
   UnderlyingTypeSpecifierAST,
   ElaboratedTypeSpecifierAST,
   DecltypeAutoSpecifierAST,

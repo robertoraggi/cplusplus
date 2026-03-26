@@ -216,6 +216,7 @@ enum class ASTKind {
   ComplexTypeSpecifier,
   NamedTypeSpecifier,
   AtomicTypeSpecifier,
+  BitIntTypeSpecifier,
   UnderlyingTypeSpecifier,
   ElaboratedTypeSpecifier,
   DecltypeAutoSpecifier,

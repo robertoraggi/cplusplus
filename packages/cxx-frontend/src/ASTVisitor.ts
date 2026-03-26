@@ -2079,6 +2079,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit BitIntTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitBitIntTypeSpecifier(
+    node: ast.BitIntTypeSpecifierAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit UnderlyingTypeSpecifier node.
    *
    * @param node The node to visit.

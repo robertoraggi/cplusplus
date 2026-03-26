@@ -4303,6 +4303,22 @@ void ASTEncoder::visit(AtomicTypeSpecifierAST* ast) {
   type_ = io::Specifier_AtomicTypeSpecifier;
 }
 
+void ASTEncoder::visit(BitIntTypeSpecifierAST* ast) {
+  const auto [sizeExpression, sizeExpressionType] =
+      acceptExpression(ast->sizeExpression);
+
+  io::BitIntTypeSpecifier::Builder builder{fbb_};
+  builder.add_bitint_loc(ast->bitintLoc.index());
+  builder.add_lparen_loc(ast->lparenLoc.index());
+  builder.add_size_expression(sizeExpression);
+  builder.add_size_expression_type(
+      static_cast<io::Expression>(sizeExpressionType));
+  builder.add_rparen_loc(ast->rparenLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Specifier_BitIntTypeSpecifier;
+}
+
 void ASTEncoder::visit(UnderlyingTypeSpecifierAST* ast) {
   const auto typeId = accept(ast->typeId);
 

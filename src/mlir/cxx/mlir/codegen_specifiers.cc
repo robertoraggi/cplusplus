@@ -55,6 +55,7 @@ struct Codegen::SpecifierVisitor {
   auto operator()(ComplexTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(NamedTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(AtomicTypeSpecifierAST* ast) -> SpecifierResult;
+  auto operator()(BitIntTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(UnderlyingTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(ElaboratedTypeSpecifierAST* ast) -> SpecifierResult;
   auto operator()(DecltypeAutoSpecifierAST* ast) -> SpecifierResult;
@@ -313,6 +314,13 @@ auto Codegen::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
 auto Codegen::SpecifierVisitor::operator()(AtomicTypeSpecifierAST* ast)
     -> SpecifierResult {
   auto typeIdResult = gen.typeId(ast->typeId);
+
+  return {};
+}
+
+auto Codegen::SpecifierVisitor::operator()(BitIntTypeSpecifierAST* ast)
+    -> SpecifierResult {
+  auto expressionResult = gen.expression(ast->sizeExpression);
 
   return {};
 }

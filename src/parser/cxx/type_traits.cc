@@ -68,6 +68,10 @@ struct IsIntegral {
   auto operator()(const Char16Type*) const -> bool { return true; }
   auto operator()(const Char32Type*) const -> bool { return true; }
   auto operator()(const WideCharType*) const -> bool { return true; }
+  auto operator()(const Int128Type*) const -> bool { return true; }
+  auto operator()(const UnsignedInt128Type*) const -> bool { return true; }
+  auto operator()(const BitIntType*) const -> bool { return true; }
+  auto operator()(const UnsignedBitIntType*) const -> bool { return true; }
 
   auto operator()(const QualType* type) const -> bool {
     return visit(*this, type->elementType());
@@ -94,11 +98,13 @@ struct IsSigned {
   auto operator()(const IntType*) const -> bool { return true; }
   auto operator()(const LongIntType*) const -> bool { return true; }
   auto operator()(const LongLongIntType*) const -> bool { return true; }
+  auto operator()(const Int128Type*) const -> bool { return true; }
   auto operator()(const CharType*) const -> bool { return true; }
   auto operator()(const FloatType*) const -> bool { return true; }
   auto operator()(const DoubleType*) const -> bool { return true; }
   auto operator()(const LongDoubleType*) const -> bool { return true; }
   auto operator()(const Float16Type*) const -> bool { return true; }
+  auto operator()(const BitIntType*) const -> bool { return true; }
 
   auto operator()(const QualType* type) const -> bool {
     return visit(*this, type->elementType());
@@ -118,6 +124,8 @@ struct IsUnsigned {
   auto operator()(const Char16Type*) const -> bool { return true; }
   auto operator()(const Char32Type*) const -> bool { return true; }
   auto operator()(const WideCharType*) const -> bool { return true; }
+  auto operator()(const UnsignedInt128Type*) const -> bool { return true; }
+  auto operator()(const UnsignedBitIntType*) const -> bool { return true; }
 
   auto operator()(const QualType* type) const -> bool {
     return visit(*this, type->elementType());
@@ -792,6 +800,21 @@ struct IsSameVisitor {
   auto operator()(const BuiltinMetaInfoType*, const BuiltinMetaInfoType*) const
       -> bool {
     return true;
+  }
+
+  auto operator()(const BitIntType* type, const BitIntType* otherType) const
+      -> bool {
+    return type->numBits() == otherType->numBits();
+  }
+
+  auto operator()(const UnsignedBitIntType* type,
+                  const UnsignedBitIntType* otherType) const -> bool {
+    return type->numBits() == otherType->numBits();
+  }
+
+  auto operator()(const UnresolvedBitIntType* type,
+                  const UnresolvedBitIntType* otherType) const -> bool {
+    return type == otherType;
   }
 };
 

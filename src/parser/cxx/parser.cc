@@ -503,7 +503,12 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       const auto& components = ast->literal->components();
 
-      if (components.isLongLong && components.isUnsigned)
+      if (components.isWB) {
+        if (components.isUnsigned)
+          ast->type = control_->getUnsignedBitIntType(components.bitIntWidth);
+        else
+          ast->type = control_->getBitIntType(components.bitIntWidth);
+      } else if (components.isLongLong && components.isUnsigned)
         ast->type = control_->getUnsignedLongLongIntType();
       else if (components.isLongLong)
         ast->type = control_->getLongLongIntType();
@@ -5274,6 +5279,7 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (parse_underlying_type_specifier(yyast, specs)) return true;
   if (parse_unary_builtin_type_specifier(yyast, specs)) return true;
   if (parse_atomic_type_specifier(yyast, specs)) return true;
+  if (parse_bitint_type_specifier(yyast, specs)) return true;
   if (parse_named_type_specifier(yyast, specs)) return true;
   if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
 
@@ -5495,6 +5501,34 @@ auto Parser::parse_atomic_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   expect(TokenKind::T_LPAREN, ast->lparenLoc);
 
   if (!parse_type_id(ast->typeId)) parse_error("expected type id");
+
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  specs.accept(ast);
+
+  return true;
+}
+
+auto Parser::parse_bitint_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
+    -> bool {
+  SourceLocation bitintLoc;
+  if (!match(TokenKind::T__BITINT, bitintLoc)) return false;
+
+  auto ast = BitIntTypeSpecifierAST::create(pool_);
+  yyast = ast;
+
+  ast->bitintLoc = bitintLoc;
+
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+
+  std::optional<ConstValue> value;
+  if (!parse_constant_expression(ast->sizeExpression, value)) {
+    parse_error("expected a constant expression");
+  }
+
+  if (value)
+    if (auto* v = std::get_if<std::intmax_t>(&*value))
+      ast->bitCount = static_cast<int>(*v);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 

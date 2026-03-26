@@ -5953,6 +5953,38 @@ class AtomicTypeSpecifierAST final : public SpecifierAST {
   AtomicTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
+class BitIntTypeSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::BitIntTypeSpecifier;
+
+  SourceLocation bitintLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* sizeExpression = nullptr;
+  SourceLocation rparenLoc;
+  int bitCount = 0;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena) -> BitIntTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> BitIntTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation bitintLoc,
+                                   SourceLocation lparenLoc,
+                                   ExpressionAST* sizeExpression,
+                                   SourceLocation rparenLoc, int bitCount)
+      -> BitIntTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* sizeExpression,
+                                   int bitCount) -> BitIntTypeSpecifierAST*;
+
+ protected:
+  BitIntTypeSpecifierAST() : SpecifierAST(Kind) {}
+};
+
 class UnderlyingTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::UnderlyingTypeSpecifier;
@@ -8697,6 +8729,9 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case AtomicTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<AtomicTypeSpecifierAST*>(ast));
+    case BitIntTypeSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<BitIntTypeSpecifierAST*>(ast));
     case UnderlyingTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<UnderlyingTypeSpecifierAST*>(ast));
@@ -8772,6 +8807,7 @@ template <>
     case ComplexTypeSpecifierAST::Kind:
     case NamedTypeSpecifierAST::Kind:
     case AtomicTypeSpecifierAST::Kind:
+    case BitIntTypeSpecifierAST::Kind:
     case UnderlyingTypeSpecifierAST::Kind:
     case ElaboratedTypeSpecifierAST::Kind:
     case DecltypeAutoSpecifierAST::Kind:

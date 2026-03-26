@@ -538,6 +538,9 @@ auto ASTDecoder::decodeSpecifier(const void* ptr, io::Specifier type)
     case io::Specifier_AtomicTypeSpecifier:
       return decodeAtomicTypeSpecifier(
           reinterpret_cast<const io::AtomicTypeSpecifier*>(ptr));
+    case io::Specifier_BitIntTypeSpecifier:
+      return decodeBitIntTypeSpecifier(
+          reinterpret_cast<const io::BitIntTypeSpecifier*>(ptr));
     case io::Specifier_UnderlyingTypeSpecifier:
       return decodeUnderlyingTypeSpecifier(
           reinterpret_cast<const io::UnderlyingTypeSpecifier*>(ptr));
@@ -3757,6 +3760,19 @@ auto ASTDecoder::decodeAtomicTypeSpecifier(const io::AtomicTypeSpecifier* node)
   ast->atomicLoc = SourceLocation(node->atomic_loc());
   ast->lparenLoc = SourceLocation(node->lparen_loc());
   ast->typeId = decodeTypeId(node->type_id());
+  ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeBitIntTypeSpecifier(const io::BitIntTypeSpecifier* node)
+    -> BitIntTypeSpecifierAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) BitIntTypeSpecifierAST();
+  ast->bitintLoc = SourceLocation(node->bitint_loc());
+  ast->lparenLoc = SourceLocation(node->lparen_loc());
+  ast->sizeExpression =
+      decodeExpression(node->size_expression(), node->size_expression_type());
   ast->rparenLoc = SourceLocation(node->rparen_loc());
   return ast;
 }

@@ -336,6 +336,23 @@ struct ExternalNameEncoder::EncodeType {
     cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
     return true;
   }
+
+  auto operator()(const BitIntType* type) -> bool {
+    // Itanium ABI: DB<N>_ for signed _BitInt(N)
+    encoder.out(std::format("DB{}_", type->numBits()));
+    return false;
+  }
+
+  auto operator()(const UnsignedBitIntType* type) -> bool {
+    // Itanium ABI: DU<N>_ for unsigned _BitInt(N)
+    encoder.out(std::format("DU{}_", type->numBits()));
+    return false;
+  }
+
+  auto operator()(const UnresolvedBitIntType* type) -> bool {
+    encoder.out("u8__dep_bi");
+    return true;
+  }
 };
 
 struct ExternalNameEncoder::EncodeUnqualifiedName {

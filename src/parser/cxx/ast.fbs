@@ -272,6 +272,7 @@ union Specifier {
   ComplexTypeSpecifier,
   NamedTypeSpecifier,
   AtomicTypeSpecifier,
+  BitIntTypeSpecifier,
   UnderlyingTypeSpecifier,
   ElaboratedTypeSpecifier,
   DecltypeAutoSpecifier,
@@ -1609,6 +1610,13 @@ table NamedTypeSpecifier /* SpecifierAST */ {
 table AtomicTypeSpecifier /* SpecifierAST */ {
   type_id: TypeId;
   atomic_loc: uint32;
+  lparen_loc: uint32;
+  rparen_loc: uint32;
+}
+
+table BitIntTypeSpecifier /* SpecifierAST */ {
+  size_expression: Expression;
+  bitint_loc: uint32;
   lparen_loc: uint32;
   rparen_loc: uint32;
 }

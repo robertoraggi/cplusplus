@@ -211,6 +211,7 @@ export enum ASTKind {
   ComplexTypeSpecifier,
   NamedTypeSpecifier,
   AtomicTypeSpecifier,
+  BitIntTypeSpecifier,
   UnderlyingTypeSpecifier,
   ElaboratedTypeSpecifier,
   DecltypeAutoSpecifier,

@@ -442,6 +442,55 @@ auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
     return unmodified();
   }
 
+  auto isBitInt = [](const Type* t) {
+    return t->kind() == TypeKind::kBitInt ||
+           t->kind() == TypeKind::kUnsignedBitInt;
+  };
+
+  auto isWideInt = [](const Type* t) {
+    return t->kind() == TypeKind::kInt128 ||
+           t->kind() == TypeKind::kUnsignedInt128;
+  };
+
+  if (isBitInt(expr->type) || isBitInt(other->type)) {
+    if (unit_->typeTraits().is_same(expr->type, other->type)) return expr->type;
+    auto numBitsOf = [&](const Type* t) -> int {
+      if (t->kind() == TypeKind::kBitInt)
+        return type_cast<BitIntType>(t)->numBits();
+      if (t->kind() == TypeKind::kUnsignedBitInt)
+        return type_cast<UnsignedBitIntType>(t)->numBits();
+      return 0;
+    };
+    int bitsExpr = numBitsOf(expr->type);
+    int bitsOther = numBitsOf(other->type);
+    if (bitsExpr > 0 && bitsOther > 0) {
+      int bits = std::max(bitsExpr, bitsOther);
+      bool anyUnsigned = unit_->typeTraits().is_unsigned(expr->type) ||
+                         unit_->typeTraits().is_unsigned(other->type);
+      const Type* common =
+          anyUnsigned
+              ? static_cast<const Type*>(control_->getUnsignedBitIntType(bits))
+              : static_cast<const Type*>(control_->getBitIntType(bits));
+      (void)integralConversion(expr, common);
+      (void)integralConversion(other, common);
+      return common;
+    }
+    return unmodified();
+  }
+
+  if (isWideInt(expr->type) || isWideInt(other->type)) {
+    if (unit_->typeTraits().is_same(expr->type, other->type)) return expr->type;
+    bool anyUnsigned = unit_->typeTraits().is_unsigned(expr->type) ||
+                       unit_->typeTraits().is_unsigned(other->type);
+    const Type* common =
+        anyUnsigned
+            ? static_cast<const Type*>(control_->getUnsignedInt128Type())
+            : static_cast<const Type*>(control_->getInt128Type());
+    (void)integralConversion(expr, common);
+    (void)integralConversion(other, common);
+    return common;
+  }
+
   (void)integralPromotion(expr);
   (void)integralPromotion(other);
 

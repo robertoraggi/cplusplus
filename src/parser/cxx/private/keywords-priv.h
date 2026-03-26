@@ -696,6 +696,18 @@ static inline auto classify7(const char* s) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == 'B') {
+      if (s[2] == 'i') {
+        if (s[3] == 't') {
+          if (s[4] == 'I') {
+            if (s[5] == 'n') {
+              if (s[6] == 't') {
+                return cxx::TokenKind::T__BITINT;
+              }
+            }
+          }
+        }
+      }
     }
   }
   return cxx::TokenKind::T_IDENTIFIER;

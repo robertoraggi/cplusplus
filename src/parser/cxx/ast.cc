@@ -2659,6 +2659,22 @@ auto AtomicTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto BitIntTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(bitintLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(sizeExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto BitIntTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(sizeExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(bitintLoc)) return loc;
+  return {};
+}
+
 auto UnderlyingTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(underlyingTypeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -3825,6 +3841,7 @@ std::string_view kASTKindNames[] = {
     "complex-type-specifier",
     "named-type-specifier",
     "atomic-type-specifier",
+    "bit-int-type-specifier",
     "underlying-type-specifier",
     "elaborated-type-specifier",
     "decltype-auto-specifier",
@@ -11809,6 +11826,47 @@ auto AtomicTypeSpecifierAST::create(Arena* arena, TypeIdAST* typeId)
     -> AtomicTypeSpecifierAST* {
   auto node = new (arena) AtomicTypeSpecifierAST();
   node->typeId = typeId;
+  return node;
+}
+
+auto BitIntTypeSpecifierAST::clone(Arena* arena) -> BitIntTypeSpecifierAST* {
+  auto node = create(arena);
+
+  node->bitintLoc = bitintLoc;
+  node->lparenLoc = lparenLoc;
+
+  if (sizeExpression) node->sizeExpression = sizeExpression->clone(arena);
+
+  node->rparenLoc = rparenLoc;
+  node->bitCount = bitCount;
+
+  return node;
+}
+
+auto BitIntTypeSpecifierAST::create(Arena* arena) -> BitIntTypeSpecifierAST* {
+  auto node = new (arena) BitIntTypeSpecifierAST();
+  return node;
+}
+
+auto BitIntTypeSpecifierAST::create(Arena* arena, SourceLocation bitintLoc,
+                                    SourceLocation lparenLoc,
+                                    ExpressionAST* sizeExpression,
+                                    SourceLocation rparenLoc, int bitCount)
+    -> BitIntTypeSpecifierAST* {
+  auto node = new (arena) BitIntTypeSpecifierAST();
+  node->bitintLoc = bitintLoc;
+  node->lparenLoc = lparenLoc;
+  node->sizeExpression = sizeExpression;
+  node->rparenLoc = rparenLoc;
+  node->bitCount = bitCount;
+  return node;
+}
+
+auto BitIntTypeSpecifierAST::create(Arena* arena, ExpressionAST* sizeExpression,
+                                    int bitCount) -> BitIntTypeSpecifierAST* {
+  auto node = new (arena) BitIntTypeSpecifierAST();
+  node->sizeExpression = sizeExpression;
+  node->bitCount = bitCount;
   return node;
 }
 

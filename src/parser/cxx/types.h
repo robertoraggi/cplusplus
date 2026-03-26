@@ -544,6 +544,45 @@ class UnresolvedUnderlyingType final
   [[nodiscard]] auto typeId() const -> TypeIdAST* { return std::get<1>(*this); }
 };
 
+class BitIntType final : public Type, public std::tuple<int> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kBitInt;
+
+  explicit BitIntType(int numBits) : Type(Kind), tuple(numBits) {}
+
+  [[nodiscard]] auto numBits() const -> int { return std::get<0>(*this); }
+};
+
+class UnsignedBitIntType final : public Type, public std::tuple<int> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnsignedBitInt;
+
+  explicit UnsignedBitIntType(int numBits) : Type(Kind), tuple(numBits) {}
+
+  [[nodiscard]] auto numBits() const -> int { return std::get<0>(*this); }
+};
+
+class UnresolvedBitIntType final
+    : public Type,
+      public std::tuple<TranslationUnit*, ExpressionAST*, bool> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedBitInt;
+
+  UnresolvedBitIntType(TranslationUnit* unit, ExpressionAST* sizeExpression,
+                       bool isUnsigned)
+      : Type(Kind), tuple(unit, sizeExpression, isUnsigned) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto sizeExpression() const -> ExpressionAST* {
+    return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto isUnsigned() const -> bool { return std::get<2>(*this); }
+};
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, const Type* type) {
 #define PROCESS_TYPE(K) \

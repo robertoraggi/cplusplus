@@ -255,6 +255,29 @@ struct SizeOf {
       -> std::optional<std::size_t> {
     return std::nullopt;
   }
+
+  auto operator()(const BitIntType* type) const -> std::optional<std::size_t> {
+    return bitIntSizeInBytes(type->numBits());
+  }
+
+  auto operator()(const UnsignedBitIntType* type) const
+      -> std::optional<std::size_t> {
+    return bitIntSizeInBytes(type->numBits());
+  }
+
+  auto operator()(const UnresolvedBitIntType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+ private:
+  static auto bitIntSizeInBytes(int numBits) -> std::size_t {
+    // Round up to next power-of-2 byte size (matching Clang layout)
+    auto bytes = static_cast<std::size_t>((numBits + 7) / 8);
+    std::size_t result = 1;
+    while (result < bytes) result *= 2;
+    return result;
+  }
 };
 
 struct AlignmentOf {
