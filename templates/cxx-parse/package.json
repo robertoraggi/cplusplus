@@ -1,8 +1,8 @@
 {
-  "name": "@robertoraggi/cxx-parse",
+  "name": "@robertoraggi/cxx-parse-esm",
   "version": "1.0.0",
   "private": true,
-  "type": "commonjs",
+  "type": "module",
   "description": "Dump C++ AST to the standard output",
   "main": "index.js",
   "scripts": {

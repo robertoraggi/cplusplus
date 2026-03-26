@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { SourceLocation } from "./SourceLocation";
-import { TokenKind } from "./TokenKind";
+import { type SourceLocation } from "./SourceLocation.js";
+import { TokenKind } from "./TokenKind.js";
 import { ASTSlot } from "./ASTSlot";
 import { Unit } from "./Unit";
 import { ASTSlotKind } from "./ASTSlotKind";

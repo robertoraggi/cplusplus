@@ -205,13 +205,13 @@ export async function gen_ast_ts({
 
   const out = `// Generated file by: gen_ast_ts.ts
 ${cpy_header}
-import { cxx } from "./cxx";
-import { SourceLocation } from "./SourceLocation";
-import { ASTCursor } from "./ASTCursor";
-import { ASTVisitor } from "./ASTVisitor";
-import { ASTKind } from "./ASTKind";
-import { Token } from "./Token";
-import { TokenKind } from "./TokenKind";
+import { cxx } from "./cxx.js";
+import { type SourceLocation } from "./SourceLocation.js";
+import { ASTCursor } from "./ASTCursor.js";
+import { ASTVisitor } from "./ASTVisitor.js";
+import { ASTKind } from "./ASTKind.js";
+import { Token } from "./Token.js";
+import { TokenKind } from "./TokenKind.js";
 
 /**
  * An interface that represents a translation unit.
@@ -320,7 +320,7 @@ export abstract class AST {
     static from<T extends AST = AST>(handle: number, parser: TranslationUnitLike): T | undefined {
         if (handle) {
             const kind = cxx.getASTKind(handle) as ASTKind;
-            const ast = new AST_CONSTRUCTORS[kind](handle, kind, parser) as T;
+            const ast = new AST_CONSTRUCTORS[kind]!(handle, kind, parser) as T;
             return ast;
         }
         return;

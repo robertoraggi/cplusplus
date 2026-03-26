@@ -19,13 +19,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx";
-import { SourceLocation } from "./SourceLocation";
-import { ASTCursor } from "./ASTCursor";
-import { ASTVisitor } from "./ASTVisitor";
-import { ASTKind } from "./ASTKind";
-import { Token } from "./Token";
-import { TokenKind } from "./TokenKind";
+import { cxx } from "./cxx.js";
+import { type SourceLocation } from "./SourceLocation.js";
+import { ASTCursor } from "./ASTCursor.js";
+import { ASTVisitor } from "./ASTVisitor.js";
+import { ASTKind } from "./ASTKind.js";
+import { Token } from "./Token.js";
+import { TokenKind } from "./TokenKind.js";
 
 /**
  * An interface that represents a translation unit.
@@ -141,7 +141,7 @@ export abstract class AST {
   ): T | undefined {
     if (handle) {
       const kind = cxx.getASTKind(handle) as ASTKind;
-      const ast = new AST_CONSTRUCTORS[kind](handle, kind, parser) as T;
+      const ast = new AST_CONSTRUCTORS[kind]!(handle, kind, parser) as T;
       return ast;
     }
     return;

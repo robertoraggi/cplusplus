@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { Parser } from "cxx-frontend";
-import wasmBinaryUrl from "cxx-frontend/dist/wasm/cxx-js.wasm?url";
+import wasmBinaryUrl from "cxx-frontend/wasm?url";
 import { useQuery } from "@tanstack/react-query";
 
 export default function useCxxParser() {

@@ -127,6 +127,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install emsdk
+        run: |
+          git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
+          /opt/emsdk/emsdk install 5.0.4
+          /opt/emsdk/emsdk activate 5.0.4
+
       - name: Setup emscripten cache
         uses: actions/cache@v4
         with:
@@ -152,7 +158,9 @@ jobs:
 
       - name: Build
         run: |
-          npm -w cxx-frontend run build
+          source "/opt/emsdk/emsdk_env.sh"
+          export EMSCRIPTEN_ROOT="/opt/emsdk/upstream/emscripten"
+          npm run build:cxx-frontend
           npm -w cxx-frontend pack
 
       - name: Build Docs
