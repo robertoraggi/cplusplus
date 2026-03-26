@@ -1,3 +1,4 @@
+// Generated file by: gen_requests_cc.ts
 // Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -230,11 +231,15 @@ auto DocumentColorResponse::id(std::variant<long, std::string> id)
   return static_cast<DocumentColorResponse&>(LSPResponse::id(std::move(id)));
 }
 
-auto DocumentColorResponse::result() const -> Vector<ColorInformation> {
+auto DocumentColorResponse::result() const
+    -> std::variant<Vector<ColorInformation>, std::nullptr_t> {
   auto& value = (*repr_)["result"];
 
-  if (value.is_null()) value = json::array();
-  return Vector<ColorInformation>(value);
+  std::variant<Vector<ColorInformation>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto ColorPresentationRequest::method(std::string method)
@@ -265,11 +270,15 @@ auto ColorPresentationResponse::id(std::variant<long, std::string> id)
       LSPResponse::id(std::move(id)));
 }
 
-auto ColorPresentationResponse::result() const -> Vector<ColorPresentation> {
+auto ColorPresentationResponse::result() const
+    -> std::variant<Vector<ColorPresentation>, std::nullptr_t> {
   auto& value = (*repr_)["result"];
 
-  if (value.is_null()) value = json::array();
-  return Vector<ColorPresentation>(value);
+  std::variant<Vector<ColorPresentation>, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto FoldingRangeRequest::method(std::string method) -> FoldingRangeRequest& {

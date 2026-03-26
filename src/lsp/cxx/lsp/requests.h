@@ -1,3 +1,4 @@
+// Generated file by: gen_requests_h.ts
 // Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -256,11 +257,18 @@ class DocumentColorResponse final : public LSPResponse {
  public:
   using LSPResponse::id;
   using LSPResponse::LSPResponse;
-  using Result = Vector<ColorInformation>;
+  using Result = std::variant<Vector<ColorInformation>, std::nullptr_t>;
 
   auto id(std::variant<long, std::string> id) -> DocumentColorResponse&;
 
-  [[nodiscard]] auto result() const -> Vector<ColorInformation>;
+  [[nodiscard]] auto result() const
+      -> std::variant<Vector<ColorInformation>, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class ColorPresentationRequest final : public LSPRequest {
@@ -280,11 +288,18 @@ class ColorPresentationResponse final : public LSPResponse {
  public:
   using LSPResponse::id;
   using LSPResponse::LSPResponse;
-  using Result = Vector<ColorPresentation>;
+  using Result = std::variant<Vector<ColorPresentation>, std::nullptr_t>;
 
   auto id(std::variant<long, std::string> id) -> ColorPresentationResponse&;
 
-  [[nodiscard]] auto result() const -> Vector<ColorPresentation>;
+  [[nodiscard]] auto result() const
+      -> std::variant<Vector<ColorPresentation>, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class FoldingRangeRequest final : public LSPRequest {

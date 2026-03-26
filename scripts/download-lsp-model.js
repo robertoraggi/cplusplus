@@ -1,5 +1,3 @@
-#!/usr/bin/env zx
-
 // Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,10 +20,11 @@
 
 import { writeFile } from "node:fs/promises";
 import * as path from "node:path";
-
-$.verbose = true;
+import { fileURLToPath } from "node:url";
 
 // Current working directory computed related to the script location
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const workspaceDir = path.join(__dirname, "../");
 
 async function main() {
@@ -40,21 +39,12 @@ async function main() {
 
   const outputPath = path.join(
     workspaceDir,
-    "packages/cxx-gen-lsp/metaModel.json"
+    "packages/cxx-gen-lsp/metaModel.json",
   );
 
-  echo`Writing model to ${outputPath}`;
+  console.log(`Writing model to ${outputPath}`);
 
   await writeFile(outputPath, model);
 }
 
-main().catch((e) => {
-  if (e instanceof ProcessOutput) {
-    if (e.stdout) console.log(e.stdout);
-    if (e.stderr) console.error(e.stderr);
-    process.exit(e.exitCode);
-  } else {
-    console.error(e);
-    process.exit(1);
-  }
-});
+await main();
