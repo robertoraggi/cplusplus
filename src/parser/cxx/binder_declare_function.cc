@@ -257,6 +257,16 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
       continue;
     }
 
+    // Two function templates with different requires clauses are different
+    // overloads, not redeclarations.
+    auto existingTemplateDecl = existingFunction->templateDeclaration();
+    auto newTemplateHead = decl.specs.templateHead;
+    auto existingRequires =
+        existingTemplateDecl ? existingTemplateDecl->requiresClause : nullptr;
+    auto newRequires =
+        newTemplateHead ? newTemplateHead->requiresClause : nullptr;
+    if (existingRequires != newRequires) continue;
+
     auto canonical = existingFunction->canonical();
     canonical->addRedeclaration(functionSymbol);
     mergeRedeclaration();
