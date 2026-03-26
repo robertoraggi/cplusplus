@@ -39,12 +39,14 @@ class Meta;
 class InitializerList;
 class ConstObject;
 class ConstAddress;
+class ConstLabelAddress;
 
 using ConstValue =
     std::variant<std::intmax_t, const StringLiteral*, float, double,
                  long double, std::shared_ptr<Meta>,
                  std::shared_ptr<InitializerList>, std::shared_ptr<ConstObject>,
-                 std::shared_ptr<ConstAddress>>;
+                 std::shared_ptr<ConstAddress>,
+                 std::shared_ptr<ConstLabelAddress>>;
 
 class InitializerList {
  public:
@@ -125,6 +127,16 @@ class ConstAddress {
  private:
   Symbol* symbol_ = nullptr;
   std::intmax_t offset_ = 0;
+};
+
+class ConstLabelAddress {
+ public:
+  explicit ConstLabelAddress(std::string name) : name_(std::move(name)) {}
+
+  [[nodiscard]] auto name() const -> const std::string& { return name_; }
+
+ private:
+  std::string name_;
 };
 
 }  // namespace cxx

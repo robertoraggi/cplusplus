@@ -349,7 +349,8 @@ def Cxx_GotoOp : Cxx_Op<"goto"> {
 
 def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
   let arguments = (ins StringProp:$label_name,
-                       OptionalAttr<I32Attr>:$tag_id);
+                       OptionalAttr<I32Attr>:$tag_id,
+                       OptionalAttr<StrAttr>:$func_name);
   let results   = (outs Cxx_PointerType:$result);
 
   let assemblyFormat = "$label_name attr-dict `:` type($result)";

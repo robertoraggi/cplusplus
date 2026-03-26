@@ -155,6 +155,8 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
   }
 
   if (unit_->typeTraits().is_pointer(type)) {
+    if (std::get_if<std::shared_ptr<ConstLabelAddress>>(&value))
+      return std::nullopt;
     if (auto intVal = std::get_if<std::intmax_t>(&value)) {
       if (*intVal == 0) return builder_.getUnitAttr();
     }
@@ -237,6 +239,17 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
       }
     }
 
+    // Handle label address (&&label) pointer constant.
+    if (auto labelAddrPtr =
+            std::get_if<std::shared_ptr<ConstLabelAddress>>(&value)) {
+      auto funcNameAttr =
+          function_ ? mlir::StringAttr::get(context_, function_.getSymName())
+                    : mlir::StringAttr{};
+      return mlir::cxx::LabelAddressOp::create(builder, loc, mlirPtrType,
+                                               (*labelAddrPtr)->name(),
+                                               mlir::IntegerAttr{}, funcNameAttr);
+    }
+
     // Handle string literal used as a pointer value.
     if (auto strLitPtr = std::get_if<const StringLiteral*>(&value)) {
       auto stringLiteral = *strLitPtr;
@@ -291,8 +304,17 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
             return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
           }
 
-          // bitcast the scalar value to the union type
           auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
+
+          auto unionClassType = mlir::dyn_cast<mlir::cxx::ClassType>(mlirType);
+          if (unionClassType && !unionClassType.getBody().empty() &&
+              elemVal.getType() == unionClassType.getBody()[0]) {
+            auto undef = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+            return mlir::cxx::InsertValueOp::create(
+                builder, loc, mlirType, undef, elemVal,
+                static_cast<int64_t>(0));
+          }
+
           return mlir::cxx::BitcastOp::create(builder, loc, mlirType, elemVal);
         }
       }

@@ -92,6 +92,11 @@ struct ArithmeticCast {
     return T{};
   }
 
+  auto operator()(const std::shared_ptr<ConstLabelAddress>&) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
   auto operator()(auto value) const -> T { return static_cast<T>(value); }
 };
 

@@ -126,6 +126,20 @@ void Codegen::resolveLabels() {
     }
   }
 
+  // Also collect LabelAddressOps from global initializer regions that reference
+  // labels defined in this function (stored via func_name attribute).
+  if (auto module = funcOp->getParentOfType<mlir::ModuleOp>()) {
+    for (auto& moduleOp : *module.getBody()) {
+      if (auto globalOp = mlir::dyn_cast<mlir::cxx::GlobalOp>(&moduleOp)) {
+        globalOp.walk([&](mlir::cxx::LabelAddressOp laOp) {
+          if (auto fnAttr = laOp.getFuncNameAttr())
+            if (fnAttr.getValue() == funcOp.getSymName())
+              labelAddressOps.push_back(laOp);
+        });
+      }
+    }
+  }
+
   for (auto gotoOp : gotoOps) {
     auto targetBlock = labels.lookup(gotoOp.getLabel());
     if (!targetBlock) continue;

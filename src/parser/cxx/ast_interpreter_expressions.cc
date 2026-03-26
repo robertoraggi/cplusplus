@@ -1136,7 +1136,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     LabelAddressExpressionAST* ast) -> ExpressionResult {
-  return ExpressionResult{std::nullopt};
+  return ConstValue{
+      std::make_shared<ConstLabelAddress>(ast->identifier->name())};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
