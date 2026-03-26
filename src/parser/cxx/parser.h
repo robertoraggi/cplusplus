@@ -518,6 +518,8 @@ class Parser final {
 
   [[nodiscard]] auto parse_atomic_type_specifier(SpecifierAST*& yyast,
                                                  DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_bitint_type_specifier(SpecifierAST*& yyast,
+                                                 DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_primitive_type_specifier(SpecifierAST*& yyast,
                                                     DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_size_type_specifier(SpecifierAST*& yyast,

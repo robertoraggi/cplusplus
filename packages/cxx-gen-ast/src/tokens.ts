@@ -198,6 +198,7 @@ export const CXX_KEYWORDS: string[] = [
   "__uint128_t",
   "__underlying_type",
   "_Atomic",
+  "_BitInt",
   "_Complex",
   "_Float16",
   "_Generic",

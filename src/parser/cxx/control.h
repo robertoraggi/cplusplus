@@ -161,6 +161,13 @@ class Control {
   [[nodiscard]] auto getEnumType(EnumSymbol* symbol) -> const EnumType*;
   [[nodiscard]] auto getScopedEnumType(ScopedEnumSymbol* symbol)
       -> const ScopedEnumType*;
+  [[nodiscard]] auto getBitIntType(int numBits) -> const BitIntType*;
+  [[nodiscard]] auto getUnsignedBitIntType(int numBits)
+      -> const UnsignedBitIntType*;
+  [[nodiscard]] auto getUnresolvedBitIntType(TranslationUnit* unit,
+                                             ExpressionAST* sizeExpression,
+                                             bool isUnsigned)
+      -> const UnresolvedBitIntType*;
 
   [[nodiscard]] auto newNamespaceSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)

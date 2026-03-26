@@ -2368,6 +2368,15 @@ void ASTPrinter::visit(AtomicTypeSpecifierAST* ast) {
   accept(ast->typeId, "type-id");
 }
 
+void ASTPrinter::visit(BitIntTypeSpecifierAST* ast) {
+  out_ << std::format("{}\n", "bit-int-type-specifier");
+  ++indent_;
+  out_ << std::format("{:{}}", "", indent_ * 2);
+  out_ << std::format("bit-count: {}\n", ast->bitCount);
+  --indent_;
+  accept(ast->sizeExpression, "size-expression");
+}
+
 void ASTPrinter::visit(UnderlyingTypeSpecifierAST* ast) {
   out_ << std::format("{}\n", "underlying-type-specifier");
   accept(ast->typeId, "type-id");

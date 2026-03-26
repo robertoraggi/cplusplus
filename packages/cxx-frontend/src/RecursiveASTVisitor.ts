@@ -2297,6 +2297,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a BitIntTypeSpecifier node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitBitIntTypeSpecifier(
+    node: ast.BitIntTypeSpecifierAST,
+    context: Context,
+  ): void {
+    this.accept(node.getSizeExpression(), context);
+  }
+
+  /**
    * Visit a UnderlyingTypeSpecifier node.
    *
    * @param node The node to visit.

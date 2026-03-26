@@ -98,6 +98,8 @@ struct ASTInterpreter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(AtomicTypeSpecifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(BitIntTypeSpecifierAST* ast) -> SpecifierResult;
+
   [[nodiscard]] auto operator()(UnderlyingTypeSpecifierAST* ast)
       -> SpecifierResult;
 
@@ -386,6 +388,13 @@ auto ASTInterpreter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
 auto ASTInterpreter::SpecifierVisitor::operator()(AtomicTypeSpecifierAST* ast)
     -> SpecifierResult {
   auto typeIdResult = interp.typeId(ast->typeId);
+
+  return {};
+}
+
+auto ASTInterpreter::SpecifierVisitor::operator()(BitIntTypeSpecifierAST* ast)
+    -> SpecifierResult {
+  auto expressionResult = interp.expression(ast->sizeExpression);
 
   return {};
 }

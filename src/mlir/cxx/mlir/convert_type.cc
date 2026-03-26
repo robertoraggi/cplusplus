@@ -94,6 +94,9 @@ struct Codegen::ConvertType {
   auto operator()(const OverloadSetType* type) -> mlir::Type;
   auto operator()(const BuiltinVaListType* type) -> mlir::Type;
   auto operator()(const BuiltinMetaInfoType* type) -> mlir::Type;
+  auto operator()(const BitIntType* type) -> mlir::Type;
+  auto operator()(const UnsignedBitIntType* type) -> mlir::Type;
+  auto operator()(const UnresolvedBitIntType* type) -> mlir::Type;
 };
 
 auto Codegen::convertType(const Type* type) -> mlir::Type {
@@ -477,6 +480,20 @@ auto Codegen::ConvertType::operator()(const BuiltinVaListType* type)
 }
 
 auto Codegen::ConvertType::operator()(const BuiltinMetaInfoType* type)
+    -> mlir::Type {
+  return getExprType();
+}
+
+auto Codegen::ConvertType::operator()(const BitIntType* type) -> mlir::Type {
+  return mlir::IntegerType::get(gen.context_, type->numBits());
+}
+
+auto Codegen::ConvertType::operator()(const UnsignedBitIntType* type)
+    -> mlir::Type {
+  return mlir::IntegerType::get(gen.context_, type->numBits());
+}
+
+auto Codegen::ConvertType::operator()(const UnresolvedBitIntType* type)
     -> mlir::Type {
   return getExprType();
 }

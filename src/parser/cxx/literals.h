@@ -61,6 +61,8 @@ class IntegerLiteral final : public Literal {
     bool isLongLong = false;
     bool isLong = false;
     bool hasSizeSuffix = false;
+    bool isWB = false;
+    int bitIntWidth = 0;
 
     [[nodiscard]] static auto from(std::string_view text,
                                    DiagnosticsClient* diagnostics = nullptr)

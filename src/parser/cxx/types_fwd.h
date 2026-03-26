@@ -76,7 +76,10 @@ class Name;
   V(UnresolvedUnderlying)         \
   V(OverloadSet)                  \
   V(BuiltinVaList)                \
-  V(BuiltinMetaInfo)
+  V(BuiltinMetaInfo)              \
+  V(BitInt)                       \
+  V(UnsignedBitInt)               \
+  V(UnresolvedBitInt)
 
 class Type;
 

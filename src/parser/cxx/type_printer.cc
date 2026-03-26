@@ -429,6 +429,22 @@ class TypePrinter {
     specifiers_ += ")";
   }
 
+  void operator()(const BitIntType* type) {
+    specifiers_ += std::format("_BitInt({})", type->numBits());
+  }
+
+  void operator()(const UnsignedBitIntType* type) {
+    specifiers_ += std::format("unsigned _BitInt({})", type->numBits());
+  }
+
+  void operator()(const UnresolvedBitIntType* type) {
+    if (type->isUnsigned()) specifiers_ += "unsigned ";
+    specifiers_ += "_BitInt(";
+    specifiers_ += textOf(type->translationUnit(),
+                          type->sizeExpression()->sourceLocationRange());
+    specifiers_ += ")";
+  }
+
  private:
   std::string specifiers_;
   std::string ptrOps_;

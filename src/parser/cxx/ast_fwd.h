@@ -271,6 +271,7 @@ class FloatingPointTypeSpecifierAST;
 class ComplexTypeSpecifierAST;
 class NamedTypeSpecifierAST;
 class AtomicTypeSpecifierAST;
+class BitIntTypeSpecifierAST;
 class UnderlyingTypeSpecifierAST;
 class ElaboratedTypeSpecifierAST;
 class DecltypeAutoSpecifierAST;

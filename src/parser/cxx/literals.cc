@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/diagnostics_client.h>
 
+#include <bit>
 #include <charconv>
 #include <cstdint>
 #include <format>
@@ -554,6 +555,7 @@ auto IntegerLiteral::Components::from(std::string_view text,
   bool hasLongLongSuffix = false;
   bool hasLongSuffix = false;
   bool hasSizeSuffix = false;
+  bool hasWBSuffix = false;
 
   std::size_t pos = 0;
   auto LA = [&](int n = 0) -> int {
@@ -595,9 +597,21 @@ auto IntegerLiteral::Components::from(std::string_view text,
     return false;
   };
 
+  auto parseWBSuffix = [&] {
+    if ((LA() == 'w' || LA() == 'W') && (LA(1) == 'b' || LA(1) == 'B')) {
+      consume(2);
+      hasWBSuffix = true;
+      return true;
+    }
+    return false;
+  };
+
   auto parseOptionalIntegerSuffix = [&] {
     if (parseUnsignedSuffix()) {
-      if (!parseLongOrLongLongSuffix()) parseSizeSuffix();
+      if (!parseLongOrLongLongSuffix())
+        if (!parseSizeSuffix()) parseWBSuffix();
+    } else if (parseWBSuffix()) {
+      parseUnsignedSuffix();
     } else if (parseLongOrLongLongSuffix()) {
       parseUnsignedSuffix();
     } else if (parseSizeSuffix()) {
@@ -747,6 +761,15 @@ auto IntegerLiteral::Components::from(std::string_view text,
   auto result = std::from_chars(firstChar, lastChar, value, base);
   (void)result;
 
+  int bitIntWidth = 0;
+  if (hasWBSuffix) {
+    const int valueBits = static_cast<int>(std::bit_width(value));
+    if (hasUnsignedSuffix)
+      bitIntWidth = std::max(1, valueBits);
+    else
+      bitIntWidth = std::max(2, valueBits + 1);
+  }
+
   return Components{
       .value = value,
       .integerPart = text.substr(0, pos),
@@ -756,6 +779,8 @@ auto IntegerLiteral::Components::from(std::string_view text,
       .isLongLong = hasLongLongSuffix,
       .isLong = hasLongSuffix,
       .hasSizeSuffix = hasSizeSuffix,
+      .isWB = hasWBSuffix,
+      .bitIntWidth = bitIntWidth,
   };
 }
 

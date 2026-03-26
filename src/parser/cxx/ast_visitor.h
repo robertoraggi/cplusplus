@@ -225,6 +225,7 @@ class ASTVisitor {
   virtual void visit(ComplexTypeSpecifierAST* ast);
   virtual void visit(NamedTypeSpecifierAST* ast);
   virtual void visit(AtomicTypeSpecifierAST* ast);
+  virtual void visit(BitIntTypeSpecifierAST* ast);
   virtual void visit(UnderlyingTypeSpecifierAST* ast);
   virtual void visit(ElaboratedTypeSpecifierAST* ast);
   virtual void visit(DecltypeAutoSpecifierAST* ast);

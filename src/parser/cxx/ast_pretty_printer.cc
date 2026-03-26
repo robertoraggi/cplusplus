@@ -429,6 +429,8 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(AtomicTypeSpecifierAST* ast);
 
+  void operator()(BitIntTypeSpecifierAST* ast);
+
   void operator()(UnderlyingTypeSpecifierAST* ast);
 
   void operator()(ElaboratedTypeSpecifierAST* ast);
@@ -3614,6 +3616,23 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(
     nospace();
   }
   accept(ast->typeId);
+  if (ast->rparenLoc) {
+    nospace();
+    accept.writeToken(ast->rparenLoc);
+  }
+}
+
+void ASTPrettyPrinter::SpecifierVisitor::operator()(
+    BitIntTypeSpecifierAST* ast) {
+  if (ast->bitintLoc) {
+    accept.writeToken(ast->bitintLoc);
+  }
+  if (ast->lparenLoc) {
+    nospace();
+    accept.writeToken(ast->lparenLoc);
+    nospace();
+  }
+  accept(ast->sizeExpression);
   if (ast->rparenLoc) {
     nospace();
     accept.writeToken(ast->rparenLoc);

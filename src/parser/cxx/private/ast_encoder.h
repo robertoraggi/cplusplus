@@ -310,6 +310,7 @@ class ASTEncoder : ASTVisitor {
   void visit(ComplexTypeSpecifierAST* ast) override;
   void visit(NamedTypeSpecifierAST* ast) override;
   void visit(AtomicTypeSpecifierAST* ast) override;
+  void visit(BitIntTypeSpecifierAST* ast) override;
   void visit(UnderlyingTypeSpecifierAST* ast) override;
   void visit(ElaboratedTypeSpecifierAST* ast) override;
   void visit(DecltypeAutoSpecifierAST* ast) override;

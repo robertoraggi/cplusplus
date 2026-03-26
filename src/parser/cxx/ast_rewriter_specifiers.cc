@@ -110,6 +110,7 @@ struct ASTRewriter::SpecifierVisitor {
   [[nodiscard]] auto operator()(NamedTypeSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(AtomicTypeSpecifierAST* ast) -> SpecifierAST*;
+  [[nodiscard]] auto operator()(BitIntTypeSpecifierAST* ast) -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(UnderlyingTypeSpecifierAST* ast)
       -> SpecifierAST*;
@@ -758,6 +759,18 @@ auto ASTRewriter::SpecifierVisitor::operator()(AtomicTypeSpecifierAST* ast)
   copy->atomicLoc = ast->atomicLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->typeId = rewrite.typeId(ast->typeId);
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::operator()(BitIntTypeSpecifierAST* ast)
+    -> SpecifierAST* {
+  auto copy = BitIntTypeSpecifierAST::create(arena());
+
+  copy->bitintLoc = ast->bitintLoc;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->sizeExpression = rewrite.expression(ast->sizeExpression);
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;

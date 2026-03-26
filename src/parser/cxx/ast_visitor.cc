@@ -858,6 +858,10 @@ void ASTVisitor::visit(NamedTypeSpecifierAST* ast) {
 
 void ASTVisitor::visit(AtomicTypeSpecifierAST* ast) { accept(ast->typeId); }
 
+void ASTVisitor::visit(BitIntTypeSpecifierAST* ast) {
+  accept(ast->sizeExpression);
+}
+
 void ASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) { accept(ast->typeId); }
 
 void ASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {

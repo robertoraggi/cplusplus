@@ -134,6 +134,9 @@ struct Control::Private {
   std::set<NamespaceType> namespaceTypes;
   std::set<EnumType> enumTypes;
   std::set<ScopedEnumType> scopedEnumTypes;
+  std::set<BitIntType> bitIntTypes;
+  std::set<UnsignedBitIntType> unsignedBitIntTypes;
+  std::set<UnresolvedBitIntType> unresolvedBitIntTypes;
 
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
@@ -561,6 +564,22 @@ auto Control::getEnumType(EnumSymbol* symbol) -> const EnumType* {
 auto Control::getScopedEnumType(ScopedEnumSymbol* symbol)
     -> const ScopedEnumType* {
   return &*d->scopedEnumTypes.emplace(symbol).first;
+}
+
+auto Control::getBitIntType(int numBits) -> const BitIntType* {
+  return &*d->bitIntTypes.emplace(numBits).first;
+}
+
+auto Control::getUnsignedBitIntType(int numBits) -> const UnsignedBitIntType* {
+  return &*d->unsignedBitIntTypes.emplace(numBits).first;
+}
+
+auto Control::getUnresolvedBitIntType(TranslationUnit* unit,
+                                      ExpressionAST* sizeExpression,
+                                      bool isUnsigned)
+    -> const UnresolvedBitIntType* {
+  return &*d->unresolvedBitIntTypes.emplace(unit, sizeExpression, isUnsigned)
+               .first;
 }
 
 auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
