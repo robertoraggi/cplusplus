@@ -1,3 +1,4 @@
+// Generated file by: gen_types_h.ts
 // Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -4831,11 +4832,11 @@ class RenameParams final : public LSPObject {
 
   explicit operator bool() const;
 
+  [[nodiscard]] auto newName() const -> std::string;
+
   [[nodiscard]] auto textDocument() const -> TextDocumentIdentifier;
 
   [[nodiscard]] auto position() const -> Position;
-
-  [[nodiscard]] auto newName() const -> std::string;
 
   [[nodiscard]] auto workDoneToken() const -> std::optional<ProgressToken>;
 
@@ -4845,11 +4846,11 @@ class RenameParams final : public LSPObject {
     return T(value);
   }
 
+  auto newName(std::string newName) -> RenameParams&;
+
   auto textDocument(TextDocumentIdentifier textDocument) -> RenameParams&;
 
   auto position(Position position) -> RenameParams&;
-
-  auto newName(std::string newName) -> RenameParams&;
 
   auto workDoneToken(std::optional<ProgressToken> workDoneToken)
       -> RenameParams&;

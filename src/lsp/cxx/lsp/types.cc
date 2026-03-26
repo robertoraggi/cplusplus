@@ -1,3 +1,4 @@
+// Generated file by: gen_types_cc.ts
 // Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -9405,10 +9406,18 @@ auto DocumentOnTypeFormattingRegistrationOptions::moreTriggerCharacter(
 
 RenameParams::operator bool() const {
   if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("newName")) return false;
   if (!repr_->contains("textDocument")) return false;
   if (!repr_->contains("position")) return false;
-  if (!repr_->contains("newName")) return false;
   return true;
+}
+
+auto RenameParams::newName() const -> std::string {
+  auto& value = (*repr_)["newName"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
 }
 
 auto RenameParams::textDocument() const -> TextDocumentIdentifier {
@@ -9423,14 +9432,6 @@ auto RenameParams::position() const -> Position {
   return Position(value);
 }
 
-auto RenameParams::newName() const -> std::string {
-  auto& value = (*repr_)["newName"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
 auto RenameParams::workDoneToken() const -> std::optional<ProgressToken> {
   if (!repr_->contains("workDoneToken")) return std::nullopt;
 
@@ -9443,6 +9444,11 @@ auto RenameParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
+auto RenameParams::newName(std::string newName) -> RenameParams& {
+  (*repr_)["newName"] = std::move(newName);
+  return *this;
+}
+
 auto RenameParams::textDocument(TextDocumentIdentifier textDocument)
     -> RenameParams& {
   (*repr_)["textDocument"] = textDocument;
@@ -9451,11 +9457,6 @@ auto RenameParams::textDocument(TextDocumentIdentifier textDocument)
 
 auto RenameParams::position(Position position) -> RenameParams& {
   (*repr_)["position"] = position;
-  return *this;
-}
-
-auto RenameParams::newName(std::string newName) -> RenameParams& {
-  (*repr_)["newName"] = std::move(newName);
   return *this;
 }
 
