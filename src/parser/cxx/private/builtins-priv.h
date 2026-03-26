@@ -34,6 +34,7 @@ constexpr long __builtin_expect(long, long);
 void __builtin_va_start(__builtin_va_list, ...);
 void __builtin_va_end(__builtin_va_list);
 void __builtin_va_copy(__builtin_va_list, __builtin_va_list);
+void __builtin_c23_va_start(__builtin_va_list, ...);
 constexpr float __builtin_acosf(float);
 constexpr double __builtin_acos(double);
 constexpr long double __builtin_acosl(long double);
