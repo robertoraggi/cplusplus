@@ -53,9 +53,9 @@ import { gen_builtins_interp_h } from "./gen_builtins_interp_h.ts";
 import { gen_builtins_typechecker_h } from "./gen_builtins_typechecker_h.ts";
 import { gen_builtins_codegen_h } from "./gen_builtins_codegen_h.ts";
 
-import * as fs from "fs";
-import * as path from "path";
-import * as process from "process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as process from "node:process";
 import * as child_process from "child_process";
 
 const outdir = process.cwd();
@@ -149,10 +149,7 @@ gen_builtins_typechecker_h({
 });
 
 gen_builtins_codegen_h({
-  output: path.join(
-    outdir,
-    "src/mlir/cxx/mlir/builtins_codegen-priv.h",
-  ),
+  output: path.join(outdir, "src/mlir/cxx/mlir/builtins_codegen-priv.h"),
 });
 
 // js integration

@@ -21,7 +21,7 @@
 import { cpy_header } from "./cpy_header.ts";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
 import type { AST } from "./parseAST.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
   const code: string[] = [];
@@ -73,20 +73,19 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
 
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name, base, members: classMembers }) => {
+      const members = [...classMembers, ...(ast.baseMembers.get(base) ?? [])];
 
-      const members = [...classMembers, ...ast.baseMembers.get(base) ?? []]
-
-      let params: string[] = []
-      let paramsNoLoc: string[] = []
+      let params: string[] = [];
+      let paramsNoLoc: string[] = [];
       members.forEach((m) => {
         switch (m.kind) {
           case "node":
-            params.push(`${m.type}* ${m.name}`)
-            paramsNoLoc.push(`${m.type}* ${m.name}`)
+            params.push(`${m.type}* ${m.name}`);
+            paramsNoLoc.push(`${m.type}* ${m.name}`);
             break;
           case "node-list":
-            params.push(`List<${m.type}*>* ${m.name}`)
-            paramsNoLoc.push(`List<${m.type}*>* ${m.name}`)
+            params.push(`List<${m.type}*>* ${m.name}`);
+            paramsNoLoc.push(`List<${m.type}*>* ${m.name}`);
             break;
           case "token":
             params.push(`SourceLocation ${m.name}`);
@@ -113,33 +112,35 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
         switch (m.kind) {
           case "node":
             emit();
-            emit(`  if (${m.name}) node->${m.name} = ${m.name}->clone(arena);`)
+            emit(`  if (${m.name}) node->${m.name} = ${m.name}->clone(arena);`);
             emit();
             break;
           case "node-list":
             emit();
-            emit(`  if (${m.name}) {`)
-            emit(`    auto it = &node->${m.name};`)
-            emit(`    for (auto node : ListView{${m.name}}) {`)
-            emit(`      *it = make_list_node<${m.type}>(arena, node->clone(arena));`)
-            emit(`      it = &(*it)->next;`)
-            emit(`    }`)
-            emit(`  }`)
+            emit(`  if (${m.name}) {`);
+            emit(`    auto it = &node->${m.name};`);
+            emit(`    for (auto node : ListView{${m.name}}) {`);
+            emit(
+              `      *it = make_list_node<${m.type}>(arena, node->clone(arena));`,
+            );
+            emit(`      it = &(*it)->next;`);
+            emit(`    }`);
+            emit(`  }`);
             emit();
             break;
           case "token":
-            emit(`  node->${m.name} = ${m.name};`)
+            emit(`  node->${m.name} = ${m.name};`);
             break;
           case "token-list":
             throw new Error("not implemented");
           case "attribute": {
-            emit(`  node->${m.name} = ${m.name};`)
+            emit(`  node->${m.name} = ${m.name};`);
             break;
           }
         }
       });
       emit();
-      emit(`  return node;`)
+      emit(`  return node;`);
       emit(`}`);
 
       emit();
@@ -160,7 +161,7 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
             case "token":
             case "token-list":
             case "attribute": {
-              emit(`  node->${m.name} = ${m.name};`)
+              emit(`  node->${m.name} = ${m.name};`);
               break;
             }
           }
@@ -179,7 +180,7 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
             case "node":
             case "node-list":
             case "attribute":
-              emit(`  node->${m.name} = ${m.name};`)
+              emit(`  node->${m.name} = ${m.name};`);
               break;
             default:
               break;

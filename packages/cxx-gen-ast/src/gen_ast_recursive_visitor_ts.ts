@@ -22,7 +22,7 @@ import { cpy_header } from "./cpy_header.ts";
 import type { AST } from "./parseAST.ts";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
 import { format } from "prettier";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export async function gen_ast_recursive_visitor_ts({
   ast,
@@ -42,7 +42,7 @@ export async function gen_ast_recursive_visitor_ts({
   emit();
 
   const getterName = (name: string) =>
-    `get${name[0].toUpperCase() + name.substr(1)}`;
+    `get${name[0]!.toUpperCase() + name.substring(1)}`;
   const nodeName = (name: string) => name.slice(0, -3);
 
   emit(`/**`);

@@ -22,7 +22,7 @@ import { cpy_header } from "./cpy_header.ts";
 import type { AST } from "./parseAST.ts";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
 import { format } from "prettier";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export async function gen_ast_kind_ts({
   ast,

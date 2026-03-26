@@ -87,25 +87,25 @@ export function parseAST({ source }: ParseArgs): AST {
 
   let i = 0;
   while (i < lines.length) {
-    const line = lines[i++];
+    const line = lines[i++]!;
     const classMatch = classRx.exec(line);
     const baseMatch = baseRx.exec(line);
     if (baseMatch) {
-      bases.push(baseMatch[1]);
+      bases.push(baseMatch[1]!);
       const members: Attribute[] = [];
-      baseMembers.set(baseMatch[1], members);
+      baseMembers.set(baseMatch[1]!, members);
       while (i < lines.length) {
-        if (lines[i].match(/^};$/)) break;
-        const attrMatch = attrRx.exec(lines[i]);
+        if (lines[i]!.match(/^};$/)) break;
+        const attrMatch = attrRx.exec(lines[i]!);
         if (attrMatch) {
           //console.log(`  list ${listMatch[2]}: ${listMatch[1]}`)
           members.push({
             kind: "attribute",
-            cv: attrMatch[1],
-            type: attrMatch[2],
-            ptrOps: attrMatch[3],
-            name: attrMatch[4],
-            initializer: attrMatch[5],
+            cv: attrMatch[1]!,
+            type: attrMatch[2]!,
+            ptrOps: attrMatch[3]!,
+            name: attrMatch[4]!,
+            initializer: attrMatch[5]!,
           });
         }
         ++i;
@@ -117,44 +117,45 @@ export function parseAST({ source }: ParseArgs): AST {
     const className = classMatch[1];
     //console.log(`class '${match[1]}'`);
     const members: Member[] = [];
-    const node = { name: className, base: classMatch[2], members };
+    const node = { name: className!, base: classMatch[2]!, members };
     nodes.push(node);
     while (i < lines.length) {
-      if (/^};/.exec(lines[i])) break;
-      const tokMatch = tokRx.exec(lines[i]);
-      const astMatch = astRx.exec(lines[i]);
-      const listMatch = listRx.exec(lines[i]);
-      const tokListMatch = tokListRx.exec(lines[i]);
-      const attrMatch = attrRx.exec(lines[i]);
+      const line = lines[i]!;
+      if (/^};/.exec(line)) break;
+      const tokMatch = tokRx.exec(line);
+      const astMatch = astRx.exec(line);
+      const listMatch = listRx.exec(line);
+      const tokListMatch = tokListRx.exec(line);
+      const attrMatch = attrRx.exec(line);
       if (tokMatch) {
         //console.log(`  tok ${tokMatch[1]}`)
-        members.push({ kind: "token", name: tokMatch[1] });
+        members.push({ kind: "token", name: tokMatch[1]! });
       } else if (astMatch) {
         //console.log(`  child ${astMatch[2]}: ${astMatch[1]}`)
-        members.push({ kind: "node", name: astMatch[2], type: astMatch[1] });
+        members.push({ kind: "node", name: astMatch[2]!, type: astMatch[1]! });
       } else if (listMatch) {
         //console.log(`  list ${listMatch[2]}: ${listMatch[1]}`)
         members.push({
           kind: "node-list",
-          name: listMatch[2],
-          type: listMatch[1],
+          name: listMatch[2]!,
+          type: listMatch[1]!,
         });
       } else if (tokListMatch) {
         //console.log(`  list ${listMatch[2]}: ${listMatch[1]}`)
         members.push({
           kind: "token-list",
-          name: tokListMatch[2],
-          type: tokListMatch[1],
+          name: tokListMatch[2]!,
+          type: tokListMatch[1]!,
         });
       } else if (attrMatch) {
         //console.log(`  list ${listMatch[2]}: ${listMatch[1]}`)
         members.push({
           kind: "attribute",
-          cv: attrMatch[1],
-          type: attrMatch[2],
-          ptrOps: attrMatch[3],
-          name: attrMatch[4],
-          initializer: attrMatch[5],
+          cv: attrMatch[1]!,
+          type: attrMatch[2]!,
+          ptrOps: attrMatch[3]!,
+          name: attrMatch[4]!,
+          initializer: attrMatch[5]!,
         });
       }
       ++i;

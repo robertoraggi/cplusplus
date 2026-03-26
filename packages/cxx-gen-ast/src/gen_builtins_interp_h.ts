@@ -20,7 +20,7 @@
 
 import { cpy_header } from "./cpy_header.ts";
 import { BUILTINS } from "./builtins.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 const converterFor: Record<string, string> = {
   float: "toFloat",
@@ -55,8 +55,8 @@ function emitMathCase(b: {
   const wrapRet = isIntegralRet(ret) ? "static_cast<std::intmax_t>" : "";
 
   if (args.length === 1) {
-    const conv = converterFor[args[0]];
-    const cast = castArgFor[args[0]] ?? "";
+    const conv = converterFor[args[0]!];
+    const cast = castArgFor[args[0]!] ?? "";
     const argExpr = cast ? `${cast}(*a)` : `*a`;
     const retExpr = wrapRet
       ? `${wrapRet}(${fn}(${argExpr}))`
@@ -74,9 +74,9 @@ function emitMathCase(b: {
     const callArgs: string[] = [];
 
     for (let i = 0; i < args.length; i++) {
-      const v = varNames[i];
-      const conv = converterFor[args[i]];
-      const cast = castArgFor[args[i]] ?? "";
+      const v = varNames[i]!;
+      const conv = converterFor[args[i]!];
+      const cast = castArgFor[args[i]!] ?? "";
       decls.push(`auto ${v} = ${conv}(args[${i}]);`);
       checks.push(v);
       callArgs.push(cast ? `${cast}(*${v})` : `*${v}`);
@@ -259,7 +259,9 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   }
 
   lines.push(`    case ${enumName("__builtin_constant_p")}:`);
-  lines.push(`      // Reaching here means the argument was successfully constant-evaluated.`);
+  lines.push(
+    `      // Reaching here means the argument was successfully constant-evaluated.`,
+  );
   lines.push(`      return ConstValue{std::intmax_t(1)};`);
   lines.push(``);
   lines.push(`    case ${enumName("__builtin_is_constant_evaluated")}:`);
@@ -337,7 +339,7 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
 
   for (const b of BUILTINS) {
     if (!b.eval) continue;
-    if (b.constEval) continue;  // handled by constEval dispatch above
+    if (b.constEval) continue; // handled by constEval dispatch above
     if (b.eval.cxx23 && !inCxx23Block) {
       lines.push(`#if __cplusplus >= 202302L`);
       inCxx23Block = true;

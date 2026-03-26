@@ -22,7 +22,7 @@ import { cpy_header } from "./cpy_header.ts";
 import type { AST } from "./parseAST.ts";
 import { getAllMemberSlotNames } from "./getAllMemberSlotNames.ts";
 import { format } from "prettier";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export async function gen_ast_slot_ts({
   ast,

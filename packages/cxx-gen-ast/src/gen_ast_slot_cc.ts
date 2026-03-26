@@ -25,7 +25,7 @@ import {
   getAllMemberSlotNames,
   classifyMemberSlot,
 } from "./getAllMemberSlotNames.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export function gen_ast_slot_cc({ ast, output }: { ast: AST; output: string }) {
   const code: string[] = [];

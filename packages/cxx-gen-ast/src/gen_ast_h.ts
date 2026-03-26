@@ -21,7 +21,7 @@
 import { cpy_header } from "./cpy_header.ts";
 import type { AST } from "./parseAST.ts";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
   const code: string[] = [];
@@ -56,8 +56,7 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
 
   by_bases.forEach((nodes) => {
     nodes.forEach(({ name, base, members }) => {
-
-      const allMembers = [...members, ...ast.baseMembers.get(base) ?? []];
+      const allMembers = [...members, ...(ast.baseMembers.get(base) ?? [])];
 
       emit(`class ${name} final : public ${base} {`);
       emit(`public:`);
@@ -94,26 +93,32 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
         emit();
       }
 
-      emit(`  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`);
+      emit(
+        `  void accept(ASTVisitor* visitor) override { visitor->visit(this); }`,
+      );
       emit();
       emit(`  [[nodiscard]] auto clone(Arena* arena) -> ${name}* override;`);
       emit();
-      emit(`  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;`);
-      emit(`  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;`);
+      emit(
+        `  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;`,
+      );
+      emit(
+        `  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;`,
+      );
       emit();
       emit(`  [[nodiscard]] static auto create(Arena* arena) -> ${name}*;`);
 
-      let params: string[] = []
-      let paramsNoLoc: string[] = []
+      let params: string[] = [];
+      let paramsNoLoc: string[] = [];
       allMembers.forEach((m) => {
         switch (m.kind) {
           case "node":
-            params.push(`${m.type}* ${m.name}`)
-            paramsNoLoc.push(`${m.type}* ${m.name}`)
+            params.push(`${m.type}* ${m.name}`);
+            paramsNoLoc.push(`${m.type}* ${m.name}`);
             break;
           case "node-list":
-            params.push(`List<${m.type}*>* ${m.name}`)
-            paramsNoLoc.push(`List<${m.type}*>* ${m.name}`)
+            params.push(`List<${m.type}*>* ${m.name}`);
+            paramsNoLoc.push(`List<${m.type}*>* ${m.name}`);
             break;
           case "token":
             params.push(`SourceLocation ${m.name}`);
@@ -135,13 +140,17 @@ export function gen_ast_h({ ast, output }: { ast: AST; output: string }) {
       if (params.length > 0) {
         const signature = params.join(", ");
         emit();
-        emit(`  [[nodiscard]] static auto create(Arena* arena, ${signature}) -> ${name}*;`);
+        emit(
+          `  [[nodiscard]] static auto create(Arena* arena, ${signature}) -> ${name}*;`,
+        );
       }
 
       if (paramsNoLoc.length && paramsNoLoc.length != params.length) {
         const signature = paramsNoLoc.join(", ");
         emit();
-        emit(`  [[nodiscard]] static auto create(Arena* arena, ${signature}) -> ${name}*;`);
+        emit(
+          `  [[nodiscard]] static auto create(Arena* arena, ${signature}) -> ${name}*;`,
+        );
       }
 
       emit();

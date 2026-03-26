@@ -3,6 +3,7 @@
     "module": "ES2022",
     "target": "ESNext",
     "moduleResolution": "Bundler",
+    "rootDir": "src",
     "outDir": "dist/dts",
     "esModuleInterop": true,
     "emitDeclarationOnly": true,

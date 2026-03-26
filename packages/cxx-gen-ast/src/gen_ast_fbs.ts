@@ -21,7 +21,7 @@
 import { cpy_header } from "./cpy_header.ts";
 import type { AST } from "./parseAST.ts";
 import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export function gen_ast_fbs({ ast, output }: { ast: AST; output: string }) {
   const withTokens = true;
