@@ -175,7 +175,7 @@ export function getEnumBaseType(enumeration: Enumeration) {
 }
 
 export function toUpperCamelCase(name: string) {
-  return name[0].toUpperCase() + name.slice(1);
+  return name[0]!.toUpperCase() + name.slice(1);
 }
 
 export function getEnumeratorName(enumerator: EnumerationValue) {

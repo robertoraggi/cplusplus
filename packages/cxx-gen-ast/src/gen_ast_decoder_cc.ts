@@ -21,7 +21,7 @@
 import { groupNodesByBaseType } from "./groupNodesByBaseType.ts";
 import type { AST } from "./parseAST.ts";
 import { cpy_header } from "./cpy_header.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export function gen_ast_decoder_cc({
   ast,

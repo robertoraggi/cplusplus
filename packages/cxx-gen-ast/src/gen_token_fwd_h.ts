@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { cpy_header } from "./cpy_header.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 import * as tokens from "./tokens.ts";
 
 export function gen_token_fwd_h({ output }: { output: string }) {
@@ -144,8 +144,8 @@ enum class BuiltinTemplateKind {
 // clang-format on
 
 [[nodiscard]] inline auto is_keyword(TokenKind tk) -> bool {
-  return tk >= TokenKind::T_${firstKeyword.toUpperCase()} &&
-         tk <= TokenKind::T_${lastKeyword.toUpperCase()};
+  return tk >= TokenKind::T_${firstKeyword!.toUpperCase()} &&
+         tk <= TokenKind::T_${lastKeyword!.toUpperCase()};
 }
 
 [[nodiscard]] inline auto get_underlying_binary_op(TokenKind op) -> TokenKind {

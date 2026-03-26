@@ -136,7 +136,7 @@ function gen({
     sep = " else ";
   }
   if (groups.has("")) {
-    const item = groups.get("")![0];
+    const item = groups.get("")![0]!;
     const x = toUpper ? item.toUpperCase() : item;
     emit(`${ind}  return ${tokenPrefix}${x};`);
   }

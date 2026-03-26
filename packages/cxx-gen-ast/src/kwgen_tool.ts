@@ -66,11 +66,11 @@ async function main() {
     const source = readFileSync(inputFile, "utf8");
     try {
       const options = OptionsSchema.parse(JSON.parse(source));
-      kwgen(options);
+      kwgen(options as any);
     } catch (error) {
       if (error instanceof z.ZodError) {
         console.error("error: Invalid options in", inputFile);
-        console.error(error.errors);
+        console.error(error);
       } else {
         console.error("Error processing", inputFile, ":", error);
       }

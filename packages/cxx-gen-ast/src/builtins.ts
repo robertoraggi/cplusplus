@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,9 +36,9 @@ export interface BuiltinDef {
   prototype: string;
   constexpr: boolean;
   eval?: BuiltinEval;
-  constEval?: string;   // ASTInterpreter method name
-  typeCheck?: string;   // TypeChecker::Visitor method name
-  codegen?: string;     // Codegen::ExpressionVisitor method name
+  constEval?: string; // ASTInterpreter method name
+  typeCheck?: string; // TypeChecker::Visitor method name
+  codegen?: string; // Codegen::ExpressionVisitor method name
 }
 
 const builtinsPath = path.join(__dirname, "builtins.json");

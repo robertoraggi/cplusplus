@@ -20,7 +20,7 @@
 
 import { Parser, AST, ASTKind, ASTSlot } from "cxx-frontend";
 import { readFile } from "fs/promises";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 
 const source = `
 template <typename T>

@@ -20,7 +20,7 @@
 
 import { cpy_header } from "./cpy_header.ts";
 import { BUILTINS } from "./builtins.ts";
-import * as fs from "fs";
+import * as fs from "node:fs";
 
 export function gen_builtins_h({ output }: { output: string }) {
   const lines: string[] = [];

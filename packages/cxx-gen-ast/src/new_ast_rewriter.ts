@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as fs from "fs";
-import * as path from "path";
-import * as process from "process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as process from "node:process";
 import * as child_process from "child_process";
 import { parseAST } from "./parseAST.ts";
 import { new_ast_rewriter_h } from "./new_ast_rewriter_h.ts";
