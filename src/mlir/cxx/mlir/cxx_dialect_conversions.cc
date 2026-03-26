@@ -570,7 +570,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     auto loc = op.getLoc();
     auto name = op.getBuiltinName();
 
-    if (name == "__builtin_va_start") {
+    if (name == "__builtin_va_start" || name == "__builtin_c23_va_start") {
       if (adaptor.getInputs().size() < 1) {
         return rewriter.notifyMatchFailure(
             op, "va_start expects at least 1 argument");

@@ -70,6 +70,11 @@
     "constexpr": false
   },
   {
+    "name": "__builtin_c23_va_start",
+    "prototype": "void __builtin_c23_va_start(__builtin_va_list, ...)",
+    "constexpr": false
+  },
+  {
     "name": "__builtin_acosf",
     "prototype": "constexpr float __builtin_acosf(float)",
     "constexpr": true,

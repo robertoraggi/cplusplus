@@ -155,6 +155,9 @@ class Preprocessor {
 
   void squeeze();
 
+  [[nodiscard]] auto packValueAt(std::uint32_t fileId, unsigned offset) const
+      -> int;
+
  private:
   struct Private;
   struct ParseArguments;

@@ -26,6 +26,7 @@
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -283,11 +284,19 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   bool inBitfieldRun = false;
   std::vector<FieldSymbol*> runFields;
 
+  int packValue = 0;  // no pack restriction
+
   BuildRecordLayout(Binder& b, ClassSymbol* cls)
       : binder(b),
         classSymbol(cls),
         memoryLayout(b.control()->memoryLayout()),
-        layout(std::make_unique<ClassLayout>()) {}
+        layout(std::make_unique<ClassLayout>()) {
+    if (auto loc = cls->location()) {
+      const auto& tok = b.unit_->tokenAt(loc);
+      packValue =
+          b.unit_->preprocessor()->packValueAt(tok.fileId(), tok.offset());
+    }
+  }
 
   auto control() const -> Control* { return binder.control(); }
 
@@ -450,6 +459,7 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
   }
 
   auto fieldAlign = field->alignment();
+  if (packValue > 0) fieldAlign = std::min(fieldAlign, packValue);
   auto fieldSizeBytes =
       static_cast<int>(memoryLayout->sizeOf(field->type()).value_or(0));
   auto fieldSizeBits = fieldSizeBytes * 8;
@@ -553,7 +563,9 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
     fieldInfo.index = 0;
     layout->setFieldInfo(field, fieldInfo);
   } else {
-    calculatedSize = align_to(calculatedSize, field->alignment());
+    auto fieldAlign = field->alignment();
+    if (packValue > 0) fieldAlign = std::min(fieldAlign, packValue);
+    calculatedSize = align_to(calculatedSize, fieldAlign);
     field->setLocalOffset(calculatedSize);
 
     ClassLayout::MemberInfo fieldInfo;
@@ -567,7 +579,9 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
   // Keep nextBitPos in sync
   nextBitPos = calculatedSize * 8;
 
-  calculatedAlignment = std::max(calculatedAlignment, field->alignment());
+  auto cappedAlign = packValue > 0 ? std::min(field->alignment(), packValue)
+                                   : field->alignment();
+  calculatedAlignment = std::max(calculatedAlignment, cappedAlign);
   return true;
 }
 

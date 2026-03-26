@@ -1315,7 +1315,8 @@ void TypeChecker::Visitor::check_call_arguments(
     auto kind = nameId->identifier->builtinFunction();
     return kind == BuiltinFunctionKind::T___BUILTIN_VA_START ||
            kind == BuiltinFunctionKind::T___BUILTIN_VA_END ||
-           kind == BuiltinFunctionKind::T___BUILTIN_VA_COPY;
+           kind == BuiltinFunctionKind::T___BUILTIN_VA_COPY ||
+           kind == BuiltinFunctionKind::T___BUILTIN_C23_VA_START;
   }();
 
   int argc = 0;

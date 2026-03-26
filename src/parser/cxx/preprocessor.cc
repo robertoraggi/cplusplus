@@ -38,6 +38,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <ranges>
@@ -437,6 +438,13 @@ struct Preprocessor::Private {
   int mainSourceFileId_ = 0;
   bool omitLineMarkers_ = false;
   std::unordered_map<std::string, SourceFile*> sourceFileIndex_;
+
+  // #pragma pack state
+  int currentPack_ = 0;
+  std::vector<int> packStack_;
+  // per-file sorted list of (charOffset, packValue) changes
+  std::map<uint32_t, std::vector<std::pair<std::uint32_t, int>>>
+      packChangesByFile_;
 
   std::vector<std::string> texts_;
 
@@ -2432,6 +2440,39 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
 
     case PreprocessorDirectiveKind::T_PRAGMA: {
       if (skipping) break;
+      if (ts < directiveEnd && ts->is(TokenKind::T_IDENTIFIER) &&
+          getText(*ts) == "pack") {
+        ++ts;
+        if (ts < directiveEnd && ts->is(TokenKind::T_LPAREN)) {
+          ++ts;
+          auto recordPack = [&](int newPack) {
+            currentPack_ = newPack;
+            packChangesByFile_[source->id].emplace_back(directiveLine->offset,
+                                                        newPack);
+          };
+          if (ts < directiveEnd && ts->is(TokenKind::T_IDENTIFIER) &&
+              getText(*ts) == "push") {
+            ++ts;
+            int newPack = currentPack_;
+            if (ts < directiveEnd && ts->is(TokenKind::T_COMMA)) {
+              ++ts;
+              if (ts < directiveEnd && ts->is(TokenKind::T_INTEGER_LITERAL)) {
+                newPack = std::stoi(std::string(getText(*ts)));
+              }
+            }
+            packStack_.push_back(currentPack_);
+            recordPack(newPack);
+          } else if (ts < directiveEnd && ts->is(TokenKind::T_IDENTIFIER) &&
+                     getText(*ts) == "pop") {
+            int prev = packStack_.empty() ? 0 : packStack_.back();
+            if (!packStack_.empty()) packStack_.pop_back();
+            recordPack(prev);
+          } else if (ts < directiveEnd &&
+                     ts->is(TokenKind::T_INTEGER_LITERAL)) {
+            recordPack(std::stoi(std::string(getText(*ts))));
+          }
+        }
+      }
       break;
     }
 
@@ -3541,5 +3582,19 @@ void DefaultPreprocessorState::operator()(const PendingFileContent& request) {
 void DefaultPreprocessorState::operator()(const EnteringFile&) {}
 
 void DefaultPreprocessorState::operator()(const LeavingFile&) {}
+
+auto Preprocessor::packValueAt(std::uint32_t fileId, unsigned offset) const
+    -> int {
+  auto it = d->packChangesByFile_.find(fileId);
+  if (it == d->packChangesByFile_.end()) return 0;
+  const auto& changes = it->second;
+  // Binary search: find the last change with charOffset <= offset
+  auto pos = std::upper_bound(
+      changes.begin(), changes.end(),
+      std::pair<unsigned, int>{offset, std::numeric_limits<int>::max()});
+  if (pos == changes.begin()) return 0;
+  --pos;
+  return pos->second;
+}
 
 }  // namespace cxx

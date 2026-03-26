@@ -366,6 +366,7 @@ class Token;
   V(__BUILTIN_BSWAP32, "__builtin_bswap32")                                   \
   V(__BUILTIN_BSWAP64, "__builtin_bswap64")                                   \
   V(__BUILTIN_BZERO, "__builtin_bzero")                                       \
+  V(__BUILTIN_C23_VA_START, "__builtin_c23_va_start")                         \
   V(__BUILTIN_CBRT, "__builtin_cbrt")                                         \
   V(__BUILTIN_CBRTF, "__builtin_cbrtf")                                       \
   V(__BUILTIN_CBRTL, "__builtin_cbrtl")                                       \
