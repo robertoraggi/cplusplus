@@ -388,9 +388,18 @@ void DeclSpecs::Visitor::operator()(BitIntTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
   if (ast->bitCount > 0) {
     specs.type_ = control()->getBitIntType(ast->bitCount);
-  } else if (ast->sizeExpression) {
+  } else if (ast->sizeExpression &&
+             isDependent(specs.translationUnit(), ast->sizeExpression)) {
     specs.type_ = control()->getUnresolvedBitIntType(
         specs.translationUnit(), ast->sizeExpression, false);
+  } else if (ast->sizeExpression) {
+    auto interp = ASTInterpreter{specs.translationUnit()};
+    if (auto value = interp.evaluate(ast->sizeExpression)) {
+      if (auto* v = std::get_if<std::intmax_t>(&*value)) {
+        ast->bitCount = static_cast<int>(*v);
+      }
+    }
+    specs.type_ = control()->getBitIntType(ast->bitCount);
   }
 }
 
@@ -604,7 +613,10 @@ void DeclSpecs::finish() {
     }  // switch
   }
 
-  if (auto* bitIntSpec = ast_cast<BitIntTypeSpecifierAST>(typeSpecifier_)) {
+  if (auto* bitIntSpec = ast_cast<BitIntTypeSpecifierAST>(typeSpecifier_);
+      bitIntSpec &&
+      !(bitIntSpec->sizeExpression &&
+        isDependent(translationUnit(), bitIntSpec->sizeExpression))) {
     const int bits = bitIntSpec->bitCount;
     if (isUnsigned) {
       if (bits < 0 || bits > 128) {
