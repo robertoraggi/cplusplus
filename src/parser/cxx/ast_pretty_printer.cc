@@ -193,6 +193,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(ThisExpressionAST* ast);
 
+  void operator()(PackIndexExpressionAST* ast);
+
   void operator()(GenericSelectionExpressionAST* ast);
 
   void operator()(NestedStatementExpressionAST* ast);
@@ -2378,6 +2380,24 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
 void ASTPrettyPrinter::ExpressionVisitor::operator()(ThisExpressionAST* ast) {
   if (ast->thisLoc) {
     accept.writeToken(ast->thisLoc);
+  }
+}
+
+void ASTPrettyPrinter::ExpressionVisitor::operator()(
+    PackIndexExpressionAST* ast) {
+  accept(ast->packExpression);
+  if (ast->ellipsisLoc) {
+    accept.writeToken(ast->ellipsisLoc);
+  }
+  if (ast->lbracketLoc) {
+    nospace();
+    accept.writeToken(ast->lbracketLoc);
+    nospace();
+  }
+  accept(ast->indexExpression);
+  if (ast->rbracketLoc) {
+    nospace();
+    accept.writeToken(ast->rbracketLoc);
   }
 }
 

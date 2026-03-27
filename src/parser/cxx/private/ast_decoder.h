@@ -238,6 +238,8 @@ class ASTDecoder {
       -> ObjectLiteralExpressionAST*;
   auto decodeThisExpression(const io::ThisExpression* node)
       -> ThisExpressionAST*;
+  auto decodePackIndexExpression(const io::PackIndexExpression* node)
+      -> PackIndexExpressionAST*;
   auto decodeGenericSelectionExpression(
       const io::GenericSelectionExpression* node)
       -> GenericSelectionExpressionAST*;

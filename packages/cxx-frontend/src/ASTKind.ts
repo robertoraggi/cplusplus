@@ -113,6 +113,7 @@ export enum ASTKind {
   UserDefinedStringLiteralExpression,
   ObjectLiteralExpression,
   ThisExpression,
+  PackIndexExpression,
   GenericSelectionExpression,
   NestedStatementExpression,
   NestedExpression,

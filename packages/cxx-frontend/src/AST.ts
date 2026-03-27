@@ -5762,6 +5762,65 @@ export class ThisExpressionAST extends ExpressionAST {
 }
 
 /**
+ * PackIndexExpressionAST node.
+ */
+export class PackIndexExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitPackIndexExpression(this, context);
+  }
+
+  /**
+   * Returns the packExpression of this node
+   */
+  getPackExpression(): IdExpressionAST | undefined {
+    return AST.from<IdExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the ellipsis token in this node
+   */
+  getEllipsisToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+  }
+
+  /**
+   * Returns the location of the lbracket token in this node
+   */
+  getLbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+
+  /**
+   * Returns the indexExpression of this node
+   */
+  getIndexExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the location of the rbracket token in this node
+   */
+  getRbracketToken(): Token | undefined {
+    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+  }
+}
+
+/**
  * GenericSelectionExpressionAST node.
  */
 export class GenericSelectionExpressionAST extends ExpressionAST {
@@ -14030,6 +14089,7 @@ const AST_CONSTRUCTORS: Array<
   UserDefinedStringLiteralExpressionAST,
   ObjectLiteralExpressionAST,
   ThisExpressionAST,
+  PackIndexExpressionAST,
   GenericSelectionExpressionAST,
   NestedStatementExpressionAST,
   NestedExpressionAST,

@@ -199,6 +199,7 @@ struct IsDependent {
   auto operator()(UserDefinedStringLiteralExpressionAST* ast) -> bool;
   auto operator()(ObjectLiteralExpressionAST* ast) -> bool;
   auto operator()(ThisExpressionAST* ast) -> bool;
+  auto operator()(PackIndexExpressionAST* ast) -> bool;
   auto operator()(GenericSelectionExpressionAST* ast) -> bool;
   auto operator()(NestedStatementExpressionAST* ast) -> bool;
   auto operator()(NestedExpressionAST* ast) -> bool;
@@ -392,6 +393,10 @@ auto IsDependent::operator()(ObjectLiteralExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(ThisExpressionAST* ast) -> bool { return false; }
+
+auto IsDependent::operator()(PackIndexExpressionAST* ast) -> bool {
+  return true;
+}
 
 auto IsDependent::operator()(GenericSelectionExpressionAST* ast) -> bool {
   if (isDependent(ast->expression)) return true;

@@ -2696,6 +2696,25 @@ void ASTEncoder::visit(ThisExpressionAST* ast) {
   type_ = io::Expression_ThisExpression;
 }
 
+void ASTEncoder::visit(PackIndexExpressionAST* ast) {
+  const auto packExpression = accept(ast->packExpression);
+
+  const auto [indexExpression, indexExpressionType] =
+      acceptExpression(ast->indexExpression);
+
+  io::PackIndexExpression::Builder builder{fbb_};
+  builder.add_pack_expression(packExpression.o);
+  builder.add_ellipsis_loc(ast->ellipsisLoc.index());
+  builder.add_lbracket_loc(ast->lbracketLoc.index());
+  builder.add_index_expression(indexExpression);
+  builder.add_index_expression_type(
+      static_cast<io::Expression>(indexExpressionType));
+  builder.add_rbracket_loc(ast->rbracketLoc.index());
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_PackIndexExpression;
+}
+
 void ASTEncoder::visit(GenericSelectionExpressionAST* ast) {
   const auto [expression, expressionType] = acceptExpression(ast->expression);
 

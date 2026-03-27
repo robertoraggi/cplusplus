@@ -1187,6 +1187,20 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitThisExpression(node: ast.ThisExpressionAST, context: Context): void {}
 
   /**
+   * Visit a PackIndexExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitPackIndexExpression(
+    node: ast.PackIndexExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getPackExpression(), context);
+    this.accept(node.getIndexExpression(), context);
+  }
+
+  /**
    * Visit a GenericSelectionExpression node.
    *
    * @param node The node to visit.

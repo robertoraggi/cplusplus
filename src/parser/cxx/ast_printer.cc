@@ -1276,6 +1276,17 @@ void ASTPrinter::visit(ThisExpressionAST* ast) {
   out_ << "\n";
 }
 
+void ASTPrinter::visit(PackIndexExpressionAST* ast) {
+  out_ << "pack-index-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->packExpression, "pack-expression");
+  accept(ast->indexExpression, "index-expression");
+}
+
 void ASTPrinter::visit(GenericSelectionExpressionAST* ast) {
   out_ << "generic-selection-expression";
   if (ast->type) {

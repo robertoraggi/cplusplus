@@ -75,6 +75,8 @@ struct ASTRewriter::ExpressionVisitor {
 
   [[nodiscard]] auto operator()(ThisExpressionAST* ast) -> ExpressionAST*;
 
+  [[nodiscard]] auto operator()(PackIndexExpressionAST* ast) -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(GenericSelectionExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -427,6 +429,49 @@ auto ASTRewriter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
   copy->type = ast->type;
   copy->thisLoc = ast->thisLoc;
 
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(PackIndexExpressionAST* ast)
+    -> ExpressionAST* {
+  if (auto parameterPack = rewrite.getParameterPack(ast->packExpression)) {
+    auto rewrittenIndex = rewrite.expression(ast->indexExpression);
+
+    ASTInterpreter interp(rewrite.unit_);
+    auto val = interp.evaluate(rewrittenIndex);
+    auto idxOpt = val ? interp.toInt(*val) : std::nullopt;
+
+    if (idxOpt.has_value()) {
+      auto idx = static_cast<int>(*idxOpt);
+      auto packSize = static_cast<int>(parameterPack->elements().size());
+
+      if (idx >= 0 && idx < packSize) {
+        auto savedPack = rewrite.parameterPack_;
+        std::swap(rewrite.parameterPack_, parameterPack);
+
+        std::optional<int> index{idx};
+        std::swap(rewrite.elementIndex_, index);
+
+        auto result = rewrite.expression(ast->packExpression);
+
+        std::swap(rewrite.elementIndex_, index);
+        std::swap(rewrite.parameterPack_, parameterPack);
+
+        return result;
+      }
+    }
+  }
+
+  // Fallback: copy as-is (e.g. not yet instantiated, or index out of range)
+  auto copy = PackIndexExpressionAST::create(arena());
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->packExpression =
+      ast_cast<IdExpressionAST>(rewrite.expression(ast->packExpression));
+  copy->ellipsisLoc = ast->ellipsisLoc;
+  copy->lbracketLoc = ast->lbracketLoc;
+  copy->indexExpression = rewrite.expression(ast->indexExpression);
+  copy->rbracketLoc = ast->rbracketLoc;
   return copy;
 }
 

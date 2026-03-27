@@ -483,6 +483,7 @@ struct TypeChecker::Visitor {
   void operator()(UserDefinedStringLiteralExpressionAST* ast);
   void operator()(ObjectLiteralExpressionAST* ast);
   void operator()(ThisExpressionAST* ast);
+  void operator()(PackIndexExpressionAST* ast);
   void operator()(GenericSelectionExpressionAST* ast);
   void operator()(NestedStatementExpressionAST* ast);
   void operator()(NestedExpressionAST* ast);
@@ -601,6 +602,18 @@ void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {
 
       break;
     }
+  }
+}
+
+void TypeChecker::Visitor::operator()(PackIndexExpressionAST* ast) {
+  if (!ast->indexExpression) {
+    error(ast->firstSourceLocation(), "missing index expression in pack index");
+    return;
+  }
+
+  if (in_template()) {
+    ast->valueCategory = ValueCategory::kLValue;
+    ast->type = dependent_type();
   }
 }
 
@@ -5125,16 +5138,35 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
 
 void TypeChecker::check_return_statement(ReturnStatementAST* ast) {
   const Type* targetType = nullptr;
+  ScopeSymbol* functionScope = nullptr;
   for (auto current = scope_; current; current = current->parent()) {
     if (!current) continue;
     if (current->isFunction() || current->isLambda()) {
       if (auto functionType = type_cast<FunctionType>(current->type())) {
         targetType = functionType->returnType();
+        functionScope = current;
       }
     }
   }
 
   if (!targetType) return;
+
+  if (type_cast<AutoType>(targetType) && ast->expression &&
+      ast->expression->type && !isDependent(unit_, ast->expression->type)) {
+    auto deducedType = unit_->typeTraits().remove_cvref(ast->expression->type);
+    if (auto funcSym = symbol_cast<FunctionSymbol>(functionScope)) {
+      if (auto funcType = type_cast<FunctionType>(funcSym->type())) {
+        auto newFuncType = unit_->control()->getFunctionType(
+            deducedType,
+            std::vector<const Type*>(funcType->parameterTypes().begin(),
+                                     funcType->parameterTypes().end()),
+            funcType->isVariadic(), funcType->cvQualifiers(),
+            funcType->refQualifier(), funcType->isNoexcept());
+        funcSym->setType(newFuncType);
+        targetType = deducedType;
+      }
+    }
+  }
 
   if (isDependent(unit_, targetType)) return;
   if (ast->expression && isDependent(unit_, ast->expression)) return;

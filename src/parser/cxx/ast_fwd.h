@@ -173,6 +173,7 @@ class StringLiteralExpressionAST;
 class UserDefinedStringLiteralExpressionAST;
 class ObjectLiteralExpressionAST;
 class ThisExpressionAST;
+class PackIndexExpressionAST;
 class GenericSelectionExpressionAST;
 class NestedStatementExpressionAST;
 class NestedExpressionAST;
