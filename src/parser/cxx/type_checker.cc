@@ -4531,6 +4531,12 @@ void TypeChecker::check_braced_init_list(const Type* type,
   }
 }
 
+static auto firstNonStaticField(ClassSymbol* symbol) -> FieldSymbol* {
+  for (auto field : views::members(symbol) | views::non_static_fields)
+    return field;
+  return nullptr;
+}
+
 static void collectEffectiveFields(TranslationUnit* unit,
                                    ClassSymbol* classSymbol,
                                    std::vector<FieldSymbol*>& fields) {
@@ -4542,12 +4548,8 @@ static void collectEffectiveFields(TranslationUnit* unit,
       if (classType && classType->symbol()) {
         auto nestedClass = classType->symbol();
         if (nestedClass->isUnion()) {
-          // Anonymous union: one initializer slot for the first member.
-          for (auto sub :
-               views::members(nestedClass) | views::non_static_fields) {
-            fields.push_back(sub);
-            break;
-          }
+          // Anonymous union: one initializer slot for the union itself.
+          fields.push_back(field);
         } else {
           // Anonymous struct: flatten sub-fields recursively.
           collectEffectiveFields(unit, nestedClass, fields);
@@ -4596,6 +4598,25 @@ void TypeChecker::check_struct_init(ClassSymbol* classSymbol,
 
     if (auto nested = ast_cast<BracedInitListAST>(expr)) {
       check_braced_init_list(fieldType, nested);
+    } else if (!fields[fieldIndex]->name()) {
+      auto classType = type_cast<ClassType>(fieldType);
+      auto anonUnionSymbol =
+          (classType && classType->symbol() && classType->symbol()->isUnion())
+              ? classType->symbol()
+              : nullptr;
+      if (!anonUnionSymbol) {
+        // Anonymous struct fields are flattened by collectEffectiveFields,
+      } else if (auto* firstField = firstNonStaticField(anonUnionSymbol)) {
+        auto firstType = unit_->typeTraits().remove_cv(firstField->type());
+        check_element_init(
+            expr, firstType,
+            std::format("cannot initialize anonymous union member '{}' of "
+                        "type '{}' with expression of type '{}'",
+                        to_string(firstField->name()), to_string(firstType),
+                        to_string(expr->type)));
+      } else {
+        error(expr->firstSourceLocation(), "union has no named members");
+      }
     } else {
       check_element_init(
           expr, fieldType,
@@ -4627,11 +4648,7 @@ void TypeChecker::check_union_init(ClassSymbol* classSymbol,
     return;
   }
 
-  FieldSymbol* firstField = nullptr;
-  for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    firstField = field;
-    break;
-  }
+  auto* firstField = firstNonStaticField(classSymbol);
 
   if (!firstField) {
     error(expr->firstSourceLocation(), "union has no named members");

@@ -245,9 +245,9 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
       auto funcNameAttr =
           function_ ? mlir::StringAttr::get(context_, function_.getSymName())
                     : mlir::StringAttr{};
-      return mlir::cxx::LabelAddressOp::create(builder, loc, mlirPtrType,
-                                               (*labelAddrPtr)->name(),
-                                               mlir::IntegerAttr{}, funcNameAttr);
+      return mlir::cxx::LabelAddressOp::create(
+          builder, loc, mlirPtrType, (*labelAddrPtr)->name(),
+          mlir::IntegerAttr{}, funcNameAttr);
     }
 
     // Handle string literal used as a pointer value.
@@ -310,9 +310,9 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
           if (unionClassType && !unionClassType.getBody().empty() &&
               elemVal.getType() == unionClassType.getBody()[0]) {
             auto undef = mlir::cxx::UndefOp::create(builder, loc, mlirType);
-            return mlir::cxx::InsertValueOp::create(
-                builder, loc, mlirType, undef, elemVal,
-                static_cast<int64_t>(0));
+            return mlir::cxx::InsertValueOp::create(builder, loc, mlirType,
+                                                    undef, elemVal,
+                                                    static_cast<int64_t>(0));
           }
 
           return mlir::cxx::BitcastOp::create(builder, loc, mlirType, elemVal);
@@ -339,6 +339,12 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
               srcArr.getSize() < dstArr.getSize()) {
             elemVal =
                 mlir::cxx::ReshapeOp::create(builder, loc, dstArr, elemVal);
+          } else if (auto unionClassType =
+                         mlir::dyn_cast<mlir::cxx::ClassType>(fieldTypes[i]);
+                     unionClassType &&
+                     unionClassType.getName().starts_with("union.")) {
+            elemVal = mlir::cxx::BitcastOp::create(builder, loc, unionClassType,
+                                                   elemVal);
           }
         }
         result = mlir::cxx::InsertValueOp::create(
