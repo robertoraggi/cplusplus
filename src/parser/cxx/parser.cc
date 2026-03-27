@@ -781,6 +781,7 @@ auto Parser::parse_completion(SourceLocation& loc) -> bool {
 
 auto Parser::parse_primary_expression(ExpressionAST*& yyast,
                                       const ExprContext& ctx) -> bool {
+  if (parse_pack_index_expression(yyast, ctx)) return true;
   if (parse_builtin_call_expression(yyast, ctx)) return true;
   if (parse_builtin_offsetof_expression(yyast, ctx)) return true;
   if (parse_generic_selection_expression(yyast, ctx)) return true;
@@ -2529,6 +2530,33 @@ auto Parser::parse_va_arg_expression(ExpressionAST*& yyast,
   expect(TokenKind::T_COMMA, ast->commaLoc);
   if (!parse_type_id(ast->typeId)) parse_error("expected a type id");
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  check(ast);
+
+  return true;
+}
+
+auto Parser::parse_pack_index_expression(ExpressionAST*& yyast,
+                                         const ExprContext& ctx) -> bool {
+  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT_DOT_DOT,
+              TokenKind::T_LBRACKET))
+    return false;
+
+  auto ast = PackIndexExpressionAST::create(pool_);
+  yyast = ast;
+
+  (void)parse_id_expression(ast->packExpression,
+                            IdExpressionContext::kExpression);
+
+  expect(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+
+  expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
+
+  if (!parse_constant_expression(ast->indexExpression)) {
+    parse_error("expected a constant expression");
+  }
+
+  expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
 
   check(ast);
 
@@ -4544,7 +4572,14 @@ auto Parser::parse_simple_declaration(
     BindingContext ctx, TemplateDeclarationAST* templateHead) -> bool {
   DeclaratorAST* declarator = nullptr;
   Decl decl{specs};
-  if (!parse_declarator(declarator, decl)) return false;
+  // Make the explicit template head visible to
+  // synthesizeAbbreviatedTemplateParams so it can append synthetic auto params
+  // at the correct index.
+  auto savedEnclosingExplicit = enclosingExplicitTemplateHead_;
+  enclosingExplicitTemplateHead_ = templateHead;
+  const bool parsed = parse_declarator(declarator, decl);
+  enclosingExplicitTemplateHead_ = savedEnclosingExplicit;
+  if (!parsed) return false;
 
   auto lookat_function_definition = [&] {
     if (!context_allows_function_definition(ctx)) return false;
@@ -5656,17 +5691,30 @@ void Parser::synthesizeAbbreviatedTemplateParams(
                             : scope();
   if (!enclosingScope) enclosingScope = scope();
 
-  auto templParamsSymbol =
-      control_->newTemplateParametersSymbol(enclosingScope, loc);
+  // If there's an enclosing explicit template head (e.g. template<int i>),
+  // append the synthetic auto params to it instead of creating a new one.
+  // This fixes abbreviated templates that combine explicit and auto params,
+  // such as: template<int i> auto at(auto... xs).
+  TemplateDeclarationAST* templDecl;
+  int paramIndex;
 
-  auto templDecl = TemplateDeclarationAST::create(pool_);
-  templDecl->symbol = templParamsSymbol;
-  templDecl->depth = 0;
+  if (enclosingExplicitTemplateHead_) {
+    templDecl = enclosingExplicitTemplateHead_;
+    paramIndex = 0;
+    for (auto it = templDecl->templateParameterList; it; it = it->next)
+      ++paramIndex;
+  } else {
+    auto templParamsSymbol =
+        control_->newTemplateParametersSymbol(enclosingScope, loc);
+    templDecl = TemplateDeclarationAST::create(pool_);
+    templDecl->symbol = templParamsSymbol;
+    templDecl->depth = 0;
+    abbreviatedTemplateHead_ = templDecl;
+    paramIndex = 0;
+  }
 
-  abbreviatedTemplateHead_ = templDecl;
   abbreviatedTemplateParamCount_ = 0;
 
-  int paramIndex = 0;
   for (auto it = params->parameterDeclarationList; it; it = it->next) {
     if (!hasAutoSpec(it->value)) continue;
 
@@ -5679,7 +5727,7 @@ void Parser::synthesizeAbbreviatedTemplateParams(
 
     {
       auto scopeGuard = CombinedScopeGuard{this};
-      setScope(templParamsSymbol);
+      setScope(templDecl->symbol);
       binder_.bind(tyParam, paramIndex, /*depth=*/0);
     }
 

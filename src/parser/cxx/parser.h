@@ -230,6 +230,9 @@ class Parser final {
   [[nodiscard]] auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
   [[nodiscard]] auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
   [[nodiscard]] auto parse_this_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_pack_index_expression(ExpressionAST*& yyast,
+                                                 const ExprContext& ctx)
+      -> bool;
   [[nodiscard]] auto parse_generic_selection_expression(ExpressionAST*& yyast,
                                                         const ExprContext& ctx)
       -> bool;
@@ -298,6 +301,7 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_va_arg_expression(ExpressionAST*& yyast,
                                              const ExprContext& ctx) -> bool;
+
   [[nodiscard]] auto parse_builtin_call_expression(ExpressionAST*& yyast,
                                                    const ExprContext& ctx)
       -> bool;
@@ -924,6 +928,7 @@ class Parser final {
   int templateParameterCount_ = 0;
   TemplateDeclarationAST* abbreviatedTemplateHead_ = nullptr;
   int abbreviatedTemplateParamCount_ = 0;
+  TemplateDeclarationAST* enclosingExplicitTemplateHead_ = nullptr;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
 

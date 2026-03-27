@@ -1783,7 +1783,13 @@ void Binder::resolveIdExpression(IdExpressionAST* ast) {
           [&](TemplateDeclarationAST* templateDecl) -> bool {
         auto arity = computeTemplateArity(templateDecl);
         auto argc = templateArgumentCount(templateId->templateArgumentList);
-        return argc < arity.minArgs;
+        if (argc < arity.minArgs) return true;
+        // If the template has a trailing pack and the explicit args only cover
+        // the non-pack parameters, defer so function arguments can fill the
+        // pack via call-site deduction.
+        if (arity.hasParameterPack && argc > 0 && argc == arity.minArgs)
+          return true;
+        return false;
       };
 
       if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {

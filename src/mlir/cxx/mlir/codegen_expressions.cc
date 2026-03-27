@@ -69,6 +69,7 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto operator()(ObjectLiteralExpressionAST* ast) -> ExpressionResult;
   auto operator()(GenericSelectionExpressionAST* ast) -> ExpressionResult;
   auto operator()(ThisExpressionAST* ast) -> ExpressionResult;
+  auto operator()(PackIndexExpressionAST* ast) -> ExpressionResult;
   auto operator()(NestedStatementExpressionAST* ast) -> ExpressionResult;
   auto operator()(NestedExpressionAST* ast) -> ExpressionResult;
   auto operator()(IdExpressionAST* ast) -> ExpressionResult;
@@ -464,6 +465,13 @@ auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
       gen.builder_, loc, ptrType, gen.thisValue_, gen.getAlignment(ast->type));
 
   return {loadOp};
+}
+
+auto Codegen::ExpressionVisitor::operator()(PackIndexExpressionAST* ast)
+    -> ExpressionResult {
+  auto op =
+      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  return {op};
 }
 
 auto Codegen::ExpressionVisitor::operator()(GenericSelectionExpressionAST* ast)
@@ -1902,8 +1910,9 @@ auto Codegen::ExpressionVisitor::operator()(LabelAddressExpressionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto ptrType = mlir::cast<mlir::cxx::PointerType>(gen.convertType(ast->type));
   auto funcNameAttr =
-      gen.function_ ? mlir::StringAttr::get(gen.context_, gen.function_.getSymName())
-                    : mlir::StringAttr{};
+      gen.function_
+          ? mlir::StringAttr::get(gen.context_, gen.function_.getSymName())
+          : mlir::StringAttr{};
   auto op = mlir::cxx::LabelAddressOp::create(
       gen.builder_, loc, ptrType, ast->identifier->name(), mlir::IntegerAttr{},
       funcNameAttr);

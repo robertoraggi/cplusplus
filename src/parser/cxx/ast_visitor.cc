@@ -517,6 +517,11 @@ void ASTVisitor::visit(ObjectLiteralExpressionAST* ast) {
 
 void ASTVisitor::visit(ThisExpressionAST* ast) {}
 
+void ASTVisitor::visit(PackIndexExpressionAST* ast) {
+  accept(ast->packExpression);
+  accept(ast->indexExpression);
+}
+
 void ASTVisitor::visit(GenericSelectionExpressionAST* ast) {
   accept(ast->expression);
   for (auto node : ListView{ast->genericAssociationList}) {

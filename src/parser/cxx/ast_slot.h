@@ -142,6 +142,7 @@ class ASTSlot final : ASTVisitor {
   void visit(UserDefinedStringLiteralExpressionAST* ast) override;
   void visit(ObjectLiteralExpressionAST* ast) override;
   void visit(ThisExpressionAST* ast) override;
+  void visit(PackIndexExpressionAST* ast) override;
   void visit(GenericSelectionExpressionAST* ast) override;
   void visit(NestedStatementExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;

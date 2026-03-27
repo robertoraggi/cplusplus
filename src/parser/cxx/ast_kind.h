@@ -118,6 +118,7 @@ enum class ASTKind {
   UserDefinedStringLiteralExpression,
   ObjectLiteralExpression,
   ThisExpression,
+  PackIndexExpression,
   GenericSelectionExpression,
   NestedStatementExpression,
   NestedExpression,

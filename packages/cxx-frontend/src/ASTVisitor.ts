@@ -999,6 +999,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit PackIndexExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitPackIndexExpression(
+    node: ast.PackIndexExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit GenericSelectionExpression node.
    *
    * @param node The node to visit.

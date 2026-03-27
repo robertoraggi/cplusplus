@@ -235,6 +235,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ThisExpression:
       return decodeThisExpression(
           reinterpret_cast<const io::ThisExpression*>(ptr));
+    case io::Expression_PackIndexExpression:
+      return decodePackIndexExpression(
+          reinterpret_cast<const io::PackIndexExpression*>(ptr));
     case io::Expression_GenericSelectionExpression:
       return decodeGenericSelectionExpression(
           reinterpret_cast<const io::GenericSelectionExpression*>(ptr));
@@ -2479,6 +2482,20 @@ auto ASTDecoder::decodeThisExpression(const io::ThisExpression* node)
 
   auto ast = new (pool_) ThisExpressionAST();
   ast->thisLoc = SourceLocation(node->this_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodePackIndexExpression(const io::PackIndexExpression* node)
+    -> PackIndexExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) PackIndexExpressionAST();
+  ast->packExpression = decodeIdExpression(node->pack_expression());
+  ast->ellipsisLoc = SourceLocation(node->ellipsis_loc());
+  ast->lbracketLoc = SourceLocation(node->lbracket_loc());
+  ast->indexExpression =
+      decodeExpression(node->index_expression(), node->index_expression_type());
+  ast->rbracketLoc = SourceLocation(node->rbracket_loc());
   return ast;
 }
 

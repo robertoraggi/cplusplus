@@ -3110,6 +3110,41 @@ class ThisExpressionAST final : public ExpressionAST {
   ThisExpressionAST() : ExpressionAST(Kind) {}
 };
 
+class PackIndexExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::PackIndexExpression;
+
+  IdExpressionAST* packExpression = nullptr;
+  SourceLocation ellipsisLoc;
+  SourceLocation lbracketLoc;
+  ExpressionAST* indexExpression = nullptr;
+  SourceLocation rbracketLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena) -> PackIndexExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PackIndexExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, IdExpressionAST* packExpression, SourceLocation ellipsisLoc,
+      SourceLocation lbracketLoc, ExpressionAST* indexExpression,
+      SourceLocation rbracketLoc, ValueCategory valueCategory, const Type* type)
+      -> PackIndexExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   IdExpressionAST* packExpression,
+                                   ExpressionAST* indexExpression,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> PackIndexExpressionAST*;
+
+ protected:
+  PackIndexExpressionAST() : ExpressionAST(Kind) {}
+};
+
 class GenericSelectionExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::GenericSelectionExpression;
@@ -8313,6 +8348,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case ThisExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ThisExpressionAST*>(ast));
+    case PackIndexExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<PackIndexExpressionAST*>(ast));
     case GenericSelectionExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<GenericSelectionExpressionAST*>(ast));
@@ -8496,6 +8534,7 @@ template <>
     case UserDefinedStringLiteralExpressionAST::Kind:
     case ObjectLiteralExpressionAST::Kind:
     case ThisExpressionAST::Kind:
+    case PackIndexExpressionAST::Kind:
     case GenericSelectionExpressionAST::Kind:
     case NestedStatementExpressionAST::Kind:
     case NestedExpressionAST::Kind:

@@ -136,6 +136,7 @@ union Expression {
   UserDefinedStringLiteralExpression,
   ObjectLiteralExpression,
   ThisExpression,
+  PackIndexExpression,
   GenericSelectionExpression,
   NestedStatementExpression,
   NestedExpression,
@@ -917,6 +918,14 @@ table ObjectLiteralExpression /* ExpressionAST */ {
 
 table ThisExpression /* ExpressionAST */ {
   this_loc: uint32;
+}
+
+table PackIndexExpression /* ExpressionAST */ {
+  pack_expression: IdExpression;
+  index_expression: Expression;
+  ellipsis_loc: uint32;
+  lbracket_loc: uint32;
+  rbracket_loc: uint32;
 }
 
 table GenericSelectionExpression /* ExpressionAST */ {

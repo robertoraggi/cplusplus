@@ -1369,6 +1369,24 @@ auto ThisExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto PackIndexExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(packExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  return {};
+}
+
+auto PackIndexExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(packExpression)) return loc;
+  return {};
+}
+
 auto GenericSelectionExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(genericLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -3743,6 +3761,7 @@ std::string_view kASTKindNames[] = {
     "user-defined-string-literal-expression",
     "object-literal-expression",
     "this-expression",
+    "pack-index-expression",
     "generic-selection-expression",
     "nested-statement-expression",
     "nested-expression",
@@ -7899,6 +7918,58 @@ auto ThisExpressionAST::create(Arena* arena, SourceLocation thisLoc,
 auto ThisExpressionAST::create(Arena* arena, ValueCategory valueCategory,
                                const Type* type) -> ThisExpressionAST* {
   auto node = new (arena) ThisExpressionAST();
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto PackIndexExpressionAST::clone(Arena* arena) -> PackIndexExpressionAST* {
+  auto node = create(arena);
+
+  if (packExpression) node->packExpression = packExpression->clone(arena);
+
+  node->ellipsisLoc = ellipsisLoc;
+  node->lbracketLoc = lbracketLoc;
+
+  if (indexExpression) node->indexExpression = indexExpression->clone(arena);
+
+  node->rbracketLoc = rbracketLoc;
+  node->valueCategory = valueCategory;
+  node->type = type;
+
+  return node;
+}
+
+auto PackIndexExpressionAST::create(Arena* arena) -> PackIndexExpressionAST* {
+  auto node = new (arena) PackIndexExpressionAST();
+  return node;
+}
+
+auto PackIndexExpressionAST::create(
+    Arena* arena, IdExpressionAST* packExpression, SourceLocation ellipsisLoc,
+    SourceLocation lbracketLoc, ExpressionAST* indexExpression,
+    SourceLocation rbracketLoc, ValueCategory valueCategory, const Type* type)
+    -> PackIndexExpressionAST* {
+  auto node = new (arena) PackIndexExpressionAST();
+  node->packExpression = packExpression;
+  node->ellipsisLoc = ellipsisLoc;
+  node->lbracketLoc = lbracketLoc;
+  node->indexExpression = indexExpression;
+  node->rbracketLoc = rbracketLoc;
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto PackIndexExpressionAST::create(Arena* arena,
+                                    IdExpressionAST* packExpression,
+                                    ExpressionAST* indexExpression,
+                                    ValueCategory valueCategory,
+                                    const Type* type)
+    -> PackIndexExpressionAST* {
+  auto node = new (arena) PackIndexExpressionAST();
+  node->packExpression = packExpression;
+  node->indexExpression = indexExpression;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
