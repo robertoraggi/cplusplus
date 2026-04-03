@@ -1752,8 +1752,9 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
 
 void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   if (check.unit_->typeTraits().is_class(ast->baseExpression->type)) {
-    if (auto operatorFunc =
-            check.lookupOperator(ast->baseExpression->type, ast->op)) {
+    if (auto operatorFunc = check.lookupOperator(
+            ast->baseExpression->type, ast->op, control()->getIntType())) {
+      ast->symbol = operatorFunc;
       setResultTypeAndValueCategory(ast, operatorFunc->type());
       return;
     }

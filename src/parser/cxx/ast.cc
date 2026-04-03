@@ -8976,6 +8976,7 @@ auto PostIncrExpressionAST::clone(Arena* arena) -> PostIncrExpressionAST* {
 
   node->opLoc = opLoc;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8989,23 +8990,27 @@ auto PostIncrExpressionAST::create(Arena* arena) -> PostIncrExpressionAST* {
 
 auto PostIncrExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                    SourceLocation opLoc, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST* {
   auto node = new (arena) PostIncrExpressionAST();
   node->baseExpression = baseExpression;
   node->opLoc = opLoc;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto PostIncrExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
-                                   TokenKind op, ValueCategory valueCategory,
+                                   TokenKind op, FunctionSymbol* symbol,
+                                   ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST* {
   auto node = new (arena) PostIncrExpressionAST();
   node->baseExpression = baseExpression;
   node->op = op;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;

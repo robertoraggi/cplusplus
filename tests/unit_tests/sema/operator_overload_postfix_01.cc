@@ -1,4 +1,5 @@
 // RUN: %cxx -verify -fcheck %s
+// expected-no-diagnostics
 
 struct Counter {
   int v;
@@ -11,7 +12,6 @@ struct Counter {
 
 int test_postfix() {
   Counter c{5};
-  // expected-error@+1 {{cannot increment a value of type '::Counter'}}
   Counter old = c++;
   return old.v + c.v;
 }
