@@ -140,6 +140,7 @@ struct Control::Private {
 
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
+  std::forward_list<DeductionGuideSymbol> deductionGuideSymbols;
   std::forward_list<BaseClassSymbol> baseClassSymbols;
   std::forward_list<InjectedClassNameSymbol> injectedClassNameSymbols;
   std::forward_list<UnresolvedSymbol> unresolvedSymbols;
@@ -593,6 +594,14 @@ auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
 auto Control::newConceptSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> ConceptSymbol* {
   auto symbol = &d->conceptSymbols.emplace_front(enclosingScope);
+  symbol->setLocation(loc);
+  return symbol;
+}
+
+auto Control::newDeductionGuideSymbol(ScopeSymbol* enclosingScope,
+                                      SourceLocation loc)
+    -> DeductionGuideSymbol* {
+  auto symbol = &d->deductionGuideSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }

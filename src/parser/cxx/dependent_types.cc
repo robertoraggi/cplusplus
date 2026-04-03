@@ -47,8 +47,15 @@ struct IsDependent {
   }
 
   [[nodiscard]] auto isInTemplateScope(Symbol* symbol) -> bool {
+    if (auto var = symbol_cast<VariableSymbol>(symbol))
+      if (var->templateParameters()) return true;
     for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
       if (scope->isTemplateParameters()) return true;
+      if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+        if (cls->templateParameters()) return true;
+      } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
+        if (func->templateParameters()) return true;
+      }
     }
     return false;
   }
@@ -117,7 +124,28 @@ struct IsDependent {
     return false;
   }
 
-  auto operator()(const ClassType* type) -> bool { return false; }
+  auto operator()(const ClassType* type) -> bool {
+    auto sym = type->symbol();
+
+    if (sym->templateDeclaration() && !sym->primaryTemplateSymbol())
+      return true;
+
+    for (const auto& arg : sym->templateArguments()) {
+      if (const auto* typeArg = std::get_if<const Type*>(&arg))
+        if (isDependent(*typeArg)) return true;
+      if (const auto* symArg = std::get_if<Symbol*>(&arg)) {
+        if (auto pack = symbol_cast<ParameterPackSymbol>(*symArg)) {
+          for (auto* elem : pack->elements())
+            if (elem && isDependent(elem->type())) return true;
+        } else if (*symArg && isDependent((*symArg)->type())) {
+          return true;
+        }
+      }
+      if (const auto* exprArg = std::get_if<ExpressionAST*>(&arg))
+        if (isDependent(*exprArg)) return true;
+    }
+    return false;
+  }
 
   auto operator()(const EnumType* type) -> bool { return false; }
 
@@ -838,6 +866,10 @@ auto isDependent(TranslationUnit* unit, SpecifierAST* spec) -> bool {
 
 auto isDependent(TranslationUnit* unit, const Type* type) -> bool {
   return IsDependent{unit}.isDependent(type);
+}
+
+auto isDependent(TranslationUnit* unit, NestedNameSpecifierAST* ast) -> bool {
+  return IsDependent{unit}.isDependent(ast);
 }
 
 }  // namespace cxx

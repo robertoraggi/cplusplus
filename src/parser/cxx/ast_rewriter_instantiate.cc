@@ -22,7 +22,9 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/control.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/names.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -163,6 +165,16 @@ struct Instantiate {
 
   auto operator()(FunctionSymbol* symbol) -> Symbol* {
     auto functionDef = symbol->declaration();
+
+    if (!functionDef) {
+      for (auto redecl : symbol->redeclarations()) {
+        if (auto def = redecl->declaration()) {
+          functionDef = def;
+          break;
+        }
+      }
+    }
+
     if (functionDef) {
       auto instance =
           ast_cast<FunctionDefinitionAST>(rewriter.declaration(functionDef));
@@ -237,26 +249,11 @@ auto templateParameterCount(TemplateDeclarationAST* templateDecl) -> int {
 }
 
 auto computeInstantiationClassName(
-    Symbol* primaryTemplate,
+    TranslationUnit* unit, Symbol* primaryTemplate,
     const std::vector<TemplateArgument>& templateArguments) -> std::string {
   if (!primaryTemplate) return "template";
-  std::string className = to_string(primaryTemplate->name());
-  className += '<';
-  std::string_view sep;
-  for (const auto& arg : templateArguments) {
-    if (auto s = std::get_if<Symbol*>(&arg)) {
-      if (auto a = symbol_cast<TypeAliasSymbol>(*s)) {
-        className += std::format("{}{}", sep, to_string(a->type()));
-      } else if (*s) {
-        className += std::format("{}{}", sep, to_string((*s)->name()));
-      }
-    } else if (auto t = std::get_if<const Type*>(&arg)) {
-      className += std::format("{}{}", sep, to_string(*t));
-    }
-    sep = ", ";
-  }
-  className += '>';
-  return className;
+  return to_string(unit->control()->getTemplateId(primaryTemplate->name(),
+                                                  templateArguments));
 }
 
 struct CapturingDiagnosticsClient final : DiagnosticsClient {
@@ -367,7 +364,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
             for (auto& diag : spec->instantiationErrors)
               unit->diagnosticsClient()->report(diag);
             auto className =
-                computeInstantiationClassName(symbol, templateArguments);
+                computeInstantiationClassName(unit, symbol, templateArguments);
             unit->note(instantiationLoc,
                        std::format("in instantiation of template class '{}' "
                                    "requested here",
@@ -437,7 +434,8 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
       spec->instantiationErrors = capturing.diagnostics;
     }
     if (instantiationLoc) {
-      auto className = computeInstantiationClassName(symbol, templateArguments);
+      auto className =
+          computeInstantiationClassName(unit, symbol, templateArguments);
       unit->note(instantiationLoc,
                  std::format("in instantiation of template class '{}' "
                              "requested here",

@@ -137,6 +137,7 @@ class TypeTraits {
                                 std::span<const Type* const> argTypes) -> bool;
   auto is_trivially_constructible(const Type* type) -> bool;
   auto is_assignable(const Type* to, const Type* from) -> bool;
+  auto is_nothrow_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_assignable(const Type* from, const Type* to) -> bool;
   auto is_trivially_copyable(const Type* type) -> bool;
   auto is_abstract(const Type* type) -> bool;

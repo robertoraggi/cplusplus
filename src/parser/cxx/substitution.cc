@@ -78,6 +78,11 @@ struct Substitution::CollectRawTemplateArgument {
   [[nodiscard]] auto isInTemplateScope(Symbol* symbol) -> bool {
     for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
       if (scope->isTemplateParameters()) return true;
+      if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+        if (cls->templateParameters()) return true;
+      } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
+        if (func->templateParameters()) return true;
+      }
     }
     return false;
   }
@@ -401,7 +406,7 @@ void Substitution::doMake() {
       continue;
     }
 
-    // No collected argument left — fill from default.
+    // No collected argument left - fill from default.
     if (auto defaultArg = getDefaultTemplateArgument(parameter)) {
       templateArguments_.push_back(defaultArg.value());
     }
@@ -455,6 +460,7 @@ auto Substitution::normalizeNonTypeArgument(
     auto typeAliasArgument = symbol_cast<TypeAliasSymbol>(argument);
     if (!typeAliasArgument || !typeAliasArgument->type()) return argument;
     if (!isDependent(unit, typeAliasArgument->type())) return argument;
+    if (type_cast<ClassType>(typeAliasArgument->type())) return argument;
 
     auto normalizedArgument = control->newVariableSymbol(nullptr, {});
     const Type* targetType = typeAliasArgument->type();

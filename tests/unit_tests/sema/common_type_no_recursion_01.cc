@@ -56,7 +56,7 @@ struct common_type<_Tp, _Up>
           __common_type2_imp<_Tp, _Up>,
           common_type<__decay_t<_Tp>, __decay_t<_Up>>> {};
 
-// Instantiate — should NOT recurse infinitely.
+// Instantiate - should NOT recurse infinitely.
 // int and double are already decayed, so _IsSame<int, int>::value is true,
 // _IsSame<double, double>::value is true, and the true branch is taken.
 using CT = common_type<int, double>;

@@ -971,7 +971,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionAST* {
-  // Check if this is T(args...) where T is a type parameter — after
+  // Check if this is T(args...) where T is a type parameter - after
   // substitution it becomes a functional type construction (e.g. int(10)).
   if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
     if (auto typeParam = symbol_cast<TypeParameterSymbol>(idExpr->symbol)) {

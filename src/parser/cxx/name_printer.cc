@@ -69,7 +69,7 @@ struct NamePrinter {
       return to_string(symbol->name());
     }
 
-    auto operator()(ExpressionAST* value) const -> std::string { return {}; }
+    auto operator()(ExpressionAST* value) const -> std::string { return ""; }
 
   } template_argument_to_string;
 
@@ -109,7 +109,9 @@ struct NamePrinter {
     s += " <";
     for (auto&& arg : name->arguments()) {
       if (&arg != &name->arguments().front()) s += ", ";
-      s += std::visit(template_argument_to_string, arg);
+      auto arg_str = std::visit(template_argument_to_string, arg);
+      if (arg_str.empty()) arg_str = "?";
+      s += arg_str;
     }
     s += '>';
     return s;

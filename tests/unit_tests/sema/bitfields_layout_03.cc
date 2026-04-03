@@ -12,7 +12,7 @@ struct T1 { int a : 2; char b; int c : 3; };
 // CHECK:           | [sizeof=4, dsize=4, align=4,
 // CHECK:           |  nvsize=4, nvalign=4]
 
-// Short char then int bitfield — should pack into 4 bytes
+// Short char then int bitfield - should pack into 4 bytes
 struct T2 { char a; int b : 3; };
 
 // CHECK: *** Dumping AST Record Layout
@@ -22,7 +22,7 @@ struct T2 { char a; int b : 3; };
 // CHECK:           | [sizeof=4, dsize=4, align=4,
 // CHECK:           |  nvsize=4, nvalign=4]
 
-// Bitfield fills beyond type boundary — second alloc unit
+// Bitfield fills beyond type boundary - second alloc unit
 struct T3 { int a : 17; char b; };
 
 // CHECK: *** Dumping AST Record Layout

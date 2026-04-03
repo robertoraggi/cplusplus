@@ -31,9 +31,8 @@ namespace {
 
 [[nodiscard]] auto enclosing_class_or_namespace(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
-  auto parent = symbol->parent();
-  if (!parent) return nullptr;
-  if (!parent->isClassOrNamespace()) return nullptr;
+  auto parent = symbol->enclosingNonTemplateParametersScope();
+  if (!parent || !parent->isClassOrNamespace()) return nullptr;
   return parent;
 }
 
@@ -610,7 +609,13 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   }
 
   void operator()(const TemplateId* name) {
-    cxx_runtime_error("template names not supported yet");
+    auto baseId = name_cast<Identifier>(name->name());
+    if (!baseId) {
+      cxx_runtime_error(
+          std::format("cannot encode template-id '{}'", to_string(name)));
+    }
+    out(std::format("{}{}", baseId->name().length(), baseId->name()));
+    encodeTemplateArguments(symbol);
   }
 
   void out(std::string_view str) { encoder.out(str); }

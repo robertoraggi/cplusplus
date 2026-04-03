@@ -1,12 +1,12 @@
 // RUN: %cxx -verify -fcheck %s
 
-// Literals and arithmetic — never throw
+// Literals and arithmetic - never throw
 static_assert(noexcept(1 + 2));
 static_assert(noexcept(1.0 * 2.0));
 static_assert(noexcept(true));
 static_assert(noexcept(42));
 
-// throw-expression — always throws
+// throw-expression - always throws
 static_assert(!noexcept(throw 1));
 
 // Non-noexcept function
@@ -24,10 +24,10 @@ static_assert(noexcept(fp()));
 void (*fq)();
 static_assert(!noexcept(fq()));
 
-// new — potentially throwing by default
+// new - potentially throwing by default
 static_assert(!noexcept(new int));
 
-// Nested noexcept is always a bool constant — never throws
+// Nested noexcept is always a bool constant - never throws
 static_assert(noexcept(noexcept(may_throw())));
 
 // Class with noexcept / non-noexcept constructor

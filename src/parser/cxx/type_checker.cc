@@ -295,6 +295,11 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto in_template() const -> bool {
     for (auto current = scope(); current; current = current->parent()) {
       if (current->isTemplateParameters()) return true;
+      if (auto cls = symbol_cast<ClassSymbol>(current)) {
+        if (cls->templateParameters()) return true;
+      } else if (auto func = symbol_cast<FunctionSymbol>(current)) {
+        if (func->templateParameters()) return true;
+      }
     }
     return false;
   }
@@ -739,6 +744,12 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
     }
   } else {
     // maybe unresolved name
+    if (in_template() && ast->nestedNameSpecifier && !ast->symbol) {
+      if (isDependent(check.unit_, ast->nestedNameSpecifier)) {
+        ast->type = dependent_type();
+        ast->valueCategory = ValueCategory::kPrValue;
+      }
+    }
   }
 }
 
@@ -873,6 +884,13 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
   }
 
   if (!ast->baseExpression->type || !ast->indexExpression->type) return;
+
+  if (in_template() && (is_dependent_type(ast->baseExpression->type) ||
+                        is_dependent_type(ast->indexExpression->type))) {
+    ast->type = dependent_type();
+    ast->valueCategory = ValueCategory::kLValue;
+    return;
+  }
 
   if (auto operatorFunc =
           check.lookupOperator(ast->baseExpression->type, TokenKind::T_LBRACKET,
@@ -4009,13 +4027,19 @@ void TypeChecker::check_initialization(VariableSymbol* var,
 
     auto strippedInitializer =
         strip_implicit_initializer_casts(ast->initializer);
-    ExpressionAST*& conversionTarget =
-        ast_cast<EqualInitializerAST>(strippedInitializer) ? ast->initializer
-                                                           : initExpr;
 
-    if (!implicit_conversion(conversionTarget, targetType)) {
-      auto seq = checkImplicitConversion(conversionTarget, targetType);
-      applyImplicitConversion(seq, conversionTarget);
+    ExpressionAST** conversionTargetPtr = nullptr;
+    if (ast_cast<EqualInitializerAST>(strippedInitializer)) {
+      conversionTargetPtr = &ast->initializer;
+    } else if (auto paren = ast_cast<ParenInitializerAST>(ast->initializer)) {
+      if (paren->expressionList && !paren->expressionList->next)
+        conversionTargetPtr = &paren->expressionList->value;
+    }
+    if (!conversionTargetPtr) conversionTargetPtr = &initExpr;
+
+    if (!implicit_conversion(*conversionTargetPtr, targetType)) {
+      auto seq = checkImplicitConversion(*conversionTargetPtr, targetType);
+      applyImplicitConversion(seq, *conversionTargetPtr);
     }
 
     var->setInitializer(ast->initializer);
@@ -4029,7 +4053,8 @@ void TypeChecker::check_mem_initializers(
 
   if (!functionSymbol->isConstructor()) return;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+  auto classSymbol = symbol_cast<ClassSymbol>(
+      functionSymbol->enclosingNonTemplateParametersScope());
   if (!classSymbol) return;
 
   auto control = unit_->control();
@@ -5057,6 +5082,13 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
   ast->symbol = symbol;
 
   if (!symbol) {
+    if (in_template() && classSymbol->templateDeclaration() &&
+        !classSymbol->isComplete()) {
+      ast->type = dependent_type();
+      ast->valueCategory = ValueCategory::kLValue;
+      return true;
+    }
+
     auto member = std::string{"<unknown>"};
     if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
       if (auto identifier = nameId->identifier) member = identifier->value();

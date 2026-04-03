@@ -7,7 +7,7 @@ int printf(const char* format, ...);
 
 auto id(auto x) -> decltype(x) { return x; }
 
-// x and y are dependent — operator+ is resolved during instantiation
+// x and y are dependent - operator+ is resolved during instantiation
 auto add(auto x, auto y) -> decltype(x + y) { return x + y; }
 
 auto id_ref(auto& x) -> decltype(x) { return x; }

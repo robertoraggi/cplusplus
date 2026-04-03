@@ -169,6 +169,21 @@ void Symbol::setLocation(SourceLocation location) { location_ = location; }
 auto Symbol::parent() const -> ScopeSymbol* { return parent_; }
 
 void Symbol::setParent(ScopeSymbol* enclosingScope) {
+  if (enclosingScope && enclosingScope->isTemplateParameters()) {
+    switch (kind()) {
+      case SymbolKind::kTypeParameter:
+      case SymbolKind::kNonTypeParameter:
+      case SymbolKind::kTemplateTypeParameter:
+      case SymbolKind::kConstraintTypeParameter:
+      case SymbolKind::kFunctionParameters:
+      case SymbolKind::kTemplateParameters:  // nested template template params
+        break;                               // allowed
+      default:
+        cxx_runtime_error(std::format(
+            "symbol kind '{}' may not have TemplateParametersSymbol as parent",
+            static_cast<int>(kind())));
+    }
+  }
   parent_ = enclosingScope;
 }
 
@@ -421,6 +436,17 @@ ConceptSymbol::ConceptSymbol(ScopeSymbol* enclosingScope)
 
 ConceptSymbol::~ConceptSymbol() {}
 
+DeductionGuideSymbol::DeductionGuideSymbol(ScopeSymbol* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+DeductionGuideSymbol::~DeductionGuideSymbol() {}
+
+auto DeductionGuideSymbol::isExplicit() const -> bool { return isExplicit_; }
+
+void DeductionGuideSymbol::setExplicit(bool isExplicit) {
+  isExplicit_ = isExplicit;
+}
+
 BaseClassSymbol::BaseClassSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
 
@@ -509,6 +535,15 @@ auto ClassSymbol::constructors() const -> const std::vector<FunctionSymbol*>& {
 
 void ClassSymbol::addConstructor(FunctionSymbol* constructor) {
   constructors_.push_back(constructor);
+}
+
+auto ClassSymbol::deductionGuides() const
+    -> const std::vector<DeductionGuideSymbol*>& {
+  return deductionGuides_;
+}
+
+void ClassSymbol::addDeductionGuide(DeductionGuideSymbol* guide) {
+  deductionGuides_.push_back(guide);
 }
 
 auto ClassSymbol::isComplete() const -> bool { return isComplete_; }

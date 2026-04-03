@@ -29,6 +29,7 @@ namespace cxx {
 #define CXX_FOR_EACH_SYMBOL(V) \
   V(Namespace)                 \
   V(Concept)                   \
+  V(DeductionGuide)            \
   V(Class)                     \
   V(Enum)                      \
   V(ScopedEnum)                \

@@ -141,6 +141,17 @@ void DeclSpecs::Visitor::operator()(VirtualSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {
+  if (!ast->expression) {
+    specs.isExplicit = true;
+    return;
+  }
+  auto interp = ASTInterpreter{specs.unit_};
+  auto value = interp.evaluate(ast->expression);
+  if (value.has_value()) {
+    auto boolVal = interp.toBool(*value);
+    specs.isExplicit = boolVal.value_or(true);
+    return;
+  }
   specs.isExplicit = true;
 }
 

@@ -1539,6 +1539,16 @@ auto TypeTraits::is_assignable(const Type* to, const Type* from) -> bool {
   return false;
 }
 
+auto TypeTraits::is_nothrow_assignable(const Type* to, const Type* from)
+    -> bool {
+  if (!is_assignable(to, from)) return false;
+  // For scalar types, assignment never throws.
+  auto target = remove_cvref(to);
+  if (is_scalar(target)) return true;
+  // For class types, use trivial assignability as a conservative approximation.
+  return is_trivially_assignable(to, from);
+}
+
 auto TypeTraits::is_trivially_assignable(const Type* from, const Type* to)
     -> bool {
   if (!to) return false;

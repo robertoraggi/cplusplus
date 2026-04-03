@@ -239,7 +239,9 @@ class Symbol {
   };
 
   Symbol(SymbolKind kind, ScopeSymbol* enclosingScope)
-      : kind_(kind), parent_(enclosingScope) {}
+      : kind_(kind), parent_(nullptr) {
+    setParent(enclosingScope);
+  }
 
   virtual ~Symbol() = default;
 
@@ -382,6 +384,22 @@ class ConceptSymbol final
  private:
 };
 
+class DeductionGuideSymbol final
+    : public Symbol,
+      public MaybeTemplate<DeductionGuideSymbol, DeductionGuideAST> {
+ public:
+  constexpr static auto Kind = SymbolKind::kDeductionGuide;
+
+  explicit DeductionGuideSymbol(ScopeSymbol* enclosingScope);
+  ~DeductionGuideSymbol() override;
+
+  [[nodiscard]] auto isExplicit() const -> bool;
+  void setExplicit(bool isExplicit);
+
+ private:
+  bool isExplicit_ = false;
+};
+
 class ClassLayout {
  public:
   struct MemberInfo {
@@ -511,6 +529,11 @@ class ClassSymbol final : public ScopeSymbol,
 
   void addConstructor(FunctionSymbol* constructor);
 
+  [[nodiscard]] auto deductionGuides() const
+      -> const std::vector<DeductionGuideSymbol*>&;
+
+  void addDeductionGuide(DeductionGuideSymbol* guide);
+
   [[nodiscard]] auto conversionFunctions() const
       -> const std::vector<FunctionSymbol*>&;
 
@@ -570,6 +593,7 @@ class ClassSymbol final : public ScopeSymbol,
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<FunctionSymbol*> constructors_;
+  std::vector<DeductionGuideSymbol*> deductionGuides_;
   std::vector<FunctionSymbol*> conversionFunctions_;
   std::unique_ptr<ClassLayout> layout_;
   int sizeInBytes_ = 0;

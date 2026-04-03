@@ -1,9 +1,6 @@
 // RUN: %cxx -verify -fcheck %s
 // expected-no-diagnostics
 
-// Regression test: template argument deduction must strip top-level
-// pointer/const-pointer qualifiers when deducing T from T* / T const*.
-
 template <class T>
 T load(T const* p) {
   return *p;

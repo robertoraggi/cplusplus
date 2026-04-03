@@ -998,7 +998,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   }
 
   if (!classSymbol) {
-    classSymbol = control()->newClassSymbol(binder()->scope(), location);
+    classSymbol =
+        control()->newClassSymbol(binder()->declaringScope(), location);
   }
 
   copy->symbol = classSymbol;

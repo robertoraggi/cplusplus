@@ -827,6 +827,21 @@ class StoreOpLowering : public OpConversionPattern<cxx::StoreOp> {
                                          "failed to convert store value type");
     }
 
+    if (isa<LLVM::LLVMStructType>(valueType) ||
+        isa<LLVM::LLVMArrayType>(valueType)) {
+      if (auto loadOp = adaptor.getValue().getDefiningOp<LLVM::LoadOp>()) {
+        auto size = dataLayout_.getTypeSize(valueType);
+        auto i64Ty = rewriter.getI64Type();
+        auto sizeVal = LLVM::ConstantOp::create(
+            rewriter, op.getLoc(), i64Ty, rewriter.getI64IntegerAttr(size));
+        rewriter.replaceOp(
+            op, LLVM::MemcpyOp::create(rewriter, op.getLoc(), adaptor.getAddr(),
+                                       loadOp.getAddr(), sizeVal,
+                                       /*isVolatile=*/false));
+        return success();
+      }
+    }
+
     auto ptrTy = dyn_cast<cxx::PointerType>(op.getAddr().getType());
     if (ptrTy && isBoolElementType(ptrTy)) {
       auto i8Type = getBoolMemoryType(context);
@@ -1531,7 +1546,7 @@ class BitfieldStoreOpLowering
     auto loaded = LLVM::LoadOp::create(rewriter, loc, storageType,
                                        adaptor.getAddr(), storageSizeBytes);
 
-    // Prepare the value to store — truncate/extend to storage type
+    // Prepare the value to store - truncate/extend to storage type
     auto value = adaptor.getValue();
     auto valueBits = value.getType().getIntOrFloatBitWidth();
     if (valueBits > storageSizeBits) {

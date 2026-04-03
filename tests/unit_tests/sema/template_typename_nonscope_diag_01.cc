@@ -7,6 +7,6 @@ struct S {
 };
 
 auto main() -> int {
-  S<int>::X x; // expected-note {{in instantiation of template class 'S<int>' requested here}}
+  S<int>::X x; // expected-note {{in instantiation of template class 'S <int>' requested here}}
   return 0;
 }

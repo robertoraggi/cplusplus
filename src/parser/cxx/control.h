@@ -175,6 +175,9 @@ class Control {
   [[nodiscard]] auto newConceptSymbol(ScopeSymbol* enclosingScope,
                                       SourceLocation sourceLocation)
       -> ConceptSymbol*;
+  [[nodiscard]] auto newDeductionGuideSymbol(ScopeSymbol* enclosingScope,
+                                             SourceLocation sourceLocation)
+      -> DeductionGuideSymbol*;
   [[nodiscard]] auto newBaseClassSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> BaseClassSymbol*;

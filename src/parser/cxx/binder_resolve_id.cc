@@ -332,7 +332,7 @@ auto Binder::ResolveUnqualifiedId::resolveBuiltinMakeIntegerSeq(
   }
   if (args.size() != 3) return nullptr;
 
-  // First arg: Seq — a class template (TypeTemplateArgument with ClassType)
+  // First arg: Seq - a class template (TypeTemplateArgument with ClassType)
   auto seqArg = ast_cast<TypeTemplateArgumentAST>(args[0]);
   if (!seqArg || !seqArg->typeId) return nullptr;
   auto seqType = type_cast<ClassType>(seqArg->typeId->type);
@@ -340,12 +340,12 @@ auto Binder::ResolveUnqualifiedId::resolveBuiltinMakeIntegerSeq(
   auto seqClass = seqType->symbol();
   if (!seqClass || !seqClass->templateDeclaration()) return nullptr;
 
-  // Second arg: T — the element type
+  // Second arg: T - the element type
   auto typeArg = ast_cast<TypeTemplateArgumentAST>(args[1]);
   if (!typeArg || !typeArg->typeId || !typeArg->typeId->type) return nullptr;
   auto elementType = typeArg->typeId->type;
 
-  // Third arg: N — an integer constant expression
+  // Third arg: N - an integer constant expression
   auto countArg = ast_cast<ExpressionTemplateArgumentAST>(args[2]);
   if (!countArg || !countArg->expression) return nullptr;
 
@@ -396,7 +396,7 @@ auto Binder::ResolveUnqualifiedId::resolveBuiltinTypePackElement(
   }
   if (args.size() < 2) return nullptr;
 
-  // First arg: N — an integer constant expression
+  // First arg: N - an integer constant expression
   auto indexArg = ast_cast<ExpressionTemplateArgumentAST>(args[0]);
   if (!indexArg || !indexArg->expression) return nullptr;
 

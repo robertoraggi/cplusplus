@@ -66,8 +66,11 @@ void ASTRewriter::completePendingBody(FunctionSymbol* func) {
   rewriter.depth_ = depth;
 
   if (auto oldFunc = symbol_cast<FunctionSymbol>(originalDef->symbol)) {
-    auto oldClass = symbol_cast<ClassSymbol>(oldFunc->parent());
-    auto newClass = symbol_cast<ClassSymbol>(func->parent());
+    auto oldClass = symbol_cast<ClassSymbol>(
+        oldFunc->enclosingNonTemplateParametersScope());
+    auto newClass =
+        symbol_cast<ClassSymbol>(func->enclosingNonTemplateParametersScope());
+
     if (oldClass && newClass && oldClass != newClass) {
       rewriter.remapScopeMembers(oldClass, newClass);
     }

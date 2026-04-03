@@ -2910,7 +2910,7 @@ void Preprocessor::Private::defineMacro(const Tok* ts, const Tok* lineEnd) {
   auto name = std::string(getMacroName(macro));
 
   if (auto body = getMacroBody(macro); body && !body->empty()) {
-    // strip leading space/bol from first body token — but body is in the
+    // strip leading space/bol from first body token - but body is in the
     // Macro variant, so we need to modify it in place after insert
   }
 

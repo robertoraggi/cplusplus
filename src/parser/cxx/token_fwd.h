@@ -252,6 +252,7 @@ class Token;
   V(__IS_MEMBER_FUNCTION_POINTER, "__is_member_function_pointer") \
   V(__IS_MEMBER_OBJECT_POINTER, "__is_member_object_pointer")     \
   V(__IS_MEMBER_POINTER, "__is_member_pointer")                   \
+  V(__IS_NOTHROW_ASSIGNABLE, "__is_nothrow_assignable")           \
   V(__IS_NOTHROW_CONSTRUCTIBLE, "__is_nothrow_constructible")     \
   V(__IS_NULL_POINTER, "__is_null_pointer")                       \
   V(__IS_OBJECT, "__is_object")                                   \

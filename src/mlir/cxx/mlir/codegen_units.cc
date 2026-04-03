@@ -80,6 +80,7 @@ struct Codegen::UnitVisitor {
 
     for (auto member : views::members(ns)) {
       if (auto var = symbol_cast<VariableSymbol>(member)) {
+        if (var->templateParameters()) continue;
         gen.findOrCreateGlobal(var);
         continue;
       }
