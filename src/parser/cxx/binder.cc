@@ -132,6 +132,21 @@ auto Binder::declaringScope() const -> ScopeSymbol* {
   return scope_->enclosingNonTemplateParametersScope();
 }
 
+auto Binder::scopeForBlockDecl(ScopeSymbol* scope) const -> ScopeSymbol* {
+  if (scope && scope->isBlock()) {
+    if (auto ns = scope->enclosingNamespace()) return ns;
+  }
+  return scope;
+}
+
+void Binder::injectUsing(ScopeSymbol* scope, const Name* name, Symbol* target,
+                         SourceLocation loc) {
+  auto u = control()->newUsingDeclarationSymbol(scope, loc);
+  u->setName(name);
+  u->setTarget(target);
+  scope->addSymbol(u);
+}
+
 auto Binder::scope() const -> ScopeSymbol* { return scope_; }
 
 void Binder::setScope(ScopeSymbol* scope) {
@@ -1497,7 +1512,11 @@ void Binder::declareAnonymousField(ClassSpecifierAST* classSpecifier) {
 auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
                              bool addSymbolToParentScope) -> VariableSymbol* {
   auto name = decl.getName();
-  auto symbol = control()->newVariableSymbol(declaringScope(), decl.location());
+  auto currentScope = declaringScope();
+  auto targetScope =
+      decl.specs.isExtern ? scopeForBlockDecl(currentScope) : currentScope;
+
+  auto symbol = control()->newVariableSymbol(targetScope, decl.location());
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
@@ -1507,10 +1526,7 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
     unit_->typeTraits().requireCompleteClass(classType->symbol());
   }
   if (addSymbolToParentScope) {
-    auto scope = declaringScope();
-
-    // Check for redeclaration of an existing variable with the same name
-    for (auto candidate : scope->find(name)) {
+    for (auto candidate : targetScope->find(name)) {
       if (auto existing = symbol_cast<VariableSymbol>(candidate)) {
         if (!areRedeclarationTypesCompatible(unit_, existing->type(),
                                              symbol->type())) {
@@ -1530,7 +1546,12 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
       }
     }
 
-    scope->addSymbol(symbol);
+    targetScope->addSymbol(symbol);
+
+    if (targetScope != currentScope) {
+      if (symbol->canonical() == symbol) symbol->setHidden(true);
+      injectUsing(currentScope, name, symbol->canonical(), decl.location());
+    }
   }
   return symbol;
 }
