@@ -222,6 +222,12 @@ def Cxx_MemSetZeroOp : Cxx_Op<"memzero"> {
   let assemblyFormat = "$addr attr-dict `:` type($addr) `size` $size";
 }
 
+def Cxx_MemCpyOp : Cxx_Op<"memcpy"> {
+  let arguments = (ins Cxx_PointerType:$dest, Cxx_PointerType:$src, I64Prop:$size);
+
+  let assemblyFormat = "$dest `,` $src attr-dict `:` type($dest) `,` type($src) `size` $size";
+}
+
 def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
   let arguments = (ins Cxx_PointerType:$base, AnyType:$index);
 
