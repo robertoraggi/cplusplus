@@ -37,4 +37,7 @@ class TranslationUnit;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit, const Type* type) -> bool;
 
+[[nodiscard]] auto isDependent(TranslationUnit* unit,
+                               NestedNameSpecifierAST* ast) -> bool;
+
 }  // namespace cxx

@@ -690,7 +690,7 @@ void Binder::BuildRecordLayout::propagateAnonymousFields(
     // Propagate each field of the anonymous class into the parent layout.
     for (auto field : views::members(nestedClass) | views::non_static_fields) {
       if (auto nestedFieldInfo = nestedLayout->getFieldInfo(field)) {
-        // Don't propagate implicit anonymous field symbols — they are
+        // Don't propagate implicit anonymous field symbols - they are
         // structural fields, not user-visible members accessed via lookup.
         if (!field->name()) {
           auto fieldType = type_cast<ClassType>(field->type());

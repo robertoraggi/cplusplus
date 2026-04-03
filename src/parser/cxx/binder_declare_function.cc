@@ -98,8 +98,14 @@ auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
   auto rhsFn = type_cast<FunctionType>(rhs);
   if (!lhsFn || !rhsFn) return false;
 
-  if (!unit->typeTraits().is_same(lhsFn->returnType(), rhsFn->returnType()))
-    return false;
+  if (!unit->typeTraits().is_same(lhsFn->returnType(), rhsFn->returnType())) {
+    auto lhsCore = unit->typeTraits().remove_cvref(lhsFn->returnType());
+    auto rhsCore = unit->typeTraits().remove_cvref(rhsFn->returnType());
+    auto lhsUnresolved = type_cast<UnresolvedNameType>(lhsCore);
+    auto rhsUnresolved = type_cast<UnresolvedNameType>(rhsCore);
+    if (!lhsUnresolved || !rhsUnresolved) return false;
+    if (to_string(lhsUnresolved) != to_string(rhsUnresolved)) return false;
+  }
   if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
   if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
   if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
@@ -181,7 +187,8 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   auto returnType = decl.getReturnType(scope());
   auto type = getDeclaratorType(binder.unit_, declarator, returnType);
 
-  functionSymbol = control()->newFunctionSymbol(scope(), decl.location());
+  functionSymbol =
+      control()->newFunctionSymbol(binder.declaringScope(), decl.location());
   functionSymbol->setName(name);
   functionSymbol->setType(type);
 
@@ -277,6 +284,12 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
 }
 
 void Binder::DeclareFunction::checkRedeclaration() {
+  if (auto id = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator)) {
+    if (auto nns = id->nestedNameSpecifier) {
+      if (!nns->symbol && !binder.declaringScope()->isClass()) return;
+    }
+  }
+
   auto declaringScope = declaringScopeForFunction();
 
   OverloadSetSymbol* overloadSet = nullptr;

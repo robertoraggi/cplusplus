@@ -23,7 +23,7 @@ struct conditional { using type = _If; };
 template <class _If, class _Then>
 struct conditional<false, _If, _Then> { using type = _Then; };
 
-// conditional NNS with literal true — template context
+// conditional NNS with literal true - template context
 template <class T>
 struct test3 : conditional<true, A, B>::type {};
 test3<int> t3;

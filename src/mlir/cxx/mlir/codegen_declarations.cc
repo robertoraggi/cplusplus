@@ -317,6 +317,11 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
       ExpressionAST* initExpr = nullptr;
       if (auto equal = ast_cast<EqualInitializerAST>(node->initializer)) {
         initExpr = equal->expression;
+      } else if (auto paren =
+                     ast_cast<ParenInitializerAST>(node->initializer)) {
+        // Scalar paren-initialization: int x(expr) - use the single argument.
+        if (paren->expressionList && !paren->expressionList->next)
+          initExpr = paren->expressionList->value;
       } else {
         initExpr = node->initializer;
       }
@@ -551,9 +556,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   mlir::Value thisValue;
 
-  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
-
+  if (auto classSymbol = symbol_cast<ClassSymbol>(
+          functionSymbol->enclosingNonTemplateParametersScope());
+      !functionSymbol->isStatic() && classSymbol) {
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = mlir::cxx::PointerType::get(gen.context_, thisType);
 

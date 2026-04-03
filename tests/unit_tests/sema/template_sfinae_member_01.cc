@@ -1,13 +1,6 @@
 // RUN: %cxx -verify -fcheck %s
 // expected-no-diagnostics
 
-// Regression test: when a class template is instantiated, member function
-// templates inside it must be bound with a templateDeclaration so that
-// subsequent SFINAE / overload-resolution can instantiate them.
-//
-// The pattern below is the is_referenceable idiom: T& is ill-formed for
-// T=void, so SFINAE selects the fallback overload.
-
 struct false_t {};
 
 template <class T>

@@ -597,8 +597,9 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
 
   mlir::LLVM::DIScopeAttr scope;
 
-  if (!functionSymbol->isStatic() && functionSymbol->parent()->isClass()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
+  if (auto classSymbol = symbol_cast<ClassSymbol>(
+          functionSymbol->enclosingNonTemplateParametersScope());
+      !functionSymbol->isStatic() && classSymbol) {
     if (classSymbol) {
       scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
           convertDebugType(classSymbol->type()));
@@ -744,9 +745,9 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   std::vector<mlir::Type> inputTypes;
   std::vector<mlir::Type> resultTypes;
 
-  if (!emittedSymbol->isStatic() && emittedSymbol->parent()->isClass()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(emittedSymbol->parent());
-
+  if (auto classSymbol = symbol_cast<ClassSymbol>(
+          emittedSymbol->enclosingNonTemplateParametersScope());
+      !emittedSymbol->isStatic() && classSymbol) {
     inputTypes.push_back(mlir::cxx::PointerType::get(
         context_, convertType(classSymbol->type())));
   }

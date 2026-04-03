@@ -32,6 +32,7 @@
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -142,6 +143,17 @@ void Binder::setScope(ScopeSymbol* scope) {
       inTemplate_ = true;
       break;
     }
+    if (auto cls = symbol_cast<ClassSymbol>(current)) {
+      if (cls->templateParameters()) {
+        inTemplate_ = true;
+        break;
+      }
+    } else if (auto func = symbol_cast<FunctionSymbol>(current)) {
+      if (func->templateParameters()) {
+        inTemplate_ = true;
+        break;
+      }
+    }
   }
 }
 
@@ -178,7 +190,8 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
   auto enumName = get_name(control(), ast->unqualifiedId);
 
   if (ast->classLoc && is_parsing_cxx()) {
-    auto enumSymbol = control()->newScopedEnumSymbol(scope(), location);
+    auto enumSymbol =
+        control()->newScopedEnumSymbol(declaringScope(), location);
     ast->symbol = enumSymbol;
 
     enumSymbol->setName(enumName);
@@ -191,7 +204,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
       error(ast->classLoc, "scoped enums are not allowed in C");
     }
 
-    auto enumSymbol = control()->newEnumSymbol(scope(), location);
+    auto enumSymbol = control()->newEnumSymbol(declaringScope(), location);
 
     if (ast->typeSpecifierList) {
       enumSymbol->setHasFixedUnderlyingType(true);
@@ -276,7 +289,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
 
     if (!classSymbol) {
       const auto isUnion = ast->classKey == TokenKind::T_UNION;
-      classSymbol = control()->newClassSymbol(scope(), location);
+      classSymbol = control()->newClassSymbol(targetScope, location);
 
       classSymbol->setIsUnion(isUnion);
       classSymbol->setName(name);
@@ -397,7 +410,7 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
 
 auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
                               bool addSymbolToParentScope) -> TypeAliasSymbol* {
-  auto symbol = control()->newTypeAliasSymbol(scope(), identifierLoc);
+  auto symbol = control()->newTypeAliasSymbol(declaringScope(), identifierLoc);
 
   auto name = unit_->identifier(identifierLoc);
   symbol->setName(name);
@@ -699,7 +712,8 @@ void Binder::bind(TemplateTypeParameterAST* ast, int index, int depth) {
 void Binder::bind(ConceptDefinitionAST* ast) {
   auto templateParameters = currentTemplateParameters();
 
-  auto symbol = control()->newConceptSymbol(scope(), ast->identifierLoc);
+  auto symbol =
+      control()->newConceptSymbol(declaringScope(), ast->identifierLoc);
   symbol->setName(ast->identifier);
   if (templateParameters) {
     symbol->setTemplateParameters(templateParameters);
@@ -707,6 +721,79 @@ void Binder::bind(ConceptDefinitionAST* ast) {
   ast->symbol = symbol;
 
   declaringScope()->addSymbol(symbol);
+}
+
+void Binder::bind(DeductionGuideAST* ast) {
+  auto templateParameters = currentTemplateParameters();
+
+  auto symbol =
+      control()->newDeductionGuideSymbol(declaringScope(), ast->identifierLoc);
+  symbol->setName(ast->identifier);
+  if (templateParameters) {
+    symbol->setTemplateParameters(templateParameters);
+  }
+  if (ast->explicitSpecifier) {
+    symbol->setExplicit(true);
+  }
+  ast->symbol = symbol;
+
+  std::vector<const Type*> parameterTypes;
+  bool isVariadic = false;
+
+  if (auto* params = ast->parameterDeclarationClause) {
+    for (auto it = params->parameterDeclarationList; it; it = it->next) {
+      auto paramType = it->value ? it->value->type : nullptr;
+      if (paramType && !type_cast<VoidType>(paramType))
+        parameterTypes.push_back(paramType);
+    }
+    isVariadic = params->isVariadic;
+  }
+
+  auto* primaryTemplate =
+      ast->templateId ? symbol_cast<ClassSymbol>(ast->templateId->symbol)
+                      : nullptr;
+  if (!primaryTemplate) return;
+
+  ClassSymbol* deducedClassSymbol = primaryTemplate;
+
+  if (auto templateDecl = primaryTemplate->templateDeclaration();
+      templateDecl && ast->templateId->templateArgumentList) {
+    auto templateArgs =
+        Substitution(unit_, templateDecl, ast->templateId->templateArgumentList)
+            .templateArguments();
+
+    if (!templateArgs.empty()) {
+      if (auto cached = primaryTemplate->findSpecialization(templateArgs)) {
+        deducedClassSymbol = symbol_cast<ClassSymbol>(cached);
+      } else {
+        auto parentScope =
+            primaryTemplate->enclosingNonTemplateParametersScope();
+        auto spec = control()->newClassSymbol(parentScope, {});
+        spec->setName(primaryTemplate->name());
+        spec->setType(control()->getClassType(spec));
+        primaryTemplate->addSpecialization(std::move(templateArgs), spec);
+        for (auto& s : primaryTemplate->mutableSpecializations()) {
+          if (s.symbol == spec) {
+            s.pendingArgumentList = ast->templateId->templateArgumentList;
+            s.pendingInstantiationLoc = ast->templateId->identifierLoc;
+            s.isPendingInstantiation = true;
+            break;
+          }
+        }
+        deducedClassSymbol = spec;
+      }
+    }
+  }
+
+  const Type* returnType =
+      deducedClassSymbol ? deducedClassSymbol->type() : nullptr;
+  if (!returnType) return;
+
+  auto funcType = control()->getFunctionType(
+      returnType, std::move(parameterTypes), isVariadic, {}, {}, false);
+  symbol->setType(funcType);
+
+  primaryTemplate->addDeductionGuide(symbol);
 }
 
 void Binder::bind(LambdaExpressionAST* ast) {
@@ -936,7 +1023,8 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     -> TypeAliasSymbol* {
   auto name = decl.getName();
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
-  auto symbol = control()->newTypeAliasSymbol(scope(), decl.location());
+  auto symbol =
+      control()->newTypeAliasSymbol(declaringScope(), decl.location());
   symbol->setName(name);
   symbol->setType(type);
 
@@ -1409,7 +1497,7 @@ void Binder::declareAnonymousField(ClassSpecifierAST* classSpecifier) {
 auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
                              bool addSymbolToParentScope) -> VariableSymbol* {
   auto name = decl.getName();
-  auto symbol = control()->newVariableSymbol(scope(), decl.location());
+  auto symbol = control()->newVariableSymbol(declaringScope(), decl.location());
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
@@ -1758,6 +1846,11 @@ void Binder::bind(IdExpressionAST* ast) {
 void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
   if (!ast->unqualifiedId) return;
   if (!ast->nestedNameSpecifier || !ast->nestedNameSpecifier->symbol) return;
+
+  if (auto classSymbol =
+          symbol_cast<ClassSymbol>(ast->nestedNameSpecifier->symbol)) {
+    unit_->typeTraits().requireCompleteClass(classSymbol);
+  }
 
   auto name = get_name(control(), ast->unqualifiedId);
   const Name* componentName = name;

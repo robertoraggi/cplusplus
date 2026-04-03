@@ -7,6 +7,6 @@ struct S;
 S<"bad">;
 // expected-error@+1 {{expected a declaration}}
 S<"bad">;
-// No more errors expected — limit reached
+// No more errors expected - limit reached
 S<"bad">;
 S<"bad">;

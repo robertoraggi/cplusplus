@@ -469,6 +469,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   copy->symbol = symbol;
 
+  rewrite.addSymbolRemap(ast->symbol, symbol);
+
   return copy;
 }
 
@@ -564,9 +566,24 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
 
-  if (ast->symbol && ast->symbol->templateDeclaration() &&
-      rewrite.binder().instantiatingSymbol() == ast->symbol) {
-    ast->symbol->addSpecialization(rewrite.templateArguments(), functionSymbol);
+  if (ast->symbol && ast->symbol->templateDeclaration()) {
+    auto instSym =
+        symbol_cast<FunctionSymbol>(rewrite.binder().instantiatingSymbol());
+    auto primaryForThis = ast->symbol->canonical();
+    if (instSym && (instSym == ast->symbol || instSym == primaryForThis)) {
+      instSym->addSpecialization(rewrite.templateArguments(), functionSymbol);
+    }
+  }
+
+  if (!isTemplateInstantiation) {
+    if (templateHead) {
+      functionSymbol->setTemplateDeclaration(templateHead);
+      functionSymbol->setTemplateParameters(templateHead->symbol);
+    } else if (ast->symbol && ast->symbol->templateParameters()) {
+      functionSymbol->setTemplateDeclaration(
+          ast->symbol->templateDeclaration());
+      functionSymbol->setTemplateParameters(ast->symbol->templateParameters());
+    }
   }
 
   if (!rewrite.restrictedToDeclarations()) {

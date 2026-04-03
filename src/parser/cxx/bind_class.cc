@@ -150,7 +150,8 @@ auto Binder::BindClass::createClassSymbol(const Identifier* className,
                                           SourceLocation location)
     -> ClassSymbol* {
   const auto isUnion = ast->classKey == TokenKind::T_UNION;
-  auto classSymbol = control()->newClassSymbol(binder.scope(), location);
+  auto classSymbol =
+      control()->newClassSymbol(binder.declaringScope(), location);
   classSymbol->setIsUnion(isUnion);
   classSymbol->setName(className);
   return classSymbol;
@@ -285,7 +286,7 @@ void Binder::BindClass::bind() {
     classSymbol = createClassSymbol(name, location);
     binder.declaringScope()->addSymbol(classSymbol);
   } else {
-    classSymbol->setParent(binder.scope());
+    classSymbol->setParent(binder.declaringScope());
   }
 
   initializeClassSymbol(classSymbol);

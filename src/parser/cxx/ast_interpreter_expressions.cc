@@ -1035,6 +1035,22 @@ auto ASTInterpreter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
+  // Static member access: e.g. is_copy_assignable<int>::value
+  if (ast->symbol) {
+    if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
+        field && field->isStatic() && field->initializer()) {
+      return interp.expression(field->initializer());
+    }
+    if (auto var = symbol_cast<VariableSymbol>(ast->symbol);
+        var && var->isConstexpr()) {
+      if (auto cv = var->constValue()) return cv;
+      if (var->initializer()) return interp.expression(var->initializer());
+    }
+    if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
+      return enumerator->value();
+    }
+  }
+
   return ExpressionResult{std::nullopt};
 }
 
@@ -1690,6 +1706,12 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       case BuiltinTypeTraitKind::T___IS_ASSIGNABLE: {
         if (!secondType) break;
         return unit()->typeTraits().is_assignable(firstType, secondType);
+      }
+
+      case BuiltinTypeTraitKind::T___IS_NOTHROW_ASSIGNABLE: {
+        if (!secondType) break;
+        return unit()->typeTraits().is_nothrow_assignable(firstType,
+                                                          secondType);
       }
 
       case BuiltinTypeTraitKind::T___IS_CONVERTIBLE:

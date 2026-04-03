@@ -4775,6 +4775,7 @@ auto DeductionGuideAST::clone(Arena* arena) -> DeductionGuideAST* {
 
   node->semicolonLoc = semicolonLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
 
   return node;
 }
@@ -4790,7 +4791,8 @@ auto DeductionGuideAST::create(
     ParameterDeclarationClauseAST* parameterDeclarationClause,
     SourceLocation rparenLoc, SourceLocation arrowLoc,
     SimpleTemplateIdAST* templateId, SourceLocation semicolonLoc,
-    const Identifier* identifier) -> DeductionGuideAST* {
+    const Identifier* identifier, DeductionGuideSymbol* symbol)
+    -> DeductionGuideAST* {
   auto node = new (arena) DeductionGuideAST();
   node->explicitSpecifier = explicitSpecifier;
   node->identifierLoc = identifierLoc;
@@ -4801,19 +4803,21 @@ auto DeductionGuideAST::create(
   node->templateId = templateId;
   node->semicolonLoc = semicolonLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
 auto DeductionGuideAST::create(
     Arena* arena, SpecifierAST* explicitSpecifier,
     ParameterDeclarationClauseAST* parameterDeclarationClause,
-    SimpleTemplateIdAST* templateId, const Identifier* identifier)
-    -> DeductionGuideAST* {
+    SimpleTemplateIdAST* templateId, const Identifier* identifier,
+    DeductionGuideSymbol* symbol) -> DeductionGuideAST* {
   auto node = new (arena) DeductionGuideAST();
   node->explicitSpecifier = explicitSpecifier;
   node->parameterDeclarationClause = parameterDeclarationClause;
   node->templateId = templateId;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 

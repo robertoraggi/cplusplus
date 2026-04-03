@@ -11,7 +11,7 @@ struct conditional { using type = _If; };
 template <class _If, class _Then>
 struct conditional<false, _If, _Then> { using type = _Then; };
 
-// typename through class template NNS — non-template context
+// typename through class template NNS - non-template context
 using R1 = typename conditional<true, A, B>::type;
 static_assert(__is_same(R1, A), "R1 should be A");
 
@@ -22,10 +22,10 @@ static_assert(__is_same(R2, B), "R2 should be B");
 template <bool _Bp, class _If, class _Then>
 using conditional_t = typename conditional<_Bp, _If, _Then>::type;
 
-// Alias template as base class — non-template context
+// Alias template as base class - non-template context
 struct test1 : conditional_t<true, A, B> {};
 
-// Alias template as base class — template context
+// Alias template as base class - template context
 template <class T>
 struct test2 : conditional_t<true, A, B> {};
 test2<int> t2;

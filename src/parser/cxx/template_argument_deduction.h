@@ -80,6 +80,12 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto buildTemplateArgumentList()
       -> std::optional<List<TemplateArgumentAST*>*>;
 
+  static auto getParameterClause(DeclarationAST* decl)
+      -> ParameterDeclarationClauseAST*;
+
+  void deduceFromClassTemplateParam(ParameterDeclarationAST* paramDecl,
+                                    const Type* argType, const Type* P);
+
   TranslationUnit* unit_;
   Control* control_;
   Arena* arena_;
@@ -89,6 +95,7 @@ class TemplateArgumentDeduction {
   std::vector<std::vector<TemplateArgumentAST*>> explicitPackArgs_;
   std::vector<const Type*> deducedTypes_;
   std::vector<std::vector<const Type*>> deducedPacks_;
+  List<ParameterDeclarationAST*>* parameterDeclarations_ = nullptr;
 };
 
 }  // namespace cxx

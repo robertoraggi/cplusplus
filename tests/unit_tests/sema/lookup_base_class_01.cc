@@ -22,7 +22,7 @@ struct Derived : Base {
   }
 };
 
-// Diamond hierarchy — name found through multiple paths
+// Diamond hierarchy - name found through multiple paths
 struct A {
   using type = int;
 };

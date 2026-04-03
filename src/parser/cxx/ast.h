@@ -839,6 +839,7 @@ class DeductionGuideAST final : public DeclarationAST {
   SimpleTemplateIdAST* templateId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
+  DeductionGuideSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -855,13 +856,14 @@ class DeductionGuideAST final : public DeclarationAST {
       ParameterDeclarationClauseAST* parameterDeclarationClause,
       SourceLocation rparenLoc, SourceLocation arrowLoc,
       SimpleTemplateIdAST* templateId, SourceLocation semicolonLoc,
-      const Identifier* identifier) -> DeductionGuideAST*;
+      const Identifier* identifier, DeductionGuideSymbol* symbol)
+      -> DeductionGuideAST*;
 
   [[nodiscard]] static auto create(
       Arena* arena, SpecifierAST* explicitSpecifier,
       ParameterDeclarationClauseAST* parameterDeclarationClause,
-      SimpleTemplateIdAST* templateId, const Identifier* identifier)
-      -> DeductionGuideAST*;
+      SimpleTemplateIdAST* templateId, const Identifier* identifier,
+      DeductionGuideSymbol* symbol) -> DeductionGuideAST*;
 
  protected:
   DeductionGuideAST() : DeclarationAST(Kind) {}

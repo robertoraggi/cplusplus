@@ -142,6 +142,8 @@ class Binder {
 
   void bind(ConceptDefinitionAST* ast);
 
+  void bind(DeductionGuideAST* ast);
+
   void bind(LambdaExpressionAST* ast);
 
   void complete(LambdaExpressionAST* ast);

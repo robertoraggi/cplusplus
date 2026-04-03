@@ -4645,6 +4645,11 @@ auto Parser::parse_simple_declaration(
       setScope(functionSymbol);
     }
 
+    if (templateHead) {
+      functionSymbol->setTemplateDeclaration(templateHead);
+      functionSymbol->setTemplateParameters(templateHead->symbol);
+    }
+
     if (ctx == BindingContext::kTemplate || templateHead) {
       mark_maybe_template_name(declarator);
     }
@@ -4670,11 +4675,6 @@ auto Parser::parse_simple_declaration(
     ast->functionBody = functionBody;
     ast->symbol = functionSymbol;
     ast->symbol->setDeclaration(ast);
-
-    if (templateHead) {
-      functionSymbol->setTemplateDeclaration(templateHead);
-      functionSymbol->setTemplateParameters(templateHead->symbol);
-    }
 
     if (classDepth_) pendingFunctionDefinitions_.push_back(ast);
 
@@ -5647,7 +5647,7 @@ auto Parser::maybe_template_name(const Identifier* id) -> bool {
 void Parser::mark_maybe_template_name(const Identifier* id) {
   if (!config().fuzzyTemplateResolution) return;
   if (!id) return;
-  template_names_.insert(id);
+  template_names_.emplace(id);
 }
 
 void Parser::mark_maybe_template_name(UnqualifiedIdAST* name) {
@@ -5795,7 +5795,16 @@ void Parser::check_type_traits() {
 auto Parser::is_template(Symbol* symbol) const -> bool {
   if (!symbol) return false;
   if (symbol->isTemplateTypeParameter()) return true;
-  return symbol_cast<TemplateParametersSymbol>(symbol->parent());
+  if (symbol_cast<TemplateParametersSymbol>(symbol->parent())) return true;
+  if (auto alias = symbol_cast<TypeAliasSymbol>(symbol))
+    return alias->templateParameters() != nullptr;
+  if (auto cls = symbol_cast<ClassSymbol>(symbol))
+    return cls->templateParameters() != nullptr;
+  if (auto func = symbol_cast<FunctionSymbol>(symbol))
+    return func->templateParameters() != nullptr;
+  if (auto var = symbol_cast<VariableSymbol>(symbol))
+    return var->templateParameters() != nullptr;
+  return false;
 }
 
 auto Parser::evaluate_constant_expression(ExpressionAST* expr)
@@ -10106,7 +10115,11 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
 
     const SourceLocation saved = currentLocation();
 
-    if (!parse_skip_balanced()) return false;
+    // Skip the entire parameter list - may contain multiple tokens and
+    // nested balanced groups (e.g. `_Rp (*)(_Ap...)`).
+    while (!lookat(TokenKind::T_EOF_SYMBOL) && !lookat(TokenKind::T_RPAREN)) {
+      if (!parse_skip_balanced()) return false;
+    }
 
     if (!lookat(TokenKind::T_RPAREN, TokenKind::T_MINUS_GREATER)) return false;
 
@@ -10117,42 +10130,41 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
 
   if (!lookat_deduction_guide()) return false;
 
-  SourceLocation rparenLoc;
-  ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
-
-  if (!match(TokenKind::T_RPAREN, rparenLoc)) {
-    if (!parse_parameter_declaration_clause(parameterDeclarationClause)) {
-      parse_error("expected a parameter declaration");
-    }
-
-    expect(TokenKind::T_RPAREN, rparenLoc);
-  }
-
-  SourceLocation arrowLoc;
-
-  expect(TokenKind::T_MINUS_GREATER, arrowLoc);
-
-  SimpleTemplateIdAST* templateId = nullptr;
-
-  if (!parse_simple_template_id(templateId, /*nestedNameSpecifier=*/nullptr)) {
-    parse_error("expected a template id");
-  }
-
-  SourceLocation semicolonLoc;
-
-  expect(TokenKind::T_SEMICOLON, semicolonLoc);
-
   auto ast = DeductionGuideAST::create(pool_);
   yyast = ast;
+
   ast->explicitSpecifier = explicitSpecifier;
   ast->identifierLoc = identifierLoc;
-  ast->lparenLoc = lparenLoc;
-  ast->parameterDeclarationClause = parameterDeclarationClause;
-  ast->rparenLoc = rparenLoc;
-  ast->arrowLoc = arrowLoc;
-  ast->templateId = templateId;
-  ast->semicolonLoc = semicolonLoc;
   ast->identifier = unit_->identifier(identifierLoc);
+  ast->lparenLoc = lparenLoc;
+
+  {
+    auto _ = CombinedScopeGuard{this};
+
+    if (!match(TokenKind::T_RPAREN, ast->rparenLoc)) {
+      if (!parse_parameter_declaration_clause(
+              ast->parameterDeclarationClause)) {
+        parse_error("expected a parameter declaration");
+      }
+
+      expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+      if (ast->parameterDeclarationClause) {
+        setScope(ast->parameterDeclarationClause->functionParametersSymbol);
+      }
+    }
+
+    expect(TokenKind::T_MINUS_GREATER, ast->arrowLoc);
+
+    if (!parse_simple_template_id(ast->templateId,
+                                  /*nestedNameSpecifier=*/nullptr)) {
+      parse_error("expected a template id");
+    }
+  }
+
+  expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
+  binder_.bind(ast);
 
   return true;
 }
@@ -10589,10 +10601,11 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
 
   std::vector<ScopeSymbol*> scopesToPush;
   scopesToPush.push_back(ast->symbol);
+  if (auto tp = ast->symbol->templateParameters()) scopesToPush.push_back(tp);
   for (auto p = ast->symbol->parent(); p; p = p->parent()) {
-    if (symbol_cast<TemplateParametersSymbol>(p) ||
-        symbol_cast<ClassSymbol>(p)) {
-      scopesToPush.push_back(p);
+    if (auto cls = symbol_cast<ClassSymbol>(p)) {
+      scopesToPush.push_back(cls);
+      if (auto tp = cls->templateParameters()) scopesToPush.push_back(tp);
     } else {
       break;
     }

@@ -254,6 +254,13 @@ struct DumpSymbols {
       --depth;
     }
     dumpScope(symbol);
+    if (!symbol->deductionGuides().empty()) {
+      ++depth;
+      for (auto guide : symbol->deductionGuides()) {
+        visit(*this, guide);
+      }
+      --depth;
+    }
     dumpSpecializations(symbol->specializations());
     dumpRedeclarations(symbol);
   }
@@ -261,6 +268,25 @@ struct DumpSymbols {
   void operator()(ConceptSymbol* symbol) {
     indent();
     out << std::format("concept {}\n", to_string(symbol->name()));
+    if (symbol->templateParameters()) dumpScope(symbol->templateParameters());
+  }
+
+  void operator()(DeductionGuideSymbol* symbol) {
+    indent();
+    if (auto funcType = type_cast<FunctionType>(symbol->type())) {
+      std::string params;
+      bool first = true;
+      for (auto* pt : funcType->parameterTypes()) {
+        if (!first) params += ", ";
+        params += to_string(pt);
+        first = false;
+      }
+      out << std::format("deduction-guide {}({}) -> {}\n",
+                         to_string(symbol->name()), params,
+                         to_string(funcType->returnType()));
+    } else {
+      out << std::format("deduction-guide {}\n", to_string(symbol->name()));
+    }
     if (symbol->templateParameters()) dumpScope(symbol->templateParameters());
   }
 

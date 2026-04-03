@@ -90,8 +90,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:              core-declarator: id-declarator
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: ident_v
-// CHECK-NEXT:            initializer: equal-initializer
-// CHECK-NEXT:              expression: id-expression
+// CHECK-NEXT:            initializer: equal-initializer [prvalue type-param<0, 0>]
+// CHECK-NEXT:              expression: id-expression [prvalue type-param<0, 0>]
 // CHECK-NEXT:                nested-name-specifier: template-nested-name-specifier
 // CHECK-NEXT:                  template-id: simple-template-id
 // CHECK-NEXT:                    identifier: ident

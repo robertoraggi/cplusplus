@@ -650,8 +650,8 @@ auto Codegen::ConvertDebugType::operator()(const UnsignedBitIntType* type)
                    llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(
-    const UnresolvedBitIntType* type) -> mlir::LLVM::DITypeAttr {
+auto Codegen::ConvertDebugType::operator()(const UnresolvedBitIntType* type)
+    -> mlir::LLVM::DITypeAttr {
   return {};
 }
 

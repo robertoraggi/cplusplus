@@ -46,6 +46,12 @@ auto TemplateArgumentDeduction::deduce(
   if (!substituteExplicitTemplateArguments(explicitTemplateArgs))
     return std::nullopt;
 
+  parameterDeclarations_ = nullptr;
+  if (templateDecl->declaration) {
+    if (auto clause = getParameterClause(templateDecl->declaration))
+      parameterDeclarations_ = clause->parameterDeclarationList;
+  }
+
   if (!deduceFromCall(functionType, args)) return std::nullopt;
 
   if (!checkDeducedArguments()) return std::nullopt;
@@ -300,6 +306,7 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
     -> bool {
   auto paramIt = functionType->parameterTypes().begin();
   auto paramEnd = functionType->parameterTypes().end();
+  auto paramDeclIt = parameterDeclarations_;
 
   for (auto argIt = args; argIt; argIt = argIt->next) {
     auto argType = argIt->value ? argIt->value->type : nullptr;
@@ -311,10 +318,14 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
 
     if (!deduceFromCallArgument(P, argType, argIt->value)) return false;
 
+    if (paramDeclIt)
+      deduceFromClassTemplateParam(paramDeclIt->value, argType, P);
+
     auto bareParam = unit_->typeTraits().remove_cvref(P);
     auto tpt = type_cast<TypeParameterType>(bareParam);
     if (!tpt || !templateParams_[tpt->index()].isPack) {
       ++paramIt;
+      if (paramDeclIt) paramDeclIt = paramDeclIt->next;
     }
   }
 
@@ -386,6 +397,83 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
   }
 
   return templArgList;
+}
+
+auto TemplateArgumentDeduction::getParameterClause(DeclarationAST* decl)
+    -> ParameterDeclarationClauseAST* {
+  DeclaratorAST* declarator = nullptr;
+  if (auto funcDef = ast_cast<FunctionDefinitionAST>(decl))
+    declarator = funcDef->declarator;
+  else if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(decl))
+    if (simpleDecl->initDeclaratorList)
+      declarator = simpleDecl->initDeclaratorList->value->declarator;
+  if (!declarator) return nullptr;
+  for (auto chunk : ListView{declarator->declaratorChunkList})
+    if (auto fc = ast_cast<FunctionDeclaratorChunkAST>(chunk))
+      return fc->parameterDeclarationClause;
+  return nullptr;
+}
+
+void TemplateArgumentDeduction::deduceFromClassTemplateParam(
+    ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P) {
+  if (!paramDecl) return;
+
+  auto bareP = unit_->typeTraits().remove_cvref(P);
+  auto paramClassType = type_cast<ClassType>(bareP);
+  if (!paramClassType) return;
+  auto paramClass = paramClassType->symbol();
+  if (!paramClass || !paramClass->templateDeclaration() ||
+      paramClass->isSpecialization())
+    return;
+
+  auto bareA = unit_->typeTraits().remove_cvref(argType);
+  auto argClassType = type_cast<ClassType>(bareA);
+  if (!argClassType) return;
+  auto argClass = argClassType->symbol();
+  if (!argClass || !argClass->isSpecialization() ||
+      argClass->primaryTemplateSymbol() != paramClass)
+    return;
+
+  auto argArgs = argClass->templateArguments();
+
+  for (auto spec : ListView{paramDecl->typeSpecifierList}) {
+    auto namedSpec = ast_cast<NamedTypeSpecifierAST>(spec);
+    if (!namedSpec) continue;
+    auto templateId = ast_cast<SimpleTemplateIdAST>(namedSpec->unqualifiedId);
+    if (!templateId) continue;
+
+    int i = 0;
+    for (auto arg : ListView{templateId->templateArgumentList}) {
+      if (i >= static_cast<int>(argArgs.size())) break;
+      auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg);
+      if (!typeArg || !typeArg->typeId) {
+        ++i;
+        continue;
+      }
+
+      const Type* pType = typeArg->typeId->type;
+      if (!pType) {
+        for (auto s : ListView{typeArg->typeId->typeSpecifierList}) {
+          if (auto ns = ast_cast<NamedTypeSpecifierAST>(s)) {
+            if (ns->symbol) {
+              pType = ns->symbol->type();
+              break;
+            }
+          }
+        }
+      }
+
+      const Type* aType = nullptr;
+      if (auto sym = std::get_if<Symbol*>(&argArgs[i]))
+        aType = (*sym)->type();
+      else if (auto t = std::get_if<const Type*>(&argArgs[i]))
+        aType = *t;
+
+      if (pType && aType) (void)deduceTypeFromType(pType, aType);
+      ++i;
+    }
+    return;
+  }
 }
 
 }  // namespace cxx
