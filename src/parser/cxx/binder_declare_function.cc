@@ -187,8 +187,12 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   auto returnType = decl.getReturnType(scope());
   auto type = getDeclaratorType(binder.unit_, declarator, returnType);
 
-  functionSymbol =
-      control()->newFunctionSymbol(binder.declaringScope(), decl.location());
+  auto originalScope = binder.declaringScope();
+  auto targetScope = !decl.specs.isFriend
+                         ? binder.scopeForBlockDecl(originalScope)
+                         : originalScope;
+
+  functionSymbol = control()->newFunctionSymbol(targetScope, decl.location());
   functionSymbol->setName(name);
   functionSymbol->setType(type);
 
@@ -208,6 +212,13 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   }
 
   checkRedeclaration();
+
+  if (targetScope != originalScope) {
+    if (functionSymbol->canonical() == functionSymbol)
+      functionSymbol->setHidden(true);
+    binder.injectUsing(originalScope, name, functionSymbol->canonical(),
+                       functionSymbol->location());
+  }
 
   return functionSymbol;
 }

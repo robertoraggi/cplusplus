@@ -202,6 +202,12 @@ class Binder {
   [[nodiscard]] auto buildRecordLayout(ClassSymbol* classSymbol)
       -> std::expected<bool, std::string>;
 
+  [[nodiscard]] auto scopeForBlockDecl(ScopeSymbol* scope) const
+      -> ScopeSymbol*;
+
+  void injectUsing(ScopeSymbol* scope, const Name* name, Symbol* target,
+                   SourceLocation loc);
+
  private:
   struct BindClass;
   struct BuildRecordLayout;
