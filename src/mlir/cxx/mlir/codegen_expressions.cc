@@ -1415,6 +1415,20 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     -> ExpressionResult {
   auto expressionResult = gen.expression(ast->baseExpression);
 
+  if (ast->symbol) {
+    auto loc = gen.getLocation(ast->opLoc);
+    auto intTy = mlir::IntegerType::get(gen.context_, 32);
+    auto zeroOp = mlir::arith::ConstantOp::create(
+        gen.builder_, loc, intTy, gen.builder_.getIntegerAttr(intTy, 0));
+    if (ast->symbol->parent()->isClass() && !ast->symbol->isStatic()) {
+      return gen.emitCall(ast->opLoc, ast->symbol, expressionResult,
+                          {{zeroOp}});
+    } else {
+      return gen.emitCall(ast->opLoc, ast->symbol, {},
+                          {expressionResult, {zeroOp}});
+    }
+  }
+
   if (gen.unit_->typeTraits().is_integral_or_unscoped_enum(
           ast->baseExpression->type)) {
     auto loc = gen.getLocation(ast->firstSourceLocation());

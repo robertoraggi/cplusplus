@@ -3770,6 +3770,7 @@ class PostIncrExpressionAST final : public ExpressionAST {
   ExpressionAST* baseExpression = nullptr;
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3782,11 +3783,13 @@ class PostIncrExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    SourceLocation opLoc, TokenKind op,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
-                                   TokenKind op, ValueCategory valueCategory,
+                                   TokenKind op, FunctionSymbol* symbol,
+                                   ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST*;
 
  protected:
