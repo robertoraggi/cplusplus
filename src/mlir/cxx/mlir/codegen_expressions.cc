@@ -3699,6 +3699,45 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
     return arrayInit(address, type, equal->expression);
   }
 
+  if (auto strLit = ast_cast<StringLiteralExpressionAST>(init)) {
+    auto* arr = type_cast<BoundedArrayType>(type);
+    if (!arr && !type_cast<UnboundedArrayType>(type)) return;
+
+    auto loc = getLocation(init->firstSourceLocation());
+
+    std::string str(strLit->literal->stringValue());
+    str.push_back('\0');
+
+    auto copyLen = (arr && str.size() > arr->size()) ? arr->size() : str.size();
+
+    if (auto size = control()->memoryLayout()->sizeOf(type)) {
+      mlir::cxx::MemSetZeroOp::create(builder_, loc, address, *size);
+    }
+
+    auto i8Ty = builder_.getIntegerType(8);
+    auto arrTy = mlir::cxx::ArrayType::get(context_, i8Ty, str.size());
+    auto it = stringLiterals_.find(strLit->literal);
+    if (it == stringLiterals_.end()) {
+      auto initializer =
+          builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
+      auto name = builder_.getStringAttr(newUniqueSymbolName(".str"));
+      auto x = mlir::OpBuilder(module_->getContext());
+      x.setInsertionPointToEnd(module_.getBody());
+      auto linkage = mlir::cxx::LinkageKindAttr::get(
+          context_, mlir::cxx::LinkageKind::Internal);
+      mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), arrTy, true,
+                                  name.getValue(), initializer, linkage);
+      it = stringLiterals_.insert_or_assign(strLit->literal, name).first;
+    }
+
+    auto srcPtrType = mlir::cxx::PointerType::get(context_, arrTy);
+    auto srcAddr =
+        mlir::cxx::AddressOfOp::create(builder_, loc, srcPtrType, it->second);
+
+    mlir::cxx::MemCpyOp::create(builder_, loc, address, srcAddr, copyLen);
+    return;
+  }
+
   auto braced = ast_cast<BracedInitListAST>(init);
   if (!braced) return;
 

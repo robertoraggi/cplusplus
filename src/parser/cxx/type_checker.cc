@@ -580,6 +580,10 @@ void TypeChecker::Visitor::operator()(ObjectLiteralExpressionAST* ast) {
     ast->type = ast->typeId->type;
   }
   ast->valueCategory = ValueCategory::kLValue;
+
+  if (ast->type && ast->bracedInitList) {
+    check.check_braced_init_list(ast->type, ast->bracedInitList);
+  }
 }
 
 void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {
@@ -3968,6 +3972,18 @@ void TypeChecker::check_initialization(VariableSymbol* var,
 
     if (isAggregate && bracedInitList) {
       check_braced_init_list(targetType, bracedInitList);
+      return;
+    }
+
+    if (isAggregate && !bracedInitList) {
+      if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer);
+          equal && equal->expression) {
+        check_element_init(
+            equal->expression, targetType,
+            std::format(
+                "cannot initialize type '{}' with expression of type '{}'",
+                to_string(targetType), to_string(equal->expression->type)));
+      }
       return;
     }
 

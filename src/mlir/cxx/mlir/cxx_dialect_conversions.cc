@@ -898,6 +898,25 @@ class MemSetZeroOpLowering : public OpConversionPattern<cxx::MemSetZeroOp> {
   const DataLayout& dataLayout_;
 };
 
+class MemCpyOpLowering : public OpConversionPattern<cxx::MemCpyOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::MemCpyOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto loc = op.getLoc();
+    auto sizeVal =
+        LLVM::ConstantOp::create(rewriter, loc, rewriter.getI64Type(),
+                                 rewriter.getI64IntegerAttr(op.getSize()));
+    rewriter.replaceOp(op,
+                       LLVM::MemcpyOp::create(rewriter, loc, adaptor.getDest(),
+                                              adaptor.getSrc(), sizeVal,
+                                              /*isVolatile=*/false));
+    return success();
+  }
+};
+
 class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
  public:
   SubscriptOpLowering(const TypeConverter& typeConverter,
@@ -1725,9 +1744,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       typeConverter, dataLayout, context);
 
   // cast operations
-  patterns
-      .insert<ArrayToPointerOpLowering, PtrToIntOpLowering, BitcastOpLowering>(
-          typeConverter, context);
+  patterns.insert<ArrayToPointerOpLowering, PtrToIntOpLowering,
+                  BitcastOpLowering, MemCpyOpLowering>(typeConverter, context);
 
   // indirect goto
   patterns.insert<LabelAddressOpLowering, IndirectGotoOpLowering>(typeConverter,
