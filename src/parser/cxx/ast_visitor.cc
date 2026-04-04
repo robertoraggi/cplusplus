@@ -364,7 +364,7 @@ void ASTVisitor::visit(NewPlacementAST* ast) {
 
 void ASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
 
-void ASTVisitor::visit(LabeledStatementAST* ast) {}
+void ASTVisitor::visit(LabeledStatementAST* ast) { accept(ast->statement); }
 
 void ASTVisitor::visit(CaseStatementAST* ast) { accept(ast->expression); }
 

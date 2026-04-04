@@ -157,5 +157,5 @@ end:;
 // CHECK-NEXT:                    identifier: end
 // CHECK-NEXT:            labeled-statement
 // CHECK-NEXT:              identifier: end
-// CHECK-NEXT:            declaration-statement
-// CHECK-NEXT:              declaration: empty-declaration
+// CHECK-NEXT:              statement: declaration-statement
+// CHECK-NEXT:                declaration: empty-declaration

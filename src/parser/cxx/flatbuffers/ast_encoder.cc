@@ -1957,6 +1957,8 @@ void ASTEncoder::visit(NestedNamespaceSpecifierAST* ast) {
 }
 
 void ASTEncoder::visit(LabeledStatementAST* ast) {
+  const auto [statement, statementType] = acceptStatement(ast->statement);
+
   flatbuffers::Offset<flatbuffers::String> identifier;
   if (ast->identifier) {
     if (identifiers_.contains(ast->identifier)) {
@@ -1970,6 +1972,8 @@ void ASTEncoder::visit(LabeledStatementAST* ast) {
   io::LabeledStatement::Builder builder{fbb_};
   builder.add_identifier_loc(ast->identifierLoc.index());
   builder.add_colon_loc(ast->colonLoc.index());
+  builder.add_statement(statement);
+  builder.add_statement_type(static_cast<io::Statement>(statementType));
   if (ast->identifier) {
     builder.add_identifier(identifier);
   }

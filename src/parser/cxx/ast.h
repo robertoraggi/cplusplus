@@ -2166,6 +2166,7 @@ class LabeledStatementAST final : public StatementAST {
 
   SourceLocation identifierLoc;
   SourceLocation colonLoc;
+  StatementAST* statement = nullptr;
   const Identifier* identifier = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -2179,10 +2180,12 @@ class LabeledStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
                                    SourceLocation colonLoc,
+                                   StatementAST* statement,
                                    const Identifier* identifier)
       -> LabeledStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* statement,
+                                   const Identifier* identifier)
       -> LabeledStatementAST*;
 
  protected:

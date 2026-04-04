@@ -204,6 +204,7 @@ auto ASTRewriter::StatementVisitor::operator()(LabeledStatementAST* ast)
   copy->identifierLoc = ast->identifierLoc;
   copy->colonLoc = ast->colonLoc;
   copy->identifier = ast->identifier;
+  copy->statement = rewrite.statement(ast->statement);
 
   return copy;
 }

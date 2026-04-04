@@ -871,6 +871,7 @@ void ASTPrinter::visit(NestedNamespaceSpecifierAST* ast) {
 void ASTPrinter::visit(LabeledStatementAST* ast) {
   out_ << std::format("{}\n", "labeled-statement");
   accept(ast->identifier, "identifier");
+  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(CaseStatementAST* ast) {

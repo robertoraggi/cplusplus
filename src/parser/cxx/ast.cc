@@ -932,10 +932,12 @@ auto NestedNamespaceSpecifierAST::lastSourceLocation() -> SourceLocation {
 auto LabeledStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto LabeledStatementAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   return {};
@@ -6562,6 +6564,9 @@ auto LabeledStatementAST::clone(Arena* arena) -> LabeledStatementAST* {
 
   node->identifierLoc = identifierLoc;
   node->colonLoc = colonLoc;
+
+  if (statement) node->statement = statement->clone(arena);
+
   node->identifier = identifier;
 
   return node;
@@ -6574,18 +6579,22 @@ auto LabeledStatementAST::create(Arena* arena) -> LabeledStatementAST* {
 
 auto LabeledStatementAST::create(Arena* arena, SourceLocation identifierLoc,
                                  SourceLocation colonLoc,
+                                 StatementAST* statement,
                                  const Identifier* identifier)
     -> LabeledStatementAST* {
   auto node = new (arena) LabeledStatementAST();
   node->identifierLoc = identifierLoc;
   node->colonLoc = colonLoc;
+  node->statement = statement;
   node->identifier = identifier;
   return node;
 }
 
-auto LabeledStatementAST::create(Arena* arena, const Identifier* identifier)
+auto LabeledStatementAST::create(Arena* arena, StatementAST* statement,
+                                 const Identifier* identifier)
     -> LabeledStatementAST* {
   auto node = new (arena) LabeledStatementAST();
+  node->statement = statement;
   node->identifier = identifier;
   return node;
 }
