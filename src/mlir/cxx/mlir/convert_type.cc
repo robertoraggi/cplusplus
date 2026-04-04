@@ -392,11 +392,10 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
         if (auto info = layout->getFieldInfo(field)) {
           if (memberMap.find(info->index) == memberMap.end()) {
             if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
-              // Bitfield: use [N x i8] for the alloc unit storage
-              auto i8Type = mlir::IntegerType::get(gen.context_, 8);
-              auto arrayType = mlir::cxx::ArrayType::get(
-                  gen.context_, i8Type, info->allocUnitSizeBytes);
-              memberMap[info->index] = arrayType;
+              auto intType = mlir::IntegerType::get(
+                  gen.context_,
+                  static_cast<unsigned>(info->allocUnitSizeBytes * 8));
+              memberMap[info->index] = intType;
             } else {
               memberMap[info->index] = gen.convertType(field->type());
             }

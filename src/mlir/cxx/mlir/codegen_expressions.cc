@@ -3998,10 +3998,10 @@ void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
 
         auto field = fields[fieldIndex];
         std::uint32_t memberIndex = static_cast<std::uint32_t>(fieldIndex);
+        std::optional<ClassLayout::MemberInfo> fi;
         if (layout) {
-          if (auto fi = layout->getFieldInfo(field)) {
-            memberIndex = fi->index;
-          }
+          fi = layout->getFieldInfo(field);
+          if (fi) memberIndex = fi->index;
         }
 
         auto memberMlirType = convertType(field->type());
@@ -4016,6 +4016,13 @@ void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
           emitAggregateInit(memberAddr, field->type(), nested);
         } else if (unit_->typeTraits().is_array(field->type())) {
           arrayInit(memberAddr, field->type(), node);
+        } else if (fi && fi->bitWidth > 0) {
+          auto val = expression(node);
+          mlir::cxx::BitfieldStoreOp::create(
+              builder_, elemLoc, val.value, memberAddr,
+              builder_.getI32IntegerAttr(fi->bitOffset),
+              builder_.getI32IntegerAttr(fi->bitWidth),
+              builder_.getI64IntegerAttr(fi->allocUnitSizeBytes));
         } else {
           auto val = expression(node);
           mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, memberAddr,
@@ -4038,6 +4045,7 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
                                  DesignatedInitializerClauseAST* ast) {
   mlir::Value currentAddr = address;
   const Type* currentType = type;
+  std::optional<ClassLayout::MemberInfo> currentFieldInfo;
 
   for (auto desigIt = ast->designatorList; desigIt; desigIt = desigIt->next) {
     auto designator = desigIt->value;
@@ -4054,9 +4062,11 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
       auto layout = classSymbol->layout();
 
       std::uint32_t memberIndex = 0;
+      currentFieldInfo = std::nullopt;
       if (layout) {
         if (auto fi = layout->getFieldInfo(field)) {
           memberIndex = fi->index;
+          currentFieldInfo = fi;
         }
       }
 
@@ -4070,6 +4080,7 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
       currentType = unit_->typeTraits().remove_cv(field->type());
 
     } else if (auto subscript = ast_cast<SubscriptDesignatorAST>(designator)) {
+      currentFieldInfo = std::nullopt;
       auto elementType = unit_->typeTraits().get_element_type(currentType);
       auto elementMlirType = convertType(elementType);
       auto resultType = mlir::cxx::PointerType::get(context_, elementMlirType);
@@ -4099,8 +4110,16 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
     emitAggregateInit(currentAddr, currentType, nested);
   } else {
     auto val = expression(initExpr);
-    mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, currentAddr,
-                               getAlignment(currentType));
+    if (currentFieldInfo && currentFieldInfo->bitWidth > 0) {
+      mlir::cxx::BitfieldStoreOp::create(
+          builder_, elemLoc, val.value, currentAddr,
+          builder_.getI32IntegerAttr(currentFieldInfo->bitOffset),
+          builder_.getI32IntegerAttr(currentFieldInfo->bitWidth),
+          builder_.getI64IntegerAttr(currentFieldInfo->allocUnitSizeBytes));
+    } else {
+      mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, currentAddr,
+                                 getAlignment(currentType));
+    }
   }
 }
 
