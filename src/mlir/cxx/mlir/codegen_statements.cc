@@ -113,6 +113,8 @@ void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
 
   mlir::cxx::LabelOp::create(gen.builder_, loc,
                              mlir::StringRef{ast->identifier->name()});
+
+  gen.statement(ast->statement);
 }
 
 void Codegen::StatementVisitor::operator()(CaseStatementAST* ast) {

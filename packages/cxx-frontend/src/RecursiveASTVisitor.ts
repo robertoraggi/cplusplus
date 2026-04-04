@@ -815,10 +815,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param node The node to visit.
    * @param context The context.
    */
-  visitLabeledStatement(
-    node: ast.LabeledStatementAST,
-    context: Context,
-  ): void {}
+  visitLabeledStatement(node: ast.LabeledStatementAST, context: Context): void {
+    this.accept(node.getStatement(), context);
+  }
 
   /**
    * Visit a CaseStatement node.

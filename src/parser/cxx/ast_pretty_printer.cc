@@ -1961,6 +1961,7 @@ void ASTPrettyPrinter::StatementVisitor::operator()(LabeledStatementAST* ast) {
     accept.writeToken(ast->colonLoc);
     newline();
   }
+  accept(ast->statement);
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(CaseStatementAST* ast) {

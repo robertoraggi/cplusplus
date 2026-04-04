@@ -1722,6 +1722,7 @@ table SplicerTypeSpecifier /* SpecifierAST */ {
 }
 
 table LabeledStatement /* StatementAST */ {
+  statement: Statement;
   identifier: string;
   identifier_loc: uint32;
   colon_loc: uint32;

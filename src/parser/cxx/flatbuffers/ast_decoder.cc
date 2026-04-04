@@ -1984,6 +1984,7 @@ auto ASTDecoder::decodeLabeledStatement(const io::LabeledStatement* node)
   auto ast = new (pool_) LabeledStatementAST();
   ast->identifierLoc = SourceLocation(node->identifier_loc());
   ast->colonLoc = SourceLocation(node->colon_loc());
+  ast->statement = decodeStatement(node->statement(), node->statement_type());
   if (node->identifier()) {
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());

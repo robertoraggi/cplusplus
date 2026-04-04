@@ -4029,10 +4029,20 @@ export class LabeledStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the statement of this node
+   */
+  getStatement(): StatementAST | undefined {
+    return AST.from<StatementAST>(
+      cxx.getASTSlot(this.getHandle(), 2),
+      this.parser,
+    );
+  }
+
+  /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 2);
+    const slot = cxx.getASTSlot(this.getHandle(), 3);
     return cxx.getIdentifierValue(slot);
   }
 }

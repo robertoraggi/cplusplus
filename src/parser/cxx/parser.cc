@@ -3597,6 +3597,10 @@ auto Parser::parse_labeled_statement(StatementAST*& yyast) -> bool {
 
   ast->identifier = unit_->identifier(ast->identifierLoc);
 
+  if (!lookat(TokenKind::T_RBRACE)) {
+    parse_statement(ast->statement);
+  }
+
   return true;
 }
 

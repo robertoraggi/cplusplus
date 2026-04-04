@@ -113,6 +113,7 @@ auto ASTInterpreter::exceptionDeclaration(ExceptionDeclarationAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(LabeledStatementAST* ast)
     -> StatementResult {
+  auto statementResult = interp.statement(ast->statement);
   return {};
 }
 
