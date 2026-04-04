@@ -1371,18 +1371,36 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     }
 
     case TypeKind::kFloat: {
+      if (ast->expression && ast->expression->type &&
+          unit()->typeTraits().is_unsigned(ast->expression->type)) {
+        auto result = interp.toUInt(*value);
+        if (!result.has_value()) return std::nullopt;
+        return static_cast<float>(result.value());
+      }
       auto result = interp.toFloat(*value);
       if (!result.has_value()) return std::nullopt;
       return result.value();
     }
 
     case TypeKind::kDouble: {
+      if (ast->expression && ast->expression->type &&
+          unit()->typeTraits().is_unsigned(ast->expression->type)) {
+        auto result = interp.toUInt(*value);
+        if (!result.has_value()) return std::nullopt;
+        return static_cast<double>(result.value());
+      }
       auto result = interp.toDouble(*value);
       if (!result.has_value()) return std::nullopt;
       return result.value();
     }
 
     case TypeKind::kLongDouble: {
+      if (ast->expression && ast->expression->type &&
+          unit()->typeTraits().is_unsigned(ast->expression->type)) {
+        auto result = interp.toUInt(*value);
+        if (!result.has_value()) return std::nullopt;
+        return static_cast<long double>(result.value());
+      }
       auto result = interp.toLongDouble(*value);
       if (!result.has_value()) return std::nullopt;
       return result.value();

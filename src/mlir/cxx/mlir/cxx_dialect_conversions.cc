@@ -341,6 +341,10 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
             ? Attribute{}
             : value);
 
+    if (auto alignment = op.getAlignment()) {
+      globalOp.setAlignment(*alignment);
+    }
+
     if (hasRegionInit) {
       auto& llvmRegion = globalOp.getInitializerRegion();
       rewriter.inlineRegionBefore(op.getInitializer(), llvmRegion,
