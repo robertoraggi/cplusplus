@@ -516,13 +516,31 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
         ast->type = control_->getUnsignedLongIntType();
       else if (components.isLong)
         ast->type = control_->getLongIntType();
-      else if (components.isUnsigned)
-        ast->type = control_->getUnsignedIntType();
-      else {
-        if (ast->literal->integerValue() > std::numeric_limits<int>::max())
-          ast->type = control_->getLongIntType();
+      else if (components.isUnsigned) {
+        const auto v = ast->literal->integerValue();
+        if (v <= std::numeric_limits<unsigned int>::max())
+          ast->type = control_->getUnsignedIntType();
+        else if (v <= std::numeric_limits<unsigned long>::max())
+          ast->type = control_->getUnsignedLongIntType();
         else
+          ast->type = control_->getUnsignedLongLongIntType();
+      } else {
+        const auto v = ast->literal->integerValue();
+        const bool isDecimal =
+            components.radix == IntegerLiteral::Radix::kDecimal;
+        if (v <= static_cast<uint64_t>(std::numeric_limits<int>::max()))
           ast->type = control_->getIntType();
+        else if (!isDecimal && v <= std::numeric_limits<unsigned int>::max())
+          ast->type = control_->getUnsignedIntType();
+        else if (v <= static_cast<uint64_t>(std::numeric_limits<long>::max()))
+          ast->type = control_->getLongIntType();
+        else if (!isDecimal && v <= std::numeric_limits<unsigned long>::max())
+          ast->type = control_->getUnsignedLongIntType();
+        else if (v <=
+                 static_cast<uint64_t>(std::numeric_limits<long long>::max()))
+          ast->type = control_->getLongLongIntType();
+        else
+          ast->type = control_->getUnsignedLongLongIntType();
       }
 
       return true;

@@ -143,6 +143,7 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , SymbolNameAttr:$sym_name
     , OptionalAttr<AnyAttr>:$value
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
+    , OptionalAttr<I64Attr>:$alignment
   );
 
   let regions = (region AnyRegion:$initializer);

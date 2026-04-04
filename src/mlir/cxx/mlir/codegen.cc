@@ -269,7 +269,8 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
         auto linkage = mlir::cxx::LinkageKindAttr::get(
             context_, mlir::cxx::LinkageKind::Internal);
         mlir::cxx::GlobalOp::create(builder, loc, mlir::TypeRange(), arrayType,
-                                    true, strName.getValue(), strAttr, linkage);
+                                    true, strName.getValue(), strAttr, linkage,
+                                    mlir::IntegerAttr{});
       }
 
       return mlir::cxx::AddressOfOp::create(builder, loc, mlirPtrType, strName);
@@ -1116,12 +1117,14 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     initializer = mlir::LLVM::ZeroAttr::get(context_);
   }
 
-  bool isConstant = variableSymbol->isConstexpr() ||
-                    unit_->typeTraits().is_const(defVar->type());
+  const auto isConstant = variableSymbol->isConstexpr() ||
+                          unit_->typeTraits().is_const(defVar->type());
+
+  mlir::IntegerAttr alignmentAttr;
 
   auto var = mlir::cxx::GlobalOp::create(
       builder_, loc, mlir::TypeRange(), varType, isConstant,
-      llvm::StringRef(name), initializer, linkageAttr);
+      llvm::StringRef(name), initializer, linkageAttr, alignmentAttr);
 
   globalOps_.insert_or_assign(canonicalVar, var);
 

@@ -402,7 +402,8 @@ auto Codegen::ExpressionVisitor::operator()(StringLiteralExpressionAST* ast)
     auto linkage = mlir::cxx::LinkageKindAttr::get(
         gen.context_, mlir::cxx::LinkageKind::Internal);
     mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), type, true,
-                                name.getValue(), initializer, linkage);
+                                name.getValue(), initializer, linkage,
+                                mlir::IntegerAttr{});
 
     it = gen.stringLiterals_.insert_or_assign(ast->literal, name).first;
   }
@@ -3808,7 +3809,8 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
       auto linkage = mlir::cxx::LinkageKindAttr::get(
           context_, mlir::cxx::LinkageKind::Internal);
       mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), arrTy, true,
-                                  name.getValue(), initializer, linkage);
+                                  name.getValue(), initializer, linkage,
+                                  mlir::IntegerAttr{});
       it = stringLiterals_.insert_or_assign(strLit->literal, name).first;
     }
 
@@ -4215,7 +4217,8 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFile(CallExpressionAST* ast)
     auto linkage = mlir::cxx::LinkageKindAttr::get(
         gen.context_, mlir::cxx::LinkageKind::Internal);
     mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), arrayType, true,
-                                name.getValue(), initializer, linkage);
+                                name.getValue(), initializer, linkage,
+                                mlir::IntegerAttr{});
     it = gen.stringLiterals_.insert_or_assign(lit, name).first;
   }
 
@@ -4253,7 +4256,8 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFunction(CallExpressionAST* ast)
     auto linkage = mlir::cxx::LinkageKindAttr::get(
         gen.context_, mlir::cxx::LinkageKind::Internal);
     mlir::cxx::GlobalOp::create(x, loc, mlir::TypeRange(), arrayType, true,
-                                name.getValue(), initializer, linkage);
+                                name.getValue(), initializer, linkage,
+                                mlir::IntegerAttr{});
     it = gen.stringLiterals_.insert_or_assign(litKey, name).first;
   }
 

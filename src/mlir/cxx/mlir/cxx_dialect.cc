@@ -294,9 +294,13 @@ void GlobalOp::print(OpAsmPrinter& p) {
     p.printRegion(region);
   }
 
-  p.printOptionalAttrDict(
-      (*this)->getAttrs(),
-      {"sym_name", "global_type", "constant", "value", "linkage_kind"});
+  if (auto alignment = getAlignment()) {
+    p << " alignment(" << *alignment << ")";
+  }
+
+  p.printOptionalAttrDict((*this)->getAttrs(),
+                          {"sym_name", "global_type", "constant", "value",
+                           "linkage_kind", "alignment"});
 }
 
 auto GlobalOp::parse(OpAsmParser& parser, OperationState& result)
