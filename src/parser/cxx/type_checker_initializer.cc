@@ -505,8 +505,22 @@ void CheckInitDeclarator::check_braced_init_list(const Type* type,
   if (unit_->typeTraits().is_array(type)) {
     // Array initialization
     auto elementType = elem_type(type);
+    auto interp = ASTInterpreter{unit_};
     size_t index = 0;
     for (auto it = ast->expressionList; it; it = it->next) {
+      auto desig = ast_cast<DesignatedInitializerClauseAST>(it->value);
+
+      if (desig) {
+        if (auto firstDesigNode = desig->designatorList) {
+          if (auto subscript =
+                  ast_cast<SubscriptDesignatorAST>(firstDesigNode->value)) {
+            if (auto val = interp.evaluate(subscript->expression)) {
+              if (auto idx = interp.toUInt(*val)) index = *idx;
+            }
+          }
+        }
+      }
+
       if (auto boundedArrayType = type_cast<BoundedArrayType>(type)) {
         if (index >= boundedArrayType->size()) {
           error(it->value->firstSourceLocation(),
@@ -517,8 +531,7 @@ void CheckInitDeclarator::check_braced_init_list(const Type* type,
 
       if (auto nested = ast_cast<BracedInitListAST>(it->value)) {
         check_braced_init_list(elementType, nested);
-      } else if (auto desig =
-                     ast_cast<DesignatedInitializerClauseAST>(it->value)) {
+      } else if (desig) {
         check_designated_initializer(type, desig);
       } else if (auto strLit = ast_cast<StringLiteralExpressionAST>(it->value);
                  strLit && unit_->typeTraits().is_array(elementType)) {
@@ -774,26 +787,22 @@ void CheckInitDeclarator::check_designated_initializer(
 
   if (!ast->initializer) return;
 
-  ExpressionAST* initExpr = nullptr;
-  if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
-    initExpr = equal->expression;
-  } else {
-    initExpr = ast->initializer;
-  }
-
-  if (!initExpr) return;
-
   // Skip initialization check when the target type is dependent.
   if (targetType && isDependent(unit_, targetType)) return;
 
-  if (auto nested = ast_cast<BracedInitListAST>(initExpr)) {
-    check_braced_init_list(targetType, nested);
-  } else {
-    check_element_init(
-        initExpr, targetType,
-        std::format("cannot initialize type '{}' with expression of "
-                    "type '{}'",
-                    to_string(targetType), to_string(initExpr->type)));
+  if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
+    if (auto nested = ast_cast<BracedInitListAST>(equal->expression)) {
+      check_braced_init_list(targetType, nested);
+    } else if (equal->expression) {
+      check_element_init(
+          equal->expression, targetType,
+          std::format("cannot initialize type '{}' with expression of "
+                      "type '{}'",
+                      to_string(targetType),
+                      to_string(equal->expression->type)));
+    }
+  } else if (auto initExpr = ast_cast<BracedInitListAST>(ast->initializer)) {
+    check_braced_init_list(targetType, initExpr);
   }
 
   ast->type = targetType;

@@ -160,12 +160,6 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     if (auto intVal = std::get_if<std::intmax_t>(&value)) {
       if (*intVal == 0) return builder_.getUnitAttr();
     }
-    if (auto strLit = std::get_if<const StringLiteral*>(&value)) {
-      (*strLit)->initialize((*strLit)->encoding());
-      std::string str((*strLit)->stringValue());
-      str.push_back('\0');
-      return builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
-    }
     return std::nullopt;
   }
 
@@ -425,6 +419,31 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
                      unionClassType.getName().starts_with("union.")) {
             elemVal = mlir::cxx::BitcastOp::create(builder, loc, unionClassType,
                                                    elemVal);
+          } else {
+            bool isZeroVal = false;
+            if (auto constOp = mlir::dyn_cast_or_null<mlir::arith::ConstantOp>(
+                    elemVal.getDefiningOp())) {
+              if (auto intAttr =
+                      mlir::dyn_cast<mlir::IntegerAttr>(constOp.getValue()))
+                isZeroVal = intAttr.getValue().isZero();
+            } else if (mlir::isa_and_nonnull<mlir::cxx::ZeroOp>(
+                           elemVal.getDefiningOp())) {
+              isZeroVal = true;
+            }
+            if (isZeroVal) continue;
+
+            if (auto intSrc =
+                    mlir::dyn_cast<mlir::IntegerType>(elemVal.getType())) {
+              if (auto intDst =
+                      mlir::dyn_cast<mlir::IntegerType>(fieldTypes[i])) {
+                if (intSrc.getWidth() > intDst.getWidth())
+                  elemVal = mlir::arith::TruncIOp::create(builder, loc, intDst,
+                                                          elemVal);
+                else if (intSrc.getWidth() < intDst.getWidth())
+                  elemVal = mlir::arith::ExtUIOp::create(builder, loc, intDst,
+                                                         elemVal);
+              }
+            }
           }
         }
         result = mlir::cxx::InsertValueOp::create(

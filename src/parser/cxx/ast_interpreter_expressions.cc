@@ -1360,6 +1360,23 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   if (!ast->type) return std::nullopt;
 
+  if (ast->castKind == ImplicitCastKind::kArrayToPointerConversion) {
+    auto innerExpr = ast->expression;
+    // Unwrap EqualInitializerAST if present.
+    if (auto eq = ast_cast<EqualInitializerAST>(innerExpr))
+      innerExpr = eq->expression;
+    if (auto id = ast_cast<IdExpressionAST>(innerExpr)) {
+      if (auto var = symbol_cast<VariableSymbol>(id->symbol)) {
+        bool isGlobal =
+            var->parent() &&
+            (var->parent()->isNamespace() || var->parent()->isClass() ||
+             (var->isStatic() && var->parent()->isBlock()));
+        if (isGlobal && unit()->typeTraits().is_array(var->type()))
+          return std::make_shared<ConstAddress>(var);
+      }
+    }
+  }
+
   auto value = evaluate(ast->expression);
   if (!value.has_value()) return std::nullopt;
 
@@ -1832,6 +1849,62 @@ auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)
   return expressionResult;
 }
 
+namespace {
+
+auto makeZeroConstValue(TranslationUnit* unit, const Type* type)
+    -> std::optional<ConstValue> {
+  if (!type) return std::nullopt;
+  if (unit->typeTraits().is_integral_or_unscoped_enum(type))
+    return std::intmax_t{0};
+  if (unit->typeTraits().is_floating_point(type)) return double{0.0};
+  if (unit->typeTraits().is_pointer(type)) return std::intmax_t{0};  // null
+  if (auto arr = type_cast<BoundedArrayType>(type)) {
+    auto list = std::make_shared<InitializerList>();
+    list->elements.reserve(arr->size());
+    for (size_t i = 0; i < arr->size(); ++i) {
+      auto elemZero = makeZeroConstValue(unit, arr->elementType());
+      if (!elemZero) return std::nullopt;
+      list->elements.emplace_back(*elemZero, arr->elementType());
+    }
+    return ConstValue{list};
+  }
+
+  if (unit->typeTraits().is_class(type))
+    return ConstValue{std::make_shared<InitializerList>()};
+  return std::nullopt;
+}
+
+auto setDesignatedValue(ASTInterpreter& interp,
+                        const std::shared_ptr<InitializerList>& list,
+                        List<DesignatorAST*>* designatorList,
+                        const ConstValue& value, const Type* valueType)
+    -> bool {
+  if (!designatorList || !list) return false;
+
+  auto* subscript = ast_cast<SubscriptDesignatorAST>(designatorList->value);
+  if (!subscript) return false;
+
+  auto idxVal = interp.evaluate(subscript->expression);
+  if (!idxVal) return false;
+  auto idx = interp.toUInt(*idxVal);
+  if (!idx || *idx >= list->elements.size()) return false;
+
+  auto& [elemVal, elemType] = list->elements[*idx];
+
+  if (!designatorList->next) {
+    elemVal = value;
+    elemType = valueType;
+    return true;
+  }
+
+  auto* nestedPtr = std::get_if<std::shared_ptr<InitializerList>>(&elemVal);
+  if (!nestedPtr || !*nestedPtr) return false;
+  return setDesignatedValue(interp, *nestedPtr, designatorList->next, value,
+                            valueType);
+}
+
+}  // namespace
+
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionResult {
   bool hasDesignated = false;
@@ -1844,22 +1917,119 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
   if (hasDesignated) {
     auto arrayType = type_cast<BoundedArrayType>(ast->type);
-    if (!arrayType) return std::nullopt;
+    if (!arrayType) {
+      auto classType = type_cast<ClassType>(ast->type);
+      if (!classType) return std::nullopt;
+      auto* classSymbol = classType->symbol();
+      if (!classSymbol) return std::nullopt;
+      auto* layout = classSymbol->layout();
+      if (!layout) return std::nullopt;
 
-    auto elementType = arrayType->elementType();
-    size_t size = arrayType->size();
+      struct SlotInfo {
+        size_t index;
+        const Type* type;
+        uint32_t bitOffset = 0;
+        uint32_t bitWidth = 0;
+      };
 
-    ConstValue zeroValue;
-    if (unit()->typeTraits().is_integral_or_unscoped_enum(elementType)) {
-      zeroValue = std::intmax_t{0};
-    } else if (unit()->typeTraits().is_floating_point(elementType)) {
-      zeroValue = double{0.0};
-    } else {
-      return std::nullopt;
+      std::unordered_map<FieldSymbol*, SlotInfo> fieldSlotMap;
+      for (auto* member : classSymbol->members()) {
+        if (auto* field = symbol_cast<FieldSymbol>(member)) {
+          if (field->isStatic()) continue;
+          if (auto info = layout->getFieldInfo(field))
+            fieldSlotMap[field] = {info->index, field->type(), info->bitOffset,
+                                   info->bitWidth};
+        }
+      }
+
+      size_t maxSlot = 0;
+      bool anyDot = false;
+      for (auto node : ListView{ast->expressionList}) {
+        auto* desig = ast_cast<DesignatedInitializerClauseAST>(node);
+        if (!desig || !desig->designatorList) continue;
+        auto* dot = ast_cast<DotDesignatorAST>(desig->designatorList->value);
+        if (!dot || !dot->symbol) continue;
+        auto it = fieldSlotMap.find(dot->symbol);
+        if (it == fieldSlotMap.end()) continue;
+        maxSlot = std::max(maxSlot, it->second.index);
+        anyDot = true;
+      }
+      if (!anyDot) return std::nullopt;
+
+      size_t slotCount = maxSlot + 1;
+
+      std::vector<std::optional<std::pair<ConstValue, const Type*>>> slots(
+          slotCount);
+      for (auto& [field, info] : fieldSlotMap) {
+        if (info.index >= slotCount) continue;
+        if (slots[info.index]) continue;
+        ConstValue zero = std::intmax_t{0};
+        const Type* slotType = info.type;
+        if (info.bitWidth == 0) {
+          if (auto z = makeZeroConstValue(unit(), info.type)) zero = *z;
+        }
+        slots[info.index] = {{zero, slotType}};
+      }
+
+      std::unordered_map<size_t, std::intmax_t> bitSlotAccum;
+
+      for (auto node : ListView{ast->expressionList}) {
+        auto* desig = ast_cast<DesignatedInitializerClauseAST>(node);
+        if (!desig) return std::nullopt;
+        if (!desig->designatorList) continue;
+        auto* dot = ast_cast<DotDesignatorAST>(desig->designatorList->value);
+        if (!dot || !dot->symbol) continue;
+        auto it = fieldSlotMap.find(dot->symbol);
+        if (it == fieldSlotMap.end()) continue;
+        size_t idx = it->second.index;
+        if (idx >= slotCount) continue;
+
+        ExpressionAST* initExpr = nullptr;
+        if (auto eq = ast_cast<EqualInitializerAST>(desig->initializer))
+          initExpr = eq->expression;
+        else
+          initExpr = desig->initializer;
+
+        if (!initExpr) continue;
+        auto val = interp.evaluate(initExpr);
+        if (!val) continue;
+
+        if (it->second.bitWidth > 0) {
+          auto intVal = interp.toInt(*val).value_or(0);
+          auto mask = (std::intmax_t{1} << it->second.bitWidth) - 1;
+          bitSlotAccum[idx] |= (intVal & mask) << it->second.bitOffset;
+        } else {
+          const Type* initType = desig->type ? desig->type : it->second.type;
+          slots[idx] = {{*val, initType}};
+        }
+      }
+
+      for (auto& [idx, packed] : bitSlotAccum) {
+        if (idx < slotCount) {
+          const Type* slotType = slots[idx] ? slots[idx]->second : nullptr;
+          slots[idx] = {{std::intmax_t{packed}, slotType}};
+        }
+      }
+
+      auto topList = std::make_shared<InitializerList>();
+      topList->elements.reserve(slotCount);
+      for (size_t i = 0; i < slotCount; ++i) {
+        if (!slots[i]) return std::nullopt;
+        topList->elements.emplace_back(slots[i]->first, slots[i]->second);
+      }
+      return ConstValue{topList};
     }
 
-    auto values = std::vector<std::tuple<ConstValue, const Type*>>(
-        size, {zeroValue, elementType});
+    const Type* elementType = arrayType->elementType();
+    size_t size = arrayType->size();
+
+    auto topList = std::make_shared<InitializerList>();
+    topList->elements.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+      auto slotZero = makeZeroConstValue(unit(), elementType);
+      if (!slotZero) return std::nullopt;
+      topList->elements.emplace_back(*slotZero, elementType);
+    }
 
     size_t currentIndex = 0;
     for (auto node : ListView{ast->expressionList}) {
@@ -1868,43 +2038,50 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
           if (auto sub = ast_cast<SubscriptDesignatorAST>(
                   desig->designatorList->value)) {
             if (auto idxVal = interp.evaluate(sub->expression)) {
-              if (auto idx = interp.toUInt(*idxVal)) {
-                currentIndex = *idx;
-              }
+              if (auto idx = interp.toUInt(*idxVal)) currentIndex = *idx;
             }
           }
         }
+
         ExpressionAST* initExpr = nullptr;
         if (auto eq = ast_cast<EqualInitializerAST>(desig->initializer)) {
           initExpr = eq->expression;
         } else {
           initExpr = desig->initializer;
         }
+
         if (initExpr && currentIndex < size) {
           if (auto val = interp.evaluate(initExpr)) {
-            auto initType = initExpr->type ? initExpr->type : elementType;
-            values[currentIndex] = {*val, initType};
+            const Type* initType =
+                desig->type ? desig->type
+                            : (initExpr->type ? initExpr->type : elementType);
+            setDesignatedValue(interp, topList, desig->designatorList, *val,
+                               initType);
           }
         }
       } else {
         if (currentIndex < size) {
           if (auto val = interp.evaluate(node)) {
-            values[currentIndex] = {*val,
-                                    node->type ? node->type : elementType};
+            const Type* nodeType = node->type ? node->type : elementType;
+            topList->elements[currentIndex] = {*val, nodeType};
           }
         }
       }
       ++currentIndex;
     }
 
-    return std::make_shared<InitializerList>(std::move(values));
+    return ConstValue{topList};
   }
+
+  auto arrayType = type_cast<BoundedArrayType>(ast->type);
+  const Type* elementType = arrayType ? arrayType->elementType() : nullptr;
 
   auto values = std::vector<std::tuple<ConstValue, const Type*>>();
   for (auto node : ListView{ast->expressionList}) {
     auto value = interp.evaluate(node);
     if (!value) return std::nullopt;
-    values.emplace_back(*value, node->type);
+    const Type* nodeType = node->type ? node->type : elementType;
+    values.emplace_back(*value, nodeType);
   }
   return std::make_shared<InitializerList>(std::move(values));
 }
