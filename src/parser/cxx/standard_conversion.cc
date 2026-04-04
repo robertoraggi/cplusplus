@@ -118,7 +118,7 @@ auto StandardConversion::isNullPointerConstant(ExpressionAST* expr) const
   }
 
   if (auto integerLiteral = ast_cast<IntLiteralExpressionAST>(expr))
-    return integerLiteral->literal->value() == "0";
+    return integerLiteral->literal->integerValue() == 0;
 
   return false;
 }
@@ -525,6 +525,23 @@ auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
       return control_->getUnsignedLongIntType();
     (void)integralConversion(expr, control_->getUnsignedIntType());
     return control_->getUnsignedIntType();
+  }
+
+  {
+    ExpressionAST*& signedExpr =
+        unit_->typeTraits().is_signed(expr->type) ? expr : other;
+    ExpressionAST*& unsignedExpr =
+        unit_->typeTraits().is_signed(expr->type) ? other : expr;
+    const Type* signedType = signedExpr->type;
+    const Type* unsignedType = unsignedExpr->type;
+    auto signedSize = control_->memoryLayout()->sizeOf(signedType).value_or(0);
+    auto unsignedSize =
+        control_->memoryLayout()->sizeOf(unsignedType).value_or(0);
+    if (signedSize > unsignedSize) {
+      // Signed type can represent all values of the unsigned type.
+      (void)integralConversion(unsignedExpr, signedType);
+      return signedType;
+    }
   }
 
   if (matchType(control_->getUnsignedLongLongIntType()))

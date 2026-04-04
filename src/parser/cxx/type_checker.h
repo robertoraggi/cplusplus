@@ -28,8 +28,6 @@
 #include <cxx/token.h>
 #include <cxx/types_fwd.h>
 
-#include <optional>
-
 namespace cxx {
 
 class TranslationUnit;
@@ -57,32 +55,11 @@ class TypeChecker {
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
-
-  void deduce_array_size(VariableSymbol* var);
-  void deduce_auto_type(VariableSymbol* var);
-  void check_initialization(VariableSymbol* var, InitDeclaratorAST* ast);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
-
-  [[nodiscard]] auto collect_init_args(ExpressionAST* initializer)
-      -> std::vector<ExpressionAST*>;
-
-  void apply_init_conversions(
-      ExpressionAST* initializer,
-      const std::vector<ImplicitConversionSequence>& conversions);
-
   void check_braced_init_list(const Type* type, BracedInitListAST* ast);
-  void check_struct_init(ClassSymbol* classSymbol, BracedInitListAST* ast);
-  void check_union_init(ClassSymbol* classSymbol, BracedInitListAST* ast);
-  void check_designated_initializer(const Type* currentType,
-                                    DesignatedInitializerClauseAST* ast);
 
-  [[nodiscard]] auto is_narrowing_conversion(const Type* from, const Type* to)
-      -> bool;
-
-  void warn_narrowing(SourceLocation loc, const Type* from, const Type* to);
-
-  void check_element_init(ExpressionAST*& expr, const Type* targetType,
-                          std::string errorMessage);
+  auto getInitDeclaratorLocation(InitDeclaratorAST* ast,
+                                 VariableSymbol* var) const -> SourceLocation;
 
   [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
                                          const Type* targetType) -> bool;
@@ -126,9 +103,6 @@ class TypeChecker {
   [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
 
  private:
-  void check_reference_initialization(VariableSymbol* var,
-                                      InitDeclaratorAST* ast);
-
   struct Visitor;
 
   TranslationUnit* unit_ = nullptr;

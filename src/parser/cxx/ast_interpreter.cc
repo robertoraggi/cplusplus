@@ -46,6 +46,18 @@ struct ToInt {
     return v;
   }
 
+  auto operator()(float v) const -> std::optional<std::intmax_t> {
+    return static_cast<std::intmax_t>(v);
+  }
+
+  auto operator()(double v) const -> std::optional<std::intmax_t> {
+    return static_cast<std::intmax_t>(v);
+  }
+
+  auto operator()(long double v) const -> std::optional<std::intmax_t> {
+    return static_cast<std::intmax_t>(v);
+  }
+
   auto operator()(auto x) const -> std::optional<std::intmax_t> {
     return std::nullopt;  // Unsupported type for int conversion
   }
@@ -58,6 +70,18 @@ struct ToUInt {
 
   auto operator()(std::intmax_t v) const -> std::optional<std::uintmax_t> {
     return std::bit_cast<std::uintmax_t>(v);
+  }
+
+  auto operator()(float v) const -> std::optional<std::uintmax_t> {
+    return static_cast<std::uintmax_t>(v);
+  }
+
+  auto operator()(double v) const -> std::optional<std::uintmax_t> {
+    return static_cast<std::uintmax_t>(v);
+  }
+
+  auto operator()(long double v) const -> std::optional<std::uintmax_t> {
+    return static_cast<std::uintmax_t>(v);
   }
 
   auto operator()(auto x) const -> std::optional<std::uintmax_t> {

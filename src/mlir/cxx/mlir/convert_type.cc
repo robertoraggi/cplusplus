@@ -320,6 +320,12 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   mlir::cxx::ClassType classType = mlir::cxx::ClassType::getNamed(ctx, name);
 
+  if (!classType.getBody().empty()) {
+    auto loc = classSymbol->location();
+    name = std::format("{}.$_{}", name, loc.index());
+    classType = mlir::cxx::ClassType::getNamed(ctx, name);
+  }
+
   gen.classNames_[classSymbol] = classType;
 
   if (classSymbol->templateDeclaration()) {

@@ -337,6 +337,14 @@ def Cxx_PtrToIntOp : Cxx_Op<"ptrtoint"> {
   let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
+def Cxx_IntToPtrOp : Cxx_Op<"inttoptr"> {
+  let arguments = (ins AnySignlessInteger:$value);
+
+  let results = (outs Cxx_PointerType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
+}
+
 //
 // control flow ops
 //

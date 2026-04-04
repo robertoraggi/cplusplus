@@ -315,17 +315,96 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
                                                     static_cast<int64_t>(0));
           }
 
+          if (unionClassType && !unionClassType.getBody().empty()) {
+            auto dstFieldType = unionClassType.getBody()[0];
+
+            if (auto srcArr =
+                    mlir::dyn_cast<mlir::cxx::ArrayType>(elemVal.getType())) {
+              if (auto dstArr =
+                      mlir::dyn_cast<mlir::cxx::ArrayType>(dstFieldType)) {
+                if (srcArr.getElementType() == dstArr.getElementType()) {
+                  mlir::Value resized = elemVal;
+                  if (srcArr.getSize() != dstArr.getSize())
+                    resized = mlir::cxx::ReshapeOp::create(builder, loc, dstArr,
+                                                           elemVal);
+                  auto undef =
+                      mlir::cxx::UndefOp::create(builder, loc, mlirType);
+                  return mlir::cxx::InsertValueOp::create(
+                      builder, loc, mlirType, undef, resized,
+                      static_cast<int64_t>(0));
+                }
+              }
+            }
+
+            auto classSymbol = classType->symbol();
+            unsigned unionBits =
+                static_cast<unsigned>(classSymbol->sizeInBytes()) * 8;
+            auto intUnionType = mlir::IntegerType::get(context_, unionBits);
+
+            // Integer / float source: reinterpret bytes into the largest field.
+            mlir::Value intRepr;
+            if (auto srcInt =
+                    mlir::dyn_cast<mlir::IntegerType>(elemVal.getType())) {
+              unsigned srcBits = srcInt.getWidth();
+              if (srcBits < unionBits)
+                intRepr = mlir::arith::ExtUIOp::create(builder, loc,
+                                                       intUnionType, elemVal);
+              else if (srcBits > unionBits)
+                intRepr = mlir::arith::TruncIOp::create(builder, loc,
+                                                        intUnionType, elemVal);
+              else
+                intRepr = elemVal;
+            } else if (auto srcFloat =
+                           mlir::dyn_cast<mlir::FloatType>(elemVal.getType())) {
+              unsigned srcBits = srcFloat.getWidth();
+              auto srcIntTy = mlir::IntegerType::get(context_, srcBits);
+              mlir::Value asInt = mlir::arith::BitcastOp::create(
+                  builder, loc, srcIntTy, elemVal);
+              if (srcBits < unionBits)
+                intRepr = mlir::arith::ExtUIOp::create(builder, loc,
+                                                       intUnionType, asInt);
+              else
+                intRepr = asInt;
+            }
+
+            if (intRepr) {
+              mlir::Value fieldVal;
+              if (auto dstFloat =
+                      mlir::dyn_cast<mlir::FloatType>(dstFieldType)) {
+                unsigned dstBits = dstFloat.getWidth();
+                mlir::Value bits = intRepr;
+                if (unionBits != dstBits) {
+                  auto dstIntTy = mlir::IntegerType::get(context_, dstBits);
+                  bits = mlir::arith::TruncIOp::create(builder, loc, dstIntTy,
+                                                       bits);
+                }
+                fieldVal = mlir::arith::BitcastOp::create(builder, loc,
+                                                          dstFloat, bits);
+              } else if (mlir::dyn_cast<mlir::IntegerType>(dstFieldType)) {
+                fieldVal = intRepr;
+                if (intRepr.getType() != dstFieldType)
+                  fieldVal = mlir::arith::TruncIOp::create(
+                      builder, loc, dstFieldType, intRepr);
+              }
+              if (fieldVal) {
+                auto undef = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+                return mlir::cxx::InsertValueOp::create(
+                    builder, loc, mlirType, undef, fieldVal,
+                    static_cast<int64_t>(0));
+              }
+            }
+          }
+
           return mlir::cxx::BitcastOp::create(builder, loc, mlirType, elemVal);
         }
       }
       return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
     }
 
-    // Struct: undef + insertvalue per field
     if (auto initListPtr =
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto& initList = *initListPtr;
-      mlir::Value result = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+      mlir::Value result = mlir::cxx::ZeroOp::create(builder, loc, mlirType);
       auto fieldTypes =
           mlir::dyn_cast<mlir::cxx::ClassType>(mlirType).getBody();
       for (size_t i = 0; i < initList->elements.size(); ++i) {
@@ -336,7 +415,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
           auto dstArr = mlir::dyn_cast<mlir::cxx::ArrayType>(fieldTypes[i]);
           if (srcArr && dstArr &&
               srcArr.getElementType() == dstArr.getElementType() &&
-              srcArr.getSize() < dstArr.getSize()) {
+              srcArr.getSize() != dstArr.getSize()) {
             elemVal =
                 mlir::cxx::ReshapeOp::create(builder, loc, dstArr, elemVal);
           } else if (auto unionClassType =
@@ -359,10 +438,30 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
   if (unit_->typeTraits().is_array(type)) {
     auto mlirType = convertType(type);
     auto cxxArrType = mlir::dyn_cast<mlir::cxx::ArrayType>(mlirType);
+
+    if (auto strLitPtr = std::get_if<const StringLiteral*>(&value)) {
+      auto stringLiteral = *strLitPtr;
+      stringLiteral->initialize(stringLiteral->encoding());
+      std::string str(stringLiteral->stringValue());
+      str.push_back('\0');
+      auto destSize = cxxArrType ? (size_t)cxxArrType.getSize() : str.size();
+      str.resize(destSize, '\0');
+      auto i8Type = mlir::IntegerType::get(context_, 8);
+      mlir::Value result = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+      for (size_t i = 0; i < str.size(); ++i) {
+        auto elem = mlir::arith::ConstantOp::create(
+            builder, loc, i8Type,
+            builder.getIntegerAttr(i8Type, (unsigned char)str[i]));
+        result = mlir::cxx::InsertValueOp::create(
+            builder, loc, mlirType, result, elem, static_cast<int64_t>(i));
+      }
+      return result;
+    }
+
     if (auto initListPtr =
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto& initList = *initListPtr;
-      mlir::Value result = mlir::cxx::UndefOp::create(builder, loc, mlirType);
+      mlir::Value result = mlir::cxx::ZeroOp::create(builder, loc, mlirType);
       for (size_t i = 0; i < initList->elements.size(); ++i) {
         auto& [elemValue, elemType] = initList->elements[i];
         auto elemVal = emitConstInitValue(builder, loc, elemType, elemValue);
@@ -374,7 +473,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
             auto dstArr = mlir::dyn_cast<mlir::cxx::ArrayType>(dstElemType);
             if (srcArr && dstArr &&
                 srcArr.getElementType() == dstArr.getElementType() &&
-                srcArr.getSize() < dstArr.getSize()) {
+                srcArr.getSize() != dstArr.getSize()) {
               elemVal =
                   mlir::cxx::ReshapeOp::create(builder, loc, dstArr, elemVal);
             }
@@ -859,8 +958,18 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     return {};
   }
 
-  auto defVar =
-      canonicalVar->definition() ? canonicalVar->definition() : canonicalVar;
+  VariableSymbol* defVar = canonicalVar;
+  if (!defVar->constValue().has_value()) {
+    for (auto* redecl : canonicalVar->redeclarations()) {
+      if (redecl->constValue().has_value()) {
+        defVar = redecl;
+        break;
+      }
+    }
+  }
+  if (!defVar->constValue().has_value()) {
+    if (auto* d = canonicalVar->definition()) defVar = d;
+  }
 
   auto varType = convertType(defVar->type());
 
@@ -975,6 +1084,15 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
         initializer =
             builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
+
+        if (auto* arr = type_cast<BoundedArrayType>(defVar->type())) {
+          auto destSize = static_cast<size_t>(arr->size());
+          if (str.size() != destSize) {
+            str.resize(destSize, '\0');
+            initializer =
+                builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
+          }
+        }
       }
     } else if (unit_->typeTraits().is_class(defVar->type())) {
       needsRegionInit = true;
