@@ -938,7 +938,17 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
     if (auto templateId = name_cast<TemplateId>(name)) {
       componentName = templateId->name();
     }
-    ast->symbol = unqualifiedLookup(lexicalScope_, componentName);
+
+    if (ctx == IdExpressionContext::kExpression) {
+      auto nonTagSymbol = unqualifiedLookup(
+          lexicalScope_, componentName,
+          [](Symbol* s) { return !symbol_cast<ClassSymbol>(s); });
+      ast->symbol = nonTagSymbol
+                        ? nonTagSymbol
+                        : unqualifiedLookup(lexicalScope_, componentName);
+    } else {
+      ast->symbol = unqualifiedLookup(lexicalScope_, componentName);
+    }
   }
 
   binder_.bind(ast);
@@ -1196,9 +1206,6 @@ auto Parser::parse_template_nested_name_specifier(
             templateId->identifierLoc);
 
         if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-          // Follow the alias to the underlying class type so that
-          // member lookup through the NNS works (e.g.
-          // _BoolConstant<true>::value).
           if (auto classType = type_cast<ClassType>(
                   unit_->typeTraits().remove_cv(alias->type()))) {
             ast->symbol = classType->symbol();
@@ -1207,8 +1214,6 @@ auto Parser::parse_template_nested_name_specifier(
           ast->symbol = symbol_cast<ScopeSymbol>(instance);
         }
       } else if (!templateId->symbol) {
-        // Handle builtin templates like __make_integer_seq that have no
-        // declaration. Resolve through binder which expands the builtin.
         auto resolved = binder_.resolve(nullptr, templateId, true);
         ast->symbol = symbol_cast<ScopeSymbol>(resolved);
       }
@@ -4572,9 +4577,6 @@ auto Parser::parse_simple_declaration(
     BindingContext ctx, TemplateDeclarationAST* templateHead) -> bool {
   DeclaratorAST* declarator = nullptr;
   Decl decl{specs};
-  // Make the explicit template head visible to
-  // synthesizeAbbreviatedTemplateParams so it can append synthetic auto params
-  // at the correct index.
   auto savedEnclosingExplicit = enclosingExplicitTemplateHead_;
   enclosingExplicitTemplateHead_ = templateHead;
   const bool parsed = parse_declarator(declarator, decl);
@@ -5691,10 +5693,6 @@ void Parser::synthesizeAbbreviatedTemplateParams(
                             : scope();
   if (!enclosingScope) enclosingScope = scope();
 
-  // If there's an enclosing explicit template head (e.g. template<int i>),
-  // append the synthetic auto params to it instead of creating a new one.
-  // This fixes abbreviated templates that combine explicit and auto params,
-  // such as: template<int i> auto at(auto... xs).
   TemplateDeclarationAST* templDecl;
   int paramIndex;
 
@@ -8690,8 +8688,6 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
   if (SourceLocation semicolonLoc;
       match(TokenKind::T_SEMICOLON, semicolonLoc)) {
-    // If the type specifier is an anonymous class/union, create an implicit
-    // FieldSymbol so the anonymous member participates in record layout.
     if (auto classSpec = ast_cast<ClassSpecifierAST>(specs.typeSpecifier())) {
       if (classSpec->symbol && !classSpec->symbol->name()) {
         binder_.declareAnonymousField(classSpec);
@@ -10115,8 +10111,6 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
 
     const SourceLocation saved = currentLocation();
 
-    // Skip the entire parameter list - may contain multiple tokens and
-    // nested balanced groups (e.g. `_Rp (*)(_Ap...)`).
     while (!lookat(TokenKind::T_EOF_SYMBOL) && !lookat(TokenKind::T_RPAREN)) {
       if (!parse_skip_balanced()) return false;
     }

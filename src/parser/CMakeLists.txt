@@ -89,6 +89,7 @@ add_library(cxx-parser
     cxx/toolchain.cc
     cxx/translation_unit.cc
     cxx/type_checker.cc
+    cxx/type_checker_initializer.cc
     cxx/type_printer.cc
     cxx/type_traits.cc
     cxx/types.cc

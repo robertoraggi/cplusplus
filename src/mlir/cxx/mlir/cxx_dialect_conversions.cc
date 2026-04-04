@@ -251,7 +251,7 @@ static Value emitAttrAsValue(ConversionPatternRewriter& rewriter, Location loc,
 
   if (auto arrAttr = dyn_cast<ArrayAttr>(attr)) {
     if (isa<LLVM::LLVMStructType>(type) || isa<LLVM::LLVMArrayType>(type)) {
-      Value agg = LLVM::UndefOp::create(rewriter, loc, type);
+      Value agg = LLVM::ZeroOp::create(rewriter, loc, type);
       emitAggregateInit(rewriter, loc, agg, type, arrAttr, module);
       return agg;
     }
@@ -405,7 +405,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       auto* block = rewriter.createBlock(&region);
       rewriter.setInsertionPointToStart(block);
 
-      Value result = LLVM::UndefOp::create(rewriter, op.getLoc(), elementType);
+      Value result = LLVM::ZeroOp::create(rewriter, op.getLoc(), elementType);
 
       emitAggregateInit(rewriter, op.getLoc(), result, elementType, arrAttr,
                         module);
@@ -1207,6 +1207,29 @@ class PtrToIntOpLowering : public OpConversionPattern<cxx::PtrToIntOp> {
   }
 };
 
+class IntToPtrOpLowering : public OpConversionPattern<cxx::IntToPtrOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::IntToPtrOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto typeConverter = getTypeConverter();
+
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType) {
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert int to ptr type");
+    }
+
+    rewriter.replaceOp(
+        op, LLVM::IntToPtrOp::create(rewriter, op.getLoc(), resultType,
+                                     adaptor.getValue()));
+
+    return success();
+  }
+};
+
 class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -1745,7 +1768,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   // cast operations
   patterns.insert<ArrayToPointerOpLowering, PtrToIntOpLowering,
-                  BitcastOpLowering, MemCpyOpLowering>(typeConverter, context);
+                  IntToPtrOpLowering, BitcastOpLowering, MemCpyOpLowering>(
+      typeConverter, context);
 
   // indirect goto
   patterns.insert<LabelAddressOpLowering, IndirectGotoOpLowering>(typeConverter,
