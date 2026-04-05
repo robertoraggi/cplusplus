@@ -4059,6 +4059,47 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
       if (!classType || !classType->symbol()) return;
 
       auto classSymbol = classType->symbol();
+      auto fieldClass = symbol_cast<ClassSymbol>(field->parent());
+
+      if (fieldClass && classSymbol != fieldClass) {
+        std::function<mlir::Value(mlir::Value, ClassSymbol*, ClassSymbol*)>
+            navigateToClass;
+        navigateToClass = [&](mlir::Value value, ClassSymbol* from,
+                              ClassSymbol* to) -> mlir::Value {
+          if (from == to) return value;
+          auto fromLayout = from->layout();
+          if (!fromLayout) return value;
+          for (auto member : from->members()) {
+            auto nested = symbol_cast<ClassSymbol>(member);
+            if (!nested || nested->name()) continue;
+            if (!isReachableViaAnonymous(nested, to)) continue;
+            FieldSymbol* anonField = nullptr;
+            for (auto m : from->members()) {
+              auto f = symbol_cast<FieldSymbol>(m);
+              if (!f) continue;
+              if (auto ct = type_cast<ClassType>(f->type())) {
+                if (ct->symbol() == nested) {
+                  anonField = f;
+                  break;
+                }
+              }
+            }
+            if (!anonField) continue;
+            auto anonInfo = fromLayout->getFieldInfo(anonField);
+            if (!anonInfo) continue;
+            auto loc = value.getLoc();
+            auto ptrType =
+                convertType(control()->getPointerType(nested->type()));
+            auto op = mlir::cxx::MemberOp::create(builder_, loc, ptrType, value,
+                                                  anonInfo->index);
+            return navigateToClass(op, nested, to);
+          }
+          return value;
+        };
+        currentAddr = navigateToClass(currentAddr, classSymbol, fieldClass);
+        classSymbol = fieldClass;
+      }
+
       auto layout = classSymbol->layout();
 
       std::uint32_t memberIndex = 0;
