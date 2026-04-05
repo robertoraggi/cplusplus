@@ -519,6 +519,56 @@ void TypeChecker::Visitor::operator()(ObjectLiteralExpressionAST* ast) {
   if (ast->type && ast->bracedInitList) {
     check.check_braced_init_list(ast->type, ast->bracedInitList);
   }
+
+  // Compute array bounds
+  if (auto unbounded = type_cast<UnboundedArrayType>(ast->type)) {
+    if (ast->bracedInitList) {
+      auto elementType = unbounded->elementType();
+      const auto isCharElem = type_cast<CharType>(elementType) ||
+                              type_cast<SignedCharType>(elementType) ||
+                              type_cast<UnsignedCharType>(elementType);
+
+      // char array from string literal in braces.
+      if (isCharElem && ast->bracedInitList->expressionList &&
+          !ast->bracedInitList->expressionList->next) {
+        if (auto strLit = ast_cast<StringLiteralExpressionAST>(
+                ast->bracedInitList->expressionList->value)) {
+          if (auto srcArray = type_cast<BoundedArrayType>(strLit->type)) {
+            ast->type =
+                control()->getBoundedArrayType(elementType, srcArray->size());
+          }
+        }
+      }
+
+      // count elements
+      if (type_cast<UnboundedArrayType>(ast->type)) {
+        size_t count = 0;
+        for (auto it = ast->bracedInitList->expressionList; it; it = it->next)
+          ++count;
+        if (count > 0) {
+          ast->type = control()->getBoundedArrayType(elementType, count);
+        }
+      }
+
+      // Update the braced init list type to the completed type.
+      ast->bracedInitList->type = ast->type;
+    }
+  }
+
+  // create an anonymous VariableSymbol for the compound literal
+  if (ast->type) {
+    auto* symbol =
+        control()->newVariableSymbol(scope(), ast->firstSourceLocation());
+    symbol->setType(ast->type);
+    symbol->setStatic(true);
+    ast->symbol = symbol;
+
+    if (ast->bracedInitList) {
+      auto interp = ASTInterpreter{check.unit_};
+      auto value = interp.evaluate(ast->bracedInitList);
+      symbol->setConstValue(value);
+    }
+  }
 }
 
 void TypeChecker::Visitor::operator()(ThisExpressionAST* ast) {

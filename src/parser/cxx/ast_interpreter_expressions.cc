@@ -638,6 +638,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     ObjectLiteralExpressionAST* ast) -> ExpressionResult {
+  if (ast->bracedInitList) return interp.expression(ast->bracedInitList);
   return std::nullopt;
 }
 
@@ -1240,6 +1241,13 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
         }
       }
 
+      if (auto* objLit =
+              ast_cast<ObjectLiteralExpressionAST>(ast->expression)) {
+        if (objLit->symbol) {
+          return std::make_shared<ConstAddress>(objLit->symbol);
+        }
+      }
+
       auto* subExpr = ast_cast<SubscriptExpressionAST>(ast->expression);
       if (!subExpr) break;
 
@@ -1374,6 +1382,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
         if (isGlobal && unit()->typeTraits().is_array(var->type()))
           return std::make_shared<ConstAddress>(var);
       }
+    }
+    if (auto objLit = ast_cast<ObjectLiteralExpressionAST>(innerExpr)) {
+      if (objLit->symbol) return std::make_shared<ConstAddress>(objLit->symbol);
     }
   }
 
@@ -2023,6 +2034,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     const Type* elementType = arrayType->elementType();
     size_t size = arrayType->size();
 
+    // char array initialized by a string literal in braces.
+    bool isCharElem = type_cast<CharType>(elementType) ||
+                      type_cast<SignedCharType>(elementType) ||
+                      type_cast<UnsignedCharType>(elementType);
+    if (isCharElem && ast->expressionList && !ast->expressionList->next) {
+      if (auto strLit = ast_cast<StringLiteralExpressionAST>(
+              ast->expressionList->value)) {
+        return ConstValue(strLit->literal);
+      }
+    }
+
     auto topList = std::make_shared<InitializerList>();
     topList->elements.reserve(size);
     for (size_t i = 0; i < size; ++i) {
@@ -2075,6 +2097,19 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
   auto arrayType = type_cast<BoundedArrayType>(ast->type);
   const Type* elementType = arrayType ? arrayType->elementType() : nullptr;
+
+  // char array initialized by a string literal in braces.
+  if (arrayType && elementType) {
+    bool isCharElem = type_cast<CharType>(elementType) ||
+                      type_cast<SignedCharType>(elementType) ||
+                      type_cast<UnsignedCharType>(elementType);
+    if (isCharElem && ast->expressionList && !ast->expressionList->next) {
+      if (auto strLit = ast_cast<StringLiteralExpressionAST>(
+              ast->expressionList->value)) {
+        return ConstValue(strLit->literal);
+      }
+    }
+  }
 
   auto values = std::vector<std::tuple<ConstValue, const Type*>>();
   for (auto node : ListView{ast->expressionList}) {

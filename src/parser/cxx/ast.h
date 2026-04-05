@@ -3061,6 +3061,7 @@ class ObjectLiteralExpressionAST final : public ExpressionAST {
   TypeIdAST* typeId = nullptr;
   SourceLocation rparenLoc;
   BracedInitListAST* bracedInitList = nullptr;
+  VariableSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3075,12 +3076,14 @@ class ObjectLiteralExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
                                    TypeIdAST* typeId, SourceLocation rparenLoc,
                                    BracedInitListAST* bracedInitList,
+                                   VariableSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> ObjectLiteralExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
                                    BracedInitListAST* bracedInitList,
+                                   VariableSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> ObjectLiteralExpressionAST*;

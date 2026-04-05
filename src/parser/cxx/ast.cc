@@ -7861,6 +7861,7 @@ auto ObjectLiteralExpressionAST::clone(Arena* arena)
 
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -7873,18 +7874,17 @@ auto ObjectLiteralExpressionAST::create(Arena* arena)
   return node;
 }
 
-auto ObjectLiteralExpressionAST::create(Arena* arena, SourceLocation lparenLoc,
-                                        TypeIdAST* typeId,
-                                        SourceLocation rparenLoc,
-                                        BracedInitListAST* bracedInitList,
-                                        ValueCategory valueCategory,
-                                        const Type* type)
+auto ObjectLiteralExpressionAST::create(
+    Arena* arena, SourceLocation lparenLoc, TypeIdAST* typeId,
+    SourceLocation rparenLoc, BracedInitListAST* bracedInitList,
+    VariableSymbol* symbol, ValueCategory valueCategory, const Type* type)
     -> ObjectLiteralExpressionAST* {
   auto node = new (arena) ObjectLiteralExpressionAST();
   node->lparenLoc = lparenLoc;
   node->typeId = typeId;
   node->rparenLoc = rparenLoc;
   node->bracedInitList = bracedInitList;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7892,12 +7892,14 @@ auto ObjectLiteralExpressionAST::create(Arena* arena, SourceLocation lparenLoc,
 
 auto ObjectLiteralExpressionAST::create(Arena* arena, TypeIdAST* typeId,
                                         BracedInitListAST* bracedInitList,
+                                        VariableSymbol* symbol,
                                         ValueCategory valueCategory,
                                         const Type* type)
     -> ObjectLiteralExpressionAST* {
   auto node = new (arena) ObjectLiteralExpressionAST();
   node->typeId = typeId;
   node->bracedInitList = bracedInitList;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;

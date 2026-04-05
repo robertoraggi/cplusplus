@@ -1472,9 +1472,35 @@ class InsertValueOpLowering : public OpConversionPattern<cxx::InsertValueOp> {
                                          "failed to convert insertvalue type");
     }
 
+    mlir::Value insertedValue = adaptor.getValue();
+
+    // The CXX dialect may use i1 for bool fields, but the LLVM struct uses i8.
+    // Extend or truncate the value to match the expected field type.
+    if (auto structType =
+            mlir::dyn_cast<mlir::LLVM::LLVMStructType>(resultType)) {
+      auto fieldTypes = structType.getBody();
+      uint64_t pos = op.getPosition();
+      if (pos < fieldTypes.size()) {
+        auto fieldTy = fieldTypes[pos];
+        auto valTy = insertedValue.getType();
+        if (valTy != fieldTy) {
+          if (auto srcInt = mlir::dyn_cast<mlir::IntegerType>(valTy)) {
+            if (auto dstInt = mlir::dyn_cast<mlir::IntegerType>(fieldTy)) {
+              if (srcInt.getWidth() < dstInt.getWidth())
+                insertedValue = mlir::arith::ExtUIOp::create(
+                    rewriter, op.getLoc(), dstInt, insertedValue);
+              else if (srcInt.getWidth() > dstInt.getWidth())
+                insertedValue = mlir::arith::TruncIOp::create(
+                    rewriter, op.getLoc(), dstInt, insertedValue);
+            }
+          }
+        }
+      }
+    }
+
     rewriter.replaceOp(op, LLVM::InsertValueOp::create(
                                rewriter, op.getLoc(), adaptor.getContainer(),
-                               adaptor.getValue(), op.getPosition()));
+                               insertedValue, op.getPosition()));
     return success();
   }
 };
