@@ -293,20 +293,12 @@ auto Substitution::CollectRawTemplateArgument::operator()(
   auto control = unit->control();
 
   if (!ast->typeId->type) {
-#if true
-    auto templateArgument = control->newTypeAliasSymbol(nullptr, {});
-    return templateArgument;
-#else
-    subst.warning(loc, "there is no type for this thing");
     if (subst.isDependentTypeArgument(ast)) {
-      // Dependent type argument with unresolved type (e.g., _tp parameter).
-      // Add placeholder to maintain argument count.
       auto templateArgument = control->newTypeAliasSymbol(nullptr, {});
       return templateArgument;
     }
     subst.maybeReportMalformedTemplateArgument(loc);
     return std::nullopt;
-#endif
   }
 
   auto templateArgument = control->newTypeAliasSymbol(nullptr, {});
