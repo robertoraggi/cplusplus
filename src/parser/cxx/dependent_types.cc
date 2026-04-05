@@ -315,7 +315,29 @@ struct IsDependent {
   auto operator()(IntegralTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(FloatingPointTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(ComplexTypeSpecifierAST* ast) -> bool { return false; }
-  auto operator()(NamedTypeSpecifierAST* ast) -> bool { return false; }
+  auto operator()(NamedTypeSpecifierAST* ast) -> bool {
+    if (!ast) return false;
+    if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
+    if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+    if (symbol_cast<ConstraintTypeParameterSymbol>(ast->symbol)) return true;
+    if (auto alias = symbol_cast<TypeAliasSymbol>(ast->symbol)) {
+      if (!alias->type()) return true;
+      if (isDependent(alias->type())) return true;
+    }
+    if (isDependent(ast->nestedNameSpecifier)) return true;
+    if (auto templateId =
+            ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
+      for (auto arg : ListView{templateId->templateArgumentList}) {
+        if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+          if (isDependent(typeArg->typeId)) return true;
+        }
+        if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+          if (isDependent(exprArg->expression)) return true;
+        }
+      }
+    }
+    return false;
+  }
   auto operator()(AtomicTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(BitIntTypeSpecifierAST* ast) -> bool {
     return isDependent(ast->sizeExpression);
