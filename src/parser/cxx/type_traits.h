@@ -22,6 +22,7 @@
 
 #include <cxx/types_fwd.h>
 
+#include <cstdint>
 #include <span>
 
 namespace cxx {
@@ -109,6 +110,13 @@ class TypeTraits {
   // convenience
   [[nodiscard]] auto is_class_or_union(const Type* type) const -> bool;
   [[nodiscard]] auto is_arithmetic_or_unscoped_enum(const Type* type) const
+      -> bool;
+  [[nodiscard]] auto is_narrow_char_type(const Type* type) const -> bool;
+  [[nodiscard]] auto is_char_type(const Type* type) const -> bool;
+  [[nodiscard]] auto is_narrowing_conversion(const Type* from,
+                                             const Type* to) const -> bool;
+  [[nodiscard]] auto integer_constant_fits_in_type(std::uint64_t value,
+                                                   const Type* targetType) const
       -> bool;
 
   [[nodiscard]] auto remove_all_extents(const Type* type) const -> const Type*;

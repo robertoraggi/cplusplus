@@ -1885,6 +1885,65 @@ auto makeZeroConstValue(TranslationUnit* unit, const Type* type)
   return std::nullopt;
 }
 
+auto makeZeroClassInitList(TranslationUnit* unit, ClassSymbol* classSymbol)
+    -> std::shared_ptr<InitializerList> {
+  auto list = std::make_shared<InitializerList>();
+  auto* layout = classSymbol->layout();
+  if (!layout) return list;
+
+  for (auto* member : classSymbol->members()) {
+    auto* field = symbol_cast<FieldSymbol>(member);
+    if (!field || field->isStatic()) continue;
+    auto info = layout->getFieldInfo(field);
+    if (!info) continue;
+    while (list->elements.size() <= info->index)
+      list->elements.emplace_back(std::intmax_t{0}, nullptr);
+    ConstValue zero = std::intmax_t{0};
+    if (auto z = makeZeroConstValue(unit, field->type())) zero = *z;
+    list->elements[info->index] = {zero, field->type()};
+  }
+  return list;
+}
+
+struct AnonMemberPath {
+  FieldSymbol* anonField;
+  ClassSymbol* anonClass;
+};
+
+auto findAnonymousMemberPath(ClassSymbol* classSymbol, FieldSymbol* target)
+    -> std::optional<std::vector<AnonMemberPath>> {
+  for (auto* member : classSymbol->members()) {
+    auto* nested = symbol_cast<ClassSymbol>(member);
+    if (!nested || nested->name()) continue;
+
+    FieldSymbol* anonField = nullptr;
+    for (auto* m : classSymbol->members()) {
+      auto* f = symbol_cast<FieldSymbol>(m);
+      if (!f) continue;
+      if (auto* ct = type_cast<ClassType>(f->type())) {
+        if (ct->symbol() == nested) {
+          anonField = f;
+          break;
+        }
+      }
+    }
+    if (!anonField) continue;
+
+    for (auto* nm : nested->members()) {
+      if (nm == target) {
+        return std::vector<AnonMemberPath>{{anonField, nested}};
+      }
+    }
+
+    auto sub = findAnonymousMemberPath(nested, target);
+    if (sub) {
+      sub->insert(sub->begin(), {anonField, nested});
+      return sub;
+    }
+  }
+  return std::nullopt;
+}
+
 auto setDesignatedValue(ASTInterpreter& interp,
                         const std::shared_ptr<InitializerList>& list,
                         List<DesignatorAST*>* designatorList,
@@ -1961,7 +2020,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
         auto* dot = ast_cast<DotDesignatorAST>(desig->designatorList->value);
         if (!dot || !dot->symbol) continue;
         auto it = fieldSlotMap.find(dot->symbol);
-        if (it == fieldSlotMap.end()) continue;
+        if (it == fieldSlotMap.end()) {
+          auto path = findAnonymousMemberPath(classSymbol, dot->symbol);
+          if (path && !path->empty()) {
+            auto topIt = fieldSlotMap.find((*path)[0].anonField);
+            if (topIt != fieldSlotMap.end()) {
+              maxSlot = std::max(maxSlot, topIt->second.index);
+              anyDot = true;
+            }
+          }
+          continue;
+        }
         maxSlot = std::max(maxSlot, it->second.index);
         anyDot = true;
       }
@@ -1991,7 +2060,103 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
         auto* dot = ast_cast<DotDesignatorAST>(desig->designatorList->value);
         if (!dot || !dot->symbol) continue;
         auto it = fieldSlotMap.find(dot->symbol);
-        if (it == fieldSlotMap.end()) continue;
+        if (it == fieldSlotMap.end()) {
+          auto path = findAnonymousMemberPath(classSymbol, dot->symbol);
+          if (!path || path->empty()) continue;
+          auto topIt = fieldSlotMap.find((*path)[0].anonField);
+          if (topIt == fieldSlotMap.end()) continue;
+          size_t topIdx = topIt->second.index;
+          if (topIdx >= slotCount) continue;
+
+          ExpressionAST* initExpr = nullptr;
+          if (auto eq = ast_cast<EqualInitializerAST>(desig->initializer))
+            initExpr = eq->expression;
+          else
+            initExpr = desig->initializer;
+          if (!initExpr) continue;
+          auto val = interp.evaluate(initExpr);
+          if (!val) continue;
+
+          // Ensure top-level slot has a populated InitializerList.
+          auto& topSlot = slots[topIdx];
+          if (!topSlot ||
+              !std::holds_alternative<std::shared_ptr<InitializerList>>(
+                  topSlot->first) ||
+              !std::get<std::shared_ptr<InitializerList>>(topSlot->first) ||
+              std::get<std::shared_ptr<InitializerList>>(topSlot->first)
+                  ->elements.empty()) {
+            auto list = makeZeroClassInitList(unit(), (*path)[0].anonClass);
+            topSlot = {{ConstValue{list}, topIt->second.type}};
+          }
+
+          auto* curList =
+              &std::get<std::shared_ptr<InitializerList>>(topSlot->first);
+
+          for (size_t pi = 1; pi < path->size(); ++pi) {
+            auto* prevClass = (*path)[pi - 1].anonClass;
+            auto* prevLayout = prevClass->layout();
+            if (!prevLayout) break;
+            auto subInfo = prevLayout->getFieldInfo((*path)[pi].anonField);
+            if (!subInfo) break;
+            size_t subIdx = subInfo->index;
+            while ((*curList)->elements.size() <= subIdx)
+              (*curList)->elements.emplace_back(std::intmax_t{0}, nullptr);
+            auto& subVal = std::get<0>((*curList)->elements[subIdx]);
+            auto* subPtr =
+                std::get_if<std::shared_ptr<InitializerList>>(&subVal);
+            if (!subPtr || !*subPtr || (*subPtr)->elements.empty()) {
+              auto newList =
+                  makeZeroClassInitList(unit(), (*path)[pi].anonClass);
+              (*curList)->elements[subIdx] = {ConstValue{newList},
+                                              (*path)[pi].anonField->type()};
+              subPtr = &std::get<std::shared_ptr<InitializerList>>(
+                  std::get<0>((*curList)->elements[subIdx]));
+            }
+            curList = subPtr;
+          }
+
+          auto* lastClass = path->back().anonClass;
+          auto* lastLayout = lastClass->layout();
+          if (!lastLayout) continue;
+          auto fieldInfo = lastLayout->getFieldInfo(dot->symbol);
+          if (!fieldInfo) continue;
+          size_t fieldIdx = fieldInfo->index;
+          while ((*curList)->elements.size() <= fieldIdx)
+            (*curList)->elements.emplace_back(std::intmax_t{0}, nullptr);
+
+          auto* curField = dot->symbol;
+          auto* designators = desig->designatorList->next;
+          while (designators) {
+            auto* nextDot = ast_cast<DotDesignatorAST>(designators->value);
+            if (!nextDot || !nextDot->symbol) break;
+            auto* fct = type_cast<ClassType>(curField->type());
+            if (!fct || !fct->symbol()) break;
+            auto* fc = fct->symbol();
+            auto* fl = fc->layout();
+            if (!fl) break;
+            auto& fv = std::get<0>((*curList)->elements[fieldIdx]);
+            auto* fp = std::get_if<std::shared_ptr<InitializerList>>(&fv);
+            if (!fp || !*fp || (*fp)->elements.empty()) {
+              auto newList = makeZeroClassInitList(unit(), fc);
+              (*curList)->elements[fieldIdx] = {ConstValue{newList},
+                                                curField->type()};
+              fp = &std::get<std::shared_ptr<InitializerList>>(
+                  std::get<0>((*curList)->elements[fieldIdx]));
+            }
+            auto nextInfo = fl->getFieldInfo(nextDot->symbol);
+            if (!nextInfo) break;
+            curList = fp;
+            fieldIdx = nextInfo->index;
+            while ((*curList)->elements.size() <= fieldIdx)
+              (*curList)->elements.emplace_back(std::intmax_t{0}, nullptr);
+            curField = nextDot->symbol;
+            designators = designators->next;
+          }
+
+          const Type* initType = desig->type ? desig->type : curField->type();
+          (*curList)->elements[fieldIdx] = {*val, initType};
+          continue;
+        }
         size_t idx = it->second.index;
         if (idx >= slotCount) continue;
 

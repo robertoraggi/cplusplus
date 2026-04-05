@@ -1079,6 +1079,85 @@ auto TypeTraits::is_arithmetic_or_unscoped_enum(const Type* type) const
   return is_arithmetic(type) || (is_enum(type) && !is_scoped_enum(type));
 }
 
+auto TypeTraits::is_narrow_char_type(const Type* type) const -> bool {
+  struct V {
+    auto operator()(const CharType*) const -> bool { return true; }
+    auto operator()(const SignedCharType*) const -> bool { return true; }
+    auto operator()(const UnsignedCharType*) const -> bool { return true; }
+    auto operator()(const QualType* t) const -> bool {
+      return visit(*this, t->elementType());
+    }
+    auto operator()(const Type*) const -> bool { return false; }
+  };
+  return type && visit(V{}, type);
+}
+
+auto TypeTraits::is_char_type(const Type* type) const -> bool {
+  struct V {
+    auto operator()(const CharType*) const -> bool { return true; }
+    auto operator()(const SignedCharType*) const -> bool { return true; }
+    auto operator()(const UnsignedCharType*) const -> bool { return true; }
+    auto operator()(const Char8Type*) const -> bool { return true; }
+    auto operator()(const Char16Type*) const -> bool { return true; }
+    auto operator()(const Char32Type*) const -> bool { return true; }
+    auto operator()(const WideCharType*) const -> bool { return true; }
+    auto operator()(const QualType* t) const -> bool {
+      return visit(*this, t->elementType());
+    }
+    auto operator()(const Type*) const -> bool { return false; }
+  };
+  return type && visit(V{}, type);
+}
+
+auto TypeTraits::is_narrowing_conversion(const Type* from, const Type* to) const
+    -> bool {
+  if (!from || !to) return false;
+
+  from = remove_cv(from);
+  to = remove_cv(to);
+
+  if (is_same(from, to)) return false;
+
+  if (is_floating_point(from) && is_integral(to)) return true;
+
+  if (is_floating_point(from) && is_floating_point(to)) {
+    auto fromSize = control()->memoryLayout()->sizeOf(from);
+    auto toSize = control()->memoryLayout()->sizeOf(to);
+    if (fromSize && toSize && *fromSize > *toSize) return true;
+  }
+
+  if (is_integral_or_unscoped_enum(from) && is_floating_point(to)) return true;
+
+  if (is_integral_or_unscoped_enum(from) && is_integral(to)) {
+    auto fromSize = control()->memoryLayout()->sizeOf(from);
+    auto toSize = control()->memoryLayout()->sizeOf(to);
+    if (fromSize && toSize) {
+      if (*fromSize > *toSize) return true;
+      if (*fromSize == *toSize && is_signed(from) != is_signed(to)) return true;
+    }
+  }
+
+  return false;
+}
+
+auto TypeTraits::integer_constant_fits_in_type(std::uint64_t value,
+                                               const Type* targetType) const
+    -> bool {
+  if (!is_integral(targetType)) return false;
+
+  auto targetSize = control()->memoryLayout()->sizeOf(targetType);
+  if (!targetSize) return false;
+
+  if (is_signed(targetType)) {
+    auto maxVal = (std::uint64_t{1} << (*targetSize * 8 - 1)) - 1;
+    return value <= maxVal;
+  }
+
+  if (*targetSize >= 8) return true;
+  auto maxVal = (std::uint64_t{1} << (*targetSize * 8)) - 1;
+  return value <= maxVal;
+}
+
 auto TypeTraits::requireCompleteClass(ClassSymbol* classSymbol) -> bool {
   if (!classSymbol) return false;
   if (classSymbol->isComplete()) return true;
