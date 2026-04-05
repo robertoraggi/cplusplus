@@ -205,6 +205,7 @@ export const CXX_KEYWORDS: string[] = [
 ];
 
 export const BUILTIN_TYPE_TRAITS: string[] = [
+  "__builtin_types_compatible_p",
   "__has_unique_object_representations",
   "__has_virtual_destructor",
   "__is_abstract",

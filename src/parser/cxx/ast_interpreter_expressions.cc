@@ -1725,6 +1725,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       case BuiltinTypeTraitKind::T___IS_UNSIGNED:
         return unit()->typeTraits().is_unsigned(firstType);
 
+      case BuiltinTypeTraitKind::T___BUILTIN_TYPES_COMPATIBLE_P: {
+        if (!secondType) break;
+        return unit()->typeTraits().is_compatible(firstType, secondType);
+      }
+
       case BuiltinTypeTraitKind::T___IS_SAME:
       case BuiltinTypeTraitKind::T___IS_SAME_AS: {
         if (!secondType) break;

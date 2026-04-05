@@ -104,6 +104,7 @@ class TypeTraits {
   [[nodiscard]] auto add_pointer(const Type* type) const -> const Type*;
 
   // type relationships
+  [[nodiscard]] auto is_compatible(const Type* a, const Type* b) const -> bool;
   [[nodiscard]] auto is_same(const Type* a, const Type* b) const -> bool;
   [[nodiscard]] auto decay(const Type* type) const -> const Type*;
 

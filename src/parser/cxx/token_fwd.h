@@ -222,6 +222,7 @@ class Token;
   V(WHILE, "while")
 
 #define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                            \
+  V(__BUILTIN_TYPES_COMPATIBLE_P, "__builtin_types_compatible_p") \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                          \
     "__has_unique_object_representations")                        \
   V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")         \

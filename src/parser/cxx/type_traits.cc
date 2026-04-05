@@ -1062,6 +1062,10 @@ auto TypeTraits::is_same(const Type* a, const Type* b) const -> bool {
 #undef PROCESS_TYPE
 }
 
+auto TypeTraits::is_compatible(const Type* a, const Type* b) const -> bool {
+  return is_same(remove_cv(a), remove_cv(b));
+}
+
 auto TypeTraits::decay(const Type* type) const -> const Type* {
   if (!type) return type;
   auto noref = remove_reference(type);
