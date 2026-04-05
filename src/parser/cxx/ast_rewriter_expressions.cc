@@ -417,6 +417,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
   copy->rparenLoc = ast->rparenLoc;
   copy->bracedInitList =
       ast_cast<BracedInitListAST>(rewrite.expression(ast->bracedInitList));
+  copy->symbol = ast->symbol;
 
   return copy;
 }

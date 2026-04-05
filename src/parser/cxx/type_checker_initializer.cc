@@ -296,6 +296,20 @@ void CheckInitDeclarator::deduce_array_size(VariableSymbol* var) {
   auto bracedInitList = get_braced_initializer(initializer);
 
   if (bracedInitList) {
+    // char array from string literal in braces
+    if (isAnyCharType(ty->elementType()) && bracedInitList->expressionList &&
+        !bracedInitList->expressionList->next) {
+      if (auto strLit = ast_cast<StringLiteralExpressionAST>(
+              bracedInitList->expressionList->value)) {
+        if (auto srcArray = type_cast<BoundedArrayType>(strLit->type)) {
+          const auto arrayType = unit_->control()->getBoundedArrayType(
+              ty->elementType(), srcArray->size());
+          var->setType(arrayType);
+          return;
+        }
+      }
+    }
+
     auto interp = ASTInterpreter{unit_};
     size_t currentIndex = 0;
     size_t maxIndex = 0;
@@ -505,6 +519,27 @@ void CheckInitDeclarator::check_braced_init_list(const Type* type,
   if (unit_->typeTraits().is_array(type)) {
     // Array initialization
     auto elementType = elem_type(type);
+
+    if (isAnyCharType(elementType) && ast->expressionList &&
+        !ast->expressionList->next) {
+      if (auto strLit = ast_cast<StringLiteralExpressionAST>(
+              ast->expressionList->value)) {
+        if (auto destArray = type_cast<BoundedArrayType>(type)) {
+          if (auto srcArray = type_cast<BoundedArrayType>(strLit->type)) {
+            const auto isC = unit_->language() == LanguageKind::kC;
+            const auto maxCharacters =
+                isC ? destArray->size() : destArray->size() - 1;
+            if (srcArray->size() > maxCharacters) {
+              error(
+                  strLit->firstSourceLocation(),
+                  std::format("initializer-string for char array is too long"));
+            }
+          }
+        }
+        return;
+      }
+    }
+
     auto interp = ASTInterpreter{unit_};
     size_t index = 0;
     for (auto it = ast->expressionList; it; it = it->next) {

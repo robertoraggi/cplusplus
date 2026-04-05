@@ -1022,8 +1022,11 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   std::string name;
 
-  if (variableSymbol->isStatic() ||
-      !is_global_namespace(variableSymbol->parent())) {
+  if (!variableSymbol->name()) {
+    // Anonymous symbols (e.g. compound literals) get a unique internal name.
+    name = newUniqueSymbolName(".compoundliteral");
+  } else if (variableSymbol->isStatic() ||
+             !is_global_namespace(variableSymbol->parent())) {
     std::string suffix;
     if (variableSymbol->isStatic()) {
       if (auto function = symbol->enclosingFunction()) {
