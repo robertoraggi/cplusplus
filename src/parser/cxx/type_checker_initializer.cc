@@ -435,6 +435,9 @@ struct AggregateInitChecker {
   void checkUnion(ClassSymbol* classSymbol, BracedInitListAST* ast);
   void checkStruct(ClassSymbol* classSymbol, BracedInitListAST* ast);
 
+  [[nodiscard]] auto tryBraceElision(List<ExpressionAST*>*& it,
+                                     const Type* targetType) -> bool;
+
  private:
   static auto firstNonStaticField(ClassSymbol* symbol) -> FieldSymbol* {
     for (auto field : views::members(symbol) | views::non_static_fields)
@@ -447,6 +450,14 @@ struct AggregateInitChecker {
 
   void checkFieldInit(ExpressionAST*& expr, FieldSymbol* field);
   void checkAnonUnionFieldInit(ExpressionAST*& expr, const Type* fieldType);
+
+  [[nodiscard]] auto isSubAggregate(const Type* type) const -> bool;
+
+  [[nodiscard]] auto countScalarInitSlots(const Type* type) const -> size_t;
+
+  [[nodiscard]] auto buildSyntheticBracedList(List<ExpressionAST*>*& it,
+                                              size_t maxCount)
+      -> BracedInitListAST*;
 };
 
 void AggregateInitChecker::collectEffectiveFields(
@@ -494,7 +505,7 @@ void AggregateInitChecker::checkAnonUnionFieldInit(ExpressionAST*& expr,
     return;
   }
 
-  auto* first = firstNonStaticField(classType->symbol());
+  auto first = firstNonStaticField(classType->symbol());
   if (!first) {
     ctx.error(expr->firstSourceLocation(), "union has no named members");
     return;
@@ -506,6 +517,94 @@ void AggregateInitChecker::checkAnonUnionFieldInit(ExpressionAST*& expr,
                   "type '{}' with expression of type '{}'",
                   to_string(first->name()), to_string(firstType),
                   to_string(expr->type)));
+}
+
+auto AggregateInitChecker::isSubAggregate(const Type* type) const -> bool {
+  type = ctx.traits.remove_cv(type);
+  if (type_cast<BoundedArrayType>(type)) return true;
+  if (auto ct = type_cast<ClassType>(type)) {
+    auto cls = ct->symbol();
+    if (!cls) return false;
+    if (!ctx.isCxx()) return true;
+    for (auto ctor : cls->constructors())
+      if (!ctor->isDefaulted() && !ctor->isDeleted()) return false;
+    return true;
+  }
+  return false;
+}
+
+auto AggregateInitChecker::countScalarInitSlots(const Type* type) const
+    -> size_t {
+  type = ctx.traits.remove_cv(type);
+
+  if (auto bt = type_cast<BoundedArrayType>(type))
+    return bt->size() * countScalarInitSlots(bt->elementType());
+
+  if (auto ct = type_cast<ClassType>(type)) {
+    auto cls = ct->symbol();
+    if (!cls) return 1;
+    if (cls->isUnion()) {
+      for (auto m : cls->members())
+        if (auto f = symbol_cast<FieldSymbol>(m))
+          if (!f->isStatic()) return countScalarInitSlots(f->type());
+      return 1;
+    }
+    size_t total = 0;
+    for (auto m : cls->members())
+      if (auto f = symbol_cast<FieldSymbol>(m))
+        if (!f->isStatic()) total += countScalarInitSlots(f->type());
+    return total > 0 ? total : 1;
+  }
+
+  return 1;
+}
+
+auto AggregateInitChecker::buildSyntheticBracedList(List<ExpressionAST*>*& it,
+                                                    size_t maxCount)
+    -> BracedInitListAST* {
+  auto arena = ctx.unit->arena();
+  auto syntheticList = BracedInitListAST::create(arena);
+  List<ExpressionAST*>* head = nullptr;
+  List<ExpressionAST*>* tail = nullptr;
+  size_t consumed = 0;
+  auto prev = it;
+  while (it && consumed < maxCount) {
+    auto node = make_list_node(arena, it->value);
+    if (!head)
+      head = tail = node;
+    else {
+      tail->next = node;
+      tail = node;
+    }
+    ++consumed;
+    prev = it;
+    it = it->next;
+  }
+  it = prev;
+  syntheticList->expressionList = head;
+  return syntheticList;
+}
+
+auto AggregateInitChecker::tryBraceElision(List<ExpressionAST*>*& it,
+                                           const Type* targetType) -> bool {
+  auto& expr = it->value;
+
+  if (ast_cast<BracedInitListAST>(expr)) return false;
+
+  if (ast_cast<StringLiteralExpressionAST>(expr) &&
+      ctx.traits.is_array(targetType) &&
+      ctx.traits.is_narrow_char_type(
+          ctx.traits.remove_cv(ctx.traits.get_element_type(targetType))))
+    return false;
+
+  if (ctx.traits.is_compatible(expr->type, targetType)) return false;
+
+  if (!isSubAggregate(targetType)) return false;
+
+  size_t slots = countScalarInitSlots(targetType);
+  auto synthetic = buildSyntheticBracedList(it, slots);
+  ctx.checker.check_braced_init_list(targetType, synthetic);
+  return true;
 }
 
 void AggregateInitChecker::checkUnion(ClassSymbol* classSymbol,
@@ -523,7 +622,7 @@ void AggregateInitChecker::checkUnion(ClassSymbol* classSymbol,
     return;
   }
 
-  auto* field = firstNonStaticField(classSymbol);
+  auto field = firstNonStaticField(classSymbol);
   if (!field) {
     ctx.error(expr->firstSourceLocation(), "union has no named members");
     return;
@@ -532,7 +631,7 @@ void AggregateInitChecker::checkUnion(ClassSymbol* classSymbol,
   auto fieldType = ctx.traits.remove_cv(field->type());
   if (auto nested = ast_cast<BracedInitListAST>(expr)) {
     ctx.checker.check_braced_init_list(fieldType, nested);
-  } else {
+  } else if (!tryBraceElision(it, fieldType)) {
     elemChecker.check(
         expr, fieldType,
         std::format("cannot initialize member '{}' of type '{}' with "
@@ -578,10 +677,11 @@ void AggregateInitChecker::checkStruct(ClassSymbol* classSymbol,
       break;
     }
 
+    auto fieldType = ctx.traits.remove_cv(fields[fieldIndex]->type());
+
     if (!fields[fieldIndex]->name()) {
-      checkAnonUnionFieldInit(expr,
-                              ctx.traits.remove_cv(fields[fieldIndex]->type()));
-    } else {
+      checkAnonUnionFieldInit(expr, fieldType);
+    } else if (!tryBraceElision(it, fieldType)) {
       checkFieldInit(expr, fields[fieldIndex]);
     }
 
@@ -677,7 +777,7 @@ void BracedInitListChecker::checkArrayElements(const Type* type,
     } else if (auto strLit = ast_cast<StringLiteralExpressionAST>(it->value);
                strLit && ctx.traits.is_array(elementType)) {
       checkArrayStringElement(it->value, elementType);
-    } else {
+    } else if (!aggregateChecker.tryBraceElision(it, elementType)) {
       elemChecker.check(
           it->value, elementType,
           std::format("cannot initialize array element of type '{}' with "

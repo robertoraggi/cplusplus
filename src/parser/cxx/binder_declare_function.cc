@@ -404,6 +404,7 @@ void Binder::DeclareFunction::checkExternalLinkageSpec() {
 }
 
 void Binder::DeclareFunction::applyVirtualFlagsFromDeclarator() {
+  if (!functionDeclarator) return;
   if (functionDeclarator->isOverride) functionSymbol->setOverride(true);
   if (functionDeclarator->isFinal) functionSymbol->setFinal(true);
 

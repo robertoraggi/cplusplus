@@ -209,6 +209,8 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto codegenBuiltinNansf(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinNansl(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinAlloca(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinBzero(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinCtz(CallExpressionAST* ast) -> ExpressionResult;
 
   auto emitClassConstruction(SourceLocation loc, const Type* classType,
                              List<ExpressionAST*>* argList) -> ExpressionResult;
@@ -484,12 +486,37 @@ auto Codegen::ExpressionVisitor::operator()(GenericSelectionExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(NestedStatementExpressionAST* ast)
     -> ExpressionResult {
-  gen.statement(ast->statement);
+  if (!ast->statement) {
+    return {
+        gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+  }
 
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  // Collect all statements from the compound body.
+  std::vector<StatementAST*> stmts;
+  for (auto node : ListView{ast->statement->statementList})
+    stmts.push_back(node);
 
-  return {op};
+  // Find any trailing expression statement whose value we need to return.
+  ExpressionStatementAST* lastExprStmt = nullptr;
+  if (!stmts.empty() && !gen.unit_->typeTraits().is_void(ast->type)) {
+    if (auto* last = ast_cast<ExpressionStatementAST>(stmts.back()))
+      if (last->expression && last->expression->type) lastExprStmt = last;
+  }
+
+  gen.pushCleanup();
+
+  auto count = lastExprStmt ? stmts.size() - 1 : stmts.size();
+  for (std::size_t i = 0; i < count; ++i) gen.statement(stmts[i]);
+
+  mlir::Value result;
+  if (lastExprStmt)
+    result = gen.expression(lastExprStmt->expression, ExpressionFormat::kValue)
+                 .value;
+
+  gen.popCleanup(ast->statement->rbraceLoc);
+
+  if (result) return {result};
+  return {};
 }
 
 auto Codegen::ExpressionVisitor::operator()(NestedExpressionAST* ast)
@@ -1609,8 +1636,10 @@ auto Codegen::ExpressionVisitor::operator()(BuiltinOffsetofExpressionAST* ast)
     auto loc = gen.getLocation(ast->firstSourceLocation());
     auto resultType = gen.convertType(ast->type);
 
-    // Get the class type from typeId
-    auto classType = type_cast<ClassType>(ast->typeId->type);
+    // Get the class type from typeId (may be cv-qualified, e.g. from
+    // __typeof__(*const_ptr))
+    auto classType = type_cast<ClassType>(
+        gen.unit_->typeTraits().remove_cv(ast->typeId->type));
     if (!classType) {
       return {gen.emitTodoExpr(ast->firstSourceLocation(),
                                "__builtin_offsetof requires a class type")};
@@ -4400,6 +4429,70 @@ auto Codegen::ExpressionVisitor::codegenBuiltinAlloca(CallExpressionAST* ast)
   auto ptrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
   return {mlir::cxx::DynAllocaOp::create(gen.builder_, loc, ptrType,
                                          sizeVal.value, /*alignment=*/1)};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinBzero(CallExpressionAST* ast)
+    -> ExpressionResult {
+  // emit a memset with zero value
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto args = ListView{ast->expressionList};
+  auto it = args.begin();
+  if (it == args.end()) return {};
+  auto destVal = gen.expression(*it);
+  if (!destVal.value) return {};
+  ++it;
+  if (it == args.end()) return {};
+  auto sizeVal = gen.expression(*it);
+  if (!sizeVal.value) return {};
+  auto memoryLayout = gen.control()->memoryLayout();
+  auto sizeType =
+      mlir::IntegerType::get(gen.context_, memoryLayout->sizeOfSizeType() * 8);
+  auto zero = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, gen.builder_.getIntegerType(8),
+      gen.builder_.getIntegerAttr(sizeType, 0));
+  std::vector<mlir::Value> inputs{destVal.value, zero, sizeVal.value};
+  auto op = mlir::cxx::BuiltinCallOp::create(
+      gen.builder_, loc, mlir::TypeRange{}, mlir::StringRef("__builtin_memset"),
+      inputs);
+  return {op.getResult()};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinCtz(CallExpressionAST* ast)
+    -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto args = ListView{ast->expressionList};
+  auto it = args.begin();
+  if (it == args.end()) return {};
+  auto value = gen.expression(*it);
+  if (!value.value) return {};
+
+  auto inputType = value.value.getType();
+
+  auto i1Type = mlir::IntegerType::get(gen.context_, 1);
+
+  mlir::SmallVector<mlir::Value> inputs{value.value};
+
+  inputs.push_back(mlir::arith::ConstantOp::create(
+      gen.builder_, loc, i1Type, gen.builder_.getIntegerAttr(i1Type, 0)));
+
+  auto resultType = gen.convertType(ast->type);
+
+  auto ctzOp = mlir::cxx::BuiltinCallOp::create(
+      gen.builder_, loc, mlir::TypeRange{inputType},
+      mlir::StringRef("__builtin_ctz"), inputs);
+
+  auto i32Type = mlir::IntegerType::get(gen.context_, 32);
+
+  if (resultType != i32Type) {
+    // if the resultType is not i32, we need to truncate it to i32
+
+    auto truncOp = mlir::arith::TruncIOp::create(gen.builder_, loc, i32Type,
+                                                 ctzOp.getResult());
+
+    return {truncOp.getResult()};
+  }
+
+  return {ctzOp.getResult()};
 }
 
 }  // namespace cxx

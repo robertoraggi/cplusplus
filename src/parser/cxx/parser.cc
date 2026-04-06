@@ -629,10 +629,15 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           elementType = control_->getChar32Type();
           extent = ast->literal->charCount() + 1;
           break;
-        case TokenKind::T_WIDE_STRING_LITERAL:
-          elementType = control_->getWideCharType();
+        case TokenKind::T_WIDE_STRING_LITERAL: {
+          if (is_parsing_c()) {
+            elementType = control_->getIntType();
+          } else {
+            elementType = control_->getWideCharType();
+          }
           extent = ast->literal->charCount() + 1;
           break;
+        }
         default:
           elementType = control_->getCharType();
           extent = ast->literal->charCount() + 1;
@@ -1709,7 +1714,10 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
     }
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
-    return ast;
+
+    check(ast);
+
+    return true;
   }
 
   auto ast = NestedExpressionAST::create(pool_);
@@ -5460,7 +5468,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     Symbol* resolvedType = nullptr;
     if (!nestedNameSpecifier) {
       if (auto nameId = ast_cast<NameIdAST>(unqualifiedId)) {
-        resolvedType = unqualifiedLookupType(lexicalScope_, nameId->identifier);
+        resolvedType = unqualifiedLookupType(lexicalScope_, nameId->identifier,
+                                             is_parsing_cxx());
       }
     }
     symbol = binder_.resolve(nestedNameSpecifier, unqualifiedId, checkTemplates,
@@ -6056,7 +6065,9 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     if (decl.specs.isTypedef) {
       auto typedefSymbol = binder_.declareTypedef(declarator, decl);
       symbol = typedefSymbol;
-    } else if (getFunctionPrototype(declarator)) {
+    } else if (getFunctionPrototype(declarator) ||
+               type_cast<FunctionType>(
+                   getDeclaratorType(unit_, declarator, decl.specs.type()))) {
       auto functionSymbol = binder_.declareFunction(declarator, decl);
       functionSymbol->setTemplateDeclaration(templateHead);
       if (templateHead)
@@ -9146,7 +9157,8 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   Symbol* resolvedType = nullptr;
   if (!ast->nestedNameSpecifier) {
     if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-      resolvedType = unqualifiedLookupType(lexicalScope_, nameId->identifier);
+      resolvedType = unqualifiedLookupType(lexicalScope_, nameId->identifier,
+                                           is_parsing_cxx());
     }
   }
 

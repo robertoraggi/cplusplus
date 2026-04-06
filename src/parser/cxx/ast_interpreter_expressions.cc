@@ -1235,20 +1235,24 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
     }
 
     case TokenKind::T_AMP: {
-      if (auto* idExpr = ast_cast<IdExpressionAST>(ast->expression)) {
+      // Unwrap parenthesized expressions, e.g. &(var).
+      auto* innerExpr = ast->expression;
+      while (auto* nested = ast_cast<NestedExpressionAST>(innerExpr))
+        innerExpr = nested->expression;
+
+      if (auto* idExpr = ast_cast<IdExpressionAST>(innerExpr)) {
         if (idExpr->symbol) {
           return std::make_shared<ConstAddress>(idExpr->symbol);
         }
       }
 
-      if (auto* objLit =
-              ast_cast<ObjectLiteralExpressionAST>(ast->expression)) {
+      if (auto* objLit = ast_cast<ObjectLiteralExpressionAST>(innerExpr)) {
         if (objLit->symbol) {
           return std::make_shared<ConstAddress>(objLit->symbol);
         }
       }
 
-      auto* subExpr = ast_cast<SubscriptExpressionAST>(ast->expression);
+      auto* subExpr = ast_cast<SubscriptExpressionAST>(innerExpr);
       if (!subExpr) break;
 
       auto* idExpr = ast_cast<IdExpressionAST>(subExpr->baseExpression);
@@ -2277,6 +2281,75 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
       if (auto strLit = ast_cast<StringLiteralExpressionAST>(
               ast->expressionList->value)) {
         return ConstValue(strLit->literal);
+      }
+    }
+  }
+
+  if (!arrayType) {
+    if (auto classType = type_cast<ClassType>(ast->type)) {
+      if (auto* classSymbol = classType->symbol()) {
+        if (auto* layout = classSymbol->layout();
+            layout && !classSymbol->hasUserDeclaredConstructors()) {
+          // Collect non-static fields in declaration order.
+          std::vector<FieldSymbol*> fields;
+          for (auto* member : classSymbol->members()) {
+            if (auto* field = symbol_cast<FieldSymbol>(member)) {
+              if (!field->isStatic()) fields.push_back(field);
+            }
+          }
+
+          // Find max slot index to size the elements vector.
+          size_t maxSlot = 0;
+          for (auto* field : fields) {
+            if (auto info = layout->getFieldInfo(field))
+              maxSlot = std::max(maxSlot, static_cast<size_t>(info->index));
+          }
+
+          auto topList = std::make_shared<InitializerList>();
+          topList->elements.resize(maxSlot + 1, {std::intmax_t{0}, nullptr});
+
+          // Zero-initialize every slot.
+          for (auto* field : fields) {
+            if (auto info = layout->getFieldInfo(field)) {
+              if (!std::get<1>(topList->elements[info->index])) {
+                ConstValue zero = std::intmax_t{0};
+                if (info->bitWidth == 0) {
+                  if (auto z = makeZeroConstValue(unit(), field->type()))
+                    zero = *z;
+                }
+                topList->elements[info->index] = {zero, field->type()};
+              }
+            }
+          }
+
+          // Fill in provided initializer values in declaration order.
+          std::unordered_map<size_t, std::intmax_t> bitSlotAccum;
+          size_t fieldIdx = 0;
+          for (auto node : ListView{ast->expressionList}) {
+            if (fieldIdx >= fields.size()) break;
+            auto* field = fields[fieldIdx++];
+            auto info = layout->getFieldInfo(field);
+            if (!info) continue;
+            auto val = interp.evaluate(node);
+            if (!val) continue;
+            if (info->bitWidth > 0) {
+              // Bitfield: accumulate bits into the shared storage unit.
+              std::intmax_t bitVal = 0;
+              if (auto* iv = std::get_if<std::intmax_t>(&*val)) bitVal = *iv;
+              std::intmax_t mask = (std::intmax_t(1) << info->bitWidth) - 1;
+              bitSlotAccum[info->index] =
+                  (bitSlotAccum[info->index] & ~(mask << info->bitOffset)) |
+                  ((bitVal & mask) << info->bitOffset);
+              topList->elements[info->index] = {bitSlotAccum[info->index],
+                                                field->type()};
+            } else {
+              const Type* nodeType = node->type ? node->type : field->type();
+              topList->elements[info->index] = {*val, nodeType};
+            }
+          }
+
+          return ConstValue{topList};
+        }
       }
     }
   }
