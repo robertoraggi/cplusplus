@@ -156,7 +156,7 @@ void Codegen::resolveLabels() {
   }
 
   if (!labelAddressOps.empty()) {
-    auto* ctx = funcOp.getContext();
+    auto ctx = funcOp.getContext();
     llvm::DenseMap<llvm::StringRef, unsigned> labelToTagId;
     llvm::SmallVector<mlir::Block*> labelTargets;
     unsigned nextTagId = 0;
@@ -168,7 +168,7 @@ void Codegen::resolveLabels() {
       if (it == labelToTagId.end()) {
         tagId = nextTagId++;
         labelToTagId[name] = tagId;
-        auto* targetBlock = labels.lookup(name);
+        auto targetBlock = labels.lookup(name);
         if (targetBlock) {
           auto tagAttr = mlir::LLVM::BlockTagAttr::get(ctx, tagId);
           rewriter.setInsertionPointToStart(targetBlock);

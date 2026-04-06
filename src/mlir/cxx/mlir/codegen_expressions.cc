@@ -499,7 +499,7 @@ auto Codegen::ExpressionVisitor::operator()(NestedStatementExpressionAST* ast)
   // Find any trailing expression statement whose value we need to return.
   ExpressionStatementAST* lastExprStmt = nullptr;
   if (!stmts.empty() && !gen.unit_->typeTraits().is_void(ast->type)) {
-    if (auto* last = ast_cast<ExpressionStatementAST>(stmts.back()))
+    if (auto last = ast_cast<ExpressionStatementAST>(stmts.back()))
       if (last->expression && last->expression->type) lastExprStmt = last;
   }
 
@@ -819,13 +819,13 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   const Type* strideBaseType = nullptr;
   if (gen.unit_->typeTraits().is_pointer(baseType))
     strideBaseType = gen.unit_->typeTraits().get_element_type(baseType);
-  else if (auto* vla = type_cast<UnresolvedBoundedArrayType>(baseType))
+  else if (auto vla = type_cast<UnresolvedBoundedArrayType>(baseType))
     strideBaseType = vla->elementType();
 
   if (strideBaseType) {
     mlir::Value stride;
     const Type* cur = strideBaseType;
-    while (auto* vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
+    while (auto vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
       auto countResult = gen.expression(vla->size());
       auto countVal = countResult.value;
       if (mlir::isa<mlir::cxx::PointerType>(countVal.getType())) {
@@ -1573,10 +1573,9 @@ auto Codegen::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
     -> ExpressionResult {
   if (ast->castOp == TokenKind::T_STATIC_CAST &&
       ast->valueCategory == ValueCategory::kLValue) {
-    auto* innerExpr = ast->expression;
+    auto innerExpr = ast->expression;
 
-    while (auto* implicitCast =
-               ast_cast<ImplicitCastExpressionAST>(innerExpr)) {
+    while (auto implicitCast = ast_cast<ImplicitCastExpressionAST>(innerExpr)) {
       innerExpr = implicitCast->expression;
     }
 
@@ -2048,7 +2047,7 @@ auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     auto resultType = gen.convertType(ast->type);
     mlir::Value totalElements;
     const Type* cur = ast->expression->type;
-    while (auto* vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
+    while (auto vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
       auto countResult = gen.expression(vla->size());
       if (!countResult.value) break;
       auto countVal = countResult.value;
@@ -2105,7 +2104,7 @@ auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     auto resultType = gen.convertType(ast->type);
     mlir::Value totalElements;
     const Type* cur = typeIdType;
-    while (auto* vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
+    while (auto vla = type_cast<UnresolvedBoundedArrayType>(cur)) {
       auto countResult = gen.expression(vla->size());
       if (!countResult.value) break;
       auto countVal = countResult.value;
@@ -2302,7 +2301,7 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
   } else if (ast->newInitalizer) {
     if (auto paren = ast_cast<NewParenInitializerAST>(ast->newInitalizer)) {
       if (paren->expressionList) {
-        auto* initExpr = paren->expressionList->value;
+        auto initExpr = paren->expressionList->value;
         auto initVal = gen.expression(initExpr);
         auto val = initVal.value;
         if (initExpr->valueCategory == ValueCategory::kLValue) {
@@ -2693,26 +2692,26 @@ auto Codegen::ExpressionVisitor::emitUserDefinedConversion(
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto resultType = gen.convertType(ast->type);
 
-  auto* innerExpr = ast->expression;
-  auto* sourceType = innerExpr ? innerExpr->type : nullptr;
-  auto* sourceUnqual =
+  auto innerExpr = ast->expression;
+  auto sourceType = innerExpr ? innerExpr->type : nullptr;
+  auto sourceUnqual =
       sourceType ? gen.unit_->typeTraits().remove_cv(
                        gen.unit_->typeTraits().remove_reference(sourceType))
                  : nullptr;
-  auto* destType = ast->type;
-  auto* destUnqual =
+  auto destType = ast->type;
+  auto destUnqual =
       destType ? gen.unit_->typeTraits().remove_cv(
                      gen.unit_->typeTraits().remove_reference(destType))
                : nullptr;
 
-  if (auto* srcClassType = type_cast<ClassType>(sourceUnqual)) {
-    if (auto* srcClass = srcClassType->symbol()) {
-      for (auto* convFunc : srcClass->conversionFunctions()) {
-        auto* convFuncType = type_cast<FunctionType>(convFunc->type());
+  if (auto srcClassType = type_cast<ClassType>(sourceUnqual)) {
+    if (auto srcClass = srcClassType->symbol()) {
+      for (auto convFunc : srcClass->conversionFunctions()) {
+        auto convFuncType = type_cast<FunctionType>(convFunc->type());
         if (!convFuncType) continue;
-        auto* retType = convFuncType->returnType();
+        auto retType = convFuncType->returnType();
         if (!retType) continue;
-        auto* retUnqual = gen.unit_->typeTraits().remove_cv(retType);
+        auto retUnqual = gen.unit_->typeTraits().remove_cv(retType);
         if (gen.unit_->typeTraits().is_same(retUnqual, destUnqual) ||
             (gen.unit_->typeTraits().is_arithmetic(retUnqual) &&
              gen.unit_->typeTraits().is_arithmetic(destUnqual))) {
@@ -2738,14 +2737,14 @@ auto Codegen::ExpressionVisitor::emitUserDefinedConversion(
     }
   }
 
-  if (auto* dstClassType = type_cast<ClassType>(destUnqual)) {
-    if (auto* dstClass = dstClassType->symbol()) {
-      for (auto* ctor : dstClass->convertingConstructors()) {
-        auto* funcType = type_cast<FunctionType>(ctor->type());
+  if (auto dstClassType = type_cast<ClassType>(destUnqual)) {
+    if (auto dstClass = dstClassType->symbol()) {
+      for (auto ctor : dstClass->convertingConstructors()) {
+        auto funcType = type_cast<FunctionType>(ctor->type());
         if (!funcType) continue;
         auto& params = funcType->parameterTypes();
         if (params.size() != 1) continue;
-        auto* paramUnqual = gen.unit_->typeTraits().remove_cv(
+        auto paramUnqual = gen.unit_->typeTraits().remove_cv(
             gen.unit_->typeTraits().remove_reference(params[0]));
         if (gen.unit_->typeTraits().is_same(sourceUnqual, paramUnqual) ||
             (gen.unit_->typeTraits().is_arithmetic(sourceUnqual) &&
@@ -3812,7 +3811,7 @@ void Codegen::arrayInit(mlir::Value address, const Type* type,
   }
 
   if (auto strLit = ast_cast<StringLiteralExpressionAST>(init)) {
-    auto* arr = type_cast<BoundedArrayType>(type);
+    auto arr = type_cast<BoundedArrayType>(type);
     if (!arr && !type_cast<UnboundedArrayType>(type)) return;
 
     auto loc = getLocation(init->firstSourceLocation());
@@ -4289,7 +4288,7 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFile(CallExpressionAST* ast)
     -> ExpressionResult {
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto pos = gen.unit_->tokenStartPosition(ast->firstSourceLocation());
-  auto* lit = control()->stringLiteral(pos.fileName);
+  auto lit = control()->stringLiteral(pos.fileName);
 
   auto it = gen.stringLiterals_.find(lit);
   if (it == gen.stringLiterals_.end()) {
@@ -4323,13 +4322,13 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFunction(CallExpressionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   std::string funcName;
-  if (auto* sym = gen.currentFunctionSymbol_) {
-    if (auto* id = name_cast<Identifier>(sym->name())) {
+  if (auto sym = gen.currentFunctionSymbol_) {
+    if (auto id = name_cast<Identifier>(sym->name())) {
       funcName = id->value();
     }
   }
 
-  auto* litKey = control()->stringLiteral(funcName);
+  auto litKey = control()->stringLiteral(funcName);
   auto it = gen.stringLiterals_.find(litKey);
   if (it == gen.stringLiterals_.end()) {
     std::string str = funcName;

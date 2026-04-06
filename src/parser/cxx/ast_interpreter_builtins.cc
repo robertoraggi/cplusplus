@@ -42,13 +42,13 @@ auto ASTInterpreter::evaluateBuiltinFile(CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   if (!ast) return std::nullopt;
   auto pos = unit_->tokenStartPosition(ast->firstSourceLocation());
-  auto* lit = control()->stringLiteral(pos.fileName);
+  auto lit = control()->stringLiteral(pos.fileName);
   return ConstValue{lit};
 }
 
 auto ASTInterpreter::evaluateBuiltinFunction(CallExpressionAST* /*ast*/)
     -> std::optional<ConstValue> {
-  auto* lit = control()->stringLiteral(currentFunctionName_);
+  auto lit = control()->stringLiteral(currentFunctionName_);
   return ConstValue{lit};
 }
 

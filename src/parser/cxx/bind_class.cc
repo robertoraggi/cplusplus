@@ -173,7 +173,7 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   declSpecs.setTypeSpecifier(ast);
   declSpecs.setType(ast->symbol->type());
 
-  if (classSymbol->name() && binder.is_parsing_cxx()) {
+  if (classSymbol->name() && binder.isCxx()) {
     auto injected = control()->newInjectedClassNameSymbol(
         classSymbol, classSymbol->location());
     injected->setName(classSymbol->name());
@@ -270,7 +270,7 @@ void Binder::BindClass::bind() {
 
   if (check_template_specialization()) return;
 
-  const auto* name = className();
+  const auto name = className();
   const auto location = classLocation();
   auto classSymbol = findExistingClass(name);
 

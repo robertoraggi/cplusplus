@@ -77,7 +77,7 @@ void Binder::complete(ClassSpecifierAST* ast) {
 void Binder::CompleteClass::markComplete() { ast->symbol->setComplete(true); }
 
 auto Binder::CompleteClass::shouldSynthesizeSpecialMembers() const -> bool {
-  if (!binder.is_parsing_cxx()) return false;
+  if (!binder.isCxx()) return false;
   if (!classSymbol->name()) return false;
   return true;
 }
@@ -393,7 +393,7 @@ void Binder::BuildRecordLayout::layoutBases() {
   if (classSymbol->isUnion()) return;
 
   bool foundPolymorphicBase = false;
-  for (auto* base : classSymbol->baseClasses()) {
+  for (auto base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
     if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
@@ -434,7 +434,7 @@ void Binder::BuildRecordLayout::closeBitfieldRun() {
       static_cast<std::uint32_t>(calculatedSize - runStartByte);
 
   // Update all fields in this run with the final storage unit size
-  for (auto* f : runFields) {
+  for (auto f : runFields) {
     if (auto info = layout->getFieldInfo(f)) {
       auto updated = *info;
       updated.allocUnitSizeBytes = allocUnitSizeBytes;
@@ -453,7 +453,7 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
 
   int bitWidth = 0;
   if (auto& bfw = field->bitFieldWidth()) {
-    if (auto* iv = std::get_if<std::intmax_t>(&*bfw)) {
+    if (auto iv = std::get_if<std::intmax_t>(&*bfw)) {
       bitWidth = static_cast<int>(*iv);
     }
   }
@@ -628,7 +628,7 @@ auto Binder::BuildRecordLayout::layoutFields()
 }
 
 void Binder::BuildRecordLayout::propagateBaseFields() {
-  for (auto* base : classSymbol->baseClasses()) {
+  for (auto base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
     if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;

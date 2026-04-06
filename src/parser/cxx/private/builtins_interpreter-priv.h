@@ -84,7 +84,7 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRLEN: {
-      if (auto* lit = std::get_if<const StringLiteral*>(&args[0])) {
+      if (auto lit = std::get_if<const StringLiteral*>(&args[0])) {
         if (*lit) {
           return ConstValue{
               static_cast<std::intmax_t>((*lit)->stringValue().size())};
@@ -94,8 +94,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRCMP: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       if (a && b && *a && *b) {
         auto sa = (*a)->stringValue();
         auto sb = (*b)->stringValue();
@@ -108,8 +108,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRNCMP: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
       if (a && b && *a && *b && n) {
         auto sa = (*a)->stringValue();
@@ -124,8 +124,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_MEMCMP: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
       if (a && b && *a && *b && n) {
         auto sa = (*a)->stringValue();
@@ -142,8 +142,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_BCMP: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
       if (a && b && *a && *b && n) {
         auto sa = (*a)->stringValue();
@@ -159,8 +159,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
 #ifndef _MSC_VER
     case BuiltinFunctionKind::T___BUILTIN_STRCASECMP: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       if (a && b && *a && *b) {
         int r = strcasecmp(std::string((*a)->stringValue()).c_str(),
                            std::string((*b)->stringValue()).c_str());
@@ -174,8 +174,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
 #ifndef _MSC_VER
     case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
       if (a && b && *a && *b && n) {
         int r = strncasecmp(std::string((*a)->stringValue()).c_str(),
@@ -190,8 +190,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 #endif
 
     case BuiltinFunctionKind::T___BUILTIN_STRSPN: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       if (a && b && *a && *b) {
         auto sa = std::string((*a)->stringValue());
         auto sb = std::string((*b)->stringValue());
@@ -202,8 +202,8 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRCSPN: {
-      auto* a = std::get_if<const StringLiteral*>(&args[0]);
-      auto* b = std::get_if<const StringLiteral*>(&args[1]);
+      auto a = std::get_if<const StringLiteral*>(&args[0]);
+      auto b = std::get_if<const StringLiteral*>(&args[1]);
       if (a && b && *a && *b) {
         auto sa = std::string((*a)->stringValue());
         auto sb = std::string((*b)->stringValue());

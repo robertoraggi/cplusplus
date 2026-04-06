@@ -66,22 +66,22 @@ struct AssociatedNamespaceCollector {
   }
 
   void collect(const TemplateArgument& arg) {
-    if (auto* argType = std::get_if<const Type*>(&arg)) {
+    if (auto argType = std::get_if<const Type*>(&arg)) {
       collect(*argType);
       return;
     }
 
-    if (auto* argSymbol = std::get_if<Symbol*>(&arg)) {
+    if (auto argSymbol = std::get_if<Symbol*>(&arg)) {
       collect(*argSymbol);
       return;
     }
 
-    if (auto* argValue = std::get_if<ConstValue>(&arg)) {
+    if (auto argValue = std::get_if<ConstValue>(&arg)) {
       collect(*argValue);
       return;
     }
 
-    if (auto* argExpr = std::get_if<ExpressionAST*>(&arg)) {
+    if (auto argExpr = std::get_if<ExpressionAST*>(&arg)) {
       if (*argExpr) collect((*argExpr)->type);
       return;
     }

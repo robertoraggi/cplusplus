@@ -355,7 +355,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       }
     } else if (needsZeroPtrInit) {
       auto& region = globalOp.getInitializerRegion();
-      auto* block = rewriter.createBlock(&region);
+      auto block = rewriter.createBlock(&region);
       rewriter.setInsertionPointToStart(block);
       auto zero = LLVM::ZeroOp::create(rewriter, op.getLoc(), elementType);
       LLVM::ReturnOp::create(rewriter, op.getLoc(), zero.getResult());
@@ -368,7 +368,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       unsigned numElements = arrType.getNumElements();
 
       auto& region = globalOp.getInitializerRegion();
-      auto* block = rewriter.createBlock(&region);
+      auto block = rewriter.createBlock(&region);
       rewriter.setInsertionPointToStart(block);
 
       Value arr = LLVM::UndefOp::create(rewriter, op.getLoc(), elementType);
@@ -396,7 +396,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       auto strName =
           createStringGlobal(rewriter, op.getLoc(), module, strAttr.getValue());
       auto& region = globalOp.getInitializerRegion();
-      auto* block = rewriter.createBlock(&region);
+      auto block = rewriter.createBlock(&region);
       rewriter.setInsertionPointToStart(block);
       auto ptrType = LLVM::LLVMPointerType::get(op.getContext());
       auto addr = LLVM::AddressOfOp::create(
@@ -407,7 +407,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       auto arrAttr = cast<ArrayAttr>(value);
       auto module = op->getParentOfType<ModuleOp>();
       auto& region = globalOp.getInitializerRegion();
-      auto* block = rewriter.createBlock(&region);
+      auto block = rewriter.createBlock(&region);
       rewriter.setInsertionPointToStart(block);
 
       Value result = LLVM::ZeroOp::create(rewriter, op.getLoc(), elementType);
@@ -464,7 +464,7 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
 
     // Build the initializer region
     auto& region = globalOp.getInitializerRegion();
-    auto* block = rewriter.createBlock(&region);
+    auto block = rewriter.createBlock(&region);
     rewriter.setInsertionPointToStart(block);
 
     Value arr = LLVM::UndefOp::create(rewriter, op.getLoc(), arrayType);
@@ -1372,7 +1372,7 @@ class LabelAddressOpLowering : public OpConversionPattern<cxx::LabelAddressOp> {
     auto funcName = funcNameAttr.getValue();
 
     auto tagId = static_cast<unsigned>(op.getTagId().value());
-    auto* ctx = op.getContext();
+    auto ctx = op.getContext();
     auto blockAddrAttr = LLVM::BlockAddressAttr::get(
         ctx, mlir::FlatSymbolRefAttr::get(ctx, funcName),
         LLVM::BlockTagAttr::get(ctx, tagId));

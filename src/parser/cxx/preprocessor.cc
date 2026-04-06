@@ -1474,7 +1474,7 @@ auto Preprocessor::Private::lookupMacroArgument(
     const Tok*& ts, const Tok* lineEnd, const Macro* m,
     const std::vector<TokRange>& actuals) -> std::optional<TokRange> {
   if (!isFunctionLikeMacro(*m)) return std::nullopt;
-  const auto* macro = std::get_if<FunctionMacro>(m);
+  const auto macro = std::get_if<FunctionMacro>(m);
   if (!macro) return std::nullopt;
 
   if (ts >= lineEnd || ts->isNot(TokenKind::T_IDENTIFIER)) return std::nullopt;
@@ -1550,7 +1550,7 @@ auto Preprocessor::Private::substitute(
   while (ts < tsEnd && ts->isNot(TokenKind::T_EOF_SYMBOL)) {
     if (ts->is(TokenKind::T_HASH) && ts + 1 < tsEnd &&
         (ts + 1)->is(TokenKind::T_IDENTIFIER)) {
-      const auto* saved = ts;
+      const auto saved = ts;
       ++ts;
       if (auto actual = lookupMacroArgument(ts, tsEnd, macro, actuals)) {
         auto [ab, ae] = *actual;
@@ -1564,7 +1564,7 @@ auto Preprocessor::Private::substitute(
 
     if (ts->is(TokenKind::T_HASH_HASH) && ts + 1 < tsEnd &&
         (ts + 1)->is(TokenKind::T_IDENTIFIER)) {
-      const auto* saved = ts;
+      const auto saved = ts;
       ++ts;
       if (auto actual = lookupMacroArgument(ts, tsEnd, macro, actuals)) {
         auto [ab, ae] = *actual;
@@ -1618,7 +1618,7 @@ auto Preprocessor::Private::substitute(
 
     if (ts->is(TokenKind::T_IDENTIFIER) && getText(*ts) == "__VA_OPT__" &&
         ts + 1 < tsEnd && (ts + 1)->is(TokenKind::T_LPAREN)) {
-      const auto* funcMacro = std::get_if<FunctionMacro>(macro);
+      const auto funcMacro = std::get_if<FunctionMacro>(macro);
       if (funcMacro && funcMacro->variadic) {
         ++ts;
         ++ts;
@@ -1976,7 +1976,7 @@ auto Preprocessor::Private::filterDirectivesInArgs(const Tok* lparen,
 
 auto Preprocessor::Private::expandFunctionLikeMacro(
     Cursor& cursor, const Macro* m, const cxx::Identifier* ident) -> bool {
-  const auto* macro = std::get_if<FunctionMacro>(m);
+  const auto macro = std::get_if<FunctionMacro>(m);
   if (!macro) return false;
 
   auto cursorIndex = cursors_.size() - 1;

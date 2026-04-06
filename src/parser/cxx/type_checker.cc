@@ -59,11 +59,11 @@ struct IsPotentiallyThrowing {
   auto operator()(NoexceptExpressionAST*) -> bool { return false; }
 
   auto operator()(CallExpressionAST* ast) -> bool {
-    auto* base = ast->baseExpression;
+    auto base = ast->baseExpression;
     if (!base) return true;
     const FunctionType* ft = type_cast<FunctionType>(base->type);
     if (!ft)
-      if (auto* pt = type_cast<PointerType>(base->type))
+      if (auto pt = type_cast<PointerType>(base->type))
         ft = type_cast<FunctionType>(pt->elementType());
     if (!ft || !ft->isNoexcept()) return true;
     for (auto it = ast->expressionList; it; it = it->next)
@@ -72,7 +72,7 @@ struct IsPotentiallyThrowing {
   }
 
   auto operator()(TypeConstructionAST* ast) -> bool {
-    if (auto* classType = type_cast<ClassType>(ast->type)) {
+    if (auto classType = type_cast<ClassType>(ast->type)) {
       auto cls = classType->definition();
       if (!cls || !cls->isComplete()) return true;
       auto defCtor = cls->defaultConstructor();
@@ -85,7 +85,7 @@ struct IsPotentiallyThrowing {
 
   auto operator()(BinaryExpressionAST* ast) -> bool {
     if (ast->symbol) {
-      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      auto ft = type_cast<FunctionType>(ast->symbol->type());
       if (!ft || !ft->isNoexcept()) return true;
     }
     return apply(ast->leftExpression) || apply(ast->rightExpression);
@@ -93,7 +93,7 @@ struct IsPotentiallyThrowing {
 
   auto operator()(UnaryExpressionAST* ast) -> bool {
     if (ast->symbol) {
-      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      auto ft = type_cast<FunctionType>(ast->symbol->type());
       if (!ft || !ft->isNoexcept()) return true;
     }
     return apply(ast->expression);
@@ -101,7 +101,7 @@ struct IsPotentiallyThrowing {
 
   auto operator()(AssignmentExpressionAST* ast) -> bool {
     if (ast->symbol) {
-      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      auto ft = type_cast<FunctionType>(ast->symbol->type());
       if (!ft || !ft->isNoexcept()) return true;
     }
     return apply(ast->leftExpression) || apply(ast->rightExpression);
@@ -109,7 +109,7 @@ struct IsPotentiallyThrowing {
 
   auto operator()(CompoundAssignmentExpressionAST* ast) -> bool {
     if (ast->symbol) {
-      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      auto ft = type_cast<FunctionType>(ast->symbol->type());
       if (!ft || !ft->isNoexcept()) return true;
     }
     return apply(ast->targetExpression) || apply(ast->rightExpression);
@@ -117,7 +117,7 @@ struct IsPotentiallyThrowing {
 
   auto operator()(SubscriptExpressionAST* ast) -> bool {
     if (ast->symbol) {
-      auto* ft = type_cast<FunctionType>(ast->symbol->type());
+      auto ft = type_cast<FunctionType>(ast->symbol->type());
       if (!ft || !ft->isNoexcept()) return true;
     }
     return apply(ast->baseExpression) || apply(ast->indexExpression);
@@ -138,13 +138,13 @@ struct IsPotentiallyThrowing {
 
   auto operator()(PostIncrExpressionAST* ast) -> bool {
     if (!ast->baseExpression) return false;
-    auto* baseType = ast->baseExpression->type;
+    auto baseType = ast->baseExpression->type;
     if (baseType && type_cast<ClassType>(baseType)) return true;
     return false;
   }
 
   auto operator()(BracedTypeConstructionAST* ast) -> bool {
-    if (auto* classType = type_cast<ClassType>(ast->type)) {
+    if (auto classType = type_cast<ClassType>(ast->type)) {
       auto cls = classType->definition();
       if (!cls || !cls->isComplete()) return true;
       auto defCtor = cls->defaultConstructor();
@@ -197,11 +197,11 @@ struct TypeChecker::Visitor {
     return check.unit_->control();
   }
 
-  [[nodiscard]] auto is_parsing_c() const {
+  [[nodiscard]] auto isC() const {
     return check.unit_->language() == LanguageKind::kC;
   }
 
-  [[nodiscard]] auto is_parsing_cxx() const {
+  [[nodiscard]] auto isCxx() const {
     return check.unit_->language() == LanguageKind::kCXX;
   }
 
@@ -557,7 +557,7 @@ void TypeChecker::Visitor::operator()(ObjectLiteralExpressionAST* ast) {
 
   // create an anonymous VariableSymbol for the compound literal
   if (ast->type) {
-    auto* symbol =
+    auto symbol =
         control()->newVariableSymbol(scope(), ast->firstSourceLocation());
     symbol->setType(ast->type);
     symbol->setStatic(true);
@@ -1138,16 +1138,16 @@ auto TypeChecker::Visitor::resolve_function_type(CallExpressionAST* ast)
   auto functionType = type_cast<FunctionType>(ast->baseExpression->type);
 
   if (functionType) {
-    auto* stripped = ast->baseExpression;
+    auto stripped = ast->baseExpression;
 
-    while (auto* nested = ast_cast<NestedExpressionAST>(stripped))
+    while (auto nested = ast_cast<NestedExpressionAST>(stripped))
       stripped = nested->expression;
 
     bool isDirectCall = false;
 
-    if (auto* idExpr = ast_cast<IdExpressionAST>(stripped))
+    if (auto idExpr = ast_cast<IdExpressionAST>(stripped))
       isDirectCall = symbol_cast<FunctionSymbol>(idExpr->symbol) != nullptr;
-    else if (auto* memberExpr = ast_cast<MemberExpressionAST>(stripped))
+    else if (auto memberExpr = ast_cast<MemberExpressionAST>(stripped))
       isDirectCall = symbol_cast<FunctionSymbol>(memberExpr->symbol) != nullptr;
 
     if (!isDirectCall) {
@@ -1397,8 +1397,7 @@ void TypeChecker::Visitor::check_call_arguments(
       continue;
     }
 
-    if (is_parsing_cxx() &&
-        check.unit_->typeTraits().is_reference(targetType)) {
+    if (isCxx() && check.unit_->typeTraits().is_reference(targetType)) {
       auto seq =
           resolution.computeImplicitConversionSequence(it->value, targetType);
       if (seq.rank == ConversionRank::kNone) {
@@ -1464,7 +1463,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
 
   if (in_template()) {
     bool anyDependent = false;
-    for (const auto* argType : argumentTypes) {
+    for (const auto argType : argumentTypes) {
       if (!argType || is_dependent_type(argType)) {
         anyDependent = true;
         break;
@@ -1477,7 +1476,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     }
   } else {
     bool anyDependent = false;
-    for (const auto* argType : argumentTypes) {
+    for (const auto argType : argumentTypes) {
       if (is_dependent_type(argType)) {
         anyDependent = true;
         break;
@@ -1774,13 +1773,12 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
     if (check.unit_->typeTraits().is_const(ast->baseExpression->type))
       return false;
 
-    if (is_parsing_cxx() &&
+    if (isCxx() &&
         !check.unit_->typeTraits().is_arithmetic(ast->baseExpression->type))
       return false;
 
-    if (is_parsing_c() &&
-        !check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
-            ast->baseExpression->type))
+    if (isC() && !check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
+                     ast->baseExpression->type))
       return false;
 
     auto ty = check.unit_->typeTraits().remove_cv(ast->baseExpression->type);
@@ -2897,7 +2895,7 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
 
   prepare_comparison_operands(ast);
 
-  if (is_parsing_c()) {
+  if (isC()) {
     (void)stdconv_.arrayToPointer(ast->leftExpression);
     (void)stdconv_.arrayToPointer(ast->rightExpression);
   }
@@ -2943,7 +2941,7 @@ void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
 
   prepare_comparison_operands(ast);
 
-  if (is_parsing_c()) {
+  if (isC()) {
     (void)stdconv_.arrayToPointer(ast->leftExpression);
     (void)stdconv_.arrayToPointer(ast->rightExpression);
   }
@@ -3287,7 +3285,7 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
 
   if (!ast->iftrueExpression->type || !ast->iffalseExpression->type) return;
 
-  if (is_parsing_c()) {
+  if (isC()) {
     // in C, both expressions must be prvalues
     (void)stdconv_.ensurePrvalue(ast->iftrueExpression);
     (void)stdconv_.ensurePrvalue(ast->iffalseExpression);
@@ -3370,7 +3368,7 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
 
   ast->type = ast->leftExpression->type;
 
-  if (is_parsing_c()) {
+  if (isC()) {
     ast->valueCategory = ValueCategory::kPrValue;
   } else {
     ast->valueCategory = ast->leftExpression->valueCategory;
@@ -3445,7 +3443,7 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
   ast->leftExpression->valueCategory = ast->targetExpression->valueCategory;
   ast->type = ast->targetExpression->type;
 
-  if (is_parsing_cxx()) {
+  if (isCxx()) {
     ast->valueCategory = ValueCategory::kLValue;
   } else {
     ast->valueCategory = ValueCategory::kPrValue;
@@ -4019,7 +4017,7 @@ void TypeChecker::Visitor::check_prefix_increment_decrement(
   if (!check.unit_->typeTraits().is_const(ast->expression->type)) {
     auto ty = ast->expression->type;
 
-    if (is_parsing_cxx()
+    if (isCxx()
             ? check.unit_->typeTraits().is_arithmetic(ty)
             : check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(ty)) {
       ast->type = ty;

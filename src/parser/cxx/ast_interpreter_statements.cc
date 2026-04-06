@@ -259,19 +259,19 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
     -> StatementResult {
   auto declarationResult = interp.declaration(ast->declaration);
 
-  if (auto* simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration)) {
+  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration)) {
     for (auto initDecl : ListView{simpleDecl->initDeclaratorList}) {
       if (!initDecl->symbol) continue;
 
       auto initVal = interp.expression(initDecl->initializer);
 
       if (!initVal.has_value()) {
-        if (auto* parenInit =
+        if (auto parenInit =
                 ast_cast<ParenInitializerAST>(initDecl->initializer)) {
-          auto* var = symbol_cast<VariableSymbol>(initDecl->symbol);
+          auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
           if (var) {
             auto varType = interp.unit_->typeTraits().remove_cv(var->type());
-            if (auto* classType = type_cast<ClassType>(varType)) {
+            if (auto classType = type_cast<ClassType>(varType)) {
               std::vector<ConstValue> args;
               bool argsOk = true;
               for (auto node : ListView{parenInit->expressionList}) {
@@ -283,9 +283,9 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
                 args.push_back(std::move(*val));
               }
               if (argsOk) {
-                auto* classSym = classType->symbol();
+                auto classSym = classType->symbol();
                 if (classSym) {
-                  for (auto* ctor : classSym->constructors()) {
+                  for (auto ctor : classSym->constructors()) {
                     if (ctor->isConstexpr()) {
                       initVal = interp.evaluateConstructor(ctor, varType,
                                                            std::move(args));

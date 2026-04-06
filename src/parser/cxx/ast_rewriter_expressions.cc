@@ -1083,18 +1083,18 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
         };
 
         auto adlCandidates = argumentDependentLookup(name, argTypes);
-        for (auto* cand : adlCandidates) tryCandidate(cand);
+        for (auto cand : adlCandidates) tryCandidate(cand);
 
         // Also check the overload set or the parent scope of the function.
         if (!best) {
           if (ovl) {
-            for (auto* cand : ovl->functions()) tryCandidate(cand);
+            for (auto cand : ovl->functions()) tryCandidate(cand);
           } else if (func) {
-            if (auto* parent = func->parent()) {
-              auto* found = qualifiedLookup(parent, name);
-              if (auto* o = symbol_cast<OverloadSetSymbol>(found)) {
-                for (auto* cand : o->functions()) tryCandidate(cand);
-              } else if (auto* cand = symbol_cast<FunctionSymbol>(found)) {
+            if (auto parent = func->parent()) {
+              auto found = qualifiedLookup(parent, name);
+              if (auto o = symbol_cast<OverloadSetSymbol>(found)) {
+                for (auto cand : o->functions()) tryCandidate(cand);
+              } else if (auto cand = symbol_cast<FunctionSymbol>(found)) {
                 tryCandidate(cand);
               }
             }

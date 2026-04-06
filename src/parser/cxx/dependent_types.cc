@@ -118,7 +118,7 @@ struct IsDependent {
 
   auto operator()(const FunctionType* type) -> bool {
     if (isDependent(type->returnType())) return true;
-    for (const auto* param : type->parameterTypes()) {
+    for (const auto param : type->parameterTypes()) {
       if (isDependent(param)) return true;
     }
     return false;
@@ -131,17 +131,17 @@ struct IsDependent {
       return true;
 
     for (const auto& arg : sym->templateArguments()) {
-      if (const auto* typeArg = std::get_if<const Type*>(&arg))
+      if (const auto typeArg = std::get_if<const Type*>(&arg))
         if (isDependent(*typeArg)) return true;
-      if (const auto* symArg = std::get_if<Symbol*>(&arg)) {
+      if (const auto symArg = std::get_if<Symbol*>(&arg)) {
         if (auto pack = symbol_cast<ParameterPackSymbol>(*symArg)) {
-          for (auto* elem : pack->elements())
+          for (auto elem : pack->elements())
             if (elem && isDependent(elem->type())) return true;
         } else if (*symArg && isDependent((*symArg)->type())) {
           return true;
         }
       }
-      if (const auto* exprArg = std::get_if<ExpressionAST*>(&arg))
+      if (const auto exprArg = std::get_if<ExpressionAST*>(&arg))
         if (isDependent(*exprArg)) return true;
     }
     return false;

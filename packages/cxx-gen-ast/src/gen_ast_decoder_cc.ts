@@ -87,7 +87,7 @@ export function gen_ast_decoder_cc({
         } else if (m.kind === "node-list" && by_base.has(m.type)) {
           const className = makeClassName(m.type);
           emit(`  if (node->${snakeName}()) {`);
-          emit(`    auto* inserter = &ast->${m.name};`);
+          emit(`    auto inserter = &ast->${m.name};`);
           emit(
             `    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`,
           );
@@ -101,7 +101,7 @@ export function gen_ast_decoder_cc({
         } else if (m.kind === "node-list" && !by_base.has(m.type)) {
           const className = makeClassName(m.type);
           emit(`  if (node->${snakeName}()) {`);
-          emit(`    auto* inserter = &ast->${m.name};`);
+          emit(`    auto inserter = &ast->${m.name};`);
           emit(
             `    for (std::uint32_t i = 0; i < node->${snakeName}()->size();`,
           );
