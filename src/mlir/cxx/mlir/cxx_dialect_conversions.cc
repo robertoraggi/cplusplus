@@ -26,6 +26,7 @@
 
 // mlir
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Error.h>
 #include <llvm/TargetParser/Triple.h>
@@ -645,39 +646,57 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       return success();
     }
 
-    llvm::StringRef funcName = name;
-    if (funcName.starts_with("__builtin_")) {
-      funcName = funcName.drop_front(std::strlen("__builtin_"));
-    }
-
     SmallVector<Type> resultTypes;
     if (failed(typeConverter->convertTypes(op.getResultTypes(), resultTypes))) {
       return rewriter.notifyMatchFailure(
           op, "failed to convert builtin call result types");
     }
 
-    SmallVector<Type> argTypes;
-    for (auto arg : adaptor.getInputs()) {
-      argTypes.push_back(arg.getType());
+    Type resultType;
+    if (!resultTypes.empty()) resultType = resultTypes.front();
+
+    std::vector<Value> inputs;
+    for (auto input : adaptor.getInputs()) {
+      inputs.push_back(input);
     }
 
-    auto module = op->getParentOfType<ModuleOp>();
-    auto funcOp = module.lookupSymbol<LLVM::LLVMFuncOp>(funcName);
-    if (!funcOp) {
-      auto funcType = LLVM::LLVMFunctionType::get(
-          rewriter.getContext(),
-          resultTypes.empty() ? LLVM::LLVMVoidType::get(rewriter.getContext())
-                              : resultTypes.front(),
-          argTypes, /*isVarArg=*/false);
+    llvm::StringRef funcName = name;
+    StringAttr intrin;
 
-      OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPointToStart(module.getBody());
-      funcOp = LLVM::LLVMFuncOp::create(rewriter, loc, funcName, funcType);
+    if (funcName == "__builtin_bswap16" || funcName == "__builtin_bswap32" ||
+        funcName == "__builtin_bswap64") {
+      intrin = rewriter.getStringAttr("llvm.bswap");
+    } else if (funcName == "__builtin_unreachable") {
+      intrin = rewriter.getStringAttr("llvm.unreachable");
+    } else if (funcName == "__builtin_trap") {
+      intrin = rewriter.getStringAttr("llvm.trap");
+    } else if (funcName == "__builtin_memcpy" ||
+               funcName == "__builtin_memcpy_inline") {
+      intrin = rewriter.getStringAttr("llvm.memcpy");
+    } else if (funcName == "__builtin_memmove" ||
+               funcName == "__builtin_memmove_inline") {
+      intrin = rewriter.getStringAttr("llvm.memmove");
+    } else if (funcName == "__builtin_memset" ||
+               funcName == "__builtin_memset_inline") {
+      intrin = rewriter.getStringAttr("llvm.memset");
+      // append isVolatile=false to the inputs for memset
+      inputs.push_back(LLVM::ConstantOp::create(
+          rewriter, loc, rewriter.getI1Type(),
+          rewriter.getIntegerAttr(rewriter.getI1Type(), 0)));
+    } else if (funcName == "__builtin_ctzll" || funcName == "__builtin_ctzl" ||
+               funcName == "__builtin_ctz") {
+      intrin = rewriter.getStringAttr("llvm.cttz");
     }
 
-    auto callOp = LLVM::CallOp::create(rewriter, loc, resultTypes, funcName,
-                                       adaptor.getInputs());
-    rewriter.replaceOp(op, callOp);
+    if (!intrin) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to create function name attribute");
+    }
+
+    auto intrinsicOp = LLVM::CallIntrinsicOp::create(rewriter, loc, resultType,
+                                                     intrin, inputs);
+
+    rewriter.replaceOp(op, intrinsicOp);
     return success();
   }
 };

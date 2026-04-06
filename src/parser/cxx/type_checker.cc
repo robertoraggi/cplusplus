@@ -697,7 +697,18 @@ void TypeChecker::Visitor::operator()(NestedStatementExpressionAST* ast) {
     return;
   }
 
-  if (!ast->type) ast->type = control()->getVoidType();
+  // The type is the type of the last expression statement (GNU extension).
+  if (!ast->type) {
+    StatementAST* lastStmt = nullptr;
+    for (auto node : ListView{ast->statement->statementList}) lastStmt = node;
+    if (auto exprStmt = ast_cast<ExpressionStatementAST>(lastStmt)) {
+      if (exprStmt->expression && exprStmt->expression->type) {
+        ast->type = exprStmt->expression->type;
+        ast->valueCategory = exprStmt->expression->valueCategory;
+      }
+    }
+    if (!ast->type) ast->type = control()->getVoidType();
+  }
   if (ast->valueCategory == ValueCategory::kNone)
     ast->valueCategory = ValueCategory::kPrValue;
 }
@@ -2233,7 +2244,9 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
   ast->type = control()->getSizeType();
 
   auto classType =
-      ast->typeId ? type_cast<ClassType>(ast->typeId->type) : nullptr;
+      ast->typeId ? type_cast<ClassType>(
+                        check.unit_->typeTraits().remove_cv(ast->typeId->type))
+                  : nullptr;
 
   if (!classType) {
     error(ast->firstSourceLocation(), "expected a type");

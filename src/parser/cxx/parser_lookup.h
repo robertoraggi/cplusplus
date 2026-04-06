@@ -45,7 +45,8 @@ template <typename Predicate>
 }
 
 [[nodiscard]] auto unqualifiedLookupType(Scope* lexicalScope,
-                                         const Identifier* id) -> Symbol*;
+                                         const Identifier* id,
+                                         bool tagsAreTypes = true) -> Symbol*;
 
 [[nodiscard]] auto unqualifiedLookupNamespace(Scope* lexicalScope,
                                               const Identifier* id)

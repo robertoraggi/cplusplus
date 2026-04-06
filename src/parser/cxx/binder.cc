@@ -370,10 +370,10 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
   } else if (auto member = ast_cast<MemberExpressionAST>(ast->expression)) {
     if (member->symbol) ast->type = member->symbol->type();
   } else if (ast->expression && ast->expression->type) {
-    if (is_lvalue(ast->expression)) {
+    if (is_parsing_cxx() && is_lvalue(ast->expression)) {
       ast->type =
           unit_->typeTraits().add_lvalue_reference(ast->expression->type);
-    } else if (is_xvalue(ast->expression)) {
+    } else if (is_parsing_cxx() && is_xvalue(ast->expression)) {
       ast->type =
           unit_->typeTraits().add_rvalue_reference(ast->expression->type);
     } else {
@@ -466,6 +466,10 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
     };
 
     auto aliases_named_type_symbol = [&](Symbol* candidate) {
+      if (is_parsing_c() && (symbol_cast<ClassSymbol>(candidate) ||
+                             symbol_cast<EnumSymbol>(candidate)))
+        return true;
+
       if (auto classSymbol = symbol_cast<ClassSymbol>(candidate)) {
         if (auto classType = type_cast<ClassType>(symbol->type())) {
           return classType->symbol() == classSymbol;
@@ -1054,6 +1058,10 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   };
 
   auto aliases_named_type_symbol = [&](Symbol* candidate) {
+    if (is_parsing_c() && (symbol_cast<ClassSymbol>(candidate) ||
+                           symbol_cast<EnumSymbol>(candidate)))
+      return true;
+
     if (auto classSymbol = symbol_cast<ClassSymbol>(candidate)) {
       if (auto classType = type_cast<ClassType>(symbol->type())) {
         return classType->symbol() == classSymbol;

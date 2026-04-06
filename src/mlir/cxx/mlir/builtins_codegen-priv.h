@@ -19,11 +19,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind)
     -> std::optional<ExpressionResult> {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_BZERO:
+      return codegenBuiltinBzero(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZ:
+      return codegenBuiltinCtz(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZL:
+      return codegenBuiltinCtz(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZLL:
+      return codegenBuiltinCtz(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_LINE:
       return codegenBuiltinLine(ast);
 

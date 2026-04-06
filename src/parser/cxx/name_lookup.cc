@@ -174,10 +174,12 @@ auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
 }
 
 auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
-                      std::vector<ScopeSymbol*>& visited) -> Symbol* {
+                      std::vector<ScopeSymbol*>& visited,
+                      bool tagsAreTypes = true) -> Symbol* {
   if (std::ranges::contains(visited, scope)) return nullptr;
   visited.push_back(scope);
 
+  Symbol* fallback = nullptr;
   for (auto candidate : scope->find(id)) {
     if (candidate->isHidden()) continue;
 
@@ -186,19 +188,29 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
       candidate = u->target();
     }
 
-    if (is_type(candidate) || candidate->isNamespace()) return candidate;
+    if (is_type(candidate) || candidate->isNamespace()) {
+      if (!tagsAreTypes && (symbol_cast<ClassSymbol>(candidate) ||
+                            symbol_cast<EnumSymbol>(candidate) ||
+                            symbol_cast<ScopedEnumSymbol>(candidate)))
+        continue;
+
+      if (symbol_cast<TypeAliasSymbol>(candidate)) return candidate;
+      if (!fallback) fallback = candidate;
+    }
   }
+  if (fallback) return fallback;
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
     for (const auto& base : classSymbol->baseClasses()) {
       auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClass) continue;
-      if (auto s = lookupTypeHelper(baseClass, id, visited)) return s;
+      if (auto s = lookupTypeHelper(baseClass, id, visited, tagsAreTypes))
+        return s;
     }
   }
 
   for (auto u : scope->usingDirectives()) {
-    if (auto s = lookupTypeHelper(u, id, visited)) return s;
+    if (auto s = lookupTypeHelper(u, id, visited, tagsAreTypes)) return s;
   }
 
   return nullptr;
@@ -241,12 +253,13 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 
 }  // namespace
 
-auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id)
-    -> Symbol* {
+auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
+                           bool tagsAreTypes) -> Symbol* {
   std::vector<ScopeSymbol*> visited;
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
-    if (auto s = lookupTypeHelper(sc->symbol, id, visited)) return s;
+    if (auto s = lookupTypeHelper(sc->symbol, id, visited, tagsAreTypes))
+      return s;
   }
   return nullptr;
 }

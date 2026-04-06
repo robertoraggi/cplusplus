@@ -173,7 +173,7 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   declSpecs.setTypeSpecifier(ast);
   declSpecs.setType(ast->symbol->type());
 
-  if (classSymbol->name()) {
+  if (classSymbol->name() && binder.is_parsing_cxx()) {
     auto injected = control()->newInjectedClassNameSymbol(
         classSymbol, classSymbol->location());
     injected->setName(classSymbol->name());

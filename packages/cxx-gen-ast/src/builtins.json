@@ -1877,7 +1877,8 @@
   {
     "name": "__builtin_bzero",
     "prototype": "void __builtin_bzero(void*, __SIZE_TYPE__)",
-    "constexpr": false
+    "constexpr": false,
+    "codegen": "codegenBuiltinBzero"
   },
   {
     "name": "__builtin_bcopy",
@@ -2052,17 +2053,20 @@
   {
     "name": "__builtin_ctz",
     "prototype": "constexpr int __builtin_ctz(unsigned int)",
-    "constexpr": true
+    "constexpr": true,
+    "codegen": "codegenBuiltinCtz"
   },
   {
     "name": "__builtin_ctzl",
     "prototype": "constexpr int __builtin_ctzl(unsigned long)",
-    "constexpr": true
+    "constexpr": true,
+    "codegen": "codegenBuiltinCtz"
   },
   {
     "name": "__builtin_ctzll",
     "prototype": "constexpr int __builtin_ctzll(unsigned long long)",
-    "constexpr": true
+    "constexpr": true,
+    "codegen": "codegenBuiltinCtz"
   },
   {
     "name": "__builtin_inf",
