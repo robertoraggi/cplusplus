@@ -466,7 +466,7 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
   auto layout = symbol->layout();
 
   // Add bases
-  for (auto* base : symbol->baseClasses()) {
+  for (auto base : symbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
     auto baseTypeAttr = gen.convertDebugType(baseClassSymbol->type());

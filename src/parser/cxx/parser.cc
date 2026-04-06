@@ -460,7 +460,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
 
       auto prefix = ast->literal->components().prefix;
 
-      if (is_parsing_cxx()) {
+      if (isCxx()) {
         if (prefix == "u8")
           ast->type = control_->getChar8Type();
         else if (prefix == "u")
@@ -630,7 +630,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           extent = ast->literal->charCount() + 1;
           break;
         case TokenKind::T_WIDE_STRING_LITERAL: {
-          if (is_parsing_c()) {
+          if (isC()) {
             elementType = control_->getIntType();
           } else {
             elementType = control_->getWideCharType();
@@ -644,8 +644,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           break;
       }
 
-      if (is_parsing_cxx())
-        elementType = unit_->typeTraits().add_const(elementType);
+      if (isCxx()) elementType = unit_->typeTraits().add_const(elementType);
 
       ast->type = control_->getBoundedArrayType(elementType, extent);
       ast->valueCategory = ValueCategory::kLValue;
@@ -987,7 +986,7 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                   NestedNameSpecifierAST* nestedNameSpecifier,
                                   bool isTemplateIntroduced,
                                   bool inRequiresClause) -> bool {
-  if (is_parsing_cxx()) {
+  if (isCxx()) {
     // allow destructor only in C++ mode
     if (SourceLocation tildeLoc; match(TokenKind::T_TILDE, tildeLoc)) {
       if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
@@ -1017,7 +1016,7 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
   }
 
   auto lookat_template_id = [&] {
-    if (!is_parsing_cxx()) return false;
+    if (!isCxx()) return false;
 
     LookaheadParser lookahead{this};
     if (!parse_template_id(yyast, nestedNameSpecifier, isTemplateIntroduced))
@@ -1055,7 +1054,7 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
 
 void Parser::parse_optional_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) {
-  if (!is_parsing_cxx()) return;
+  if (!isCxx()) return;
 
   LookaheadParser lookahead(this);
   if (!parse_nested_name_specifier(yyast, ctx)) return;
@@ -1064,7 +1063,7 @@ void Parser::parse_optional_nested_name_specifier(
 
 auto Parser::parse_decltype_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   LookaheadParser lookahead{this};
 
@@ -1258,7 +1257,7 @@ auto Parser::parse_template_nested_name_specifier(
 auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
                                          NestedNameSpecifierContext ctx)
     -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
     auto ast = GlobalNestedNameSpecifierAST::create(pool_);
@@ -1290,7 +1289,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
 }
 
 auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   if (lookat(TokenKind::T_LBRACKET, TokenKind::T_LBRACKET)) return false;
   if (lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
@@ -1736,7 +1735,7 @@ auto Parser::parse_nested_expession(ExpressionAST*& yyast,
 
 auto Parser::parse_fold_expression(ExpressionAST*& yyast,
                                    const ExprContext& ctx) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   if (!lookat(TokenKind::T_LPAREN)) return false;
 
@@ -2326,7 +2325,7 @@ auto Parser::parse_builtin_offsetof_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
                                             const ExprContext& ctx) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   auto lookat_function_call = [&] {
     LookaheadParser lookahead{this};
@@ -3566,7 +3565,7 @@ void Parser::parse_init_statement(StatementAST*& yyast) {
 
 void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
   auto lookat_condition = [&] {
-    if (!is_parsing_cxx()) return false;
+    if (!isCxx()) return false;
 
     LookaheadParser lookahead{this};
 
@@ -3739,7 +3738,7 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast,
     func->setName(control()->getIdentifier("__func__"));
 
     const Type* elementType = control()->getCharType();
-    if (is_parsing_cxx()) {
+    if (isCxx()) {
       elementType = control()->getConstType(elementType);
     }
 
@@ -4014,7 +4013,7 @@ auto Parser::parse_for_statement(StatementAST*& yyast,
   SourceLocation colonLoc;
 
   auto lookat_for_range_declaration = [&] {
-    if (!is_parsing_cxx()) return false;
+    if (!isCxx()) return false;
 
     LookaheadParser lookahead{this};
 
@@ -4437,7 +4436,7 @@ auto Parser::parse_empty_or_attribute_declaration(
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
     BindingContext ctx) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
   if (!context_allows_function_definition(ctx)) return false;
 
   LookaheadParser lookahead{this};
@@ -4501,7 +4500,7 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
                                       List<SpecifierAST*>* declSpecifierList,
                                       const DeclSpecs& specs,
                                       BindingContext ctx) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   LookaheadParser lookahead{this};
 
@@ -5239,7 +5238,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
 void Parser::parse_optional_type_qualifier_seq(List<SpecifierAST*>*& yyast,
                                                DeclSpecs& specs) {
-  if (!is_parsing_c()) {
+  if (!isC()) {
     return;
   }
 
@@ -5468,8 +5467,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     Symbol* resolvedType = nullptr;
     if (!nestedNameSpecifier) {
       if (auto nameId = ast_cast<NameIdAST>(unqualifiedId)) {
-        resolvedType = unqualifiedLookupType(lexicalScope_, nameId->identifier,
-                                             is_parsing_cxx());
+        resolvedType =
+            unqualifiedLookupType(lexicalScope_, nameId->identifier, isCxx());
       }
     }
     symbol = binder_.resolve(nestedNameSpecifier, unqualifiedId, checkTemplates,
@@ -5595,7 +5594,7 @@ auto Parser::parse_bitint_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (value)
-    if (auto* v = std::get_if<std::intmax_t>(&*value))
+    if (auto v = std::get_if<std::intmax_t>(&*value))
       ast->bitCount = static_cast<int>(*v);
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
@@ -5892,7 +5891,7 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   auto globalScopeGuard = CombinedScopeGuard{this};
 
-  if (is_parsing_c()) {
+  if (isC()) {
     setScope(getCurrentNonClassScope());
   }
 
@@ -6472,7 +6471,7 @@ auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
     declSpecs.isRestrict = true;
     return true;
   }
-  if (is_parsing_c() && lookat(TokenKind::T__ATOMIC) &&
+  if (isC() && lookat(TokenKind::T__ATOMIC) &&
       LA(1).isNot(TokenKind::T_LPAREN)) {
     auto ast = AtomicQualifierAST::create(pool_);
     yyast = ast;
@@ -6485,7 +6484,7 @@ auto Parser::parse_cv_qualifier(SpecifierAST*& yyast, DeclSpecs& declSpecs)
 }
 
 auto Parser::parse_ref_qualifier(SourceLocation& refLoc) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
   if (match(TokenKind::T_AMP, refLoc)) return true;
   if (match(TokenKind::T_AMP_AMP, refLoc)) return true;
   return false;
@@ -6820,7 +6819,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
 
   ast->lbraceLoc = lbraceLoc;
 
-  if (is_parsing_cxx() && lookat_designator()) {
+  if (isCxx() && lookat_designator()) {
     auto it = &ast->expressionList;
 
     DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
@@ -6875,7 +6874,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
   ExpressionAST* expression = nullptr;
 
-  if (is_parsing_c() && lookat_designator()) {
+  if (isC() && lookat_designator()) {
     DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
 
     if (!parse_designated_initializer_clause(designatedInitializerClause)) {
@@ -6906,7 +6905,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
     ExpressionAST* expression = nullptr;
 
-    if (is_parsing_c() && lookat_designator()) {
+    if (isC() && lookat_designator()) {
       DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
 
       if (!parse_designated_initializer_clause(designatedInitializerClause)) {
@@ -6937,7 +6936,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 auto Parser::lookat_designator() -> bool {
   if (lookat(TokenKind::T_DOT)) return true;
 
-  if (is_parsing_c() && lookat(TokenKind::T_LBRACKET)) return true;
+  if (isC() && lookat(TokenKind::T_LBRACKET)) return true;
 
   return false;
 }
@@ -6986,7 +6985,7 @@ auto Parser::parse_designated_initializer_clause(
   *it = make_list_node(pool_, designator);
   it = &(*it)->next;
 
-  if (is_parsing_c()) {
+  if (isC()) {
     while (lookat_designator()) {
       DesignatorAST* designator = nullptr;
       parse_designator(designator);
@@ -7111,7 +7110,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   auto globalScopeGuard = CombinedScopeGuard{this};
 
-  if (is_parsing_c()) {
+  if (isC()) {
     setScope(getCurrentNonClassScope());
   }
 
@@ -7159,7 +7158,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  if (is_parsing_cxx()) {
+  if (isCxx()) {
     if (auto enumSym = symbol_cast<EnumSymbol>(ast->symbol)) {
       if (!enumSym->hasFixedUnderlyingType() && ast->enumeratorList) {
         bool hasNegative = false;
@@ -8546,7 +8545,7 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
 
   auto globalScopeGuard = CombinedScopeGuard{this};
 
-  if (is_parsing_c()) {
+  if (isC()) {
     if (unqualifiedId) {
       // declared named structs in the enclosed non-class scope in C mode
       setScope(getCurrentNonClassScope());
@@ -8744,7 +8743,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   }
 
   auto lookat_function_definition = [&] {
-    if (!is_parsing_cxx()) return false;
+    if (!isCxx()) return false;
 
     LookaheadParser lookahead{this};
 
@@ -8946,7 +8945,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   ast->declarator = declarator;
   ast->symbol = symbol;
 
-  if (is_parsing_cxx()) {
+  if (isCxx()) {
     if (auto functionDeclarator = getFunctionPrototype(declarator)) {
       RequiresClauseAST* requiresClause = nullptr;
 
@@ -9060,7 +9059,7 @@ auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
 }
 
 auto Parser::parse_base_clause(ClassSpecifierAST* ast) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   if (!match(TokenKind::T_COLON, ast->colonLoc)) return false;
 
@@ -9157,8 +9156,8 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   Symbol* resolvedType = nullptr;
   if (!ast->nestedNameSpecifier) {
     if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-      resolvedType = unqualifiedLookupType(lexicalScope_, nameId->identifier,
-                                           is_parsing_cxx());
+      resolvedType =
+          unqualifiedLookupType(lexicalScope_, nameId->identifier, isCxx());
     }
   }
 
@@ -9998,7 +9997,7 @@ auto Parser::parse_function_operator_template_id(
 auto Parser::parse_template_id(UnqualifiedIdAST*& yyast,
                                NestedNameSpecifierAST* nestedNameSpecifier,
                                bool isTemplateIntroduced) -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   if (LiteralOperatorTemplateIdAST* templateName = nullptr;
       parse_literal_operator_template_id(templateName, nestedNameSpecifier)) {
@@ -10127,7 +10126,7 @@ auto Parser::parse_constraint_expression(ExpressionAST*& yyast) -> bool {
 auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
                                    TemplateDeclarationAST* templateHead)
     -> bool {
-  if (!is_parsing_cxx()) return false;
+  if (!isCxx()) return false;
 
   SpecifierAST* explicitSpecifier = nullptr;
   SourceLocation identifierLoc;

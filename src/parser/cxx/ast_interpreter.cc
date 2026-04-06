@@ -223,16 +223,16 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
     -> std::optional<ConstValue> {
   if (!func || !func->isConstexpr()) return std::nullopt;
 
-  auto* defn = func->definition();
+  auto defn = func->definition();
   if (!defn) defn = func;
 
-  auto* funcDef = defn->declaration();
+  auto funcDef = defn->declaration();
   if (!funcDef) return std::nullopt;
 
-  auto* body = funcDef->functionBody;
+  auto body = funcDef->functionBody;
   if (!body) return std::nullopt;
 
-  auto* compBody = ast_cast<CompoundStatementFunctionBodyAST>(body);
+  auto compBody = ast_cast<CompoundStatementFunctionBodyAST>(body);
   if (!compBody || !compBody->statement) return std::nullopt;
 
   if (depth_ >= kMaxDepth) return std::nullopt;
@@ -241,13 +241,13 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
   pushFrame();
 
   std::string funcNameStr;
-  if (auto* id = name_cast<Identifier>(func->name())) {
+  if (auto id = name_cast<Identifier>(func->name())) {
     funcNameStr = id->value();
   }
   auto savedFunctionName =
       std::exchange(currentFunctionName_, std::move(funcNameStr));
 
-  auto* params = func->functionParameters();
+  auto params = func->functionParameters();
   if (params) {
     const auto& members = params->members();
     for (std::size_t i = 0; i < args.size() && i < members.size(); ++i) {
@@ -273,16 +273,16 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
     -> std::optional<ConstValue> {
   if (!ctor || !ctor->isConstexpr()) return std::nullopt;
 
-  auto* defn = ctor->definition();
+  auto defn = ctor->definition();
   if (!defn) defn = ctor;
 
-  auto* funcDef = defn->declaration();
+  auto funcDef = defn->declaration();
   if (!funcDef) return std::nullopt;
 
-  auto* body = funcDef->functionBody;
+  auto body = funcDef->functionBody;
   if (!body) return std::nullopt;
 
-  auto* compBody = ast_cast<CompoundStatementFunctionBodyAST>(body);
+  auto compBody = ast_cast<CompoundStatementFunctionBodyAST>(body);
   if (!compBody) return std::nullopt;
 
   if (depth_ >= kMaxDepth) return std::nullopt;
@@ -294,7 +294,7 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
   auto savedThis = thisObject_;
   thisObject_ = obj;
 
-  auto* params = ctor->functionParameters();
+  auto params = ctor->functionParameters();
   if (params) {
     const auto& members = params->members();
     for (std::size_t i = 0; i < args.size() && i < members.size(); ++i) {

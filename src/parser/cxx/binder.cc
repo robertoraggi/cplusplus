@@ -67,11 +67,11 @@ auto Binder::translationUnit() const -> TranslationUnit* { return unit_; }
 
 auto Binder::control() const -> Control* { return unit_->control(); }
 
-auto Binder::is_parsing_c() const -> bool {
+auto Binder::isC() const -> bool {
   return unit_->language() == LanguageKind::kC;
 }
 
-auto Binder::is_parsing_cxx() const -> bool {
+auto Binder::isCxx() const -> bool {
   return unit_->language() == LanguageKind::kCXX;
 }
 
@@ -204,7 +204,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
 
   auto enumName = get_name(control(), ast->unqualifiedId);
 
-  if (ast->classLoc && is_parsing_cxx()) {
+  if (ast->classLoc && isCxx()) {
     auto enumSymbol =
         control()->newScopedEnumSymbol(declaringScope(), location);
     ast->symbol = enumSymbol;
@@ -215,7 +215,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
 
     setScope(enumSymbol);
   } else {
-    if (is_parsing_c() && ast->classLoc) {
+    if (isC() && ast->classLoc) {
       error(ast->classLoc, "scoped enums are not allowed in C");
     }
 
@@ -370,10 +370,10 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
   } else if (auto member = ast_cast<MemberExpressionAST>(ast->expression)) {
     if (member->symbol) ast->type = member->symbol->type();
   } else if (ast->expression && ast->expression->type) {
-    if (is_parsing_cxx() && is_lvalue(ast->expression)) {
+    if (isCxx() && is_lvalue(ast->expression)) {
       ast->type =
           unit_->typeTraits().add_lvalue_reference(ast->expression->type);
-    } else if (is_parsing_cxx() && is_xvalue(ast->expression)) {
+    } else if (isCxx() && is_xvalue(ast->expression)) {
       ast->type =
           unit_->typeTraits().add_rvalue_reference(ast->expression->type);
     } else {
@@ -384,7 +384,7 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
 
 void Binder::bind(EnumeratorAST* ast, const Type* type,
                   std::optional<ConstValue> value) {
-  if (is_parsing_cxx()) {
+  if (isCxx()) {
     auto symbol = control()->newEnumeratorSymbol(scope(), ast->identifierLoc);
     ast->symbol = symbol;
 
@@ -466,8 +466,8 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
     };
 
     auto aliases_named_type_symbol = [&](Symbol* candidate) {
-      if (is_parsing_c() && (symbol_cast<ClassSymbol>(candidate) ||
-                             symbol_cast<EnumSymbol>(candidate)))
+      if (isC() && (symbol_cast<ClassSymbol>(candidate) ||
+                    symbol_cast<EnumSymbol>(candidate)))
         return true;
 
       if (auto classSymbol = symbol_cast<ClassSymbol>(candidate)) {
@@ -759,7 +759,7 @@ void Binder::bind(DeductionGuideAST* ast) {
   std::vector<const Type*> parameterTypes;
   bool isVariadic = false;
 
-  if (auto* params = ast->parameterDeclarationClause) {
+  if (auto params = ast->parameterDeclarationClause) {
     for (auto it = params->parameterDeclarationList; it; it = it->next) {
       auto paramType = it->value ? it->value->type : nullptr;
       if (paramType && !type_cast<VoidType>(paramType))
@@ -768,9 +768,9 @@ void Binder::bind(DeductionGuideAST* ast) {
     isVariadic = params->isVariadic;
   }
 
-  auto* primaryTemplate =
-      ast->templateId ? symbol_cast<ClassSymbol>(ast->templateId->symbol)
-                      : nullptr;
+  auto primaryTemplate = ast->templateId
+                             ? symbol_cast<ClassSymbol>(ast->templateId->symbol)
+                             : nullptr;
   if (!primaryTemplate) return;
 
   ClassSymbol* deducedClassSymbol = primaryTemplate;
@@ -876,7 +876,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
       returnType, std::move(parameterTypes), isVariadic, {}, {}, isNoexcept);
   ast->symbol->setType(funcType);
 
-  if (is_parsing_cxx() && !inTemplate()) {
+  if (isCxx() && !inTemplate()) {
     auto closureName =
         control()->getIdentifier(std::format("__lambda_{}", lambdaCount_++));
 
@@ -1058,8 +1058,8 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   };
 
   auto aliases_named_type_symbol = [&](Symbol* candidate) {
-    if (is_parsing_c() && (symbol_cast<ClassSymbol>(candidate) ||
-                           symbol_cast<EnumSymbol>(candidate)))
+    if (isC() && (symbol_cast<ClassSymbol>(candidate) ||
+                  symbol_cast<EnumSymbol>(candidate)))
       return true;
 
     if (auto classSymbol = symbol_cast<ClassSymbol>(candidate)) {

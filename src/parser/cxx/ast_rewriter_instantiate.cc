@@ -272,7 +272,7 @@ struct CapturingDiagnosticsClient final : DiagnosticsClient {
 auto findMutableSpecialization(Symbol* primary, Symbol* spec)
     -> TemplateSpecialization* {
   if (!primary || !spec) return nullptr;
-  auto search = [spec](auto* sym) -> TemplateSpecialization* {
+  auto search = [spec](auto sym) -> TemplateSpecialization* {
     for (auto& s : sym->mutableSpecializations())
       if (s.symbol == spec) return &s;
     return nullptr;
@@ -359,7 +359,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     }
     if (cachedClass->declaration()) {
       if (!sfinaeContext && instantiationLoc) {
-        if (auto* spec = findMutableSpecialization(symbol, cached)) {
+        if (auto spec = findMutableSpecialization(symbol, cached)) {
           if (!spec->instantiationErrors.empty()) {
             for (auto& diag : spec->instantiationErrors)
               unit->diagnosticsClient()->report(diag);
@@ -430,7 +430,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   (void)unit->changeDiagnosticsClient(capturing.parent);
 
   if (!capturing.diagnostics.empty()) {
-    if (auto* spec = findMutableSpecialization(symbol, instantiatedSymbol)) {
+    if (auto spec = findMutableSpecialization(symbol, instantiatedSymbol)) {
       spec->instantiationErrors = capturing.diagnostics;
     }
     if (instantiationLoc) {

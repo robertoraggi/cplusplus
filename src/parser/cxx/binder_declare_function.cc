@@ -196,9 +196,8 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   functionSymbol->setName(name);
   functionSymbol->setType(type);
 
-  if (binder.is_parsing_c() &&
-      binder.unit_->config().allowUnprototypedFunctions && functionDeclarator &&
-      !functionDeclarator->parameterDeclarationClause) {
+  if (binder.isC() && binder.unit_->config().allowUnprototypedFunctions &&
+      functionDeclarator && !functionDeclarator->parameterDeclarationClause) {
     functionSymbol->setNoPrototype(true);
   }
 
@@ -310,7 +309,7 @@ void Binder::DeclareFunction::checkRedeclaration() {
     if (overloadSet) break;
 
     if (auto otherFunction = symbol_cast<FunctionSymbol>(candidate)) {
-      if (binder.is_parsing_c()) {
+      if (binder.isC()) {
         auto canonical = otherFunction->canonical();
         const bool canMerge =
             (binder.unit_->config().allowUnprototypedFunctions &&
@@ -386,7 +385,7 @@ void Binder::DeclareFunction::checkDeclSpecifiers() {
 }
 
 void Binder::DeclareFunction::checkExternalLinkageSpec() {
-  if (binder.is_parsing_c()) {
+  if (binder.isC()) {
     // in C mode, functions have C linkage
     functionSymbol->setLanguageLinkage(LanguageKind::kC);
     return;

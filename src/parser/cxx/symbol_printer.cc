@@ -276,7 +276,7 @@ struct DumpSymbols {
     if (auto funcType = type_cast<FunctionType>(symbol->type())) {
       std::string params;
       bool first = true;
-      for (auto* pt : funcType->parameterTypes()) {
+      for (auto pt : funcType->parameterTypes()) {
         if (!first) params += ", ";
         params += to_string(pt);
         first = false;

@@ -105,8 +105,8 @@ function stringCmp(name: string, normalize: boolean): string[] {
     : `static_cast<std::intmax_t>(r)`;
   return [
     `    case ${caseName}: {`,
-    `      auto* a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto* b = std::get_if<const StringLiteral*>(&args[1]);`,
+    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
+    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
     `      if (a && b && *a && *b) {`,
     `        auto sa = (*a)->stringValue();`,
     `        auto sb = (*b)->stringValue();`,
@@ -122,8 +122,8 @@ function stringNCmp(name: string): string[] {
   const caseName = enumName(name);
   return [
     `    case ${caseName}: {`,
-    `      auto* a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto* b = std::get_if<const StringLiteral*>(&args[1]);`,
+    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
+    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
     `      auto n = toInt(args[2]);`,
     `      if (a && b && *a && *b && n) {`,
     `        auto sa = (*a)->stringValue();`,
@@ -143,8 +143,8 @@ function memCmp(name: string, boolResult: boolean): string[] {
     : `static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)`;
   return [
     `    case ${caseName}: {`,
-    `      auto* a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto* b = std::get_if<const StringLiteral*>(&args[1]);`,
+    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
+    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
     `      auto n = toInt(args[2]);`,
     `      if (a && b && *a && *b && n) {`,
     `        auto sa = (*a)->stringValue();`,
@@ -175,8 +175,8 @@ function casecmp(name: string, withN: boolean): string[] {
   const caseName = enumName(name);
   lines.push(
     `    case ${caseName}: {`,
-    `      auto* a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto* b = std::get_if<const StringLiteral*>(&args[1]);`,
+    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
+    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
   );
   if (withN) {
     lines.push(`      auto n = toInt(args[2]);`);
@@ -216,8 +216,8 @@ function strspan(name: string, complement: boolean): string[] {
   const func = complement ? "strcspn" : "strspn";
   return [
     `    case ${caseName}: {`,
-    `      auto* a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto* b = std::get_if<const StringLiteral*>(&args[1]);`,
+    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
+    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
     `      if (a && b && *a && *b) {`,
     `        auto sa = std::string((*a)->stringValue());`,
     `        auto sb = std::string((*b)->stringValue());`,
@@ -306,7 +306,7 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
 
   lines.push(`    case ${enumName("__builtin_strlen")}: {`);
   lines.push(
-    `      if (auto* lit = std::get_if<const StringLiteral*>(&args[0])) {`,
+    `      if (auto lit = std::get_if<const StringLiteral*>(&args[0])) {`,
   );
   lines.push(`        if (*lit) {`);
   lines.push(

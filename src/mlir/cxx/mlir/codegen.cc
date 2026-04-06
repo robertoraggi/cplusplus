@@ -50,8 +50,8 @@
 namespace cxx {
 
 static auto isInAnonymousNamespace(Symbol* symbol) -> bool {
-  for (auto* scope = symbol->parent(); scope; scope = scope->parent()) {
-    if (auto* ns = symbol_cast<NamespaceSymbol>(scope)) {
+  for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
+    if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
       if (ns->anonNamespaceIndex().has_value()) return true;
     }
   }
@@ -59,8 +59,8 @@ static auto isInAnonymousNamespace(Symbol* symbol) -> bool {
 }
 
 static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
-  for (auto* scope = symbol->parent(); scope; scope = scope->parent()) {
-    if (auto* cls = symbol_cast<ClassSymbol>(scope)) {
+  for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
+    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
       if (cls->isSpecialization()) return true;
     }
   }
@@ -211,7 +211,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
 
     // Check if the value is a ConstAddress, address-of variable or function.
     if (auto addrPtr = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
-      auto* symbol = (*addrPtr)->symbol();
+      auto symbol = (*addrPtr)->symbol();
       auto offset = (*addrPtr)->offset();
       if (symbol_cast<VariableSymbol>(symbol)) {
         if (auto glo = findOrCreateGlobal(symbol)) {
@@ -531,7 +531,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
 
   auto loc = getLocation(var->location());
 
-  if (auto* vlaType = type_cast<UnresolvedBoundedArrayType>(var->type())) {
+  if (auto vlaType = type_cast<UnresolvedBoundedArrayType>(var->type())) {
     auto countResult = expression(vlaType->size());
     if (!countResult.value) return std::nullopt;
 
@@ -545,7 +545,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<mlir::Value> {
     mlir::Value totalElements = countVal;
     const Type* elemType = vlaType->elementType();
 
-    while (auto* inner = type_cast<UnresolvedBoundedArrayType>(elemType)) {
+    while (auto inner = type_cast<UnresolvedBoundedArrayType>(elemType)) {
       auto innerResult = expression(inner->size());
       if (!innerResult.value) return std::nullopt;
       auto innerVal = innerResult.value;
@@ -605,7 +605,7 @@ auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
   if (symbol_cast<FunctionParametersSymbol>(symbol))
     return getOrCreateDIScope(symbol->parent());
 
-  if (auto* block = symbol_cast<BlockSymbol>(symbol)) {
+  if (auto block = symbol_cast<BlockSymbol>(symbol)) {
     if (symbol_cast<FunctionParametersSymbol>(block->parent()) ||
         symbol_cast<FunctionSymbol>(block->parent()))
       return getOrCreateDIScope(block->parent());
@@ -621,7 +621,7 @@ auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
     return lexicalBlock;
   }
 
-  if (auto* func = symbol_cast<FunctionSymbol>(symbol)) {
+  if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
     if (auto it = funcOps_.find(func); it != funcOps_.end()) {
       if (auto fusedLoc = mlir::dyn_cast<mlir::FusedLoc>(it->second.getLoc())) {
         if (auto sp = mlir::dyn_cast_or_null<mlir::LLVM::DISubprogramAttr>(
@@ -944,7 +944,7 @@ void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
 
 void Codegen::processPendingFunctions() {
   while (!pendingFunctions_.empty()) {
-    auto* sym = pendingFunctions_.back();
+    auto sym = pendingFunctions_.back();
     pendingFunctions_.pop_back();
 
     auto target = sym;
@@ -980,7 +980,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   VariableSymbol* defVar = canonicalVar;
   if (!defVar->constValue().has_value()) {
-    for (auto* redecl : canonicalVar->redeclarations()) {
+    for (auto redecl : canonicalVar->redeclarations()) {
       if (redecl->constValue().has_value()) {
         defVar = redecl;
         break;
@@ -988,7 +988,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     }
   }
   if (!defVar->constValue().has_value()) {
-    if (auto* d = canonicalVar->definition()) defVar = d;
+    if (auto d = canonicalVar->definition()) defVar = d;
   }
 
   auto varType = convertType(defVar->type());
@@ -1108,7 +1108,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
         initializer =
             builder_.getStringAttr(llvm::StringRef(str.data(), str.size()));
 
-        if (auto* arr = type_cast<BoundedArrayType>(defVar->type())) {
+        if (auto arr = type_cast<BoundedArrayType>(defVar->type())) {
           auto destSize = static_cast<size_t>(arr->size());
           if (str.size() != destSize) {
             str.resize(destSize, '\0');
@@ -1152,7 +1152,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   if (needsRegionInit && value.has_value()) {
     auto& region = var.getInitializer();
-    auto* block = new mlir::Block();
+    auto block = new mlir::Block();
     region.push_back(block);
     mlir::OpBuilder initBuilder(block, block->begin());
     auto result = emitConstInitValue(initBuilder, loc, defVar->type(), *value);
@@ -1275,7 +1275,7 @@ auto Codegen::computeVtableSlots(ClassSymbol* classSymbol)
     if (auto func = symbol_cast<FunctionSymbol>(member)) {
       processFunc(func);
     } else if (auto ovl = symbol_cast<OverloadSetSymbol>(member)) {
-      for (auto* f : ovl->functions()) processFunc(f);
+      for (auto f : ovl->functions()) processFunc(f);
     }
   }
 
@@ -1329,8 +1329,8 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
         thisPtr, layout->vtableIndex());
   } else {
     mlir::Value current = thisPtr;
-    auto* currentClass = classSymbol;
-    auto* currentLayout = layout;
+    auto currentClass = classSymbol;
+    auto currentLayout = layout;
 
     while (currentLayout && !currentLayout->hasDirectVtable()) {
       auto baseIdx = currentLayout->vtableIndex();

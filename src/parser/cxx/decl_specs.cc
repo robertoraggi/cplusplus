@@ -406,7 +406,7 @@ void DeclSpecs::Visitor::operator()(BitIntTypeSpecifierAST* ast) {
   } else if (ast->sizeExpression) {
     auto interp = ASTInterpreter{specs.translationUnit()};
     if (auto value = interp.evaluate(ast->sizeExpression)) {
-      if (auto* v = std::get_if<std::intmax_t>(&*value)) {
+      if (auto v = std::get_if<std::intmax_t>(&*value)) {
         ast->bitCount = static_cast<int>(*v);
       }
     }
@@ -624,7 +624,7 @@ void DeclSpecs::finish() {
     }  // switch
   }
 
-  if (auto* bitIntSpec = ast_cast<BitIntTypeSpecifierAST>(typeSpecifier_);
+  if (auto bitIntSpec = ast_cast<BitIntTypeSpecifierAST>(typeSpecifier_);
       bitIntSpec &&
       !(bitIntSpec->sizeExpression &&
         isDependent(translationUnit(), bitIntSpec->sizeExpression))) {

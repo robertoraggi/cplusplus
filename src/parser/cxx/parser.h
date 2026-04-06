@@ -898,11 +898,9 @@ class Parser final {
   void synthesizeAbbreviatedTemplateParams(
       ParameterDeclarationClauseAST* params);
 
-  [[nodiscard]] auto is_parsing_c() const { return lang_ == LanguageKind::kC; }
+  [[nodiscard]] auto isC() const { return lang_ == LanguageKind::kC; }
 
-  [[nodiscard]] auto is_parsing_cxx() const {
-    return lang_ == LanguageKind::kCXX;
-  }
+  [[nodiscard]] auto isCxx() const { return lang_ == LanguageKind::kCXX; }
 
  private:
   TranslationUnit* unit_ = nullptr;

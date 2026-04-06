@@ -191,8 +191,8 @@ class Binder {
     ~ScopeGuard() { p->setScope(savedScope); }
   };
 
-  [[nodiscard]] auto is_parsing_c() const -> bool;
-  [[nodiscard]] auto is_parsing_cxx() const -> bool;
+  [[nodiscard]] auto isC() const -> bool;
+  [[nodiscard]] auto isCxx() const -> bool;
 
   void mergeDefaultArguments(FunctionSymbol* functionSymbol,
                              DeclaratorAST* declarator);
