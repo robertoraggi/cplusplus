@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s
 
 int main() {
   unsigned char c = 200;

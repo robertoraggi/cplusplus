@@ -9,7 +9,6 @@ struct Pair {
     return a + b;
   }
 };
-
 // clang-format off
 //      CHECK:translation-unit
 // CHECK-NEXT:  declaration-list
