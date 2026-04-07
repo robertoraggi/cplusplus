@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 enum class fruit { orange, apple };
 

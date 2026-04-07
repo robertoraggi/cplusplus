@@ -1,4 +1,4 @@
-// RUN: %cxx -ast-dump -verify -fcheck %s | %filecheck %s
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s
 
 void f(int a, int b);
 

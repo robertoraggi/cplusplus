@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 void ff(int count, ...) {
   __builtin_va_list args;
@@ -108,17 +108,12 @@ void ff(int count, ...) {
 // CHECK-NEXT:                          type-specifier-list
 // CHECK-NEXT:                            integral-type-specifier
 // CHECK-NEXT:                              specifier: int
-// CHECK-NEXT:            declaration-statement
-// CHECK-NEXT:              declaration: simple-declaration
-// CHECK-NEXT:                decl-specifier-list
-// CHECK-NEXT:                  named-type-specifier
+// CHECK-NEXT:            expression-statement
+// CHECK-NEXT:              expression: call-expression [prvalue void]
+// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list)]
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: __builtin_va_end
+// CHECK-NEXT:                expression-list
+// CHECK-NEXT:                  id-expression [lvalue __builtin_va_list]
 // CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: __builtin_va_end
-// CHECK-NEXT:                init-declarator-list
-// CHECK-NEXT:                  init-declarator
-// CHECK-NEXT:                    declarator: declarator
-// CHECK-NEXT:                      core-declarator: nested-declarator
-// CHECK-NEXT:                        declarator: declarator
-// CHECK-NEXT:                          core-declarator: id-declarator
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: args
+// CHECK-NEXT:                      identifier: args

@@ -1,4 +1,4 @@
-// RUN: %cxx -ast-dump -verify -fcheck %s | %filecheck %s
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s
 
 auto main() -> int {
   void* ptr;

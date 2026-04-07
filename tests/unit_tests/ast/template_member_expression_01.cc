@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 struct Allocator {
   template <typename T>
@@ -91,21 +91,23 @@ auto copy(Allocator& A) -> void* { return A.template Allocate<char>(128); }
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            return-statement
-// CHECK-NEXT:              expression: call-expression [prvalue type-param<0, 0>*]
-// CHECK-NEXT:                base-expression: member-expression [lvalue type-param<0, 0>* (int)]
-// CHECK-NEXT:                  access-op: .
-// CHECK-NEXT:                  is-template-introduced: true
-// CHECK-NEXT:                  base-expression: id-expression [lvalue ::Allocator]
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: A
-// CHECK-NEXT:                  unqualified-id: simple-template-id
-// CHECK-NEXT:                    identifier: Allocate
-// CHECK-NEXT:                    template-argument-list
-// CHECK-NEXT:                      type-template-argument
-// CHECK-NEXT:                        type-id: type-id
-// CHECK-NEXT:                          type-specifier-list
-// CHECK-NEXT:                            integral-type-specifier
-// CHECK-NEXT:                              specifier: char
-// CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  int-literal-expression [prvalue int]
-// CHECK-NEXT:                    literal: 128
+// CHECK-NEXT:              expression: implicit-cast-expression [prvalue void*]
+// CHECK-NEXT:                cast-kind: pointer-conversion
+// CHECK-NEXT:                expression: call-expression [prvalue char*]
+// CHECK-NEXT:                  base-expression: member-expression [lvalue char* (int)]
+// CHECK-NEXT:                    access-op: .
+// CHECK-NEXT:                    is-template-introduced: true
+// CHECK-NEXT:                    base-expression: id-expression [lvalue ::Allocator]
+// CHECK-NEXT:                      unqualified-id: name-id
+// CHECK-NEXT:                        identifier: A
+// CHECK-NEXT:                    unqualified-id: simple-template-id
+// CHECK-NEXT:                      identifier: Allocate
+// CHECK-NEXT:                      template-argument-list
+// CHECK-NEXT:                        type-template-argument
+// CHECK-NEXT:                          type-id: type-id
+// CHECK-NEXT:                            type-specifier-list
+// CHECK-NEXT:                              integral-type-specifier
+// CHECK-NEXT:                                specifier: char
+// CHECK-NEXT:                  expression-list
+// CHECK-NEXT:                    int-literal-expression [prvalue int]
+// CHECK-NEXT:                      literal: 128

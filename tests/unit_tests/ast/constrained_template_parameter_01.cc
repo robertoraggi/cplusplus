@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 template <typename T>
 concept Any = true;
@@ -90,17 +90,17 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:              core-declarator: id-declarator
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: ident_v
-// CHECK-NEXT:            initializer: equal-initializer [prvalue type-param<0, 0>]
-// CHECK-NEXT:              expression: id-expression [prvalue type-param<0, 0>]
-// CHECK-NEXT:                nested-name-specifier: template-nested-name-specifier
-// CHECK-NEXT:                  template-id: simple-template-id
-// CHECK-NEXT:                    identifier: ident
-// CHECK-NEXT:                    template-argument-list
-// CHECK-NEXT:                      type-template-argument
-// CHECK-NEXT:                        type-id: type-id
-// CHECK-NEXT:                          type-specifier-list
-// CHECK-NEXT:                            named-type-specifier
-// CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: x
-// CHECK-NEXT:                unqualified-id: name-id
-// CHECK-NEXT:                  identifier: value
+// CHECK-NEXT:            initializer: implicit-cast-expression [prvalue auto]
+// CHECK-NEXT:              cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:              expression: equal-initializer [lvalue auto]
+// CHECK-NEXT:                expression: id-expression [lvalue auto]
+// CHECK-NEXT:                  nested-name-specifier: template-nested-name-specifier
+// CHECK-NEXT:                    template-id: simple-template-id
+// CHECK-NEXT:                      identifier: ident
+// CHECK-NEXT:                      template-argument-list
+// CHECK-NEXT:                        expression-template-argument
+// CHECK-NEXT:                          expression: id-expression
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: x
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: value

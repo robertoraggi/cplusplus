@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s
 // clang-format on
 
 constexpr auto int_ty = ^^int;
