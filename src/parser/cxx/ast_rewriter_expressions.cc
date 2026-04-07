@@ -28,7 +28,9 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/dependent_types.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -596,6 +598,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
 
     copy->symbol = *symbolPtr;
+    if (auto var = symbol_cast<VariableSymbol>(*symbolPtr)) {
+      if (var->type()) copy->type = var->type();
+      if (var->initializer()) return rewrite.expression(var->initializer());
+    }
 
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
     binder()->qualifiedLookupIdExpression(copy);
@@ -1205,13 +1211,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
             copy->symbol = symbol;
             copy->type = symbol->type();
 
-            // Propagate value category from the base expression.
             if (auto field = symbol_cast<FieldSymbol>(symbol);
                 field && !field->isStatic()) {
               copy->valueCategory = ast->valueCategory;
             }
           }
         }
+      } else if (!isDependent(translationUnit(), objectType)) {
+        copy->type = nullptr;
       }
     }
   }
@@ -1428,6 +1435,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
   copy->sizeofLoc = ast->sizeofLoc;
   copy->expression = rewrite.expression(ast->expression);
 
+  if (copy->expression && copy->expression->type) {
+    copy->value = control()->memoryLayout()->sizeOf(copy->expression->type);
+  }
+
   return copy;
 }
 
@@ -1441,6 +1452,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
   copy->lparenLoc = ast->lparenLoc;
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->rparenLoc = ast->rparenLoc;
+
+  if (copy->typeId && copy->typeId->type) {
+    copy->value = control()->memoryLayout()->sizeOf(copy->typeId->type);
+  }
 
   return copy;
 }

@@ -101,6 +101,7 @@ void TemplateArgumentDeduction::collectTemplateParameters(
     }
 
     templateParams_.push_back(info);
+    templateParams_.back().parameterAST = p;
   }
 
   auto n = templateParams_.size();
@@ -165,8 +166,7 @@ auto TemplateArgumentDeduction::isForwardingReference(const Type* paramType)
   auto rrefParam = type_cast<RvalueReferenceType>(paramType);
   if (!rrefParam) return false;
 
-  auto rrefElem = unit_->typeTraits().remove_cv(rrefParam->elementType());
-  auto paramTpt = type_cast<TypeParameterType>(rrefElem);
+  auto paramTpt = type_cast<TypeParameterType>(rrefParam->elementType());
   if (!paramTpt) return false;
 
   return !paramTpt->isParameterPack();
@@ -298,7 +298,11 @@ auto TemplateArgumentDeduction::deduceFromCallArgument(const Type* P,
                                      unit_->typeTraits().remove_reference(A)));
   }
 
-  return deduceTypeFromType(P, unit_->typeTraits().remove_cvref(A));
+  if (unit_->typeTraits().is_reference(P))
+    return deduceTypeFromType(P, unit_->typeTraits().remove_reference(A));
+
+  return deduceTypeFromType(P, unit_->typeTraits().remove_cv(
+                                   unit_->typeTraits().remove_reference(A)));
 }
 
 auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
@@ -384,8 +388,22 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
     }
 
     if (!deducedTypes_[i]) {
-      if (templateParams_[i].hasDefault) break;
-      return std::nullopt;
+      if (!templateParams_[i].hasDefault) return std::nullopt;
+      auto p = templateParams_[i].parameterAST;
+      if (auto n = ast_cast<NonTypeTemplateParameterAST>(p)) {
+        if (!n->declaration || !n->declaration->expression) return std::nullopt;
+        auto exprArg = ExpressionTemplateArgumentAST::create(arena_);
+        exprArg->expression = n->declaration->expression;
+        *argListIt = make_list_node<TemplateArgumentAST>(arena_, exprArg);
+        argListIt = &(*argListIt)->next;
+      } else if (auto t = ast_cast<TypenameTypeParameterAST>(p)) {
+        if (!t->typeId) return std::nullopt;
+        auto typeArg = TypeTemplateArgumentAST::create(arena_);
+        typeArg->typeId = t->typeId;
+        *argListIt = make_list_node<TemplateArgumentAST>(arena_, typeArg);
+        argListIt = &(*argListIt)->next;
+      }
+      continue;
     }
 
     auto typeId = TypeIdAST::create(arena_);

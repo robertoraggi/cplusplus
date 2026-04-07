@@ -84,9 +84,9 @@ struct S {
 // CHECK-NEXT:                                      return-statement
 // CHECK-NEXT:                                        expression: binary-expression [prvalue type-param<0, 0>]
 // CHECK-NEXT:                                          op: +
-// CHECK-NEXT:                                          left-expression: id-expression [lvalue T1]
+// CHECK-NEXT:                                          left-expression: id-expression [lvalue type-param<0, 1>]
 // CHECK-NEXT:                                            unqualified-id: name-id
 // CHECK-NEXT:                                              identifier: a
-// CHECK-NEXT:                                          right-expression: id-expression [lvalue T2]
+// CHECK-NEXT:                                          right-expression: id-expression [lvalue type-param<1, 1>]
 // CHECK-NEXT:                                            unqualified-id: name-id
 // CHECK-NEXT:                                              identifier: b

@@ -23,11 +23,31 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/dependent_types.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 
 namespace cxx {
+
+auto ASTRewriter::shouldCaptureBodyErrors() const -> bool {
+  return symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
+         binder_.reportErrors();
+}
+
+void ASTRewriter::typeCheckAndCapture(std::function<void()> checkFn) {
+  if (shouldCaptureBodyErrors()) {
+    CapturingDiagnosticsClient capture;
+    auto saved = unit_->changeDiagnosticsClient(&capture);
+    checkFn();
+    (void)unit_->changeDiagnosticsClient(saved);
+    bodyErrors_.insert(bodyErrors_.end(),
+                       std::make_move_iterator(capture.diagnostics.begin()),
+                       std::make_move_iterator(capture.diagnostics.end()));
+  } else {
+    checkFn();
+  }
+}
 
 auto ASTRewriter::checkRequiresClause(
     TranslationUnit* unit, Symbol* symbol, RequiresClauseAST* clause,
@@ -52,9 +72,13 @@ auto ASTRewriter::checkRequiresClause(
 }
 
 void ASTRewriter::check(ExpressionAST* ast) {
+  if (!ast) return;
+  if (isDependent(unit_, ast)) return;
+
   auto typeChecker = TypeChecker{unit_};
   typeChecker.setScope(binder_.scope());
-  typeChecker.check(ast);
+  typeChecker.setReportErrors(shouldCaptureBodyErrors());
+  typeCheckAndCapture([&] { typeChecker.check(ast); });
 }
 
 }  // namespace cxx

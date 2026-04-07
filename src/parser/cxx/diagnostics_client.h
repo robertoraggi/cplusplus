@@ -22,6 +22,8 @@
 
 #include <cxx/diagnostic.h>
 
+#include <vector>
+
 namespace cxx {
 
 class Preprocessor;
@@ -85,6 +87,19 @@ class DiagnosticsClient {
   int errorLimit_ = 0;
   bool blockErrors_ = false;
   bool fatalErrors_ = false;
+};
+
+struct CapturingDiagnosticsClient final : DiagnosticsClient {
+  DiagnosticsClient* parent = nullptr;
+  std::vector<Diagnostic> diagnostics;
+
+  explicit CapturingDiagnosticsClient(DiagnosticsClient* parent = nullptr)
+      : parent(parent) {}
+
+  void report(const Diagnostic& diagnostic) override {
+    diagnostics.push_back(diagnostic);
+    if (parent) parent->report(diagnostic);
+  }
 };
 
 }  // namespace cxx

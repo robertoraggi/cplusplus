@@ -1324,6 +1324,10 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
+    ast->symbol->setTemplate(true);
+
+    pushScope(ast->symbol);
+
     (void)parse_requires_clause(ast->templateRequiresClause);
   }
 
@@ -1338,7 +1342,9 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
       expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-      setScope(ast->parameterDeclarationClause->functionParametersSymbol);
+      if (ast->parameterDeclarationClause) {
+        setScope(ast->parameterDeclarationClause->functionParametersSymbol);
+      }
     }
 
     parse_optional_attribute_specifier_seq(ast->gnuAtributeList,
@@ -4435,13 +4441,14 @@ auto Parser::parse_empty_or_attribute_declaration(
 
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
-    BindingContext ctx) -> bool {
+    BindingContext ctx, TemplateDeclarationAST* templateHead) -> bool {
   if (!isCxx()) return false;
   if (!context_allows_function_definition(ctx)) return false;
 
   LookaheadParser lookahead{this};
 
   DeclSpecs specs{unit_};
+  specs.templateHead = templateHead;
   List<SpecifierAST*>* declSpecifierList = nullptr;
 
   auto parse_optional_decl_specifier_seq_no_typespecs = [&] {
@@ -4570,7 +4577,9 @@ auto Parser::parse_simple_declaration(DeclarationAST*& yyast,
 
   if (parse_empty_or_attribute_declaration(yyast, attributes, ctx)) return true;
 
-  if (parse_notypespec_function_definition(yyast, attributes, ctx)) return true;
+  if (parse_notypespec_function_definition(yyast, attributes, ctx,
+                                           templateHead))
+    return true;
 
   DeclSpecs specs{unit_};
   specs.templateHead = templateHead;
@@ -4811,6 +4820,12 @@ auto Parser::parse_notypespec_function_definition(
   if (!isDeclaration && !isDefinition) return false;
 
   auto functionSymbol = binder_.declareFunction(declarator, decl);
+
+  if (auto templateHead = specs.templateHead) {
+    functionSymbol->setTemplateDeclaration(templateHead);
+    functionSymbol->setTemplateParameters(templateHead->symbol);
+    mark_maybe_template_name(declarator);
+  }
 
   SourceLocation semicolonLoc;
 

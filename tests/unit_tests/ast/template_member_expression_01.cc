@@ -2,12 +2,12 @@
 
 struct Allocator {
   template <typename T>
-  auto Allocate(int) -> T * {
+  auto Allocate(int) -> T* {
     return nullptr;
   }
 };
 
-auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
+auto copy(Allocator& A) -> void* { return A.template Allocate<char>(128); }
 
 // clang-format off
 //      CHECK:translation-unit
@@ -91,8 +91,8 @@ auto copy(Allocator &A) -> void * { return A.template Allocate<char>(128); }
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            return-statement
-// CHECK-NEXT:              expression: call-expression
-// CHECK-NEXT:                base-expression: member-expression
+// CHECK-NEXT:              expression: call-expression [prvalue type-param<0, 0>*]
+// CHECK-NEXT:                base-expression: member-expression [lvalue type-param<0, 0>* (int)]
 // CHECK-NEXT:                  access-op: .
 // CHECK-NEXT:                  is-template-introduced: true
 // CHECK-NEXT:                  base-expression: id-expression [lvalue ::Allocator]

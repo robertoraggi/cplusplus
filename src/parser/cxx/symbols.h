@@ -781,6 +781,9 @@ class LambdaSymbol final : public ScopeSymbol {
   [[nodiscard]] auto isStatic() const -> bool;
   void setStatic(bool isStatic);
 
+  [[nodiscard]] auto isTemplate() const -> bool;
+  void setTemplate(bool isTemplate);
+
  private:
   union {
     std::uint32_t flags_{};
@@ -789,6 +792,7 @@ class LambdaSymbol final : public ScopeSymbol {
       std::uint32_t isConsteval_ : 1;
       std::uint32_t isMutable_ : 1;
       std::uint32_t isStatic_ : 1;
+      std::uint32_t isTemplate_ : 1;
     };
   };
 };
@@ -1138,6 +1142,20 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   if (!symbol->isNamespace()) return false;
   if (symbol->parent()) return false;
   return true;
+}
+
+[[nodiscard]] inline auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool {
+  for (; scope; scope = scope->parent()) {
+    if (scope->isTemplateParameters()) return true;
+    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+      if (cls->templateParameters()) return true;
+    } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
+      if (func->templateParameters()) return true;
+    } else if (auto lambda = symbol_cast<LambdaSymbol>(scope)) {
+      if (lambda->isTemplate()) return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace cxx

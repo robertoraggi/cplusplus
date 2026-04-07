@@ -19,7 +19,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind)
     -> std::optional<ExpressionResult> {

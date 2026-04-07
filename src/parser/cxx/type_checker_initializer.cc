@@ -993,6 +993,8 @@ struct ReferenceInitChecker {
 void ReferenceInitChecker::check(VariableSymbol* var, InitDeclaratorAST* ast) {
   auto targetType = var->type();
 
+  if (isDependent(ctx.unit, targetType)) return;
+
   if (!ast->initializer) {
     auto loc = ctx.checker.getInitDeclaratorLocation(ast, var);
     ctx.error(loc,
@@ -1026,6 +1028,8 @@ void ReferenceInitChecker::check(VariableSymbol* var, InitDeclaratorAST* ast) {
 
   auto seq = ctx.checker.checkImplicitConversion(conversionTarget, targetType);
   if (seq.rank == ConversionRank::kNone) {
+    if (initExpr->type && isDependent(ctx.unit, initExpr->type)) return;
+
     ctx.error(
         initExpr->firstSourceLocation(),
         std::format("invalid initialization of reference of type '{}' from "

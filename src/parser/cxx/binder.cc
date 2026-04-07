@@ -151,25 +151,7 @@ auto Binder::scope() const -> ScopeSymbol* { return scope_; }
 
 void Binder::setScope(ScopeSymbol* scope) {
   scope_ = scope;
-  inTemplate_ = false;
-
-  for (auto current = scope_; current; current = current->parent()) {
-    if (current->isTemplateParameters()) {
-      inTemplate_ = true;
-      break;
-    }
-    if (auto cls = symbol_cast<ClassSymbol>(current)) {
-      if (cls->templateParameters()) {
-        inTemplate_ = true;
-        break;
-      }
-    } else if (auto func = symbol_cast<FunctionSymbol>(current)) {
-      if (func->templateParameters()) {
-        inTemplate_ = true;
-        break;
-      }
-    }
-  }
+  inTemplate_ = isEnclosedInTemplate(scope_);
 }
 
 auto Binder::languageLinkage() const -> LanguageKind {
@@ -876,16 +858,14 @@ void Binder::complete(LambdaExpressionAST* ast) {
       returnType, std::move(parameterTypes), isVariadic, {}, {}, isNoexcept);
   ast->symbol->setType(funcType);
 
-  if (isCxx() && !inTemplate()) {
+  if (isCxx() && !isEnclosedInTemplate(ast->symbol->parent())) {
     auto closureName =
         control()->getIdentifier(std::format("__lambda_{}", lambdaCount_++));
 
-    // Create the ClassSymbol for the closure type
     auto classSymbol = control()->newClassSymbol(parentScope, ast->lbracketLoc);
     classSymbol->setName(closureName);
     parentScope->addSymbol(classSymbol);
 
-    // Create operator() FunctionSymbol
     auto operatorCallName = control()->getOperatorId(TokenKind::T_LPAREN);
     auto operatorFunc =
         control()->newFunctionSymbol(classSymbol, ast->lbracketLoc);
@@ -901,7 +881,23 @@ void Binder::complete(LambdaExpressionAST* ast) {
       }
     }
 
-    // Create implicit default constructor
+    if (ast->symbol->isTemplate()) {
+      auto ar = unit_->arena();
+      auto templateParamsSymbol = control()->newTemplateParametersSymbol(
+          operatorFunc, ast->lbracketLoc);
+      for (auto p : ListView{ast->templateParameterList}) {
+        if (p && p->symbol) templateParamsSymbol->addSymbol(p->symbol);
+      }
+      int depth = ast->templateParameterList
+                      ? ast->templateParameterList->value->depth
+                      : 0;
+      auto templateDecl = TemplateDeclarationAST::create(
+          ar, ast->templateParameterList, ast->templateRequiresClause,
+          /*declaration=*/nullptr, templateParamsSymbol, depth);
+      operatorFunc->setTemplateParameters(templateParamsSymbol);
+      operatorFunc->setTemplateDeclaration(templateDecl);
+    }
+
     auto ctorSymbol =
         control()->newFunctionSymbol(classSymbol, ast->lbracketLoc);
     ctorSymbol->setName(closureName);
@@ -912,7 +908,8 @@ void Binder::complete(LambdaExpressionAST* ast) {
     ctorSymbol->setLanguageLinkage(LanguageKind::kCXX);
     classSymbol->addConstructor(ctorSymbol);
 
-    if (ast->captureDefault == TokenKind::T_EOF_SYMBOL && !ast->captureList) {
+    if (!ast->symbol->isTemplate() &&
+        ast->captureDefault == TokenKind::T_EOF_SYMBOL && !ast->captureList) {
       auto fptrType = control()->getPointerType(funcType);
       auto convFuncType = control()->getFunctionType(fptrType, {});
       auto convName = control()->getConversionFunctionId(fptrType);
@@ -974,6 +971,9 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
     funcChunk->parameterDeclarationClause =
         ast->parameterDeclarationClause->clone(ar);
   }
+  if (ast->trailingReturnType) {
+    funcChunk->trailingReturnType = ast->trailingReturnType->clone(ar);
+  }
 
   auto declarator = DeclaratorAST::create(
       ar, /*ptrOpList=*/nullptr, /*coreDeclarator=*/idDecl,
@@ -987,7 +987,16 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
   funcDef->declarator = declarator;
   funcDef->functionBody = funcBody;
   funcDef->symbol = operatorFunc;
+
+  if (!ast->trailingReturnType) {
+    auto autoSpec = AutoTypeSpecifierAST::create(ar);
+    funcDef->declSpecifierList = make_list_node<SpecifierAST>(ar, autoSpec);
+  }
+
   operatorFunc->setDeclaration(funcDef);
+
+  if (auto templateDecl = operatorFunc->templateDeclaration())
+    templateDecl->declaration = funcDef;
 
   // Build FunctionDefinitionAST for the default constructor
   auto closureName = name_cast<Identifier>(classSymbol->name());
