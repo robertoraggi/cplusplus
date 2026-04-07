@@ -78,9 +78,7 @@ auto templateArgListsEquivalent(List<TemplateArgumentAST*>* a,
     auto exprB = ast_cast<ExpressionTemplateArgumentAST>(itB->value);
     if (exprA && exprB) {
       if (exprA->expression == exprB->expression) continue;
-      if (!exprA->expression || !exprB->expression) return false;
-      if (exprA->expression->type != exprB->expression->type) return false;
-      continue;
+      return false;
     }
 
     return false;
@@ -163,6 +161,47 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   ast->symbol->setFinal(ast->isFinal);
 
   if (declSpecs.templateHead) {
+    if (auto oldDecl = ast->symbol->templateDeclaration()) {
+      auto mergeDefault = [](TemplateParameterAST* src,
+                             TemplateParameterAST* dst) {
+        if (auto s = ast_cast<TypenameTypeParameterAST>(src)) {
+          auto d = ast_cast<TypenameTypeParameterAST>(dst);
+          if (d && s->typeId && !d->typeId) {
+            d->equalLoc = s->equalLoc;
+            d->typeId = s->typeId;
+          }
+        } else if (auto s = ast_cast<NonTypeTemplateParameterAST>(src)) {
+          auto d = ast_cast<NonTypeTemplateParameterAST>(dst);
+          if (d && s->declaration && d->declaration &&
+              s->declaration->expression && !d->declaration->expression) {
+            d->declaration->equalLoc = s->declaration->equalLoc;
+            d->declaration->expression = s->declaration->expression;
+          }
+        } else if (auto s = ast_cast<TemplateTypeParameterAST>(src)) {
+          auto d = ast_cast<TemplateTypeParameterAST>(dst);
+          if (d && s->idExpression && !d->idExpression) {
+            d->equalLoc = s->equalLoc;
+            d->idExpression = s->idExpression;
+          }
+        } else if (auto s = ast_cast<ConstraintTypeParameterAST>(src)) {
+          auto d = ast_cast<ConstraintTypeParameterAST>(dst);
+          if (d && s->typeId && !d->typeId) {
+            d->equalLoc = s->equalLoc;
+            d->typeId = s->typeId;
+          }
+        }
+      };
+
+      auto oldParams = ListView{oldDecl->templateParameterList};
+      auto newParams = ListView{declSpecs.templateHead->templateParameterList};
+      auto newIt = newParams.begin();
+      for (auto oldIt = oldParams.begin();
+           oldIt != oldParams.end() && newIt != newParams.end();
+           ++oldIt, ++newIt) {
+        mergeDefault(*oldIt, *newIt);
+      }
+    }
+
     ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
     ast->symbol->setTemplateParameters(declSpecs.templateHead->symbol);
   }

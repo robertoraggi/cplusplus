@@ -76,15 +76,7 @@ struct Substitution::CollectRawTemplateArgument {
   Substitution& subst;
 
   [[nodiscard]] auto isInTemplateScope(Symbol* symbol) -> bool {
-    for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
-      if (scope->isTemplateParameters()) return true;
-      if (auto cls = symbol_cast<ClassSymbol>(scope)) {
-        if (cls->templateParameters()) return true;
-      } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
-        if (func->templateParameters()) return true;
-      }
-    }
-    return false;
+    return isEnclosedInTemplate(symbol->parent());
   }
 
   auto operator()(ExpressionTemplateArgumentAST* ast) -> std::optional<Symbol*>;
@@ -112,10 +104,13 @@ struct Substitution::MakeDefaultTemplateArgument {
 
 auto Substitution::MakeDefaultTemplateArgument::operator()(
     TemplateTypeParameterAST* parameter) -> std::optional<TemplateArgument> {
-  subst.error(parameter->firstSourceLocation(),
-              "default template argument for template template "
-              "parameters is not implemented");
-  return std::nullopt;
+  if (!parameter->idExpression || !parameter->idExpression->symbol) {
+    subst.maybeReportMissingTemplateArgument(parameter->firstSourceLocation());
+    return std::nullopt;
+  }
+  auto argument = control()->newTypeAliasSymbol(nullptr, {});
+  argument->setType(parameter->idExpression->symbol->type());
+  return argument;
 }
 
 auto Substitution::MakeDefaultTemplateArgument::operator()(

@@ -43,6 +43,7 @@ struct TemplateParameterInfo {
   };
 
   const TypeParameterType* typeParameterType = nullptr;
+  TemplateParameterAST* parameterAST = nullptr;
   bool isPack = false;
   bool hasDefault = false;
   Kind kind = Kind::kUnknown;

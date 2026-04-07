@@ -967,6 +967,10 @@ auto LambdaSymbol::isStatic() const -> bool { return isStatic_; }
 
 void LambdaSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
 
+auto LambdaSymbol::isTemplate() const -> bool { return isTemplate_; }
+
+void LambdaSymbol::setTemplate(bool isTemplate) { isTemplate_ = isTemplate; }
+
 FunctionParametersSymbol::FunctionParametersSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
 

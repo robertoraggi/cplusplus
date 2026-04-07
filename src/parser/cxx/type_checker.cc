@@ -218,15 +218,7 @@ struct TypeChecker::Visitor {
   }
 
   [[nodiscard]] auto in_template() const -> bool {
-    for (auto current = scope(); current; current = current->parent()) {
-      if (current->isTemplateParameters()) return true;
-      if (auto cls = symbol_cast<ClassSymbol>(current)) {
-        if (cls->templateParameters()) return true;
-      } else if (auto func = symbol_cast<FunctionSymbol>(current)) {
-        if (func->templateParameters()) return true;
-      }
-    }
-    return false;
+    return isEnclosedInTemplate(scope());
   }
 
   void warning(SourceLocation loc, std::string message) {
@@ -1005,6 +997,22 @@ void TypeChecker::Visitor::resolve_call_overload(
     }
   }
 
+  if (!isMemberCall && !allFunctions.empty() &&
+      !allFunctions.front()->isStatic()) {
+    for (auto current = check.scope_; current; current = current->parent()) {
+      if (auto funcSym = symbol_cast<FunctionSymbol>(current)) {
+        if (symbol_cast<ClassSymbol>(funcSym->parent())) {
+          if (auto funcType = type_cast<FunctionType>(funcSym->type())) {
+            isMemberCall = true;
+            objectCv = funcType->cvQualifiers();
+            objectValueCategory = ValueCategory::kLValue;
+          }
+        }
+        break;
+      }
+    }
+  }
+
   std::vector<Candidate> candidates;
 
   auto explicitTemplateArguments = [&]() -> List<TemplateArgumentAST*>* {
@@ -1035,7 +1043,8 @@ void TypeChecker::Visitor::resolve_call_overload(
                                                  explicitTemplateArguments);
       if (!deducedArgs.has_value()) continue;
       auto instantiated =
-          ASTRewriter::instantiate(check.unit_, *deducedArgs, func, {},
+          ASTRewriter::instantiate(check.unit_, *deducedArgs, func,
+                                   ast->baseExpression->firstSourceLocation(),
                                    /*sfinaeContext=*/true);
       if (!instantiated) continue;
       auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
@@ -1114,6 +1123,11 @@ void TypeChecker::Visitor::resolve_call_overload(
   }
 
   auto function = bestPtr->symbol;
+  if (function->isSpecialization()) {
+    ASTRewriter::reportPendingInstantiationErrors(
+        check.unit_, function->primaryTemplateSymbol(), function,
+        ast->baseExpression->firstSourceLocation());
+  }
   ast->baseExpression->type = function->type();
   set_base_symbol(ast->baseExpression, function);
 
@@ -1189,6 +1203,8 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
 
   std::vector<Candidate> viableCandidates;
   for (auto func : allFunctions) {
+    if (func->templateDeclaration() && !func->isSpecialization()) continue;
+
     auto type = type_cast<FunctionType>(func->type());
     if (!type) continue;
 
@@ -1245,6 +1261,39 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
     if (cand.viable) viableCandidates.push_back(std::move(cand));
   }
 
+  if (viableCandidates.empty()) {
+    bool anyDeductionSucceeded = false;
+    for (auto func : allFunctions) {
+      if (!func->templateDeclaration() || func->isSpecialization()) continue;
+      auto deducedArgs =
+          deduceTemplateArguments(func, ast->expressionList, nullptr);
+      if (!deducedArgs.has_value()) continue;
+      anyDeductionSucceeded = true;
+      auto instantiated = ASTRewriter::instantiate(
+          check.unit_, *deducedArgs, func,
+          ast->baseExpression->firstSourceLocation(), /*sfinaeContext=*/true);
+      if (!instantiated) continue;
+      auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
+      if (!instFunc) continue;
+      Candidate cand{instFunc};
+      cand.viable = true;
+      viableCandidates.push_back(std::move(cand));
+    }
+    if (anyDeductionSucceeded && viableCandidates.empty()) {
+      for (auto func : allFunctions) {
+        if (!func->templateDeclaration() || func->isSpecialization()) continue;
+        auto deducedArgs =
+            deduceTemplateArguments(func, ast->expressionList, nullptr);
+        if (!deducedArgs.has_value()) continue;
+        (void)ASTRewriter::instantiate(
+            check.unit_, *deducedArgs, func,
+            ast->baseExpression->firstSourceLocation(),
+            /*sfinaeContext=*/false);
+      }
+      return nullptr;
+    }
+  }
+
   auto [bestPtr, ambiguous] =
       resolution.selectBestViableFunction(viableCandidates, true, false);
 
@@ -1256,6 +1305,23 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
   }
 
   auto operatorFunc = bestPtr->symbol;
+  if (operatorFunc->templateDeclaration() &&
+      !operatorFunc->isSpecialization()) {
+    auto deducedArgs =
+        deduceTemplateArguments(operatorFunc, ast->expressionList, nullptr);
+    if (deducedArgs.has_value()) {
+      auto instantiated = ASTRewriter::instantiate(
+          check.unit_, *deducedArgs, operatorFunc,
+          ast->baseExpression->firstSourceLocation(), /*sfinaeContext=*/true);
+      if (auto instFunc = symbol_cast<FunctionSymbol>(instantiated))
+        operatorFunc = instFunc;
+    }
+  }
+  if (operatorFunc->isSpecialization()) {
+    ASTRewriter::reportPendingInstantiationErrors(
+        check.unit_, operatorFunc->primaryTemplateSymbol(), operatorFunc,
+        ast->baseExpression->firstSourceLocation());
+  }
   auto functionType = type_cast<FunctionType>(operatorFunc->type());
   if (!functionType) return nullptr;
 
@@ -1429,7 +1495,8 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     }
   }
 
-  if (in_template() && is_dependent_type(ast->baseExpression->type)) {
+  if (in_template() && (is_dependent_type(ast->baseExpression->type) ||
+                        type_cast<AutoType>(ast->baseExpression->type))) {
     ast->type = dependent_type();
     ast->valueCategory = ValueCategory::kPrValue;
     return;
@@ -1581,7 +1648,8 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
                                                explicitTemplateArguments);
     if (!deducedArgs.has_value()) return;
     auto instantiated =
-        ASTRewriter::instantiate(check.unit_, *deducedArgs, funcSym, {},
+        ASTRewriter::instantiate(check.unit_, *deducedArgs, funcSym,
+                                 ast->baseExpression->firstSourceLocation(),
                                  /*sfinaeContext=*/true);
     if (!instantiated) return;
     auto instFunc = symbol_cast<FunctionSymbol>(instantiated);
@@ -1591,6 +1659,11 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     set_base_symbol(ast->baseExpression, instFunc);
     ast->baseExpression->type = instFunc->type();
     functionType = instType;
+    if (instFunc->isSpecialization()) {
+      ASTRewriter::reportPendingInstantiationErrors(
+          check.unit_, instFunc->primaryTemplateSymbol(), instFunc,
+          ast->baseExpression->firstSourceLocation());
+    }
   };
 
   if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression))
@@ -4159,6 +4232,9 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
 
   auto memberName = get_name(control(), ast->unqualifiedId);
 
+  auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+  if (templateId && templateId->identifier) memberName = templateId->identifier;
+
   auto classSymbol = classType->symbol();
 
   check.unit_->typeTraits().requireCompleteClass(classSymbol);
@@ -4178,6 +4254,8 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
     auto member = std::string{"<unknown>"};
     if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
       if (auto identifier = nameId->identifier) member = identifier->value();
+    } else if (templateId && templateId->identifier) {
+      member = templateId->identifier->value();
     }
 
     error(ast->firstSourceLocation(),
@@ -4233,7 +4311,7 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
   }
 
   auto dtor = ast_cast<DestructorIdAST>(ast->unqualifiedId);
-  if (!dtor) return true;
+  if (!dtor) return false;
 
   auto name = ast_cast<NameIdAST>(dtor->id);
   if (!name) return true;

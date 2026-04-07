@@ -935,7 +935,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 }
 
 void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
-  auto target = symbol->canonical();
+  auto target = symbol->isSpecialization() ? symbol : symbol->canonical();
   if (auto def = target->definition()) target = def;
   if (!target->declaration()) return;
   if (!enqueuedFunctions_.insert(target).second) return;

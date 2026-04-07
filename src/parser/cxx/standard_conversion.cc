@@ -884,6 +884,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
 
         if (unit_->typeTraits().is_same(fromUnqual, toUnqual)) {
           seq.rank = ConversionRank::kExactMatch;
+          seq.hasQualificationConversion = true;
           addStep(ImplicitCastKind::kQualificationConversion, targetType);
           return seq;
         }

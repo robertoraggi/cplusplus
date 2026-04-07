@@ -49,15 +49,7 @@ struct IsDependent {
   [[nodiscard]] auto isInTemplateScope(Symbol* symbol) -> bool {
     if (auto var = symbol_cast<VariableSymbol>(symbol))
       if (var->templateParameters()) return true;
-    for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
-      if (scope->isTemplateParameters()) return true;
-      if (auto cls = symbol_cast<ClassSymbol>(scope)) {
-        if (cls->templateParameters()) return true;
-      } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
-        if (func->templateParameters()) return true;
-      }
-    }
-    return false;
+    return isEnclosedInTemplate(symbol->parent());
   }
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
@@ -502,6 +494,8 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(LambdaExpressionAST* ast) -> bool {
+  if (ast->symbol && ast->symbol->isTemplate()) return true;
+
   for (auto node : ListView{ast->captureList}) {
     if (isDependent(node)) return true;
   }

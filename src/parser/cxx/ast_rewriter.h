@@ -22,9 +22,12 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/binder.h>
+#include <cxx/diagnostic.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/names_fwd.h>
 #include <cxx/token_fwd.h>
 
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -51,6 +54,11 @@ class [[nodiscard]] ASTRewriter {
 
   static auto ensureCompleteClass(TranslationUnit* unit,
                                   ClassSymbol* classSymbol) -> bool;
+
+  static void reportPendingInstantiationErrors(TranslationUnit* unit,
+                                               Symbol* primaryTemplate,
+                                               Symbol* instantiated,
+                                               SourceLocation instantiationLoc);
 
   static auto substituteDefaultTypeId(
       TranslationUnit* unit, TypeIdAST* typeId,
@@ -98,6 +106,10 @@ class [[nodiscard]] ASTRewriter {
   auto control() const -> Control*;
   auto arena() const -> Arena*;
   auto binder() -> Binder& { return binder_; }
+
+  auto takeBodyErrors() -> std::vector<Diagnostic> {
+    return std::move(bodyErrors_);
+  }
 
   auto restrictedToDeclarations() const -> bool;
   void setRestrictedToDeclarations(bool restrictedToDeclarations);
@@ -192,6 +204,9 @@ class [[nodiscard]] ASTRewriter {
  private:
   auto rewriter() -> ASTRewriter* { return this; }
 
+  auto shouldCaptureBodyErrors() const -> bool;
+  void typeCheckAndCapture(std::function<void()> checkFn);
+
   auto getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol*;
 
   auto getTypeParameterPack(SpecifierAST* ast) -> ParameterPackSymbol*;
@@ -206,6 +221,7 @@ class [[nodiscard]] ASTRewriter {
 
   TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
+  std::vector<Diagnostic> bodyErrors_;
   ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
   Binder binder_;

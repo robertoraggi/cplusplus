@@ -58,6 +58,7 @@ struct ImplicitConversionSequence {
 
   bool bindsToRvalueRef = false;
   bool bindsToReference = false;
+  bool hasQualificationConversion = false;
   CvQualifiers referenceCv = CvQualifiers::kNone;
 
   [[nodiscard]] auto isBetterThan(const ImplicitConversionSequence& other) const
@@ -78,6 +79,10 @@ struct ImplicitConversionSequence {
       if (bindsToReference && other.bindsToReference &&
           referenceCv != other.referenceCv) {
         return referenceCv < other.referenceCv;
+      }
+
+      if (hasQualificationConversion != other.hasQualificationConversion) {
+        return !hasQualificationConversion;
       }
 
       return false;

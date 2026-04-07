@@ -454,7 +454,8 @@ class Parser final {
 
   [[nodiscard]] auto parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* atributes,
-      BindingContext ctx) -> bool;
+      BindingContext ctx, TemplateDeclarationAST* templateHead = nullptr)
+      -> bool;
 
   [[nodiscard]] auto parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,

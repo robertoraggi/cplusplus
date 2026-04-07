@@ -28,6 +28,7 @@
 #include <cxx/decl_specs.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 
 namespace cxx {
 
@@ -426,6 +427,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->literal = ast->literal;
   copy->rparenLoc = ast->rparenLoc;
   copy->semicolonLoc = ast->semicolonLoc;
+
+  if (symbol_cast<FunctionSymbol>(binder()->instantiatingSymbol())) {
+    auto typeChecker = TypeChecker{translationUnit()};
+    typeChecker.setScope(binder()->scope());
+    typeChecker.setReportErrors(rewrite.shouldCaptureBodyErrors());
+    rewrite.typeCheckAndCapture([&] { typeChecker.check(copy); });
+  }
 
   return copy;
 }
