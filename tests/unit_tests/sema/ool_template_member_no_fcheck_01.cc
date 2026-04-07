@@ -1,4 +1,4 @@
-// RUN: %cxx -verify %s
+// RUN: %cxx -fno-check -verify %s
 
 template <typename T>
 struct Box {

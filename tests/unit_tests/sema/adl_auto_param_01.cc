@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 auto add(auto x, auto y) -> decltype(x + y) { return x + y; }
 

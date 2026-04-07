@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Using-directive lookup: names made visible by using-directives
 // should be found by unqualified lookup.

@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 async function main() {
   // configure cmake using the emscripten presets
-  await $`cmake --preset emscripten`;
+  await $`cmake --preset emscripten-mlir`;
   await $`cmake --build --preset build-emscripten`;
 
   // make sure packages/cxx-frontend/dist/wasm exists

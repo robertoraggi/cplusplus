@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -dump-symbols %s
+// RUN: %cxx -verify -dump-symbols %s
 
 template <typename T>
 constexpr bool is_integral_v = __is_integral(T);

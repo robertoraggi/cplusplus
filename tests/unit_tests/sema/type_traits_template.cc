@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 struct TrivialBoth {
   TrivialBoth& operator=(const TrivialBoth&) = default;

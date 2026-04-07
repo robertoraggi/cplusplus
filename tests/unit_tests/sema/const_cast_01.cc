@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain macos -verify -fcheck %s
+// RUN: %cxx -toolchain macos -verify %s
 
 void test_const_cast() {
   int i = 0;

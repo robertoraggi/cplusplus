@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 static_assert(sizeof("\n") == 2);
 static_assert(sizeof("\t") == 2);

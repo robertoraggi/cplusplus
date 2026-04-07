@@ -1,4 +1,4 @@
-// RUN: not %cxx -fcheck %s
+// RUN: not %cxx %s
 
 template <class T>
 void crref(const T&&) {}

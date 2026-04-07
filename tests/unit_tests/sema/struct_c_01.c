@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -dump-symbols -xc %s | %filecheck %s --match-full-lines
+// RUN: %cxx -dump-symbols -xc %s | %filecheck %s --match-full-lines
 
 enum E {
   v,

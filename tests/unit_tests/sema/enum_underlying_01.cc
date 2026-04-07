@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 enum Plain { a = 0, b = 1, c = 5 };
 enum PlainNeg { x = -1, y = 0 };

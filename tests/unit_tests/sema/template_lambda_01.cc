@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Template lambda IIFE with non-type parameter: static_assert fires on
 // instantiation with the default argument _False=false.

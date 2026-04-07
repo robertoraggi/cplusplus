@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 // Tests that class body recovery skips to the next semicolon
 // and doesn't cascade hundreds of "expected a declaration" errors.
 

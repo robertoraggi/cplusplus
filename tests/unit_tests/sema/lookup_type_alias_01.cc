@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Type alias qualified lookup: looking up types through
 // type aliases and using declarations used as scope qualifiers.

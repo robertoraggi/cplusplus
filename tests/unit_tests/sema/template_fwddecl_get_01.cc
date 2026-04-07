@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 // expected-no-diagnostics
 
 using size_t = decltype(sizeof(int));

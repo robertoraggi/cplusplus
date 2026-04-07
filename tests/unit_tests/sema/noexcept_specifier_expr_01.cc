@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 void f1() noexcept(true);
 static_assert(noexcept(f1()));

@@ -2256,7 +2256,7 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
        check.unit_->typeTraits().is_enum(sourceType) ||
        check.unit_->typeTraits().is_scoped_enum(sourceType)) &&
       check.unit_->typeTraits().is_pointer(targetType)) {
-    // No implicit cast wrapper — CastExpressionAST codegen emits IntToPtrOp.
+    // No implicit cast wrapper - CastExpressionAST codegen emits IntToPtrOp.
     return true;
   }
 

@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 // expected-no-diagnostics
 static_assert(__builtin_huge_val() > 1e308);
 static_assert(__builtin_huge_valf() > 1e38f);

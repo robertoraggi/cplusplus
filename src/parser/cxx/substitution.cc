@@ -349,7 +349,7 @@ void Substitution::doMake() {
     if (!isPackParameter(parameters[i])) continue;
     packIndex = i;
 
-    // Count trailing non-pack parameters that don't have defaults —
+    // Count trailing non-pack parameters that don't have defaults -
     // they need their own arguments, so the pack can't consume those.
     int trailingRequired = 0;
     for (int j = i + 1; j < paramCount; ++j) {

@@ -1204,7 +1204,7 @@ auto Codegen::getFileAttr(const std::string& filename)
     return it->second;
   }
 
-  auto filePath = absolute(std::filesystem::path{filename});
+  auto filePath = std::filesystem::path{filename};
 
   auto attr = mlir::LLVM::DIFileAttr::get(
       context_, filePath.filename().string(), filePath.parent_path().string());

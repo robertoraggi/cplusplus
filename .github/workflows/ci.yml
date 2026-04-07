@@ -36,6 +36,7 @@ jobs:
           for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
+              -fno-check \
               -I src/parser \
               -I src/lsp \
               -I build/_deps/utfcpp-src/source \
@@ -52,6 +53,7 @@ jobs:
           for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
+              -fno-check \
               -toolchain linux \
               -I src/parser \
               -I src/lsp \
@@ -208,6 +210,7 @@ jobs:
           for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
             ./build/src/frontend/cxx \
+              -fno-check \
               -toolchain macos \
               -I src/parser \
               -I src/lsp \
@@ -243,7 +246,7 @@ jobs:
             -W threads=y -S threads=y \
             --dir ${{github.workspace}}/build.wasi/install::/ \
             --dir tests::tests \
-            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v tests/manual/source.cc
+            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -fno-check -v tests/manual/source.cc
 
       - name: Parse C++ source files (wasmtime runtime)
         run: |
@@ -259,6 +262,7 @@ jobs:
                   --dir=build.wasi/src/lsp::build.wasi/src/lsp \
                   --dir=build.wasi/install/usr::/usr \
                   build.wasi/install/usr/bin/cxx.wasm \
+              -fno-check \
               -I src/parser \
               -I src/lsp \
               -I build.wasi/_deps/utfcpp-src/source \

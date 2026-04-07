@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -toolchain macos -fcheck -dump-record-layouts %s | %filecheck %s
+// RUN: %cxx -toolchain macos -dump-record-layouts %s | %filecheck %s
 
 // Bitfield then regular field then bitfield (Itanium ABI packing)
 struct T1 { int a : 2; char b; int c : 3; };

@@ -1,4 +1,4 @@
-// RUN: not %cxx -fcheck %s
+// RUN: not %cxx %s
 
 template <int... Ns, class U>
 auto wrong_kind(U) -> char;

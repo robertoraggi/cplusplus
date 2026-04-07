@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -c %s 2>&1 | %filecheck %s --allow-empty
+// RUN: %cxx -c %s 2>&1 | %filecheck %s --allow-empty
 // CHECK-NOT: error
 
 struct ConstValue {

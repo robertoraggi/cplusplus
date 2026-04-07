@@ -155,7 +155,10 @@ std::vector<CLIOptionDescr> options{
     {"-x", "Specify the language from the compiler driver, e.g. c, or c++",
      CLIOptionDescrKind::kSeparated},
 
-    {"-fcheck", "Enable type checker (WIP)", &CLI::opt_fcheck},
+    {"-fcheck", "Enable type checker", &CLI::opt_fcheck},
+
+    {"-fno-check", "Disable type checker (implies -fsyntax-only)",
+     &CLI::opt_fno_check},
 
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 

@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck %s
+// RUN: %cxx %s
 // expected-no-diagnostics
 
 template <int i>

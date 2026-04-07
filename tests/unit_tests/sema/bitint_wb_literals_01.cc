@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain macos -verify -fcheck %s
+// RUN: %cxx -toolchain macos -verify %s
 // expected-no-diagnostics
 
 static_assert(__is_same(decltype(3wb),    _BitInt(3)));

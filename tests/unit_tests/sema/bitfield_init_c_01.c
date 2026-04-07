@@ -1,4 +1,4 @@
-// RUN: %cxx -fsyntax-only -verify -fcheck %s
+// RUN: %cxx -fsyntax-only -verify %s
 // expected-no-diagnostics
 
 // Test non-designated struct init with bitfields.

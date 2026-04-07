@@ -39,6 +39,11 @@ auto main(int argc, char* argv[]) -> int {
     cli.opt_lsp = true;
   }
 
+  if (cli.opt_fno_check) {
+    cli.opt_fcheck = false;
+    cli.opt_fsyntax_only = true;
+  }
+
   if (!cli.opt_lsp && inputFiles.empty()) {
     std::cerr << "cxx: no input files" << std::endl
               << "Usage: cxx [options] file..." << std::endl;

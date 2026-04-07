@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -dump-symbols %s | %filecheck %s
+// RUN: %cxx -verify -dump-symbols %s | %filecheck %s
 
 auto f(int x) -> decltype(x);
 auto g(int x, decltype(x)* y) -> decltype(y);

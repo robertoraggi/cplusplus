@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Literals and arithmetic - never throw
 static_assert(noexcept(1 + 2));

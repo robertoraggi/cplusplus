@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Test: static const members with dependent initializers used as NTTP args
 // in a nested template NNS should not trigger premature instantiation.

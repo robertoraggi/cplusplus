@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 struct Bits {
   int value : 32;

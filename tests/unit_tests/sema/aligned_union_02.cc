@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Test: NNS with dependent static const member used as NTTP works
 // when the template is actually instantiated with concrete values.
