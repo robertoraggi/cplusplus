@@ -22,7 +22,7 @@ async function main() {
   await $`cp build.em/src/js/cxx-js.js ${path.join(__dirname, "../packages/cxx-frontend/dist/")}`;
 
   // copy build.em/src/js/cxx-js.wasm to packages/cxx-frontend/dist/wasm
-  await $`cp build.em/src/js/cxx-js.wasm ${path.join(__dirname, "../packages/cxx-frontend/dist/wasm/")}`;
+  await $`cp build.em/src/js/cxx-js.wasm ${path.join(__dirname, "../packages/cxx-frontend/dist/")}`;
 }
 
 await main();

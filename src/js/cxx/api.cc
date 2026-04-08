@@ -205,14 +205,17 @@ struct WrappedUnit {
     context.disableMultithreading();
     context.loadDialect<mlir::cxx::CxxDialect>();
 
-    cxx::Codegen codegen(context, unit.get());
+    const auto emitDebugInfo = true;
+    const auto pretty = false;
+
+    cxx::Codegen codegen(context, unit.get(), emitDebugInfo);
 
     auto ir = codegen(unit->ast());
 
     (void)cxx::lowerToMLIR(ir.module);
 
     mlir::OpPrintingFlags flags;
-    flags.enableDebugInfo(true, true);
+    flags.enableDebugInfo(emitDebugInfo, pretty);
 
     std::ostringstream out;
     llvm::raw_os_ostream os(out);
