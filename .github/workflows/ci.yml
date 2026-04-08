@@ -145,7 +145,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci
+          npm ci --ignore-scripts
 
       - name: Download MLIR
         run: |
@@ -232,7 +232,7 @@ jobs:
 
       - name: Build
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run build:wasi
 
       - name: Install wasmtime
@@ -301,7 +301,7 @@ jobs:
 
       - name: Build
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run build -w @robertoraggi/cxx-playground -- --base /cplusplus
           mkdir -p packages/cxx-playground/dist/docs
           cp -a packages/cxx-frontend/docs/. packages/cxx-playground/dist/docs
