@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck -dump-symbols %s | %filecheck %s
+// RUN: %cxx -verify -dump-symbols %s | %filecheck %s
 
 extern "C" {
 int printf(const char* format, ...);

@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 typedef int elem_t;
 elem_t arr[10];

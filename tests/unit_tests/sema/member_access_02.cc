@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -freport-missing-types %s
+// RUN: %cxx -verify -freport-missing-types %s
 
 struct X {
   enum E { kValue = 0 };

@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 // expected-no-diagnostics
 
 static_assert(__builtin_abs(-42) == 42);

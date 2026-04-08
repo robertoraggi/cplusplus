@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 #define tkgt 1
 #define tkappend 2

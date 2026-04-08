@@ -1,4 +1,4 @@
-// RUN: %cxx -verify %s
+// RUN: %cxx -fno-check -verify %s
 
 auto incr(int x) -> int { return x++; }
 auto decr(int x) -> int { return x--; }

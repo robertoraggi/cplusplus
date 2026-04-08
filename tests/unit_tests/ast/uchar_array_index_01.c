@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s
+// RUN: %cxx -verify -ast-dump %s | %filecheck %s
 
 int main() {
   unsigned char c = 200;

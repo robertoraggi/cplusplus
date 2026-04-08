@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 // expected-no-diagnostics
 
 int f_exact(int x) { return x; }

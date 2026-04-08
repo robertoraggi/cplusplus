@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 static_assert(__is_null_pointer(decltype(nullptr)));
 

@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 async function main() {
   // configure cmake using the emscripten presets
-  await $`cmake --preset emscripten`;
+  await $`cmake --preset emscripten-mlir`;
   await $`cmake --build --preset build-emscripten`;
 
   // make sure packages/cxx-frontend/dist/wasm exists
@@ -22,7 +22,7 @@ async function main() {
   await $`cp build.em/src/js/cxx-js.js ${path.join(__dirname, "../packages/cxx-frontend/dist/")}`;
 
   // copy build.em/src/js/cxx-js.wasm to packages/cxx-frontend/dist/wasm
-  await $`cp build.em/src/js/cxx-js.wasm ${path.join(__dirname, "../packages/cxx-frontend/dist/wasm/")}`;
+  await $`cp build.em/src/js/cxx-js.wasm ${path.join(__dirname, "../packages/cxx-frontend/dist/")}`;
 }
 
 await main();

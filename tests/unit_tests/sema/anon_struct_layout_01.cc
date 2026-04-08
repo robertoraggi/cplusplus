@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -toolchain macos -fcheck -dump-record-layouts %s | %filecheck %s
+// RUN: %cxx -toolchain macos -dump-record-layouts %s | %filecheck %s
 
 // Anonymous union with bitfields and regular fields interleaved with
 // anonymous structs. Verifies layout sizes, offsets, and nesting.

@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 template <long _Num, long _Den = 1>
 struct ratio {

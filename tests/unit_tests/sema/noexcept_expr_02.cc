@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Variable template using noexcept as constexpr bool
 template <typename T>

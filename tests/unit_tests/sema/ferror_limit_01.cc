@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -ferror-limit 2 %s
+// RUN: %cxx -verify -ferror-limit 2 %s
 
 template <int>
 struct S;

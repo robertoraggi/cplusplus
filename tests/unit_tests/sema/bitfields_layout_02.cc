@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -toolchain macos -fcheck -dump-record-layouts %s | %filecheck %s
+// RUN: %cxx -toolchain macos -dump-record-layouts %s | %filecheck %s
 
 // Cross-type packing (Itanium ABI: all fit contiguously)
 struct X {

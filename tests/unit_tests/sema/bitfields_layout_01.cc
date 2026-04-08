@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -dump-record-layouts %s | %filecheck %s
+// RUN: %cxx -dump-record-layouts %s | %filecheck %s
 
 struct A {
   int a : 3;

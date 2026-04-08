@@ -524,8 +524,7 @@ void Frontend::Private::parse() {
   }
 
   unit_->parse(ParserConfiguration{
-      .checkTypes =
-          cli.opt_fcheck || needsIR() || unit_->language() == LanguageKind::kC,
+      .checkTypes = cli.opt_fcheck,
       .fuzzyTemplateResolution = true,
       .allowUnprototypedFunctions = cli.opt_fno_strict_prototypes,
       .stopParsingPredicate = [this]() -> bool {

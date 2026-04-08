@@ -7,7 +7,7 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./wasm": "./dist/wasm/cxx-js.wasm"
+    "./wasm": "./dist/cxx-js.wasm"
   },
   "types": "dist/index.d.ts",
   "type": "module",

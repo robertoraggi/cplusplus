@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -dump-symbols %s | %filecheck %s --match-full-lines
+// RUN: %cxx -dump-symbols %s | %filecheck %s --match-full-lines
 
 struct Pod {
   int x;

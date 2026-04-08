@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain wasm32 -verify -fcheck %s
+// RUN: %cxx -toolchain wasm32 -verify %s
 
 static_assert(alignof(bool) == 1);
 static_assert(alignof(signed char) == 1);

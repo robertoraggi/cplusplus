@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -dump-symbols %s | %filecheck %s
+// RUN: %cxx -verify -dump-symbols %s | %filecheck %s
 
 // Brace form: extern "C" { ... }
 extern "C" {
@@ -28,7 +28,7 @@ struct Widget {
 };
 }
 
-// Redeclare a C-linkage function outside extern "C" —
+// Redeclare a C-linkage function outside extern "C" -
 // the redeclaration should inherit C linkage from the canonical.
 void abort();
 

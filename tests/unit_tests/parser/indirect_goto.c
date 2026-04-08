@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // GCC extension: &&label gives the address of a label as void*
 // goto *expr jumps to the address stored in expr

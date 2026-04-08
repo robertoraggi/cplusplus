@@ -32,14 +32,14 @@
 #include <emscripten/val.h>
 
 #include <cstdlib>
-#include <format>
-#include <iostream>
 #include <optional>
 #include <sstream>
 
 #ifdef CXX_WITH_MLIR
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/cxx_dialect_conversions.h>
+#include <cxx/wasm32_wasi_toolchain.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <mlir/IR/MLIRContext.h>
 #endif
@@ -72,6 +72,9 @@ struct WrappedUnit {
   std::unique_ptr<DiagnosticsClient> diagnosticsClient;
   std::unique_ptr<cxx::TranslationUnit> unit;
   val api;
+#ifdef CXX_WITH_MLIR
+  std::unique_ptr<cxx::Toolchain> toolchain_;
+#endif
 
   WrappedUnit(std::string source, std::string filename, val api = {})
       : api(api) {
@@ -84,6 +87,13 @@ struct WrappedUnit {
     }
 
     unit->beginPreprocessing(std::move(source), std::move(filename));
+
+#ifdef CXX_WITH_MLIR
+    auto tc = std::make_unique<cxx::Wasm32WasiToolchain>(unit->preprocessor());
+    tc->initMemoryLayout();
+    tc->addPredefinedMacros();
+    toolchain_ = std::move(tc);
+#endif
   }
 
   auto getUnitHandle() const -> std::intptr_t {
@@ -182,7 +192,9 @@ struct WrappedUnit {
 
     unit->endPreprocessing();
 
-    unit->parse();
+    unit->parse(cxx::ParserConfiguration{
+        .checkTypes = true,
+    });
 
     co_return val{true};
   }
@@ -190,23 +202,27 @@ struct WrappedUnit {
   auto emitIR() -> std::string {
 #ifdef CXX_WITH_MLIR
     mlir::MLIRContext context;
+    context.disableMultithreading();
     context.loadDialect<mlir::cxx::CxxDialect>();
 
-    cxx::Codegen codegen(context, unit.get());
+    const auto emitDebugInfo = true;
+    const auto pretty = false;
+
+    cxx::Codegen codegen(context, unit.get(), emitDebugInfo);
 
     auto ir = codegen(unit->ast());
 
+    (void)cxx::lowerToMLIR(ir.module);
+
     mlir::OpPrintingFlags flags;
-    flags.enableDebugInfo(true, true);
+    flags.enableDebugInfo(emitDebugInfo, pretty);
 
     std::ostringstream out;
     llvm::raw_os_ostream os(out);
     ir.module->print(os, flags);
     os.flush();
 
-    auto code = out.str();
-
-    return code;
+    return out.str();
 #else
     return {};
 #endif

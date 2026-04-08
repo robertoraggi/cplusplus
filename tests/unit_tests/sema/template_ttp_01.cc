@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -dump-symbols %s | %filecheck %s
+// RUN: %cxx -verify -dump-symbols %s | %filecheck %s
 
 template <typename T>
 struct Holder {

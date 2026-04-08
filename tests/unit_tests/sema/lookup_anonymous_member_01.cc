@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Anonymous struct/union member lookup: members of anonymous
 // structs/unions should be found as if they were direct members.

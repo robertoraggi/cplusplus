@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Default template arguments from forward declarations should be
 // carried over to the definition when not repeated.

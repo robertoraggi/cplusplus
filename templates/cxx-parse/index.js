@@ -23,25 +23,15 @@ import { readFile } from "fs/promises";
 import { fileURLToPath } from "node:url";
 
 const source = `
-template <typename T>
-concept CanAdd = requires(T n) {
-  n + n;
-};
-
-auto twice(CanAdd auto n) {
-  return n + n;
-}
-
-const char* str = "hello";
+auto twice(auto x) { return x + x; }
 
 int main() {
-  return twice(2);
+  return twice(21) - 42;
 }
 `;
 
 async function main() {
-  const wasmBinaryUrl = import.meta
-    .resolve("cxx-frontend/wasm");
+  const wasmBinaryUrl = import.meta.resolve("cxx-frontend/wasm");
   const wasmBinaryFile = fileURLToPath(wasmBinaryUrl);
   const wasmBinary = await readFile(wasmBinaryFile);
 
@@ -58,6 +48,8 @@ async function main() {
     console.log("diagnostics", diagnostics);
   }
 
+  console.log("==== AST ====");
+
   for (const { node, slot, depth } of ast?.walk().preVisit() ?? []) {
     if (!(node instanceof AST)) continue;
     const ind = " ".repeat(depth * 2);
@@ -66,7 +58,12 @@ async function main() {
     console.log(`${ind}- ${member}${kind}`);
   }
 
+  const ir = await parser.emitIR();
+
+  console.log("==== IR ====");
+  console.log(ir);
+
   parser.dispose();
 }
 
-main().catch(console.error);
+await main();

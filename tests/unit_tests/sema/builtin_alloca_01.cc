@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 // expected-no-diagnostics
 void test(int n) {
   void* p = __builtin_alloca(n);

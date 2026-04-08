@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 // Qualified lookup through nested name specifiers with multiple levels.
 

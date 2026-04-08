@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 int main() {
   // expected-error@+1 {{invalid initialization of reference of type 'int&' from expression of type 'int'}}

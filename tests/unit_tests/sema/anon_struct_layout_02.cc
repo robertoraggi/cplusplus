@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -toolchain macos -fcheck -dump-record-layouts %s | %filecheck %s
+// RUN: %cxx -toolchain macos -dump-record-layouts %s | %filecheck %s
 
 // Anonymous union/struct with regular fields, verifying field ordering
 // and layout when anonymous members are interleaved with named fields.

@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain macos -verify -fcheck %s
+// RUN: %cxx -toolchain macos -verify %s
 // expected-no-diagnostics
 
 typedef union {

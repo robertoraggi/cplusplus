@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 struct NoBase {
   void f() override; // expected-error {{'f' marked 'override' but does not override any member function}}

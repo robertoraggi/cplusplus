@@ -38,7 +38,7 @@ uv sync && source .venv/bin/activate
 configure the source code
 
 ```sh
-cmake --preset default
+cmake --preset default-mlir -DCMAKE_PREFIX_PATH=<path to llvm>
 ```
 
 build
@@ -54,10 +54,10 @@ cd build
 ctest --progress
 ```
 
-Dump the AST to stdout
+Disable the type checker and dump the AST to stdout
 
 ```sh
- ./build/src/frontend/cxx tests/manual/source.cc -ast-dump
+ ./build/src/frontend/cxx -fno-check -ast-dump tests/manual/source.cc
 ```
 
 ## Build the npm package (requires docker)
@@ -71,13 +71,15 @@ npm ci
 compile WASM and TypeScript code
 
 ```sh
+npm ci --ignore-scripts
+npm run download-mlir # requires gh cli tool
 npm run build:cxx-frontend
 ```
 
 ## Build for WASM/WASI (requires docker)
 
 ```sh
-npm ci
+npm ci --ignore-scripts
 npm run build:wasi
 ```
 

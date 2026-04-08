@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fno-check -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 struct Pair {
   int first;

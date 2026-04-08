@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify %s
 
 constexpr int count_abbrev(auto... args) { return sizeof...(args); }
 

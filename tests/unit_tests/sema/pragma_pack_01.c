@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain macos -fcheck %s
+// RUN: %cxx -toolchain macos %s
 
 #pragma pack(push, 1)
 
