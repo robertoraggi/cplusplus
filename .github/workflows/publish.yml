@@ -13,10 +13,10 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup emscripten cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.emscripten-cache
           key: ${{ runner.os }}-emscripten
