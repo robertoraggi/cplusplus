@@ -18,13 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/symbols.h>
 #include <cxx/types.h>
 
-// cxx
-#include <cxx/symbols.h>
-
 namespace cxx {
-
 auto EnumType::underlyingType() const -> const Type* {
   return symbol()->underlyingType();
 }
@@ -34,8 +31,7 @@ auto ScopedEnumType::underlyingType() const -> const Type* {
 }
 
 auto ClassType::definition() const -> ClassSymbol* {
-  if (auto def = symbol()->definition()) return def;
-  return symbol();
+  return symbol()->resolvedDefinition();
 }
 
 auto ClassType::isComplete() const -> bool {
@@ -43,5 +39,4 @@ auto ClassType::isComplete() const -> bool {
 }
 
 auto ClassType::isUnion() const -> bool { return definition()->isUnion(); }
-
 }  // namespace cxx

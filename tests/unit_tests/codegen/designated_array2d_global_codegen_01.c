@@ -8,7 +8,7 @@ int printf(const char* format, ...);
 // CHECK-DAG: c"(1,0)
 // CHECK-DAG: c"(1,1)
 // CHECK-DAG: c"(1,2)
-// CHECK: @_ZZ4mainvE3sec = internal global
+// CHECK: @_ZZ4mainE3sec = internal global
 // CHECK-SAME: ptr @
 
 int main() {

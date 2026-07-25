@@ -36,26 +36,26 @@ auto main() -> int {
 // CHECK: template function type-param<0, 0> id(type-param<0, 0>)
 // CHECK-NEXT:   parameter typename<0, 0> __auto_0
 // CHECK:   [specializations]
-// CHECK-NEXT:     function type-param<0, 0> id(int)
-// CHECK:     function type-param<0, 0> id(double)
+// CHECK-NEXT:     function int id(int)
+// CHECK:     function double id(double)
 
 // CHECK: template function type-param<0, 0> add(type-param<0, 0>, type-param<1, 0>)
 // CHECK-NEXT:   parameter typename<0, 0> __auto_0
 // CHECK-NEXT:   parameter typename<1, 0> __auto_1
 // CHECK:   [specializations]
-// CHECK-NEXT:     function type-param<0, 0> add(int, int)
+// CHECK-NEXT:     function int add(int, int)
 
 // CHECK: template function type-param<0, 0>& id_ref(type-param<0, 0>&)
 // CHECK-NEXT:   parameter typename<0, 0> __auto_0
 // CHECK:   [specializations]
-// CHECK-NEXT:     function type-param<0, 0>& id_ref(int&)
+// CHECK-NEXT:     function int& id_ref(int&)
 
 // CHECK: template function type-param<0, 0>& id_cref(type-param<0, 0>&)
 // CHECK-NEXT:   parameter typename<0, 0> __auto_0
 // CHECK:   [specializations]
-// CHECK-NEXT:     function type-param<0, 0>& id_cref(const int&)
+// CHECK-NEXT:     function const int& id_cref(const int&)
 
 // CHECK: template function inline type-param<0, 0> apply(type-param<0, 0>)
 // CHECK-NEXT:     parameter typename<0, 0> __auto_0
 // CHECK:     [specializations]
-// CHECK-NEXT:       function type-param<0, 0> apply(int)
+// CHECK-NEXT:       function inline int apply(int)

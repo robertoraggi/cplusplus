@@ -31,7 +31,6 @@
 #include <vector>
 
 namespace cxx {
-
 class Arena;
 class Control;
 class TranslationUnit;
@@ -42,6 +41,7 @@ struct Candidate {
   bool viable = false;
   bool exactCvMatch = true;
   bool fromTemplate = false;
+  List<TemplateArgumentAST*>* deducedTemplateArgs = nullptr;
 };
 
 struct OverloadResult {
@@ -54,6 +54,12 @@ struct ConstructorResult {
   Candidate* best = nullptr;
   bool ambiguous = false;
 };
+
+[[nodiscard]] auto templateCandidateArityRejects(FunctionSymbol* pattern,
+                                                 int argCount) -> bool;
+
+[[nodiscard]] auto functionTemplateHasPackParameter(FunctionSymbol* pattern)
+    -> bool;
 
 class OverloadResolution {
  public:
@@ -85,10 +91,13 @@ class OverloadResolution {
 
   [[nodiscard]] auto resolveBinaryOperator(
       const std::vector<FunctionSymbol*>& candidates, const Type* leftType,
-      const Type* rightType, bool* ambiguous) const -> FunctionSymbol*;
+      const Type* rightType, bool* ambiguous, ExpressionAST* leftExpr = nullptr,
+      ExpressionAST* rightExpr = nullptr) -> FunctionSymbol*;
 
   [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
-                                    const Type* rightType = nullptr)
+                                    const Type* rightType = nullptr,
+                                    ExpressionAST* leftExpr = nullptr,
+                                    ExpressionAST* rightExpr = nullptr)
       -> FunctionSymbol*;
 
   [[nodiscard]] auto wasLastLookupAmbiguous() const -> bool {
@@ -101,7 +110,11 @@ class OverloadResolution {
  private:
   [[nodiscard]] auto trySelectOperator(
       const std::vector<FunctionSymbol*>& candidates, const Type* type,
-      const Type* rightType) -> FunctionSymbol*;
+      const Type* rightType, ExpressionAST* leftExpr = nullptr,
+      ExpressionAST* rightExpr = nullptr) -> FunctionSymbol*;
+
+  void completeDeferredWinnerBody(
+      FunctionSymbol* winner, List<TemplateArgumentAST*>* deducedTemplateArgs);
 
   TranslationUnit* unit_;
   Control* control_;
@@ -109,5 +122,4 @@ class OverloadResolution {
   StandardConversion stdconv_;
   bool lastLookupAmbiguous_ = false;
 };
-
 }  // namespace cxx

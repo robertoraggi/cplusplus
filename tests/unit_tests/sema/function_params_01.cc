@@ -16,7 +16,11 @@ struct C {
 // CHECK-NEXT:  class C
 // CHECK-NEXT:    constructor defaulted void C()
 // CHECK-NEXT:    constructor defaulted void C(const ::C&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const ::C&
 // CHECK-NEXT:    constructor defaulted void C(::C&&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter ::C&&
 // CHECK-NEXT:    injected class name C
 // CHECK-NEXT:    function void aa() const
 // CHECK-NEXT:    function void bb() volatile
@@ -25,5 +29,9 @@ struct C {
 // CHECK-NEXT:    function void ee() &&
 // CHECK-NEXT:    function void ff() const volatile & noexcept
 // CHECK-NEXT:    function defaulted ::C& operator =(const ::C&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const ::C&
 // CHECK-NEXT:    function defaulted ::C& operator =(::C&&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter ::C&&
 // CHECK-NEXT:    function defaulted void ~C()

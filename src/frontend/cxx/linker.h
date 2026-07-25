@@ -18,34 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
+#pragma once
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+#include <string>
+#include <vector>
 
-export interface BuiltinEval {
-  fn: string;
-  args: string[];
-  ret: string;
-  cxx23?: boolean;
-}
+namespace cxx {
+class CLI;
+class Toolchain;
 
-export interface BuiltinDef {
-  name: string;
-  prototype: string;
-  constexpr: boolean;
-  libcall?: boolean;
-  eval?: BuiltinEval;
-  constEval?: string; // ASTInterpreter method name
-  typeCheck?: string; // TypeChecker::Visitor method name
-  codegen?: string; // Codegen::ExpressionVisitor method name
-}
+[[nodiscard]] auto haveEmbeddedLinker() -> bool;
 
-const builtinsPath = path.join(__dirname, "builtins.json");
-
-export const BUILTINS: BuiltinDef[] = JSON.parse(
-  fs.readFileSync(builtinsPath, "utf-8"),
-);
-
-export const BUILTIN_NAMES: string[] = BUILTINS.map((b) => b.name).sort();
+[[nodiscard]] auto link(const CLI& cli, Toolchain* toolchain,
+                        const std::vector<std::string>& inputs,
+                        const std::string& outputPath) -> bool;
+}  // namespace cxx

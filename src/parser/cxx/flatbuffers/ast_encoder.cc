@@ -1320,6 +1320,18 @@ void ASTEncoder::visit(StructuredBindingDeclarationAST* ast) {
   const auto [initializer, initializerType] =
       acceptExpression(ast->initializer);
 
+  const auto hiddenVariable = accept(ast->hiddenVariable);
+
+  std::vector<flatbuffers::Offset<io::InitDeclarator>>
+      bindingDeclaratorListOffsets;
+  for (auto node : ListView{ast->bindingDeclaratorList}) {
+    if (!node) continue;
+    bindingDeclaratorListOffsets.emplace_back(accept(node).o);
+  }
+
+  auto bindingDeclaratorListOffsetsVector =
+      fbb_.CreateVector(bindingDeclaratorListOffsets);
+
   io::StructuredBindingDeclaration::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
@@ -1332,6 +1344,8 @@ void ASTEncoder::visit(StructuredBindingDeclarationAST* ast) {
   builder.add_initializer(initializer);
   builder.add_initializer_type(static_cast<io::Expression>(initializerType));
   builder.add_semicolon_loc(ast->semicolonLoc.index());
+  builder.add_hidden_variable(hiddenVariable.o);
+  builder.add_binding_declarator_list(bindingDeclaratorListOffsetsVector);
 
   offset_ = builder.Finish().Union();
   type_ = io::Declaration_StructuredBindingDeclaration;
@@ -5461,8 +5475,13 @@ void ASTEncoder::visit(BracedMemInitializerAST* ast) {
 }
 
 void ASTEncoder::visit(ThisLambdaCaptureAST* ast) {
+  const auto [initializer, initializerType] =
+      acceptExpression(ast->initializer);
+
   io::ThisLambdaCapture::Builder builder{fbb_};
   builder.add_this_loc(ast->thisLoc.index());
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Expression>(initializerType));
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_ThisLambdaCapture;
@@ -5488,12 +5507,17 @@ void ASTEncoder::visit(SimpleLambdaCaptureAST* ast) {
     }
   }
 
+  const auto [initializer, initializerType] =
+      acceptExpression(ast->initializer);
+
   io::SimpleLambdaCapture::Builder builder{fbb_};
   builder.add_identifier_loc(ast->identifierLoc.index());
   builder.add_ellipsis_loc(ast->ellipsisLoc.index());
   if (ast->identifier) {
     builder.add_identifier(identifier);
   }
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Expression>(initializerType));
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_SimpleLambdaCapture;
@@ -5510,6 +5534,9 @@ void ASTEncoder::visit(RefLambdaCaptureAST* ast) {
     }
   }
 
+  const auto [initializer, initializerType] =
+      acceptExpression(ast->initializer);
+
   io::RefLambdaCapture::Builder builder{fbb_};
   builder.add_amp_loc(ast->ampLoc.index());
   builder.add_identifier_loc(ast->identifierLoc.index());
@@ -5517,6 +5544,8 @@ void ASTEncoder::visit(RefLambdaCaptureAST* ast) {
   if (ast->identifier) {
     builder.add_identifier(identifier);
   }
+  builder.add_initializer(initializer);
+  builder.add_initializer_type(static_cast<io::Expression>(initializerType));
 
   offset_ = builder.Finish().Union();
   type_ = io::LambdaCapture_RefLambdaCapture;

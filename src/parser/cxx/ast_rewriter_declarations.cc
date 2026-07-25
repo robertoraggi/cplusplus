@@ -18,20 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_rewriter.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/name_lookup.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 
 namespace cxx {
-
 struct ASTRewriter::DeclarationVisitor {
   ASTRewriter& rewrite;
   TemplateDeclarationAST* templateHead = nullptr;
@@ -250,6 +249,27 @@ auto ASTRewriter::usingDeclarator(UsingDeclaratorAST* ast)
   copy->symbol = ast->symbol;
   copy->isPack = ast->isPack;
 
+  if (auto nns =
+          ast_cast<SimpleNestedNameSpecifierAST>(copy->nestedNameSpecifier)) {
+    if (nns->symbol) {
+      if (auto remapped = remapSymbol(nns->symbol); remapped != nns->symbol) {
+        if (auto scope = binder_.resolveNestedNameSpecifier(remapped)) {
+          nns->symbol = scope;
+        }
+      }
+    } else if (nns->identifier && !nns->nestedNameSpecifier) {
+      auto resolved = qualifiedLookup(binder_.scope(), nns->identifier,
+                                      [](Symbol* s) { return is_type(s); });
+      nns->symbol = binder_.resolveNestedNameSpecifier(resolved);
+    }
+  }
+
+  if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
+    auto name = get_name(control(), copy->unqualifiedId);
+    auto target = qualifiedLookup(copy->nestedNameSpecifier->symbol, name);
+    binder_.bind(copy, target);
+  }
+
   return copy;
 }
 
@@ -265,6 +285,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   }
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
+  declSpecifierListCtx.templateHead = templateHead;
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node, templateHead);
@@ -273,6 +294,27 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     declSpecifierListCtx.accept(value);
   }
   declSpecifierListCtx.finish();
+
+  if (!ast->initDeclaratorList) {
+    for (auto spec : ListView{copy->declSpecifierList}) {
+      auto elab = ast_cast<ElaboratedTypeSpecifierAST>(spec);
+      if (!elab || elab->symbol || elab->nestedNameSpecifier) continue;
+      if (elab->classKey != TokenKind::T_CLASS &&
+          elab->classKey != TokenKind::T_STRUCT &&
+          elab->classKey != TokenKind::T_UNION) {
+        continue;
+      }
+      rewrite.binder().bind(elab, declSpecifierListCtx,
+                            /*isDeclaration=*/true);
+    }
+
+    if (auto classSpec =
+            ast_cast<ClassSpecifierAST>(declSpecifierListCtx.typeSpecifier())) {
+      if (classSpec->symbol && !classSpec->symbol->name()) {
+        rewrite.binder().declareAnonymousField(classSpec);
+      }
+    }
+  }
 
   for (auto initDeclaratorList = &copy->initDeclaratorList;
        auto node : ListView{ast->initDeclaratorList}) {
@@ -428,10 +470,10 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->rparenLoc = ast->rparenLoc;
   copy->semicolonLoc = ast->semicolonLoc;
 
-  if (symbol_cast<FunctionSymbol>(binder()->instantiatingSymbol())) {
+  if (binder()->instantiatingSymbol()) {
     auto typeChecker = TypeChecker{translationUnit()};
     typeChecker.setScope(binder()->scope());
-    typeChecker.setReportErrors(rewrite.shouldCaptureBodyErrors());
+    typeChecker.setReportErrors(binder()->reportErrors());
     rewrite.typeCheckAndCapture([&] { typeChecker.check(copy); });
   }
 
@@ -470,10 +512,14 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   auto symbol = binder()->declareTypeAlias(copy->identifierLoc, copy->typeId,
                                            addSymbolToParentScope);
-  if (!addSymbolToParentScope) {
+  if (!addSymbolToParentScope && !rewrite.substitutionFailed()) {
     ast->symbol->addSpecialization(rewrite.templateArguments(), symbol);
   }
-  // symbol->setTemplateDeclaration(templateHead);
+
+  if (templateHead && addSymbolToParentScope) {
+    symbol->setTemplateDeclaration(templateHead);
+    symbol->setTemplateParameters(templateHead->symbol);
+  }
 
   copy->symbol = symbol;
 
@@ -529,6 +575,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
+  declSpecifierListCtx.templateHead = templateHead;
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -550,23 +597,63 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       ast->symbol && ast->symbol->templateDeclaration() &&
       rewrite.binder().instantiatingSymbol() == ast->symbol;
 
+  auto _ = Binder::ScopeGuard{binder()};
+
+  const auto declaratorScope = declaratorDecl.getScope();
+  const auto isOutOfClassMemberDef =
+      declaratorScope && declaratorScope->isClass();
+  if (declaratorScope) binder()->setScope(declaratorScope);
+
+  const bool isFunctionTemplateSpecialization =
+      rewrite.instantiatingFunctionTemplateSpecialization_;
+  rewrite.instantiatingFunctionTemplateSpecialization_ = false;
+
   FunctionSymbol* functionSymbol = nullptr;
-  if (!isTemplateInstantiation) {
-    functionSymbol = binder()->getFunction(
-        binder()->scope(), declaratorDecl.getName(), declaratorType);
+  if ((!isTemplateInstantiation || isOutOfClassMemberDef) &&
+      !isFunctionTemplateSpecialization) {
+    functionSymbol =
+        binder()->getFunction(binder()->scope(), declaratorDecl.getName(),
+                              declaratorType, templateHead);
   }
   if (!functionSymbol) {
     functionSymbol =
         binder()->declareFunction(copy->declarator, declaratorDecl);
   }
 
-  auto _ = Binder::ScopeGuard{binder()};
+  if (ast->symbol && ast->symbol->isFriend()) functionSymbol->setFriend(true);
+
+  if (ast->symbol && ast->symbol->isInline()) functionSymbol->setInline(true);
+
+  if (isOutOfClassMemberDef) {
+    functionSymbol->setDefined(true);
+    if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
+      canon->setDefinition(functionSymbol);
+    }
+  }
 
   auto functionDeclarator = getFunctionPrototype(copy->declarator);
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
-    functionSymbol->addSymbol(params->functionParametersSymbol);
-    binder()->setScope(params->functionParametersSymbol);
+    auto newParams = params->functionParametersSymbol;
+    if (auto oldParams = functionSymbol->functionParameters()) {
+      auto& oldMembers = oldParams->members();
+      auto& newMembers = newParams->members();
+      auto n = std::min(oldMembers.size(), newMembers.size());
+      for (std::size_t i = 0; i < n; ++i) {
+        auto oldParam = symbol_cast<ParameterSymbol>(oldMembers[i]);
+        auto newParam = symbol_cast<ParameterSymbol>(newMembers[i]);
+        if (oldParam && newParam && oldParam->defaultArgument() &&
+            !newParam->defaultArgument()) {
+          newParam->setDefaultArgument(oldParam->defaultArgument());
+        }
+      }
+
+      functionSymbol->replaceSymbol(oldParams, newParams);
+      newParams->setParent(functionSymbol);
+    } else {
+      functionSymbol->addSymbol(newParams);
+    }
+    binder()->setScope(newParams);
   } else {
     binder()->setScope(functionSymbol);
   }
@@ -574,16 +661,20 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
 
-  if (ast->symbol && ast->symbol->templateDeclaration()) {
+  if (ast->symbol && ast->symbol->templateDeclaration() &&
+      (!isOutOfClassMemberDef || isFunctionTemplateSpecialization)) {
     auto instSym =
         symbol_cast<FunctionSymbol>(rewrite.binder().instantiatingSymbol());
     auto primaryForThis = ast->symbol->canonical();
-    if (instSym && (instSym == ast->symbol || instSym == primaryForThis)) {
+    if (instSym && (instSym == ast->symbol || instSym == primaryForThis ||
+                    instSym->canonical() == primaryForThis ||
+                    (isFunctionTemplateSpecialization &&
+                     instSym->templateDeclaration()))) {
       instSym->addSpecialization(rewrite.templateArguments(), functionSymbol);
     }
   }
 
-  if (!isTemplateInstantiation) {
+  if (!isTemplateInstantiation && !isFunctionTemplateSpecialization) {
     if (templateHead) {
       functionSymbol->setTemplateDeclaration(templateHead);
       functionSymbol->setTemplateParameters(templateHead->symbol);
@@ -596,6 +687,14 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (!rewrite.restrictedToDeclarations()) {
     if (auto oldFunc = symbol_cast<FunctionSymbol>(ast->symbol)) {
+      auto oldClass = symbol_cast<ClassSymbol>(
+          oldFunc->enclosingNonTemplateParametersScope());
+      auto newClass = symbol_cast<ClassSymbol>(
+          functionSymbol->enclosingNonTemplateParametersScope());
+      if (oldClass && newClass && oldClass != newClass) {
+        rewrite.remapScopeMembers(oldClass, newClass);
+      }
+
       if (auto oldParams = oldFunc->functionParameters()) {
         if (auto newParams = functionSymbol->functionParameters()) {
           auto& oldMembers = oldParams->members();
@@ -609,6 +708,17 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     }
 
     copy->functionBody = rewrite.functionBody(ast->functionBody);
+
+    binder()->synthesizeCompleteObjectCtor(functionSymbol);
+
+    if (auto compoundBody =
+            ast_cast<CompoundStatementFunctionBodyAST>(copy->functionBody)) {
+      TypeChecker check{translationUnit()};
+      check.setScope(functionSymbol);
+      check.check_mem_initializers(compoundBody);
+    }
+
+    binder()->synthesizeDefaultedMemberBody(functionSymbol);
   }
 
   return copy;
@@ -644,8 +754,6 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
 
-  // Make the rewritten TemplateDeclarationAST visible to initDeclarator so
-  // that function symbols declared inside it get their templateDeclaration set.
   auto savedTemplateHead = std::exchange(rewrite.currentTemplateHead_, copy);
   copy->declaration = rewrite.declaration(ast->declaration, copy);
   rewrite.currentTemplateHead_ = savedTemplateHead;
@@ -874,9 +982,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   const bool inTemplateParameters = binder()->scope()->isTemplateParameters();
 
-  binder()->bind(copy, declaratorDecl, inTemplateParameters);
-
   copy->expression = rewrite.expression(ast->expression);
+
+  binder()->bind(copy, declaratorDecl, inTemplateParameters);
 
   return copy;
 }
@@ -933,6 +1041,18 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->rbracketLoc = ast->rbracketLoc;
   copy->initializer = rewrite.expression(ast->initializer);
   copy->semicolonLoc = ast->semicolonLoc;
+
+  rewrite.binder().bindStructuredBindings(copy, declSpecifierListCtx);
+
+  if (ast->hiddenVariable && copy->hiddenVariable) {
+    rewrite.addSymbolRemap(ast->hiddenVariable->symbol,
+                           copy->hiddenVariable->symbol);
+  }
+  for (auto oldNode = ast->bindingDeclaratorList,
+            newNode = copy->bindingDeclaratorList;
+       oldNode && newNode; oldNode = oldNode->next, newNode = newNode->next) {
+    rewrite.addSymbolRemap(oldNode->value->symbol, newNode->value->symbol);
+  }
 
   return copy;
 }
@@ -1135,5 +1255,4 @@ auto ASTRewriter::RequirementVisitor::operator()(NestedRequirementAST* ast)
 
   return copy;
 }
-
 }  // namespace cxx

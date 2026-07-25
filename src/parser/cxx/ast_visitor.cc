@@ -235,6 +235,10 @@ void ASTVisitor::visit(StructuredBindingDeclarationAST* ast) {
     accept(node);
   }
   accept(ast->initializer);
+  accept(ast->hiddenVariable);
+  for (auto node : ListView{ast->bindingDeclaratorList}) {
+    accept(node);
+  }
 }
 
 void ASTVisitor::visit(AsmOperandAST* ast) { accept(ast->expression); }
@@ -1109,13 +1113,15 @@ void ASTVisitor::visit(BracedMemInitializerAST* ast) {
   accept(ast->bracedInitList);
 }
 
-void ASTVisitor::visit(ThisLambdaCaptureAST* ast) {}
+void ASTVisitor::visit(ThisLambdaCaptureAST* ast) { accept(ast->initializer); }
 
 void ASTVisitor::visit(DerefThisLambdaCaptureAST* ast) {}
 
-void ASTVisitor::visit(SimpleLambdaCaptureAST* ast) {}
+void ASTVisitor::visit(SimpleLambdaCaptureAST* ast) {
+  accept(ast->initializer);
+}
 
-void ASTVisitor::visit(RefLambdaCaptureAST* ast) {}
+void ASTVisitor::visit(RefLambdaCaptureAST* ast) { accept(ast->initializer); }
 
 void ASTVisitor::visit(RefInitLambdaCaptureAST* ast) {
   accept(ast->initializer);

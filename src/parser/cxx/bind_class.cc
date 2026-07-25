@@ -18,11 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/binder.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl_specs.h>
 #include <cxx/names.h>
@@ -32,13 +30,10 @@
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
-// std
 #include <format>
 
 namespace cxx {
-
 namespace {
-
 auto getInnerTemplateId(TypeTemplateArgumentAST* typeArg)
     -> SimpleTemplateIdAST* {
   if (!typeArg || !typeArg->typeId) return nullptr;
@@ -57,7 +52,6 @@ auto templateArgListsEquivalent(List<TemplateArgumentAST*>* a,
     auto typeA = ast_cast<TypeTemplateArgumentAST>(itA->value);
     auto typeB = ast_cast<TypeTemplateArgumentAST>(itB->value);
     if (typeA && typeB) {
-      // Compare the resolved types on the TypeId.
       auto tA = typeA->typeId ? typeA->typeId->type : nullptr;
       auto tB = typeB->typeId ? typeB->typeId->type : nullptr;
       if (tA != tB) return false;
@@ -86,7 +80,6 @@ auto templateArgListsEquivalent(List<TemplateArgumentAST*>* a,
 
   return !itA && !itB;
 }
-
 }  // namespace
 
 struct [[nodiscard]] Binder::BindClass {
@@ -115,6 +108,7 @@ struct [[nodiscard]] Binder::BindClass {
   void bind();
   void check_optional_nested_name_specifier();
   auto check_template_specialization() -> bool;
+  auto bindOutOfClassNestedDefinition(ClassSymbol* declared) -> bool;
 };
 
 void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
@@ -321,6 +315,8 @@ void Binder::BindClass::bind() {
 
   if (classSymbol && classSymbol->isHidden()) classSymbol->setHidden(false);
 
+  if (classSymbol && bindOutOfClassNestedDefinition(classSymbol)) return;
+
   if (!classSymbol) {
     classSymbol = createClassSymbol(name, location);
     binder.declaringScope()->addSymbol(classSymbol);
@@ -329,6 +325,27 @@ void Binder::BindClass::bind() {
   }
 
   initializeClassSymbol(classSymbol);
+}
+
+auto Binder::BindClass::bindOutOfClassNestedDefinition(ClassSymbol* declared)
+    -> bool {
+  if (!ast->nestedNameSpecifier) return false;
+  if (!declSpecs.templateHead) return false;
+
+  auto enclosing = symbol_cast<ClassSymbol>(ast->nestedNameSpecifier->symbol);
+  if (!enclosing) return false;
+
+  auto enclosingHead = enclosing->templateDeclaration();
+  if (!enclosingHead) return false;
+
+  if (declSpecs.templateHead->depth != enclosingHead->depth) return false;
+
+  auto defSymbol = createClassSymbol(className(), classLocation());
+  defSymbol->setIsUnion(ast->classKey == TokenKind::T_UNION);
+  declared->canonical()->addRedeclaration(defSymbol);
+
+  initializeClassSymbol(defSymbol);
+  return true;
 }
 
 void Binder::BindClass::check_optional_nested_name_specifier() {
@@ -358,7 +375,6 @@ auto Binder::BindClass::check_template_specialization() -> bool {
     binder.error(location,
                  std::format("specialization of undeclared template '{}'",
                              templateId->identifier->name()));
-    // return true;
   }
 
   std::vector<TemplateArgument> templateArguments;
@@ -401,5 +417,4 @@ auto Binder::BindClass::check_template_specialization() -> bool {
 
   return true;
 }
-
 }  // namespace cxx

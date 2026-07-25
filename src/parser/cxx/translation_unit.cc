@@ -18,9 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/translation_unit.h>
-
-// cxx
 #include <cxx/arena.h>
 #include <cxx/control.h>
 #include <cxx/lexer.h>
@@ -29,6 +26,7 @@
 #include <cxx/parser.h>
 #include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 
 #ifndef CXX_NO_FLATBUFFERS
@@ -41,7 +39,6 @@
 #include <ostream>
 
 namespace cxx {
-
 TranslationUnit::TranslationUnit(DiagnosticsClient* diagnosticsClient)
     : control_(std::make_unique<Control>()) {
   diagnosticsClient_ = diagnosticsClient;
@@ -162,7 +159,7 @@ auto TranslationUnit::tokenText(SourceLocation loc) const
 
     default:
       return Token::spell(tk.kind());
-  }  // switch
+  }
 }
 
 auto TranslationUnit::tokenStartPosition(SourceLocation loc) const
@@ -199,6 +196,30 @@ auto TranslationUnit::globalScope() const -> ScopeSymbol* {
   return globalNamespace_;
 }
 
+void TranslationUnit::addPendingMemberInstantiation(ClassSymbol* instance) {
+  if (!instance) return;
+  if (std::find(pendingMemberInstantiations_.begin(),
+                pendingMemberInstantiations_.end(),
+                instance) != pendingMemberInstantiations_.end())
+    return;
+  pendingMemberInstantiations_.push_back(instance);
+}
+
+auto TranslationUnit::takePendingMemberInstantiations()
+    -> std::vector<ClassSymbol*> {
+  return std::move(pendingMemberInstantiations_);
+}
+
+void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function) {
+  if (!function) return;
+  pendingBodyCompletions_.push_back(function);
+}
+
+auto TranslationUnit::takePendingBodyCompletions()
+    -> std::vector<FunctionSymbol*> {
+  return std::move(pendingBodyCompletions_);
+}
+
 auto TranslationUnit::fileName() const -> const std::string& {
   return fileName_;
 }
@@ -229,5 +250,4 @@ auto TranslationUnit::serialize(
   return false;
 #endif
 }
-
 }  // namespace cxx

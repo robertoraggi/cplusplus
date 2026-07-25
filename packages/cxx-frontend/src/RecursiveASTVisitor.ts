@@ -470,6 +470,10 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
       this.accept(element, context);
     }
     this.accept(node.getInitializer(), context);
+    this.accept(node.getHiddenVariable(), context);
+    for (const element of node.getBindingDeclaratorList()) {
+      this.accept(element, context);
+    }
   }
 
   /**
@@ -3017,7 +3021,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitThisLambdaCapture(
     node: ast.ThisLambdaCaptureAST,
     context: Context,
-  ): void {}
+  ): void {
+    this.accept(node.getInitializer(), context);
+  }
 
   /**
    * Visit a DerefThisLambdaCapture node.
@@ -3039,7 +3045,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   visitSimpleLambdaCapture(
     node: ast.SimpleLambdaCaptureAST,
     context: Context,
-  ): void {}
+  ): void {
+    this.accept(node.getInitializer(), context);
+  }
 
   /**
    * Visit a RefLambdaCapture node.
@@ -3047,10 +3055,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param node The node to visit.
    * @param context The context.
    */
-  visitRefLambdaCapture(
-    node: ast.RefLambdaCaptureAST,
-    context: Context,
-  ): void {}
+  visitRefLambdaCapture(node: ast.RefLambdaCaptureAST, context: Context): void {
+    this.accept(node.getInitializer(), context);
+  }
 
   /**
    * Visit a RefInitLambdaCapture node.

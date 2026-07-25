@@ -24,11 +24,19 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace cxx {
-
 class Preprocessor;
 class MemoryLayout;
+
+enum class LinkerFlavor {
+  kUnknown,
+  kGnu,
+  kDarwin,
+  kWasm,
+  kWinLink,
+};
 
 class Toolchain {
  public:
@@ -51,11 +59,20 @@ class Toolchain {
   virtual void addSystemCppIncludePaths() = 0;
   virtual void addPredefinedMacros() = 0;
 
+  [[nodiscard]] virtual auto linkerFlavor() const -> LinkerFlavor {
+    return LinkerFlavor::kUnknown;
+  }
+
+  virtual void addLinkerStartArgs(std::vector<std::string>& args) const {}
+
+  virtual void addLinkerEndArgs(std::vector<std::string>& args) const {}
+
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
     return preprocessor_;
   }
 
   void defineMacro(const std::string& name, const std::string& definition);
+  void undefMacro(const std::string& name);
 
   void addSystemIncludePath(std::string path);
 
@@ -86,5 +103,4 @@ class Toolchain {
   Preprocessor* preprocessor_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
 };
-
 }  // namespace cxx

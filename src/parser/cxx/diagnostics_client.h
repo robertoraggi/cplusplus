@@ -25,7 +25,6 @@
 #include <vector>
 
 namespace cxx {
-
 class Preprocessor;
 
 class DiagnosticsClient {
@@ -38,6 +37,8 @@ class DiagnosticsClient {
   virtual ~DiagnosticsClient();
 
   virtual void report(const Diagnostic& diagnostic);
+
+  [[nodiscard]] virtual auto isSfinae() const -> bool { return false; }
 
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
     return preprocessor_;
@@ -89,6 +90,23 @@ class DiagnosticsClient {
   bool fatalErrors_ = false;
 };
 
+class SilentDiagnosticsClient final : public DiagnosticsClient {
+ public:
+  explicit SilentDiagnosticsClient(bool sfinae = true) : sfinae_(sfinae) {}
+
+  void report(const Diagnostic& diagnostic) override {
+    if (diagnostic.severity() == Severity::Error) hadError_ = true;
+  }
+
+  [[nodiscard]] auto isSfinae() const -> bool override { return sfinae_; }
+
+  [[nodiscard]] auto hadError() const -> bool { return hadError_; }
+
+ private:
+  bool sfinae_ = true;
+  bool hadError_ = false;
+};
+
 struct CapturingDiagnosticsClient final : DiagnosticsClient {
   DiagnosticsClient* parent = nullptr;
   std::vector<Diagnostic> diagnostics;
@@ -101,5 +119,4 @@ struct CapturingDiagnosticsClient final : DiagnosticsClient {
     if (parent) parent->report(diagnostic);
   }
 };
-
 }  // namespace cxx

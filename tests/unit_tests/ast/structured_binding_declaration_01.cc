@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 struct Pair {
   int first;
@@ -66,15 +66,65 @@ struct Pair {
 // CHECK-NEXT:                          name-id
 // CHECK-NEXT:                            identifier: b
 // CHECK-NEXT:                        initializer: equal-initializer [lvalue ::Pair]
-// CHECK-NEXT:                          expression: unary-expression [lvalue ::Pair]
-// CHECK-NEXT:                            op: *
-// CHECK-NEXT:                            expression: this-expression [prvalue ::Pair*]
+// CHECK-NEXT:                          expression: implicit-cast-expression [lvalue const ::Pair]
+// CHECK-NEXT:                            cast-kind: qualification-conversion
+// CHECK-NEXT:                            expression: unary-expression [lvalue ::Pair]
+// CHECK-NEXT:                              op: *
+// CHECK-NEXT:                              expression: this-expression [prvalue ::Pair*]
+// CHECK-NEXT:                        hidden-variable: init-declarator
+// CHECK-NEXT:                          declarator: declarator
+// CHECK-NEXT:                            core-declarator: id-declarator
+// CHECK-NEXT:                              unqualified-id: name-id
+// CHECK-NEXT:                                identifier: $e{{[0-9]+}}
+// CHECK-NEXT:                          initializer: equal-initializer [lvalue ::Pair]
+// CHECK-NEXT:                            expression: implicit-cast-expression [lvalue const ::Pair]
+// CHECK-NEXT:                              cast-kind: qualification-conversion
+// CHECK-NEXT:                              expression: unary-expression [lvalue ::Pair]
+// CHECK-NEXT:                                op: *
+// CHECK-NEXT:                                expression: this-expression [prvalue ::Pair*]
+// CHECK-NEXT:                        binding-declarator-list
+// CHECK-NEXT:                          init-declarator
+// CHECK-NEXT:                            declarator: declarator
+// CHECK-NEXT:                              ptr-op-list
+// CHECK-NEXT:                                reference-operator
+// CHECK-NEXT:                                  ref-op: &
+// CHECK-NEXT:                              core-declarator: id-declarator
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: a
+// CHECK-NEXT:                            initializer: equal-initializer [lvalue int]
+// CHECK-NEXT:                              expression: member-expression [lvalue int]
+// CHECK-NEXT:                                access-op: .
+// CHECK-NEXT:                                base-expression: id-expression [lvalue ::Pair]
+// CHECK-NEXT:                                  unqualified-id: name-id
+// CHECK-NEXT:                                    identifier: $e{{[0-9]+}}
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: first
+// CHECK-NEXT:                          init-declarator
+// CHECK-NEXT:                            declarator: declarator
+// CHECK-NEXT:                              ptr-op-list
+// CHECK-NEXT:                                reference-operator
+// CHECK-NEXT:                                  ref-op: &
+// CHECK-NEXT:                              core-declarator: id-declarator
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: b
+// CHECK-NEXT:                            initializer: equal-initializer [lvalue int]
+// CHECK-NEXT:                              expression: member-expression [lvalue int]
+// CHECK-NEXT:                                access-op: .
+// CHECK-NEXT:                                base-expression: id-expression [lvalue ::Pair]
+// CHECK-NEXT:                                  unqualified-id: name-id
+// CHECK-NEXT:                                    identifier: $e{{[0-9]+}}
+// CHECK-NEXT:                                unqualified-id: name-id
+// CHECK-NEXT:                                  identifier: second
 // CHECK-NEXT:                    return-statement
-// CHECK-NEXT:                      expression: binary-expression
+// CHECK-NEXT:                      expression: binary-expression [prvalue int]
 // CHECK-NEXT:                        op: +
-// CHECK-NEXT:                        left-expression: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: a
-// CHECK-NEXT:                        right-expression: id-expression
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: b
+// CHECK-NEXT:                        left-expression: implicit-cast-expression [prvalue int]
+// CHECK-NEXT:                          cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                          expression: id-expression [lvalue int]
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: a
+// CHECK-NEXT:                        right-expression: implicit-cast-expression [prvalue int]
+// CHECK-NEXT:                          cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                          expression: id-expression [lvalue int]
+// CHECK-NEXT:                            unqualified-id: name-id
+// CHECK-NEXT:                              identifier: b

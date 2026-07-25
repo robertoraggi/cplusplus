@@ -29,6 +29,7 @@
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -38,7 +39,6 @@
 #include <vector>
 
 namespace cxx {
-
 class SymbolChainView;
 
 class TemplateSpecialization {
@@ -74,6 +74,11 @@ class MaybeRedecl {
 
   [[nodiscard]] auto definition() const -> S* { return definition_; }
 
+  [[nodiscard]] auto resolvedDefinition() const -> S* {
+    return definition_ ? definition_
+                       : const_cast<S*>(static_cast<const S*>(this));
+  }
+
   void setDefinition(S* definition) { definition_ = definition; }
 
   [[nodiscard]] auto redeclarations() const -> const std::vector<S*>& {
@@ -103,6 +108,7 @@ class MaybeTemplate {
     std::vector<TemplateSpecialization> specializations_;
     TemplateDeclarationAST* templateDeclaration_ = nullptr;
     TemplateParametersSymbol* templateParameters_ = nullptr;
+    std::vector<std::vector<TemplateArgument>> externInstantiationDeclarations_;
   };
 
   struct TemplateSpecializationRef {
@@ -110,7 +116,6 @@ class MaybeTemplate {
     int templateSepcializationIndex_ = 0;
   };
 
-  // todo: using std::variant
   struct TemplateData : Template, TemplateSpecializationRef {};
 
  public:
@@ -121,7 +126,6 @@ class MaybeTemplate {
       if (args == arguments) return specialization.symbol;
       if (args.size() != arguments.size()) continue;
       if (compare_args(args, arguments)) {
-        // If the arguments match, return the specialization symbol
         return specialization.symbol;
       }
     }
@@ -189,6 +193,32 @@ class MaybeTemplate {
     return template_->primaryTemplateSymbol_
         ->specializations()[template_->templateSepcializationIndex_]
         .arguments;
+  }
+
+  void addExternInstantiationDeclaration(
+      std::vector<TemplateArgument> arguments) {
+    ensure_template();
+    template_->externInstantiationDeclarations_.push_back(std::move(arguments));
+  }
+
+  [[nodiscard]] auto isExternInstantiationDeclared(
+      std::span<const TemplateArgument> arguments) const -> bool {
+    if (!template_) return false;
+    for (const auto& args : template_->externInstantiationDeclarations_) {
+      if (args.size() != arguments.size()) continue;
+      if (std::equal(args.begin(), args.end(), arguments.begin()) ||
+          compare_args(args, std::vector<TemplateArgument>(arguments.begin(),
+                                                           arguments.end())))
+        return true;
+    }
+    return false;
+  }
+
+  [[nodiscard]] auto isExplicitInstantiationDeclared() const -> bool {
+    if (!isSpecialization()) return false;
+    auto primary = primaryTemplateSymbol();
+    if (!primary) return false;
+    return primary->isExternInstantiationDeclared(templateArguments());
   }
 
   [[nodiscard]] auto primaryTemplateSymbol() const -> S* {
@@ -337,7 +367,6 @@ class ScopeSymbol : public Symbol {
 
   [[nodiscard]] auto isTransparent() const -> bool;
 
-  // internal
   void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
   void reset();
 
@@ -360,6 +389,9 @@ class NamespaceSymbol final : public ScopeSymbol {
   [[nodiscard]] auto isInline() const -> bool;
   void setInline(bool isInline);
 
+  [[nodiscard]] auto hasInlineNamespaces() const -> bool;
+  void setHasInlineNamespaces(bool value);
+
   [[nodiscard]] auto unnamedNamespace() const -> NamespaceSymbol*;
   void setUnnamedNamespace(NamespaceSymbol* unnamedNamespace);
 
@@ -370,6 +402,7 @@ class NamespaceSymbol final : public ScopeSymbol {
   NamespaceSymbol* unnamedNamespace_ = nullptr;
   int anonNamespaceIndex_ = -1;
   bool isInline_ = false;
+  bool hasInlineNamespaces_ = false;
 };
 
 class ConceptSymbol final
@@ -421,8 +454,24 @@ class ClassLayout {
   void setFieldInfo(FieldSymbol* field, const MemberInfo& info);
   void setBaseInfo(ClassSymbol* base, const MemberInfo& info);
 
+  void addVirtualBase(ClassSymbol* base) { virtualBases_.push_back(base); }
+  [[nodiscard]] auto virtualBases() const -> const std::vector<ClassSymbol*>& {
+    return virtualBases_;
+  }
+
   void setSize(std::uint64_t size) { size_ = size; }
   void setAlignment(std::uint64_t alignment) { alignment_ = alignment; }
+
+  void setNonVirtualSize(std::uint64_t size) { nonVirtualSize_ = size; }
+  void setNonVirtualAlignment(std::uint64_t alignment) {
+    nonVirtualAlignment_ = alignment;
+  }
+  [[nodiscard]] auto nonVirtualSize() const -> std::uint64_t {
+    return nonVirtualSize_;
+  }
+  [[nodiscard]] auto nonVirtualAlignment() const -> std::uint64_t {
+    return nonVirtualAlignment_;
+  }
   void setHasVtable(bool hasVtable) { hasVtable_ = hasVtable; }
   void setHasDirectVtable(bool hasDirectVtable) {
     hasDirectVtable_ = hasDirectVtable;
@@ -447,11 +496,49 @@ class ClassLayout {
  private:
   std::unordered_map<FieldSymbol*, MemberInfo> fields_;
   std::unordered_map<ClassSymbol*, MemberInfo> bases_;
+  std::vector<ClassSymbol*> virtualBases_;
   std::uint64_t size_ = 0;
   std::uint64_t alignment_ = 1;
+  std::uint64_t nonVirtualSize_ = 0;
+  std::uint64_t nonVirtualAlignment_ = 1;
   std::uint32_t vtableIndex_ = 0;
   bool hasVtable_ = false;
   bool hasDirectVtable_ = false;
+};
+
+class VTableLayout {
+ public:
+  enum class SlotKind : std::uint8_t {
+    kFunction,
+    kCompleteDtor,
+    kDeletingDtor,
+  };
+
+  struct Slot {
+    FunctionSymbol* function = nullptr;
+    SlotKind kind = SlotKind::kFunction;
+    std::uint64_t thisAdjustment = 0;
+    int vcallOffsetIndex = -1;
+  };
+
+  struct Group {
+    ClassSymbol* base = nullptr;
+    std::uint64_t offset = 0;
+    std::vector<std::pair<ClassSymbol*, std::int64_t>> vbaseOffsets;
+    std::vector<std::pair<FunctionSymbol*, std::int64_t>> vcallOffsets;
+    std::vector<Slot> slots;
+
+    [[nodiscard]] auto headerWordCount() const -> std::size_t {
+      return vbaseOffsets.size() + vcallOffsets.size() + 2;
+    }
+
+    [[nodiscard]] auto wordCount() const -> std::size_t {
+      return headerWordCount() + slots.size();
+    }
+  };
+
+  Group primary;
+  std::vector<Group> secondary;
 };
 
 class BaseClassSymbol final : public Symbol {
@@ -509,6 +596,7 @@ class ClassSymbol final : public ScopeSymbol,
   using MaybeRedecl<ClassSymbol>::canonical;
   using MaybeRedecl<ClassSymbol>::setCanonical;
   using MaybeRedecl<ClassSymbol>::definition;
+  using MaybeRedecl<ClassSymbol>::resolvedDefinition;
   using MaybeRedecl<ClassSymbol>::setDefinition;
   using MaybeRedecl<ClassSymbol>::redeclarations;
   using MaybeRedecl<ClassSymbol>::addRedeclaration;
@@ -585,6 +673,19 @@ class ClassSymbol final : public ScopeSymbol,
 
   [[nodiscard]] auto layout() const -> const ClassLayout*;
 
+  void setVTableLayout(std::unique_ptr<VTableLayout> vtableLayout);
+
+  [[nodiscard]] auto vtableLayout() const -> const VTableLayout*;
+
+  [[nodiscard]] auto isClosureType() const -> bool;
+  void setIsClosureType(bool isClosureType);
+
+  [[nodiscard]] auto capturedThisField() const -> FieldSymbol*;
+  void setCapturedThisField(FieldSymbol* capturedThisField);
+
+  [[nodiscard]] auto closureDiscriminator() const -> int;
+  void setClosureDiscriminator(int closureDiscriminator);
+
  private:
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
@@ -596,6 +697,9 @@ class ClassSymbol final : public ScopeSymbol,
   std::vector<DeductionGuideSymbol*> deductionGuides_;
   std::vector<FunctionSymbol*> conversionFunctions_;
   std::unique_ptr<ClassLayout> layout_;
+  std::unique_ptr<VTableLayout> vtableLayout_;
+  FieldSymbol* capturedThisField_ = nullptr;
+  int closureDiscriminator_ = 0;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
   union {
@@ -608,6 +712,7 @@ class ClassSymbol final : public ScopeSymbol,
       std::uint32_t isPolymorphic_ : 1;
       std::uint32_t isAbstract_ : 1;
       std::uint32_t hasVirtualDestructor_ : 1;
+      std::uint32_t isClosureType_ : 1;
     };
   };
 };
@@ -654,6 +759,7 @@ class FunctionSymbol final
   using MaybeRedecl<FunctionSymbol>::canonical;
   using MaybeRedecl<FunctionSymbol>::setCanonical;
   using MaybeRedecl<FunctionSymbol>::definition;
+  using MaybeRedecl<FunctionSymbol>::resolvedDefinition;
   using MaybeRedecl<FunctionSymbol>::setDefinition;
   using MaybeRedecl<FunctionSymbol>::redeclarations;
   using MaybeRedecl<FunctionSymbol>::addRedeclaration;
@@ -674,6 +780,8 @@ class FunctionSymbol final
 
   [[nodiscard]] auto isFriend() const -> bool;
   void setFriend(bool isFriend);
+
+  [[nodiscard]] auto isImplicitObjectMemberFunction() const -> bool;
 
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
@@ -716,13 +824,58 @@ class FunctionSymbol final
 
   [[nodiscard]] auto hasCLinkage() const -> bool;
 
+  [[nodiscard]] auto externalName() const -> const Identifier*;
+  void setExternalName(const Identifier* externalName);
+
+  [[nodiscard]] auto aliasName() const -> const Identifier*;
+  void setAliasName(const Identifier* aliasName);
+
   [[nodiscard]] auto hasPendingBody() const -> bool;
   [[nodiscard]] auto pendingBody() const -> PendingBodyInstantiation*;
   void setPendingBody(std::unique_ptr<PendingBodyInstantiation> pending);
   void clearPendingBody();
 
+  [[nodiscard]] auto vtableSlotIndex() const -> int { return vtableSlotIndex_; }
+  void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
+
+  [[nodiscard]] auto completeObjectVariant() const -> FunctionSymbol* {
+    return completeObjectVariant_;
+  }
+  void setCompleteObjectVariant(FunctionSymbol* variant) {
+    completeObjectVariant_ = variant;
+  }
+
+  [[nodiscard]] auto deletingDtorVariant() const -> FunctionSymbol* {
+    return deletingDtorVariant_;
+  }
+  void setDeletingDtorVariant(FunctionSymbol* variant) {
+    deletingDtorVariant_ = variant;
+  }
+
+  [[nodiscard]] auto structorPrincipal() const -> FunctionSymbol* {
+    return structorPrincipal_;
+  }
+  void setStructorPrincipal(FunctionSymbol* principal) {
+    structorPrincipal_ = principal;
+  }
+
+  [[nodiscard]] auto isStructorVariant() const -> bool {
+    return structorPrincipal_ != nullptr;
+  }
+
+  [[nodiscard]] auto isDeletingDtorVariant() const -> bool {
+    return structorPrincipal_ &&
+           structorPrincipal_->deletingDtorVariant() == this;
+  }
+
  private:
   std::unique_ptr<PendingBodyInstantiation> pendingBody_;
+  FunctionSymbol* completeObjectVariant_ = nullptr;
+  FunctionSymbol* deletingDtorVariant_ = nullptr;
+  FunctionSymbol* structorPrincipal_ = nullptr;
+  int vtableSlotIndex_ = -1;
+  const Identifier* externalName_ = nullptr;
+  const Identifier* aliasName_ = nullptr;
   union {
     std::uint32_t flags_{};
     struct {
@@ -784,6 +937,9 @@ class LambdaSymbol final : public ScopeSymbol {
   [[nodiscard]] auto isTemplate() const -> bool;
   void setTemplate(bool isTemplate);
 
+  [[nodiscard]] auto isInTemplate() const -> bool;
+  void setInTemplate(bool isInTemplate);
+
  private:
   union {
     std::uint32_t flags_{};
@@ -793,6 +949,7 @@ class LambdaSymbol final : public ScopeSymbol {
       std::uint32_t isMutable_ : 1;
       std::uint32_t isStatic_ : 1;
       std::uint32_t isTemplate_ : 1;
+      std::uint32_t isInTemplate_ : 1;
     };
   };
 };
@@ -837,6 +994,7 @@ class TypeAliasSymbol final
   using MaybeRedecl<TypeAliasSymbol>::canonical;
   using MaybeRedecl<TypeAliasSymbol>::setCanonical;
   using MaybeRedecl<TypeAliasSymbol>::definition;
+  using MaybeRedecl<TypeAliasSymbol>::resolvedDefinition;
   using MaybeRedecl<TypeAliasSymbol>::setDefinition;
   using MaybeRedecl<TypeAliasSymbol>::redeclarations;
   using MaybeRedecl<TypeAliasSymbol>::addRedeclaration;
@@ -858,6 +1016,7 @@ class VariableSymbol final
   using MaybeRedecl<VariableSymbol>::canonical;
   using MaybeRedecl<VariableSymbol>::setCanonical;
   using MaybeRedecl<VariableSymbol>::definition;
+  using MaybeRedecl<VariableSymbol>::resolvedDefinition;
   using MaybeRedecl<VariableSymbol>::setDefinition;
   using MaybeRedecl<VariableSymbol>::redeclarations;
   using MaybeRedecl<VariableSymbol>::addRedeclaration;
@@ -946,6 +1105,9 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto isMutable() const -> bool;
   void setMutable(bool isMutable);
 
+  [[nodiscard]] auto isNoUniqueAddress() const -> bool;
+  void setNoUniqueAddress(bool isNoUniqueAddress);
+
   [[nodiscard]] auto localOffset() const -> int;
   void setLocalOffset(int offset);
 
@@ -955,7 +1117,16 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST* initializer);
 
+  [[nodiscard]] auto constructor() const -> FunctionSymbol*;
+  void setConstructor(FunctionSymbol* constructor);
+
+  [[nodiscard]] auto definition() const -> VariableSymbol* {
+    return definition_;
+  }
+  void setDefinition(VariableSymbol* definition) { definition_ = definition; }
+
  private:
+  VariableSymbol* definition_ = nullptr;
   union {
     std::uint32_t flags_{};
     struct {
@@ -966,6 +1137,7 @@ class FieldSymbol final : public Symbol {
       std::uint32_t isConstinit_ : 1;
       std::uint32_t isInline_ : 1;
       std::uint32_t isMutable_ : 1;
+      std::uint32_t isNoUniqueAddress_ : 1;
     };
   };
   int localOffset_{};
@@ -973,6 +1145,7 @@ class FieldSymbol final : public Symbol {
   int bitFieldOffset_{};
   std::optional<ConstValue> bitFieldWidth_;
   ExpressionAST* initializer_ = nullptr;
+  FunctionSymbol* constructor_ = nullptr;
 };
 
 class ParameterSymbol final : public Symbol {
@@ -1111,7 +1284,7 @@ auto visit(Visitor&& visitor, Symbol* symbol) {
     CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
     default:
       cxx_runtime_error("invalid symbol kind");
-  }  // switch
+  }
 
 #undef PROCESS_SYMBOL
 }
@@ -1157,5 +1330,4 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   }
   return false;
 }
-
 }  // namespace cxx

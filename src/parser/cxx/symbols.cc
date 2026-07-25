@@ -18,13 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/symbols.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/symbols.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbols.h>
@@ -32,9 +30,7 @@
 #include <format>
 
 namespace cxx {
-
 namespace {
-
 auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
   if (lhs == rhs) return true;
   if (!lhs || !rhs) return false;
@@ -52,6 +48,12 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
     return true;
   }
 
+  auto lhsAlias = symbol_cast<TypeAliasSymbol>(lhs);
+  auto rhsAlias = symbol_cast<TypeAliasSymbol>(rhs);
+  const bool lhsBindsAliasTemplate = lhsAlias && lhsAlias->templateParameters();
+  const bool rhsBindsAliasTemplate = rhsAlias && rhsAlias->templateParameters();
+  if (lhsBindsAliasTemplate || rhsBindsAliasTemplate) return lhs == rhs;
+
   auto lhsVar = symbol_cast<VariableSymbol>(lhs);
   auto rhsVar = symbol_cast<VariableSymbol>(rhs);
   if (lhsVar && rhsVar && lhsVar->constValue().has_value() &&
@@ -66,6 +68,10 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
 
 auto compare_symbol_and_type(Symbol* symbol, const Type* type) -> bool {
   if (!symbol || !type) return false;
+  if (auto alias = symbol_cast<TypeAliasSymbol>(symbol);
+      alias && alias->templateParameters()) {
+    return false;
+  }
   return symbol->type() == type;
 }
 
@@ -119,7 +125,6 @@ auto compare_single_arg(const TemplateArgument& lhs,
 
   return false;
 }
-
 }  // namespace
 
 auto compare_args(const std::vector<TemplateArgument>& args1,
@@ -176,8 +181,8 @@ void Symbol::setParent(ScopeSymbol* enclosingScope) {
       case SymbolKind::kTemplateTypeParameter:
       case SymbolKind::kConstraintTypeParameter:
       case SymbolKind::kFunctionParameters:
-      case SymbolKind::kTemplateParameters:  // nested template template params
-        break;                               // allowed
+      case SymbolKind::kTemplateParameters:
+        break;
       default:
         cxx_runtime_error(std::format(
             "symbol kind '{}' may not have TemplateParametersSymbol as parent",
@@ -414,6 +419,14 @@ auto NamespaceSymbol::isInline() const -> bool { return isInline_; }
 
 void NamespaceSymbol::setInline(bool isInline) { isInline_ = isInline; }
 
+auto NamespaceSymbol::hasInlineNamespaces() const -> bool {
+  return hasInlineNamespaces_;
+}
+
+void NamespaceSymbol::setHasInlineNamespaces(bool value) {
+  hasInlineNamespaces_ = value;
+}
+
 auto NamespaceSymbol::unnamedNamespace() const -> NamespaceSymbol* {
   return unnamedNamespace_;
 }
@@ -621,9 +634,27 @@ auto ClassSymbol::destructor() const -> FunctionSymbol* {
 
 auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
   for (auto ctor : constructors_) {
+    if (ctor->canonical() != ctor) continue;
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
-    if (funcType->parameterTypes().empty()) return ctor;
+
+    const auto paramTypeCount = funcType->parameterTypes().size();
+    if (paramTypeCount == 0) return ctor;
+
+    std::size_t paramCount = 0;
+    bool allDefaulted = true;
+    if (auto fpScope = ctor->functionParameters()) {
+      for (auto member : fpScope->members()) {
+        auto param = symbol_cast<ParameterSymbol>(member);
+        if (!param) continue;
+        ++paramCount;
+        if (!param->defaultArgument()) {
+          allDefaulted = false;
+          break;
+        }
+      }
+    }
+    if (allDefaulted && paramCount == paramTypeCount) return ctor;
   }
   return nullptr;
 }
@@ -658,7 +689,6 @@ auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
     if (!funcType) continue;
     auto& params = funcType->parameterTypes();
     if (params.size() != 1) continue;
-    // Match T&& parameter
     auto paramType = params[0];
     if (auto ref = type_cast<RvalueReferenceType>(paramType)) {
       auto inner = ref->elementType();
@@ -741,6 +771,36 @@ void ClassSymbol::setLayout(std::unique_ptr<ClassLayout> layout) {
 
 auto ClassSymbol::layout() const -> const ClassLayout* { return layout_.get(); }
 
+void ClassSymbol::setVTableLayout(std::unique_ptr<VTableLayout> vtableLayout) {
+  vtableLayout_ = std::move(vtableLayout);
+}
+
+auto ClassSymbol::vtableLayout() const -> const VTableLayout* {
+  return vtableLayout_.get();
+}
+
+auto ClassSymbol::isClosureType() const -> bool { return isClosureType_; }
+
+void ClassSymbol::setIsClosureType(bool isClosureType) {
+  isClosureType_ = isClosureType;
+}
+
+auto ClassSymbol::capturedThisField() const -> FieldSymbol* {
+  return capturedThisField_;
+}
+
+void ClassSymbol::setCapturedThisField(FieldSymbol* capturedThisField) {
+  capturedThisField_ = capturedThisField;
+}
+
+auto ClassSymbol::closureDiscriminator() const -> int {
+  return closureDiscriminator_;
+}
+
+void ClassSymbol::setClosureDiscriminator(int closureDiscriminator) {
+  closureDiscriminator_ = closureDiscriminator;
+}
+
 EnumSymbol::EnumSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
 
@@ -796,6 +856,11 @@ auto FunctionSymbol::isFriend() const -> bool { return isFriend_; }
 
 void FunctionSymbol::setFriend(bool isFriend) { isFriend_ = isFriend; }
 
+auto FunctionSymbol::isImplicitObjectMemberFunction() const -> bool {
+  return !isStatic() && !isFriend() &&
+         symbol_cast<ClassSymbol>(enclosingNonTemplateParametersScope());
+}
+
 auto FunctionSymbol::isConstexpr() const -> bool { return isConstexpr_; }
 
 void FunctionSymbol::setConstexpr(bool isConstexpr) {
@@ -849,8 +914,6 @@ void FunctionSymbol::setNoPrototype(bool hasNoPrototype) {
 }
 
 auto FunctionSymbol::isConstructor() const -> bool {
-  // For constructor templates, parent() is the TemplateParametersSymbol.
-  // Look through it to find the enclosing class.
   ScopeSymbol* enclosing = parent();
   if (enclosing && enclosing->isTemplateParameters()) {
     enclosing = enclosing->enclosingNonTemplateParametersScope();
@@ -891,6 +954,22 @@ void FunctionSymbol::setLanguageLinkage(LanguageKind linkage) {
 }
 
 auto FunctionSymbol::hasCLinkage() const -> bool { return hasCLinkage_; }
+
+auto FunctionSymbol::externalName() const -> const Identifier* {
+  return externalName_;
+}
+
+void FunctionSymbol::setExternalName(const Identifier* externalName) {
+  externalName_ = externalName;
+}
+
+auto FunctionSymbol::aliasName() const -> const Identifier* {
+  return aliasName_;
+}
+
+void FunctionSymbol::setAliasName(const Identifier* aliasName) {
+  aliasName_ = aliasName;
+}
 
 auto FunctionSymbol::hasPendingBody() const -> bool {
   return pendingBody_ != nullptr;
@@ -970,6 +1049,12 @@ void LambdaSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
 auto LambdaSymbol::isTemplate() const -> bool { return isTemplate_; }
 
 void LambdaSymbol::setTemplate(bool isTemplate) { isTemplate_ = isTemplate; }
+
+auto LambdaSymbol::isInTemplate() const -> bool { return isInTemplate_; }
+
+void LambdaSymbol::setInTemplate(bool isInTemplate) {
+  isInTemplate_ = isInTemplate;
+}
 
 FunctionParametersSymbol::FunctionParametersSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
@@ -1109,6 +1194,14 @@ auto FieldSymbol::isMutable() const -> bool { return isMutable_; }
 
 void FieldSymbol::setMutable(bool isMutable) { isMutable_ = isMutable; }
 
+auto FieldSymbol::isNoUniqueAddress() const -> bool {
+  return isNoUniqueAddress_;
+}
+
+void FieldSymbol::setNoUniqueAddress(bool isNoUniqueAddress) {
+  isNoUniqueAddress_ = isNoUniqueAddress;
+}
+
 auto FieldSymbol::localOffset() const -> int { return localOffset_; }
 
 void FieldSymbol::setLocalOffset(int offset) { localOffset_ = offset; }
@@ -1121,6 +1214,14 @@ auto FieldSymbol::initializer() const -> ExpressionAST* { return initializer_; }
 
 void FieldSymbol::setInitializer(ExpressionAST* initializer) {
   initializer_ = initializer;
+}
+
+auto FieldSymbol::constructor() const -> FunctionSymbol* {
+  return constructor_;
+}
+
+void FieldSymbol::setConstructor(FunctionSymbol* constructor) {
+  constructor_ = constructor;
 }
 
 ParameterSymbol::ParameterSymbol(ScopeSymbol* enclosingScope)
@@ -1259,7 +1360,6 @@ bool is_type(Symbol* symbol) {
     }
     default:
       return false;
-  }  // switch
+  }
 }
-
 }  // namespace cxx

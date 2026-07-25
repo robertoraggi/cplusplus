@@ -2386,6 +2386,42 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
   getSemicolonToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
   }
+
+  /**
+   * Returns the hiddenVariable of this node
+   */
+  getHiddenVariable(): InitDeclaratorAST | undefined {
+    return AST.from<InitDeclaratorAST>(
+      cxx.getASTSlot(this.getHandle(), 8),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the bindingDeclaratorList of this node
+   */
+  getBindingDeclaratorList(): Iterable<InitDeclaratorAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: InitDeclaratorAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<InitDeclaratorAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
 }
 
 /**
@@ -4873,6 +4909,20 @@ export class ForRangeStatementAST extends StatementAST {
       this.parser,
     );
   }
+
+  /**
+   * Returns the usesMemberBeginEnd attribute of this node
+   */
+  getUsesMemberBeginEnd(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 9) !== 0;
+  }
+
+  /**
+   * Returns the isPointerIterator attribute of this node
+   */
+  getIsPointerIterator(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
+  }
 }
 
 /**
@@ -6756,6 +6806,13 @@ export class SubscriptExpressionAST extends ExpressionAST {
   getRbracketToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
 }
 
 /**
@@ -6823,6 +6880,13 @@ export class CallExpressionAST extends ExpressionAST {
    */
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
+  }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
   }
 }
 
@@ -7113,6 +7177,13 @@ export class PostIncrExpressionAST extends ExpressionAST {
    */
   getOp(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 2);
+  }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
   }
 }
 
@@ -7707,6 +7778,13 @@ export class UnaryExpressionAST extends ExpressionAST {
   getOp(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 2);
   }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 3) !== 0;
+  }
 }
 
 /**
@@ -8258,6 +8336,13 @@ export class ImplicitCastExpressionAST extends ExpressionAST {
       this.parser,
     );
   }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 1) !== 0;
+  }
 }
 
 /**
@@ -8309,6 +8394,13 @@ export class BinaryExpressionAST extends ExpressionAST {
    */
   getOp(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 3);
+  }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
   }
 }
 
@@ -8494,6 +8586,13 @@ export class AssignmentExpressionAST extends ExpressionAST {
   getOp(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 3);
   }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 4) !== 0;
+  }
 }
 
 /**
@@ -8601,6 +8700,13 @@ export class CompoundAssignmentExpressionAST extends ExpressionAST {
    */
   getOp(): TokenKind {
     return cxx.getASTSlot(this.getHandle(), 5);
+  }
+
+  /**
+   * Returns the isVirtualDispatch attribute of this node
+   */
+  getIsVirtualDispatch(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 6) !== 0;
   }
 }
 
@@ -13276,6 +13382,16 @@ export class ThisLambdaCaptureAST extends LambdaCaptureAST {
   getThisToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 0), this.parser);
   }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 1),
+      this.parser,
+    );
+  }
 }
 
 /**
@@ -13348,6 +13464,16 @@ export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
     const slot = cxx.getASTSlot(this.getHandle(), 2);
     return cxx.getIdentifierValue(slot);
   }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 3),
+      this.parser,
+    );
+  }
 }
 
 /**
@@ -13394,6 +13520,16 @@ export class RefLambdaCaptureAST extends LambdaCaptureAST {
   getIdentifier(): string | undefined {
     const slot = cxx.getASTSlot(this.getHandle(), 3);
     return cxx.getIdentifierValue(slot);
+  }
+
+  /**
+   * Returns the initializer of this node
+   */
+  getInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 4),
+      this.parser,
+    );
   }
 }
 

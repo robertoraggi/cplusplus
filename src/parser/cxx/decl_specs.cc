@@ -18,24 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/decl_specs.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 namespace cxx {
-
 struct DeclSpecs::Visitor {
   DeclSpecs& specs;
 
@@ -181,7 +178,7 @@ void DeclSpecs::Visitor::operator()(SizeTypeSpecifierAST* ast) {
 
     default:
       break;
-  }  // switch
+  }
 }
 
 void DeclSpecs::Visitor::operator()(SignTypeSpecifierAST* ast) {
@@ -196,7 +193,7 @@ void DeclSpecs::Visitor::operator()(SignTypeSpecifierAST* ast) {
 
     default:
       break;
-  }  // switch
+  }
 }
 
 void DeclSpecs::Visitor::operator()(BuiltinTypeSpecifierAST* ast) {
@@ -213,13 +210,17 @@ void DeclSpecs::Visitor::operator()(BuiltinTypeSpecifierAST* ast) {
 
     default:
       break;
-  }  // switch
+  }
 }
 
 void DeclSpecs::Visitor::operator()(UnaryBuiltinTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
   if (!ast->typeId || !ast->typeId->type) return;
-  if (isDependent(specs.translationUnit(), ast->typeId)) return;
+  if (isDependent(specs.translationUnit(), ast->typeId)) {
+    specs.type_ = control()->getUnresolvedBuiltinType(
+        specs.translationUnit(), ast->builtinKind, ast->typeId);
+    return;
+  }
   auto inputType = ast->typeId->type;
   switch (ast->builtinKind) {
     case UnaryBuiltinTypeKind::T___REMOVE_CV:
@@ -269,15 +270,14 @@ void DeclSpecs::Visitor::operator()(UnaryBuiltinTypeSpecifierAST* ast) {
       specs.type_ = specs.translationUnit()->typeTraits().decay(inputType);
       break;
     case UnaryBuiltinTypeKind::T___MAKE_SIGNED:
-      // TODO: implement make_signed
-      specs.type_ = inputType;
+      specs.type_ =
+          specs.translationUnit()->typeTraits().make_signed(inputType);
       break;
     case UnaryBuiltinTypeKind::T___MAKE_UNSIGNED:
-      // TODO: implement make_unsigned
-      specs.type_ = inputType;
+      specs.type_ =
+          specs.translationUnit()->typeTraits().make_unsigned(inputType);
       break;
     case UnaryBuiltinTypeKind::T___REMOVE_RESTRICT:
-      // restrict is not modeled, so this is a no-op
       specs.type_ = inputType;
       break;
     default:
@@ -287,7 +287,6 @@ void DeclSpecs::Visitor::operator()(UnaryBuiltinTypeSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(BinaryBuiltinTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  // ### todo
 }
 
 void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
@@ -339,7 +338,7 @@ void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
 
     default:
       break;
-  }  // switch
+  }
 }
 
 void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
@@ -362,16 +361,14 @@ void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
       break;
 
     case TokenKind::T___FLOAT80:
-      // ### todo
       break;
 
     case TokenKind::T___FLOAT128:
-      // ### todo
       break;
 
     default:
       break;
-  }  // switch
+  }
 }
 
 void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
@@ -392,7 +389,7 @@ void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  // ### todo
+  if (ast->typeId) specs.type_ = ast->typeId->type;
 }
 
 void DeclSpecs::Visitor::operator()(BitIntTypeSpecifierAST* ast) {
@@ -479,8 +476,10 @@ void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
-  // Resolve the typename when the NNS scope is known.
-  if (ast->nestedNameSpecifier) {
+  const auto dependentQualifier =
+      isDependent(specs.translationUnit(), ast->nestedNameSpecifier);
+
+  if (ast->nestedNameSpecifier && !dependentQualifier) {
     if (auto scope = ast->nestedNameSpecifier->symbol
                          ? ast->nestedNameSpecifier->symbol->asScopeSymbol()
                          : nullptr) {
@@ -490,6 +489,40 @@ void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
         if (symbol) {
           specs.type_ = symbol->type();
           return;
+        }
+      } else if (auto templateId =
+                     ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
+        auto unit = specs.translationUnit();
+
+        auto hasDependentArguments = false;
+        for (auto arg : ListView{templateId->templateArgumentList}) {
+          if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+            if (isDependent(unit, typeArg->typeId)) {
+              hasDependentArguments = true;
+              break;
+            }
+          } else if (auto exprArg =
+                         ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+            if (isDependent(unit, exprArg->expression)) {
+              hasDependentArguments = true;
+              break;
+            }
+          }
+        }
+
+        if (!hasDependentArguments) {
+          auto member = qualifiedLookup(scope, templateId->identifier,
+                                        [](Symbol* s) { return is_type(s); });
+          if (auto aliasTemplate = symbol_cast<TypeAliasSymbol>(member);
+              aliasTemplate && aliasTemplate->templateParameters()) {
+            auto instance = ASTRewriter::instantiate(
+                unit, templateId->templateArgumentList, aliasTemplate,
+                templateId->identifierLoc);
+            if (instance && instance->type()) {
+              specs.type_ = instance->type();
+              return;
+            }
+          }
         }
       }
     }
@@ -621,7 +654,7 @@ void DeclSpecs::finish() {
       }
       default:
         break;
-    }  // switch
+    }
   }
 
   if (auto bitIntSpec = ast_cast<BitIntTypeSpecifierAST>(typeSpecifier_);
@@ -690,7 +723,7 @@ auto DeclSpecs::hasClassOrElaboratedTypeSpecifier() const -> bool {
       return true;
     default:
       return false;
-  }  // switch
+  }
 }
 
 auto DeclSpecs::hasPlaceholderTypeSpecifier() const -> bool {
@@ -703,7 +736,6 @@ auto DeclSpecs::hasPlaceholderTypeSpecifier() const -> bool {
       return true;
     default:
       return false;
-  }  // switch
+  }
 }
-
 }  // namespace cxx

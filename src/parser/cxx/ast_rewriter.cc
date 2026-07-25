@@ -19,15 +19,12 @@
 // SOFTWARE.
 
 #include <cxx/ast_rewriter.h>
-
-// cxx
 #include <cxx/control.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/views/symbol_chain.h>
 
 namespace cxx {
-
 ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
                          std::vector<TemplateArgument> templateArguments)
     : unit_(unit),
@@ -70,6 +67,21 @@ auto ASTRewriter::remapSymbol(Symbol* sym) const -> Symbol* {
   return sym;
 }
 
+void ASTRewriter::pushLambdaCaptureFields(
+    std::unordered_map<Symbol*, FieldSymbol*> fields) {
+  lambdaCaptureFields_.push_back(std::move(fields));
+}
+
+void ASTRewriter::popLambdaCaptureFields() { lambdaCaptureFields_.pop_back(); }
+
+auto ASTRewriter::lambdaCaptureField(Symbol* sym) const -> FieldSymbol* {
+  if (!sym || lambdaCaptureFields_.empty()) return nullptr;
+  auto& fields = lambdaCaptureFields_.back();
+  auto it = fields.find(sym);
+  if (it == fields.end()) return nullptr;
+  return it->second;
+}
+
 auto ASTRewriter::control() const -> Control* { return unit_->control(); }
 
 auto ASTRewriter::arena() const -> Arena* { return unit_->arena(); }
@@ -91,7 +103,7 @@ void ASTRewriter::note(SourceLocation loc, std::string message) {
 }
 
 void ASTRewriter::error(SourceLocation loc, std::string message) {
+  if (!shouldCaptureBodyErrors()) substitutionFailed_ = true;
   binder_.error(loc, std::move(message));
 }
-
 }  // namespace cxx

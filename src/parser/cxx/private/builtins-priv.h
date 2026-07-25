@@ -330,6 +330,14 @@ double __builtin_nans(const char*);
 float __builtin_nansf(const char*);
 long double __builtin_nansl(const char*);
 void* __builtin_alloca(__SIZE_TYPE__);
+void* __builtin_assume_aligned(const void*, __SIZE_TYPE__, ...);
 void* __builtin_operator_new(__SIZE_TYPE__, ...);
+void __builtin_operator_delete(void*, ...);
+void* __builtin_invoke(...);
+void* __builtin_addressof(...);
+bool __builtin_signbit(double);
+int __builtin_fpclassify(int, int, int, int, int, ...);
+int __builtin_ctzg(...);
+int __builtin_clzg(...);
 )";
 // clang-format on

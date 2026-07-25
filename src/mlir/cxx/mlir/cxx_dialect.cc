@@ -19,8 +19,6 @@
 // SOFTWARE.
 
 #include <cxx/mlir/cxx_dialect.h>
-
-// mlir
 #include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
@@ -35,7 +33,6 @@
 #include <numeric>
 
 namespace mlir::cxx {
-
 struct detail::ClassTypeStorage : public TypeStorage {
  public:
   using KeyTy = StringRef;
@@ -74,7 +71,6 @@ struct detail::ClassTypeStorage : public TypeStorage {
 };
 
 namespace {
-
 struct CxxGenerateAliases : public OpAsmDialectInterface {
  public:
   using OpAsmDialectInterface::OpAsmDialectInterface;
@@ -128,36 +124,30 @@ void FuncOp::print(OpAsmPrinter& p) {
 
   p << ' ';
 
-  // Print linkage if non-default
   if (auto linkage = getLinkageKind()) {
     if (*linkage != LinkageKind::External) {
       p << stringifyLinkageKind(*linkage) << ' ';
     }
   }
 
-  // Print inline hint if present
   if (auto inlineKind = getInlineKind()) {
     if (*inlineKind != InlineKind::NoInline) {
       p << stringifyInlineKind(*inlineKind) << ' ';
     }
   }
 
-  // Print function name
   p.printSymbolName(getSymName());
 
-  // Print signature
   ArrayRef<Type> argTypes = getArgumentTypes();
   ArrayRef<Type> resultTypes = getResultTypes();
   function_interface_impl::printFunctionSignature(p, *this, argTypes,
                                                   isVariadic, resultTypes);
 
-  // Print attributes, eliding the ones we handle specially
   function_interface_impl::printFunctionAttributes(
       p, *this,
       {getFunctionTypeAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getLinkageKindAttrName(), getInlineKindAttrName()});
 
-  // Print body
   Region& body = getBody();
   if (!body.empty()) {
     p << ' ';
@@ -202,8 +192,6 @@ auto FunctionType::clone(TypeRange inputs, TypeRange results) const
              getVariadic());
 }
 
-// VTableOp custom print/parse
-
 void VTableOp::print(OpAsmPrinter& p) {
   p << ' ';
   p.printSymbolName(getSymName());
@@ -213,15 +201,27 @@ void VTableOp::print(OpAsmPrinter& p) {
     p << stringifyLinkageKind(*linkage) << ' ';
   }
 
+  auto printOffsetArray = [&](llvm::StringRef label, ArrayAttr offsets) {
+    if (offsets.empty()) return;
+    p << label << " [";
+    llvm::interleaveComma(offsets, p, [&](Attribute entry) {
+      p << mlir::cast<IntegerAttr>(entry).getInt();
+    });
+    p << "] ";
+  };
+  printOffsetArray("vbase_offsets", getVbaseOffsets());
+  printOffsetArray("vcall_offsets", getVcallOffsets());
+
+  if (getOffsetToTop() != 0) {
+    p << "offset_to_top " << getOffsetToTop() << ' ';
+  }
+
   p << '[';
-  auto entries = getEntries();
-  llvm::interleaveComma(entries, p, [&](Attribute entry) {
+  llvm::interleaveComma(getSlots(), p, [&](Attribute entry) {
     if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {
       p << '@' << symRef.getValue();
-    } else if (auto intAttr = mlir::dyn_cast<IntegerAttr>(entry)) {
-      p << intAttr.getInt();
     } else {
-      p.printAttribute(entry);
+      p << "null";
     }
   });
   p << ']';
@@ -229,42 +229,8 @@ void VTableOp::print(OpAsmPrinter& p) {
 
 auto VTableOp::parse(OpAsmParser& parser, OperationState& result)
     -> ParseResult {
-#if false
-  StringAttr nameAttr;
-  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
-                             result.attributes))
-    return failure();
-
-  SmallVector<Attribute> entries;
-  if (parser.parseLSquare()) return failure();
-
-  if (parser.parseOptionalRSquare()) {
-    do {
-      FlatSymbolRefAttr symRef;
-      auto parseResult = parser.parseOptionalAttribute(symRef);
-      if (parseResult.has_value() && succeeded(*parseResult)) {
-        entries.push_back(symRef);
-      } else {
-        int64_t val;
-        if (parser.parseInteger(val)) return failure();
-        entries.push_back(parser.getBuilder().getIntegerAttr(
-            parser.getBuilder().getIntegerType(64), val));
-      }
-    } while (succeeded(parser.parseOptionalComma()));
-
-    if (parser.parseRSquare()) return failure();
-  }
-
-  result.addAttribute("entries", parser.getBuilder().getArrayAttr(entries));
-
-  return success();
-#endif
-
-  // disable for now
   return failure();
 }
-
-// GlobalOp custom print/parse
 
 void GlobalOp::print(OpAsmPrinter& p) {
   p << ' ';
@@ -305,7 +271,6 @@ void GlobalOp::print(OpAsmPrinter& p) {
 
 auto GlobalOp::parse(OpAsmParser& parser, OperationState& result)
     -> ParseResult {
-  // disable for now
   return failure();
 }
 
@@ -342,26 +307,18 @@ void ClassType::print(AsmPrinter& p) const {
   p << '>';
 }
 
-auto ClassType::parse(AsmParser& parser) -> Type {
-  // todo: implement parsing for ClassType
-  return {};
-}
+auto ClassType::parse(AsmParser& parser) -> Type { return {}; }
 
 auto ClassType::getName() const -> StringRef { return getImpl()->getName(); }
 
 auto ClassType::getBody() const -> ArrayRef<Type> {
   return getImpl()->getBody();
 }
-
 }  // namespace mlir::cxx
 
-#include <cxx/mlir/CxxOpsDialect.cpp.inc>
-
-// enums
-#include <cxx/mlir/CxxOpsEnums.cpp.inc>
-
-// attributes
 #include <cxx/mlir/CxxOpsAttributes.cpp.inc>
+#include <cxx/mlir/CxxOpsDialect.cpp.inc>
+#include <cxx/mlir/CxxOpsEnums.cpp.inc>
 
 #define GET_TYPEDEF_CLASSES
 #include <cxx/mlir/CxxOpsTypes.cpp.inc>

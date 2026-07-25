@@ -347,6 +347,7 @@ class Token;
   V(__BUILTIN_ACOSHF, "__builtin_acoshf")                                     \
   V(__BUILTIN_ACOSHL, "__builtin_acoshl")                                     \
   V(__BUILTIN_ACOSL, "__builtin_acosl")                                       \
+  V(__BUILTIN_ADDRESSOF, "__builtin_addressof")                               \
   V(__BUILTIN_ALLOCA, "__builtin_alloca")                                     \
   V(__BUILTIN_ASIN, "__builtin_asin")                                         \
   V(__BUILTIN_ASINF, "__builtin_asinf")                                       \
@@ -354,6 +355,7 @@ class Token;
   V(__BUILTIN_ASINHF, "__builtin_asinhf")                                     \
   V(__BUILTIN_ASINHL, "__builtin_asinhl")                                     \
   V(__BUILTIN_ASINL, "__builtin_asinl")                                       \
+  V(__BUILTIN_ASSUME_ALIGNED, "__builtin_assume_aligned")                     \
   V(__BUILTIN_ATAN, "__builtin_atan")                                         \
   V(__BUILTIN_ATAN2, "__builtin_atan2")                                       \
   V(__BUILTIN_ATAN2F, "__builtin_atan2f")                                     \
@@ -375,6 +377,7 @@ class Token;
   V(__BUILTIN_CEIL, "__builtin_ceil")                                         \
   V(__BUILTIN_CEILF, "__builtin_ceilf")                                       \
   V(__BUILTIN_CEILL, "__builtin_ceill")                                       \
+  V(__BUILTIN_CLZG, "__builtin_clzg")                                         \
   V(__BUILTIN_CONSTANT_P, "__builtin_constant_p")                             \
   V(__BUILTIN_COPYSIGN, "__builtin_copysign")                                 \
   V(__BUILTIN_COPYSIGNF, "__builtin_copysignf")                               \
@@ -386,6 +389,7 @@ class Token;
   V(__BUILTIN_COSHL, "__builtin_coshl")                                       \
   V(__BUILTIN_COSL, "__builtin_cosl")                                         \
   V(__BUILTIN_CTZ, "__builtin_ctz")                                           \
+  V(__BUILTIN_CTZG, "__builtin_ctzg")                                         \
   V(__BUILTIN_CTZL, "__builtin_ctzl")                                         \
   V(__BUILTIN_CTZLL, "__builtin_ctzll")                                       \
   V(__BUILTIN_ERF, "__builtin_erf")                                           \
@@ -434,6 +438,7 @@ class Token;
   V(__BUILTIN_FMOD, "__builtin_fmod")                                         \
   V(__BUILTIN_FMODF, "__builtin_fmodf")                                       \
   V(__BUILTIN_FMODL, "__builtin_fmodl")                                       \
+  V(__BUILTIN_FPCLASSIFY, "__builtin_fpclassify")                             \
   V(__BUILTIN_FREXP, "__builtin_frexp")                                       \
   V(__BUILTIN_FREXPF, "__builtin_frexpf")                                     \
   V(__BUILTIN_FREXPL, "__builtin_frexpl")                                     \
@@ -450,6 +455,7 @@ class Token;
   V(__BUILTIN_INF, "__builtin_inf")                                           \
   V(__BUILTIN_INFF, "__builtin_inff")                                         \
   V(__BUILTIN_INFL, "__builtin_infl")                                         \
+  V(__BUILTIN_INVOKE, "__builtin_invoke")                                     \
   V(__BUILTIN_IS_CONSTANT_EVALUATED, "__builtin_is_constant_evaluated")       \
   V(__BUILTIN_ISFINITE, "__builtin_isfinite")                                 \
   V(__BUILTIN_ISINF, "__builtin_isinf")                                       \
@@ -515,6 +521,7 @@ class Token;
   V(__BUILTIN_NEXTTOWARD, "__builtin_nexttoward")                             \
   V(__BUILTIN_NEXTTOWARDF, "__builtin_nexttowardf")                           \
   V(__BUILTIN_NEXTTOWARDL, "__builtin_nexttowardl")                           \
+  V(__BUILTIN_OPERATOR_DELETE, "__builtin_operator_delete")                   \
   V(__BUILTIN_OPERATOR_NEW, "__builtin_operator_new")                         \
   V(__BUILTIN_POW, "__builtin_pow")                                           \
   V(__BUILTIN_POWF, "__builtin_powf")                                         \
@@ -541,6 +548,7 @@ class Token;
   V(__BUILTIN_SCALBN, "__builtin_scalbn")                                     \
   V(__BUILTIN_SCALBNF, "__builtin_scalbnf")                                   \
   V(__BUILTIN_SCALBNL, "__builtin_scalbnl")                                   \
+  V(__BUILTIN_SIGNBIT, "__builtin_signbit")                                   \
   V(__BUILTIN_SIN, "__builtin_sin")                                           \
   V(__BUILTIN_SINCOS, "__builtin_sincos")                                     \
   V(__BUILTIN_SINCOSF, "__builtin_sincosf")                                   \
@@ -610,9 +618,10 @@ class Token;
   V(__C11_ATOMIC_STORE, "__c11_atomic_store")                                 \
   V(__C11_ATOMIC_THREAD_FENCE, "__c11_atomic_thread_fence")
 
-#define FOR_EACH_BUILTIN_TEMPLATE(V)          \
-  V(__MAKE_INTEGER_SEQ, "__make_integer_seq") \
-  V(__TYPE_PACK_ELEMENT, "__type_pack_element")
+#define FOR_EACH_BUILTIN_TEMPLATE(V)            \
+  V(__MAKE_INTEGER_SEQ, "__make_integer_seq")   \
+  V(__TYPE_PACK_ELEMENT, "__type_pack_element") \
+  V(__BUILTIN_COMMON_TYPE, "__builtin_common_type")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
@@ -680,6 +689,12 @@ enum class BuiltinFunctionKind {
   T_NONE,
   FOR_EACH_BUILTIN_FUNCTION(TOKEN_ENUM)
 };
+
+// True when a non-constant-folded call to this builtin lowers to the C
+// library function of the same name (see Token::spell(BuiltinFunctionKind)).
+// Defined in builtins_typechecker-priv.h, generated from builtins.json's
+// `libcall` entries.
+[[nodiscard]] auto isBuiltinLibcall(BuiltinFunctionKind kind) -> bool;
 
 enum class BuiltinTemplateKind {
   T_NONE,

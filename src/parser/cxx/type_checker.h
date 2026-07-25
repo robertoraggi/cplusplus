@@ -29,7 +29,6 @@
 #include <cxx/types_fwd.h>
 
 namespace cxx {
-
 class TranslationUnit;
 
 class TypeChecker {
@@ -42,6 +41,7 @@ class TypeChecker {
   void setReportErrors(bool reportErrors) { reportErrors_ = reportErrors; }
 
   void setScope(ScopeSymbol* scope) { scope_ = scope; }
+  [[nodiscard]] auto scope() const -> ScopeSymbol* { return scope_; }
 
   void operator()(ExpressionAST* ast);
 
@@ -49,14 +49,26 @@ class TypeChecker {
 
   void check(DeclarationAST* ast);
 
-  // todo: remove
   void check_return_statement(ReturnStatementAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
+  void check_field_initializer(FieldSymbol* field);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
   void check_braced_init_list(const Type* type, BracedInitListAST* ast);
+  void append_default_arguments(FunctionSymbol* function,
+                                List<ExpressionAST*>** list);
+
+  [[nodiscard]] auto check_class_initializer(
+      const Type* targetType, ExpressionAST*& initializer,
+      SourceLocation location, List<ExpressionAST*>** argumentList = nullptr)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto hasAutoPlaceholder(const Type* type) const -> bool;
+
+  [[nodiscard]] auto deduceAutoType(const Type* declaredType,
+                                    const Type* initializerType) -> const Type*;
 
   auto getInitDeclaratorLocation(InitDeclaratorAST* ast,
                                  VariableSymbol* var) const -> SourceLocation;
@@ -75,7 +87,9 @@ class TypeChecker {
                             ExpressionAST*& expr);
 
   [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
-                                    const Type* rightType = nullptr)
+                                    const Type* rightType = nullptr,
+                                    ExpressionAST* leftExpr = nullptr,
+                                    ExpressionAST* rightExpr = nullptr)
       -> FunctionSymbol*;
 
   [[nodiscard]] auto trySelectOperator(
@@ -98,6 +112,7 @@ class TypeChecker {
 
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
+  void reportDeletedFunction(FunctionSymbol* function, SourceLocation loc);
 
   [[nodiscard]] auto as_pointer(const Type* type) const -> const PointerType*;
   [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
@@ -110,5 +125,4 @@ class TypeChecker {
   bool reportErrors_ = false;
   bool lastOperatorLookupAmbiguous_ = false;
 };
-
 }  // namespace cxx

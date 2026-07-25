@@ -63,6 +63,12 @@ def Cxx_LinkageKind : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
   I32EnumAttrCase<"Appending", 5, "appending">
 ]>;
 
+def Cxx_Visibility : Cxx_I32EnumAttr<"Visibility", "visibility", [
+  I32EnumAttrCase<"Default", 0, "default">,
+  I32EnumAttrCase<"Hidden", 1, "hidden">,
+  I32EnumAttrCase<"Protected", 2, "protected">
+]>;
+
 // types
 
 def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
@@ -122,6 +128,8 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
       TypeAttrOf<Cxx_FunctionType>:$function_type,
       OptionalAttr<Cxx_LinkageKind>:$linkage_kind,
       OptionalAttr<Cxx_InlineKind>:$inline_kind,
+      OptionalAttr<Cxx_Visibility>:$visibility_,
+      OptionalAttr<StrAttr>:$alias_name,
       OptionalAttr<DictArrayAttr>:$arg_attrs,
       OptionalAttr<DictArrayAttr>:$res_attrs);
 
@@ -152,9 +160,25 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
 }
 
 def Cxx_VTableOp : Cxx_Op<"vtable"> {
+  let summary = "one Itanium vtable group";
+  let description = [{
+    Storage shape (one pointer-sized word per entry):
+
+      [vbase_offsets...] [vcall_offsets...] [offset_to_top] [RTTI (null)] [slots...]
+
+    `vbase_offsets`, `vcall_offsets`, and `offset_to_top` are byte offsets
+    stored as pointer-sized integers; each slot is either a function symbol
+    or a unit attribute (a null slot). The lowering is purely mechanical --
+    every field's meaning is explicit here, it never guesses from attribute
+    shapes.
+  }];
+
   let arguments = (ins
       SymbolNameAttr:$sym_name
-    , ArrayAttr:$entries
+    , I64ArrayAttr:$vbase_offsets
+    , I64ArrayAttr:$vcall_offsets
+    , I64Attr:$offset_to_top
+    , ArrayAttr:$slots
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
   );
 
@@ -171,6 +195,10 @@ def Cxx_ReturnOp : Cxx_Op<"return", [Pure, Terminator]> {
   let extraClassDeclaration = [{
     bool hasOperand() { return getNumOperands() != 0; }
   }];
+}
+
+def Cxx_UnreachableOp : Cxx_Op<"unreachable", [Terminator]> {
+  let assemblyFormat = "attr-dict";
 }
 
 def Cxx_CallOp : Cxx_Op<"call"> {
@@ -351,15 +379,26 @@ def Cxx_IntToPtrOp : Cxx_Op<"inttoptr"> {
 //
 
 def Cxx_LabelOp : Cxx_Op<"label"> {
-  let arguments = (ins StringProp:$name);
+  let arguments = (ins StringProp:$name, I64Attr:$cleanup_depth);
 
-  let assemblyFormat = "$name attr-dict";
+  let assemblyFormat = "$name `cleanup_depth` $cleanup_depth attr-dict";
 }
 
 def Cxx_GotoOp : Cxx_Op<"goto"> {
-  let arguments = (ins StringProp:$label);
+  // `addresses`/`destructors`/`depths` snapshot every cleanup entry active
+  // at the goto (innermost scope first); `depths[i]` is the 0-based
+  // enclosing-scope index that `addresses[i]`/`destructors[i]` belongs to.
+  // resolveLabels (codegen_units.cc) compares this against the target
+  // label's `cleanup_depth` to run the destructors for scopes the goto
+  // jumps out of before branching.
+  let arguments = (ins
+      Variadic<Cxx_PointerType>:$addresses
+    , ArrayAttr:$destructors
+    , ArrayAttr:$depths
+    , StringProp:$label
+  );
 
-  let assemblyFormat = "$label attr-dict";
+  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths attr-dict";
 }
 
 def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {

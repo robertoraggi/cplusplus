@@ -25,12 +25,10 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 
-// std
 #include <optional>
 #include <vector>
 
 namespace cxx {
-
 class TranslationUnit;
 
 class Substitution {
@@ -41,12 +39,13 @@ class Substitution {
   auto operator=(Substitution&&) -> Substitution& = default;
 
   Substitution(TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-               List<TemplateArgumentAST*>* templateArgumentList);
+               List<TemplateArgumentAST*>* templateArgumentList,
+               bool argsComplete = false);
 
   [[nodiscard]] static auto make(
       TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
-      List<TemplateArgumentAST*>* templateArgumentList)
-      -> std::optional<Substitution>;
+      List<TemplateArgumentAST*>* templateArgumentList,
+      bool argsComplete = false) -> std::optional<Substitution>;
 
   auto templateArguments() const& -> const std::vector<TemplateArgument>& {
     return templateArguments_;
@@ -61,19 +60,16 @@ class Substitution {
  private:
   void doMake();
 
-  [[nodiscard]] auto isDependentTypeArgument(TypeTemplateArgumentAST* typeArg)
-      -> bool;
-
   [[nodiscard]] auto isPackParameter(TemplateParameterAST* parameter) -> bool;
-
-  [[nodiscard]] auto isDependentExpressionArgument(
-      ExpressionTemplateArgumentAST* expressionArg) -> bool;
 
   [[nodiscard]] auto hasDefaultTemplateArgument(TemplateParameterAST* parameter)
       -> bool;
 
   [[nodiscard]] auto normalizeNonTypeArgument(
       NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol*;
+
+  [[nodiscard]] auto checkNonTypeParameterType(
+      NonTypeTemplateParameterAST* parameter) -> bool;
 
   [[nodiscard]] auto getDefaultTemplateArgument(TemplateParameterAST* parameter)
       -> std::optional<TemplateArgument>;
@@ -96,6 +92,6 @@ class Substitution {
   List<TemplateArgumentAST*>* templateArgumentList_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
   bool hadError_ = false;
+  bool argsComplete_ = false;
 };
-
 }  // namespace cxx

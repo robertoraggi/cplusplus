@@ -26,7 +26,6 @@
 #include <span>
 
 namespace cxx {
-
 class ClassSymbol;
 class Control;
 class TranslationUnit;
@@ -43,7 +42,6 @@ class TypeTraits {
 
   auto requireCompleteClass(ClassSymbol* classSymbol) -> bool;
 
-  // primary type categories
   [[nodiscard]] auto is_void(const Type* type) const -> bool;
   [[nodiscard]] auto is_null_pointer(const Type* type) const -> bool;
   [[nodiscard]] auto is_integral(const Type* type) const -> bool;
@@ -60,7 +58,6 @@ class TypeTraits {
   [[nodiscard]] auto is_member_function_pointer(const Type* type) const -> bool;
   [[nodiscard]] auto is_complete(const Type* type) const -> bool;
 
-  // composite type categories
   [[nodiscard]] auto is_integer(const Type* type) const -> bool;
   [[nodiscard]] auto is_integral_or_unscoped_enum(const Type* type) const
       -> bool;
@@ -72,7 +69,6 @@ class TypeTraits {
   [[nodiscard]] auto is_reference(const Type* type) const -> bool;
   [[nodiscard]] auto is_member_pointer(const Type* type) const -> bool;
 
-  // type properties
   [[nodiscard]] auto is_const(const Type* type) const -> bool;
   [[nodiscard]] auto is_volatile(const Type* type) const -> bool;
   [[nodiscard]] auto is_signed(const Type* type) const -> bool;
@@ -81,34 +77,31 @@ class TypeTraits {
   [[nodiscard]] auto is_unbounded_array(const Type* type) const -> bool;
   [[nodiscard]] auto is_scoped_enum(const Type* type) const -> bool;
 
-  // references
   [[nodiscard]] auto remove_reference(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_lvalue_reference(const Type* type) const
       -> const Type*;
   [[nodiscard]] auto add_rvalue_reference(const Type* type) const
       -> const Type*;
 
-  // arrays
   [[nodiscard]] auto remove_extent(const Type* type) const -> const Type*;
   [[nodiscard]] auto get_element_type(const Type* type) const -> const Type*;
 
-  // cv qualifiers
   [[nodiscard]] auto remove_cv(const Type* type) const -> const Type*;
   [[nodiscard]] auto remove_cvref(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_const_ref(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_const(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_volatile(const Type* type) const -> const Type*;
 
-  // pointers
   [[nodiscard]] auto remove_pointer(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_pointer(const Type* type) const -> const Type*;
 
-  // type relationships
+  [[nodiscard]] auto make_signed(const Type* type) const -> const Type*;
+  [[nodiscard]] auto make_unsigned(const Type* type) const -> const Type*;
+
   [[nodiscard]] auto is_compatible(const Type* a, const Type* b) const -> bool;
   [[nodiscard]] auto is_same(const Type* a, const Type* b) const -> bool;
   [[nodiscard]] auto decay(const Type* type) const -> const Type*;
 
-  // convenience
   [[nodiscard]] auto is_class_or_union(const Type* type) const -> bool;
   [[nodiscard]] auto is_arithmetic_or_unscoped_enum(const Type* type) const
       -> bool;
@@ -119,6 +112,9 @@ class TypeTraits {
   [[nodiscard]] auto integer_constant_fits_in_type(std::uint64_t value,
                                                    const Type* targetType) const
       -> bool;
+
+  [[nodiscard]] auto initializer_list_element_type(const Type* targetType)
+      -> const Type*;
 
   [[nodiscard]] auto remove_all_extents(const Type* type) const -> const Type*;
   [[nodiscard]] auto remove_const(const Type* type) const -> const Type*;
@@ -153,6 +149,14 @@ class TypeTraits {
   auto is_destructible(const Type* type) -> bool;
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;
-};
 
+ private:
+  [[nodiscard]] auto apply_sign(const Type* type, bool isUnsigned) const
+      -> const Type*;
+  [[nodiscard]] auto corresponding_integer_type(const Type* type,
+                                                bool isUnsigned) const
+      -> const Type*;
+  [[nodiscard]] auto integer_type_of_size(std::size_t size,
+                                          bool isUnsigned) const -> const Type*;
+};
 }  // namespace cxx

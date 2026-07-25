@@ -19,10 +19,18 @@ Box<k> c;
 // CHECK-NEXT:      class Box<3>
 // CHECK-NEXT:        constructor defaulted void Box()
 // CHECK-NEXT:        constructor defaulted void Box(const ::Box<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::Box<int>&
 // CHECK-NEXT:        constructor defaulted void Box(::Box<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::Box<int>&&
 // CHECK-NEXT:        injected class name Box
 // CHECK-NEXT:        function defaulted ::Box<int>& operator =(const ::Box<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::Box<int>&
 // CHECK-NEXT:        function defaulted ::Box<int>& operator =(::Box<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::Box<int>&&
 // CHECK-NEXT:        function defaulted void ~Box()
 // CHECK-NEXT:  function constexpr int three()
 // CHECK-NEXT:    block

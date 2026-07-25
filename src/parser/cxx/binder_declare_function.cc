@@ -18,26 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/binder.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
+#include <cxx/dependent_types.h>
+#include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
+#include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
-// std
 #include <format>
 
 namespace cxx {
-
 namespace {
-
 auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
   if (auto bounded = type_cast<BoundedArrayType>(type)) {
     return std::to_string(bounded->size());
@@ -54,6 +52,360 @@ auto isEffectivelyUnboundedArray(TranslationUnit* unit, const Type* type)
   if (!unresolved) return false;
   return !arrayBoundToString(type).has_value();
 }
+
+namespace {
+[[nodiscard]] auto expressionsStructurallyEquivalent(TranslationUnit* unit,
+                                                     ExpressionAST* a,
+                                                     ExpressionAST* b) -> bool;
+
+[[nodiscard]] auto typesStructurallyEquivalent(TranslationUnit* unit,
+                                               const Type* a, const Type* b)
+    -> bool {
+  if (!a || !b) return false;
+  if (a == b) return true;
+
+  auto aParam = type_cast<TypeParameterType>(a);
+  auto bParam = type_cast<TypeParameterType>(b);
+  if (aParam && bParam) {
+    return aParam->depth() == bParam->depth() &&
+           aParam->index() == bParam->index();
+  }
+  if (aParam || bParam) return false;
+
+  return unit->typeTraits().is_same(a, b);
+}
+
+[[nodiscard]] auto soleTypeSpecifier(ParameterDeclarationAST* decl)
+    -> SpecifierAST* {
+  if (!decl) return nullptr;
+  SpecifierAST* found = nullptr;
+  for (auto spec : ListView{decl->typeSpecifierList}) {
+    if (found) return nullptr;
+    found = spec;
+  }
+  return found;
+}
+
+[[nodiscard]] auto templateArgumentListsStructurallyEquivalent(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* aArgs,
+    List<TemplateArgumentAST*>* bArgs) -> bool {
+  for (; aArgs && bArgs; aArgs = aArgs->next, bArgs = bArgs->next) {
+    auto aType = ast_cast<TypeTemplateArgumentAST>(aArgs->value);
+    auto bType = ast_cast<TypeTemplateArgumentAST>(bArgs->value);
+    if (aType && bType) {
+      if (!typesStructurallyEquivalent(
+              unit, aType->typeId ? aType->typeId->type : nullptr,
+              bType->typeId ? bType->typeId->type : nullptr)) {
+        return false;
+      }
+      continue;
+    }
+
+    auto aExpr = ast_cast<ExpressionTemplateArgumentAST>(aArgs->value);
+    auto bExpr = ast_cast<ExpressionTemplateArgumentAST>(bArgs->value);
+    if (aExpr && bExpr) {
+      if (!expressionsStructurallyEquivalent(unit, aExpr->expression,
+                                             bExpr->expression)) {
+        return false;
+      }
+      continue;
+    }
+
+    return false;
+  }
+  return !aArgs && !bArgs;
+}
+
+[[nodiscard]] auto templateQualifiedNameStructurallyEquivalent(
+    TranslationUnit* unit, NestedNameSpecifierAST* aNns,
+    UnqualifiedIdAST* aName, NestedNameSpecifierAST* bNns,
+    UnqualifiedIdAST* bName) -> bool {
+  auto aTns = ast_cast<TemplateNestedNameSpecifierAST>(aNns);
+  auto bTns = ast_cast<TemplateNestedNameSpecifierAST>(bNns);
+  if (!aTns || !bTns) return false;
+  if (aTns->nestedNameSpecifier || bTns->nestedNameSpecifier) return false;
+
+  auto aTemplateId = aTns->templateId;
+  auto bTemplateId = bTns->templateId;
+  if (!aTemplateId || !bTemplateId) return false;
+  if (!aTemplateId->symbol || aTemplateId->symbol != bTemplateId->symbol)
+    return false;
+  if (!templateArgumentListsStructurallyEquivalent(
+          unit, aTemplateId->templateArgumentList,
+          bTemplateId->templateArgumentList))
+    return false;
+
+  auto aNameId = ast_cast<NameIdAST>(aName);
+  auto bNameId = ast_cast<NameIdAST>(bName);
+  return aNameId && bNameId && aNameId->identifier == bNameId->identifier;
+}
+
+[[nodiscard]] auto namedTypeSpecifiersStructurallyEquivalent(
+    TranslationUnit* unit, NamedTypeSpecifierAST* a, NamedTypeSpecifierAST* b)
+    -> bool {
+  if (!a || !b) return false;
+  if (a->nestedNameSpecifier || b->nestedNameSpecifier) return false;
+
+  if (ast_cast<NameIdAST>(a->unqualifiedId) &&
+      ast_cast<NameIdAST>(b->unqualifiedId)) {
+    return typesStructurallyEquivalent(unit,
+                                       a->symbol ? a->symbol->type() : nullptr,
+                                       b->symbol ? b->symbol->type() : nullptr);
+  }
+
+  auto aTid = ast_cast<SimpleTemplateIdAST>(a->unqualifiedId);
+  auto bTid = ast_cast<SimpleTemplateIdAST>(b->unqualifiedId);
+  if (!aTid || !bTid) return false;
+  if (!aTid->symbol || aTid->symbol != bTid->symbol) return false;
+
+  return templateArgumentListsStructurallyEquivalent(
+      unit, aTid->templateArgumentList, bTid->templateArgumentList);
+}
+
+[[nodiscard]] auto typenameSpecifiersStructurallyEquivalent(
+    TranslationUnit* unit, TypenameSpecifierAST* a, TypenameSpecifierAST* b)
+    -> bool {
+  if (!a || !b) return false;
+  return templateQualifiedNameStructurallyEquivalent(
+      unit, a->nestedNameSpecifier, a->unqualifiedId, b->nestedNameSpecifier,
+      b->unqualifiedId);
+}
+
+auto expressionsStructurallyEquivalent(TranslationUnit* unit, ExpressionAST* a,
+                                       ExpressionAST* b) -> bool {
+  if (!a || !b) return false;
+
+  if (auto nested = ast_cast<NestedExpressionAST>(a)) {
+    return expressionsStructurallyEquivalent(unit, nested->expression, b);
+  }
+  if (auto nested = ast_cast<NestedExpressionAST>(b)) {
+    return expressionsStructurallyEquivalent(unit, a, nested->expression);
+  }
+  if (auto cast = ast_cast<ImplicitCastExpressionAST>(a)) {
+    return expressionsStructurallyEquivalent(unit, cast->expression, b);
+  }
+  if (auto cast = ast_cast<ImplicitCastExpressionAST>(b)) {
+    return expressionsStructurallyEquivalent(unit, a, cast->expression);
+  }
+
+  if (auto aLit = ast_cast<IntLiteralExpressionAST>(a)) {
+    auto bLit = ast_cast<IntLiteralExpressionAST>(b);
+    if (!bLit || !aLit->literal || !bLit->literal) return false;
+    return aLit->literal->integerValue() == bLit->literal->integerValue();
+  }
+
+  if (auto aLit = ast_cast<BoolLiteralExpressionAST>(a)) {
+    auto bLit = ast_cast<BoolLiteralExpressionAST>(b);
+    return bLit && aLit->isTrue == bLit->isTrue;
+  }
+
+  if (auto aSizeofType = ast_cast<SizeofTypeExpressionAST>(a)) {
+    auto bSizeofType = ast_cast<SizeofTypeExpressionAST>(b);
+    return bSizeofType &&
+           typesStructurallyEquivalent(
+               unit, aSizeofType->typeId ? aSizeofType->typeId->type : nullptr,
+               bSizeofType->typeId ? bSizeofType->typeId->type : nullptr);
+  }
+
+  if (auto aSizeof = ast_cast<SizeofExpressionAST>(a)) {
+    auto bSizeof = ast_cast<SizeofExpressionAST>(b);
+    return bSizeof && expressionsStructurallyEquivalent(
+                          unit, aSizeof->expression, bSizeof->expression);
+  }
+
+  if (auto aUnary = ast_cast<UnaryExpressionAST>(a)) {
+    auto bUnary = ast_cast<UnaryExpressionAST>(b);
+    return bUnary && aUnary->op == bUnary->op &&
+           expressionsStructurallyEquivalent(unit, aUnary->expression,
+                                             bUnary->expression);
+  }
+
+  if (auto aBinary = ast_cast<BinaryExpressionAST>(a)) {
+    auto bBinary = ast_cast<BinaryExpressionAST>(b);
+    return bBinary && aBinary->op == bBinary->op &&
+           expressionsStructurallyEquivalent(unit, aBinary->leftExpression,
+                                             bBinary->leftExpression) &&
+           expressionsStructurallyEquivalent(unit, aBinary->rightExpression,
+                                             bBinary->rightExpression);
+  }
+
+  if (auto aId = ast_cast<IdExpressionAST>(a)) {
+    auto bId = ast_cast<IdExpressionAST>(b);
+    if (!bId) return false;
+
+    auto aNttp = symbol_cast<NonTypeParameterSymbol>(aId->symbol);
+    auto bNttp = symbol_cast<NonTypeParameterSymbol>(bId->symbol);
+    if (aNttp || bNttp) {
+      return aNttp && bNttp && aNttp->depth() == bNttp->depth() &&
+             aNttp->index() == bNttp->index();
+    }
+
+    if (ast_cast<TemplateNestedNameSpecifierAST>(aId->nestedNameSpecifier)) {
+      return templateQualifiedNameStructurallyEquivalent(
+          unit, aId->nestedNameSpecifier, aId->unqualifiedId,
+          bId->nestedNameSpecifier, bId->unqualifiedId);
+    }
+
+    if (aId->nestedNameSpecifier || bId->nestedNameSpecifier) return false;
+    auto aTid = ast_cast<SimpleTemplateIdAST>(aId->unqualifiedId);
+    auto bTid = ast_cast<SimpleTemplateIdAST>(bId->unqualifiedId);
+    if (!aTid || !bTid) return false;
+    if (!aTid->symbol || aTid->symbol != bTid->symbol) return false;
+
+    return templateArgumentListsStructurallyEquivalent(
+        unit, aTid->templateArgumentList, bTid->templateArgumentList);
+  }
+
+  return false;
+}
+
+[[nodiscard]] auto nonTypeParameterTypesEquivalent(
+    TranslationUnit* unit, NonTypeTemplateParameterAST* a,
+    NonTypeTemplateParameterAST* b) -> bool {
+  if (!a || !b || !a->declaration || !b->declaration) return false;
+
+  if (a->declaration->type && b->declaration->type &&
+      !isDependent(unit, a->declaration->type)) {
+    return unit->typeTraits().is_same(a->declaration->type,
+                                      b->declaration->type);
+  }
+
+  auto aSpec = soleTypeSpecifier(a->declaration);
+  auto bSpec = soleTypeSpecifier(b->declaration);
+
+  if (auto aNamed = ast_cast<NamedTypeSpecifierAST>(aSpec)) {
+    return namedTypeSpecifiersStructurallyEquivalent(
+        unit, aNamed, ast_cast<NamedTypeSpecifierAST>(bSpec));
+  }
+
+  if (auto aTypename = ast_cast<TypenameSpecifierAST>(aSpec)) {
+    return typenameSpecifiersStructurallyEquivalent(
+        unit, aTypename, ast_cast<TypenameSpecifierAST>(bSpec));
+  }
+
+  return false;
+}
+
+auto typesEquivalentModuloOwnHeadDepth(TranslationUnit* unit, const Type* lhs,
+                                       const Type* rhs, int lhsDepth,
+                                       int rhsDepth, int ownParamCount)
+    -> bool {
+  if (!lhs || !rhs) return lhs == rhs;
+
+  auto lhsInfo = getTypeParamInfo(lhs);
+  auto rhsInfo = getTypeParamInfo(rhs);
+  if (lhsInfo || rhsInfo) {
+    if (!lhsInfo || !rhsInfo) return false;
+    if (lhsInfo->depth == lhsDepth && lhsInfo->index < ownParamCount) {
+      return rhsInfo->depth == rhsDepth && rhsInfo->index == lhsInfo->index &&
+             rhsInfo->isPack == lhsInfo->isPack;
+    }
+    return lhsInfo->depth == rhsInfo->depth &&
+           lhsInfo->index == rhsInfo->index &&
+           lhsInfo->isPack == rhsInfo->isPack;
+  }
+
+  if (auto lhsQual = type_cast<QualType>(lhs)) {
+    auto rhsQual = type_cast<QualType>(rhs);
+    if (!rhsQual || lhsQual->cvQualifiers() != rhsQual->cvQualifiers())
+      return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsQual->elementType(),
+                                             rhsQual->elementType(), lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+  if (auto lhsPtr = type_cast<PointerType>(lhs)) {
+    auto rhsPtr = type_cast<PointerType>(rhs);
+    if (!rhsPtr) return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsPtr->elementType(),
+                                             rhsPtr->elementType(), lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+  if (auto lhsRef = type_cast<LvalueReferenceType>(lhs)) {
+    auto rhsRef = type_cast<LvalueReferenceType>(rhs);
+    if (!rhsRef) return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsRef->elementType(),
+                                             rhsRef->elementType(), lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+  if (auto lhsRef = type_cast<RvalueReferenceType>(lhs)) {
+    auto rhsRef = type_cast<RvalueReferenceType>(rhs);
+    if (!rhsRef) return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsRef->elementType(),
+                                             rhsRef->elementType(), lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+  if (auto lhsArr = type_cast<BoundedArrayType>(lhs)) {
+    auto rhsArr = type_cast<BoundedArrayType>(rhs);
+    if (!rhsArr || lhsArr->size() != rhsArr->size()) return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsArr->elementType(),
+                                             rhsArr->elementType(), lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+  if (auto lhsArr = type_cast<UnboundedArrayType>(lhs)) {
+    auto rhsArr = type_cast<UnboundedArrayType>(rhs);
+    if (!rhsArr) return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsArr->elementType(),
+                                             rhsArr->elementType(), lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+  if (auto lhsFn = type_cast<FunctionType>(lhs)) {
+    auto rhsFn = type_cast<FunctionType>(rhs);
+    if (!rhsFn) return false;
+    if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
+    if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
+    if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
+
+    const auto& lhsParams = lhsFn->parameterTypes();
+    const auto& rhsParams = rhsFn->parameterTypes();
+    if (lhsParams.size() != rhsParams.size()) return false;
+
+    if (!typesEquivalentModuloOwnHeadDepth(unit, lhsFn->returnType(),
+                                           rhsFn->returnType(), lhsDepth,
+                                           rhsDepth, ownParamCount))
+      return false;
+
+    for (std::size_t i = 0; i < lhsParams.size(); ++i) {
+      if (!typesEquivalentModuloOwnHeadDepth(unit, lhsParams[i], rhsParams[i],
+                                             lhsDepth, rhsDepth, ownParamCount))
+        return false;
+    }
+    return true;
+  }
+  if (auto lhsClass = type_cast<ClassType>(lhs)) {
+    auto rhsClass = type_cast<ClassType>(rhs);
+    if (!rhsClass) return false;
+    auto lhsSym = lhsClass->symbol();
+    auto rhsSym = rhsClass->symbol();
+    if (!lhsSym || !rhsSym) return false;
+    if (lhsSym == rhsSym) return true;
+
+    if (lhsSym->isSpecialization() && rhsSym->isSpecialization() &&
+        lhsSym->primaryTemplateSymbol() == rhsSym->primaryTemplateSymbol()) {
+      auto lhsArgs = lhsSym->templateArguments();
+      auto rhsArgs = rhsSym->templateArguments();
+      if (lhsArgs.size() != rhsArgs.size()) return false;
+
+      for (std::size_t i = 0; i < lhsArgs.size(); ++i) {
+        auto lhsArgType = std::get_if<const Type*>(&lhsArgs[i]);
+        auto rhsArgType = std::get_if<const Type*>(&rhsArgs[i]);
+        if (lhsArgType && rhsArgType) {
+          if (!typesEquivalentModuloOwnHeadDepth(unit, *lhsArgType, *rhsArgType,
+                                                 lhsDepth, rhsDepth,
+                                                 ownParamCount))
+            return false;
+          continue;
+        }
+        if (lhsArgs[i] == rhsArgs[i]) continue;
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  return unit->typeTraits().is_same(lhs, rhs);
+}
+}  // namespace
 
 auto areRedeclarationTypesCompatible(TranslationUnit* unit, const Type* lhs,
                                      const Type* rhs) -> bool {
@@ -122,18 +474,41 @@ auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
 
   return true;
 }
-
 }  // namespace
+
+auto areTemplateHeadsEquivalentForRedeclaration(TranslationUnit* unit,
+                                                TemplateDeclarationAST* a,
+                                                TemplateDeclarationAST* b)
+    -> bool {
+  if (a == b) return true;
+  if (!a || !b) return true;
+  if (a->symbol && a->symbol->isExplicitTemplateSpecialization()) return true;
+  if (b->symbol && b->symbol->isExplicitTemplateSpecialization()) return true;
+
+  auto aIt = a->templateParameterList;
+  auto bIt = b->templateParameterList;
+
+  for (; aIt && bIt; aIt = aIt->next, bIt = bIt->next) {
+    auto aParam = aIt->value;
+    auto bParam = bIt->value;
+    if (aParam->kind() != bParam->kind()) return false;
+    auto aNonType = ast_cast<NonTypeTemplateParameterAST>(aParam);
+    auto bNonType = ast_cast<NonTypeTemplateParameterAST>(bParam);
+    if (aNonType && bNonType &&
+        !nonTypeParameterTypesEquivalent(unit, aNonType, bNonType)) {
+      return false;
+    }
+  }
+
+  return !aIt && !bIt;
+}
 
 struct [[nodiscard]] Binder::DeclareFunction {
   Binder& binder;
   DeclaratorAST* declarator = nullptr;
   const Decl& decl;
-  // the symbol we're currently declaring, used for merging redeclarations
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
-  // the symbol we're currently declaring, used for merging redeclarations
   FunctionSymbol* functionSymbol = nullptr;
-  // the shadowed function symbol
   FunctionSymbol* shadowedFunction = nullptr;
 
   auto control() const -> Control* { return binder.control(); }
@@ -245,8 +620,6 @@ void Binder::DeclareFunction::mergeAsCRedeclaration(
     FunctionSymbol* otherFunction) {
   auto canonical = otherFunction->canonical();
   canonical->addRedeclaration(functionSymbol);
-  // If canonical was unprototyped, adopt the complete prototype's type so
-  // codegen emits the right MLIR function signature.
   if (canonical->hasNoPrototype() && !functionSymbol->hasNoPrototype()) {
     canonical->setType(functionSymbol->type());
     canonical->setNoPrototype(false);
@@ -269,13 +642,7 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
   for (auto existingFunction : overloadSet->functions()) {
     if (existingFunction->isSpecialization()) continue;
-    if (!areFunctionSignaturesEquivalentForRedeclaration(
-            binder.unit_, existingFunction->type(), functionSymbol->type())) {
-      continue;
-    }
 
-    // Two function templates with different requires clauses are different
-    // overloads, not redeclarations.
     auto existingTemplateDecl = existingFunction->templateDeclaration();
     auto newTemplateHead = decl.specs.templateHead;
     auto existingRequires =
@@ -283,6 +650,28 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
     auto newRequires =
         newTemplateHead ? newTemplateHead->requiresClause : nullptr;
     if (existingRequires != newRequires) continue;
+
+    if (!areTemplateHeadsEquivalentForRedeclaration(
+            binder.unit_, existingTemplateDecl, newTemplateHead)) {
+      continue;
+    }
+
+    bool sigEq = areFunctionSignaturesEquivalentForRedeclaration(
+        binder.unit_, existingFunction->type(), functionSymbol->type());
+
+    if (!sigEq && existingTemplateDecl && newTemplateHead &&
+        existingTemplateDecl->depth != newTemplateHead->depth) {
+      int ownParamCount = 0;
+      for ([[maybe_unused]] auto p :
+           ListView{newTemplateHead->templateParameterList}) {
+        ++ownParamCount;
+      }
+      sigEq = typesEquivalentModuloOwnHeadDepth(
+          binder.unit_, existingFunction->type(), functionSymbol->type(),
+          existingTemplateDecl->depth, newTemplateHead->depth, ownParamCount);
+    }
+
+    if (!sigEq) continue;
 
     auto canonical = existingFunction->canonical();
     canonical->addRedeclaration(functionSymbol);
@@ -332,6 +721,23 @@ void Binder::DeclareFunction::checkRedeclaration() {
       overloadSet = createOverloadSet(declaringScope, otherFunction);
       break;
     }
+
+    if (auto usingDecl = symbol_cast<UsingDeclarationSymbol>(candidate)) {
+      if (auto targetFunction =
+              symbol_cast<FunctionSymbol>(usingDecl->target())) {
+        overloadSet = control()->newOverloadSetSymbol(
+            declaringScope, targetFunction->location());
+        overloadSet->setName(targetFunction->name());
+        overloadSet->addFunction(targetFunction);
+        declaringScope->replaceSymbol(usingDecl, overloadSet);
+        break;
+      }
+      if (auto targetOverloadSet =
+              symbol_cast<OverloadSetSymbol>(usingDecl->target())) {
+        overloadSet = targetOverloadSet;
+        break;
+      }
+    }
   }
 
   if (overloadSet) {
@@ -353,8 +759,6 @@ void Binder::DeclareFunction::checkRedeclaration() {
 }
 
 void Binder::DeclareFunction::checkConstructor() {
-  // For constructor templates, binder.scope() is the TemplateParametersSymbol.
-  // Look through to find the enclosing class.
   auto classScope = binder.scope();
   if (classScope && classScope->isTemplateParameters()) {
     classScope = classScope->enclosingNonTemplateParametersScope();
@@ -366,6 +770,9 @@ void Binder::DeclareFunction::checkConstructor() {
   }
 
   for (auto ctor : enclosingClass->constructors()) {
+    if (!areTemplateHeadsEquivalentForRedeclaration(
+            binder.unit_, ctor->templateDeclaration(), decl.specs.templateHead))
+      continue;
     if (areFunctionSignaturesEquivalentForRedeclaration(
             binder.unit_, ctor->type(), functionSymbol->type())) {
       auto canon = ctor->canonical();
@@ -386,19 +793,15 @@ void Binder::DeclareFunction::checkDeclSpecifiers() {
 
 void Binder::DeclareFunction::checkExternalLinkageSpec() {
   if (binder.isC()) {
-    // in C mode, functions have C linkage
     functionSymbol->setLanguageLinkage(LanguageKind::kC);
     return;
   }
 
   if (scope()->isClass()) {
-    // member functions always have C++ linkage
     functionSymbol->setLanguageLinkage(LanguageKind::kCXX);
     return;
   }
 
-  // namespace-scope functions inherit the active language linkage,
-  // which is kC inside extern "C" blocks and kCXX otherwise.
   functionSymbol->setLanguageLinkage(binder.languageLinkage_);
 }
 
@@ -471,14 +874,26 @@ auto Binder::DeclareFunction::findOverriddenFunctionImpl(
   for (auto base : cls->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClass || !visited.insert(baseClass).second) continue;
+    baseClass = baseClass->resolvedDefinition();
 
-    for (auto member : baseClass->members() | views::virtual_functions) {
+    auto checkMember = [&](FunctionSymbol* member) -> FunctionSymbol* {
+      if (!member->isVirtual()) return nullptr;
       if (fn->isDestructor() && member->isDestructor()) return member;
 
-      // Non-destructors: match by name and signature
       if (fn->name() == member->name() &&
           binder.unit_->typeTraits().is_same(fn->type(), member->type())) {
         return member;
+      }
+      return nullptr;
+    };
+
+    for (auto symbol : baseClass->members()) {
+      if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
+        if (auto result = checkMember(func)) return result;
+      } else if (auto ovl = symbol_cast<OverloadSetSymbol>(symbol)) {
+        for (auto func : ovl->functions()) {
+          if (auto result = checkMember(func)) return result;
+        }
       }
     }
 
@@ -497,21 +912,29 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
     return;
   }
 
-  // Constructors cannot be virtual
   if (functionSymbol->isConstructor()) return;
 
-  // Look up the overridden virtual function in base classes
   auto overridden = findOverriddenFunction(cls, functionSymbol);
 
   if (overridden) {
     functionSymbol->setVirtual(true);
 
-    // Check if the base function is final
     if (overridden->isFinal()) {
       binder.error(
           functionSymbol->location(),
           std::format("declaration of '{}' overrides a 'final' function",
                       to_string(functionSymbol->name())));
+    }
+  }
+
+  if (!overridden) {
+    for (auto base : cls->baseClasses()) {
+      auto baseSymbol = base->symbol();
+      if (!baseSymbol) return;
+      if (auto baseType = baseSymbol->type();
+          baseType && isDependent(binder.unit_, baseType)) {
+        return;
+      }
     }
   }
 
@@ -575,5 +998,4 @@ void Binder::DeclareFunction::mergeRedeclaration() {
     }
   }
 }
-
 }  // namespace cxx

@@ -18,13 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/cxx_dialect_conversions.h>
-
-// cxx
 #include <cxx/cxx_fwd.h>
 #include <cxx/mlir/cxx_dialect.h>
-
-// mlir
+#include <cxx/mlir/cxx_dialect_conversions.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
@@ -49,9 +45,7 @@
 #include <format>
 
 namespace mlir {
-
 namespace {
-
 static auto getBoolMemoryType(MLIRContext* context) -> IntegerType {
   return IntegerType::get(context, 8);
 }
@@ -78,6 +72,19 @@ static auto convertLinkage(mlir::cxx::LinkageKind kind)
     default:
       return LLVM::linkage::Linkage::External;
   }
+}
+
+static auto convertVisibility(mlir::cxx::Visibility visibility)
+    -> LLVM::Visibility {
+  switch (visibility) {
+    case mlir::cxx::Visibility::Hidden:
+      return LLVM::Visibility::Hidden;
+    case mlir::cxx::Visibility::Protected:
+      return LLVM::Visibility::Protected;
+    case mlir::cxx::Visibility::Default:
+      return LLVM::Visibility::Default;
+  }
+  return LLVM::Visibility::Default;
 }
 
 static auto targetNeedsComdat(ModuleOp module) -> bool {
@@ -161,11 +168,41 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
       func.setComdatAttr(comdatRef);
     }
 
+    if (auto visibility = op.getVisibility_()) {
+      func.setVisibility_(convertVisibility(*visibility));
+    }
+
+    if (auto aliasName = op.getAliasName()) {
+      emitAlias(rewriter, op.getLoc(), func, llvmFuncType, *aliasName);
+    }
+
     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
 
     rewriter.eraseOp(op);
 
     return success();
+  }
+
+  static void emitAlias(ConversionPatternRewriter& rewriter, Location loc,
+                        LLVM::LLVMFuncOp func, Type aliasType,
+                        StringRef aliasName) {
+    auto module = func->getParentOfType<ModuleOp>();
+    if (!module || module.lookupSymbol(aliasName)) return;
+
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointToEnd(module.getBody());
+
+    auto alias = LLVM::AliasOp::create(rewriter, loc, aliasType,
+                                       func.getLinkage(), aliasName);
+    alias.setVisibility_(LLVM::Visibility::Hidden);
+
+    auto block = rewriter.createBlock(&alias.getInitializerRegion());
+    rewriter.setInsertionPointToStart(block);
+    auto ptrType = LLVM::LLVMPointerType::get(func.getContext());
+    auto addr = LLVM::AddressOfOp::create(
+        rewriter, loc, ptrType,
+        FlatSymbolRefAttr::get(func.getContext(), func.getSymName()));
+    LLVM::ReturnOp::create(rewriter, loc, addr.getResult());
   }
 
   auto convertFunctionTyype(cxx::FuncOp funcOp,
@@ -443,8 +480,12 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
   auto matchAndRewrite(cxx::VTableOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
-    auto entries = op.getEntries();
-    auto numEntries = entries.size();
+    auto vbaseOffsets = op.getVbaseOffsets();
+    auto vcallOffsets = op.getVcallOffsets();
+    auto slots = op.getSlots();
+
+    auto numEntries =
+        vbaseOffsets.size() + vcallOffsets.size() + 2 + slots.size();
 
     auto ptrType = LLVM::LLVMPointerType::get(rewriter.getContext());
     auto arrayType = LLVM::LLVMArrayType::get(ptrType, numEntries);
@@ -462,22 +503,50 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
       globalOp.setComdatAttr(comdatRef);
     }
 
-    // Build the initializer region
     auto& region = globalOp.getInitializerRegion();
     auto block = rewriter.createBlock(&region);
     rewriter.setInsertionPointToStart(block);
 
-    Value arr = LLVM::UndefOp::create(rewriter, op.getLoc(), arrayType);
+    auto nullPtr = [&]() -> Value {
+      return LLVM::ZeroOp::create(rewriter, op.getLoc(), ptrType);
+    };
 
-    for (auto [i, entry] : llvm::enumerate(entries)) {
-      Value element;
+    auto offsetWord = [&](std::int64_t offset) -> Value {
+      if (offset == 0) return nullPtr();
+      auto offsetConst =
+          LLVM::ConstantOp::create(rewriter, op.getLoc(), rewriter.getI64Type(),
+                                   rewriter.getI64IntegerAttr(offset));
+      return LLVM::IntToPtrOp::create(rewriter, op.getLoc(), ptrType,
+                                      offsetConst.getResult());
+    };
+
+    Value arr = LLVM::UndefOp::create(rewriter, op.getLoc(), arrayType);
+    std::int64_t index = 0;
+
+    auto append = [&](Value element) {
+      arr = LLVM::InsertValueOp::create(rewriter, op.getLoc(), arr, element,
+                                        index++);
+    };
+
+    for (auto entry : vbaseOffsets) {
+      append(offsetWord(mlir::cast<IntegerAttr>(entry).getInt()));
+    }
+
+    for (auto entry : vcallOffsets) {
+      append(offsetWord(mlir::cast<IntegerAttr>(entry).getInt()));
+    }
+
+    append(offsetWord(op.getOffsetToTop()));
+
+    append(nullPtr());
+
+    for (auto entry : slots) {
       if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {
-        element =
-            LLVM::AddressOfOp::create(rewriter, op.getLoc(), ptrType, symRef);
+        append(
+            LLVM::AddressOfOp::create(rewriter, op.getLoc(), ptrType, symRef));
       } else {
-        element = LLVM::ZeroOp::create(rewriter, op.getLoc(), ptrType);
+        append(nullPtr());
       }
-      arr = LLVM::InsertValueOp::create(rewriter, op.getLoc(), arr, element, i);
     }
 
     LLVM::ReturnOp::create(rewriter, op.getLoc(), arr);
@@ -498,6 +567,18 @@ class ReturnOpLowering : public OpConversionPattern<cxx::ReturnOp> {
       -> LogicalResult override {
     rewriter.replaceOp(op, LLVM::ReturnOp::create(rewriter, op.getLoc(),
                                                   adaptor.getOperands()));
+    return success();
+  }
+};
+
+class UnreachableOpLowering : public OpConversionPattern<cxx::UnreachableOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::UnreachableOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    rewriter.replaceOpWithNewOp<LLVM::UnreachableOp>(op);
     return success();
   }
 };
@@ -529,7 +610,6 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
 
     LLVM::CallOp llvmCallOp;
     if (!op.getCalleeAttr()) {
-      // create an indirect call
       auto inputs = adaptor.getInputs();
       auto callee = inputs[0];
       auto callArgs = inputs.drop_front();
@@ -604,6 +684,19 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       return success();
     }
 
+    if (name == "__builtin_assume_aligned") {
+      if (adaptor.getInputs().size() < 2) {
+        return rewriter.notifyMatchFailure(
+            op, "assume_aligned expects at least 2 arguments");
+      }
+      auto trueBit = LLVM::ConstantOp::create(
+          rewriter, loc, rewriter.getI1Type(), rewriter.getBoolAttr(true));
+      LLVM::AssumeOp::create(rewriter, loc, trueBit, "align",
+                             adaptor.getInputs());
+      rewriter.replaceOp(op, adaptor.getInputs()[0]);
+      return success();
+    }
+
     if (name == "__builtin_va_arg") {
       if (adaptor.getInputs().size() != 1) {
         return rewriter.notifyMatchFailure(op, "va_arg expects 1 argument");
@@ -633,7 +726,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       auto argType = adaptor.getInputs()[0].getType();
       llvm::StringRef opNewName = "_Znwm";
       auto module = op->getParentOfType<ModuleOp>();
-      if (!module.lookupSymbol<LLVM::LLVMFuncOp>(opNewName)) {
+      if (!module.lookupSymbol(opNewName)) {
         auto funcType = LLVM::LLVMFunctionType::get(
             context, ptrType, ArrayRef<Type>{argType}, false);
         OpBuilder::InsertionGuard guard(rewriter);
@@ -661,31 +754,44 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     }
 
     llvm::StringRef funcName = name;
+
     StringAttr intrin;
 
     if (funcName == "__builtin_bswap16" || funcName == "__builtin_bswap32" ||
         funcName == "__builtin_bswap64") {
       intrin = rewriter.getStringAttr("llvm.bswap");
-    } else if (funcName == "__builtin_unreachable") {
-      intrin = rewriter.getStringAttr("llvm.unreachable");
     } else if (funcName == "__builtin_trap") {
       intrin = rewriter.getStringAttr("llvm.trap");
     } else if (funcName == "__builtin_memcpy" ||
-               funcName == "__builtin_memcpy_inline") {
-      intrin = rewriter.getStringAttr("llvm.memcpy");
-    } else if (funcName == "__builtin_memmove" ||
-               funcName == "__builtin_memmove_inline") {
-      intrin = rewriter.getStringAttr("llvm.memmove");
-    } else if (funcName == "__builtin_memset" ||
+               funcName == "__builtin_memcpy_inline" ||
+               funcName == "__builtin_memmove" ||
+               funcName == "__builtin_memmove_inline" ||
+               funcName == "__builtin_memset" ||
                funcName == "__builtin_memset_inline") {
-      intrin = rewriter.getStringAttr("llvm.memset");
-      // append isVolatile=false to the inputs for memset
+      const bool isMemset = funcName == "__builtin_memset" ||
+                            funcName == "__builtin_memset_inline";
+      const bool isMemmove = funcName == "__builtin_memmove" ||
+                             funcName == "__builtin_memmove_inline";
+      intrin = rewriter.getStringAttr(isMemset    ? "llvm.memset"
+                                      : isMemmove ? "llvm.memmove"
+                                                  : "llvm.memcpy");
       inputs.push_back(LLVM::ConstantOp::create(
           rewriter, loc, rewriter.getI1Type(),
           rewriter.getIntegerAttr(rewriter.getI1Type(), 0)));
+      LLVM::CallIntrinsicOp::create(rewriter, loc, intrin,
+                                    mlir::ValueRange{inputs});
+      if (op->getNumResults() == 0) {
+        rewriter.eraseOp(op);
+      } else {
+        rewriter.replaceOp(op, inputs[0]);
+      }
+      return success();
     } else if (funcName == "__builtin_ctzll" || funcName == "__builtin_ctzl" ||
                funcName == "__builtin_ctz") {
       intrin = rewriter.getStringAttr("llvm.cttz");
+    } else if (funcName == "__builtin_clzll" || funcName == "__builtin_clzl" ||
+               funcName == "__builtin_clz") {
+      intrin = rewriter.getStringAttr("llvm.ctlz");
     }
 
     if (!intrin) {
@@ -1016,7 +1122,6 @@ class PtrAddOpLowering : public OpConversionPattern<cxx::PtrAddOp> {
     if (cxxElementType && !isa<cxx::VoidType>(cxxElementType)) {
       elementType = typeConverter->convertType(cxxElementType);
     } else {
-      // treat void* and unknown pointer arithmetic like i8*
       elementType = IntegerType::get(context, 8);
     }
 
@@ -1069,7 +1174,6 @@ class PtrDiffOpLowering : public OpConversionPattern<cxx::PtrDiffOp> {
 
     mlir::Value diff = LLVM::SubOp::create(rewriter, loc, resultType, lhs, rhs);
 
-    // divide by sizeof(element_type)
     auto ptrType = dyn_cast<cxx::PointerType>(op.getLhs().getType());
     if (ptrType) {
       auto cxxElementType = ptrType.getElementType();
@@ -1324,7 +1428,6 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
     }
 
     if (inputType == resultType) {
-      // nop
       rewriter.replaceOp(op, adaptor.getValue());
       return success();
     }
@@ -1344,7 +1447,6 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
       return success();
     }
 
-    // LLVM bitcast for other cases
     rewriter.replaceOp(
         op, LLVM::BitcastOp::create(rewriter, op.getLoc(), resultType,
                                     adaptor.getValue()));
@@ -1493,8 +1595,6 @@ class InsertValueOpLowering : public OpConversionPattern<cxx::InsertValueOp> {
 
     mlir::Value insertedValue = adaptor.getValue();
 
-    // The CXX dialect may use i1 for bool fields, but the LLVM struct uses i8.
-    // Extend or truncate the value to match the expected field type.
     if (auto structType =
             mlir::dyn_cast<mlir::LLVM::LLVMStructType>(resultType)) {
       auto fieldTypes = structType.getBody();
@@ -1546,8 +1646,7 @@ class BitfieldLoadOpLowering : public OpConversionPattern<cxx::BitfieldLoadOp> {
           op, "failed to convert bitfield load result type");
     }
 
-    auto storageSizeBytes =
-        static_cast<unsigned>(op.getAlignment());  // repurposed as size
+    auto storageSizeBytes = static_cast<unsigned>(op.getAlignment());
     auto storageSizeBits = storageSizeBytes * 8;
     auto bitOffset = static_cast<unsigned>(op.getBitOffset());
     auto bitWidth = static_cast<unsigned>(op.getBitWidth());
@@ -1555,14 +1654,11 @@ class BitfieldLoadOpLowering : public OpConversionPattern<cxx::BitfieldLoadOp> {
 
     auto storageType = IntegerType::get(context, storageSizeBits);
 
-    // Load the entire storage unit
     auto loaded = LLVM::LoadOp::create(rewriter, loc, storageType,
                                        adaptor.getAddr(), storageSizeBytes);
 
     mlir::Value extracted;
     if (isSigned) {
-      // Signed: shift left to put the field in the MSB, then arithmetic
-      // shift right
       auto shlAmount = storageSizeBits - bitOffset - bitWidth;
       auto shrAmount = storageSizeBits - bitWidth;
 
@@ -1576,7 +1672,6 @@ class BitfieldLoadOpLowering : public OpConversionPattern<cxx::BitfieldLoadOp> {
           rewriter.getIntegerAttr(storageType, shrAmount));
       extracted = LLVM::AShrOp::create(rewriter, loc, shifted, shrConst);
     } else {
-      // Unsigned: shift right, then mask
       auto shrConst = LLVM::ConstantOp::create(
           rewriter, loc, storageType,
           rewriter.getIntegerAttr(storageType, bitOffset));
@@ -1589,7 +1684,6 @@ class BitfieldLoadOpLowering : public OpConversionPattern<cxx::BitfieldLoadOp> {
       extracted = LLVM::AndOp::create(rewriter, loc, shifted, maskConst);
     }
 
-    // Convert to result type (may need trunc or ext)
     auto resultBits = resultType.getIntOrFloatBitWidth();
     if (resultBits < storageSizeBits) {
       extracted = LLVM::TruncOp::create(rewriter, loc, resultType, extracted);
@@ -1625,19 +1719,16 @@ class BitfieldStoreOpLowering
     auto context = getContext();
     auto loc = op.getLoc();
 
-    auto storageSizeBytes =
-        static_cast<unsigned>(op.getAlignment());  // repurposed as size
+    auto storageSizeBytes = static_cast<unsigned>(op.getAlignment());
     auto storageSizeBits = storageSizeBytes * 8;
     auto bitOffset = static_cast<unsigned>(op.getBitOffset());
     auto bitWidth = static_cast<unsigned>(op.getBitWidth());
 
     auto storageType = IntegerType::get(context, storageSizeBits);
 
-    // Load current storage value
     auto loaded = LLVM::LoadOp::create(rewriter, loc, storageType,
                                        adaptor.getAddr(), storageSizeBytes);
 
-    // Prepare the value to store - truncate/extend to storage type
     auto value = adaptor.getValue();
     auto valueBits = value.getType().getIntOrFloatBitWidth();
     if (valueBits > storageSizeBits) {
@@ -1646,7 +1737,6 @@ class BitfieldStoreOpLowering
       value = LLVM::ZExtOp::create(rewriter, loc, storageType, value);
     }
 
-    // Mask the value to bitWidth bits
     auto fieldMask = (1ULL << bitWidth) - 1;
     auto fieldMaskConst = LLVM::ConstantOp::create(
         rewriter, loc, storageType,
@@ -1654,14 +1744,12 @@ class BitfieldStoreOpLowering
     auto maskedValue =
         LLVM::AndOp::create(rewriter, loc, value, fieldMaskConst);
 
-    // Shift value into position
     auto shiftConst = LLVM::ConstantOp::create(
         rewriter, loc, storageType,
         rewriter.getIntegerAttr(storageType, bitOffset));
     auto shiftedValue =
         LLVM::ShlOp::create(rewriter, loc, maskedValue, shiftConst);
 
-    // Clear the target bits in the loaded value
     auto clearMask = ~(fieldMask << bitOffset);
     auto clearMaskConst = LLVM::ConstantOp::create(
         rewriter, loc, storageType,
@@ -1669,11 +1757,9 @@ class BitfieldStoreOpLowering
     auto clearedLoaded =
         LLVM::AndOp::create(rewriter, loc, loaded, clearMaskConst);
 
-    // Combine
     auto combined =
         LLVM::OrOp::create(rewriter, loc, clearedLoaded, shiftedValue);
 
-    // Store back
     rewriter.replaceOp(
         op, LLVM::StoreOp::create(rewriter, loc, combined, adaptor.getAddr(),
                                   storageSizeBytes));
@@ -1699,14 +1785,12 @@ class CxxToLLVMLoweringPass
 
   void runOnOperation() final;
 };
-
 }  // namespace
 
 void CxxToLLVMLoweringPass::runOnOperation() {
   auto context = &getContext();
   auto module = getOperation();
 
-  // set up the type converter
   LLVMTypeConverter typeConverter{context};
 
   typeConverter.addConversion([](cxx::ExprType type) -> Type { return type; });
@@ -1769,7 +1853,6 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       auto convertedFieldType = field.isInteger(1)
                                     ? getBoolMemoryType(type.getContext())
                                     : typeConverter.convertType(field);
-      // todo: check if the field type was converted successfully
       fieldTypes.push_back(convertedFieldType);
     }
 
@@ -1784,7 +1867,6 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     return structType;
   });
 
-  // set up the conversion patterns
   ConversionTarget target(*context);
 
   bool needsComdat = targetNeedsComdat(module);
@@ -1793,21 +1875,18 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   target.addIllegalDialect<cxx::CxxDialect>();
   target.addIllegalDialect<arith::ArithDialect>();
 
-  // Keep todo ops legal - they signal unresolved AST/type checker issues
-  // and must not be lowered to object code.
   target.addLegalOp<cxx::TodoExprOp, cxx::TodoStmtOp>();
 
   RewritePatternSet patterns(context);
 
-  // globals
   patterns.insert<FuncOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<GlobalOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<VTableOpLowering>(typeConverter, needsComdat, context);
-  patterns.insert<ReturnOpLowering, CallOpLowering, BuiltinCallOpLowering,
-                  AddressOfOpLowering, DynAllocaOpLowering>(typeConverter,
-                                                            context);
+  patterns
+      .insert<ReturnOpLowering, UnreachableOpLowering, CallOpLowering,
+              BuiltinCallOpLowering, AddressOfOpLowering, DynAllocaOpLowering>(
+          typeConverter, context);
 
-  // memory operations
   DataLayout dataLayout{module};
 
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
@@ -1815,35 +1894,29 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                   BitfieldLoadOpLowering, BitfieldStoreOpLowering>(
       typeConverter, dataLayout, context);
 
-  // cast operations
   patterns.insert<ArrayToPointerOpLowering, PtrToIntOpLowering,
                   IntToPtrOpLowering, BitcastOpLowering, MemCpyOpLowering>(
       typeConverter, context);
 
-  // indirect goto
   patterns.insert<LabelAddressOpLowering, IndirectGotoOpLowering>(typeConverter,
                                                                   context);
 
-  // constant operations
   patterns.insert<NullPtrConstantOpLowering, ZeroOpLowering, UndefOpLowering,
                   ReshapeOpLowering, InsertValueOpLowering>(typeConverter,
                                                             context);
 
-  // pointer arithmetic operations
   patterns.insert<PtrAddOpLowering, PtrDiffOpLowering>(typeConverter,
                                                        dataLayout, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);
 
-  // arith dialect lowering
   arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
 
   cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
 
 #if false
   {
-    // remove unreachable code
     IRRewriter rewriter(context);
     module.walk([&](cxx::FuncOp funcOp) {
       for (auto& region : funcOp->getRegions()) {
@@ -1853,9 +1926,43 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   }
 #endif
 
+  SmallVector<Attribute> globalCtors;
+  module.walk([&](cxx::FuncOp funcOp) {
+    if (!funcOp->hasAttr("cxx.global_ctor")) return;
+    funcOp->removeAttr("cxx.global_ctor");
+    globalCtors.push_back(FlatSymbolRefAttr::get(funcOp.getSymNameAttr()));
+  });
+
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
     signalPassFailure();
     return;
+  }
+
+  if (!globalCtors.empty()) {
+    auto loc = module.getLoc();
+    OpBuilder ctorBuilder(context);
+    ctorBuilder.setInsertionPointToEnd(module.getBody());
+
+    auto voidTy = LLVM::LLVMVoidType::get(context);
+    auto subFnTy = LLVM::LLVMFunctionType::get(voidTy, {});
+    auto subFn =
+        LLVM::LLVMFuncOp::create(ctorBuilder, loc, "_GLOBAL__sub_I_main",
+                                 subFnTy, LLVM::Linkage::Internal);
+    auto* entry = subFn.addEntryBlock(ctorBuilder);
+    ctorBuilder.setInsertionPointToStart(entry);
+    for (auto ctor : globalCtors) {
+      LLVM::CallOp::create(ctorBuilder, loc, TypeRange{},
+                           cast<FlatSymbolRefAttr>(ctor), ValueRange{});
+    }
+    LLVM::ReturnOp::create(ctorBuilder, loc, ValueRange{});
+
+    ctorBuilder.setInsertionPointToEnd(module.getBody());
+    LLVM::GlobalCtorsOp::create(
+        ctorBuilder, loc,
+        ctorBuilder.getArrayAttr(
+            {FlatSymbolRefAttr::get(subFn.getSymNameAttr())}),
+        ctorBuilder.getArrayAttr({ctorBuilder.getI32IntegerAttr(65535)}),
+        ctorBuilder.getArrayAttr({LLVM::ZeroAttr::get(context)}));
   }
 
   auto targetTriple =
@@ -1870,7 +1977,6 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   module->setAttr(LLVM::LLVMDialect::getDataLayoutAttrName(),
                   mlir::StringAttr::get(context, dataLayoutDescr.str()));
 }
-
 }  // namespace mlir
 
 auto cxx::createLowerToLLVMPass() -> std::unique_ptr<mlir::Pass> {
@@ -1880,7 +1986,6 @@ auto cxx::createLowerToLLVMPass() -> std::unique_ptr<mlir::Pass> {
 auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
   mlir::PassManager pm(module->getName());
 
-  // debug dialect conversions
 #if false
   module->getContext()->disableMultithreading();
   pm.enableIRPrinting();

@@ -1950,6 +1950,11 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
     accept.writeToken(ast->semicolonLoc);
     newline();
   }
+  accept(ast->hiddenVariable);
+
+  for (auto it = ast->bindingDeclaratorList; it; it = it->next) {
+    accept(it->value);
+  }
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(LabeledStatementAST* ast) {
@@ -4461,6 +4466,7 @@ void ASTPrettyPrinter::LambdaCaptureVisitor::operator()(
   if (ast->thisLoc) {
     accept.writeToken(ast->thisLoc);
   }
+  accept(ast->initializer);
 }
 
 void ASTPrettyPrinter::LambdaCaptureVisitor::operator()(
@@ -4481,6 +4487,7 @@ void ASTPrettyPrinter::LambdaCaptureVisitor::operator()(
   if (ast->ellipsisLoc) {
     accept.writeToken(ast->ellipsisLoc);
   }
+  accept(ast->initializer);
 }
 
 void ASTPrettyPrinter::LambdaCaptureVisitor::operator()(
@@ -4494,6 +4501,7 @@ void ASTPrettyPrinter::LambdaCaptureVisitor::operator()(
   if (ast->ellipsisLoc) {
     accept.writeToken(ast->ellipsisLoc);
   }
+  accept(ast->initializer);
 }
 
 void ASTPrettyPrinter::LambdaCaptureVisitor::operator()(

@@ -24,20 +24,36 @@ S<char> v2;
 // CHECK-NEXT:      class S<int>
 // CHECK-NEXT:        constructor defaulted void S()
 // CHECK-NEXT:        constructor defaulted void S(const ::S<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::S<int>&
 // CHECK-NEXT:        constructor defaulted void S(::S<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::S<int>&&
 // CHECK-NEXT:        injected class name S
 // CHECK-NEXT:        field int value
 // CHECK-NEXT:        function defaulted ::S<int>& operator =(const ::S<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::S<int>&
 // CHECK-NEXT:        function defaulted ::S<int>& operator =(::S<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::S<int>&&
 // CHECK-NEXT:        function defaulted void ~S()
 // CHECK-NEXT:      class S<char>
 // CHECK-NEXT:        constructor defaulted void S()
 // CHECK-NEXT:        constructor defaulted void S(const ::S<char>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::S<char>&
 // CHECK-NEXT:        constructor defaulted void S(::S<char>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::S<char>&&
 // CHECK-NEXT:        injected class name S
 // CHECK-NEXT:        field char value
 // CHECK-NEXT:        function defaulted ::S<char>& operator =(const ::S<char>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::S<char>&
 // CHECK-NEXT:        function defaulted ::S<char>& operator =(::S<char>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::S<char>&&
 // CHECK-NEXT:        function defaulted void ~S()
 // CHECK-NEXT:  variable ::S<float>* p1
 // CHECK-NEXT:  variable ::S<float>& r1

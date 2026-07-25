@@ -27,6 +27,7 @@
 #include <cxx/types_fwd.h>
 
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -34,7 +35,6 @@
 #include <vector>
 
 namespace cxx {
-
 class Meta;
 class InitializerList;
 class ConstObject;
@@ -62,12 +62,12 @@ class ConstObject {
 
   explicit ConstObject(const Type* type) : type_(type) {}
 
-  ConstObject(const Type* type, std::vector<Field> fields)
+  ConstObject(const Type* type, std::deque<Field> fields)
       : type_(type), fields_(std::move(fields)) {}
 
   [[nodiscard]] auto type() const -> const Type* { return type_; }
 
-  [[nodiscard]] auto fields() const -> const std::vector<Field>& {
+  [[nodiscard]] auto fields() const -> const std::deque<Field>& {
     return fields_;
   }
 
@@ -79,7 +79,29 @@ class ConstObject {
     for (const auto& f : fields_) {
       if (f.symbol == symbol) return &f.value;
     }
+    for (const auto& base : bases_) {
+      if (auto obj = std::get_if<std::shared_ptr<ConstObject>>(&base)) {
+        if (*obj) {
+          if (auto found = (*obj)->getField(symbol)) return found;
+        }
+      }
+    }
     return nullptr;
+  }
+
+  [[nodiscard]] auto getFieldMutable(const Symbol* symbol) -> ConstValue* {
+    for (auto& f : fields_) {
+      if (f.symbol == symbol) return &f.value;
+    }
+    for (auto& base : bases_) {
+      if (auto obj = std::get_if<std::shared_ptr<ConstObject>>(&base)) {
+        if (*obj) {
+          if (auto found = (*obj)->getFieldMutable(symbol)) return found;
+        }
+      }
+    }
+    fields_.push_back({symbol, ConstValue{std::intmax_t{0}}});
+    return &fields_.back().value;
   }
 
   void setField(const Symbol* symbol, ConstValue value) {
@@ -102,7 +124,7 @@ class ConstObject {
 
  private:
   const Type* type_ = nullptr;
-  std::vector<Field> fields_;
+  std::deque<Field> fields_;
   std::vector<ConstValue> bases_;
 };
 
@@ -121,11 +143,26 @@ class ConstAddress {
   explicit ConstAddress(Symbol* symbol, std::intmax_t offset = 0)
       : symbol_(symbol), offset_(offset) {}
 
+  explicit ConstAddress(const StringLiteral* string, std::intmax_t offset = 0)
+      : string_(string), offset_(offset) {}
+
+  ConstAddress(std::shared_ptr<ConstObject> owner, Symbol* symbol,
+               std::intmax_t offset = 0)
+      : symbol_(symbol), owner_(std::move(owner)), offset_(offset) {}
+
   [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
+  [[nodiscard]] auto owner() const -> const std::shared_ptr<ConstObject>& {
+    return owner_;
+  }
+  [[nodiscard]] auto stringLiteral() const -> const StringLiteral* {
+    return string_;
+  }
   [[nodiscard]] auto offset() const -> std::intmax_t { return offset_; }
 
  private:
   Symbol* symbol_ = nullptr;
+  std::shared_ptr<ConstObject> owner_;
+  const StringLiteral* string_ = nullptr;
   std::intmax_t offset_ = 0;
 };
 
@@ -138,5 +175,4 @@ class ConstLabelAddress {
  private:
   std::string name_;
 };
-
 }  // namespace cxx

@@ -18,16 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/token.h>
-
-// cxx
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/token.h>
 
 namespace cxx {
-
 namespace {
-
 std::string token_spell[] = {
 #define TOKEN_SPELL(_, s) s,
     FOR_EACH_TOKEN(TOKEN_SPELL)};
@@ -43,6 +39,10 @@ std::string builtin_spell[] = {
     "", FOR_EACH_BUILTIN_TYPE_TRAIT(BUILTIN_SPELL)};
 #undef BUILTIN_SPELL
 
+std::string builtin_function_spell[] = {
+#define BUILTIN_FUNCTION_SPELL(_, s) s,
+    "", FOR_EACH_BUILTIN_FUNCTION(BUILTIN_FUNCTION_SPELL)};
+#undef BUILTIN_FUNCTION_SPELL
 }  // namespace
 
 auto Token::spell(TokenKind kind) -> const std::string& {
@@ -51,6 +51,10 @@ auto Token::spell(TokenKind kind) -> const std::string& {
 
 auto Token::spell(BuiltinTypeTraitKind kind) -> const std::string& {
   return builtin_spell[static_cast<int>(kind)];
+}
+
+auto Token::spell(BuiltinFunctionKind kind) -> const std::string& {
+  return builtin_function_spell[static_cast<int>(kind)];
 }
 
 auto Token::spell() const -> const std::string& {
@@ -72,7 +76,7 @@ auto Token::spell() const -> const std::string& {
 
     default:
       return spell(kind());
-  }  // switch
+  }
 }
 
 auto Token::name(TokenKind kind) -> const std::string& {
@@ -91,7 +95,7 @@ auto Token::isBuiltinTypeTrait(BuiltinTypeTraitKind kind) -> bool {
 
     default:
       return false;
-  }  // switch
+  }
 
 #undef BUILTIN_TYPE_TRAIT
 }
@@ -113,5 +117,4 @@ auto Token::builtinFunction() const -> BuiltinFunctionKind {
   if (!id) return BuiltinFunctionKind::T_NONE;
   return id->builtinFunction();
 }
-
 }  // namespace cxx

@@ -18,10 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_interpreter.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -33,7 +31,6 @@
 #include <format>
 
 namespace cxx {
-
 struct ASTInterpreter::PtrOperatorVisitor {
   ASTInterpreter& interp;
 
@@ -170,7 +167,6 @@ auto ASTInterpreter::initDeclarator(InitDeclaratorAST* ast)
 
   auto declaratorResult = declarator(ast->declarator);
   auto requiresClauseResult = requiresClause(ast->requiresClause);
-  auto initializerResult = expression(ast->initializer);
 
   return {};
 }
@@ -375,12 +371,14 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
+  std::vector<ConstValue> args;
   for (auto node : ListView{ast->expressionList}) {
     auto value = interp.evaluate(node);
-    if (value.has_value() && ast->symbol && interp.thisObject()) {
-      interp.thisObject()->setField(ast->symbol, std::move(*value));
-    }
+    if (!value) return {};
+    args.push_back(std::move(*value));
   }
+
+  interp.applyMemInitializer(ast, std::move(args));
 
   return {};
 }
@@ -390,12 +388,21 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
   auto nestedNameSpecifierResult =
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
-  auto bracedInitListResult = interp.expression(ast->bracedInitList);
 
-  if (bracedInitListResult.has_value() && ast->symbol && interp.thisObject()) {
-    interp.thisObject()->setField(ast->symbol,
-                                  std::move(*bracedInitListResult));
+  std::vector<ConstValue> args;
+  if (ast->constructor && ast->bracedInitList) {
+    for (auto node : ListView{ast->bracedInitList->expressionList}) {
+      auto value = interp.evaluate(node);
+      if (!value) return {};
+      args.push_back(std::move(*value));
+    }
+  } else {
+    auto bracedInitListResult = interp.expression(ast->bracedInitList);
+    if (bracedInitListResult.has_value())
+      args.push_back(std::move(*bracedInitListResult));
   }
+
+  interp.applyMemInitializer(ast, std::move(args));
 
   return {};
 }
@@ -433,5 +440,4 @@ auto ASTInterpreter::LambdaCaptureVisitor::operator()(InitLambdaCaptureAST* ast)
 
   return {};
 }
-
 }  // namespace cxx

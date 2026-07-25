@@ -18,11 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_rewriter.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -35,7 +33,6 @@
 #include <format>
 
 namespace cxx {
-
 struct ASTRewriter::CoreDeclaratorVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -245,6 +242,15 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->isVariadic = ast->isVariadic;
 
+  if (ast->functionParametersSymbol && copy->functionParametersSymbol) {
+    auto& oldParams = ast->functionParametersSymbol->members();
+    auto& newParams = copy->functionParametersSymbol->members();
+    auto n = std::min(oldParams.size(), newParams.size());
+    for (std::size_t i = 0; i < n; ++i) {
+      addSymbolRemap(oldParams[i], newParams[i]);
+    }
+  }
+
   return copy;
 }
 
@@ -270,6 +276,9 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   copy->declarator = declarator(ast->declarator);
 
   auto decl = Decl{declSpecs, copy->declarator};
+  if (!decl.specs.templateHead && currentTemplateHead_) {
+    decl.specs.templateHead = currentTemplateHead_;
+  }
 
   auto type =
       getDeclaratorType(translationUnit(), copy->declarator, declSpecs.type());
@@ -277,12 +286,25 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   const auto addSymbolToParentScope =
       binder().instantiatingSymbol() != ast->symbol;
 
-  // ### fix scope
   if (binder_.scope()->isClass()) {
     auto symbol = binder_.declareMemberSymbol(copy->declarator, decl);
     copy->symbol = symbol;
+
+    if (auto funcSymbol = symbol_cast<FunctionSymbol>(symbol)) {
+      if (auto functionDeclarator = getFunctionPrototype(copy->declarator)) {
+        if (auto params = functionDeclarator->parameterDeclarationClause) {
+          funcSymbol->addSymbol(params->functionParametersSymbol);
+        }
+      }
+    }
+
+    if (auto newField = symbol_cast<FieldSymbol>(symbol)) {
+      if (auto oldField = symbol_cast<FieldSymbol>(ast->symbol);
+          oldField && oldField->isNoUniqueAddress()) {
+        newField->setNoUniqueAddress(true);
+      }
+    }
   } else {
-    // todo: move to Binder
     if (auto declId = decl.declaratorId; declId) {
       if (decl.specs.isTypedef) {
         auto typedefSymbol = binder_.declareTypedef(copy->declarator, decl);
@@ -297,10 +319,12 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       } else {
         auto variableSymbol = binder_.declareVariable(copy->declarator, decl,
                                                       addSymbolToParentScope);
-        // variableSymbol->setTemplateDeclaration(templateHead);
         copy->symbol = variableSymbol;
 
-        if (!addSymbolToParentScope) {
+        auto declScope = decl.getScope();
+        const auto isOutOfClassMemberDef = declScope && declScope->isClass();
+
+        if (!addSymbolToParentScope && !isOutOfClassMemberDef) {
           auto templateVariable = symbol_cast<VariableSymbol>(ast->symbol);
           templateVariable->addSpecialization(templateArguments(),
                                               variableSymbol);
@@ -310,6 +334,15 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   }
 
   copy->requiresClause = requiresClause(ast->requiresClause);
+
+  if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol);
+      fieldSymbol && !fieldSymbol->isStatic() && classBodyDepth_ > 0) {
+    addSymbolRemap(ast->symbol, copy->symbol);
+    if (ast->initializer)
+      pendingFieldInitializers_.push_back({ast, copy, binder_.scope()});
+    return copy;
+  }
+
   copy->initializer = expression(ast->initializer);
 
   addSymbolRemap(ast->symbol, copy->symbol);
@@ -317,6 +350,10 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol)) {
     if (copy->initializer) {
       fieldSymbol->setInitializer(copy->initializer);
+
+      auto typeChecker = TypeChecker{unit_};
+      typeChecker.setScope(binder_.scope());
+      typeChecker.check_field_initializer(fieldSymbol);
     }
   } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
     auto typeChecker = TypeChecker{unit_};
@@ -325,6 +362,34 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   }
 
   return copy;
+}
+
+void ASTRewriter::completePendingFieldInitializers(std::size_t mark) {
+  if (pendingFieldInitializers_.size() <= mark) return;
+
+  std::vector<PendingFieldInitializer> pending{
+      pendingFieldInitializers_.begin() + mark,
+      pendingFieldInitializers_.end()};
+
+  pendingFieldInitializers_.resize(mark);
+
+  auto savedScope = binder_.scope();
+
+  for (const auto& entry : pending) {
+    binder_.setScope(entry.scope);
+    entry.instance->initializer = expression(entry.pattern->initializer);
+
+    auto fieldSymbol = symbol_cast<FieldSymbol>(entry.instance->symbol);
+    if (!fieldSymbol || !entry.instance->initializer) continue;
+
+    fieldSymbol->setInitializer(entry.instance->initializer);
+
+    auto typeChecker = TypeChecker{unit_};
+    typeChecker.setScope(entry.scope);
+    typeChecker.check_field_initializer(fieldSymbol);
+  }
+
+  binder_.setScope(savedScope);
 }
 
 auto ASTRewriter::declarator(DeclaratorAST* ast) -> DeclaratorAST* {
@@ -592,5 +657,4 @@ auto ASTRewriter::ExceptionSpecifierVisitor::operator()(
 
   return copy;
 }
-
 }  // namespace cxx

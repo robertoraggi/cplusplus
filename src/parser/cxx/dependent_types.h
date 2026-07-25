@@ -24,8 +24,25 @@
 #include <cxx/types_fwd.h>
 
 namespace cxx {
-
 class TranslationUnit;
+class Symbol;
+class ScopeSymbol;
+
+[[nodiscard]] auto isEnclosedInDependentTemplate(
+    TranslationUnit* unit, ScopeSymbol* scope,
+    bool stopAtConcreteSpecialization = false) -> bool;
+
+[[nodiscard]] auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto isDependentNestedNameSpecifier(NestedNameSpecifierAST* ast)
+    -> bool;
+
+[[nodiscard]] auto isDependentTemplateArgument(TranslationUnit* unit,
+                                               TemplateArgumentAST* arg)
+    -> bool;
+
+[[nodiscard]] auto hasDependentTemplateArguments(
+    TranslationUnit* unit, SimpleTemplateIdAST* templateId) -> bool;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit, ExpressionAST* ast)
     -> bool;
@@ -39,5 +56,4 @@ class TranslationUnit;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit,
                                NestedNameSpecifierAST* ast) -> bool;
-
 }  // namespace cxx

@@ -29,7 +29,6 @@
 #include <vector>
 
 namespace cxx {
-
 auto to_string(const CLIMatch& match) -> std::string {
   struct Process {
     auto operator()(const CLIFlag& o) const -> std::string {
@@ -48,7 +47,6 @@ auto to_string(const CLIMatch& match) -> std::string {
 }
 
 namespace {
-
 enum class CLIOptionDescrKind {
   kFlag,
   kJoined,
@@ -145,6 +143,12 @@ std::vector<CLIOptionDescr> options{
 
     {"-c", "Compile and assemble, but do not link", &CLI::opt_c,
      CLIOptionVisibility::kExperimental},
+
+    {"-flink", "Compile the inputs and link them into an executable",
+     &CLI::opt_link, CLIOptionVisibility::kExperimental},
+
+    {"-l", "<library>", "Link against the library named <library>",
+     CLIOptionDescrKind::kSeparated, CLIOptionVisibility::kExperimental},
 
     {"-g", "Generate debug information", &CLI::opt_g,
      CLIOptionVisibility::kExperimental},
@@ -253,20 +257,15 @@ std::vector<CLIOptionDescr> options{
     {"-ferror-limit", "<N>",
      "Set the maximum number of errors to emit before stopping (0 = no limit)",
      CLIOptionDescrKind::kSeparated},
-
 };
 
 #ifndef CXX_NO_FILESYSTEM
 
-/**
- * Retuns the system path found in the PATH environment variable.
- */
 auto getSystemPaths() -> std::vector<fs::path> {
   std::vector<fs::path> paths;
 
   char sep = ':';
 
-  // if on windows use ';' as separator
 #ifdef _WIN32
   sep = ';';
 #endif
@@ -284,7 +283,6 @@ auto getSystemPaths() -> std::vector<fs::path> {
 }
 
 #endif
-
 }  // namespace
 
 CLI::CLI() = default;
@@ -353,6 +351,23 @@ void CLI::parse(int& argc, char**& argv) {
       continue;
     }
 
+    if (arg.starts_with("-Wl,")) {
+      std::string payload = arg.substr(4);
+      std::istringstream iss(payload);
+      std::string token;
+      while (std::getline(iss, token, ',')) forwardedArgs_.push_back(token);
+      continue;
+    }
+
+    if (arg == "-Xlinker") {
+      if (i < argc) {
+        forwardedArgs_.emplace_back(argv[i++]);
+      } else {
+        std::cerr << std::format("missing argument after '{}'\n", arg);
+      }
+      continue;
+    }
+
     const auto eq = arg.find_first_of('=');
 
     if (eq) {
@@ -403,9 +418,7 @@ void CLI::parse(int& argc, char**& argv) {
       continue;
     }
 
-#if false
-    std::cerr << std::format("unsupported option '{}'\n", arg);
-#endif
+    forwardedArgs_.push_back(arg);
   }
 }
 
@@ -435,9 +448,8 @@ void CLI::showHelp() {
         info = std::format("{}", opt.option);
         break;
       }
-    }  // switch
+    }
     std::cerr << std::format("  {:<28} {}\n", info, opt.help);
   }
 }
-
 }  // namespace cxx

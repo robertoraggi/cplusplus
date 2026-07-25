@@ -32,10 +32,10 @@
 #include <vector>
 
 namespace cxx {
-
 class TranslationUnit;
 class Control;
 class Arena;
+class FieldSymbol;
 
 class [[nodiscard]] ASTRewriter {
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
@@ -50,10 +50,24 @@ class [[nodiscard]] ASTRewriter {
   static auto instantiate(TranslationUnit* unit,
                           List<TemplateArgumentAST*>* templateArgumentList,
                           Symbol* symbol, SourceLocation instantiationLoc = {},
-                          bool sfinaeContext = false) -> Symbol*;
+                          bool sfinaeContext = false, bool argsComplete = false,
+                          bool declarationOnly = false) -> Symbol*;
+
+  static auto instantiateForArgs(
+      TranslationUnit* unit, List<TemplateArgumentAST*>* deducedArguments,
+      FunctionSymbol* function, SourceLocation instantiationLoc,
+      bool argsComplete, bool declarationOnly = false) -> FunctionSymbol*;
 
   static auto ensureCompleteClass(TranslationUnit* unit,
                                   ClassSymbol* classSymbol) -> bool;
+
+  [[nodiscard]] static auto evaluateConcept(
+      TranslationUnit* unit, ConceptSymbol* conceptSymbol,
+      List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool>;
+
+  static void markExplicitInstantiationDeclared(
+      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
+      Symbol* symbol);
 
   static void reportPendingInstantiationErrors(TranslationUnit* unit,
                                                Symbol* primaryTemplate,
@@ -63,7 +77,16 @@ class [[nodiscard]] ASTRewriter {
   static auto substituteDefaultTypeId(
       TranslationUnit* unit, TypeIdAST* typeId,
       const std::vector<TemplateArgument>& templateArguments, int depth,
-      TemplateParametersSymbol* templateParams) -> TypeIdAST*;
+      ScopeSymbol* scope) -> TypeIdAST*;
+
+  static auto substituteDefaultExpression(
+      TranslationUnit* unit, ExpressionAST* expression,
+      const std::vector<TemplateArgument>& templateArguments, int depth,
+      ScopeSymbol* scope) -> ExpressionAST*;
+
+  static auto findPartialSpecializationPattern(
+      TranslationUnit* unit, ClassSymbol* primary,
+      List<TemplateArgumentAST*>* templateArgumentList) -> ClassSymbol*;
 
   auto translationUnit() const -> TranslationUnit* { return unit_; }
 
@@ -81,9 +104,28 @@ class [[nodiscard]] ASTRewriter {
 
   auto statement(StatementAST* ast) -> StatementAST*;
 
- private:
-  void completePendingBody(FunctionSymbol* func);
+  auto completePendingBody(FunctionSymbol* func, bool captureBodyErrors = false)
+      -> std::vector<Diagnostic>;
 
+  static void completePendingMemberInstantiations(TranslationUnit* unit);
+
+  static auto completePendingBodyFor(TranslationUnit* unit,
+                                     FunctionSymbol* function,
+                                     bool captureBodyErrors = false)
+      -> std::vector<Diagnostic>;
+
+  void setInstantiatingFunctionTemplateSpecialization(bool value) {
+    instantiatingFunctionTemplateSpecialization_ = value;
+  }
+
+  void setDepth(int depth) { depth_ = depth; }
+  auto depth() const -> int { return depth_; }
+
+  void instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern);
+
+  void retryPendingMemberTemplateAttachment(FunctionSymbol* member);
+
+ private:
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
@@ -114,9 +156,19 @@ class [[nodiscard]] ASTRewriter {
   auto restrictedToDeclarations() const -> bool;
   void setRestrictedToDeclarations(bool restrictedToDeclarations);
 
-  // run on the base nodes
+  [[nodiscard]] auto substitutionFailed() const -> bool {
+    return substitutionFailed_;
+  }
+
+  void markSubstitutionFailure() {
+    if (!shouldCaptureBodyErrors()) substitutionFailed_ = true;
+  }
+
   auto unit(UnitAST* ast) -> UnitAST*;
   auto expression(ExpressionAST* ast) -> ExpressionAST*;
+
+  auto rewriteExpressionList(List<ExpressionAST*>* source)
+      -> List<ExpressionAST*>*;
   auto genericAssociation(GenericAssociationAST* ast) -> GenericAssociationAST*;
   auto designator(DesignatorAST* ast) -> DesignatorAST*;
   auto templateParameter(TemplateParameterAST* ast) -> TemplateParameterAST*;
@@ -138,7 +190,6 @@ class [[nodiscard]] ASTRewriter {
   auto attributeSpecifier(AttributeSpecifierAST* ast) -> AttributeSpecifierAST*;
   auto attributeToken(AttributeTokenAST* ast) -> AttributeTokenAST*;
 
-  // run on the misc nodes
   auto splicer(SplicerAST* ast) -> SplicerAST*;
   auto globalModuleFragment(GlobalModuleFragmentAST* ast)
       -> GlobalModuleFragmentAST*;
@@ -211,6 +262,10 @@ class [[nodiscard]] ASTRewriter {
 
   auto getTypeParameterPack(SpecifierAST* ast) -> ParameterPackSymbol*;
 
+  auto findReferencedParameterPack(AST* ast) -> ParameterPackSymbol*;
+
+  friend struct FindReferencedParameterPack;
+
   auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
   void addSymbolRemap(Symbol* oldSym, Symbol* newSym);
@@ -218,6 +273,11 @@ class [[nodiscard]] ASTRewriter {
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
 
   [[nodiscard]] auto remapSymbol(Symbol* sym) const -> Symbol*;
+
+  void pushLambdaCaptureFields(
+      std::unordered_map<Symbol*, FieldSymbol*> fields);
+  void popLambdaCaptureFields();
+  [[nodiscard]] auto lambdaCaptureField(Symbol* sym) const -> FieldSymbol*;
 
   TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
@@ -227,9 +287,33 @@ class [[nodiscard]] ASTRewriter {
   Binder binder_;
   std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
   std::unordered_map<Symbol*, Symbol*> symbolRemap_;
+  std::vector<std::unordered_map<Symbol*, FieldSymbol*>> lambdaCaptureFields_;
   TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
   bool restrictedToDeclarations_ = false;
-};
+  bool substitutionFailed_ = false;
 
+  bool instantiatingFunctionTemplateSpecialization_ = false;
+
+  int classBodyDepth_ = 0;
+
+  struct PendingFieldInitializer {
+    InitDeclaratorAST* pattern = nullptr;
+    InitDeclaratorAST* instance = nullptr;
+    ScopeSymbol* scope = nullptr;
+  };
+
+  std::vector<PendingFieldInitializer> pendingFieldInitializers_;
+
+ public:
+  [[nodiscard]] auto pendingFieldInitializerMark() const -> std::size_t {
+    return pendingFieldInitializers_.size();
+  }
+
+  void completePendingFieldInitializers(std::size_t mark);
+
+ private:
+  std::vector<FunctionSymbol*> pendingBodyCompletions_;
+  std::vector<ClassSymbol*> pendingOutOfClassMemberDefClasses_;
+};
 }  // namespace cxx

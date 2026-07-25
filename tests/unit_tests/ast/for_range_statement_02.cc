@@ -48,6 +48,7 @@ int main() {
 // CHECK-NEXT:                              int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 2
 // CHECK-NEXT:            for-range-statement
+// CHECK-NEXT:              is-pointer-iterator: true
 // CHECK-NEXT:              range-declaration: structured-binding-declaration
 // CHECK-NEXT:                decl-specifier-list
 // CHECK-NEXT:                  const-qualifier

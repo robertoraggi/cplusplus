@@ -1,4 +1,5 @@
 // RUN: %cxx -verify -fcheck %s
+// expected-no-diagnostics
 
 struct Buffer {
   int data[4];
@@ -8,6 +9,10 @@ struct Buffer {
 
 int test_subscript() {
   Buffer b{{1, 2, 3, 4}};
-  // expected-error@1 {{call to overloaded operator '[]' is ambiguous}}
+  return b[2];
+}
+
+int test_subscript_const() {
+  const Buffer b{{1, 2, 3, 4}};
   return b[2];
 }

@@ -39,7 +39,6 @@
 #include <vector>
 
 namespace cxx {
-
 class TranslationUnit {
  public:
   explicit TranslationUnit(DiagnosticsClient* diagosticsClient = nullptr);
@@ -62,6 +61,14 @@ class TranslationUnit {
 
   [[nodiscard]] auto globalScope() const -> ScopeSymbol*;
 
+  void addPendingMemberInstantiation(ClassSymbol* instance);
+  [[nodiscard]] auto takePendingMemberInstantiations()
+      -> std::vector<ClassSymbol*>;
+
+  void addPendingBodyCompletion(FunctionSymbol* function);
+  [[nodiscard]] auto takePendingBodyCompletions()
+      -> std::vector<FunctionSymbol*>;
+
   [[nodiscard]] auto fileName() const -> const std::string&;
 
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
@@ -74,7 +81,6 @@ class TranslationUnit {
 
   [[nodiscard]] auto config() const -> const ParserConfiguration&;
 
-  // set source and preprocess, deprecated.
   void setSource(std::string source, std::string fileName);
 
   void beginPreprocessing(std::string source, std::string fileName);
@@ -92,7 +98,6 @@ class TranslationUnit {
   void warning(SourceLocation loc, std::string message) const;
   void note(SourceLocation loc, std::string message) const;
 
-  // tokens
   [[nodiscard]] inline auto tokenCount() const -> unsigned {
     return static_cast<unsigned>(tokens_.size());
   }
@@ -149,6 +154,7 @@ class TranslationUnit {
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   NamespaceSymbol* globalNamespace_ = nullptr;
   ParserConfiguration config_;
+  std::vector<ClassSymbol*> pendingMemberInstantiations_;
+  std::vector<FunctionSymbol*> pendingBodyCompletions_;
 };
-
 }  // namespace cxx

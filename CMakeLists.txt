@@ -29,6 +29,10 @@ if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
+if (POLICY CMP0219)
+    cmake_policy(SET CMP0219 NEW)
+endif()
+
 include(FetchContent)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

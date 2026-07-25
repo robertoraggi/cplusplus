@@ -18,24 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/codegen.h>
-#include <cxx/mlir/cxx_dialect.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/mlir/codegen.h>
+#include <cxx/mlir/cxx_dialect.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
 #include <format>
+#include <limits>
 
 namespace cxx {
+namespace {
+auto emptyStorageType(mlir::MLIRContext* ctx) -> mlir::Type {
+  return mlir::cxx::ArrayType::get(ctx, mlir::IntegerType::get(ctx, 8), 0);
+}
+}  // namespace
 
 struct Codegen::ConvertType {
   Codegen& gen;
@@ -85,12 +89,14 @@ struct Codegen::ConvertType {
   auto operator()(const ScopedEnumType* type) -> mlir::Type;
   auto operator()(const MemberObjectPointerType* type) -> mlir::Type;
   auto operator()(const MemberFunctionPointerType* type) -> mlir::Type;
+  auto getMemberPointerIntType() -> mlir::Type;
   auto operator()(const NamespaceType* type) -> mlir::Type;
   auto operator()(const TypeParameterType* type) -> mlir::Type;
   auto operator()(const TemplateTypeParameterType* type) -> mlir::Type;
   auto operator()(const UnresolvedNameType* type) -> mlir::Type;
   auto operator()(const UnresolvedBoundedArrayType* type) -> mlir::Type;
   auto operator()(const UnresolvedUnderlyingType* type) -> mlir::Type;
+  auto operator()(const UnresolvedBuiltinType* type) -> mlir::Type;
   auto operator()(const OverloadSetType* type) -> mlir::Type;
   auto operator()(const BuiltinVaListType* type) -> mlir::Type;
   auto operator()(const BuiltinMetaInfoType* type) -> mlir::Type;
@@ -210,24 +216,23 @@ auto Codegen::ConvertType::operator()(const UnsignedInt128Type* type)
 }
 
 auto Codegen::ConvertType::operator()(const CharType* type) -> mlir::Type {
-  // todo: toolchain specific
   return getIntType(type, true);
 }
 
 auto Codegen::ConvertType::operator()(const Char8Type* type) -> mlir::Type {
-  return getIntType(type, false);  // unsigned 8-bit
+  return getIntType(type, false);
 }
 
 auto Codegen::ConvertType::operator()(const Char16Type* type) -> mlir::Type {
-  return getIntType(type, false);  // unsigned 16-bit
+  return getIntType(type, false);
 }
 
 auto Codegen::ConvertType::operator()(const Char32Type* type) -> mlir::Type {
-  return getIntType(type, false);  // unsigned 32-bit
+  return getIntType(type, false);
 }
 
 auto Codegen::ConvertType::operator()(const WideCharType* type) -> mlir::Type {
-  return getIntType(type, true);  // signed 32-bit on macOS/Unix
+  return getIntType(type, true);
 }
 
 auto Codegen::ConvertType::operator()(const FloatType* type) -> mlir::Type {
@@ -281,16 +286,7 @@ auto Codegen::ConvertType::operator()(const RvalueReferenceType* type)
 }
 
 auto Codegen::ConvertType::operator()(const FunctionType* type) -> mlir::Type {
-  mlir::SmallVector<mlir::Type> inputs;
-  for (auto argType : type->parameterTypes()) {
-    inputs.push_back(gen.convertType(argType));
-  }
-  mlir::SmallVector<mlir::Type> results;
-  if (!gen.unit_->typeTraits().is_void(type->returnType())) {
-    results.push_back(gen.convertType(type->returnType()));
-  }
-  return mlir::cxx::FunctionType::get(gen.context_, inputs, results,
-                                      type->isVariadic());
+  return gen.computeFunctionSignature(type, /*functionSymbol=*/nullptr);
 }
 
 auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
@@ -362,62 +358,142 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
     }
 
   } else {
-    std::map<std::uint32_t, mlir::Type> memberMap;
+    memberTypes =
+        gen.buildClassMemberTypes(classSymbol, /*includeVirtualBases=*/true);
+  }
 
-    auto layout = classSymbol->layout();
-    if (layout) {
-      if (layout->hasDirectVtable()) {
-        auto i8Type = mlir::IntegerType::get(gen.context_, 8);
-        auto ptrType = mlir::cxx::PointerType::get(gen.context_, i8Type);
-        memberMap[layout->vtableIndex()] = ptrType;
-      }
+  classType.setBody(memberTypes);
 
-      // Layout of parent classes
-      for (auto base : classSymbol->baseClasses()) {
-        auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
-        if (!baseSym) continue;
+  return classType;
+}
 
-        if (auto info = layout->getBaseInfo(baseSym)) {
-          const Type* baseType = base->type();
-          if (!baseType && base->symbol()) {
-            baseType = base->symbol()->type();
-          }
-          memberMap[info->index] = gen.convertType(baseType);
-        }
-      }
+auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
+                                    bool includeVirtualBases)
+    -> std::vector<mlir::Type> {
+  std::vector<mlir::Type> memberTypes;
 
-      // Layout of members
-      for (auto field :
-           views::members(classSymbol) | views::non_static_fields) {
-        if (auto info = layout->getFieldInfo(field)) {
-          if (memberMap.find(info->index) == memberMap.end()) {
-            if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
-              auto intType = mlir::IntegerType::get(
-                  gen.context_,
-                  static_cast<unsigned>(info->allocUnitSizeBytes * 8));
-              memberMap[info->index] = intType;
-            } else {
-              memberMap[info->index] = gen.convertType(field->type());
-            }
-          }
-        }
-      }
+  auto layout = classSymbol->layout();
+  if (!layout) return memberTypes;
 
-      // Fill memberTypes ensuring correct index mapping
-      if (!memberMap.empty()) {
-        // Find maximum index to size the vector
-        auto maxIndex = memberMap.rbegin()->first;
-        memberTypes.resize(maxIndex + 1);
+  std::map<std::uint32_t, mlir::Type> memberMap;
+  std::map<std::uint32_t, std::uint64_t> offsetByIndex;
+  std::map<std::uint32_t, ClassSymbol*> pendingBases;
 
-        // Fill explicitly
-        for (auto const& [index, type] : memberMap) {
-          memberTypes[index] = type;
-        }
+  if (layout->hasDirectVtable()) {
+    auto i8Type = mlir::IntegerType::get(context_, 8);
+    memberMap[layout->vtableIndex()] =
+        mlir::cxx::PointerType::get(context_, i8Type);
+    offsetByIndex[layout->vtableIndex()] = 0;
+  }
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (!includeVirtualBases && base->isVirtual()) continue;
+    auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseSym) continue;
+
+    auto info = layout->getBaseInfo(baseSym);
+    if (!info) continue;
+
+    const Type* baseType = base->type();
+    if (!baseType) baseType = baseSym->type();
+
+    offsetByIndex[info->index] = info->offset;
+    if (unit_->typeTraits().is_empty(baseType)) {
+      memberMap[info->index] = emptyStorageType(context_);
+    } else {
+      pendingBases[info->index] = baseSym;
+    }
+  }
+
+  if (includeVirtualBases) {
+    for (auto vbaseSym : layout->virtualBases()) {
+      auto info = layout->getBaseInfo(vbaseSym);
+      if (!info || memberMap.contains(info->index) ||
+          pendingBases.contains(info->index))
+        continue;
+
+      offsetByIndex[info->index] = info->offset;
+      if (unit_->typeTraits().is_empty(vbaseSym->type())) {
+        memberMap[info->index] = emptyStorageType(context_);
+      } else {
+        pendingBases[info->index] = vbaseSym;
       }
     }
   }
 
-  classType.setBody(memberTypes);
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    auto info = layout->getFieldInfo(field);
+    if (!info) continue;
+    if (memberMap.contains(info->index) || pendingBases.contains(info->index))
+      continue;
+
+    offsetByIndex[info->index] = info->offset;
+    if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
+      memberMap[info->index] = mlir::IntegerType::get(
+          context_, static_cast<unsigned>(info->allocUnitSizeBytes * 8));
+    } else if (field->isNoUniqueAddress() &&
+               unit_->typeTraits().is_empty(field->type())) {
+      memberMap[info->index] = emptyStorageType(context_);
+    } else {
+      memberMap[info->index] = convertType(field->type());
+    }
+  }
+
+  for (auto const& [index, baseSym] : pendingBases) {
+    auto next = offsetByIndex.upper_bound(index);
+    auto available = next != offsetByIndex.end()
+                         ? next->second - offsetByIndex[index]
+                         : std::numeric_limits<std::uint64_t>::max();
+    memberMap[index] = convertBaseEmbedding(baseSym, available);
+  }
+
+  if (!memberMap.empty()) {
+    memberTypes.resize(memberMap.rbegin()->first + 1);
+    for (auto const& [index, type] : memberMap) memberTypes[index] = type;
+  }
+
+  return memberTypes;
+}
+
+auto Codegen::convertBaseEmbedding(ClassSymbol* baseSymbol,
+                                   std::uint64_t availableBytes) -> mlir::Type {
+  auto rep = convertBaseSubobjectType(baseSymbol);
+
+  auto layout = baseSymbol->layout();
+  if (!layout || layout->virtualBases().empty()) return rep;
+
+  const auto reserve = layout->nonVirtualSize();
+  const auto align = layout->nonVirtualAlignment();
+  const auto natural = align ? (reserve + align - 1) / align * align : reserve;
+  if (natural <= availableBytes) return rep;
+
+  auto i8Type = mlir::IntegerType::get(context_, 8);
+  return mlir::cxx::ArrayType::get(context_, i8Type, availableBytes);
+}
+
+auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol) -> mlir::Type {
+  auto layout = classSymbol->layout();
+
+  if (!layout || layout->virtualBases().empty()) {
+    return convertType(classSymbol->type());
+  }
+
+  if (auto it = baseSubobjectTypeNames_.find(classSymbol);
+      it != baseSubobjectTypeNames_.end()) {
+    return it->second;
+  }
+
+  auto name = std::format("{}.base", to_string(classSymbol->name()));
+  auto classType = mlir::cxx::ClassType::getNamed(context_, name);
+  if (!classType.getBody().empty()) {
+    name = std::format("{}.$_{}", name, classSymbol->location().index());
+    classType = mlir::cxx::ClassType::getNamed(context_, name);
+  }
+
+  baseSubobjectTypeNames_[classSymbol] = classType;
+
+  classType.setBody(
+      buildClassMemberTypes(classSymbol, /*includeVirtualBases=*/false));
 
   return classType;
 }
@@ -433,14 +509,26 @@ auto Codegen::ConvertType::operator()(const ScopedEnumType* type)
   return mlir::IntegerType::get(gen.context_, 32);
 }
 
+auto Codegen::ConvertType::getMemberPointerIntType() -> mlir::Type {
+  return mlir::IntegerType::get(gen.context_,
+                                memoryLayout()->sizeOfPointer() * 8);
+}
+
 auto Codegen::ConvertType::operator()(const MemberObjectPointerType* type)
     -> mlir::Type {
-  return getExprType();
+  return getMemberPointerIntType();
 }
 
 auto Codegen::ConvertType::operator()(const MemberFunctionPointerType* type)
     -> mlir::Type {
-  return getExprType();
+  auto classType = mlir::cxx::ClassType::getNamed(gen.context_, "$memberfnptr");
+
+  if (classType.getBody().empty()) {
+    auto intType = getMemberPointerIntType();
+    (void)classType.setBody({intType, intType});
+  }
+
+  return classType;
 }
 
 auto Codegen::ConvertType::operator()(const NamespaceType* type) -> mlir::Type {
@@ -472,6 +560,11 @@ auto Codegen::ConvertType::operator()(const UnresolvedUnderlyingType* type)
   return getExprType();
 }
 
+auto Codegen::ConvertType::operator()(const UnresolvedBuiltinType* type)
+    -> mlir::Type {
+  return getExprType();
+}
+
 auto Codegen::ConvertType::operator()(const OverloadSetType* type)
     -> mlir::Type {
   return getExprType();
@@ -479,7 +572,6 @@ auto Codegen::ConvertType::operator()(const OverloadSetType* type)
 
 auto Codegen::ConvertType::operator()(const BuiltinVaListType* type)
     -> mlir::Type {
-  // todo: toolchain specific
   auto voidType = mlir::cxx::VoidType::get(gen.context_);
   return mlir::cxx::PointerType::get(gen.context_, voidType);
 }
@@ -502,5 +594,4 @@ auto Codegen::ConvertType::operator()(const UnresolvedBitIntType* type)
     -> mlir::Type {
   return getExprType();
 }
-
 }  // namespace cxx

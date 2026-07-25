@@ -18,26 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_rewriter.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/dependent_types.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <format>
 
 namespace cxx {
-
 struct ASTRewriter::SpecifierVisitor {
   ASTRewriter& rewrite;
   TemplateDeclarationAST* templateHead = nullptr;
@@ -146,7 +144,29 @@ struct ASTRewriter::SpecifierVisitor {
                              ClassSymbol* classSymbol);
 
   void rewriteClassBody(ClassSpecifierAST* ast, ClassSpecifierAST* copy);
+
+  [[nodiscard]] auto lookupInEnclosingClasses(
+      UnqualifiedIdAST* unqualifiedId) const -> Symbol*;
 };
+
+auto ASTRewriter::SpecifierVisitor::lookupInEnclosingClasses(
+    UnqualifiedIdAST* unqualifiedId) const -> Symbol* {
+  auto nameId = ast_cast<NameIdAST>(unqualifiedId);
+  if (!nameId) return nullptr;
+
+  for (auto scope = rewrite.binder_.scope(); scope; scope = scope->parent()) {
+    if (!symbol_cast<ClassSymbol>(scope)) continue;
+
+    auto found = qualifiedLookupType(scope, nameId->identifier);
+
+    if (found && found->type() &&
+        !type_cast<UnresolvedNameType>(found->type())) {
+      return found;
+    }
+  }
+
+  return nullptr;
+}
 
 struct ASTRewriter::AttributeSpecifierVisitor {
   ASTRewriter& rewrite;
@@ -373,6 +393,8 @@ auto ASTRewriter::enumerator(EnumeratorAST* ast) -> EnumeratorAST* {
   auto type = binder().scope()->type();
 
   binder_.bind(copy, type, std::move(value));
+
+  if (ast->symbol && copy->symbol) addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
 }
@@ -730,6 +752,21 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
         }
       }
     }
+  } else if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol) &&
+             !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
+    auto paramType = type_cast<TemplateTypeParameterType>(ast->symbol->type());
+    const auto& args = rewrite.templateArguments_;
+    if (paramType && paramType->depth() == rewrite.depth_ &&
+        paramType->index() < static_cast<int>(args.size())) {
+      if (auto sym = std::get_if<Symbol*>(&args[paramType->index()])) {
+        copy->symbol = *sym;
+        if (auto alias = symbol_cast<TypeAliasSymbol>(*sym)) {
+          if (auto classType = type_cast<ClassType>(alias->type())) {
+            copy->symbol = classType->symbol();
+          }
+        }
+      }
+    }
   } else {
     const bool hasResolvedNNS =
         copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
@@ -746,6 +783,11 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
       copy->symbol = s;
     } else {
       copy->symbol = rewrite.remapSymbol(ast->symbol);
+    }
+
+    if (copy->symbol && type_cast<UnresolvedNameType>(copy->symbol->type())) {
+      if (auto resolved = lookupInEnclosingClasses(copy->unqualifiedId))
+        copy->symbol = resolved;
     }
   }
 
@@ -807,8 +849,6 @@ auto ASTRewriter::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->classKey = ast->classKey;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
-
-  // copy->symbol = ast->symbol;
 
 #if false
   auto decl = symbol_cast<ClassSymbol>(ast->symbol);
@@ -970,15 +1010,34 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   copy->finalLoc = ast->finalLoc;
   copy->colonLoc = ast->colonLoc;
 
-  // ### TODO: use Binder::bind()
   auto _ = Binder::ScopeGuard{binder()};
   auto location = ast->symbol->location();
   auto className = ast->symbol->name();
 
   ClassSymbol* classSymbol = nullptr;
   bool reusingExisting = false;
+  bool reusingClassMember = false;
 
-  if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
+  if (copy->nestedNameSpecifier) {
+    if (auto enclosingInstance =
+            symbol_cast<ClassSymbol>(copy->nestedNameSpecifier->symbol)) {
+      for (auto candidate : enclosingInstance->find(className)) {
+        if (auto cls = symbol_cast<ClassSymbol>(candidate);
+            cls && !cls->isComplete()) {
+          classSymbol = cls;
+          reusingClassMember = true;
+          break;
+        }
+      }
+      if (!classSymbol) {
+        classSymbol = control()->newClassSymbol(enclosingInstance, location);
+        enclosingInstance->addSymbol(classSymbol);
+        reusingClassMember = true;
+      }
+    }
+  }
+
+  if (!classSymbol && ast->symbol == rewrite.binder().instantiatingSymbol()) {
     if (auto existing =
             ast->symbol->findSpecialization(rewrite.templateArguments())) {
       classSymbol = symbol_cast<ClassSymbol>(existing);
@@ -1011,7 +1070,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   classSymbol->setTemplateDeclaration(templateHead);
   if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
 
-  if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
+  if (reusingClassMember) {
+  } else if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
     if (!reusingExisting) {
       ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
     }
@@ -1047,7 +1107,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   if (!classSymbol->layout() && !classSymbol->templateDeclaration()) {
     auto status = binder()->buildRecordLayout(classSymbol);
     if (!status.has_value())
-      binder()->error(classSymbol->location(), status.error());
+      rewrite.error(classSymbol->location(), status.error());
   }
 
   return copy;
@@ -1118,6 +1178,10 @@ void ASTRewriter::SpecifierVisitor::rewriteBaseSpecifiers(
 
     if (value->symbol) {
       classSymbol->addBaseClass(value->symbol);
+
+      if (auto baseClass = symbol_cast<ClassSymbol>(value->symbol->symbol())) {
+        translationUnit()->typeTraits().requireCompleteClass(baseClass);
+      }
     }
   }
 }
@@ -1131,7 +1195,13 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
 
   std::vector<DelayedFunction> delayedFunctions;
 
+  auto savedRestricted = rewrite.restrictedToDeclarations();
   rewrite.setRestrictedToDeclarations(true);
+
+  ++rewrite.classBodyDepth_;
+
+  const auto pendingFieldInitializerMark =
+      rewrite.pendingFieldInitializerMark();
 
   for (auto declarationList = &copy->declarationList;
        auto node : ListView{ast->declarationList}) {
@@ -1154,7 +1224,9 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
     }
   }
 
-  rewrite.setRestrictedToDeclarations(false);
+  rewrite.completePendingFieldInitializers(pendingFieldInitializerMark);
+
+  rewrite.setRestrictedToDeclarations(savedRestricted);
 
   for (const auto& [newAst, oldAst] : delayedFunctions) {
     if (newAst->symbol) {
@@ -1165,13 +1237,38 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
           copy->symbol->enclosingNonTemplateParametersScope();
       pending->depth = rewrite.depth_;
       newAst->symbol->setPendingBody(std::move(pending));
+
+      bool isMemberFunctionTemplate = false;
+      if (auto funcSymbol = symbol_cast<FunctionSymbol>(newAst->symbol)) {
+        if (auto templateDecl = funcSymbol->templateDeclaration()) {
+          isMemberFunctionTemplate =
+              templateDecl->templateParameterList != nullptr;
+        }
+      }
+      if (!isMemberFunctionTemplate) {
+        rewrite.pendingBodyCompletions_.push_back(newAst->symbol);
+      }
     }
   }
 
-  for (const auto& [newAst, oldAst] : delayedFunctions) {
-    if (newAst->symbol && newAst->symbol->hasPendingBody()) {
-      rewrite.completePendingBody(newAst->symbol);
+  rewrite.pendingOutOfClassMemberDefClasses_.push_back(ast->symbol);
+
+  --rewrite.classBodyDepth_;
+
+  if (rewrite.classBodyDepth_ != 0) return;
+
+  auto pendingFunctions = std::move(rewrite.pendingBodyCompletions_);
+  rewrite.pendingBodyCompletions_.clear();
+  for (auto* functionSymbol : pendingFunctions) {
+    if (functionSymbol->hasPendingBody()) {
+      rewrite.unit_->addPendingBodyCompletion(functionSymbol);
     }
+  }
+
+  auto pendingClasses = std::move(rewrite.pendingOutOfClassMemberDefClasses_);
+  rewrite.pendingOutOfClassMemberDefClasses_.clear();
+  for (auto* patternClass : pendingClasses) {
+    rewrite.instantiateOutOfClassMemberDefinitions(patternClass);
   }
 }
 
@@ -1189,10 +1286,17 @@ auto ASTRewriter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)
   if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
     if (auto scope = copy->nestedNameSpecifier->symbol->asScopeSymbol()) {
       if (auto nameId = ast_cast<NameIdAST>(copy->unqualifiedId)) {
+        if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
+          rewrite.unit_->typeTraits().requireCompleteClass(classSymbol);
+          if (auto def = symbol_cast<ClassSymbol>(classSymbol->definition());
+              def && def != classSymbol) {
+            scope = def;
+          }
+        }
         auto symbol = qualifiedLookup(scope, nameId->identifier,
                                       [](Symbol* s) { return is_type(s); });
-        if (!symbol) {
-          binder()->error(
+        if (!symbol && !isDependent(rewrite.unit_, scope->type())) {
+          rewrite.error(
               copy->typenameLoc,
               std::format("no type named '{}' in '{}'",
                           nameId->identifier ? nameId->identifier->value()
@@ -1314,5 +1418,4 @@ auto ASTRewriter::AttributeTokenVisitor::operator()(
 
   return copy;
 }
-
 }  // namespace cxx
