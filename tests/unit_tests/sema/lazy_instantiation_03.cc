@@ -17,10 +17,18 @@ S<int> var;
 // CHECK-NEXT:      class S<int>
 // CHECK-NEXT:        constructor defaulted void S()
 // CHECK-NEXT:        constructor defaulted void S(const ::S<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::S<int>&
 // CHECK-NEXT:        constructor defaulted void S(::S<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::S<int>&&
 // CHECK-NEXT:        injected class name S
 // CHECK-NEXT:        field int value
 // CHECK-NEXT:        function defaulted ::S<int>& operator =(const ::S<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::S<int>&
 // CHECK-NEXT:        function defaulted ::S<int>& operator =(::S<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::S<int>&&
 // CHECK-NEXT:        function defaulted void ~S()
 // CHECK-NEXT:  variable ::S<int> var

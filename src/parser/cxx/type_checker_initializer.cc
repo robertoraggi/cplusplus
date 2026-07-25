@@ -36,9 +36,7 @@
 #include <format>
 
 namespace cxx {
-
 namespace {
-
 struct InitContext {
   TypeChecker& checker;
   TranslationUnit* unit;
@@ -120,6 +118,13 @@ struct InitUnwrapper {
     if (!initializer) return;
     initializer = stripImplicitCasts(initializer);
     if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+      if (auto braced = ast_cast<BracedInitListAST>(
+              stripImplicitCasts(equal->expression))) {
+        size_t i = 0;
+        for (auto it = braced->expressionList; it; it = it->next, ++i)
+          checker.applyImplicitConversion(conversions[i], it->value);
+        return;
+      }
       checker.applyImplicitConversion(conversions[0], equal->expression);
       return;
     }
@@ -187,16 +192,44 @@ struct NarrowingChecker {
     if (auto floatLit = ast_cast<FloatLiteralExpressionAST>(expr))
       return checkFloatLitNonNarrowing(floatLit, targetType);
 
+    auto interp = ASTInterpreter{ctx.unit};
+    auto value = interp.evaluate(expr);
+    if (!value) return false;
+
+    if (auto intVal = std::get_if<std::intmax_t>(&*value))
+      return checkIntValueNonNarrowing(*intVal, targetType);
+    if (auto floatVal = std::get_if<float>(&*value))
+      return checkFloatValueNonNarrowing(*floatVal, targetType);
+    if (auto doubleVal = std::get_if<double>(&*value))
+      return checkFloatValueNonNarrowing(*doubleVal, targetType);
+    if (auto ldVal = std::get_if<long double>(&*value))
+      return checkFloatValueNonNarrowing(static_cast<double>(*ldVal),
+                                         targetType);
+
     return false;
   }
 
   [[nodiscard]] auto checkIntLitNonNarrowing(IntLiteralExpressionAST* intLit,
                                              const Type* targetType) -> bool {
     if (!intLit->literal) return false;
-    auto value = intLit->literal->integerValue();
+    return checkIntValueNonNarrowing(
+        static_cast<std::intmax_t>(intLit->literal->integerValue()),
+        targetType);
+  }
 
-    if (ctx.traits.is_integral(targetType))
-      return ctx.traits.integer_constant_fits_in_type(value, targetType);
+  [[nodiscard]] auto checkIntValueNonNarrowing(std::intmax_t value,
+                                               const Type* targetType) -> bool {
+    if (ctx.traits.is_integral(targetType)) {
+      if (value >= 0) {
+        return ctx.traits.integer_constant_fits_in_type(
+            static_cast<std::uint64_t>(value), targetType);
+      }
+      if (!ctx.traits.is_signed(targetType)) return false;
+      auto targetSize = ctx.control->memoryLayout()->sizeOf(targetType);
+      if (!targetSize) return false;
+      auto minVal = -(std::intmax_t{1} << (*targetSize * 8 - 1));
+      return value >= minVal;
+    }
 
     auto valueLD = static_cast<long double>(value);
 
@@ -217,8 +250,15 @@ struct NarrowingChecker {
 
   [[nodiscard]] auto checkFloatLitNonNarrowing(
       FloatLiteralExpressionAST* floatLit, const Type* targetType) -> bool {
+    if (!floatLit->literal) return false;
+    return checkFloatValueNonNarrowing(floatLit->literal->floatValue(),
+                                       targetType);
+  }
+
+  [[nodiscard]] auto checkFloatValueNonNarrowing(double value,
+                                                 const Type* targetType)
+      -> bool {
     if (!ctx.traits.is_floating_point(targetType)) return false;
-    auto value = floatLit->literal->floatValue();
     if (!std::isfinite(value)) return false;
 
     if (type_cast<FloatType>(targetType)) {
@@ -296,6 +336,9 @@ struct ElementInitChecker {
     }
   }
 
+  [[nodiscard]] auto checkClassElementInit(ExpressionAST*& expr,
+                                           const Type* targetType) -> bool;
+
  private:
   void checkArrayElementInit(ExpressionAST*& expr, const Type* targetType,
                              std::string errorMessage) {
@@ -335,6 +378,47 @@ struct ElementInitChecker {
            targetCv == CvQualifiers::kConstVolatile;
   }
 };
+
+auto ElementInitChecker::checkClassElementInit(ExpressionAST*& expr,
+                                               const Type* targetType) -> bool {
+  if (!ctx.isCxx()) return false;
+  if (!expr || !expr->type) return false;
+  if (!ctx.traits.is_class(targetType)) return false;
+  if (isDependent(ctx.unit, targetType)) return false;
+  if (isDependent(ctx.unit, expr->type)) return false;
+
+  auto classType = type_cast<ClassType>(targetType);
+  if (!classType || !classType->symbol()) return false;
+  if (!classType->symbol()->resolvedDefinition()->isComplete()) return false;
+
+  auto arena = ctx.unit->arena();
+
+  auto equal = EqualInitializerAST::create(arena);
+  equal->expression = expr;
+
+  ExpressionAST* initializer = equal;
+  auto constructor = ctx.checker.check_class_initializer(
+      targetType, initializer, expr->firstSourceLocation());
+
+  if (!constructor) return false;
+
+  auto arguments = BracedInitListAST::create(arena);
+  if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+    arguments->expressionList = paren->expressionList;
+  } else {
+    arguments->expressionList =
+        make_list_node<ExpressionAST>(arena, equal->expression);
+  }
+
+  auto construction = BracedTypeConstructionAST::create(arena);
+  construction->bracedInitList = arguments;
+  construction->constructorSymbol = constructor;
+  construction->type = targetType;
+  construction->valueCategory = ValueCategory::kPrValue;
+
+  expr = construction;
+  return true;
+}
 
 struct DesignatedInitChecker {
   InitContext& ctx;
@@ -483,14 +567,17 @@ void AggregateInitChecker::checkFieldInit(ExpressionAST*& expr,
   auto fieldType = ctx.traits.remove_cv(field->type());
   if (auto nested = ast_cast<BracedInitListAST>(expr)) {
     ctx.checker.check_braced_init_list(fieldType, nested);
-  } else {
-    elemChecker.check(
-        expr, fieldType,
-        std::format("cannot initialize member '{}' of type '{}' with "
-                    "expression of type '{}'",
-                    to_string(field->name()), to_string(fieldType),
-                    to_string(expr->type)));
+    return;
   }
+
+  if (elemChecker.checkClassElementInit(expr, fieldType)) return;
+
+  elemChecker.check(
+      expr, fieldType,
+      std::format("cannot initialize member '{}' of type '{}' with "
+                  "expression of type '{}'",
+                  to_string(field->name()), to_string(fieldType),
+                  to_string(expr->type)));
 }
 
 void AggregateInitChecker::checkAnonUnionFieldInit(ExpressionAST*& expr,
@@ -602,8 +689,14 @@ auto AggregateInitChecker::tryBraceElision(List<ExpressionAST*>*& it,
   if (!isSubAggregate(targetType)) return false;
 
   size_t slots = countScalarInitSlots(targetType);
+  auto firstNode = it;
   auto synthetic = buildSyntheticBracedList(it, slots);
   ctx.checker.check_braced_init_list(targetType, synthetic);
+
+  auto afterRun = it->next;
+  firstNode->value = synthetic;
+  firstNode->next = afterRun;
+  it = firstNode;
   return true;
 }
 
@@ -844,54 +937,100 @@ struct ClassInitChecker {
   InitContext& ctx;
   ElementInitChecker& elemChecker;
 
-  void checkClassInit(VariableSymbol* var, InitDeclaratorAST* ast,
-                      const Type* targetType);
+  struct Target {
+    const Type* type = nullptr;
+    ExpressionAST* initializer = nullptr;
+    SourceLocation location;
+    FunctionSymbol* constructor = nullptr;
+    List<ExpressionAST*>** argumentList = nullptr;
+    bool diagnoseUnresolved = false;
+  };
+
+  void checkClassInit(Target& target);
 
  private:
-  void checkAggregateInit(VariableSymbol* var, InitDeclaratorAST* ast,
-                          const Type* targetType, ClassSymbol* classSymbol);
-  void checkConstructorInit(VariableSymbol* var, InitDeclaratorAST* ast,
-                            ClassSymbol* classSymbol);
+  void checkAggregateInit(Target& target, ClassSymbol* classSymbol);
+  void checkConstructorInit(Target& target, ClassSymbol* classSymbol,
+                            bool diagnoseUnresolved);
+
+  void appendDefaultArguments(Target& target, FunctionSymbol* constructor);
+
+  [[nodiscard]] auto arguments(Target& target) -> std::vector<ExpressionAST*>;
+
+  void applyArgumentConversions(
+      Target& target,
+      const std::vector<ImplicitConversionSequence>& conversions);
+
+  [[nodiscard]] auto argumentListSlot(Target& target, Arena* arena)
+      -> List<ExpressionAST*>**;
+
+  [[nodiscard]] auto makeParenInitializer(Target& target, Arena* arena,
+                                          ExpressionAST* firstArgument)
+      -> ParenInitializerAST*;
 
   [[nodiscard]] auto tryInitializerListConstructor(
-      VariableSymbol* var, BracedInitListAST* bracedInitList,
+      Target& target, BracedInitListAST* bracedInitList,
       ClassSymbol* classSymbol, OverloadResolution& overloadRes,
       ConstructorResult& resolution) -> bool;
 };
 
-void ClassInitChecker::checkClassInit(VariableSymbol* var,
-                                      InitDeclaratorAST* ast,
-                                      const Type* targetType) {
+void ClassInitChecker::checkClassInit(Target& target) {
+  if (!ctx.unit->config().checkTypes) return;
+
+  auto targetType = ctx.traits.remove_cv(target.type);
   auto classType = type_cast<ClassType>(targetType);
   if (!classType || !classType->symbol()) return;
   auto classSymbol = classType->symbol();
 
-  bool isAggregate = true;
-  for (auto ctor : classSymbol->constructors()) {
-    if (!ctor->isDefaulted() && !ctor->isDeleted()) {
-      isAggregate = false;
-      break;
+  if (ctx.traits.is_aggregate(classType)) {
+    if (!target.initializer && !target.argumentList) {
+      OverloadResolution overloadRes(ctx.unit);
+      auto resolution = overloadRes.resolveConstructor(classSymbol, {});
+      if (resolution.best && !resolution.ambiguous) {
+        target.constructor = resolution.best->symbol;
+        appendDefaultArguments(target, target.constructor);
+      }
+      return;
     }
+    if (!target.initializer ||
+        ast_cast<ParenInitializerAST>(target.initializer)) {
+      checkConstructorInit(target, classSymbol, /*diagnoseUnresolved=*/false);
+      if (target.constructor) return;
+    } else if (auto braced =
+                   InitUnwrapper::getBracedInitList(target.initializer)) {
+      if (braced->expressionList && !braced->expressionList->next) {
+        auto elemType =
+            ctx.traits.remove_cv(braced->expressionList->value->type);
+        if (ctx.traits.is_same(elemType, classType) ||
+            ctx.traits.is_base_of(classType, elemType)) {
+          checkConstructorInit(target, classSymbol,
+                               /*diagnoseUnresolved=*/false);
+          if (target.constructor) return;
+        }
+      }
+    } else if (ast_cast<EqualInitializerAST>(target.initializer)) {
+      checkConstructorInit(target, classSymbol, /*diagnoseUnresolved=*/false);
+      if (target.constructor) return;
+    }
+    checkAggregateInit(target, classSymbol);
+  } else {
+    checkConstructorInit(target, classSymbol, target.diagnoseUnresolved);
   }
-
-  if (isAggregate)
-    checkAggregateInit(var, ast, targetType, classSymbol);
-  else
-    checkConstructorInit(var, ast, classSymbol);
 }
 
-void ClassInitChecker::checkAggregateInit(VariableSymbol* var,
-                                          InitDeclaratorAST* ast,
-                                          const Type* targetType,
+void ClassInitChecker::checkAggregateInit(Target& target,
                                           ClassSymbol* classSymbol) {
-  auto bracedInitList = InitUnwrapper::getBracedInitList(ast->initializer);
+  if (!ctx.unit->config().checkTypes) return;
+
+  auto targetType = ctx.traits.remove_cv(target.type);
+  auto bracedInitList = InitUnwrapper::getBracedInitList(target.initializer);
 
   if (bracedInitList) {
     ctx.checker.check_braced_init_list(targetType, bracedInitList);
     return;
   }
 
-  if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer);
+  if (auto equal = ast_cast<EqualInitializerAST>(target.initializer);
       equal && equal->expression) {
     elemChecker.check(
         equal->expression, targetType,
@@ -900,54 +1039,169 @@ void ClassInitChecker::checkAggregateInit(VariableSymbol* var,
   }
 }
 
-void ClassInitChecker::checkConstructorInit(VariableSymbol* var,
-                                            InitDeclaratorAST* ast,
-                                            ClassSymbol* classSymbol) {
-  auto args = InitUnwrapper::collectArgs(ast->initializer);
+void ClassInitChecker::checkConstructorInit(Target& target,
+                                            ClassSymbol* classSymbol,
+                                            bool diagnoseUnresolved) {
+  if (!ctx.unit->config().checkTypes) return;
+
+  auto args = arguments(target);
+
+  const auto inTemplate = isEnclosedInTemplate(ctx.checker.scope());
+
+  if (inTemplate) {
+    if (isEnclosedInTemplate(classSymbol)) return;
+    if (target.type && isDependent(ctx.unit, target.type)) return;
+  }
+
+  for (auto arg : args) {
+    if (!arg) continue;
+    if (!arg->type) {
+      if (inTemplate) return;
+      continue;
+    }
+    if (isDependent(ctx.unit, arg->type)) return;
+  }
+
   OverloadResolution overloadRes(ctx.unit);
   auto resolution = overloadRes.resolveConstructor(classSymbol, args);
 
-  auto bracedInitList = InitUnwrapper::getBracedInitList(ast->initializer);
+  auto bracedInitList = InitUnwrapper::getBracedInitList(target.initializer);
   if (bracedInitList &&
-      tryInitializerListConstructor(var, bracedInitList, classSymbol,
+      tryInitializerListConstructor(target, bracedInitList, classSymbol,
                                     overloadRes, resolution))
     return;
 
-  if (!resolution.best) return;
-
-  if (resolution.ambiguous) {
-    ctx.error(var->location(), "constructor call is ambiguous");
+  if (!resolution.best) {
+    if (diagnoseUnresolved)
+      ctx.error(target.location, "no matching constructor");
     return;
   }
 
-  var->setConstructor(resolution.best->symbol);
-  InitUnwrapper::applyConversions(ctx.checker, ast->initializer,
-                                  resolution.best->conversions);
+  if (resolution.ambiguous) {
+    ctx.error(target.location, "constructor call is ambiguous");
+    return;
+  }
+
+  target.constructor = resolution.best->symbol;
+  ctx.checker.reportDeletedFunction(target.constructor, target.location);
+  applyArgumentConversions(target, resolution.best->conversions);
+  appendDefaultArguments(target, target.constructor);
+}
+
+auto ClassInitChecker::arguments(Target& target)
+    -> std::vector<ExpressionAST*> {
+  if (target.initializer) return InitUnwrapper::collectArgs(target.initializer);
+
+  std::vector<ExpressionAST*> args;
+  if (!target.argumentList) return args;
+  for (auto it = *target.argumentList; it; it = it->next)
+    args.push_back(it->value);
+  return args;
+}
+
+void ClassInitChecker::applyArgumentConversions(
+    Target& target,
+    const std::vector<ImplicitConversionSequence>& conversions) {
+  if (target.initializer) {
+    InitUnwrapper::applyConversions(ctx.checker, target.initializer,
+                                    conversions);
+    return;
+  }
+
+  if (!target.argumentList) return;
+
+  std::size_t index = 0;
+  for (auto it = *target.argumentList; it && index < conversions.size();
+       it = it->next, ++index) {
+    ctx.checker.applyImplicitConversion(conversions[index], it->value);
+  }
+}
+
+void ClassInitChecker::appendDefaultArguments(Target& target,
+                                              FunctionSymbol* constructor) {
+  auto params = StandardConversion::parameters(constructor);
+  if (params.empty()) return;
+
+  auto argCount = arguments(target).size();
+  if (argCount >= params.size()) return;
+  if (!params[argCount]->defaultArgument()) return;
+
+  auto tail = argumentListSlot(target, ctx.unit->arena());
+  if (!tail) return;
+
+  ctx.checker.append_default_arguments(constructor, tail);
+}
+
+auto ClassInitChecker::argumentListSlot(Target& target, Arena* arena)
+    -> List<ExpressionAST*>** {
+  if (target.argumentList) return target.argumentList;
+
+  auto initializer = InitUnwrapper::stripImplicitCasts(target.initializer);
+
+  if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+    if (!equal->expression) return nullptr;
+    auto unwrapped = InitUnwrapper::stripImplicitCasts(equal->expression);
+    if (auto braced = ast_cast<BracedInitListAST>(unwrapped))
+      return &braced->expressionList;
+    target.initializer = makeParenInitializer(target, arena, equal->expression);
+    return &ast_cast<ParenInitializerAST>(target.initializer)->expressionList;
+  }
+
+  if (auto paren = ast_cast<ParenInitializerAST>(initializer))
+    return &paren->expressionList;
+
+  if (auto braced = ast_cast<BracedInitListAST>(initializer))
+    return &braced->expressionList;
+
+  if (initializer) return nullptr;
+
+  target.initializer = makeParenInitializer(target, arena, nullptr);
+  return &ast_cast<ParenInitializerAST>(target.initializer)->expressionList;
+}
+
+auto ClassInitChecker::makeParenInitializer(Target& target, Arena* arena,
+                                            ExpressionAST* firstArgument)
+    -> ParenInitializerAST* {
+  auto arguments = firstArgument
+                       ? make_list_node<ExpressionAST>(arena, firstArgument)
+                       : nullptr;
+  return ParenInitializerAST::create(arena, target.location, arguments,
+                                     target.location, ValueCategory::kPrValue,
+                                     nullptr);
 }
 
 auto ClassInitChecker::tryInitializerListConstructor(
-    VariableSymbol* var, BracedInitListAST* bracedInitList,
-    ClassSymbol* classSymbol, OverloadResolution& overloadRes,
-    ConstructorResult& resolution) -> bool {
+    Target& target, BracedInitListAST* bracedInitList, ClassSymbol* classSymbol,
+    OverloadResolution& overloadRes, ConstructorResult& resolution) -> bool {
   std::vector<ExpressionAST*> listInitArgs = {bracedInitList};
   auto listInitResolution =
       overloadRes.resolveConstructor(classSymbol, listInitArgs);
   if (!listInitResolution.best) return false;
 
+  auto ctorType =
+      type_cast<FunctionType>(listInitResolution.best->symbol->type());
+  if (!ctorType || ctorType->parameterTypes().size() != 1) return false;
+
+  auto ctorParamType = ctorType->parameterTypes().front();
+  auto elemType = overloadRes.initializerListElementType(ctorParamType);
+  if (!elemType) return false;
+
   resolution = std::move(listInitResolution);
-  if (auto ctorType = type_cast<FunctionType>(resolution.best->symbol->type());
-      ctorType && ctorType->parameterTypes().size() == 1) {
-    auto ctorParamType = ctorType->parameterTypes().front();
-    if (overloadRes.initializerListElementType(ctorParamType)) {
-      bracedInitList->type = ctorParamType;
-      bracedInitList->valueCategory = ValueCategory::kPrValue;
-    }
+
+  bracedInitList->type = ctorParamType;
+  bracedInitList->valueCategory = ValueCategory::kPrValue;
+  for (auto it = bracedInitList->expressionList; it; it = it->next) {
+    elemChecker.check(
+        it->value, elemType,
+        std::format("cannot initialize initializer_list element "
+                    "of type '{}' with expression of type '{}'",
+                    to_string(elemType), to_string(it->value->type)));
   }
 
   if (!resolution.ambiguous)
-    var->setConstructor(resolution.best->symbol);
+    target.constructor = resolution.best->symbol;
   else
-    ctx.error(var->location(), "constructor call is ambiguous");
+    ctx.error(target.location, "constructor call is ambiguous");
 
   return true;
 }
@@ -1122,15 +1376,93 @@ void TypeDeducer::deduceArraySizeFromExpr(VariableSymbol* var,
         ctx.control->getBoundedArrayType(ty->elementType(), bounded->size()));
 }
 
+static auto containsAutoPlaceholder(const Type* type) -> bool {
+  if (!type) return false;
+  if (type_cast<AutoType>(type)) return true;
+  if (auto qual = type_cast<QualType>(type))
+    return containsAutoPlaceholder(qual->elementType());
+  if (auto ptr = type_cast<PointerType>(type))
+    return containsAutoPlaceholder(ptr->elementType());
+  if (auto ref = type_cast<LvalueReferenceType>(type))
+    return containsAutoPlaceholder(ref->elementType());
+  if (auto ref = type_cast<RvalueReferenceType>(type))
+    return containsAutoPlaceholder(ref->elementType());
+  return false;
+}
+
+static auto deduceCompoundAuto(InitContext& ctx, const Type* P, const Type* A)
+    -> const Type* {
+  if (!A) return nullptr;
+
+  if (type_cast<AutoType>(P)) return A;
+
+  if (auto qual = type_cast<QualType>(P)) {
+    auto pCv = qual->cvQualifiers();
+    auto aCv = ctx.traits.get_cv_qualifiers(A);
+    auto remaining =
+        CvQualifiers(std::to_underlying(aCv) & ~std::to_underlying(pCv));
+    auto strippedA = ctx.traits.add_cv(ctx.traits.remove_cv(A), remaining);
+    auto inner = deduceCompoundAuto(ctx, qual->elementType(), strippedA);
+    if (!inner) return nullptr;
+    return ctx.traits.add_cv(inner, pCv);
+  }
+
+  if (auto ptr = type_cast<PointerType>(P)) {
+    auto aPtr = type_cast<PointerType>(A);
+    if (!aPtr) return nullptr;
+    auto inner =
+        deduceCompoundAuto(ctx, ptr->elementType(), aPtr->elementType());
+    if (!inner) return nullptr;
+    return ctx.control->getPointerType(inner);
+  }
+
+  if (auto ref = type_cast<LvalueReferenceType>(P)) {
+    auto inner = deduceCompoundAuto(ctx, ref->elementType(),
+                                    ctx.traits.remove_reference(A));
+    if (!inner) return nullptr;
+    return ctx.control->getLvalueReferenceType(inner);
+  }
+
+  if (auto ref = type_cast<RvalueReferenceType>(P)) {
+    auto inner = deduceCompoundAuto(ctx, ref->elementType(),
+                                    ctx.traits.remove_reference(A));
+    if (!inner) return nullptr;
+    return ctx.control->getRvalueReferenceType(inner);
+  }
+
+  return nullptr;
+}
+
 void TypeDeducer::deduceAutoType(VariableSymbol* var) {
-  if (!type_cast<AutoType>(var->type())) return;
+  auto declType = var->type();
+  if (!containsAutoPlaceholder(declType)) return;
 
   if (!var->initializer()) {
     ctx.error(var->location(), "variable with 'auto' type must be initialized");
+    return;
+  }
+
+  auto deducedExpr = InitUnwrapper::unwrapSingleExpr(var->initializer());
+
+  if ((!deducedExpr || !deducedExpr->type) &&
+      isEnclosedInTemplate(ctx.checker.scope())) {
+    var->setType(ctx.control->getTypeParameterType(0, 0, false));
+    return;
+  }
+
+  if (!deducedExpr || !deducedExpr->type) return;
+
+  if (type_cast<AutoType>(declType)) {
+    var->setType(ctx.traits.remove_cvref(deducedExpr->type));
   } else {
-    auto deducedExpr = InitUnwrapper::unwrapSingleExpr(var->initializer());
-    if (deducedExpr && deducedExpr->type)
-      var->setType(ctx.traits.remove_cvref(deducedExpr->type));
+    auto deduced = deduceCompoundAuto(ctx, declType, deducedExpr->type);
+    if (!deduced) return;
+    var->setType(deduced);
+  }
+
+  if (auto classType =
+          type_cast<ClassType>(ctx.traits.remove_cvref(var->type()))) {
+    ctx.traits.requireCompleteClass(classType->symbol());
   }
 }
 
@@ -1213,6 +1545,12 @@ struct InitDeclaratorChecker {
 
   void checkInitDeclarator(InitDeclaratorAST* ast);
   void checkBracedInitList(const Type* type, BracedInitListAST* ast);
+  void checkFieldInitializer(FieldSymbol* field);
+  [[nodiscard]] auto checkClassInitializer(const Type* targetType,
+                                           ExpressionAST*& initializer,
+                                           SourceLocation location,
+                                           List<ExpressionAST*>** argumentList)
+      -> FunctionSymbol*;
 
  private:
   void checkInitialization(VariableSymbol* var, InitDeclaratorAST* ast);
@@ -1239,6 +1577,20 @@ void InitDeclaratorChecker::checkBracedInitList(const Type* type,
   bracedChecker.check(type, ast);
 }
 
+auto InitDeclaratorChecker::checkClassInitializer(
+    const Type* targetType, ExpressionAST*& initializer,
+    SourceLocation location, List<ExpressionAST*>** argumentList)
+    -> FunctionSymbol* {
+  ClassInitChecker::Target target{.type = targetType,
+                                  .initializer = initializer,
+                                  .location = location,
+                                  .argumentList = argumentList,
+                                  .diagnoseUnresolved = true};
+  classChecker.checkClassInit(target);
+  initializer = target.initializer;
+  return target.constructor;
+}
+
 void InitDeclaratorChecker::checkInitialization(VariableSymbol* var,
                                                 InitDeclaratorAST* ast) {
   if (ctx.traits.is_reference(var->type())) {
@@ -1249,11 +1601,56 @@ void InitDeclaratorChecker::checkInitialization(VariableSymbol* var,
   auto targetType = ctx.traits.remove_cv(var->type());
 
   if (ctx.traits.is_class(targetType)) {
-    classChecker.checkClassInit(var, ast, targetType);
+    ClassInitChecker::Target target{
+        .type = var->type(),
+        .initializer = ast->initializer,
+        .location = var->location(),
+        .diagnoseUnresolved = ast->initializer || !var->isExtern()};
+    classChecker.checkClassInit(target);
+    if (target.constructor) var->setConstructor(target.constructor);
+    if (target.initializer != ast->initializer) {
+      ast->initializer = target.initializer;
+      var->setInitializer(target.initializer);
+    }
     return;
   }
 
   scalarChecker.checkScalarInit(var, ast, targetType);
+}
+
+void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
+  auto targetType = ctx.traits.remove_cv(field->type());
+  if (isDependent(ctx.unit, targetType)) return;
+
+  if (ctx.traits.is_class(targetType)) {
+    auto classType = type_cast<ClassType>(targetType);
+    if (!classType || !classType->symbol()) return;
+    if (!classType->symbol()->resolvedDefinition()->isComplete()) return;
+
+    ClassInitChecker::Target target{.type = field->type(),
+                                    .initializer = field->initializer(),
+                                    .location = field->location(),
+                                    .diagnoseUnresolved = true};
+    classChecker.checkClassInit(target);
+    if (target.constructor) field->setConstructor(target.constructor);
+    if (target.initializer != field->initializer())
+      field->setInitializer(target.initializer);
+    return;
+  }
+
+  auto equal = ast_cast<EqualInitializerAST>(field->initializer());
+  auto init = equal ? equal->expression : field->initializer();
+
+  if (auto braced = ast_cast<BracedInitListAST>(init)) {
+    if (!braced->type) bracedChecker.check(field->type(), braced);
+    return;
+  }
+
+  if (!equal || !equal->expression) return;
+  if (ctx.traits.is_reference(field->type())) return;
+  if (isDependent(ctx.unit, equal->expression)) return;
+
+  (void)ctx.checker.implicit_conversion(equal->expression, field->type());
 }
 
 void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var) {
@@ -1261,10 +1658,20 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var) {
     auto interp = ASTInterpreter{ctx.unit};
     auto value = interp.evaluate(var->initializer());
 
-    if (!value.has_value() && var->isConstexpr())
-      value = constexprEval.tryEvaluateConstructor(var, interp);
+    const auto needsConstructor =
+        !value.has_value() ||
+        (var->constructor() &&
+         std::holds_alternative<std::shared_ptr<InitializerList>>(*value));
+
+    if (needsConstructor && var->isConstexpr()) {
+      if (auto ctorValue = constexprEval.tryEvaluateConstructor(var, interp))
+        value = std::move(ctorValue);
+    }
 
     var->setConstValue(value);
+  } else if (var->isConstexpr() && var->constructor()) {
+    auto interp = ASTInterpreter{ctx.unit};
+    var->setConstValue(constexprEval.tryEvaluateConstructor(var, interp));
   }
 
   if (var->isConstexpr() && !var->constValue().has_value()) {
@@ -1275,11 +1682,31 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var) {
       ctx.error(var->location(), "constexpr variable must be initialized");
   }
 }
-
 }  // namespace
 
 void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
   InitDeclaratorChecker{*this}.checkInitDeclarator(ast);
+}
+
+void TypeChecker::check_field_initializer(FieldSymbol* field) {
+  if (!field || field->isStatic() || !field->initializer()) return;
+  InitDeclaratorChecker{*this}.checkFieldInitializer(field);
+}
+
+auto TypeChecker::hasAutoPlaceholder(const Type* type) const -> bool {
+  return containsAutoPlaceholder(type);
+}
+
+auto TypeChecker::deduceAutoType(const Type* declaredType,
+                                 const Type* initializerType) -> const Type* {
+  if (!initializerType) return nullptr;
+
+  InitContext ctx{*this};
+
+  if (type_cast<AutoType>(declaredType))
+    return ctx.traits.remove_cvref(initializerType);
+
+  return deduceCompoundAuto(ctx, declaredType, initializerType);
 }
 
 void TypeChecker::check_braced_init_list(const Type* type,
@@ -1287,4 +1714,12 @@ void TypeChecker::check_braced_init_list(const Type* type,
   InitDeclaratorChecker{*this}.checkBracedInitList(type, ast);
 }
 
+auto TypeChecker::check_class_initializer(const Type* targetType,
+                                          ExpressionAST*& initializer,
+                                          SourceLocation location,
+                                          List<ExpressionAST*>** argumentList)
+    -> FunctionSymbol* {
+  return InitDeclaratorChecker{*this}.checkClassInitializer(
+      targetType, initializer, location, argumentList);
+}
 }  // namespace cxx

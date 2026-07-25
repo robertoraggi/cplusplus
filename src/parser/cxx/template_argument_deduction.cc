@@ -19,7 +19,10 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
@@ -27,7 +30,6 @@
 #include <cxx/types.h>
 
 namespace cxx {
-
 TemplateArgumentDeduction::TemplateArgumentDeduction(TranslationUnit* unit)
     : unit_(unit), control_(unit->control()), arena_(unit->arena()) {}
 
@@ -37,6 +39,7 @@ auto TemplateArgumentDeduction::deduce(
     -> std::optional<List<TemplateArgumentAST*>*> {
   auto templateDecl = func->templateDeclaration();
   if (!templateDecl) return std::nullopt;
+  templateDecl_ = templateDecl;
 
   auto functionType = type_cast<FunctionType>(func->type());
   if (!functionType) return std::nullopt;
@@ -53,6 +56,49 @@ auto TemplateArgumentDeduction::deduce(
   }
 
   if (!deduceFromCall(functionType, args)) return std::nullopt;
+
+  if (!checkDeducedArguments()) return std::nullopt;
+
+  return buildTemplateArgumentList();
+}
+
+auto TemplateArgumentDeduction::deduceFromTargetType(
+    FunctionSymbol* func, const FunctionType* targetType)
+    -> std::optional<List<TemplateArgumentAST*>*> {
+  auto templateDecl = func->templateDeclaration();
+  if (!templateDecl) return std::nullopt;
+  templateDecl_ = templateDecl;
+
+  auto functionType = type_cast<FunctionType>(func->type());
+  if (!functionType) return std::nullopt;
+
+  collectTemplateParameters(templateDecl);
+
+  parameterDeclarations_ = nullptr;
+  if (templateDecl->declaration) {
+    if (auto clause = getParameterClause(templateDecl->declaration))
+      parameterDeclarations_ = clause->parameterDeclarationList;
+  }
+
+  auto params = functionType->parameterTypes();
+  auto targetParams = targetType->parameterTypes();
+  if (params.size() != targetParams.size()) return std::nullopt;
+  if (functionType->isVariadic() != targetType->isVariadic())
+    return std::nullopt;
+
+  auto paramDeclIt = parameterDeclarations_;
+  auto targetIt = targetParams.begin();
+  for (auto param : params) {
+    auto targetParamType = *targetIt;
+
+    if (!deduceTypeFromType(param, targetParamType)) return std::nullopt;
+    if (!deduceFromClassTemplateParam(
+            paramDeclIt ? paramDeclIt->value : nullptr, targetParamType, param))
+      return std::nullopt;
+
+    ++targetIt;
+    if (paramDeclIt) paramDeclIt = paramDeclIt->next;
+  }
 
   if (!checkDeducedArguments()) return std::nullopt;
 
@@ -169,13 +215,16 @@ auto TemplateArgumentDeduction::isForwardingReference(const Type* paramType)
   auto paramTpt = type_cast<TypeParameterType>(rrefParam->elementType());
   if (!paramTpt) return false;
 
-  return !paramTpt->isParameterPack();
+  return true;
 }
 
 auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
     -> bool {
   auto bareParam = unit_->typeTraits().remove_cvref(P);
   auto tpt = type_cast<TypeParameterType>(bareParam);
+
+  auto bareArg =
+      unit_->typeTraits().remove_cv(unit_->typeTraits().remove_reference(A));
 
   if (!tpt) {
     if (auto ptrParam =
@@ -223,7 +272,31 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
           }
         }
       }
+
+      if (auto ptrArg = type_cast<PointerType>(bareArg))
+        return deduceTypeFromType(ptrParam->elementType(),
+                                  ptrArg->elementType());
+
+      return true;
     }
+
+    if (auto fnParam =
+            type_cast<FunctionType>(unit_->typeTraits().remove_cv(bareParam))) {
+      auto fnArg = type_cast<FunctionType>(bareArg);
+      if (!fnArg) return true;
+      if (fnParam->isVariadic() != fnArg->isVariadic()) return false;
+      if (fnParam->parameterTypes().size() != fnArg->parameterTypes().size())
+        return false;
+      if (!deduceTypeFromType(fnParam->returnType(), fnArg->returnType()))
+        return false;
+      auto argParamIt = fnArg->parameterTypes().begin();
+      for (auto paramType : fnParam->parameterTypes()) {
+        if (!deduceTypeFromType(paramType, *argParamIt)) return false;
+        ++argParamIt;
+      }
+      return true;
+    }
+
     return true;
   }
 
@@ -231,6 +304,27 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
   if (idx < 0 || idx >= static_cast<int>(templateParams_.size())) return false;
 
   const Type* deducedArg = A;
+
+  if (auto qualP =
+          type_cast<QualType>(unit_->typeTraits().remove_reference(P))) {
+    auto cvP = qualP->cvQualifiers();
+
+    CvQualifiers cvA = CvQualifiers::kNone;
+    const Type* argBase = deducedArg;
+    if (auto qualA = type_cast<QualType>(deducedArg)) {
+      cvA = qualA->cvQualifiers();
+      argBase = qualA->elementType();
+    }
+
+    CvQualifiers cvT = CvQualifiers::kNone;
+    if (is_const(cvA) && !is_const(cvP)) cvT = cvT | CvQualifiers::kConst;
+    if (is_volatile(cvA) && !is_volatile(cvP))
+      cvT = cvT | CvQualifiers::kVolatile;
+
+    deducedArg = cvT != CvQualifiers::kNone
+                     ? control_->getQualType(argBase, cvT)
+                     : argBase;
+  }
 
   if (templateParams_[idx].isPack) {
     if (!explicitPackArgs_[idx].empty()) {
@@ -272,9 +366,6 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
       return false;
     }
 
-    if (!unit_->typeTraits().is_same(explicitTypeArg->typeId->type, deducedArg))
-      return false;
-
     deducedTypes_[idx] = explicitTypeArg->typeId->type;
     return true;
   }
@@ -301,8 +392,12 @@ auto TemplateArgumentDeduction::deduceFromCallArgument(const Type* P,
   if (unit_->typeTraits().is_reference(P))
     return deduceTypeFromType(P, unit_->typeTraits().remove_reference(A));
 
-  return deduceTypeFromType(P, unit_->typeTraits().remove_cv(
-                                   unit_->typeTraits().remove_reference(A)));
+  A = unit_->typeTraits().remove_reference(A);
+
+  if (unit_->typeTraits().is_array(A) || unit_->typeTraits().is_function(A))
+    return deduceTypeFromType(P, unit_->typeTraits().decay(A));
+
+  return deduceTypeFromType(P, unit_->typeTraits().remove_cv(A));
 }
 
 auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
@@ -316,14 +411,18 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
     auto argType = argIt->value ? argIt->value->type : nullptr;
     if (!argType) return false;
 
-    if (paramIt == paramEnd) return false;
+    if (paramIt == paramEnd) {
+      if (functionType->isVariadic()) break;
+      return false;
+    }
 
     auto P = *paramIt;
 
     if (!deduceFromCallArgument(P, argType, argIt->value)) return false;
 
-    if (paramDeclIt)
-      deduceFromClassTemplateParam(paramDeclIt->value, argType, P);
+    if (paramDeclIt &&
+        !deduceFromClassTemplateParam(paramDeclIt->value, argType, P))
+      return false;
 
     auto bareParam = unit_->typeTraits().remove_cvref(P);
     auto tpt = type_cast<TypeParameterType>(bareParam);
@@ -344,6 +443,25 @@ auto TemplateArgumentDeduction::checkDeducedArguments() -> bool {
     if (!deducedTypes_[i]) return false;
   }
   return true;
+}
+
+auto TemplateArgumentDeduction::collectDeducedSoFar(int i)
+    -> std::optional<std::vector<TemplateArgument>> {
+  std::vector<TemplateArgument> deducedSoFar;
+  for (int j = 0; j < i; ++j) {
+    const Type* argType = deducedTypes_[j];
+    if (!argType && explicitParamArg_[j]) {
+      if (auto ta = ast_cast<TypeTemplateArgumentAST>(explicitParamArg_[j]);
+          ta && ta->typeId) {
+        argType = ta->typeId->type;
+      }
+    }
+    if (!argType) return std::nullopt;
+    auto alias = control_->newTypeAliasSymbol(nullptr, {});
+    alias->setType(argType);
+    deducedSoFar.push_back(alias);
+  }
+  return deducedSoFar;
 }
 
 auto TemplateArgumentDeduction::buildTemplateArgumentList()
@@ -392,14 +510,53 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
       auto p = templateParams_[i].parameterAST;
       if (auto n = ast_cast<NonTypeTemplateParameterAST>(p)) {
         if (!n->declaration || !n->declaration->expression) return std::nullopt;
+
+        if (auto declaredType = n->declaration->type;
+            declaredType && isDependent(unit_, declaredType) && templateDecl_) {
+          if (auto deducedSoFar = collectDeducedSoFar(i);
+              deducedSoFar && !deducedSoFar->empty()) {
+            auto typeId = TypeIdAST::create(arena_);
+            typeId->typeSpecifierList = n->declaration->typeSpecifierList;
+            typeId->declarator = n->declaration->declarator;
+
+            SilentDiagnosticsClient silent;
+            auto saved = unit_->changeDiagnosticsClient(&silent);
+            auto substituted = ASTRewriter::substituteDefaultTypeId(
+                unit_, typeId, *deducedSoFar, templateDecl_->depth,
+                templateDecl_->symbol);
+            (void)unit_->changeDiagnosticsClient(saved);
+
+            if (!substituted || !substituted->type ||
+                type_cast<UnresolvedNameType>(substituted->type)) {
+              return std::nullopt;
+            }
+          }
+        }
+
         auto exprArg = ExpressionTemplateArgumentAST::create(arena_);
         exprArg->expression = n->declaration->expression;
         *argListIt = make_list_node<TemplateArgumentAST>(arena_, exprArg);
         argListIt = &(*argListIt)->next;
       } else if (auto t = ast_cast<TypenameTypeParameterAST>(p)) {
         if (!t->typeId) return std::nullopt;
+        auto typeId = t->typeId;
+        if (!typeId->type || isDependent(unit_, typeId->type)) {
+          if (auto deducedSoFar = collectDeducedSoFar(i);
+              deducedSoFar && !deducedSoFar->empty() && templateDecl_) {
+            SilentDiagnosticsClient silent;
+            auto saved = unit_->changeDiagnosticsClient(&silent);
+            auto substituted = ASTRewriter::substituteDefaultTypeId(
+                unit_, typeId, *deducedSoFar, templateDecl_->depth,
+                templateDecl_->symbol);
+            (void)unit_->changeDiagnosticsClient(saved);
+            if (substituted && substituted->type &&
+                !isDependent(unit_, substituted->type)) {
+              typeId = substituted;
+            }
+          }
+        }
         auto typeArg = TypeTemplateArgumentAST::create(arena_);
-        typeArg->typeId = t->typeId;
+        typeArg->typeId = typeId;
         *argListIt = make_list_node<TemplateArgumentAST>(arena_, typeArg);
         argListIt = &(*argListIt)->next;
       }
@@ -432,25 +589,50 @@ auto TemplateArgumentDeduction::getParameterClause(DeclarationAST* decl)
   return nullptr;
 }
 
-void TemplateArgumentDeduction::deduceFromClassTemplateParam(
-    ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P) {
-  if (!paramDecl) return;
+auto TemplateArgumentDeduction::deduceFromClassTemplateParam(
+    ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P)
+    -> bool {
+  if (!paramDecl) return true;
 
   auto bareP = unit_->typeTraits().remove_cvref(P);
+  auto bareA = unit_->typeTraits().remove_cvref(argType);
+
+  while (true) {
+    auto ptrP = type_cast<PointerType>(bareP);
+    auto ptrA = type_cast<PointerType>(bareA);
+    if (!ptrP || !ptrA) break;
+    bareP = unit_->typeTraits().remove_cv(ptrP->elementType());
+    bareA = unit_->typeTraits().remove_cv(ptrA->elementType());
+  }
+
   auto paramClassType = type_cast<ClassType>(bareP);
-  if (!paramClassType) return;
+  if (!paramClassType) return true;
   auto paramClass = paramClassType->symbol();
   if (!paramClass || !paramClass->templateDeclaration() ||
       paramClass->isSpecialization())
-    return;
+    return true;
 
-  auto bareA = unit_->typeTraits().remove_cvref(argType);
   auto argClassType = type_cast<ClassType>(bareA);
-  if (!argClassType) return;
+  if (!argClassType) return false;
   auto argClass = argClassType->symbol();
-  if (!argClass || !argClass->isSpecialization() ||
-      argClass->primaryTemplateSymbol() != paramClass)
-    return;
+  if (!argClass) return false;
+
+  auto findSpecializationOfPrimary = [&](ClassSymbol* cls,
+                                         auto&& self) -> ClassSymbol* {
+    if (!cls) return nullptr;
+    cls = cls->resolvedDefinition();
+    if (cls->isSpecialization() && cls->primaryTemplateSymbol() == paramClass) {
+      return cls;
+    }
+    for (auto base : cls->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (auto found = self(baseClass, self)) return found;
+    }
+    return nullptr;
+  };
+
+  argClass = findSpecializationOfPrimary(argClass, findSpecializationOfPrimary);
+  if (!argClass) return false;
 
   auto argArgs = argClass->templateArguments();
 
@@ -490,8 +672,9 @@ void TemplateArgumentDeduction::deduceFromClassTemplateParam(
       if (pType && aType) (void)deduceTypeFromType(pType, aType);
       ++i;
     }
-    return;
+    return true;
   }
-}
 
+  return true;
+}
 }  // namespace cxx

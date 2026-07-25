@@ -18,24 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_rewriter.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/name_lookup.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <format>
 
 namespace cxx {
-
 struct ASTRewriter::UnqualifiedIdVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -105,7 +104,24 @@ struct ASTRewriter::NestedNameSpecifierVisitor {
 
   [[nodiscard]] auto operator()(TemplateNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
+
+  void resolveDependentQualifier(SimpleNestedNameSpecifierAST* copy);
+
+  [[nodiscard]] auto lookupType(NestedNameSpecifierAST* prefix,
+                                const Identifier* id) const -> Symbol*;
 };
+
+auto ASTRewriter::NestedNameSpecifierVisitor::lookupType(
+    NestedNameSpecifierAST* prefix, const Identifier* id) const -> Symbol* {
+  auto isType = [](Symbol* s) { return is_type(s); };
+  if (prefix && prefix->symbol) {
+    return qualifiedLookup(prefix->symbol, id, isType);
+  }
+  for (auto scope = binder()->scope(); scope; scope = scope->parent()) {
+    if (auto resolved = qualifiedLookup(scope, id, isType)) return resolved;
+  }
+  return nullptr;
+}
 
 struct ASTRewriter::TemplateArgumentVisitor {
   ASTRewriter& rewrite;
@@ -306,12 +322,16 @@ void ASTRewriter::UnqualifiedIdVisitor::substituteTemplateTemplateParameter(
     if (elemIdx >= static_cast<int>(pack->elements().size())) return;
     auto elemSym = pack->elements()[elemIdx];
     if (auto alias = symbol_cast<TypeAliasSymbol>(elemSym)) {
-      if (auto classType = type_cast<ClassType>(alias->type())) {
+      if (alias->templateParameters()) {
+        copy->symbol = alias;
+      } else if (auto classType = type_cast<ClassType>(alias->type())) {
         copy->symbol = classType->symbol();
       }
     }
   } else if (auto alias = symbol_cast<TypeAliasSymbol>(*sym)) {
-    if (auto classType = type_cast<ClassType>(alias->type())) {
+    if (alias->templateParameters()) {
+      copy->symbol = alias;
+    } else if (auto classType = type_cast<ClassType>(alias->type())) {
       copy->symbol = classType->symbol();
     }
   }
@@ -348,6 +368,12 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
   copy->greaterLoc = ast->greaterLoc;
   copy->identifier = ast->identifier;
   copy->symbol = ast->symbol;
+
+  if (auto alias = symbol_cast<TypeAliasSymbol>(ast->symbol);
+      alias && alias->templateDeclaration() &&
+      symbol_cast<ClassSymbol>(alias->enclosingNonTemplateParametersScope())) {
+    copy->symbol = rewrite.remapSymbol(alias);
+  }
 
   substituteTemplateTemplateParameter(copy);
 
@@ -454,10 +480,36 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
           }
         }
       }
+    } else if (!copy->symbol) {
+      resolveDependentQualifier(copy);
     }
+  } else if (copy->symbol && copy->symbol->type() &&
+             isDependent(rewrite.unit_, copy->symbol->type())) {
+    auto remapped = rewrite.remapSymbol(copy->symbol);
+    if (remapped != copy->symbol) {
+      if (auto scope = binder()->resolveNestedNameSpecifier(remapped)) {
+        copy->symbol = scope;
+        return copy;
+      }
+    }
+    resolveDependentQualifier(copy);
   }
 
   return copy;
+}
+
+void ASTRewriter::NestedNameSpecifierVisitor::resolveDependentQualifier(
+    SimpleNestedNameSpecifierAST* copy) {
+  if (!copy->identifier) return;
+
+  Symbol* resolved = lookupType(copy->nestedNameSpecifier, copy->identifier);
+  if (!resolved || resolved == copy->symbol) return;
+
+  if (resolved->type() && isDependent(rewrite.unit_, resolved->type())) return;
+
+  if (auto scope = binder()->resolveNestedNameSpecifier(resolved)) {
+    copy->symbol = scope;
+  }
 }
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
@@ -468,6 +520,18 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   copy->decltypeSpecifier =
       ast_cast<DecltypeSpecifierAST>(rewrite.specifier(ast->decltypeSpecifier));
   copy->scopeLoc = ast->scopeLoc;
+
+  if (copy->decltypeSpecifier) {
+    if (auto classType = type_cast<ClassType>(copy->decltypeSpecifier->type)) {
+      copy->symbol = classType->symbol();
+    } else if (auto enumType =
+                   type_cast<EnumType>(copy->decltypeSpecifier->type)) {
+      copy->symbol = enumType->symbol();
+    } else if (auto scopedEnumType =
+                   type_cast<ScopedEnumType>(copy->decltypeSpecifier->type)) {
+      copy->symbol = scopedEnumType->symbol();
+    }
+  }
 
   return copy;
 }
@@ -505,6 +569,12 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   if (hasDependentArgs) return copy;
 
+  if (!copy->templateId->symbol && copy->templateId->identifier) {
+    if (auto resolved =
+            lookupType(copy->nestedNameSpecifier, copy->templateId->identifier))
+      copy->templateId->symbol = resolved;
+  }
+
   if (auto primaryClass = symbol_cast<ClassSymbol>(copy->templateId->symbol)) {
     auto instance = ASTRewriter::instantiate(
         rewrite.unit_, copy->templateId->templateArgumentList, primaryClass,
@@ -525,7 +595,6 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     }
   }
 
-  // Ensure the resolved class is complete so member lookup works.
   if (auto cls = symbol_cast<ClassSymbol>(copy->symbol)) {
     translationUnit()->typeTraits().requireCompleteClass(cls);
   }
@@ -550,5 +619,4 @@ auto ASTRewriter::TemplateArgumentVisitor::operator()(
 
   return copy;
 }
-
 }  // namespace cxx

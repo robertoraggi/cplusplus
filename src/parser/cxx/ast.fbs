@@ -813,6 +813,8 @@ table StructuredBindingDeclaration /* DeclarationAST */ {
   decl_specifier_list: [Specifier];
   binding_list: [NameId];
   initializer: Expression;
+  hidden_variable: InitDeclarator;
+  binding_declarator_list: [InitDeclarator];
   ref_qualifier_loc: uint32;
   lbracket_loc: uint32;
   rbracket_loc: uint32;
@@ -1361,6 +1363,7 @@ table TypeGenericAssociation /* GenericAssociationAST */ {
 }
 
 table ThisLambdaCapture /* LambdaCaptureAST */ {
+  initializer: Expression;
   this_loc: uint32;
 }
 
@@ -1371,12 +1374,14 @@ table DerefThisLambdaCapture /* LambdaCaptureAST */ {
 
 table SimpleLambdaCapture /* LambdaCaptureAST */ {
   identifier: string;
+  initializer: Expression;
   identifier_loc: uint32;
   ellipsis_loc: uint32;
 }
 
 table RefLambdaCapture /* LambdaCaptureAST */ {
   identifier: string;
+  initializer: Expression;
   amp_loc: uint32;
   identifier_loc: uint32;
   ellipsis_loc: uint32;

@@ -24,7 +24,6 @@
 #include <cxx/types_fwd.h>
 
 namespace cxx {
-
 class Control;
 class TranslationUnit;
 class ASTRewriter;
@@ -68,15 +67,14 @@ class [[nodiscard]] DeclSpecs {
   bool isConsteval = false;
   bool isConstinit = false;
   bool isInline = false;
+  bool isNoUniqueAddress = false;
   bool isNoreturn = false;
 
-  // cv qualifiers
   bool isConst = false;
   bool isVolatile = false;
   bool isRestrict = false;
   bool isAtomic = true;
 
-  // storage class specifiers
   bool isStatic = false;
   bool isThreadLocal = false;
   bool isExtern = false;
@@ -84,28 +82,22 @@ class [[nodiscard]] DeclSpecs {
   bool isThread = false;
   bool isRegister = false;
 
-  // function specifiers
   bool isVirtual = false;
   bool isExplicit = false;
 
-  // sign specifiers
   bool isSigned = false;
   bool isUnsigned = false;
 
-  // sized specifiers
   bool isShort = false;
   bool isLong = false;
   bool isLongLong = false;
 
   bool isComplex = false;
 
-  // placeholder type specifiers
   bool isAuto = false;
   bool isDecltypeAuto = false;
 
-  // internal state, used during parsing
   bool no_typespecs = false;
   bool no_class_or_enum_specs = false;
 };
-
 }  // namespace cxx

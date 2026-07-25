@@ -22,14 +22,44 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <memory>
 #include <memory_resource>
 #include <new>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace cxx {
-
 class Arena : public std::pmr::monotonic_buffer_resource {
  public:
   using monotonic_buffer_resource::monotonic_buffer_resource;
+
+  ~Arena() {
+    while (!cleanups_.empty()) {
+      auto cleanup = cleanups_.back();
+      cleanups_.pop_back();
+      cleanup.destroy(cleanup.object);
+    }
+  }
+
+  template <typename T, typename... Args>
+  [[nodiscard]] auto make(Args&&... args) -> T* {
+    auto object = static_cast<T*>(allocate(sizeof(T), alignof(T)));
+    std::construct_at(object, std::forward<Args>(args)...);
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      cleanups_.push_back(
+          {[](void* ptr) { std::destroy_at(static_cast<T*>(ptr)); }, object});
+    }
+    return object;
+  }
+
+ private:
+  struct Cleanup {
+    void (*destroy)(void*);
+    void* object;
+  };
+
+  std::vector<Cleanup> cleanups_;
 };
 
 struct Managed {
@@ -39,5 +69,4 @@ struct Managed {
   void operator delete(void* ptr, std::size_t) {}
   void operator delete(void* ptr, Arena*) noexcept {}
 };
-
 }  // namespace cxx

@@ -134,6 +134,12 @@ enum class BuiltinFunctionKind {
   FOR_EACH_BUILTIN_FUNCTION(TOKEN_ENUM)
 };
 
+// True when a non-constant-folded call to this builtin lowers to the C
+// library function of the same name (see Token::spell(BuiltinFunctionKind)).
+// Defined in builtins_typechecker-priv.h, generated from builtins.json's
+// \`libcall\` entries.
+[[nodiscard]] auto isBuiltinLibcall(BuiltinFunctionKind kind) -> bool;
+
 enum class BuiltinTemplateKind {
   T_NONE,
   FOR_EACH_BUILTIN_TEMPLATE(TOKEN_ENUM)

@@ -24,13 +24,13 @@
 #include <cxx/const_value.h>
 #include <cxx/token_fwd.h>
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace cxx {
-
 class TranslationUnit;
 class Control;
 
@@ -66,9 +66,16 @@ class ASTInterpreter {
                                   std::vector<ConstValue> args)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,
+                                        std::vector<ConstValue> args)
+      -> ConstValue*;
+
   [[nodiscard]] auto evaluateConstructor(FunctionSymbol* ctor,
                                          const Type* classType,
                                          std::vector<ConstValue> args)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto defaultConstruct(const Type* type)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateBuiltinCall(BuiltinFunctionKind kind,
@@ -78,13 +85,29 @@ class ASTInterpreter {
 
   static constexpr int kMaxDepth = 512;
 
+  static constexpr std::uint64_t kMaxSteps = 1'000'000;
+
+  [[nodiscard]] auto tick() -> bool {
+    if (aborted_) return false;
+    if (++steps_ > kMaxSteps) {
+      aborted_ = true;
+      return false;
+    }
+    return true;
+  }
+
+  [[nodiscard]] auto aborted() const -> bool { return aborted_; }
+
  private:
   using ExpressionResult = std::optional<ConstValue>;
 
-  // base nodes
+  enum class ControlFlow { kNormal, kBreak, kContinue, kReturn };
+
   struct UnitResult {};
   struct DeclarationResult {};
-  struct StatementResult {};
+  struct StatementResult {
+    ControlFlow flow = ControlFlow::kNormal;
+  };
   struct TemplateParameterResult {};
   struct SpecifierResult {};
   struct PtrOperatorResult {};
@@ -102,7 +125,6 @@ class ASTInterpreter {
   struct ExceptionDeclarationResult {};
   struct AttributeSpecifierResult {};
   struct AttributeTokenResult {};
-  // misc nodes
   struct GlobalModuleFragmentResult {};
   struct PrivateModuleFragmentResult {};
   struct ModuleDeclarationResult {};
@@ -127,7 +149,6 @@ class ASTInterpreter {
   struct AttributeUsingPrefixResult {};
   struct NewPlacementResult {};
   struct NestedNamespaceSpecifierResult {};
-  // visitors
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;
@@ -150,10 +171,8 @@ class ASTInterpreter {
   struct AttributeSpecifierVisitor;
   struct AttributeTokenVisitor;
 
-  // ops
   struct ToBool;
 
-  // run on the base nodes
   [[nodiscard]] auto unit(UnitAST* ast) -> UnitResult;
   [[nodiscard]] auto declaration(DeclarationAST* ast) -> DeclarationResult;
   [[nodiscard]] auto statement(StatementAST* ast) -> StatementResult;
@@ -176,6 +195,9 @@ class ASTInterpreter {
   [[nodiscard]] auto exceptionSpecifier(ExceptionSpecifierAST* ast)
       -> ExceptionSpecifierResult;
   [[nodiscard]] auto requirement(RequirementAST* ast) -> RequirementResult;
+  [[nodiscard]] auto isRequirementSatisfied(RequirementAST* ast,
+                                            ScopeSymbol* scope)
+      -> std::optional<bool>;
   [[nodiscard]] auto newInitializer(NewInitializerAST* ast)
       -> NewInitializerResult;
   [[nodiscard]] auto memInitializer(MemInitializerAST* ast)
@@ -189,7 +211,6 @@ class ASTInterpreter {
   [[nodiscard]] auto attributeToken(AttributeTokenAST* ast)
       -> AttributeTokenResult;
 
-  // run on the misc nodes
   [[nodiscard]] auto splicer(SplicerAST* ast) -> ExpressionResult;
   [[nodiscard]] auto globalModuleFragment(GlobalModuleFragmentAST* ast)
       -> GlobalModuleFragmentResult;
@@ -239,7 +260,46 @@ class ASTInterpreter {
   [[nodiscard]] auto lookupLocal(const Symbol* sym) const
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto lookupLocalSlot(const Symbol* sym) -> ConstValue*;
+
   void setLocal(const Symbol* sym, ConstValue value);
+
+  [[nodiscard]] auto bindParameters(FunctionSymbol* func,
+                                    std::vector<ConstValue>& args) -> bool;
+
+  [[nodiscard]] auto bindOneParameter(Symbol* paramSymbol,
+                                      ExpressionAST* argExpr) -> bool;
+
+  [[nodiscard]] auto bindParametersFromExprs(FunctionSymbol* func,
+                                             List<ExpressionAST*>* argExprs)
+      -> bool;
+
+  [[nodiscard]] auto evaluateCallExprs(FunctionSymbol* func,
+                                       List<ExpressionAST*>* argExprs)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateCallLValueFromExprs(FunctionSymbol* func,
+                                                 List<ExpressionAST*>* argExprs)
+      -> ConstValue*;
+
+  void bindReference(const Symbol* sym, ConstValue* target);
+
+  void applyNsdmis(const std::shared_ptr<ConstObject>& obj);
+
+  void applyMemInitializer(MemInitializerAST* ast,
+                           std::vector<ConstValue> args);
+
+  [[nodiscard]] auto lvalue(ExpressionAST* ast) -> ConstValue*;
+
+  [[nodiscard]] auto loadAddress(const ConstAddress& address,
+                                 std::intmax_t extraIndex)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto addressSlot(const ConstAddress& address,
+                                 std::intmax_t extraIndex) -> ConstValue*;
+
+  [[nodiscard]] auto fieldOwner(ExpressionAST* ast)
+      -> std::shared_ptr<ConstObject>;
 
   void pushFrame();
   void popFrame();
@@ -282,14 +342,23 @@ class ASTInterpreter {
 
   struct Frame {
     std::unordered_map<const Symbol*, ConstValue> locals;
+    std::unordered_map<const Symbol*, ConstValue*> refs;
   };
   std::vector<Frame> frames_;
 
   std::optional<ConstValue> returnValue_;
+
+  bool captureReturnLValue_ = false;
+  ConstValue* returnLValue_ = nullptr;
+
   std::shared_ptr<ConstObject> thisObject_;
+
+  ClassSymbol* currentConstructorClass_ = nullptr;
 
   std::string currentFunctionName_;
   int depth_ = 0;
-};
 
+  std::uint64_t steps_ = 0;
+  bool aborted_ = false;
+};
 }  // namespace cxx

@@ -1225,6 +1225,8 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
   SourceLocation rbracketLoc;
   ExpressionAST* initializer = nullptr;
   SourceLocation semicolonLoc;
+  InitDeclaratorAST* hiddenVariable = nullptr;
+  List<InitDeclaratorAST*>* bindingDeclaratorList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1242,13 +1244,15 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
       List<SpecifierAST*>* declSpecifierList, SourceLocation refQualifierLoc,
       SourceLocation lbracketLoc, List<NameIdAST*>* bindingList,
       SourceLocation rbracketLoc, ExpressionAST* initializer,
-      SourceLocation semicolonLoc) -> StructuredBindingDeclarationAST*;
+      SourceLocation semicolonLoc, InitDeclaratorAST* hiddenVariable,
+      List<InitDeclaratorAST*>* bindingDeclaratorList)
+      -> StructuredBindingDeclarationAST*;
 
-  [[nodiscard]] static auto create(Arena* arena,
-                                   List<AttributeSpecifierAST*>* attributeList,
-                                   List<SpecifierAST*>* declSpecifierList,
-                                   List<NameIdAST*>* bindingList,
-                                   ExpressionAST* initializer)
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      List<SpecifierAST*>* declSpecifierList, List<NameIdAST*>* bindingList,
+      ExpressionAST* initializer, InitDeclaratorAST* hiddenVariable,
+      List<InitDeclaratorAST*>* bindingDeclaratorList)
       -> StructuredBindingDeclarationAST*;
 
  protected:
@@ -2525,6 +2529,13 @@ class ForRangeStatementAST final : public StatementAST {
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
   BlockSymbol* symbol = nullptr;
+  FunctionSymbol* beginFunction = nullptr;
+  FunctionSymbol* endFunction = nullptr;
+  FunctionSymbol* derefFunction = nullptr;
+  FunctionSymbol* incrementFunction = nullptr;
+  FunctionSymbol* notEqualFunction = nullptr;
+  bool usesMemberBeginEnd = false;
+  bool isPointerIterator = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2540,16 +2551,20 @@ class ForRangeStatementAST final : public StatementAST {
       SourceLocation forLoc, SourceLocation lparenLoc,
       StatementAST* initializer, DeclarationAST* rangeDeclaration,
       SourceLocation colonLoc, ExpressionAST* rangeInitializer,
-      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol)
-      -> ForRangeStatementAST*;
+      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol,
+      FunctionSymbol* beginFunction, FunctionSymbol* endFunction,
+      FunctionSymbol* derefFunction, FunctionSymbol* incrementFunction,
+      FunctionSymbol* notEqualFunction, bool usesMemberBeginEnd,
+      bool isPointerIterator) -> ForRangeStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena,
-                                   List<AttributeSpecifierAST*>* attributeList,
-                                   StatementAST* initializer,
-                                   DeclarationAST* rangeDeclaration,
-                                   ExpressionAST* rangeInitializer,
-                                   StatementAST* statement, BlockSymbol* symbol)
-      -> ForRangeStatementAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      StatementAST* initializer, DeclarationAST* rangeDeclaration,
+      ExpressionAST* rangeInitializer, StatementAST* statement,
+      BlockSymbol* symbol, FunctionSymbol* beginFunction,
+      FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
+      FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
+      bool usesMemberBeginEnd, bool isPointerIterator) -> ForRangeStatementAST*;
 
  protected:
   ForRangeStatementAST() : StatementAST(Kind) {}
@@ -3324,6 +3339,7 @@ class LambdaExpressionAST final : public ExpressionAST {
   CompoundStatementAST* statement = nullptr;
   TokenKind captureDefault = TokenKind::T_EOF_SYMBOL;
   LambdaSymbol* symbol = nullptr;
+  FunctionSymbol* constructorSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3350,7 +3366,8 @@ class LambdaExpressionAST final : public ExpressionAST {
       TrailingReturnTypeAST* trailingReturnType,
       RequiresClauseAST* requiresClause, CompoundStatementAST* statement,
       TokenKind captureDefault, LambdaSymbol* symbol,
-      ValueCategory valueCategory, const Type* type) -> LambdaExpressionAST*;
+      FunctionSymbol* constructorSymbol, ValueCategory valueCategory,
+      const Type* type) -> LambdaExpressionAST*;
 
   [[nodiscard]] static auto create(
       Arena* arena, List<LambdaCaptureAST*>* captureList,
@@ -3365,7 +3382,8 @@ class LambdaExpressionAST final : public ExpressionAST {
       TrailingReturnTypeAST* trailingReturnType,
       RequiresClauseAST* requiresClause, CompoundStatementAST* statement,
       TokenKind captureDefault, LambdaSymbol* symbol,
-      ValueCategory valueCategory, const Type* type) -> LambdaExpressionAST*;
+      FunctionSymbol* constructorSymbol, ValueCategory valueCategory,
+      const Type* type) -> LambdaExpressionAST*;
 
  protected:
   LambdaExpressionAST() : ExpressionAST(Kind) {}
@@ -3566,6 +3584,7 @@ class SubscriptExpressionAST final : public ExpressionAST {
   ExpressionAST* indexExpression = nullptr;
   SourceLocation rbracketLoc;
   FunctionSymbol* symbol = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3576,17 +3595,16 @@ class SubscriptExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> SubscriptExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
-                                   SourceLocation lbracketLoc,
-                                   ExpressionAST* indexExpression,
-                                   SourceLocation rbracketLoc,
-                                   FunctionSymbol* symbol,
-                                   ValueCategory valueCategory,
-                                   const Type* type) -> SubscriptExpressionAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* baseExpression, SourceLocation lbracketLoc,
+      ExpressionAST* indexExpression, SourceLocation rbracketLoc,
+      FunctionSymbol* symbol, bool isVirtualDispatch,
+      ValueCategory valueCategory, const Type* type) -> SubscriptExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    ExpressionAST* indexExpression,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> SubscriptExpressionAST*;
 
@@ -3602,6 +3620,8 @@ class CallExpressionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+  bool isVirtualDispatch = false;
+  FunctionSymbol* constructorSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3612,15 +3632,16 @@ class CallExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> CallExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
-                                   SourceLocation lparenLoc,
-                                   List<ExpressionAST*>* expressionList,
-                                   SourceLocation rparenLoc,
-                                   ValueCategory valueCategory,
-                                   const Type* type) -> CallExpressionAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* baseExpression, SourceLocation lparenLoc,
+      List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
+      bool isVirtualDispatch, FunctionSymbol* constructorSymbol,
+      ValueCategory valueCategory, const Type* type) -> CallExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    List<ExpressionAST*>* expressionList,
+                                   bool isVirtualDispatch,
+                                   FunctionSymbol* constructorSymbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> CallExpressionAST*;
 
@@ -3636,6 +3657,7 @@ class TypeConstructionAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+  FunctionSymbol* constructorSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3650,11 +3672,13 @@ class TypeConstructionAST final : public ExpressionAST {
                                    SourceLocation lparenLoc,
                                    List<ExpressionAST*>* expressionList,
                                    SourceLocation rparenLoc,
+                                   FunctionSymbol* constructorSymbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> TypeConstructionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
                                    List<ExpressionAST*>* expressionList,
+                                   FunctionSymbol* constructorSymbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> TypeConstructionAST*;
 
@@ -3668,6 +3692,7 @@ class BracedTypeConstructionAST final : public ExpressionAST {
 
   SpecifierAST* typeSpecifier = nullptr;
   BracedInitListAST* bracedInitList = nullptr;
+  FunctionSymbol* constructorSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3680,6 +3705,7 @@ class BracedTypeConstructionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
                                    BracedInitListAST* bracedInitList,
+                                   FunctionSymbol* constructorSymbol,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> BracedTypeConstructionAST*;
@@ -3777,6 +3803,7 @@ class PostIncrExpressionAST final : public ExpressionAST {
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   FunctionSymbol* symbol = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3790,11 +3817,13 @@ class PostIncrExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    SourceLocation opLoc, TokenKind op,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    TokenKind op, FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST*;
 
@@ -4184,6 +4213,7 @@ class UnaryExpressionAST final : public ExpressionAST {
   ExpressionAST* expression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   FunctionSymbol* symbol = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4197,11 +4227,13 @@ class UnaryExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, SourceLocation opLoc,
                                    ExpressionAST* expression, TokenKind op,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> UnaryExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
                                    TokenKind op, FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> UnaryExpressionAST*;
 
@@ -4496,6 +4528,7 @@ class DeleteExpressionAST final : public ExpressionAST {
   SourceLocation lbracketLoc;
   SourceLocation rbracketLoc;
   ExpressionAST* expression = nullptr;
+  FunctionSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4506,15 +4539,14 @@ class DeleteExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> DeleteExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation scopeLoc,
-                                   SourceLocation deleteLoc,
-                                   SourceLocation lbracketLoc,
-                                   SourceLocation rbracketLoc,
-                                   ExpressionAST* expression,
-                                   ValueCategory valueCategory,
-                                   const Type* type) -> DeleteExpressionAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation scopeLoc, SourceLocation deleteLoc,
+      SourceLocation lbracketLoc, SourceLocation rbracketLoc,
+      ExpressionAST* expression, FunctionSymbol* symbol,
+      ValueCategory valueCategory, const Type* type) -> DeleteExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   FunctionSymbol* symbol,
                                    ValueCategory valueCategory,
                                    const Type* type) -> DeleteExpressionAST*;
 
@@ -4561,6 +4593,9 @@ class ImplicitCastExpressionAST final : public ExpressionAST {
 
   ExpressionAST* expression = nullptr;
   ImplicitCastKind castKind = ImplicitCastKind::kIdentity;
+  const ConstValue* constValue = nullptr;
+  FunctionSymbol* conversionFunction = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4571,10 +4606,10 @@ class ImplicitCastExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ImplicitCastExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
-                                   ImplicitCastKind castKind,
-                                   ValueCategory valueCategory,
-                                   const Type* type)
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* expression, ImplicitCastKind castKind,
+      const ConstValue* constValue, FunctionSymbol* conversionFunction,
+      bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
       -> ImplicitCastExpressionAST*;
 
  protected:
@@ -4590,6 +4625,7 @@ class BinaryExpressionAST final : public ExpressionAST {
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   FunctionSymbol* symbol = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4604,12 +4640,14 @@ class BinaryExpressionAST final : public ExpressionAST {
                                    SourceLocation opLoc,
                                    ExpressionAST* rightExpression, TokenKind op,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BinaryExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
                                    ExpressionAST* rightExpression, TokenKind op,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BinaryExpressionAST*;
 
@@ -4720,6 +4758,7 @@ class AssignmentExpressionAST final : public ExpressionAST {
   ExpressionAST* rightExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   FunctionSymbol* symbol = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4730,17 +4769,16 @@ class AssignmentExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> AssignmentExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
-                                   SourceLocation opLoc,
-                                   ExpressionAST* rightExpression, TokenKind op,
-                                   FunctionSymbol* symbol,
-                                   ValueCategory valueCategory,
-                                   const Type* type)
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* leftExpression, SourceLocation opLoc,
+      ExpressionAST* rightExpression, TokenKind op, FunctionSymbol* symbol,
+      bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
       -> AssignmentExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* leftExpression,
                                    ExpressionAST* rightExpression, TokenKind op,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> AssignmentExpressionAST*;
@@ -4800,6 +4838,7 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
   ExpressionAST* adjustExpression = nullptr;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
   FunctionSymbol* symbol = nullptr;
+  bool isVirtualDispatch = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4816,14 +4855,14 @@ class CompoundAssignmentExpressionAST final : public ExpressionAST {
       Arena* arena, ExpressionAST* targetExpression, SourceLocation opLoc,
       ExpressionAST* leftExpression, ExpressionAST* rightExpression,
       ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
-      ValueCategory valueCategory, const Type* type)
+      bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
       -> CompoundAssignmentExpressionAST*;
 
   [[nodiscard]] static auto create(
       Arena* arena, ExpressionAST* targetExpression,
       ExpressionAST* leftExpression, ExpressionAST* rightExpression,
       ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
-      ValueCategory valueCategory, const Type* type)
+      bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
       -> CompoundAssignmentExpressionAST*;
 
  protected:
@@ -7638,6 +7677,7 @@ class ThisLambdaCaptureAST final : public LambdaCaptureAST {
   static constexpr ASTKind Kind = ASTKind::ThisLambdaCapture;
 
   SourceLocation thisLoc;
+  ExpressionAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -7648,7 +7688,11 @@ class ThisLambdaCaptureAST final : public LambdaCaptureAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ThisLambdaCaptureAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation thisLoc)
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation thisLoc,
+                                   ExpressionAST* initializer)
+      -> ThisLambdaCaptureAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* initializer)
       -> ThisLambdaCaptureAST*;
 
  protected:
@@ -7686,6 +7730,7 @@ class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
   const Identifier* identifier = nullptr;
+  ExpressionAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -7698,10 +7743,12 @@ class SimpleLambdaCaptureAST final : public LambdaCaptureAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation identifierLoc,
                                    SourceLocation ellipsisLoc,
-                                   const Identifier* identifier)
+                                   const Identifier* identifier,
+                                   ExpressionAST* initializer)
       -> SimpleLambdaCaptureAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   ExpressionAST* initializer)
       -> SimpleLambdaCaptureAST*;
 
  protected:
@@ -7716,6 +7763,7 @@ class RefLambdaCaptureAST final : public LambdaCaptureAST {
   SourceLocation identifierLoc;
   SourceLocation ellipsisLoc;
   const Identifier* identifier = nullptr;
+  ExpressionAST* initializer = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -7729,10 +7777,12 @@ class RefLambdaCaptureAST final : public LambdaCaptureAST {
   [[nodiscard]] static auto create(Arena* arena, SourceLocation ampLoc,
                                    SourceLocation identifierLoc,
                                    SourceLocation ellipsisLoc,
-                                   const Identifier* identifier)
+                                   const Identifier* identifier,
+                                   ExpressionAST* initializer)
       -> RefLambdaCaptureAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier)
+  [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
+                                   ExpressionAST* initializer)
       -> RefLambdaCaptureAST*;
 
  protected:

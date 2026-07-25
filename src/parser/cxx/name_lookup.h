@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast.h>
+#include <cxx/cxx_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
@@ -33,12 +34,7 @@
 #include <vector>
 
 namespace cxx {
-
 namespace detail {
-
-// searchScope: search a single scope (and its anonymous members, base classes,
-// and using-directives) for a symbol matching `name` and `accept`.
-// `visited` prevents infinite recursion through diamonds / cycles.
 template <typename Predicate>
 [[nodiscard]] auto searchScope(ScopeSymbol* scope, const Name* name,
                                std::vector<ScopeSymbol*>& visited,
@@ -51,7 +47,6 @@ template <typename Predicate>
       return searchScope(def, name, visited, accept);
   }
 
-  // 1. Direct members
   for (auto symbol : scope->find(name)) {
     if (symbol->isHidden()) continue;
 
@@ -63,7 +58,6 @@ template <typename Predicate>
     if (std::invoke(accept, symbol)) return symbol;
   }
 
-  // 2. Class scope: anonymous nested classes + base classes
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
     for (auto member : classSymbol->find(/*unnamed=*/nullptr)) {
       auto nestedClass = symbol_cast<ClassSymbol>(member);
@@ -78,7 +72,6 @@ template <typename Predicate>
     }
   }
 
-  // 3. Using-directives
   for (auto u : scope->usingDirectives()) {
     if (auto s = searchScope(u, name, visited, accept)) return s;
   }
@@ -86,8 +79,6 @@ template <typename Predicate>
   return nullptr;
 }
 
-// resolveScope: resolve a Symbol* (possibly a TypeAlias or UsingDeclaration)
-// to the underlying ScopeSymbol* for qualified lookup.
 template <typename Predicate>
 [[nodiscard]] auto resolveAndSearch(Symbol* scopeSymbol, const Name* name,
                                     Predicate accept) -> Symbol* {
@@ -122,7 +113,6 @@ template <typename Predicate>
       return nullptr;
   }
 }
-
 }  // namespace detail
 
 template <typename Predicate>
@@ -139,7 +129,6 @@ template <typename Predicate>
   return qualifiedLookup(scope, name, [](Symbol*) { return true; });
 }
 
-// Qualified lookup that resolves through TypeAlias / UsingDeclaration symbols.
 template <typename Predicate>
   requires std::predicate<Predicate, Symbol*>
 [[nodiscard]] auto qualifiedLookup(Symbol* scopeOrAlias, const Name* name,
@@ -161,7 +150,27 @@ template <typename Predicate>
     -> NamespaceSymbol*;
 
 [[nodiscard]] auto argumentDependentLookup(
-    const Name* name, std::span<const Type* const> argumentTypes)
-    -> std::vector<FunctionSymbol*>;
+    TranslationUnit* unit, const Name* name,
+    std::span<const Type* const> argumentTypes) -> std::vector<FunctionSymbol*>;
 
+[[nodiscard]] auto isPureFriend(FunctionSymbol* func) -> bool;
+
+[[nodiscard]] auto mergeInlineNamespaceOverloads(Control* control,
+                                                 NamespaceSymbol* scope,
+                                                 const Name* name,
+                                                 Symbol* primary) -> Symbol*;
+
+[[nodiscard]] auto resolveUsualOperatorDelete(TranslationUnit* unit,
+                                              ClassSymbol* classSymbol,
+                                              bool isArrayDelete)
+    -> FunctionSymbol*;
+
+[[nodiscard]] auto resolveBuiltinOperatorDelete(
+    TranslationUnit* unit, std::span<const Type* const> argumentTypes)
+    -> FunctionSymbol*;
+
+[[nodiscard]] auto resolveBuiltinLibcallSymbol(TranslationUnit* unit,
+                                               const char* nameStr,
+                                               const FunctionType* funcType)
+    -> FunctionSymbol*;
 }  // namespace cxx

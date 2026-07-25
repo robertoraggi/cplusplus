@@ -26,7 +26,6 @@
 #include <optional>
 
 namespace cxx {
-
 namespace {
 struct SizeOf {
   const MemoryLayout& memoryLayout;
@@ -193,7 +192,9 @@ struct SizeOf {
   }
 
   auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
-    return type->definition()->sizeInBytes();
+    auto classSymbol = type->definition();
+    if (!classSymbol->isComplete()) return std::nullopt;
+    return classSymbol->sizeInBytes();
   }
 
   auto operator()(const EnumType* type) const -> std::optional<std::size_t> {
@@ -218,7 +219,7 @@ struct SizeOf {
 
   auto operator()(const MemberFunctionPointerType* type) const
       -> std::optional<std::size_t> {
-    return memoryLayout.sizeOfPointer();
+    return 2 * memoryLayout.sizeOfPointer();
   }
 
   auto operator()(const NamespaceType* type) const
@@ -251,6 +252,11 @@ struct SizeOf {
     return std::nullopt;
   }
 
+  auto operator()(const UnresolvedBuiltinType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
   auto operator()(const OverloadSetType* type) const
       -> std::optional<std::size_t> {
     return std::nullopt;
@@ -272,7 +278,6 @@ struct SizeOf {
 
  private:
   static auto bitIntSizeInBytes(int numBits) -> std::size_t {
-    // Round up to next power-of-2 byte size (matching Clang layout)
     auto bytes = static_cast<std::size_t>((numBits + 7) / 8);
     std::size_t result = 1;
     while (result < bytes) result *= 2;
@@ -284,7 +289,9 @@ struct AlignmentOf {
   const MemoryLayout& memoryLayout;
 
   auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
-    return type->symbol()->alignment();
+    auto classSymbol = type->definition();
+    if (!classSymbol->isComplete()) return std::nullopt;
+    return classSymbol->alignment();
   }
 
   auto operator()(const UnboundedArrayType* type) const
@@ -297,13 +304,21 @@ struct AlignmentOf {
     return memoryLayout.alignmentOf(type->elementType());
   }
 
+  auto operator()(const MemberObjectPointerType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) const
+      -> std::optional<std::size_t> {
+    return memoryLayout.sizeOfPointer();
+  }
+
   auto operator()(auto type) const -> std::optional<std::size_t> {
-    // ### TODO
     if (!type) return std::nullopt;
     return memoryLayout.sizeOf(type);
   }
 };
-
 }  // namespace
 
 MemoryLayout::MemoryLayout(std::size_t bits) : bits_(bits) {
@@ -365,8 +380,13 @@ auto MemoryLayout::alignmentOf(const Type* type) const
 
 auto MemoryLayout::triple() const -> const std::string& { return triple_; }
 
+auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
+  const auto arch = std::string_view{triple_}.substr(0, triple_.find('-'));
+  return arch.starts_with("arm") || arch.starts_with("aarch64") ||
+         arch.starts_with("thumb") || arch.starts_with("wasm");
+}
+
 void MemoryLayout::setTriple(std::string triple) {
   triple_ = std::move(triple);
 }
-
 }  // namespace cxx

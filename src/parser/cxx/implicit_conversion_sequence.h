@@ -26,7 +26,6 @@
 #include <vector>
 
 namespace cxx {
-
 class FunctionSymbol;
 
 enum class ConversionRank {
@@ -55,11 +54,16 @@ struct ImplicitConversionSequence {
 
   FunctionSymbol* userDefinedConversionFunction = nullptr;
   ConversionRank secondStandardConversionRank = ConversionRank::kNone;
+  const Type* secondStandardConversionTarget = nullptr;
 
+  bool fromSingleElementList = false;
   bool bindsToRvalueRef = false;
   bool bindsToReference = false;
   bool hasQualificationConversion = false;
   CvQualifiers referenceCv = CvQualifiers::kNone;
+
+  const Type* pointeeUnqual = nullptr;
+  CvQualifiers pointeeCv = CvQualifiers::kNone;
 
   [[nodiscard]] auto isBetterThan(const ImplicitConversionSequence& other) const
       -> bool {
@@ -85,6 +89,13 @@ struct ImplicitConversionSequence {
         return !hasQualificationConversion;
       }
 
+      if (pointeeUnqual && other.pointeeUnqual &&
+          pointeeUnqual == other.pointeeUnqual &&
+          pointeeCv != other.pointeeCv &&
+          cv_is_subset_of(pointeeCv, other.pointeeCv)) {
+        return true;
+      }
+
       return false;
     }
 
@@ -102,5 +113,4 @@ struct ImplicitConversionSequence {
 
   explicit operator bool() const { return rank != ConversionRank::kNone; }
 };
-
 }  // namespace cxx

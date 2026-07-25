@@ -36,7 +36,6 @@
 #include <unordered_set>
 
 namespace cxx {
-
 class Decl;
 class DeclSpecs;
 
@@ -45,11 +44,6 @@ class Parser final {
   Parser(const Parser&) = delete;
   auto operator=(const Parser&) -> Parser& = delete;
 
-  /**
-   * Constructs a new parser.
-   *
-   * @param unit the translation unit to parse
-   */
   explicit Parser(TranslationUnit* unit);
   ~Parser();
 
@@ -59,14 +53,8 @@ class Parser final {
 
   [[nodiscard]] auto control() const -> Control* { return control_; }
 
-  /**
-   * Parse the given unit.
-   */
   void parse(UnitAST*& ast);
 
-  /**
-   * Parse the given unit.
-   */
   void operator()(UnitAST*& ast);
 
   [[nodiscard]] auto config() const -> const ParserConfiguration&;
@@ -77,7 +65,9 @@ class Parser final {
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
+  struct UncheckedInitializerContext;
   struct CombinedScopeGuard;
+  struct ExplicitTemplateHeadGuard;
 
   struct ScopeRAII {
     ScopeRAII(const ScopeRAII&) = delete;
@@ -148,14 +138,12 @@ class Parser final {
     return false;
   }
 
-  // diagnostics
   void parse_warn(std::string message);
   void parse_warn(SourceLocation loc, std::string message);
   void parse_error(std::string message);
   void parse_error(SourceLocation loc, std::string message);
   void type_error(SourceLocation loc, std::string message);
 
-  // generate diagnostic messages regardless of the current parsing state
   void warning(std::string message);
   void warning(SourceLocation loc, std::string message);
   void error(std::string message);
@@ -392,7 +380,7 @@ class Parser final {
 
   [[nodiscard]] auto parse_compound_statement(
       CompoundStatementAST*& yyast, List<AttributeSpecifierAST*>* attributes,
-      bool skip /* = false*/) -> bool;
+      bool skip) -> bool;
 
   void finish_compound_statement(CompoundStatementAST* yyast);
   void parse_skip_statement(bool& skipping);
@@ -724,6 +712,8 @@ class Parser final {
                                                const DeclSpecs& declSpecs)
       -> bool;
   [[nodiscard]] auto parse_maybe_template_member() -> bool;
+  [[nodiscard]] auto hasNoUniqueAddressAttribute(
+      List<AttributeSpecifierAST*>* attributes) const -> bool;
   [[nodiscard]] auto parse_member_declaration_helper(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
@@ -758,9 +748,8 @@ class Parser final {
                                     SourceLocation& closeLoc) -> bool;
   [[nodiscard]] auto parse_literal_operator_id(LiteralOperatorIdAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_template_declaration(
-      TemplateDeclarationAST*& yyast,
-      TemplateDeclarationAST* templateHead = nullptr) -> bool;
+  [[nodiscard]] auto parse_template_declaration(TemplateDeclarationAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_template_declaration(
       TemplateDeclarationAST*& yyast,
       std::vector<TemplateDeclarationAST*>& chain) -> bool;
@@ -856,6 +845,21 @@ class Parser final {
   void rewind(SourceLocation location) { cursor_ = location.index(); }
 
   void completePendingFunctionDefinitions();
+  [[nodiscard]] auto isDeferredFieldInitializer(Symbol* symbol) const -> bool;
+  void recordFieldInitializer(InitDeclaratorAST* ast);
+  [[nodiscard]] auto isDeferredDefaultArgument(bool templParam) const -> bool;
+  struct PendingDefaultArgument {
+    ParameterDeclarationAST* ast;
+    ParameterSymbol* symbol;
+    FunctionParametersSymbol* scope;
+  };
+
+  void completePendingDefaultArguments(std::size_t mark);
+  void completeDefaultArguments(
+      const std::vector<PendingDefaultArgument>& pending);
+  void completeFieldInitializers(
+      const std::vector<InitDeclaratorAST*>& pending);
+  void completePendingFieldInitializers(std::size_t mark);
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
   [[nodiscard]] auto getCurrentNonClassScope() const -> ScopeSymbol*;
@@ -874,8 +878,7 @@ class Parser final {
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
-
-  // lookup
+  void check_mem_initializers(FunctionDefinitionAST* ast);
 
   [[nodiscard]] auto enterOrCreateNamespace(const Identifier* identifier,
                                             SourceLocation identifeirLoc,
@@ -899,6 +902,8 @@ class Parser final {
   void synthesizeAbbreviatedTemplateParams(
       ParameterDeclarationClauseAST* params);
 
+  void synthesizeLambdaAbbreviatedTemplateParams(LambdaExpressionAST* ast);
+
   [[nodiscard]] auto isC() const { return lang_ == LanguageKind::kC; }
 
   [[nodiscard]] auto isCxx() const { return lang_ == LanguageKind::kCXX; }
@@ -920,6 +925,7 @@ class Parser final {
   const Identifier* overrideId_ = nullptr;
   int templArgDepth_ = 0;
   int classDepth_ = 0;
+  int uncheckedInitializerDepth_ = 0;
   std::uint32_t lastErrorCursor_ = 0;
   std::uint32_t cursor_ = 0;
   int anonNamespaceCount_ = 0;
@@ -930,6 +936,9 @@ class Parser final {
   TemplateDeclarationAST* enclosingExplicitTemplateHead_ = nullptr;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
+  std::vector<InitDeclaratorAST*> pendingFieldInitializers_;
+
+  std::vector<PendingDefaultArgument> pendingDefaultArguments_;
 
   template <typename T>
   class CachedAST {
@@ -977,7 +986,6 @@ class Parser final {
       auto it = this->map_.find(startLoc);
 
       if (it != this->map_.end()) {
-        // ### todo: speed up
         queue_.erase(std::find(queue_.begin(), queue_.end(), it));
       } else {
         it = this->map_.insert({startLoc, {}}).first;
@@ -999,9 +1007,7 @@ class Parser final {
   CachedAST<ParameterDeclarationClauseAST> parameter_declaration_clauses_;
   CachedAST<TemplateArgumentAST> template_arguments_;
 
-  // TODO: remove
   std::unordered_set<const Identifier*> concept_names_;
   std::unordered_set<const Identifier*> template_names_;
 };
-
 }  // namespace cxx

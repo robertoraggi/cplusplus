@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cxx
 #include <cxx/ast.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -29,9 +28,7 @@
 #include <format>
 
 namespace cxx {
-
 namespace {
-
 class TypePrinter {
  public:
   TypePrinter() {
@@ -274,7 +271,7 @@ class TypePrinter {
         break;
       default:
         break;
-    }  // switch
+    }
 
     switch (type->refQualifier()) {
       case RefQualifier::kLvalue:
@@ -285,7 +282,7 @@ class TypePrinter {
         break;
       default:
         break;
-    }  // switch
+    }
 
     if (type->isNoexcept()) {
       signature.append(" noexcept");
@@ -347,9 +344,15 @@ class TypePrinter {
     specifiers_.append(to_string(type->symbol()->name()));
   }
 
-  void operator()(const MemberObjectPointerType* type) {}
+  void operator()(const MemberObjectPointerType* type) {
+    ptrOps_ = std::format(" {}::*", to_string(type->classType())) + ptrOps_;
+    accept(type->elementType());
+  }
 
-  void operator()(const MemberFunctionPointerType* type) {}
+  void operator()(const MemberFunctionPointerType* type) {
+    ptrOps_ = std::format("{}::*", to_string(type->classType())) + ptrOps_;
+    accept(type->functionType());
+  }
 
   void operator()(const EnumType* type) {
     specifiers_.append(to_string(type->symbol()->name()));
@@ -429,6 +432,24 @@ class TypePrinter {
     specifiers_ += ")";
   }
 
+  void operator()(const UnresolvedBuiltinType* type) {
+    switch (type->builtinKind()) {
+#define PROCESS_UNARY_BUILTIN(id, name) \
+  case UnaryBuiltinTypeKind::T_##id:    \
+    specifiers_ += name;                \
+    break;
+      FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(PROCESS_UNARY_BUILTIN)
+#undef PROCESS_UNARY_BUILTIN
+      default:
+        specifiers_ += "__builtin";
+        break;
+    }
+    specifiers_ += "(";
+    specifiers_ +=
+        textOf(type->translationUnit(), type->typeId()->sourceLocationRange());
+    specifiers_ += ")";
+  }
+
   void operator()(const BitIntType* type) {
     specifiers_ += std::format("_BitInt({})", type->numBits());
   }
@@ -451,7 +472,6 @@ class TypePrinter {
   std::string declarator_;
   bool addFormals_ = false;
 };
-
 }  // namespace
 
 auto to_string(const Type* type, const std::string& id) -> std::string {
@@ -462,5 +482,4 @@ auto to_string(const Type* type, const std::string& id) -> std::string {
 auto to_string(const Type* type, const Name* name) -> std::string {
   return TypePrinter{}(type, to_string(name));
 }
-
 }  // namespace cxx

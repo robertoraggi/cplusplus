@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cxx
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
@@ -31,9 +30,7 @@
 #include <unordered_set>
 
 namespace cxx {
-
 namespace {
-
 struct GetEnumeratorValue {
   auto operator()(bool value) const -> std::string {
     return value ? "true" : "false";
@@ -116,9 +113,7 @@ struct DumpSymbols {
     std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
 
     std::ranges::for_each(sortedSymbols, [&](auto symbol) {
-      // Skip non-canonical redeclarations
       if (symbol->canonical() != symbol) return;
-      // Skip builtin function declarations
       auto id = name_cast<Identifier>(symbol->name());
       if (id && id->info() &&
           id->info()->kind() == IdentifierInfoKind::kBuiltinFunction) {
@@ -247,7 +242,6 @@ struct DumpSymbols {
     if (!symbol->constructors().empty()) {
       ++depth;
       for (auto constructor : symbol->constructors()) {
-        // Skip non-canonical redeclarations
         if (constructor->canonical() != constructor) continue;
         visit(*this, constructor);
       }
@@ -318,7 +312,6 @@ struct DumpSymbols {
 
   void operator()(OverloadSetSymbol* symbol) {
     for (auto function : symbol->functions()) {
-      // Skip non-canonical redeclarations
       if (function->canonical() != function) continue;
       visit(*this, function);
     }
@@ -374,7 +367,7 @@ struct DumpSymbols {
     if (symbol->isMutable()) out << " mutable";
     if (symbol->isStatic()) out << " static";
 
-    out << std::format("{}\n", to_string(symbol->type(), symbol->name()));
+    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
 
     dumpScope(symbol);
   }
@@ -532,12 +525,10 @@ struct DumpSymbols {
       out << std::format("using {}\n",
                          to_string(target->type(), target->name()));
     } else {
-      // unresolved symbol
       out << std::format("using unresolved {}\n", to_string(symbol->name()));
     }
   }
 };
-
 }  // namespace
 
 void dump(std::ostream& out, Symbol* symbol, int depth) {
@@ -548,5 +539,4 @@ auto operator<<(std::ostream& out, Symbol* symbol) -> std::ostream& {
   dump(out, symbol);
   return out;
 }
-
 }  // namespace cxx

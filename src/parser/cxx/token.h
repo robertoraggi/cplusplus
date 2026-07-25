@@ -91,6 +91,9 @@ class Token {
   [[nodiscard]] static auto spell(BuiltinTypeTraitKind kind)
       -> const std::string&;
 
+  [[nodiscard]] static auto spell(BuiltinFunctionKind kind)
+      -> const std::string&;
+
   [[nodiscard]] static auto isBuiltinTypeTrait(BuiltinTypeTraitKind kind)
       -> bool;
 

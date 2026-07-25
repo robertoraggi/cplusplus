@@ -18,27 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/codegen.h>
-#include <cxx/translation_unit.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
-#include <cxx/name_lookup.h>
+#include <cxx/mlir/codegen.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
-
-// mlir
 #include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 
 namespace cxx {
-
 struct Codegen::StatementVisitor {
   Codegen& gen;
 
@@ -111,8 +105,9 @@ void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
   gen.branch(loc, targetBlock);
   gen.builder_.setInsertionPointToEnd(targetBlock);
 
-  mlir::cxx::LabelOp::create(gen.builder_, loc,
-                             mlir::StringRef{ast->identifier->name()});
+  mlir::cxx::LabelOp::create(
+      gen.builder_, loc, mlir::StringRef{ast->identifier->name()},
+      static_cast<std::int64_t>(gen.cleanupStack_.size()));
 
   gen.statement(ast->statement);
 }
@@ -158,7 +153,10 @@ void Codegen::StatementVisitor::operator()(IfStatementAST* ast) {
 
   gen.builder_.setInsertionPointToEnd(trueBlock);
   gen.statement(ast->statement);
-  gen.branch(gen.getLocation(ast->statement->lastSourceLocation()), mergeBlock);
+  gen.branch(
+      gen.getLocation(ast->statement ? ast->statement->lastSourceLocation()
+                                     : ast->rparenLoc),
+      mergeBlock);
   gen.builder_.setInsertionPointToEnd(falseBlock);
   gen.statement(ast->elseStatement);
   gen.branch(gen.getLocation(ast->elseStatement
@@ -319,66 +317,31 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
   mlir::Value beginVal, endVal;
   bool isPointerIterator = false;
-  const Type* iteratorElementType = nullptr;
   FunctionSymbol* derefFunc = nullptr;
   FunctionSymbol* incrFunc = nullptr;
   FunctionSymbol* neqFunc = nullptr;
 
   if (auto arrayType = type_cast<BoundedArrayType>(rangeType)) {
     isPointerIterator = true;
-    iteratorElementType = arrayType->elementType();
 
     auto elementMlirType = gen.convertType(arrayType->elementType());
     auto ptrType = mlir::cxx::PointerType::get(gen.context_, elementMlirType);
 
-    beginVal = rangeResult.value;
-
     auto intTy = gen.builder_.getIntegerType(64);
+
+    auto zeroOp = mlir::arith::ConstantOp::create(
+        gen.builder_, loc, intTy, gen.builder_.getIntegerAttr(intTy, 0));
+    beginVal = mlir::cxx::PtrAddOp::create(gen.builder_, loc, ptrType,
+                                           rangeResult.value, zeroOp);
+
     auto sizeOp = mlir::arith::ConstantOp::create(
         gen.builder_, loc, intTy,
         gen.builder_.getIntegerAttr(intTy, arrayType->size()));
     endVal = mlir::cxx::PtrAddOp::create(gen.builder_, loc, ptrType, beginVal,
                                          sizeOp);
-  } else if (auto classType = type_cast<ClassType>(rangeType)) {
-    auto classSymbol = classType->symbol();
-    if (classSymbol && classSymbol->definition())
-      classSymbol = classSymbol->definition();
-
-    if (!classSymbol) {
-      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                             "for-range: incomplete class");
-      return;
-    }
-
-    auto beginName = control()->getIdentifier("begin");
-    auto endName = control()->getIdentifier("end");
-
-    // Look for member begin()/end()
-    FunctionSymbol* beginFunc = nullptr;
-    FunctionSymbol* endFunc = nullptr;
-
-    beginFunc = views::find_function(classSymbol->find(beginName),
-                                     [](FunctionSymbol*) { return true; });
-
-    endFunc = views::find_function(classSymbol->find(endName),
-                                   [](FunctionSymbol*) { return true; });
-
-    if (!beginFunc || !endFunc) {
-      ScopeSymbol* lookupScope = nullptr;
-
-      if (ast->symbol)
-        lookupScope = ast->symbol;
-      else
-        lookupScope = classSymbol;
-
-      std::vector<const Type*> argTypes = {rangeType};
-
-      auto beginCandidates = argumentDependentLookup(beginName, argTypes);
-      auto endCandidates = argumentDependentLookup(endName, argTypes);
-
-      if (!beginCandidates.empty()) beginFunc = beginCandidates.front();
-      if (!endCandidates.empty()) endFunc = endCandidates.front();
-    }
+  } else if (type_cast<ClassType>(rangeType)) {
+    auto beginFunc = ast->beginFunction;
+    auto endFunc = ast->endFunction;
 
     if (!beginFunc || !endFunc) {
       (void)gen.emitTodoStmt(ast->firstSourceLocation(),
@@ -386,9 +349,7 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
       return;
     }
 
-    bool isMember = beginFunc->parent() == classSymbol;
-
-    if (isMember) {
+    if (ast->usesMemberBeginEnd) {
       beginVal = gen.emitCall(ast->colonLoc, beginFunc, rangeResult, {}).value;
       endVal = gen.emitCall(ast->colonLoc, endFunc, rangeResult, {}).value;
     } else {
@@ -403,60 +364,15 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
       return;
     }
 
-    auto beginFuncType = type_cast<FunctionType>(beginFunc->type());
-    if (!beginFuncType) {
+    isPointerIterator = ast->isPointerIterator;
+    derefFunc = ast->derefFunction;
+    incrFunc = ast->incrementFunction;
+    neqFunc = ast->notEqualFunction;
+
+    if (!isPointerIterator && (!derefFunc || !incrFunc || !neqFunc)) {
       (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                             "for-range: bad begin type");
+                             "for-range: missing iterator ops");
       return;
-    }
-
-    auto iterType =
-        gen.unit_->typeTraits().remove_cvref(beginFuncType->returnType());
-
-    if (gen.unit_->typeTraits().is_pointer(iterType)) {
-      isPointerIterator = true;
-      iteratorElementType = gen.unit_->typeTraits().get_element_type(iterType);
-    } else if (auto iterClassType = type_cast<ClassType>(iterType)) {
-      auto iterClass = iterClassType->symbol();
-      if (iterClass && iterClass->definition())
-        iterClass = iterClass->definition();
-
-      if (iterClass) {
-        auto starOp = control()->getOperatorId(TokenKind::T_STAR);
-        auto plusPlusOp = control()->getOperatorId(TokenKind::T_PLUS_PLUS);
-        auto neqOp = control()->getOperatorId(TokenKind::T_EXCLAIM_EQUAL);
-
-        derefFunc = views::find_function(iterClass->find(starOp),
-                                         [](FunctionSymbol*) { return true; });
-
-        incrFunc = views::find_function(
-            iterClass->find(plusPlusOp), [](FunctionSymbol* func) {
-              auto ft = type_cast<FunctionType>(func->type());
-              return ft && ft->parameterTypes().empty();
-            });
-
-        neqFunc = views::find_function(iterClass->find(neqOp),
-                                       [](FunctionSymbol*) { return true; });
-
-        if (!neqFunc) {
-          ScopeSymbol* lookupScope =
-              ast->symbol ? static_cast<ScopeSymbol*>(ast->symbol)
-                          : static_cast<ScopeSymbol*>(iterClass);
-          std::vector<const Type*> cmpArgTypes = {iterType, iterType};
-          auto neqCandidates = argumentDependentLookup(neqOp, cmpArgTypes);
-          if (!neqCandidates.empty()) neqFunc = neqCandidates.front();
-        }
-      }
-
-      if (!derefFunc || !incrFunc || !neqFunc) {
-        (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                               "for-range: missing iterator ops");
-        return;
-      }
-    } else {
-      // Unknown iterator type
-      isPointerIterator = true;
-      iteratorElementType = nullptr;
     }
   } else {
     (void)gen.emitTodoStmt(ast->firstSourceLocation(),
@@ -464,20 +380,17 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     return;
   }
 
-  // Create loop blocks
   auto condBlock = gen.newBlock();
   auto bodyBlock = gen.newBlock();
   auto stepBlock = gen.newBlock();
   auto exitBlock = gen.newBlock();
 
-  // Alloca for the iterator
   auto iterType = beginVal.getType();
   auto iterPtrType = mlir::cxx::PointerType::get(gen.context_, iterType);
   auto iterAlloca =
       mlir::cxx::AllocaOp::create(gen.builder_, loc, iterPtrType, 8);
   mlir::cxx::StoreOp::create(gen.builder_, loc, beginVal, iterAlloca, 8);
 
-  // Alloca for end
   auto endPtrType = mlir::cxx::PointerType::get(gen.context_, endVal.getType());
   auto endAlloca =
       mlir::cxx::AllocaOp::create(gen.builder_, loc, endPtrType, 8);
@@ -514,10 +427,11 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
     ExpressionResult neqResult;
     if (isMemberNeq) {
-      neqResult = gen.emitCall(ast->colonLoc, neqFunc, {iterLoad}, {{endLoad}});
+      neqResult =
+          gen.emitCall(ast->colonLoc, neqFunc, {iterAlloca}, {{endAlloca}});
     } else {
       neqResult =
-          gen.emitCall(ast->colonLoc, neqFunc, {}, {{iterLoad}, {endLoad}});
+          gen.emitCall(ast->colonLoc, neqFunc, {}, {{iterAlloca}, {endAlloca}});
     }
     condVal = neqResult.value;
   }
@@ -537,7 +451,6 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
   gen.builder_.setInsertionPointToEnd(bodyBlock);
 
-  // Get the loop variable from the block scope
   VariableSymbol* loopVar = nullptr;
   if (ast->symbol) {
     for (auto member : ast->symbol->members()) {
@@ -571,11 +484,22 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
         }
       } else if (derefFunc) {
         auto derefResult =
-            gen.emitCall(ast->colonLoc, derefFunc, {iterInBody}, {});
+            gen.emitCall(ast->colonLoc, derefFunc, {iterAlloca}, {});
         if (derefResult.value) {
-          mlir::cxx::StoreOp::create(gen.builder_, loc, derefResult.value,
-                                     local.value(),
-                                     gen.getAlignment(loopVar->type()));
+          if (gen.unit_->typeTraits().is_reference(loopVar->type())) {
+            mlir::cxx::StoreOp::create(gen.builder_, loc, derefResult.value,
+                                       local.value(),
+                                       gen.getAlignment(loopVar->type()));
+          } else {
+            auto elemType = gen.convertType(
+                gen.unit_->typeTraits().remove_cvref(loopVar->type()));
+            auto elem = mlir::cxx::LoadOp::create(
+                gen.builder_, loc, elemType, derefResult.value,
+                gen.getAlignment(
+                    gen.unit_->typeTraits().remove_cvref(loopVar->type())));
+            mlir::cxx::StoreOp::create(gen.builder_, loc, elem, local.value(),
+                                       gen.getAlignment(loopVar->type()));
+          }
         }
       }
     }
@@ -589,10 +513,9 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
   gen.builder_.setInsertionPointToEnd(stepBlock);
 
-  auto iterInStep =
-      mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
-
   if (isPointerIterator) {
+    auto iterInStep =
+        mlir::cxx::LoadOp::create(gen.builder_, loc, iterType, iterAlloca, 8);
     auto intTy = gen.builder_.getIntegerType(32);
     auto oneOp = mlir::arith::ConstantOp::create(
         gen.builder_, loc, intTy, gen.builder_.getIntegerAttr(intTy, 1));
@@ -600,11 +523,7 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
                                                 iterInStep, oneOp);
     mlir::cxx::StoreOp::create(gen.builder_, loc, nextIter, iterAlloca, 8);
   } else if (incrFunc) {
-    auto incrResult = gen.emitCall(ast->colonLoc, incrFunc, {iterInStep}, {});
-    if (incrResult.value) {
-      mlir::cxx::StoreOp::create(gen.builder_, loc, incrResult.value,
-                                 iterAlloca, 8);
-    }
+    (void)gen.emitCall(ast->colonLoc, incrFunc, {iterAlloca}, {});
   }
 
   gen.branch(loc, condBlock);
@@ -684,7 +603,19 @@ void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   if (gen.exitValue_) {
-    mlir::cxx::StoreOp::create(gen.builder_, loc, value.value,
+    auto resultValue = value.value;
+
+    if (resultValue && gen.unit_->typeTraits().is_class(gen.returnType_)) {
+      auto expectedType = gen.convertType(gen.returnType_);
+      if (resultValue.getType() != expectedType &&
+          mlir::isa<mlir::cxx::PointerType>(resultValue.getType())) {
+        resultValue = mlir::cxx::LoadOp::create(
+            gen.builder_, loc, expectedType, resultValue,
+            gen.getAlignment(gen.returnType_));
+      }
+    }
+
+    mlir::cxx::StoreOp::create(gen.builder_, loc, resultValue,
                                gen.exitValue_.getResult(),
                                gen.getAlignment(gen.returnType_));
   }
@@ -719,9 +650,14 @@ void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
     return;
   }
 
-  mlir::cxx::GotoOp::create(gen.builder_,
-                            gen.getLocation(ast->firstSourceLocation()),
-                            mlir::ValueRange{}, ast->identifier->name());
+  auto cleanupSnapshot = gen.collectCleanupSnapshot();
+
+  mlir::cxx::GotoOp::create(
+      gen.builder_, gen.getLocation(ast->firstSourceLocation()),
+      cleanupSnapshot.addresses,
+      mlir::ArrayAttr::get(gen.context_, cleanupSnapshot.destructors),
+      mlir::ArrayAttr::get(gen.context_, cleanupSnapshot.depths),
+      ast->identifier->name());
 
   auto nextBlock = gen.newBlock();
   gen.branch(gen.getLocation(ast->firstSourceLocation()), nextBlock);
@@ -764,5 +700,4 @@ auto Codegen::ExceptionDeclarationVisitor::operator()(
 
   return {};
 }
-
 }  // namespace cxx

@@ -18,25 +18,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/binder.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/binder.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbols.h>
 
+#include <algorithm>
 #include <format>
+#include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace cxx {
-
 struct [[nodiscard]] Binder::CompleteClass {
   Binder& binder;
   ClassSpecifierAST* ast;
@@ -45,6 +49,9 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   CompleteClass(Binder& b, ClassSpecifierAST* a)
       : binder(b), ast(a), classSymbol(a->symbol), pool(b.unit_->arena()) {}
+
+  CompleteClass(Binder& b, ClassSymbol* cls)
+      : binder(b), ast(nullptr), classSymbol(cls), pool(b.unit_->arena()) {}
 
   auto control() const -> Control* { return binder.control(); }
 
@@ -62,16 +69,85 @@ struct [[nodiscard]] Binder::CompleteClass {
   void attachDeclaration(FunctionSymbol* symbol, UnqualifiedIdAST* id);
   auto makeCtorNameId() -> NameIdAST*;
   void addFunctionToClassScope(FunctionSymbol* symbol);
+  auto hasUserDeclaredAssignmentOperator(bool moveForm) const -> bool;
   void addDefaultConstructor();
   void addCopyConstructor();
   void addMoveConstructor();
   void addCopyAssignmentOperator();
   void addMoveAssignmentOperator();
   void addDestructor();
+
+  void synthesizeStructorVariants();
+  auto newStructorVariant(FunctionSymbol* principal) -> FunctionSymbol*;
+  void attachVariantDefinition(FunctionSymbol* variant, UnqualifiedIdAST* id,
+                               FunctionBodyAST* body);
+  auto makeThisExpr() -> ExpressionAST*;
+  auto makeParamRef(ParameterSymbol* param) -> ExpressionAST*;
+  auto makeQualifier(ClassSymbol* cls) -> NestedNameSpecifierAST*;
+  auto makeStructorCallStatement(FunctionSymbol* callee,
+                                 ExpressionAST* objectPtr) -> StatementAST*;
+  auto pickVBaseConstructor(ClassSymbol* vbase, bool isCopy, bool isMove)
+      -> FunctionSymbol*;
+  void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
+  void synthesizeCompleteObjectDtor(FunctionSymbol* dtor);
+  void synthesizeDeletingDtor(FunctionSymbol* dtor);
+
+  void synthesizeMemberwiseBodies();
+  void typeFieldInitializers();
+  [[nodiscard]] auto hasNonAssignableSubobject(bool moveForm) const -> bool;
+  auto ensureSourceParameter(FunctionSymbol* fn) -> ParameterSymbol*;
+  auto makeSourceSubobjectRef(ExpressionAST* expr, const Type* type,
+                              bool isMove) -> ExpressionAST*;
+  void synthesizeCopyMoveCtorBody(FunctionSymbol* fn, bool isMove);
+  void synthesizeCopyMoveAssignBody(FunctionSymbol* fn, bool isMove);
 };
 
 void Binder::complete(ClassSpecifierAST* ast) {
   CompleteClass{*this, ast}.complete();
+}
+
+void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
+  if (!ctor->isConstructor()) return;
+  if (ctor->isDeleted() || ctor->completeObjectVariant()) return;
+  if (!type_cast<FunctionType>(ctor->type())) return;
+
+  auto classSymbol =
+      symbol_cast<ClassSymbol>(ctor->enclosingNonTemplateParametersScope());
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+
+  auto layout = classSymbol->layout();
+  if (!layout || layout->virtualBases().empty()) return;
+
+  CompleteClass{*this, classSymbol}.synthesizeCompleteObjectCtor(ctor);
+}
+
+void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
+  if (!fn || fn->isDeleted()) return;
+
+  auto def = fn->declaration();
+  if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
+
+  auto classSymbol =
+      symbol_cast<ClassSymbol>(fn->enclosingNonTemplateParametersScope());
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (classSymbol->isUnion() || classSymbol->isClosureType()) return;
+
+  auto canon = fn->canonical();
+  auto matches = [&](FunctionSymbol* member) {
+    return member && member->canonical() == canon;
+  };
+
+  CompleteClass cc{*this, classSymbol};
+  if (matches(classSymbol->copyConstructor()))
+    cc.synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);
+  else if (matches(classSymbol->moveConstructor()))
+    cc.synthesizeCopyMoveCtorBody(fn, /*isMove=*/true);
+  else if (matches(classSymbol->copyAssignmentOperator()))
+    cc.synthesizeCopyMoveAssignBody(fn, /*isMove=*/false);
+  else if (matches(classSymbol->moveAssignmentOperator()))
+    cc.synthesizeCopyMoveAssignBody(fn, /*isMove=*/true);
 }
 
 void Binder::CompleteClass::markComplete() { ast->symbol->setComplete(true); }
@@ -83,11 +159,48 @@ auto Binder::CompleteClass::shouldSynthesizeSpecialMembers() const -> bool {
 }
 
 void Binder::CompleteClass::synthesizeSpecialMembers() {
+  const bool userDeclaredCopyConstructor = classSymbol->copyConstructor();
+  const bool userDeclaredMoveConstructor = classSymbol->moveConstructor();
+  const bool userDeclaredCopyAssignment =
+      hasUserDeclaredAssignmentOperator(/*moveForm=*/false);
+  const bool userDeclaredMoveAssignment =
+      hasUserDeclaredAssignmentOperator(/*moveForm=*/true);
+  const bool userDeclaredDestructor = classSymbol->destructor();
+
+  const bool suppressMoveMembers =
+      userDeclaredCopyConstructor || userDeclaredMoveConstructor ||
+      userDeclaredCopyAssignment || userDeclaredMoveAssignment ||
+      userDeclaredDestructor;
+
+  const bool deleteCopyMembers =
+      userDeclaredMoveConstructor || userDeclaredMoveAssignment;
+
   addDefaultConstructor();
+
   addCopyConstructor();
-  addMoveConstructor();
+  if (deleteCopyMembers && !userDeclaredCopyConstructor) {
+    if (auto copyConstructor = classSymbol->copyConstructor())
+      copyConstructor->setDeleted(true);
+  }
+
+  if (!suppressMoveMembers) addMoveConstructor();
+
   addCopyAssignmentOperator();
-  addMoveAssignmentOperator();
+  if (!userDeclaredCopyAssignment) {
+    if (auto copyAssignment = classSymbol->copyAssignmentOperator()) {
+      if (deleteCopyMembers || hasNonAssignableSubobject(/*moveForm=*/false))
+        copyAssignment->setDeleted(true);
+    }
+  }
+
+  if (!suppressMoveMembers) {
+    addMoveAssignmentOperator();
+    if (auto moveAssignment = classSymbol->moveAssignmentOperator()) {
+      if (hasNonAssignableSubobject(/*moveForm=*/true))
+        moveAssignment->setDeleted(true);
+    }
+  }
+
   addDestructor();
 }
 
@@ -95,7 +208,7 @@ auto Binder::CompleteClass::hasVirtualBaseDestructor() const -> bool {
   for (auto base : classSymbol->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClass) continue;
-    if (auto def = baseClass->definition()) baseClass = def;
+    baseClass = baseClass->resolvedDefinition();
 
     auto dtor = baseClass->destructor();
     if (dtor && dtor->isVirtual()) return true;
@@ -128,6 +241,14 @@ void Binder::CompleteClass::complete() {
     binder.error(classSymbol->location(), status.error());
 
   binder.computeClassFlags(classSymbol);
+
+  typeFieldInitializers();
+
+  if (shouldSynthesizeSpecialMembers()) {
+    synthesizeStructorVariants();
+    synthesizeMemberwiseBodies();
+  }
+
   markComplete();
 }
 
@@ -220,9 +341,34 @@ void Binder::CompleteClass::addMoveConstructor() {
   attachDeclaration(symbol, makeCtorNameId());
 }
 
+auto Binder::CompleteClass::hasUserDeclaredAssignmentOperator(
+    bool moveForm) const -> bool {
+  auto traits = binder.unit_->typeTraits();
+  return views::any_function(
+      classSymbol->find(TokenKind::T_EQUAL), [&](FunctionSymbol* fn) {
+        auto funcType = type_cast<FunctionType>(fn->type());
+        if (!funcType) return false;
+        auto& params = funcType->parameterTypes();
+        if (params.size() != 1) return false;
+
+        auto paramType = params[0];
+        if (auto lref = type_cast<LvalueReferenceType>(paramType)) {
+          if (moveForm) return false;
+          paramType = lref->elementType();
+        } else if (auto rref = type_cast<RvalueReferenceType>(paramType)) {
+          if (!moveForm) return false;
+          paramType = rref->elementType();
+        } else if (moveForm) {
+          return false;
+        }
+
+        auto classType = type_cast<ClassType>(traits.remove_cv(paramType));
+        return classType && classType->symbol() == classSymbol;
+      });
+}
+
 void Binder::CompleteClass::addCopyAssignmentOperator() {
-  auto existing = classSymbol->copyAssignmentOperator();
-  if (existing) return;
+  if (hasUserDeclaredAssignmentOperator(/*moveForm=*/false)) return;
 
   auto constRefType = control()->getLvalueReferenceType(
       control()->getConstType(classSymbol->type()));
@@ -237,8 +383,7 @@ void Binder::CompleteClass::addCopyAssignmentOperator() {
 }
 
 void Binder::CompleteClass::addMoveAssignmentOperator() {
-  auto existingMove = classSymbol->moveAssignmentOperator();
-  if (existingMove) return;
+  if (hasUserDeclaredAssignmentOperator(/*moveForm=*/true)) return;
 
   auto rvalRefType = control()->getRvalueReferenceType(classSymbol->type());
   auto retType = control()->getLvalueReferenceType(classSymbol->type());
@@ -249,6 +394,41 @@ void Binder::CompleteClass::addMoveAssignmentOperator() {
   addFunctionToClassScope(symbol);
   attachDeclaration(symbol,
                     OperatorFunctionIdAST::create(pool, TokenKind::T_EQUAL));
+}
+
+auto Binder::CompleteClass::hasNonAssignableSubobject(bool moveForm) const
+    -> bool {
+  auto traits = binder.unit_->typeTraits();
+
+  auto subobjectAssignmentIsDeleted = [&](const Type* type) {
+    auto classType = type_cast<ClassType>(traits.remove_cv(type));
+    if (!classType || !classType->symbol()) return false;
+    auto subobject = classType->symbol()->resolvedDefinition();
+    if (!subobject->isComplete()) return false;
+
+    auto assignment = moveForm ? subobject->moveAssignmentOperator() : nullptr;
+    if (!assignment) assignment = subobject->copyAssignmentOperator();
+    return assignment && assignment->isDeleted();
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass && subobjectAssignmentIsDeleted(baseClass->type()))
+      return true;
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    auto type = field->type();
+    if (traits.is_reference(type)) return true;
+
+    auto element = traits.remove_all_extents(type);
+    if (traits.is_const(element) && !traits.is_class(traits.remove_cv(element)))
+      return true;
+
+    if (subobjectAssignmentIsDeleted(element)) return true;
+  }
+
+  return false;
 }
 
 void Binder::CompleteClass::addDestructor() {
@@ -268,6 +448,607 @@ void Binder::CompleteClass::addDestructor() {
   attachDeclaration(symbol, dtorId);
 }
 
+void Binder::CompleteClass::synthesizeStructorVariants() {
+  auto layout = classSymbol->layout();
+  if (!layout) return;
+
+  const bool hasVirtualBases = !layout->virtualBases().empty();
+
+  if (hasVirtualBases) {
+    for (auto ctor : classSymbol->constructors()) {
+      if (ctor->completeObjectVariant()) continue;
+      if (ctor->isDeleted()) continue;
+      if (ctor->templateDeclaration()) continue;
+      if (!type_cast<FunctionType>(ctor->type())) continue;
+      synthesizeCompleteObjectCtor(ctor);
+    }
+  }
+
+  if (auto dtor = classSymbol->destructor(); dtor && !dtor->isDeleted()) {
+    if (hasVirtualBases && !dtor->completeObjectVariant())
+      synthesizeCompleteObjectDtor(dtor);
+    if (dtor->isVirtual() && !dtor->deletingDtorVariant())
+      synthesizeDeletingDtor(dtor);
+  }
+}
+
+auto Binder::CompleteClass::newStructorVariant(FunctionSymbol* principal)
+    -> FunctionSymbol* {
+  auto variant =
+      control()->newFunctionSymbol(classSymbol, principal->location());
+  variant->setName(principal->name());
+  variant->setType(principal->type());
+  variant->setDefined(true);
+  variant->setLanguageLinkage(LanguageKind::kCXX);
+  variant->setStructorPrincipal(principal);
+
+  auto params = control()->newFunctionParametersSymbol(variant, {});
+  variant->addSymbol(params);
+
+  if (auto funcType = type_cast<FunctionType>(principal->type())) {
+    int index = 0;
+    for (auto paramType : funcType->parameterTypes()) {
+      auto param = control()->newParameterSymbol(params, principal->location());
+      param->setName(control()->getIdentifier(std::format("__p{}", index++)));
+      param->setType(paramType);
+      params->addSymbol(param);
+    }
+  }
+
+  return variant;
+}
+
+void Binder::CompleteClass::attachVariantDefinition(FunctionSymbol* variant,
+                                                    UnqualifiedIdAST* id,
+                                                    FunctionBodyAST* body) {
+  auto idDecl = IdDeclaratorAST::create(pool);
+  idDecl->unqualifiedId = id;
+
+  auto funcChunk = FunctionDeclaratorChunkAST::create(pool);
+
+  auto declarator = DeclaratorAST::create(
+      pool, nullptr, idDecl,
+      make_list_node<DeclaratorChunkAST>(pool, funcChunk));
+
+  auto funcDef = FunctionDefinitionAST::create(pool);
+  funcDef->declarator = declarator;
+  funcDef->functionBody = body;
+  funcDef->symbol = variant;
+  variant->setDeclaration(funcDef);
+}
+
+auto Binder::CompleteClass::makeThisExpr() -> ExpressionAST* {
+  auto thisExpr = ThisExpressionAST::create(pool);
+  thisExpr->type = control()->getPointerType(classSymbol->type());
+  thisExpr->valueCategory = ValueCategory::kPrValue;
+  return thisExpr;
+}
+
+auto Binder::CompleteClass::makeParamRef(ParameterSymbol* param)
+    -> ExpressionAST* {
+  auto idExpr = IdExpressionAST::create(pool);
+  if (auto id = name_cast<Identifier>(param->name()))
+    idExpr->unqualifiedId = NameIdAST::create(pool, id);
+  idExpr->symbol = param;
+  idExpr->type = binder.unit_->typeTraits().remove_reference(param->type());
+  idExpr->valueCategory = ValueCategory::kLValue;
+  return idExpr;
+}
+
+auto Binder::CompleteClass::makeQualifier(ClassSymbol* cls)
+    -> NestedNameSpecifierAST* {
+  auto nns = SimpleNestedNameSpecifierAST::create(pool);
+  nns->identifier = name_cast<Identifier>(cls->name());
+  return nns;
+}
+
+auto Binder::CompleteClass::makeStructorCallStatement(FunctionSymbol* callee,
+                                                      ExpressionAST* objectPtr)
+    -> StatementAST* {
+  auto calleeClass = symbol_cast<ClassSymbol>(callee->parent());
+
+  auto member = MemberExpressionAST::create(pool);
+  member->baseExpression = objectPtr;
+  member->accessOp = TokenKind::T_MINUS_GREATER;
+  member->nestedNameSpecifier =
+      calleeClass ? makeQualifier(calleeClass) : nullptr;
+  if (name_cast<DestructorId>(callee->name())) {
+    auto dtorId = DestructorIdAST::create(pool);
+    if (calleeClass) {
+      if (auto id = name_cast<Identifier>(calleeClass->name()))
+        dtorId->id = NameIdAST::create(pool, id);
+    }
+    member->unqualifiedId = dtorId;
+  } else if (auto id = name_cast<Identifier>(callee->name())) {
+    member->unqualifiedId = NameIdAST::create(pool, id);
+  }
+  member->symbol = callee;
+  member->type = callee->type();
+  member->valueCategory = ValueCategory::kPrValue;
+
+  auto call = CallExpressionAST::create(pool);
+  call->baseExpression = member;
+  call->type = control()->getVoidType();
+  call->valueCategory = ValueCategory::kPrValue;
+
+  auto stmt = ExpressionStatementAST::create(pool);
+  stmt->expression = call;
+  return stmt;
+}
+
+auto Binder::CompleteClass::pickVBaseConstructor(ClassSymbol* vbase,
+                                                 bool isCopy, bool isMove)
+    -> FunctionSymbol* {
+  if (isCopy) return vbase->copyConstructor();
+  if (isMove) return vbase->moveConstructor();
+  for (auto candidate : vbase->constructors()) {
+    auto funcType = type_cast<FunctionType>(candidate->type());
+    if (funcType && funcType->parameterTypes().empty()) return candidate;
+  }
+  return nullptr;
+}
+
+void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
+  auto layout = classSymbol->layout();
+  auto traits = binder.unit_->typeTraits();
+
+  bool isCopy = false;
+  bool isMove = false;
+  ParameterSymbol* sourceParam = nullptr;
+
+  auto variant = newStructorVariant(ctor);
+
+  std::vector<ParameterSymbol*> params;
+  for (auto member : views::members(variant)) {
+    auto paramsSym = symbol_cast<FunctionParametersSymbol>(member);
+    if (!paramsSym) continue;
+    for (auto param : views::members(paramsSym)) {
+      if (auto p = symbol_cast<ParameterSymbol>(param)) params.push_back(p);
+    }
+  }
+
+  if (params.size() == 1) {
+    auto paramType = params[0]->type();
+    if (auto ref = type_cast<LvalueReferenceType>(paramType)) {
+      if (traits.remove_cv(ref->elementType()) == classSymbol->type()) {
+        isCopy = true;
+        sourceParam = params[0];
+      }
+    } else if (auto rref = type_cast<RvalueReferenceType>(paramType)) {
+      if (traits.remove_cv(rref->elementType()) == classSymbol->type()) {
+        isMove = true;
+        sourceParam = params[0];
+      }
+    }
+  }
+
+  List<MemInitializerAST*>* memInits = nullptr;
+  auto memInitsTail = &memInits;
+
+  for (auto vbase : layout->virtualBases()) {
+    auto vbaseCtor = pickVBaseConstructor(vbase, isCopy, isMove);
+
+    auto init = ParenMemInitializerAST::create(pool);
+    if (auto id = name_cast<Identifier>(vbase->name()))
+      init->unqualifiedId = NameIdAST::create(pool, id);
+    init->symbol = vbase;
+    init->constructor = vbaseCtor;
+
+    if (sourceParam) {
+      auto cast = ImplicitCastExpressionAST::create(pool);
+      cast->castKind = ImplicitCastKind::kDerivedToBaseConversion;
+      cast->expression = makeParamRef(sourceParam);
+      cast->type =
+          isCopy ? control()->getConstType(vbase->type()) : vbase->type();
+      cast->valueCategory = ValueCategory::kLValue;
+      init->expressionList = make_list_node<ExpressionAST>(pool, cast);
+    }
+
+    *memInitsTail = make_list_node<MemInitializerAST>(pool, init);
+    memInitsTail = &(*memInitsTail)->next;
+  }
+
+  auto delegate = ParenMemInitializerAST::create(pool);
+  delegate->unqualifiedId = makeCtorNameId();
+  delegate->symbol = classSymbol;
+  delegate->constructor = ctor;
+
+  List<ExpressionAST*>* args = nullptr;
+  auto argsTail = &args;
+  for (auto param : params) {
+    auto argExpr = makeParamRef(param);
+    if (!traits.is_reference(param->type())) {
+      auto load = ImplicitCastExpressionAST::create(pool);
+      load->castKind = ImplicitCastKind::kLValueToRValueConversion;
+      load->expression = argExpr;
+      load->type = traits.remove_cv(argExpr->type);
+      load->valueCategory = ValueCategory::kPrValue;
+      argExpr = load;
+    }
+    *argsTail = make_list_node<ExpressionAST>(pool, argExpr);
+    argsTail = &(*argsTail)->next;
+  }
+  delegate->expressionList = args;
+
+  *memInitsTail = make_list_node<MemInitializerAST>(pool, delegate);
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->memInitializerList = memInits;
+  body->statement = CompoundStatementAST::create(pool);
+
+  attachVariantDefinition(variant, makeCtorNameId(), body);
+  ctor->setCompleteObjectVariant(variant);
+}
+
+void Binder::CompleteClass::synthesizeCompleteObjectDtor(FunctionSymbol* dtor) {
+  auto layout = classSymbol->layout();
+
+  auto variant = newStructorVariant(dtor);
+  variant->setVirtual(dtor->isVirtual());
+
+  List<StatementAST*>* stmts = nullptr;
+  auto stmtsTail = &stmts;
+  auto appendStatement = [&](StatementAST* stmt) {
+    *stmtsTail = make_list_node<StatementAST>(pool, stmt);
+    stmtsTail = &(*stmtsTail)->next;
+  };
+
+  appendStatement(makeStructorCallStatement(dtor, makeThisExpr()));
+
+  const auto& vbases = layout->virtualBases();
+  for (auto it = vbases.rbegin(); it != vbases.rend(); ++it) {
+    auto vbase = *it;
+    auto vbaseDtor = vbase->destructor();
+    if (!vbaseDtor) continue;
+
+    auto cast = ImplicitCastExpressionAST::create(pool);
+    cast->castKind = ImplicitCastKind::kDerivedToBaseConversion;
+    cast->expression = makeThisExpr();
+    cast->type = control()->getPointerType(vbase->type());
+    cast->valueCategory = ValueCategory::kPrValue;
+
+    appendStatement(makeStructorCallStatement(vbaseDtor, cast));
+  }
+
+  auto compound = CompoundStatementAST::create(pool);
+  compound->statementList = stmts;
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->statement = compound;
+
+  auto dtorId = DestructorIdAST::create(pool);
+  if (auto id = name_cast<Identifier>(classSymbol->name()))
+    dtorId->id = NameIdAST::create(pool, id);
+
+  attachVariantDefinition(variant, dtorId, body);
+  dtor->setCompleteObjectVariant(variant);
+}
+
+void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
+  auto variant = newStructorVariant(dtor);
+  variant->setVirtual(true);
+
+  List<StatementAST*>* stmts = nullptr;
+  auto stmtsTail = &stmts;
+  auto appendStatement = [&](StatementAST* stmt) {
+    *stmtsTail = make_list_node<StatementAST>(pool, stmt);
+    stmtsTail = &(*stmtsTail)->next;
+  };
+
+  auto completeDtor = dtor->completeObjectVariant();
+  if (!completeDtor) completeDtor = dtor;
+  appendStatement(makeStructorCallStatement(completeDtor, makeThisExpr()));
+
+  auto operatorDelete =
+      resolveUsualOperatorDelete(binder.unit_, classSymbol, false);
+
+  auto calleeExpr = IdExpressionAST::create(pool);
+  calleeExpr->unqualifiedId =
+      OperatorFunctionIdAST::create(pool, TokenKind::T_DELETE);
+  calleeExpr->symbol = operatorDelete;
+  calleeExpr->type = operatorDelete->type();
+  calleeExpr->valueCategory = ValueCategory::kLValue;
+
+  auto voidPtrType = control()->getPointerType(control()->getVoidType());
+  auto thisAsVoidPtr = ImplicitCastExpressionAST::create(pool);
+  thisAsVoidPtr->castKind = ImplicitCastKind::kPointerConversion;
+  thisAsVoidPtr->expression = makeThisExpr();
+  thisAsVoidPtr->type = voidPtrType;
+  thisAsVoidPtr->valueCategory = ValueCategory::kPrValue;
+
+  auto call = CallExpressionAST::create(pool);
+  call->baseExpression = calleeExpr;
+  call->expressionList = make_list_node<ExpressionAST>(pool, thisAsVoidPtr);
+  call->type = control()->getVoidType();
+  call->valueCategory = ValueCategory::kPrValue;
+
+  auto stmt = ExpressionStatementAST::create(pool);
+  stmt->expression = call;
+  appendStatement(stmt);
+
+  auto compound = CompoundStatementAST::create(pool);
+  compound->statementList = stmts;
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->statement = compound;
+
+  auto dtorId = DestructorIdAST::create(pool);
+  if (auto id = name_cast<Identifier>(classSymbol->name()))
+    dtorId->id = NameIdAST::create(pool, id);
+
+  attachVariantDefinition(variant, dtorId, body);
+  dtor->setDeletingDtorVariant(variant);
+}
+
+void Binder::CompleteClass::synthesizeMemberwiseBodies() {
+  if (classSymbol->isUnion()) return;
+  if (classSymbol->isClosureType()) return;
+
+  auto needsBody = [&](FunctionSymbol* fn) {
+    if (!fn || fn->isDeleted()) return false;
+    auto def = fn->declaration();
+    return def && ast_cast<DefaultFunctionBodyAST>(def->functionBody);
+  };
+
+  if (auto fn = classSymbol->copyConstructor(); needsBody(fn))
+    synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);
+  if (auto fn = classSymbol->moveConstructor(); needsBody(fn))
+    synthesizeCopyMoveCtorBody(fn, /*isMove=*/true);
+  if (auto fn = classSymbol->copyAssignmentOperator(); needsBody(fn))
+    synthesizeCopyMoveAssignBody(fn, /*isMove=*/false);
+  if (auto fn = classSymbol->moveAssignmentOperator(); needsBody(fn))
+    synthesizeCopyMoveAssignBody(fn, /*isMove=*/true);
+}
+
+void Binder::CompleteClass::typeFieldInitializers() {
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    auto init = field->initializer();
+    if (!init) continue;
+
+    TypeChecker check{binder.unit_};
+    check.setScope(classSymbol);
+    check.setReportErrors(binder.reportErrors());
+    check.check_field_initializer(field);
+  }
+}
+
+auto Binder::CompleteClass::ensureSourceParameter(FunctionSymbol* fn)
+    -> ParameterSymbol* {
+  if (auto params = fn->functionParameters()) {
+    for (auto member : views::members(params)) {
+      if (auto param = symbol_cast<ParameterSymbol>(member)) return param;
+    }
+  }
+
+  auto funcType = type_cast<FunctionType>(fn->type());
+  if (!funcType || funcType->parameterTypes().size() != 1) return nullptr;
+
+  auto params = control()->newFunctionParametersSymbol(fn, {});
+  fn->addSymbol(params);
+
+  auto param = control()->newParameterSymbol(params, fn->location());
+  param->setType(funcType->parameterTypes()[0]);
+  params->addSymbol(param);
+  return param;
+}
+
+auto Binder::CompleteClass::makeSourceSubobjectRef(ExpressionAST* expr,
+                                                   const Type* type,
+                                                   bool isMove)
+    -> ExpressionAST* {
+  if (!isMove) return expr;
+  auto cast = ImplicitCastExpressionAST::create(pool);
+  cast->castKind = ImplicitCastKind::kIdentity;
+  cast->expression = expr;
+  cast->type = type;
+  cast->valueCategory = ValueCategory::kXValue;
+  return cast;
+}
+
+void Binder::CompleteClass::synthesizeCopyMoveCtorBody(FunctionSymbol* fn,
+                                                       bool isMove) {
+  auto def = fn->declaration();
+  if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
+
+  auto param = ensureSourceParameter(fn);
+  if (!param) return;
+
+  auto traits = binder.unit_->typeTraits();
+
+  List<MemInitializerAST*>* memInits = nullptr;
+  auto tail = &memInits;
+  auto append = [&](MemInitializerAST* init) {
+    *tail = make_list_node<MemInitializerAST>(pool, init);
+    tail = &(*tail)->next;
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
+    auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseSym) continue;
+    baseSym = baseSym->resolvedDefinition();
+
+    auto init = ParenMemInitializerAST::create(pool);
+    if (auto id = name_cast<Identifier>(baseSym->name()))
+      init->unqualifiedId = NameIdAST::create(pool, id);
+    init->symbol = base;
+
+    auto cast = ImplicitCastExpressionAST::create(pool);
+    cast->castKind = ImplicitCastKind::kDerivedToBaseConversion;
+    cast->expression = makeParamRef(param);
+    cast->type =
+        isMove ? baseSym->type() : control()->getConstType(baseSym->type());
+    cast->valueCategory =
+        isMove ? ValueCategory::kXValue : ValueCategory::kLValue;
+    init->expressionList = make_list_node<ExpressionAST>(pool, cast);
+    append(init);
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    if (!field->name() && field->isBitField()) continue;
+
+    auto id = name_cast<Identifier>(field->name());
+
+    auto init = ParenMemInitializerAST::create(pool);
+    if (id) init->unqualifiedId = NameIdAST::create(pool, id);
+    init->symbol = field;
+
+    auto access = MemberExpressionAST::create(pool);
+    access->baseExpression = makeParamRef(param);
+    access->accessOp = TokenKind::T_DOT;
+    if (id) access->unqualifiedId = NameIdAST::create(pool, id);
+    access->symbol = field;
+    access->type = traits.remove_reference(field->type());
+    access->valueCategory = ValueCategory::kLValue;
+
+    ExpressionAST* arg = access;
+    const bool bitwiseCopy =
+        !id || traits.is_array(traits.remove_cv(field->type()));
+    if (bitwiseCopy) {
+      auto load = ImplicitCastExpressionAST::create(pool);
+      load->castKind = ImplicitCastKind::kLValueToRValueConversion;
+      load->expression = access;
+      load->type = traits.remove_cv(access->type);
+      load->valueCategory = ValueCategory::kPrValue;
+      arg = load;
+    } else {
+      arg = makeSourceSubobjectRef(access, access->type, isMove);
+    }
+    init->expressionList = make_list_node<ExpressionAST>(pool, arg);
+    append(init);
+  }
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->memInitializerList = memInits;
+  body->statement = CompoundStatementAST::create(pool);
+  def->functionBody = body;
+
+  TypeChecker check{binder.unit_};
+  check.setScope(fn);
+  check.check_mem_initializers(body);
+}
+
+void Binder::CompleteClass::synthesizeCopyMoveAssignBody(FunctionSymbol* fn,
+                                                         bool isMove) {
+  auto def = fn->declaration();
+  if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
+
+  auto param = ensureSourceParameter(fn);
+  if (!param) return;
+
+  auto traits = binder.unit_->typeTraits();
+
+  TypeChecker check{binder.unit_};
+  check.setScope(fn);
+
+  List<StatementAST*>* stmts = nullptr;
+  auto tail = &stmts;
+  auto append = [&](StatementAST* stmt) {
+    *tail = make_list_node<StatementAST>(pool, stmt);
+    tail = &(*tail)->next;
+  };
+
+  auto appendAssignment = [&](ExpressionAST* lhs, ExpressionAST* rhs,
+                              bool resolve) {
+    auto assign = AssignmentExpressionAST::create(pool);
+    assign->leftExpression = lhs;
+    assign->op = TokenKind::T_EQUAL;
+    assign->rightExpression = rhs;
+    if (resolve) {
+      check.check(assign);
+    } else {
+      assign->type = lhs->type;
+      assign->valueCategory = ValueCategory::kLValue;
+    }
+    auto stmt = ExpressionStatementAST::create(pool);
+    stmt->expression = assign;
+    append(stmt);
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseSym) continue;
+    baseSym = baseSym->resolvedDefinition();
+
+    auto thisCast = ImplicitCastExpressionAST::create(pool);
+    thisCast->castKind = ImplicitCastKind::kDerivedToBaseConversion;
+    thisCast->expression = makeThisExpr();
+    thisCast->type = control()->getPointerType(baseSym->type());
+    thisCast->valueCategory = ValueCategory::kPrValue;
+
+    auto lhs = UnaryExpressionAST::create(pool);
+    lhs->op = TokenKind::T_STAR;
+    lhs->expression = thisCast;
+    lhs->type = baseSym->type();
+    lhs->valueCategory = ValueCategory::kLValue;
+
+    auto rhs = ImplicitCastExpressionAST::create(pool);
+    rhs->castKind = ImplicitCastKind::kDerivedToBaseConversion;
+    rhs->expression = makeParamRef(param);
+    rhs->type =
+        isMove ? baseSym->type() : control()->getConstType(baseSym->type());
+    rhs->valueCategory =
+        isMove ? ValueCategory::kXValue : ValueCategory::kLValue;
+
+    appendAssignment(lhs, rhs, /*resolve=*/true);
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    if (!field->name() && field->isBitField()) continue;
+
+    auto id = name_cast<Identifier>(field->name());
+    auto fieldType = traits.remove_reference(field->type());
+
+    auto lhs = MemberExpressionAST::create(pool);
+    lhs->baseExpression = makeThisExpr();
+    lhs->accessOp = TokenKind::T_MINUS_GREATER;
+    if (id) lhs->unqualifiedId = NameIdAST::create(pool, id);
+    lhs->symbol = field;
+    lhs->type = fieldType;
+    lhs->valueCategory = ValueCategory::kLValue;
+
+    auto access = MemberExpressionAST::create(pool);
+    access->baseExpression = makeParamRef(param);
+    access->accessOp = TokenKind::T_DOT;
+    if (id) access->unqualifiedId = NameIdAST::create(pool, id);
+    access->symbol = field;
+    access->type = isMove ? fieldType : control()->getConstType(fieldType);
+    access->valueCategory = ValueCategory::kLValue;
+
+    const bool bitwiseCopy =
+        !id || traits.is_array(traits.remove_cv(fieldType));
+    if (bitwiseCopy) {
+      auto load = ImplicitCastExpressionAST::create(pool);
+      load->castKind = ImplicitCastKind::kLValueToRValueConversion;
+      load->expression = access;
+      load->type = traits.remove_cv(access->type);
+      load->valueCategory = ValueCategory::kPrValue;
+      appendAssignment(lhs, load, /*resolve=*/false);
+    } else {
+      appendAssignment(lhs,
+                       makeSourceSubobjectRef(access, access->type, isMove),
+                       /*resolve=*/true);
+    }
+  }
+
+  auto self = UnaryExpressionAST::create(pool);
+  self->op = TokenKind::T_STAR;
+  self->expression = makeThisExpr();
+  self->type = classSymbol->type();
+  self->valueCategory = ValueCategory::kLValue;
+
+  auto returnStmt = ReturnStatementAST::create(pool);
+  returnStmt->expression = self;
+  append(returnStmt);
+
+  auto compound = CompoundStatementAST::create(pool);
+  compound->statementList = stmts;
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->statement = compound;
+  def->functionBody = body;
+}
+
 struct [[nodiscard]] Binder::BuildRecordLayout {
   Binder& binder;
   ClassSymbol* classSymbol;
@@ -284,7 +1065,7 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   bool inBitfieldRun = false;
   std::vector<FieldSymbol*> runFields;
 
-  int packValue = 0;  // no pack restriction
+  int packValue = 0;
 
   BuildRecordLayout(Binder& b, ClassSymbol* cls)
       : binder(b),
@@ -304,6 +1085,7 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   auto validate() -> std::expected<bool, std::string>;
   void layoutVtable();
   void layoutBases();
+  void layoutVirtualBases();
   auto layoutFields() -> std::expected<bool, std::string>;
   auto layoutBitfield(FieldSymbol* field) -> std::expected<bool, std::string>;
   auto layoutRegularField(FieldSymbol* field)
@@ -312,6 +1094,7 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   void propagateBaseFields();
   void propagateAnonymousFields(ClassSymbol* cls, std::uint64_t baseOffset);
   void finalize();
+  void buildVTableLayout();
 };
 
 auto Binder::buildRecordLayout(ClassSymbol* classSymbol)
@@ -326,7 +1109,14 @@ auto Binder::BuildRecordLayout::operator()()
   layoutVtable();
   layoutBases();
 
-  if (auto status = layoutFields(); !status) return status;
+  auto fieldsStatus = layoutFields();
+  if (!fieldsStatus) return fieldsStatus;
+  if (!fieldsStatus.value()) return false;
+
+  layout->setNonVirtualSize(calculatedSize);
+  layout->setNonVirtualAlignment(calculatedAlignment);
+
+  layoutVirtualBases();
 
   propagateBaseFields();
   finalize();
@@ -344,7 +1134,7 @@ auto Binder::BuildRecordLayout::validate() -> std::expected<bool, std::string> {
     if (!baseClassSymbol->isComplete()) {
       binder.unit_->typeTraits().requireCompleteClass(baseClassSymbol);
     }
-    if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
+    baseClassSymbol = baseClassSymbol->resolvedDefinition();
     if (!baseClassSymbol->isComplete()) {
       return std::unexpected(std::format("base class '{}' is incomplete",
                                          to_string(baseClassSymbol->name())));
@@ -358,6 +1148,7 @@ void Binder::BuildRecordLayout::layoutVtable() {
 
   bool hasPolymorphicBase = false;
   for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (auto def = baseClass ? baseClass->definition() : nullptr)
       baseClass = def;
@@ -372,6 +1163,15 @@ void Binder::BuildRecordLayout::layoutVtable() {
     needsOwnVptr =
         views::any_function(classSymbol->members(),
                             [](FunctionSymbol* f) { return f->isVirtual(); });
+
+    if (!needsOwnVptr) {
+      for (auto base : classSymbol->baseClasses()) {
+        if (base->isVirtual()) {
+          needsOwnVptr = true;
+          break;
+        }
+      }
+    }
   }
 
   if (needsOwnVptr) {
@@ -394,11 +1194,23 @@ void Binder::BuildRecordLayout::layoutBases() {
 
   bool foundPolymorphicBase = false;
   for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
-    if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
+    baseClassSymbol = baseClassSymbol->resolvedDefinition();
 
-    auto baseAlignment = baseClassSymbol->alignment();
+    auto baseLayout = baseClassSymbol->layout();
+
+    const bool baseHasVirtualBases =
+        baseLayout && !baseLayout->virtualBases().empty();
+    int baseSizeInBytes = baseHasVirtualBases
+                              ? static_cast<int>(baseLayout->nonVirtualSize())
+                              : baseClassSymbol->sizeInBytes();
+    int baseAlignment =
+        baseHasVirtualBases
+            ? static_cast<int>(baseLayout->nonVirtualAlignment())
+            : static_cast<int>(baseClassSymbol->alignment());
+
     if (baseAlignment > 0) {
       calculatedSize = align_to(calculatedSize, baseAlignment);
     }
@@ -408,32 +1220,80 @@ void Binder::BuildRecordLayout::layoutBases() {
     baseInfo.index = currentIndex++;
     layout->setBaseInfo(baseClassSymbol, baseInfo);
 
-    auto baseLayout = baseClassSymbol->layout();
     if (!foundPolymorphicBase && baseLayout && baseLayout->hasVtable()) {
       layout->setVtableIndex(baseInfo.index);
       foundPolymorphicBase = true;
     }
 
-    calculatedSize += baseClassSymbol->sizeInBytes();
-    calculatedAlignment =
-        std::max(calculatedAlignment, baseClassSymbol->alignment());
+    if (!binder.unit_->typeTraits().is_empty(baseClassSymbol->type())) {
+      calculatedSize += baseSizeInBytes;
+    }
+    calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
   }
 
-  // Keep nextBitPos in sync after bases
+  nextBitPos = calculatedSize * 8;
+}
+
+void Binder::BuildRecordLayout::layoutVirtualBases() {
+  if (classSymbol->isUnion()) return;
+
+  std::vector<ClassSymbol*> orderedVirtualBases;
+  std::unordered_set<ClassSymbol*> seenVirtualBases;
+
+  std::function<void(ClassSymbol*)> visitBases = [&](ClassSymbol* cls) {
+    for (auto base : cls->baseClasses()) {
+      auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClassSymbol) continue;
+      baseClassSymbol = baseClassSymbol->resolvedDefinition();
+      if (base->isVirtual() &&
+          seenVirtualBases.insert(baseClassSymbol).second) {
+        orderedVirtualBases.push_back(baseClassSymbol);
+      }
+      visitBases(baseClassSymbol);
+    }
+  };
+  visitBases(classSymbol);
+
+  for (auto baseClassSymbol : orderedVirtualBases) {
+    auto vbaseLayout = baseClassSymbol->layout();
+
+    const bool vbaseHasVirtualBases =
+        vbaseLayout && !vbaseLayout->virtualBases().empty();
+    int baseSizeInBytes = vbaseHasVirtualBases
+                              ? static_cast<int>(vbaseLayout->nonVirtualSize())
+                              : baseClassSymbol->sizeInBytes();
+    int baseAlignment =
+        vbaseHasVirtualBases
+            ? static_cast<int>(vbaseLayout->nonVirtualAlignment())
+            : static_cast<int>(baseClassSymbol->alignment());
+
+    if (baseAlignment > 0) {
+      calculatedSize = align_to(calculatedSize, baseAlignment);
+    }
+
+    ClassLayout::MemberInfo baseInfo;
+    baseInfo.offset = calculatedSize;
+    baseInfo.index = currentIndex++;
+    layout->setBaseInfo(baseClassSymbol, baseInfo);
+    layout->addVirtualBase(baseClassSymbol);
+
+    if (!binder.unit_->typeTraits().is_empty(baseClassSymbol->type())) {
+      calculatedSize += baseSizeInBytes;
+    }
+    calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
+  }
+
   nextBitPos = calculatedSize * 8;
 }
 
 void Binder::BuildRecordLayout::closeBitfieldRun() {
   if (!inBitfieldRun) return;
 
-  // Advance calculatedSize to the next byte boundary after all bits used
   calculatedSize = (nextBitPos + 7) / 8;
 
-  // Compute the storage unit size for this run
   auto allocUnitSizeBytes =
       static_cast<std::uint32_t>(calculatedSize - runStartByte);
 
-  // Update all fields in this run with the final storage unit size
   for (auto f : runFields) {
     if (auto info = layout->getFieldInfo(f)) {
       auto updated = *info;
@@ -464,13 +1324,11 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
       static_cast<int>(memoryLayout->sizeOf(field->type()).value_or(0));
   auto fieldSizeBits = fieldSizeBytes * 8;
 
-  // Zero-width bitfield: forces alignment to the type boundary
   if (bitWidth == 0) {
     if (inBitfieldRun) {
       closeBitfieldRun();
     }
     if (!isUnion && fieldSizeBits > 0) {
-      // Align nextBitPos to the type's alignment boundary (in bits)
       auto alignBits = fieldAlign * 8;
       nextBitPos = align_to(nextBitPos, alignBits);
       calculatedSize = (nextBitPos + 7) / 8;
@@ -544,6 +1402,9 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
   std::optional<std::size_t> size;
   if (binder.unit_->typeTraits().is_unbounded_array(field->type())) {
     size = 0;
+  } else if (field->isNoUniqueAddress() &&
+             binder.unit_->typeTraits().is_empty(field->type())) {
+    size = 0;
   } else {
     size = memoryLayout->sizeOf(field->type());
   }
@@ -576,7 +1437,6 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
     calculatedSize += size.value();
   }
 
-  // Keep nextBitPos in sync
   nextBitPos = calculatedSize * 8;
 
   auto cappedAlign = packValue > 0 ? std::min(field->alignment(), packValue)
@@ -609,6 +1469,7 @@ auto Binder::BuildRecordLayout::layoutFields()
     }
 
     if (!field->alignment()) {
+      if (isDependent(binder.unit_, field->type())) return false;
       return std::unexpected(
           std::format("alignment of incomplete type '{}'",
                       to_string(field->type(), field->name())));
@@ -631,7 +1492,7 @@ void Binder::BuildRecordLayout::propagateBaseFields() {
   for (auto base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
-    if (auto def = baseClassSymbol->definition()) baseClassSymbol = def;
+    baseClassSymbol = baseClassSymbol->resolvedDefinition();
 
     auto baseLayout = baseClassSymbol->layout();
     if (!baseLayout) continue;
@@ -662,13 +1523,12 @@ void Binder::BuildRecordLayout::propagateAnonymousFields(
   for (auto member : cls->members()) {
     auto nestedClass = symbol_cast<ClassSymbol>(member);
     if (!nestedClass) continue;
-    if (nestedClass->name()) continue;  // not anonymous
+    if (nestedClass->name()) continue;
     if (!nestedClass->isComplete()) continue;
 
     auto nestedLayout = nestedClass->layout();
     if (!nestedLayout) continue;
 
-    // Find the FieldSymbol for this anonymous class in cls
     FieldSymbol* anonField = nullptr;
     for (auto m : cls->members()) {
       auto f = symbol_cast<FieldSymbol>(m);
@@ -687,11 +1547,8 @@ void Binder::BuildRecordLayout::propagateAnonymousFields(
 
     std::uint64_t anonOffset = baseOffset + anonFieldInfo->offset;
 
-    // Propagate each field of the anonymous class into the parent layout.
     for (auto field : views::members(nestedClass) | views::non_static_fields) {
       if (auto nestedFieldInfo = nestedLayout->getFieldInfo(field)) {
-        // Don't propagate implicit anonymous field symbols - they are
-        // structural fields, not user-visible members accessed via lookup.
         if (!field->name()) {
           auto fieldType = type_cast<ClassType>(field->type());
           if (fieldType && !fieldType->symbol()->name()) continue;
@@ -707,7 +1564,6 @@ void Binder::BuildRecordLayout::propagateAnonymousFields(
       }
     }
 
-    // Recurse into nested anonymous classes
     propagateAnonymousFields(nestedClass, anonOffset);
   }
 }
@@ -723,6 +1579,180 @@ void Binder::BuildRecordLayout::finalize() {
   layout->setAlignment(calculatedAlignment);
 
   classSymbol->setLayout(std::move(layout));
+
+  buildVTableLayout();
 }
 
+void Binder::BuildRecordLayout::buildVTableLayout() {
+  auto classLayout = classSymbol->layout();
+  if (!classLayout || !classLayout->hasVtable()) return;
+
+  auto vtable = std::make_unique<VTableLayout>();
+
+  auto typeTraits = binder.unit_->typeTraits();
+
+  auto resolvedClass = [](Symbol* symbol) -> ClassSymbol* {
+    auto classSym = symbol_cast<ClassSymbol>(symbol);
+    return classSym ? classSym->resolvedDefinition() : nullptr;
+  };
+
+  ClassSymbol* primaryBase = nullptr;
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
+    auto baseSym = resolvedClass(base->symbol());
+    if (baseSym && baseSym->layout() && baseSym->layout()->hasVtable()) {
+      primaryBase = baseSym;
+      break;
+    }
+  }
+
+  auto& slots = vtable->primary.slots;
+  if (primaryBase && primaryBase->vtableLayout()) {
+    slots = primaryBase->vtableLayout()->primary.slots;
+  }
+
+  auto processFunc = [&](FunctionSymbol* func) {
+    if (!func->isVirtual()) return;
+    const bool isDtor = func->isDestructor();
+    bool foundOverride = false;
+    for (std::size_t i = 0; i < slots.size(); ++i) {
+      const bool isOverride =
+          isDtor
+              ? slots[i].kind != VTableLayout::SlotKind::kFunction
+              : slots[i].function->name() == func->name() &&
+                    typeTraits.is_same(slots[i].function->type(), func->type());
+      if (!isOverride) continue;
+      slots[i].function = func;
+      foundOverride = true;
+      if (!isDtor) {
+        func->setVtableSlotIndex(static_cast<int>(i));
+        break;
+      }
+      if (slots[i].kind == VTableLayout::SlotKind::kCompleteDtor)
+        func->setVtableSlotIndex(static_cast<int>(i));
+    }
+    if (!foundOverride) {
+      func->setVtableSlotIndex(static_cast<int>(slots.size()));
+      slots.push_back({func, isDtor ? VTableLayout::SlotKind::kCompleteDtor
+                                    : VTableLayout::SlotKind::kFunction});
+      if (isDtor)
+        slots.push_back({func, VTableLayout::SlotKind::kDeletingDtor});
+    }
+  };
+
+  for (auto member : classSymbol->members()) {
+    for (auto func : views::each_function(member)) processFunc(func);
+  }
+
+  for (auto vbase : classLayout->virtualBases()) {
+    auto info = classLayout->getBaseInfo(vbase);
+    if (!info) continue;
+    vtable->primary.vbaseOffsets.emplace_back(
+        vbase, static_cast<std::int64_t>(info->offset));
+  }
+  std::ranges::reverse(vtable->primary.vbaseOffsets);
+
+  std::unordered_map<const Name*, std::vector<FunctionSymbol*>> virtualsByName;
+  for (auto member : classSymbol->members()) {
+    for (auto func : views::each_function(member)) {
+      if (func->isVirtual()) virtualsByName[func->name()].push_back(func);
+    }
+  }
+
+  auto buildGroup =
+      [&](ClassSymbol* baseSym, std::uint64_t offset,
+          bool isVirtualBase) -> std::optional<VTableLayout::Group> {
+    if (!baseSym->layout() || !baseSym->layout()->hasVtable())
+      return std::nullopt;
+
+    VTableLayout::Group group;
+    group.base = baseSym;
+    group.offset = offset;
+
+    if (auto baseLayout = baseSym->layout()) {
+      for (auto vbase : baseLayout->virtualBases()) {
+        auto vbaseInfo = classLayout->getBaseInfo(vbase);
+        if (!vbaseInfo) continue;
+        group.vbaseOffsets.emplace_back(
+            vbase, static_cast<std::int64_t>(vbaseInfo->offset) -
+                       static_cast<std::int64_t>(group.offset));
+      }
+      std::ranges::reverse(group.vbaseOffsets);
+    }
+
+    if (auto baseVtable = baseSym->vtableLayout()) {
+      group.slots = baseVtable->primary.slots;
+    }
+
+    auto findOverride = [&](FunctionSymbol* baseFunc) -> FunctionSymbol* {
+      if (baseFunc->isDestructor()) {
+        auto dtor = classSymbol->destructor();
+        return (dtor && dtor->isVirtual()) ? dtor : nullptr;
+      }
+      auto it = virtualsByName.find(baseFunc->name());
+      if (it == virtualsByName.end()) return nullptr;
+      for (auto func : it->second) {
+        if (typeTraits.is_same(func->type(), baseFunc->type())) return func;
+      }
+      return nullptr;
+    };
+
+    std::unordered_map<FunctionSymbol*, FunctionSymbol*> overrideOf;
+    for (auto& slot : group.slots) {
+      if (slot.kind == VTableLayout::SlotKind::kDeletingDtor) continue;
+      auto overrider = findOverride(slot.function);
+      if (!overrider) continue;
+      overrideOf.emplace(slot.function, overrider);
+      if (isVirtualBase) {
+        group.vcallOffsets.emplace_back(
+            overrider, -static_cast<std::int64_t>(group.offset));
+      }
+    }
+    if (isVirtualBase) std::ranges::reverse(group.vcallOffsets);
+
+    std::unordered_map<FunctionSymbol*, int> vcallIndexOf;
+    for (std::size_t i = 0; i < group.vcallOffsets.size(); ++i) {
+      vcallIndexOf.emplace(group.vcallOffsets[i].first, static_cast<int>(i));
+    }
+
+    for (auto& slot : group.slots) {
+      auto it = overrideOf.find(slot.function);
+      if (it == overrideOf.end()) continue;
+      auto overrider = it->second;
+
+      slot.function = overrider;
+      if (isVirtualBase) {
+        slot.vcallOffsetIndex = vcallIndexOf.at(overrider);
+      } else {
+        slot.thisAdjustment = group.offset;
+      }
+    }
+
+    return group;
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
+    auto baseSym = resolvedClass(base->symbol());
+    if (!baseSym || baseSym == primaryBase) continue;
+
+    auto baseInfo = classLayout->getBaseInfo(baseSym);
+    if (!baseInfo) continue;
+
+    if (auto group = buildGroup(baseSym, baseInfo->offset,
+                                /*isVirtualBase=*/false))
+      vtable->secondary.push_back(std::move(*group));
+  }
+
+  for (auto vbase : classLayout->virtualBases()) {
+    auto vbaseInfo = classLayout->getBaseInfo(vbase);
+    if (!vbaseInfo) continue;
+
+    if (auto group =
+            buildGroup(vbase, vbaseInfo->offset, /*isVirtualBase=*/true))
+      vtable->secondary.push_back(std::move(*group));
+  }
+
+  classSymbol->setVTableLayout(std::move(vtable));
+}
 }  // namespace cxx

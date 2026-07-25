@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -28,7 +29,6 @@
 #include <vector>
 
 namespace cxx {
-
 class Arena;
 class Control;
 class TranslationUnit;
@@ -57,6 +57,10 @@ class TemplateArgumentDeduction {
                             List<TemplateArgumentAST*>* explicitTemplateArgs)
       -> std::optional<List<TemplateArgumentAST*>*>;
 
+  [[nodiscard]] auto deduceFromTargetType(FunctionSymbol* func,
+                                          const FunctionType* targetType)
+      -> std::optional<List<TemplateArgumentAST*>*>;
+
  private:
   void collectTemplateParameters(TemplateDeclarationAST* templateDecl);
 
@@ -81,11 +85,15 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto buildTemplateArgumentList()
       -> std::optional<List<TemplateArgumentAST*>*>;
 
+  [[nodiscard]] auto collectDeducedSoFar(int i)
+      -> std::optional<std::vector<TemplateArgument>>;
+
   static auto getParameterClause(DeclarationAST* decl)
       -> ParameterDeclarationClauseAST*;
 
-  void deduceFromClassTemplateParam(ParameterDeclarationAST* paramDecl,
-                                    const Type* argType, const Type* P);
+  [[nodiscard]] auto deduceFromClassTemplateParam(
+      ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P)
+      -> bool;
 
   TranslationUnit* unit_;
   Control* control_;
@@ -97,6 +105,6 @@ class TemplateArgumentDeduction {
   std::vector<const Type*> deducedTypes_;
   std::vector<std::vector<const Type*>> deducedPacks_;
   List<ParameterDeclarationAST*>* parameterDeclarations_ = nullptr;
+  TemplateDeclarationAST* templateDecl_ = nullptr;
 };
-
 }  // namespace cxx

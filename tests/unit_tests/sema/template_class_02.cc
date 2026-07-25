@@ -47,18 +47,30 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:            variable static constexpr const char __func__[13]
 // CHECK-NEXT:      injected class name basic_string
 // CHECK-NEXT:      function void append(const type-param<0, 0>*)
+// CHECK-NEXT:        parameters
+// CHECK-NEXT:          parameter const type-param<0, 0>* p
 // CHECK-NEXT:      function const type-param<0, 0>* c_str() const
 // CHECK-NEXT:      function unsigned long size() const
 // CHECK-NEXT:      function const type-param<0, 0>& operator [](unsigned long) const
+// CHECK-NEXT:        parameters
+// CHECK-NEXT:          parameter unsigned long i
 // CHECK-NEXT:      function type-param<0, 0>& operator [](unsigned long)
+// CHECK-NEXT:        parameters
+// CHECK-NEXT:          parameter unsigned long i
 // CHECK-NEXT:      class iterator
 // CHECK-NEXT:        injected class name iterator
 // CHECK-NEXT:        function std::basic_string::iterator& operator ++()
 // CHECK-NEXT:        function std::basic_string::iterator operator ++(int)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter int
 // CHECK-NEXT:        function type-param<0, 0>& operator *()
 // CHECK-NEXT:        function const type-param<0, 0>& operator *() const
 // CHECK-NEXT:        function bool operator ==(const std::basic_string::iterator&) const
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const std::basic_string::iterator&
 // CHECK-NEXT:        function bool operator !=(const std::basic_string::iterator&) const
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const std::basic_string::iterator&
 // CHECK-NEXT:      function std::basic_string::iterator begin()
 // CHECK-NEXT:      function std::basic_string::iterator end()
 // CHECK-NEXT:      [specializations]

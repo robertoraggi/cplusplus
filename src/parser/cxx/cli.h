@@ -27,7 +27,6 @@
 #include <vector>
 
 namespace cxx {
-
 struct CLIOption : std::tuple<std::string, std::string> {
   using tuple::tuple;
 };
@@ -46,6 +45,7 @@ auto to_string(const CLIMatch& match) -> std::string;
 
 class CLI {
   std::vector<CLIMatch> result_;
+  std::vector<std::string> forwardedArgs_;
 
  public:
   CLI();
@@ -69,6 +69,7 @@ class CLI {
   bool opt_nostdincpp = false;
   bool opt_S = false;
   bool opt_c = false;
+  bool opt_link = false;
   bool opt_fsyntax_only = false;
   bool opt_fcheck = false;
   bool opt_freport_missing_types = false;
@@ -95,10 +96,13 @@ class CLI {
       -> std::vector<std::string>;
   [[nodiscard]] auto positionals() const -> std::vector<std::string>;
 
+  [[nodiscard]] auto linkerArgs() const -> const std::vector<std::string>& {
+    return forwardedArgs_;
+  }
+
   void showHelp();
 
   [[nodiscard]] auto begin() const { return result_.begin(); }
   [[nodiscard]] auto end() const { return result_.end(); }
 };
-
 }  // namespace cxx

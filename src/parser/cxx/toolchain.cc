@@ -18,15 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/toolchain.h>
-
-// cxx
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
+#include <cxx/toolchain.h>
 
 namespace cxx {
-
 Toolchain::Toolchain(Preprocessor* preprocessor) : preprocessor_(preprocessor) {
   setMemoryLayout(std::make_unique<MemoryLayout>(64));
 }
@@ -44,6 +41,10 @@ void Toolchain::setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout) {
 void Toolchain::defineMacro(const std::string& name,
                             const std::string& definition) {
   preprocessor_->defineMacro(name, definition);
+}
+
+void Toolchain::undefMacro(const std::string& name) {
+  preprocessor_->undefMacro(name);
 }
 
 void Toolchain::initMemoryLayout() {
@@ -260,6 +261,7 @@ void Toolchain::addCommonMacros() {
   defineMacro("__UINT_FAST8_FMTx__", "\"hhx\"");
   defineMacro("__UINT_FAST8_MAX__", "255");
   defineMacro("__UINT_FAST8_TYPE__", "unsigned char");
+  defineMacro("__OPTIMIZE_SIZE__", "1");
   defineMacro("__UINT_LEAST16_FMTX__", "\"hX\"");
   defineMacro("__UINT_LEAST16_FMTo__", "\"ho\"");
   defineMacro("__UINT_LEAST16_FMTu__", "\"hu\"");
@@ -1367,14 +1369,14 @@ void Toolchain::addWindowsCxx26Macros() {
 
 void Toolchain::addWASICxx26Macros() {
   defineMacro("_GNU_SOURCE", "1");
-  defineMacro("__EXCEPTIONS", "1");
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
-  defineMacro("__GXX_RTTI", "1");
   defineMacro("__GXX_WEAK__", "1");
   defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__", "16UL");
   defineMacro("__private_extern__", "extern");
-}
 
+  undefMacro("__cpp_exceptions");
+  undefMacro("__cpp_rtti");
+}
 }  // namespace cxx

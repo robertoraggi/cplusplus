@@ -1513,6 +1513,16 @@ auto ASTDecoder::decodeStructuredBindingDeclaration(
   ast->initializer =
       decodeExpression(node->initializer(), node->initializer_type());
   ast->semicolonLoc = SourceLocation(node->semicolon_loc());
+  ast->hiddenVariable = decodeInitDeclarator(node->hidden_variable());
+  if (node->binding_declarator_list()) {
+    auto inserter = &ast->bindingDeclaratorList;
+    for (std::uint32_t i = 0; i < node->binding_declarator_list()->size();
+         ++i) {
+      *inserter = new (pool_)
+          List(decodeInitDeclarator(node->binding_declarator_list()->Get(i)));
+      inserter = &(*inserter)->next;
+    }
+  }
   return ast;
 }
 
@@ -4636,6 +4646,8 @@ auto ASTDecoder::decodeThisLambdaCapture(const io::ThisLambdaCapture* node)
 
   auto ast = new (pool_) ThisLambdaCaptureAST();
   ast->thisLoc = SourceLocation(node->this_loc());
+  ast->initializer =
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 
@@ -4660,6 +4672,8 @@ auto ASTDecoder::decodeSimpleLambdaCapture(const io::SimpleLambdaCapture* node)
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
   }
+  ast->initializer =
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 
@@ -4675,6 +4689,8 @@ auto ASTDecoder::decodeRefLambdaCapture(const io::RefLambdaCapture* node)
     ast->identifier =
         unit_->control()->getIdentifier(node->identifier()->str());
   }
+  ast->initializer =
+      decodeExpression(node->initializer(), node->initializer_type());
   return ast;
 }
 

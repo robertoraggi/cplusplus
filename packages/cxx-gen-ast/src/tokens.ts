@@ -286,6 +286,7 @@ export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
 export const BUILTIN_TEMPLATES: string[] = [
   "__make_integer_seq",
   "__type_pack_element",
+  "__builtin_common_type",
 ];
 
 import { BUILTIN_NAMES } from "./builtins.ts";

@@ -18,21 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/codegen.h>
-#include <cxx/mlir/cxx_dialect.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/mlir/codegen.h>
+#include <cxx/mlir/cxx_dialect.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
-
-// mlir
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/Config/llvm-config.h>
 #include <llvm/Support/raw_ostream.h>
@@ -41,7 +37,6 @@
 #include <format>
 
 namespace cxx {
-
 struct Codegen::ConvertDebugType {
   Codegen& gen;
 
@@ -98,6 +93,7 @@ struct Codegen::ConvertDebugType {
       -> mlir::LLVM::DITypeAttr;
   auto operator()(const UnresolvedUnderlyingType* type)
       -> mlir::LLVM::DITypeAttr;
+  auto operator()(const UnresolvedBuiltinType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const OverloadSetType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const BuiltinVaListType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const BuiltinMetaInfoType* type) -> mlir::LLVM::DITypeAttr;
@@ -130,11 +126,6 @@ auto Codegen::convertDebugType(const Type* type) -> mlir::LLVM::DITypeAttr {
   if (auto it = debugTypeCache_.find(type); it != debugTypeCache_.end()) {
     return it->second;
   }
-
-  // Pre-insert null to handle infinite recursion if not handled by visitors
-  // But strictly, visitors for recursive types should handle it.
-  // We can't insert null because we need a return value.
-  // So we rely on specific visitors (ClassType) to insert FwdDecl.
 
   auto result = visit(ConvertDebugType{*this}, type);
   debugTypeCache_.insert({type, result});
@@ -313,7 +304,6 @@ auto Codegen::ConvertDebugType::operator()(const UnsignedInt128Type* type)
 
 auto Codegen::ConvertDebugType::operator()(const CharType* type)
     -> mlir::LLVM::DITypeAttr {
-  // todo: toolchain specific
   auto isSigned = gen.unit_->typeTraits().is_signed(type);
   return basicType(
       "char", type,
@@ -443,7 +433,6 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
   auto symbol = type->symbol();
   if (!symbol) return {};
 
-  // Check cache again because recursive calls might have populated it
   if (auto it = gen.debugTypeCache_.find(type);
       it != gen.debugTypeCache_.end()) {
     return it->second;
@@ -454,18 +443,15 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
   auto tag = symbol->isUnion() ? llvm::dwarf::DW_TAG_union_type
                                : llvm::dwarf::DW_TAG_structure_type;
 
-  // Create Recursive Self Reference
   auto name = to_string(symbol->name());
   auto recSelf = compositeType(tag, name, {}, {}, type);
 
-  // Insert RecSelf into cache
   gen.debugTypeCache_[type] = recSelf;
 
   mlir::SmallVector<mlir::LLVM::DINodeAttr> elements;
 
   auto layout = symbol->layout();
 
-  // Add bases
   for (auto base : symbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
@@ -485,7 +471,6 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
     if (inheritanceAttr) elements.push_back(inheritanceAttr);
   }
 
-  // Add fields
   for (auto field :
        cxx::views::members(symbol) | cxx::views::non_static_fields) {
     auto fieldTypeAttr = gen.convertDebugType(field->type());
@@ -621,6 +606,11 @@ auto Codegen::ConvertDebugType::operator()(const UnresolvedUnderlyingType* type)
   return {};
 }
 
+auto Codegen::ConvertDebugType::operator()(const UnresolvedBuiltinType* type)
+    -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
 auto Codegen::ConvertDebugType::operator()(const OverloadSetType* type)
     -> mlir::LLVM::DITypeAttr {
   return {};
@@ -654,5 +644,4 @@ auto Codegen::ConvertDebugType::operator()(const UnresolvedBitIntType* type)
     -> mlir::LLVM::DITypeAttr {
   return {};
 }
-
 }  // namespace cxx

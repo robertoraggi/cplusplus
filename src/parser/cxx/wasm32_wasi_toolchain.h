@@ -26,7 +26,6 @@
 #include <string>
 
 namespace cxx {
-
 class Wasm32WasiToolchain final : public Toolchain {
  public:
   explicit Wasm32WasiToolchain(Preprocessor* preprocessor);
@@ -41,10 +40,15 @@ class Wasm32WasiToolchain final : public Toolchain {
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
+  [[nodiscard]] auto linkerFlavor() const -> LinkerFlavor override {
+    return LinkerFlavor::kWasm;
+  }
+  void addLinkerStartArgs(std::vector<std::string>& args) const override;
+  void addLinkerEndArgs(std::vector<std::string>& args) const override;
+
  private:
   std::string appdir_;
   std::string sysroot_;
   std::optional<int> version_;
 };
-
 }  // namespace cxx

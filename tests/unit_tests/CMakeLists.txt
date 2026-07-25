@@ -43,6 +43,13 @@ set_target_properties(filecheck::tool PROPERTIES IMPORTED_LOCATION ${FILECHECK_E
 
 set(CXX_FRONTEND_TARGET_FILE $<TARGET_FILE:cxx>)
 
+# Surface the embedded-linker capability to lit as a python boolean.
+if(CXX_HAVE_EMBEDDED_LINKER)
+    set(CXX_LIT_HAVE_LLD "True")
+else()
+    set(CXX_LIT_HAVE_LLD "False")
+endif()
+
 file(READ lit.site.cfg.py.in lit_cfg_in)
 
 string(CONFIGURE "${lit_cfg_in}" lit_cfg @ONLY)

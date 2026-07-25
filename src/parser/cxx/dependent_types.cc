@@ -18,18 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/dependent_types.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/dependent_types.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 namespace cxx {
-
 namespace {
-
 struct IsDependent {
   TranslationUnit* unit = nullptr;
 
@@ -39,6 +35,8 @@ struct IsDependent {
   }
 
   [[nodiscard]] auto isDependent(TypeIdAST* ast) -> bool {
+    if (!ast) return false;
+    if (bindsAliasTemplate(ast)) return false;
     if (isDependent(ast->type)) return true;
     for (auto typeSpecifier : ListView{ast->typeSpecifierList}) {
       if (isDependent(typeSpecifier)) return true;
@@ -46,10 +44,99 @@ struct IsDependent {
     return false;
   }
 
+  [[nodiscard]] static auto bindsAliasTemplate(TypeIdAST* ast) -> bool {
+    if (!ast) return false;
+    for (auto spec : ListView{ast->typeSpecifierList}) {
+      auto named = ast_cast<NamedTypeSpecifierAST>(spec);
+      if (!named) continue;
+      if (!ast_cast<NameIdAST>(named->unqualifiedId)) return false;
+      auto alias = symbol_cast<TypeAliasSymbol>(named->symbol);
+      return alias && alias->templateParameters();
+    }
+    return false;
+  }
+
+  [[nodiscard]] auto enclosedInDependentTemplate(
+      ScopeSymbol* scope, bool stopAtConcreteSpecialization) -> bool {
+    for (; scope; scope = scope->parent()) {
+      if (auto tparams = symbol_cast<TemplateParametersSymbol>(scope)) {
+        if (!tparams->isExplicitTemplateSpecialization()) return true;
+      } else if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+        if (stopAtConcreteSpecialization && cls->isSpecialization() &&
+            !isDependent(cls->type()))
+          return false;
+        if (auto tp = cls->templateParameters();
+            tp && !tp->isExplicitTemplateSpecialization())
+          return true;
+      } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
+        if (stopAtConcreteSpecialization && func->isSpecialization() &&
+            !isDependent(func->type()))
+          return false;
+        if (auto tp = func->templateParameters();
+            tp && !tp->isExplicitTemplateSpecialization())
+          return true;
+      } else if (auto lambda = symbol_cast<LambdaSymbol>(scope)) {
+        if (lambda->isTemplate()) return true;
+      }
+    }
+    return false;
+  }
+
+  [[nodiscard]] auto isDependentTypeArgument(TypeTemplateArgumentAST* typeArg)
+      -> bool {
+    if (!typeArg || !typeArg->typeId) return false;
+    if (isDependent(typeArg->typeId)) return true;
+
+    for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
+      auto named = ast_cast<NamedTypeSpecifierAST>(spec);
+      if (!named) continue;
+
+      if (isDependentTypeParameterSymbol(named->symbol)) return true;
+      if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
+        const auto bindsAliasTemplate =
+            alias->templateParameters() &&
+            ast_cast<NameIdAST>(named->unqualifiedId) != nullptr;
+        if (!bindsAliasTemplate) {
+          if (!alias->type()) return true;
+          if (isDependent(alias->type())) return true;
+        }
+      }
+      if (isDependentNestedNameSpecifier(named->nestedNameSpecifier)) {
+        return true;
+      }
+
+      if (auto innerTemplateId =
+              ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) {
+        if (hasDependentTemplateArguments(innerTemplateId)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  [[nodiscard]] auto isDependentTemplateArgument(TemplateArgumentAST* arg)
+      -> bool {
+    if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg))
+      return isDependentTypeArgument(typeArg);
+    if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg))
+      return isDependent(exprArg->expression);
+    return false;
+  }
+
+  [[nodiscard]] auto hasDependentTemplateArguments(
+      SimpleTemplateIdAST* templateId) -> bool {
+    if (!templateId) return false;
+    for (auto arg : ListView{templateId->templateArgumentList}) {
+      if (isDependentTemplateArgument(arg)) return true;
+    }
+    return false;
+  }
+
   [[nodiscard]] auto isInTemplateScope(Symbol* symbol) -> bool {
     if (auto var = symbol_cast<VariableSymbol>(symbol))
       if (var->templateParameters()) return true;
-    return isEnclosedInTemplate(symbol->parent());
+    return enclosedInDependentTemplate(symbol->parent(),
+                                       /*stopAtConcreteSpecialization=*/true);
   }
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
@@ -129,8 +216,21 @@ struct IsDependent {
         if (auto pack = symbol_cast<ParameterPackSymbol>(*symArg)) {
           for (auto elem : pack->elements())
             if (elem && isDependent(elem->type())) return true;
-        } else if (*symArg && isDependent((*symArg)->type())) {
-          return true;
+        } else if (*symArg) {
+          auto argType = (*symArg)->type();
+          bool bindsTemplate = false;
+          if (auto classType = type_cast<ClassType>(argType)) {
+            auto classSymbol = classType->symbol();
+            if (classSymbol && classSymbol->templateDeclaration() &&
+                !classSymbol->isSpecialization()) {
+              bindsTemplate = true;
+            }
+          }
+          if (auto aliasSymbol = symbol_cast<TypeAliasSymbol>(*symArg);
+              aliasSymbol && aliasSymbol->templateParameters()) {
+            bindsTemplate = true;
+          }
+          if (!bindsTemplate && isDependent(argType)) return true;
         }
       }
       if (const auto exprArg = std::get_if<ExpressionAST*>(&arg))
@@ -166,10 +266,12 @@ struct IsDependent {
   auto operator()(const UnresolvedNameType* type) -> bool { return true; }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
-    return false;
+    return isDependent(type->elementType()) || isDependent(type->size());
   }
 
   auto operator()(const UnresolvedUnderlyingType* type) -> bool { return true; }
+
+  auto operator()(const UnresolvedBuiltinType* type) -> bool { return true; }
 
   auto operator()(const OverloadSetType* type) -> bool { return false; }
 
@@ -189,7 +291,6 @@ struct IsDependent {
   auto operator()(SimpleNestedNameSpecifierAST* ast) -> bool;
   auto operator()(DecltypeNestedNameSpecifierAST* ast) -> bool;
   auto operator()(TemplateNestedNameSpecifierAST* ast) -> bool;
-
 
   [[nodiscard]] auto isDependent(StatementAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(UnqualifiedIdAST* ast) -> bool { return false; }
@@ -313,8 +414,12 @@ struct IsDependent {
     if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
     if (symbol_cast<ConstraintTypeParameterSymbol>(ast->symbol)) return true;
     if (auto alias = symbol_cast<TypeAliasSymbol>(ast->symbol)) {
-      if (!alias->type()) return true;
-      if (isDependent(alias->type())) return true;
+      const auto bindsAliasTemplate = alias->templateParameters() &&
+                                      ast_cast<NameIdAST>(ast->unqualifiedId);
+      if (!bindsAliasTemplate) {
+        if (!alias->type()) return true;
+        if (isDependent(alias->type())) return true;
+      }
     }
     if (isDependent(ast->nestedNameSpecifier)) return true;
     if (auto templateId =
@@ -356,7 +461,6 @@ struct IsDependent {
   auto operator()(SplicerTypeSpecifierAST* ast) -> bool { return false; }
   // clang-format on
 };
-
 }  // namespace
 
 auto IsDependent::isDependent(NestedNameSpecifierAST* ast) -> bool {
@@ -884,8 +988,35 @@ auto isDependent(TranslationUnit* unit, const Type* type) -> bool {
   return IsDependent{unit}.isDependent(type);
 }
 
+auto isEnclosedInDependentTemplate(TranslationUnit* unit, ScopeSymbol* scope,
+                                   bool stopAtConcreteSpecialization) -> bool {
+  return IsDependent{unit}.enclosedInDependentTemplate(
+      scope, stopAtConcreteSpecialization);
+}
+
+auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool {
+  return symbol_cast<TypeParameterSymbol>(symbol) ||
+         symbol_cast<TemplateTypeParameterSymbol>(symbol);
+}
+
+auto isDependentNestedNameSpecifier(NestedNameSpecifierAST* ast) -> bool {
+  if (!ast) return false;
+  if (ast->symbol && ast->symbol->asScopeSymbol()) return false;
+  if (isDependentTypeParameterSymbol(ast->symbol)) return true;
+  return false;
+}
+
+auto isDependentTemplateArgument(TranslationUnit* unit,
+                                 TemplateArgumentAST* arg) -> bool {
+  return IsDependent{unit}.isDependentTemplateArgument(arg);
+}
+
+auto hasDependentTemplateArguments(TranslationUnit* unit,
+                                   SimpleTemplateIdAST* templateId) -> bool {
+  return IsDependent{unit}.hasDependentTemplateArguments(templateId);
+}
+
 auto isDependent(TranslationUnit* unit, NestedNameSpecifierAST* ast) -> bool {
   return IsDependent{unit}.isDependent(ast);
 }
-
 }  // namespace cxx

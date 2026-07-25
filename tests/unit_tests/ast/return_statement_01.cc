@@ -57,7 +57,7 @@ struct Pair {
 // CHECK-NEXT:                statement: compound-statement
 // CHECK-NEXT:                  statement-list
 // CHECK-NEXT:                    return-statement
-// CHECK-NEXT:                      expression: braced-init-list
+// CHECK-NEXT:                      expression: braced-init-list [prvalue ::Pair]
 // CHECK-NEXT:                        expression-list
 // CHECK-NEXT:                          int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 0

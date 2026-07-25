@@ -30,6 +30,8 @@ X::operator int() { return i; }
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor void X(int)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter int
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        constructor void X(int)
 // CHECK-NEXT:          parameters
@@ -37,7 +39,8 @@ X::operator int() { return i; }
 // CHECK-NEXT:            block
 // CHECK-NEXT:              variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor defaulted void X(const ::X&)
-// CHECK-NEXT:    constructor defaulted void X(::X&&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const ::X&
 // CHECK-NEXT:    injected class name X
 // CHECK-NEXT:    field int i
 // CHECK-NEXT:    function void ~X()
@@ -56,4 +59,5 @@ X::operator int() { return i; }
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[20]
 // CHECK-NEXT:    function defaulted ::X& operator =(const ::X&)
-// CHECK-NEXT:    function defaulted ::X& operator =(::X&&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const ::X&

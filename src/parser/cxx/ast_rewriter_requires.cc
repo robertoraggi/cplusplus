@@ -18,18 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_rewriter.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/dependent_types.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 
 namespace cxx {
-
 auto ASTRewriter::shouldCaptureBodyErrors() const -> bool {
   return symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
          binder_.reportErrors();
@@ -71,6 +69,45 @@ auto ASTRewriter::checkRequiresClause(
   return true;
 }
 
+auto ASTRewriter::evaluateConcept(
+    TranslationUnit* unit, ConceptSymbol* conceptSymbol,
+    List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool> {
+  if (!conceptSymbol) return std::nullopt;
+
+  auto definition = conceptSymbol->declaration();
+  if (!definition || !definition->expression) return std::nullopt;
+
+  auto templateDecl = conceptSymbol->templateDeclaration();
+  if (!templateDecl) return std::nullopt;
+
+  auto subst = Substitution::make(unit, templateDecl, templateArgumentList);
+  if (!subst) return std::nullopt;
+
+  auto templateArguments = std::move(*subst).templateArguments();
+
+  auto parentScope = conceptSymbol->enclosingNonTemplateParametersScope();
+
+  SilentDiagnosticsClient silent;
+  auto saved = unit->changeDiagnosticsClient(&silent);
+
+  auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
+  rewriter.depth_ = templateDecl->depth;
+
+  auto constraint = rewriter.expression(definition->expression);
+  if (constraint) rewriter.check(constraint);
+
+  (void)unit->changeDiagnosticsClient(saved);
+
+  if (!constraint) return std::nullopt;
+  if (rewriter.substitutionFailed()) return false;
+
+  auto interp = ASTInterpreter{unit};
+  auto value = interp.evaluate(constraint);
+  if (!value.has_value()) return std::nullopt;
+
+  return interp.toBool(*value);
+}
+
 void ASTRewriter::check(ExpressionAST* ast) {
   if (!ast) return;
   if (isDependent(unit_, ast)) return;
@@ -80,5 +117,4 @@ void ASTRewriter::check(ExpressionAST* ast) {
   typeChecker.setReportErrors(shouldCaptureBodyErrors());
   typeCheckAndCapture([&] { typeChecker.check(ast); });
 }
-
 }  // namespace cxx

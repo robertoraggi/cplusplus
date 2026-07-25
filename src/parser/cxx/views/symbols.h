@@ -28,12 +28,13 @@
 #include <cxx/types_fwd.h>
 #include <cxx/views/symbol_chain.h>
 
-namespace cxx {
+#include <ranges>
+#include <vector>
 
+namespace cxx {
 class SymbolChainView;
 
 namespace views {
-
 constexpr auto class_or_namespaces =
     std::views::filter(&Symbol::isClassOrNamespace) |
     std::views::transform(
@@ -73,7 +74,6 @@ inline auto members(ScopeSymbol* symbol) {
 
 constexpr auto named_symbol = std::views::filter(&Symbol::name);
 
-// Field views
 constexpr auto fields = std::views::filter(&Symbol::isField) |
                         std::views::transform(symbol_cast<FieldSymbol>);
 
@@ -83,7 +83,6 @@ constexpr auto non_static_fields =
 constexpr auto static_fields =
     fields | std::views::filter(&FieldSymbol::isStatic);
 
-// Member function views
 constexpr auto member_functions =
     std::views::filter([](Symbol* s) {
       if (auto func = symbol_cast<FunctionSymbol>(s)) {
@@ -114,30 +113,42 @@ constexpr auto converting_constructors =
       return !funcType->parameterTypes().empty();
     });
 
-inline auto overloads(Symbol* symbol)
-    -> std::variant<std::ranges::ref_view<const std::vector<FunctionSymbol*>>,
-                    std::ranges::single_view<FunctionSymbol*>,
-                    std::ranges::empty_view<FunctionSymbol*>> {
-  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
-    return std::views::all(overloadSet->functions());
+class each_function : public std::ranges::view_interface<each_function> {
+ public:
+  each_function() = default;
+
+  explicit each_function(Symbol* symbol) {
+    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+      functions_ = &overloadSet->functions();
+    } else if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+      function_ = function;
+    }
   }
-  if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
-    return std::views::single(func);
+
+  [[nodiscard]] auto begin() const -> FunctionSymbol* const* {
+    if (functions_) return functions_->data();
+    if (function_) return &function_;
+    return nullptr;
   }
-  return std::views::empty<FunctionSymbol*>;
-}
+
+  [[nodiscard]] auto end() const -> FunctionSymbol* const* {
+    if (functions_) return functions_->data() + functions_->size();
+    if (function_) return &function_ + 1;
+    return nullptr;
+  }
+
+ private:
+  const std::vector<FunctionSymbol*>* functions_ = nullptr;
+  FunctionSymbol* function_ = nullptr;
+};
 
 template <std::ranges::input_range R, typename Pred>
   requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&
            std::predicate<Pred, FunctionSymbol*>
 auto find_function(R&& symbols, Pred pred) -> FunctionSymbol* {
   for (auto sym : symbols) {
-    if (auto func = symbol_cast<FunctionSymbol>(sym)) {
+    for (auto func : each_function(sym)) {
       if (pred(func)) return func;
-    } else if (auto os = symbol_cast<OverloadSetSymbol>(sym)) {
-      for (auto f : os->functions()) {
-        if (pred(f)) return f;
-      }
     }
   }
   return nullptr;
@@ -149,7 +160,5 @@ template <std::ranges::input_range R, typename Pred>
 auto any_function(R&& symbols, Pred pred) -> bool {
   return find_function(std::forward<R>(symbols), std::move(pred)) != nullptr;
 }
-
 }  // namespace views
-
 }  // namespace cxx

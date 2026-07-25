@@ -21,6 +21,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
@@ -28,9 +29,7 @@
 #include <cxx/views/symbols.h>
 
 namespace cxx {
-
 namespace {
-
 struct IsVoid {
   auto operator()(const VoidType*) const -> bool { return true; }
 
@@ -792,6 +791,11 @@ struct IsSameVisitor {
     return type == otherType;
   }
 
+  auto operator()(const UnresolvedBuiltinType* type,
+                  const UnresolvedBuiltinType* otherType) const -> bool {
+    return type == otherType;
+  }
+
   auto operator()(const OverloadSetType* type,
                   const OverloadSetType* otherType) const -> bool {
     return type->symbol() == otherType->symbol();
@@ -853,7 +857,6 @@ auto is_trivially_copyable_class(TypeTraits& traits, ClassSymbol* cls) -> bool {
 
   return true;
 }
-
 }  // namespace
 
 TypeTraits::TypeTraits(TranslationUnit* unit) : unit_(unit) {}
@@ -1074,6 +1077,109 @@ auto TypeTraits::decay(const Type* type) const -> const Type* {
   return remove_cvref(noref);
 }
 
+auto TypeTraits::integer_type_of_size(std::size_t size, bool isUnsigned) const
+    -> const Type* {
+  const Type* candidates[] = {
+      isUnsigned ? static_cast<const Type*>(control()->getUnsignedCharType())
+                 : static_cast<const Type*>(control()->getSignedCharType()),
+      isUnsigned
+          ? static_cast<const Type*>(control()->getUnsignedShortIntType())
+          : static_cast<const Type*>(control()->getShortIntType()),
+      isUnsigned ? static_cast<const Type*>(control()->getUnsignedIntType())
+                 : static_cast<const Type*>(control()->getIntType()),
+      isUnsigned ? static_cast<const Type*>(control()->getUnsignedLongIntType())
+                 : static_cast<const Type*>(control()->getLongIntType()),
+      isUnsigned
+          ? static_cast<const Type*>(control()->getUnsignedLongLongIntType())
+          : static_cast<const Type*>(control()->getLongLongIntType()),
+      isUnsigned ? static_cast<const Type*>(control()->getUnsignedInt128Type())
+                 : static_cast<const Type*>(control()->getInt128Type()),
+  };
+
+  for (auto candidate : candidates) {
+    if (control()->memoryLayout()->sizeOf(candidate) == size) return candidate;
+  }
+
+  return nullptr;
+}
+
+auto TypeTraits::corresponding_integer_type(const Type* type,
+                                            bool isUnsigned) const
+    -> const Type* {
+  switch (type->kind()) {
+    case TypeKind::kSignedChar:
+    case TypeKind::kUnsignedChar:
+    case TypeKind::kChar:
+      return isUnsigned
+                 ? static_cast<const Type*>(control()->getUnsignedCharType())
+                 : static_cast<const Type*>(control()->getSignedCharType());
+
+    case TypeKind::kShortInt:
+    case TypeKind::kUnsignedShortInt:
+      return isUnsigned
+                 ? static_cast<const Type*>(
+                       control()->getUnsignedShortIntType())
+                 : static_cast<const Type*>(control()->getShortIntType());
+
+    case TypeKind::kInt:
+    case TypeKind::kUnsignedInt:
+      return isUnsigned
+                 ? static_cast<const Type*>(control()->getUnsignedIntType())
+                 : static_cast<const Type*>(control()->getIntType());
+
+    case TypeKind::kLongInt:
+    case TypeKind::kUnsignedLongInt:
+      return isUnsigned
+                 ? static_cast<const Type*>(control()->getUnsignedLongIntType())
+                 : static_cast<const Type*>(control()->getLongIntType());
+
+    case TypeKind::kLongLongInt:
+    case TypeKind::kUnsignedLongLongInt:
+      return isUnsigned
+                 ? static_cast<const Type*>(
+                       control()->getUnsignedLongLongIntType())
+                 : static_cast<const Type*>(control()->getLongLongIntType());
+
+    case TypeKind::kInt128:
+    case TypeKind::kUnsignedInt128:
+      return isUnsigned
+                 ? static_cast<const Type*>(control()->getUnsignedInt128Type())
+                 : static_cast<const Type*>(control()->getInt128Type());
+
+    case TypeKind::kChar8:
+    case TypeKind::kChar16:
+    case TypeKind::kChar32:
+    case TypeKind::kWideChar:
+    case TypeKind::kEnum:
+    case TypeKind::kScopedEnum: {
+      auto size = control()->memoryLayout()->sizeOf(type);
+      if (!size) return nullptr;
+      return integer_type_of_size(*size, isUnsigned);
+    }
+
+    default:
+      return nullptr;
+  }
+}
+
+auto TypeTraits::make_signed(const Type* type) const -> const Type* {
+  return apply_sign(type, /*isUnsigned=*/false);
+}
+
+auto TypeTraits::make_unsigned(const Type* type) const -> const Type* {
+  return apply_sign(type, /*isUnsigned=*/true);
+}
+
+auto TypeTraits::apply_sign(const Type* type, bool isUnsigned) const
+    -> const Type* {
+  if (!type) return type;
+
+  auto result = corresponding_integer_type(remove_cv(type), isUnsigned);
+  if (!result) return type;
+
+  return add_cv(result, get_cv_qualifiers(type));
+}
+
 auto TypeTraits::is_class_or_union(const Type* type) const -> bool {
   return is_class(type) || is_union(type);
 }
@@ -1162,6 +1268,51 @@ auto TypeTraits::integer_constant_fits_in_type(std::uint64_t value,
   return value <= maxVal;
 }
 
+auto TypeTraits::initializer_list_element_type(const Type* targetType)
+    -> const Type* {
+  if (!targetType) return nullptr;
+
+  auto unrefTarget = remove_reference(targetType);
+  auto unqualTarget = remove_cv(unrefTarget);
+  auto classType = type_cast<ClassType>(unqualTarget);
+  if (!classType || !classType->symbol()) return nullptr;
+
+  auto classSymbol = classType->symbol();
+  auto className = name_cast<Identifier>(classSymbol->name());
+  if (!className || className->name() != "initializer_list") return nullptr;
+
+  auto isWithinStdNamespace = [](Symbol* symbol) {
+    auto parent = symbol->parent();
+    while (parent) {
+      if (auto ns = symbol_cast<NamespaceSymbol>(parent)) {
+        if (auto id = name_cast<Identifier>(ns->name())) {
+          if (id->name() == "std" || id->name() == "__1" ||
+              id->name() == "__cxx11")
+            return true;
+        }
+      }
+      parent = parent->parent();
+    }
+    return false;
+  };
+  if (!isWithinStdNamespace(classSymbol)) return nullptr;
+  if (!classSymbol->isSpecialization()) return nullptr;
+
+  auto args = classSymbol->templateArguments();
+  if (args.size() != 1) return nullptr;
+
+  requireCompleteClass(classSymbol);
+
+  if (auto typeArg = std::get_if<const Type*>(&args[0])) return *typeArg;
+  if (auto symbolArg = std::get_if<Symbol*>(&args[0])) {
+    auto sym = *symbolArg;
+    if (!sym) return nullptr;
+    return sym->type();
+  }
+
+  return nullptr;
+}
+
 auto TypeTraits::requireCompleteClass(ClassSymbol* classSymbol) -> bool {
   if (!classSymbol) return false;
   if (classSymbol->isComplete()) return true;
@@ -1237,7 +1388,7 @@ auto TypeTraits::is_convertible(const Type* from, const Type* to) const
     -> bool {
   if (!from || !to) return false;
 
-  auto fromUnqual = remove_cv(from);
+  auto fromUnqual = remove_cv(remove_reference(from));
   auto toUnqual = remove_cv(to);
 
   if (is_void(fromUnqual) && is_void(toUnqual)) return true;
@@ -1363,6 +1514,11 @@ auto TypeTraits::is_empty(const Type* type) -> bool {
   }
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    if (!is_empty(baseClass->type())) return false;
+  }
   return true;
 }
 
@@ -1625,10 +1781,8 @@ auto TypeTraits::is_assignable(const Type* to, const Type* from) -> bool {
 auto TypeTraits::is_nothrow_assignable(const Type* to, const Type* from)
     -> bool {
   if (!is_assignable(to, from)) return false;
-  // For scalar types, assignment never throws.
   auto target = remove_cvref(to);
   if (is_scalar(target)) return true;
-  // For class types, use trivial assignability as a conservative approximation.
   return is_trivially_assignable(to, from);
 }
 
@@ -1734,5 +1888,4 @@ auto TypeTraits::has_virtual_destructor(const Type* type) -> bool {
   if (!cls || !cls->isComplete()) return false;
   return cls->hasVirtualDestructor();
 }
-
 }  // namespace cxx

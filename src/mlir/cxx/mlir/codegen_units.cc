@@ -18,19 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/codegen.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/mlir/codegen.h>
 #include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/views/symbols.h>
-
-// mlir
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/MC/TargetRegistry.h>
@@ -49,14 +45,11 @@
 #include <format>
 
 namespace cxx {
-
 namespace {
 struct ForEachExternalDefinition final : ASTVisitor {
   std::function<void(FunctionDefinitionAST*)> functionCallback;
 
-  void visit(TemplateDeclarationAST*) override {
-    // Skip template declarations, we only want to visit function definitions.
-  }
+  void visit(TemplateDeclarationAST*) override {}
 
   void visit(FunctionDefinitionAST* ast) override {
     if (ast->symbol && ast->symbol->templateDeclaration()) return;
@@ -65,7 +58,6 @@ struct ForEachExternalDefinition final : ASTVisitor {
     ASTVisitor::visit(ast);
   }
 };
-
 }  // namespace
 
 struct Codegen::UnitVisitor {
@@ -81,7 +73,9 @@ struct Codegen::UnitVisitor {
     for (auto member : views::members(ns)) {
       if (auto var = symbol_cast<VariableSymbol>(member)) {
         if (var->templateParameters()) continue;
-        gen.findOrCreateGlobal(var);
+        if (auto glo = gen.findOrCreateGlobal(var)) {
+          gen.emitGlobalVarInit(var, *glo);
+        }
         continue;
       }
 
@@ -98,11 +92,15 @@ void Codegen::resolveLabels() {
   mlir::IRRewriter rewriter(funcOp.getContext());
 
   llvm::DenseMap<llvm::StringRef, mlir::Block*> labels;
+  llvm::DenseMap<llvm::StringRef, std::int64_t> labelCleanupDepths;
 
   for (auto& block : funcOp.getBody()) {
     for (auto& op : block) {
-      if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op))
+      if (auto labelOp = mlir::dyn_cast<mlir::cxx::LabelOp>(&op)) {
         labels[labelOp.getName()] = labelOp->getBlock();
+        labelCleanupDepths[labelOp.getName()] =
+            static_cast<std::int64_t>(labelOp.getCleanupDepth());
+      }
     }
   }
 
@@ -127,8 +125,6 @@ void Codegen::resolveLabels() {
     }
   }
 
-  // Also collect LabelAddressOps from global initializer regions that reference
-  // labels defined in this function (stored via func_name attribute).
   if (auto module = funcOp->getParentOfType<mlir::ModuleOp>()) {
     for (auto& moduleOp : *module.getBody()) {
       if (auto globalOp = mlir::dyn_cast<mlir::cxx::GlobalOp>(&moduleOp)) {
@@ -145,11 +141,33 @@ void Codegen::resolveLabels() {
     auto targetBlock = labels.lookup(gotoOp.getLabel());
     if (!targetBlock) continue;
 
+    auto labelDepth = labelCleanupDepths.lookup(gotoOp.getLabel());
+    auto addresses = gotoOp.getAddresses();
+    auto destructors = gotoOp.getDestructors();
+    auto depths = gotoOp.getDepths();
+    auto gotoLoc = gotoOp.getLoc();
+
     rewriter.setInsertionPoint(gotoOp);
 
     if (auto nextOp = ++gotoOp->getIterator();
         mlir::isa<mlir::cf::BranchOp>(&*nextOp)) {
       rewriter.eraseOp(&*nextOp);
+    }
+
+    for (unsigned i = 0; i < addresses.size(); ++i) {
+      auto depthAttr = mlir::cast<mlir::IntegerAttr>(depths[i]);
+      if (depthAttr.getValue().getSExtValue() < labelDepth) continue;
+
+      auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
+      mlir::SmallVector<mlir::Type> resultTypes;
+      if (auto dtorFunc =
+              module_.lookupSymbol<mlir::cxx::FuncOp>(dtorRef.getValue())) {
+        auto results = dtorFunc.getFunctionType().getResults();
+        resultTypes.append(results.begin(), results.end());
+      }
+      mlir::cxx::CallOp::create(rewriter, gotoLoc, resultTypes, dtorRef,
+                                mlir::ValueRange{addresses[i]},
+                                mlir::TypeAttr{});
     }
 
     rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(gotoOp, targetBlock);
@@ -202,7 +220,13 @@ void Codegen::resolveLabels() {
     auto destructors = cbOp.getDestructors();
     for (unsigned i = 0; i < addresses.size(); ++i) {
       auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
-      mlir::cxx::CallOp::create(rewriter, cbOp.getLoc(), mlir::Type{}, dtorRef,
+      mlir::SmallVector<mlir::Type> resultTypes;
+      if (auto dtorFunc =
+              module_.lookupSymbol<mlir::cxx::FuncOp>(dtorRef.getValue())) {
+        auto results = dtorFunc.getFunctionType().getResults();
+        resultTypes.append(results.begin(), results.end());
+      }
+      mlir::cxx::CallOp::create(rewriter, cbOp.getLoc(), resultTypes, dtorRef,
                                 mlir::ValueRange{addresses[i]},
                                 mlir::TypeAttr{});
     }
@@ -395,5 +419,4 @@ auto Codegen::importName(ImportNameAST* ast) -> ImportNameResult {
 
   return {};
 }
-
 }  // namespace cxx

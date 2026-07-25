@@ -24,36 +24,58 @@ A<void*> a2;
 // CHECK-NEXT:    field ::A* next
 // CHECK-NEXT:    function type-param<0, 0> get_a()
 // CHECK-NEXT:    function void set_a(const type-param<0, 0>&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const type-param<0, 0>& a
 // CHECK-NEXT:    typealias type-param<0, 0> type
 // CHECK-NEXT:    typealias type-param<0, 0>& reference
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<int>
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::A<int>&
 // CHECK-NEXT:        constructor defaulted void A(::A<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::A<int>&&
 // CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        field int a
 // CHECK-NEXT:        field ::A<int>* next
 // CHECK-NEXT:        function int get_a()
 // CHECK-NEXT:        function void set_a(const int&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const int& a
 // CHECK-NEXT:        typealias int type
 // CHECK-NEXT:        typealias int& reference
 // CHECK-NEXT:        function defaulted ::A<int>& operator =(const ::A<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::A<int>&
 // CHECK-NEXT:        function defaulted ::A<int>& operator =(::A<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::A<int>&&
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:      class A<void*>
 // CHECK-NEXT:        constructor defaulted void A()
 // CHECK-NEXT:        constructor defaulted void A(const ::A<void*>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::A<void*>&
 // CHECK-NEXT:        constructor defaulted void A(::A<void*>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::A<void*>&&
 // CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        field void* a
 // CHECK-NEXT:        field ::A<void*>* next
 // CHECK-NEXT:        function void* get_a()
 // CHECK-NEXT:        function void set_a(void* const&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter void* const& a
 // CHECK-NEXT:        typealias void* type
 // CHECK-NEXT:        typealias void*& reference
 // CHECK-NEXT:        function defaulted ::A<void*>& operator =(const ::A<void*>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::A<void*>&
 // CHECK-NEXT:        function defaulted ::A<void*>& operator =(::A<void*>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::A<void*>&&
 // CHECK-NEXT:        function defaulted void ~A()
 // CHECK-NEXT:  variable ::A<int> a1
 // CHECK-NEXT:  variable ::A<void*> a2

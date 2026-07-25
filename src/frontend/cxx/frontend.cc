@@ -62,7 +62,6 @@
 #include "verify_diagnostics_client.h"
 
 namespace cxx {
-
 struct Frontend::Private {
   Frontend& frontend;
   const CLI& cli;
@@ -71,6 +70,7 @@ struct Frontend::Private {
   std::unique_ptr<VerifyDiagnosticsClient> diagnosticsClient_;
   std::unique_ptr<Toolchain> toolchain_;
   std::vector<std::function<void()>> actions_;
+  std::optional<std::string> objectOutput_;
 #ifdef CXX_WITH_MLIR
   std::unique_ptr<mlir::MLIRContext> context_;
   mlir::ModuleOp module_;
@@ -86,11 +86,12 @@ struct Frontend::Private {
 
   [[nodiscard]] auto needsIR() const -> bool {
     return cli.opt_emit_cxx_ir || cli.opt_emit_mlir || cli.opt_emit_llvm ||
-           cli.opt_S || cli.opt_c;
+           cli.opt_S || cli.opt_c || objectOutput_.has_value();
   }
 
   [[nodiscard]] auto needsLLVMIR() const -> bool {
-    return cli.opt_emit_llvm || cli.opt_S || cli.opt_c;
+    return cli.opt_emit_llvm || cli.opt_S || cli.opt_c ||
+           objectOutput_.has_value();
   }
 
   void prepare();
@@ -151,6 +152,10 @@ auto Frontend::fileName() const -> const std::string& {
 
 void Frontend::addAction(std::function<void()> action) {
   priv->actions_.emplace_back(std::move(action));
+}
+
+void Frontend::setObjectOutput(std::string path) {
+  priv->objectOutput_ = std::move(path);
 }
 
 auto Frontend::operator()() -> bool {
@@ -257,15 +262,12 @@ void Frontend::Private::printPreprocessedText() {
   }
 
   if (cli.opt_dM) {
-    // If we are only dumping macros, we don't need to output the preprocessed
-    // text.
     return;
   }
 
   shouldExit_ = true;
 
   if (cli.opt_Eonly) {
-    // If we are only preprocessing, we don't need to output the preprocessed
     return;
   }
 
@@ -367,7 +369,6 @@ void Frontend::Private::prepare() {
   const auto lang = cli.getSingle("-x");
 
   if (lang == "c" || (!lang.has_value() && fileName_.ends_with(".c"))) {
-    // set the language to C
     preprocessor->setLanguage(LanguageKind::kC);
   }
 
@@ -427,7 +428,6 @@ void Frontend::Private::prepare() {
 
     toolchain_ = std::move(wasmToolchain);
   } else if (toolchainId == "linux") {
-    // on linux we default to x86_64, unless the host is aarch64
     std::string host = "x86_64";
 
 #ifdef __aarch64__
@@ -437,7 +437,6 @@ void Frontend::Private::prepare() {
     toolchain_ = std::make_unique<GCCLinuxToolchain>(
         preprocessor, cli.getSingle("-arch").value_or(host));
   } else if (toolchainId == "windows") {
-    // on linux we default to x86_64, unless the host is aarch64
     std::string host = "x86_64";
 
 #ifdef __aarch64__
@@ -563,8 +562,6 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
     return cls->isUnion() ? "union" : "struct";
   };
 
-  // Recursively dump the members of a class at a given indentation level.
-  // baseOffset is the absolute offset from the top-level record being dumped.
   std::function<void(ClassSymbol*, const ClassLayout*, int indent,
                      std::uint64_t baseOffset)>
       dumpClassMembers;
@@ -573,8 +570,8 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
                          int indent, std::uint64_t baseOffset) {
     std::string pad(indent * 2, ' ');
 
-    // Dump base classes
     for (auto base : classSymbol->baseClasses()) {
+      if (base->isVirtual()) continue;
       auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClassSymbol) continue;
 
@@ -592,7 +589,6 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
       }
     }
 
-    // Dump fields
     for (auto field :
          cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
       auto fieldInfo = layout->getFieldInfo(field);
@@ -600,7 +596,6 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
 
       auto absOffset = baseOffset + fieldInfo->offset;
 
-      // Anonymous struct/union field: show inline with nested members
       if (!field->name()) {
         if (auto classType = type_cast<ClassType>(field->type())) {
           auto nestedClass = classType->symbol();
@@ -653,10 +648,27 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
 
         dumpClassMembers(classSymbol, layout, 1, 0);
 
+        for (auto vbase : layout->virtualBases()) {
+          auto baseInfo = layout->getBaseInfo(vbase);
+          if (!baseInfo) continue;
+          out << std::format("{:>9} | {}{} {} (virtual base)\n",
+                             baseInfo->offset, std::string(2, ' '),
+                             classKeyword(vbase), to_string(vbase->name()));
+          if (auto vbaseLayout = vbase->layout()) {
+            dumpClassMembers(vbase, vbaseLayout, 2, baseInfo->offset);
+          }
+        }
+
         out << std::format("{:>9} | [sizeof={}, dsize={}, align={},\n", "",
                            layout->size(), layout->size(), layout->alignment());
-        out << std::format("{:>9} |  nvsize={}, nvalign={}]\n", "",
-                           layout->size(), layout->alignment());
+        if (layout->virtualBases().empty()) {
+          out << std::format("{:>9} |  nvsize={}, nvalign={}]\n", "",
+                             layout->size(), layout->alignment());
+        } else {
+          out << std::format("{:>9} |  nvsize={}, nvalign={}]\n", "",
+                             layout->nonVirtualSize(),
+                             layout->nonVirtualAlignment());
+        }
       }
 
       if (auto nestedScope = symbol_cast<ScopeSymbol>(member)) {
@@ -813,8 +825,10 @@ void Frontend::Private::emitLLVMIR() {
 }
 
 void Frontend::Private::emitCode() {
-  if (!cli.opt_S && !cli.opt_c) return;
+  if (!cli.opt_S && !cli.opt_c && !objectOutput_.has_value()) return;
 #ifdef CXX_WITH_MLIR
+  if (!llvmModule_) return;
+
   llvm::InitializeAllAsmPrinters();
 
   auto triple = llvm::Triple{toolchain_->memoryLayout()->triple()};
@@ -847,22 +861,14 @@ void Frontend::Private::emitCode() {
     return;
   }
 
-  std::string extension;
-  if (cli.opt_S) {
-    extension = ".s";
-  } else if (cli.opt_c) {
-    extension = ".o";
-  }
+  const bool emitAssembly = cli.opt_S && !objectOutput_.has_value();
 
-  withRawOutputStream(extension, [&](llvm::raw_pwrite_stream& out) {
+  auto emit = [&](llvm::raw_pwrite_stream& out) {
     llvm::legacy::PassManager pm;
 
-    llvm::CodeGenFileType fileType;
-    if (cli.opt_S) {
-      fileType = llvm::CodeGenFileType::AssemblyFile;
-    } else {
-      fileType = llvm::CodeGenFileType::ObjectFile;
-    }
+    llvm::CodeGenFileType fileType = emitAssembly
+                                         ? llvm::CodeGenFileType::AssemblyFile
+                                         : llvm::CodeGenFileType::ObjectFile;
 
     if (targetMachine->addPassesToEmitFile(pm, out, nullptr, fileType)) {
       std::cerr << "cxx: target machine cannot emit assembly\n";
@@ -874,7 +880,24 @@ void Frontend::Private::emitCode() {
 
     pm.run(*llvmModule_);
     out.flush();
-  });
+  };
+
+  if (objectOutput_.has_value()) {
+    std::error_code ec;
+    llvm::raw_fd_ostream out(*objectOutput_, ec);
+    if (ec) {
+      std::cerr << std::format("cxx: cannot open '{}': {}\n", *objectOutput_,
+                               ec.message());
+      shouldExit_ = true;
+      loweringFailed_ = true;
+      exitStatus_ = EXIT_FAILURE;
+      return;
+    }
+    emit(out);
+    return;
+  }
+
+  withRawOutputStream(emitAssembly ? ".s" : ".o", emit);
 #endif
 }
 
@@ -895,5 +918,4 @@ auto Frontend::Private::readAll(const std::string& fileName)
   if (std::ifstream stream(fileName); stream) return readAll(fileName, stream);
   return std::nullopt;
 }
-
 }  // namespace cxx

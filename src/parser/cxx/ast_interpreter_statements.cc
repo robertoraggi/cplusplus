@@ -18,23 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_interpreter.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/parser.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <format>
 
 namespace cxx {
-
 struct ASTInterpreter::StatementVisitor {
   ASTInterpreter& interp;
 
@@ -78,6 +75,15 @@ struct ASTInterpreter::StatementVisitor {
       -> StatementResult;
 
   [[nodiscard]] auto operator()(TryBlockStatementAST* ast) -> StatementResult;
+
+  [[nodiscard]] auto forRangeOverArray(ForRangeStatementAST* ast,
+                                       VariableSymbol* var) -> StatementResult;
+  [[nodiscard]] auto forRangeOverPointerIterator(ForRangeStatementAST* ast,
+                                                 VariableSymbol* var)
+      -> StatementResult;
+  [[nodiscard]] auto forRangeOverClassIterator(ForRangeStatementAST* ast,
+                                               VariableSymbol* var)
+      -> StatementResult;
 };
 
 struct ASTInterpreter::ExceptionDeclarationVisitor {
@@ -91,8 +97,9 @@ struct ASTInterpreter::ExceptionDeclarationVisitor {
 };
 
 auto ASTInterpreter::statement(StatementAST* ast) -> StatementResult {
-  if (ast) return visit(StatementVisitor{*this}, ast);
-  return {};
+  if (!ast) return {};
+  if (!tick()) return {};
+  return visit(StatementVisitor{*this}, ast);
 }
 
 auto ASTInterpreter::handler(HandlerAST* ast) -> HandlerResult {
@@ -113,14 +120,11 @@ auto ASTInterpreter::exceptionDeclaration(ExceptionDeclarationAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(LabeledStatementAST* ast)
     -> StatementResult {
-  auto statementResult = interp.statement(ast->statement);
-  return {};
+  return interp.statement(ast->statement);
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(CaseStatementAST* ast)
     -> StatementResult {
-  auto expressionResult = interp.expression(ast->expression);
-
   return {};
 }
 
@@ -139,8 +143,9 @@ auto ASTInterpreter::StatementVisitor::operator()(ExpressionStatementAST* ast)
 auto ASTInterpreter::StatementVisitor::operator()(CompoundStatementAST* ast)
     -> StatementResult {
   for (auto node : ListView{ast->statementList}) {
-    auto value = interp.statement(node);
-    if (interp.hasReturnValue()) break;
+    auto result = interp.statement(node);
+    if (interp.aborted()) return {};
+    if (result.flow != ControlFlow::kNormal) return result;
   }
 
   return {};
@@ -154,16 +159,11 @@ auto ASTInterpreter::StatementVisitor::operator()(IfStatementAST* ast)
   if (conditionResult.has_value()) {
     auto boolVal = interp.toBool(*conditionResult);
     if (boolVal.has_value()) {
-      if (*boolVal) {
-        (void)interp.statement(ast->statement);
-      } else {
-        (void)interp.statement(ast->elseStatement);
-      }
-      return {};
+      if (*boolVal) return interp.statement(ast->statement);
+      return interp.statement(ast->elseStatement);
     }
   }
 
-  // Fallback: visit both branches (as before).
   auto statementResult = interp.statement(ast->statement);
   auto elseStatementResult = interp.statement(ast->elseStatement);
 
@@ -180,26 +180,266 @@ auto ASTInterpreter::StatementVisitor::operator()(ConstevalIfStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(SwitchStatementAST* ast)
     -> StatementResult {
-  auto initializerResult = interp.statement(ast->initializer);
+  (void)interp.statement(ast->initializer);
+
   auto conditionResult = interp.expression(ast->condition);
-  auto statementResult = interp.statement(ast->statement);
+  if (!conditionResult.has_value()) return {};
+  auto condValue = interp.toInt(*conditionResult);
+  if (!condValue.has_value()) return {};
+
+  auto body = ast_cast<CompoundStatementAST>(ast->statement);
+  if (!body) return {};
+
+  std::vector<StatementAST*> stmts;
+  for (auto node : ListView{body->statementList}) stmts.push_back(node);
+
+  int start = -1;
+  int defaultIdx = -1;
+  for (std::size_t i = 0; i < stmts.size(); ++i) {
+    if (auto caseStmt = ast_cast<CaseStatementAST>(stmts[i])) {
+      if (caseStmt->caseValue == *condValue) {
+        start = static_cast<int>(i);
+        break;
+      }
+    } else if (ast_cast<DefaultStatementAST>(stmts[i])) {
+      defaultIdx = static_cast<int>(i);
+    }
+  }
+  if (start < 0) start = defaultIdx;
+  if (start < 0) return {};
+
+  for (std::size_t i = start; i < stmts.size(); ++i) {
+    auto result = interp.statement(stmts[i]);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow == ControlFlow::kContinue ||
+        result.flow == ControlFlow::kReturn) {
+      return result;
+    }
+  }
 
   return {};
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(WhileStatementAST* ast)
     -> StatementResult {
-  auto conditionResult = interp.expression(ast->condition);
-  auto statementResult = interp.statement(ast->statement);
+  for (;;) {
+    if (!interp.tick()) return {};
+
+    auto conditionResult = interp.expression(ast->condition);
+    if (!conditionResult.has_value()) return {};
+    auto boolVal = interp.toBool(*conditionResult);
+    if (!boolVal.has_value()) return {};
+    if (!*boolVal) break;
+
+    auto result = interp.statement(ast->statement);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow == ControlFlow::kReturn) return result;
+  }
 
   return {};
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(DoStatementAST* ast)
     -> StatementResult {
-  auto statementResult = interp.statement(ast->statement);
-  auto expressionResult = interp.expression(ast->expression);
+  for (;;) {
+    if (!interp.tick()) return {};
 
+    auto result = interp.statement(ast->statement);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow == ControlFlow::kReturn) return result;
+
+    auto conditionResult = interp.expression(ast->expression);
+    if (!conditionResult.has_value()) return {};
+    auto boolVal = interp.toBool(*conditionResult);
+    if (!boolVal.has_value()) return {};
+    if (!*boolVal) break;
+  }
+
+  return {};
+}
+
+static auto rangeForVariable(DeclarationAST* rangeDeclaration)
+    -> VariableSymbol* {
+  auto simpleDecl = ast_cast<SimpleDeclarationAST>(rangeDeclaration);
+  auto initDecl = simpleDecl && simpleDecl->initDeclaratorList
+                      ? simpleDecl->initDeclaratorList->value
+                      : nullptr;
+  return initDecl ? symbol_cast<VariableSymbol>(initDecl->symbol) : nullptr;
+}
+
+auto ASTInterpreter::StatementVisitor::forRangeOverArray(
+    ForRangeStatementAST* ast, VariableSymbol* var) -> StatementResult {
+  auto rangeVal = interp.expression(ast->rangeInitializer);
+  if (!rangeVal.has_value()) return {};
+  auto listPtr = std::get_if<std::shared_ptr<InitializerList>>(&*rangeVal);
+  if (!listPtr || !*listPtr) return {};
+  auto list = *listPtr;
+
+  const bool bindByRef = interp.unit_->typeTraits().is_reference(var->type());
+
+  for (std::size_t i = 0; i < list->elements.size(); ++i) {
+    if (!interp.tick()) return {};
+
+    auto& element = std::get<0>(list->elements[i]);
+    if (bindByRef) {
+      interp.bindReference(var, &element);
+    } else {
+      interp.setLocal(var, element);
+    }
+
+    auto result = interp.statement(ast->statement);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow == ControlFlow::kReturn) return result;
+  }
+  return {};
+}
+
+auto ASTInterpreter::StatementVisitor::forRangeOverPointerIterator(
+    ForRangeStatementAST* ast, VariableSymbol* var) -> StatementResult {
+  auto rangeVal = interp.expression(ast->rangeInitializer);
+  if (!rangeVal.has_value()) return {};
+
+  auto callOnRange = [&](FunctionSymbol* f) -> std::optional<ConstValue> {
+    if (ast->usesMemberBeginEnd) {
+      auto objPtr = std::get_if<std::shared_ptr<ConstObject>>(&*rangeVal);
+      if (!objPtr) return std::nullopt;
+      auto savedThis = interp.thisObject();
+      interp.setThisObject(*objPtr);
+      auto result = interp.evaluateCall(f, {});
+      interp.setThisObject(savedThis);
+      return result;
+    }
+    return interp.evaluateCall(f, {*rangeVal});
+  };
+
+  auto beginVal = callOnRange(ast->beginFunction);
+  auto endVal = callOnRange(ast->endFunction);
+  if (!beginVal.has_value() || !endVal.has_value()) return {};
+
+  auto beginAddr = std::get_if<std::shared_ptr<ConstAddress>>(&*beginVal);
+  auto endAddr = std::get_if<std::shared_ptr<ConstAddress>>(&*endVal);
+  if (!beginAddr || !*beginAddr || !endAddr || !*endAddr) return {};
+  if ((*beginAddr)->symbol() != (*endAddr)->symbol()) return {};
+
+  const bool bindByRef = interp.unit_->typeTraits().is_reference(var->type());
+  const auto base = (*beginAddr)->offset();
+
+  for (auto off = base; off < (*endAddr)->offset(); ++off) {
+    if (!interp.tick()) return {};
+
+    if (bindByRef) {
+      auto slot = interp.addressSlot(**beginAddr, off - base);
+      if (!slot) return {};
+      interp.bindReference(var, slot);
+    } else {
+      auto elemVal = interp.loadAddress(**beginAddr, off - base);
+      if (!elemVal.has_value()) return {};
+      interp.setLocal(var, *elemVal);
+    }
+
+    auto result = interp.statement(ast->statement);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow == ControlFlow::kReturn) return result;
+  }
+  return {};
+}
+
+auto ASTInterpreter::StatementVisitor::forRangeOverClassIterator(
+    ForRangeStatementAST* ast, VariableSymbol* var) -> StatementResult {
+  auto rangeVal = interp.expression(ast->rangeInitializer);
+  if (!rangeVal.has_value()) return {};
+
+  auto callOnRange = [&](FunctionSymbol* f) -> std::optional<ConstValue> {
+    if (ast->usesMemberBeginEnd) {
+      auto objPtr = std::get_if<std::shared_ptr<ConstObject>>(&*rangeVal);
+      if (!objPtr) return std::nullopt;
+      auto savedThis = interp.thisObject();
+      interp.setThisObject(*objPtr);
+      auto result = interp.evaluateCall(f, {});
+      interp.setThisObject(savedThis);
+      return result;
+    }
+    return interp.evaluateCall(f, {*rangeVal});
+  };
+
+  auto beginVal = callOnRange(ast->beginFunction);
+  auto endVal = callOnRange(ast->endFunction);
+  if (!beginVal.has_value() || !endVal.has_value()) return {};
+
+  auto beginObj = std::get_if<std::shared_ptr<ConstObject>>(&*beginVal);
+  auto endObj = std::get_if<std::shared_ptr<ConstObject>>(&*endVal);
+  if (!beginObj || !*beginObj || !endObj || !*endObj) return {};
+
+  auto callUnary =
+      [&](FunctionSymbol* f,
+          const std::shared_ptr<ConstObject>& it) -> std::optional<ConstValue> {
+    if (!f) return std::nullopt;
+    if (f->isImplicitObjectMemberFunction()) {
+      auto savedThis = interp.thisObject();
+      interp.setThisObject(it);
+      auto result = interp.evaluateCall(f, {});
+      interp.setThisObject(savedThis);
+      return result;
+    }
+    return interp.evaluateCall(f, {ConstValue{it}});
+  };
+  auto callBinary =
+      [&](FunctionSymbol* f, const std::shared_ptr<ConstObject>& a,
+          const std::shared_ptr<ConstObject>& b) -> std::optional<ConstValue> {
+    if (!f) return std::nullopt;
+    if (f->isImplicitObjectMemberFunction()) {
+      auto savedThis = interp.thisObject();
+      interp.setThisObject(a);
+      auto result = interp.evaluateCall(f, {ConstValue{b}});
+      interp.setThisObject(savedThis);
+      return result;
+    }
+    return interp.evaluateCall(f, {ConstValue{a}, ConstValue{b}});
+  };
+
+  const bool bindByRef = interp.unit_->typeTraits().is_reference(var->type());
+
+  for (;;) {
+    if (!interp.tick()) return {};
+
+    auto neq = callBinary(ast->notEqualFunction, *beginObj, *endObj);
+    if (!neq.has_value()) return {};
+    auto keepGoing = interp.toBool(*neq);
+    if (!keepGoing.has_value() || !*keepGoing) break;
+
+    if (bindByRef) {
+      ConstValue* slot = nullptr;
+      if (ast->derefFunction->isImplicitObjectMemberFunction()) {
+        auto savedThis = interp.thisObject();
+        interp.setThisObject(*beginObj);
+        slot = interp.evaluateCallLValue(ast->derefFunction, {});
+        interp.setThisObject(savedThis);
+      } else {
+        slot = interp.evaluateCallLValue(ast->derefFunction,
+                                         {ConstValue{*beginObj}});
+      }
+      if (!slot) return {};
+      interp.bindReference(var, slot);
+    } else {
+      auto elemVal = callUnary(ast->derefFunction, *beginObj);
+      if (!elemVal.has_value()) return {};
+      interp.setLocal(var, *elemVal);
+    }
+
+    auto result = interp.statement(ast->statement);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow != ControlFlow::kReturn) {
+      if (!callUnary(ast->incrementFunction, *beginObj).has_value()) return {};
+      continue;
+    }
+    return result;
+  }
   return {};
 }
 
@@ -207,6 +447,26 @@ auto ASTInterpreter::StatementVisitor::operator()(ForRangeStatementAST* ast)
     -> StatementResult {
   auto initializerResult = interp.statement(ast->initializer);
   auto rangeDeclarationResult = interp.declaration(ast->rangeDeclaration);
+
+  auto var = rangeForVariable(ast->rangeDeclaration);
+  auto rangeType =
+      ast->rangeInitializer ? ast->rangeInitializer->type : nullptr;
+
+  if (var && rangeType) {
+    if (!ast->beginFunction &&
+        type_cast<BoundedArrayType>(
+            interp.unit_->typeTraits().remove_cvref(rangeType))) {
+      return forRangeOverArray(ast, var);
+    }
+    if (ast->beginFunction && ast->isPointerIterator) {
+      return forRangeOverPointerIterator(ast, var);
+    }
+    if (ast->beginFunction && ast->derefFunction && ast->incrementFunction &&
+        ast->notEqualFunction) {
+      return forRangeOverClassIterator(ast, var);
+    }
+  }
+
   auto rangeInitializerResult = interp.expression(ast->rangeInitializer);
   auto statementResult = interp.statement(ast->statement);
 
@@ -215,32 +475,56 @@ auto ASTInterpreter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(ForStatementAST* ast)
     -> StatementResult {
-  auto initializerResult = interp.statement(ast->initializer);
-  auto conditionResult = interp.expression(ast->condition);
-  auto expressionResult = interp.expression(ast->expression);
-  auto statementResult = interp.statement(ast->statement);
+  (void)interp.statement(ast->initializer);
+
+  for (;;) {
+    if (!interp.tick()) return {};
+
+    if (ast->condition) {
+      auto conditionResult = interp.expression(ast->condition);
+      if (!conditionResult.has_value()) return {};
+      auto boolVal = interp.toBool(*conditionResult);
+      if (!boolVal.has_value()) return {};
+      if (!*boolVal) break;
+    }
+
+    auto result = interp.statement(ast->statement);
+    if (interp.aborted()) return {};
+    if (result.flow == ControlFlow::kBreak) break;
+    if (result.flow == ControlFlow::kReturn) return result;
+
+    if (ast->expression) {
+      auto expressionResult = interp.expression(ast->expression);
+      if (!expressionResult.has_value()) return {};
+    }
+  }
 
   return {};
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(BreakStatementAST* ast)
     -> StatementResult {
-  return {};
+  return {ControlFlow::kBreak};
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(ContinueStatementAST* ast)
     -> StatementResult {
-  return {};
+  return {ControlFlow::kContinue};
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(ReturnStatementAST* ast)
     -> StatementResult {
+  if (interp.captureReturnLValue_) {
+    interp.returnLValue_ = interp.lvalue(ast->expression);
+    return {ControlFlow::kReturn};
+  }
+
   auto expressionResult = interp.expression(ast->expression);
   if (expressionResult.has_value()) {
     interp.setReturnValue(*expressionResult);
   }
 
-  return {};
+  return {ControlFlow::kReturn};
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(
@@ -263,12 +547,23 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
     for (auto initDecl : ListView{simpleDecl->initDeclaratorList}) {
       if (!initDecl->symbol) continue;
 
+      auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
+
+      if (var && interp.unit_->typeTraits().is_reference(var->type())) {
+        auto initExpr = initDecl->initializer;
+        if (auto eq = ast_cast<EqualInitializerAST>(initExpr))
+          initExpr = eq->expression;
+        if (auto slot = interp.lvalue(initExpr)) {
+          interp.bindReference(initDecl->symbol, slot);
+        }
+        continue;
+      }
+
       auto initVal = interp.expression(initDecl->initializer);
 
       if (!initVal.has_value()) {
         if (auto parenInit =
                 ast_cast<ParenInitializerAST>(initDecl->initializer)) {
-          auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
           if (var) {
             auto varType = interp.unit_->typeTraits().remove_cv(var->type());
             if (auto classType = type_cast<ClassType>(varType)) {
@@ -283,8 +578,10 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
                 args.push_back(std::move(*val));
               }
               if (argsOk) {
-                auto classSym = classType->symbol();
-                if (classSym) {
+                if (var->constructor() && var->constructor()->isConstexpr()) {
+                  initVal = interp.evaluateConstructor(
+                      var->constructor(), varType, std::move(args));
+                } else if (auto classSym = classType->symbol()) {
                   for (auto ctor : classSym->constructors()) {
                     if (ctor->isConstexpr()) {
                       initVal = interp.evaluateConstructor(ctor, varType,
@@ -296,6 +593,12 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
               }
             }
           }
+        }
+      }
+
+      if (!initVal.has_value() && !initDecl->initializer) {
+        if (var) {
+          initVal = interp.defaultConstruct(var->type());
         }
       }
 
@@ -338,5 +641,4 @@ auto ASTInterpreter::ExceptionDeclarationVisitor::operator()(
 
   return {};
 }
-
 }  // namespace cxx

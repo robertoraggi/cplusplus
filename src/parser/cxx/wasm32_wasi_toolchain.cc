@@ -18,17 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/wasm32_wasi_toolchain.h>
-
-// cxx
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/wasm32_wasi_toolchain.h>
 
 #include <format>
 
 namespace cxx {
-
 Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor)
     : Toolchain(preprocessor) {
   setMemoryLayout(std::make_unique<MemoryLayout>(32));
@@ -97,4 +94,27 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   }
 }
 
+void Wasm32WasiToolchain::addLinkerStartArgs(
+    std::vector<std::string>& args) const {
+  const auto libdir = std::format("{}/lib/wasm32-wasi", sysroot_);
+
+  args.push_back(std::format("{}/crt1.o", libdir));
+  args.push_back(std::format("-L{}", libdir));
+}
+
+void Wasm32WasiToolchain::addLinkerEndArgs(
+    std::vector<std::string>& args) const {
+  args.push_back("-lc");
+
+  if (language() == LanguageKind::kCXX) {
+    args.push_back("-lc++");
+    args.push_back("-lc++abi");
+  }
+
+  const auto builtins =
+      std::format("{}/lib/wasm32-wasi/libclang_rt.builtins-wasm32.a", sysroot_);
+  if (fs::exists(builtins)) {
+    args.push_back(builtins);
+  }
+}
 }  // namespace cxx

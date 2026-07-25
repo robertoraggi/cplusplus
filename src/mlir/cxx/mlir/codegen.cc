@@ -18,26 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/codegen.h>
-#include <cxx/type_traits.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/const_value.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/mlir/codegen.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbols.h>
-
-// mlir
-#include <cxx/decl.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/TargetParser/Triple.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
@@ -48,7 +44,6 @@
 #include <format>
 
 namespace cxx {
-
 static auto isInAnonymousNamespace(Symbol* symbol) -> bool {
   for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
     if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
@@ -67,6 +62,16 @@ static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
   return false;
 }
 
+static auto isMemberOfExplicitInstantiationDeclaredClass(Symbol* symbol)
+    -> bool {
+  for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
+    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+      if (cls->isExplicitInstantiationDeclared()) return true;
+    }
+  }
+  return false;
+}
+
 static auto targetNeedsAppleNameTable(mlir::ModuleOp module) -> bool {
   auto tripleAttr = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
   if (!tripleAttr) return false;
@@ -79,7 +84,11 @@ Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
     : context_(&context),
       builder_(&context),
       unit_(unit),
-      debugInfo_(debugInfo) {}
+      debugInfo_(debugInfo) {
+  const auto triple = llvm::Triple(unit->control()->memoryLayout()->triple());
+  isWasm32Target_ = triple.getArch() == llvm::Triple::wasm32;
+  isWasmTarget_ = isWasm32Target_ || triple.getArch() == llvm::Triple::wasm64;
+}
 
 Codegen::~Codegen() {}
 
@@ -135,7 +144,7 @@ auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
 
       default:
         break;
-    }  // switch
+    }
   }
 
   return {};
@@ -209,7 +218,6 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     auto ptrType = convertType(type);
     auto mlirPtrType = mlir::cast<mlir::cxx::PointerType>(ptrType);
 
-    // Check if the value is a ConstAddress, address-of variable or function.
     if (auto addrPtr = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
       auto symbol = (*addrPtr)->symbol();
       auto offset = (*addrPtr)->offset();
@@ -233,7 +241,6 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
       }
     }
 
-    // Handle label address (&&label) pointer constant.
     if (auto labelAddrPtr =
             std::get_if<std::shared_ptr<ConstLabelAddress>>(&value)) {
       auto funcNameAttr =
@@ -244,7 +251,6 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
           mlir::IntegerAttr{}, funcNameAttr);
     }
 
-    // Handle string literal used as a pointer value.
     if (auto strLitPtr = std::get_if<const StringLiteral*>(&value)) {
       auto stringLiteral = *strLitPtr;
       stringLiteral->initialize(stringLiteral->encoding());
@@ -278,14 +284,12 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     auto mlirType = convertType(type);
 
     if (classType && classType->isUnion()) {
-      // Union initialization: check if the first member value is zero
       if (auto initListPtr =
               std::get_if<std::shared_ptr<InitializerList>>(&value)) {
         auto& initList = *initListPtr;
         if (!initList->elements.empty()) {
           auto& [elemValue, elemType] = initList->elements[0];
 
-          // Check if the value is zero
           bool isZero = false;
           if (auto intVal = std::get_if<std::intmax_t>(&elemValue)) {
             isZero = (*intVal == 0);
@@ -336,7 +340,6 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
                 static_cast<unsigned>(classSymbol->sizeInBytes()) * 8;
             auto intUnionType = mlir::IntegerType::get(context_, unionBits);
 
-            // Integer / float source: reinterpret bytes into the largest field.
             mlir::Value intRepr;
             if (auto srcInt =
                     mlir::dyn_cast<mlir::IntegerType>(elemVal.getType())) {
@@ -452,6 +455,35 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
       return result;
     }
 
+    if (auto objectPtr = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+      auto& object = *objectPtr;
+      auto classSymbol = classType ? classType->symbol() : nullptr;
+
+      if (classSymbol) {
+        auto layout = classSymbol->layout();
+        mlir::Value result = mlir::cxx::ZeroOp::create(builder, loc, mlirType);
+
+        for (const auto& field : object->fields()) {
+          auto fieldSymbol =
+              symbol_cast<FieldSymbol>(const_cast<Symbol*>(field.symbol));
+          if (!fieldSymbol) continue;
+
+          int index = 0;
+          if (layout) {
+            if (auto fi = layout->getFieldInfo(fieldSymbol)) index = fi->index;
+          }
+
+          auto fieldVal = emitConstInitValue(builder, loc, fieldSymbol->type(),
+                                             field.value);
+          result = mlir::cxx::InsertValueOp::create(
+              builder, loc, mlirType, result, fieldVal,
+              static_cast<int64_t>(index));
+        }
+
+        return result;
+      }
+    }
+
     return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
   }
 
@@ -507,7 +539,6 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
   }
 
-  // Fallback: zero
   auto mlirType = convertType(type);
   return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
 }
@@ -716,13 +747,11 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
 
   mlir::LLVM::DIScopeAttr scope;
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(
-          functionSymbol->enclosingNonTemplateParametersScope());
-      !functionSymbol->isStatic() && classSymbol) {
-    if (classSymbol) {
-      scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
-          convertDebugType(classSymbol->type()));
-    }
+  if (functionSymbol->isImplicitObjectMemberFunction()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(
+        functionSymbol->enclosingNonTemplateParametersScope());
+    scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
+        convertDebugType(classSymbol->type()));
   }
 
   mlir::StringAttr name = mlir::StringAttr::get(ctx, func.getSymName());
@@ -840,6 +869,474 @@ void Codegen::addCleanup(mlir::Value address, FunctionSymbol* dtor) {
   cleanupStack_.back().entries.push_back({address, dtor});
 }
 
+auto Codegen::collectCleanupSnapshot() -> CleanupSnapshot {
+  CleanupSnapshot snapshot;
+
+  for (auto i = cleanupStack_.size(); i > 0; --i) {
+    auto depthAttr =
+        mlir::IntegerAttr::get(mlir::IntegerType::get(context_, 64), i - 1);
+    auto& scope = cleanupStack_[i - 1];
+    for (auto jt = scope.entries.rbegin(); jt != scope.entries.rend(); ++jt) {
+      auto funcOp = findOrCreateFunction(jt->destructor);
+      snapshot.addresses.push_back(jt->address);
+      snapshot.destructors.push_back(
+          mlir::FlatSymbolRefAttr::get(funcOp.getSymNameAttr()));
+      snapshot.depths.push_back(depthAttr);
+    }
+  }
+
+  return snapshot;
+}
+
+auto Codegen::applyEntryPointABI(FunctionSymbol* symbol,
+                                 const FunctionType* functionType)
+    -> mlir::cxx::Visibility {
+  auto id = name_cast<Identifier>(symbol->name());
+  if (!id || id->name() != "main" || !is_global_namespace(symbol->parent()) ||
+      !symbol->isDefined() || symbol->externalName() || symbol->aliasName()) {
+    return mlir::cxx::Visibility::Default;
+  }
+
+  if (!isWasm32Target_) {
+    return mlir::cxx::Visibility::Default;
+  }
+
+  if (functionType->isVariadic() ||
+      functionType->returnType() != control()->getIntType()) {
+    return mlir::cxx::Visibility::Default;
+  }
+
+  const auto& params = functionType->parameterTypes();
+
+  if (params.empty()) {
+    symbol->setAliasName(control()->getIdentifier("__main_void"));
+    return mlir::cxx::Visibility::Hidden;
+  }
+
+  if (params.size() == 2 && params[0] == control()->getIntType() &&
+      type_cast<PointerType>(params[1])) {
+    symbol->setExternalName(control()->getIdentifier("__main_argc_argv"));
+    return mlir::cxx::Visibility::Hidden;
+  }
+
+  return mlir::cxx::Visibility::Default;
+}
+
+auto Codegen::structorReturnsThis(FunctionSymbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (!symbol->isConstructor() && !name_cast<DestructorId>(symbol->name())) {
+    return false;
+  }
+  if (symbol->isDeletingDtorVariant()) return false;
+  return isWasmTarget_;
+}
+
+namespace {
+auto isEmptyClassForAbi(TypeTraits& traits, ClassSymbol* classSymbol) -> bool {
+  if (!classSymbol || !classSymbol->isComplete()) return false;
+  if (classSymbol->isPolymorphic() || classSymbol->hasVirtualBaseClasses())
+    return false;
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass) baseClass = baseClass->resolvedDefinition();
+    if (!isEmptyClassForAbi(traits, baseClass)) return false;
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    if (field->isBitField()) return false;
+    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
+    auto fieldClassType = type_cast<ClassType>(fieldType);
+    if (!fieldClassType) return false;
+    auto fieldClass = fieldClassType->symbol();
+    if (fieldClass) fieldClass = fieldClass->resolvedDefinition();
+    if (!isEmptyClassForAbi(traits, fieldClass)) return false;
+  }
+
+  return true;
+}
+
+auto singleElementForAbi(TypeTraits& traits, ClassSymbol* classSymbol)
+    -> const Type* {
+  if (!classSymbol || !classSymbol->isComplete()) return nullptr;
+  if (classSymbol->isUnion()) return nullptr;
+  if (classSymbol->isPolymorphic() || classSymbol->hasVirtualBaseClasses())
+    return nullptr;
+
+  const Type* element = nullptr;
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass) baseClass = baseClass->resolvedDefinition();
+    if (isEmptyClassForAbi(traits, baseClass)) continue;
+    if (element) return nullptr;
+    element = singleElementForAbi(traits, baseClass);
+    if (!element) return nullptr;
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    if (field->isBitField()) return nullptr;
+
+    auto fieldType = traits.remove_cv(field->type());
+
+    auto leafType = traits.remove_all_extents(fieldType);
+    if (auto leafClassType = type_cast<ClassType>(leafType)) {
+      auto leafClass = leafClassType->symbol();
+      if (leafClass) leafClass = leafClass->resolvedDefinition();
+      if (isEmptyClassForAbi(traits, leafClass)) continue;
+    }
+
+    if (element) return nullptr;
+
+    while (auto arrayType = type_cast<BoundedArrayType>(fieldType)) {
+      if (arrayType->size() != 1) return nullptr;
+      fieldType = traits.remove_cv(arrayType->elementType());
+    }
+
+    if (auto fieldClassType = type_cast<ClassType>(fieldType)) {
+      auto fieldClass = fieldClassType->symbol();
+      if (fieldClass) fieldClass = fieldClass->resolvedDefinition();
+      element = singleElementForAbi(traits, fieldClass);
+      if (!element) return nullptr;
+    } else if (traits.is_scalar(fieldType)) {
+      element = fieldType;
+    } else {
+      return nullptr;
+    }
+  }
+
+  return element;
+}
+}  // namespace
+
+auto Codegen::classifyClassValueAbi(const Type* type) -> ClassValueAbi {
+  if (!type) return {};
+
+  auto traits = unit_->typeTraits();
+  auto classType = type_cast<ClassType>(traits.remove_cv(type));
+  if (!classType) return {};
+
+  if (!isWasmTarget_) return {};
+
+  auto classSymbol = classType->symbol();
+  if (classSymbol) classSymbol = classSymbol->resolvedDefinition();
+
+  if (!classSymbol || !classSymbol->isComplete()) {
+    return {.kind = ClassValueAbi::Kind::Indirect};
+  }
+
+  if (isEmptyClassForAbi(traits, classSymbol)) {
+    return {.kind = ClassValueAbi::Kind::Empty};
+  }
+
+  if (!traits.is_trivially_copyable(classType) ||
+      classSymbol->isPolymorphic() || classSymbol->hasVirtualBaseClasses()) {
+    return {.kind = ClassValueAbi::Kind::Indirect};
+  }
+
+  if (auto element = singleElementForAbi(traits, classSymbol)) {
+    auto elementSize = control()->memoryLayout()->sizeOf(element);
+    auto classSize = control()->memoryLayout()->sizeOf(classType);
+    if (elementSize && classSize && *elementSize == *classSize) {
+      return {.kind = ClassValueAbi::Kind::Scalar, .scalarType = element};
+    }
+  }
+
+  return {.kind = ClassValueAbi::Kind::Indirect};
+}
+
+auto Codegen::classValueAddress(SourceLocation loc, const Type* type,
+                                mlir::Value value) -> mlir::Value {
+  if (mlir::isa<mlir::cxx::PointerType>(value.getType())) return value;
+  auto temp = newTemp(type, loc);
+  mlir::cxx::StoreOp::create(builder_, getLocation(loc), value, temp,
+                             getAlignment(type));
+  return temp;
+}
+
+auto Codegen::abiLowerClassArgument(SourceLocation loc, const Type* paramType,
+                                    mlir::Value value) -> mlir::Value {
+  auto mlirLoc = getLocation(loc);
+  const auto abi = classifyClassValueAbi(paramType);
+
+  switch (abi.kind) {
+    case ClassValueAbi::Kind::Direct: {
+      auto expectedType = convertType(paramType);
+      if (value.getType() != expectedType &&
+          mlir::isa<mlir::cxx::PointerType>(value.getType())) {
+        return mlir::cxx::LoadOp::create(builder_, mlirLoc, expectedType, value,
+                                         getAlignment(paramType));
+      }
+      return value;
+    }
+
+    case ClassValueAbi::Kind::Empty:
+      return {};
+
+    case ClassValueAbi::Kind::Indirect:
+      return classValueAddress(loc, paramType, value);
+
+    case ClassValueAbi::Kind::Scalar: {
+      auto address = classValueAddress(loc, paramType, value);
+      auto scalarType = convertType(abi.scalarType);
+      auto scalarPtrType = mlir::cxx::PointerType::get(context_, scalarType);
+      auto castOp = mlir::cxx::BitcastOp::create(builder_, mlirLoc,
+                                                 scalarPtrType, address);
+      return mlir::cxx::LoadOp::create(builder_, mlirLoc, scalarType, castOp,
+                                       getAlignment(abi.scalarType));
+    }
+  }
+
+  return value;
+}
+
+auto Codegen::abiPrepareResult(SourceLocation loc, const Type* returnType,
+                               mlir::SmallVector<mlir::Type>& resultTypes)
+    -> mlir::Value {
+  if (unit_->typeTraits().is_void(returnType)) return {};
+
+  const auto abi = classifyClassValueAbi(returnType);
+
+  switch (abi.kind) {
+    case ClassValueAbi::Kind::Direct:
+      resultTypes.push_back(convertType(returnType));
+      return {};
+
+    case ClassValueAbi::Kind::Scalar:
+      resultTypes.push_back(convertType(abi.scalarType));
+      return {};
+
+    case ClassValueAbi::Kind::Empty:
+      return {};
+
+    case ClassValueAbi::Kind::Indirect:
+      return newTemp(returnType, loc);
+  }
+
+  return {};
+}
+
+auto Codegen::abiFinishResult(SourceLocation loc, const Type* returnType,
+                              mlir::cxx::CallOp callOp, mlir::Value sretTemp)
+    -> ExpressionResult {
+  if (unit_->typeTraits().is_void(returnType)) return {};
+
+  auto mlirLoc = getLocation(loc);
+  const auto abi = classifyClassValueAbi(returnType);
+
+  switch (abi.kind) {
+    case ClassValueAbi::Kind::Direct:
+      return {callOp.getResult()};
+
+    case ClassValueAbi::Kind::Indirect:
+      return {mlir::cxx::LoadOp::create(builder_, mlirLoc,
+                                        convertType(returnType), sretTemp,
+                                        getAlignment(returnType))};
+
+    case ClassValueAbi::Kind::Scalar: {
+      auto temp = newTemp(returnType, loc);
+      auto scalarType = convertType(abi.scalarType);
+      auto scalarPtrType = mlir::cxx::PointerType::get(context_, scalarType);
+      auto castOp =
+          mlir::cxx::BitcastOp::create(builder_, mlirLoc, scalarPtrType, temp);
+      mlir::cxx::StoreOp::create(builder_, mlirLoc, callOp.getResult(), castOp,
+                                 getAlignment(abi.scalarType));
+      return {mlir::cxx::LoadOp::create(builder_, mlirLoc,
+                                        convertType(returnType), temp,
+                                        getAlignment(returnType))};
+    }
+
+    case ClassValueAbi::Kind::Empty: {
+      auto temp = newTemp(returnType, loc);
+      return {mlir::cxx::LoadOp::create(builder_, mlirLoc,
+                                        convertType(returnType), temp,
+                                        getAlignment(returnType))};
+    }
+  }
+
+  return {};
+}
+
+namespace {
+auto classDefinition(ClassSymbol* classSymbol) -> ClassSymbol* {
+  return classSymbol ? classSymbol->resolvedDefinition() : nullptr;
+}
+
+auto findBaseClassPath(ClassSymbol* from, ClassSymbol* target,
+                       std::vector<BaseClassSymbol*>& path) -> bool {
+  for (auto base : from->baseClasses()) {
+    auto baseClass = classDefinition(symbol_cast<ClassSymbol>(base->symbol()));
+    if (!baseClass) continue;
+    path.push_back(base);
+    if (baseClass == target) return true;
+    if (findBaseClassPath(baseClass, target, path)) return true;
+    path.pop_back();
+  }
+  return false;
+}
+}  // namespace
+
+auto Codegen::emitVirtualBaseAddress(mlir::Location loc, mlir::Value objectPtr,
+                                     ClassSymbol* fromClass,
+                                     ClassSymbol* vbaseClass) -> mlir::Value {
+  int vbaseIndex = 0;
+  if (auto fromLayout = fromClass->layout()) {
+    for (auto baseClass : fromLayout->virtualBases()) {
+      if (baseClass == vbaseClass) break;
+      ++vbaseIndex;
+    }
+  }
+
+  const auto wordSize =
+      static_cast<std::int64_t>(control()->memoryLayout()->sizeOfPointer());
+  const auto slotByteOffset = -wordSize * (3 + vbaseIndex);
+
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
+
+  auto objectI8 =
+      mlir::cxx::BitcastOp::create(builder_, loc, i8PtrType, objectPtr);
+  auto adjusted = adjustByVtableWord(loc, objectI8, slotByteOffset);
+
+  auto vbasePtrType =
+      mlir::cxx::PointerType::get(context_, convertType(vbaseClass->type()));
+  return mlir::cxx::BitcastOp::create(builder_, loc, vbasePtrType, adjusted);
+}
+
+auto Codegen::adjustByVtableWord(mlir::Location loc, mlir::Value objectPtrI8,
+                                 std::int64_t byteOffset) -> mlir::Value {
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
+  auto i8PtrPtrType = mlir::cxx::PointerType::get(context_, i8PtrType);
+
+  const auto wordSize =
+      static_cast<std::int64_t>(control()->memoryLayout()->sizeOfPointer());
+  auto wordType =
+      mlir::IntegerType::get(context_, static_cast<unsigned>(wordSize * 8));
+
+  auto vptrAddr =
+      mlir::cxx::BitcastOp::create(builder_, loc, i8PtrPtrType, objectPtrI8);
+  auto vptr =
+      mlir::cxx::LoadOp::create(builder_, loc, i8PtrType, vptrAddr, wordSize);
+
+  auto offsetConstOp = mlir::arith::ConstantOp::create(
+      builder_, loc, wordType, builder_.getIntegerAttr(wordType, byteOffset));
+  auto slotAddr = mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, vptr,
+                                              offsetConstOp);
+  auto wordPtrType = mlir::cxx::PointerType::get(context_, wordType);
+  auto slotPtr =
+      mlir::cxx::BitcastOp::create(builder_, loc, wordPtrType, slotAddr);
+  auto word =
+      mlir::cxx::LoadOp::create(builder_, loc, wordType, slotPtr, wordSize);
+
+  return mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, objectPtrI8,
+                                     word);
+}
+
+auto Codegen::emitBaseClassAddress(mlir::Location loc, mlir::Value objectPtr,
+                                   ClassSymbol* fromClass,
+                                   ClassSymbol* targetClass) -> mlir::Value {
+  if (!objectPtr || !fromClass || !targetClass) return objectPtr;
+  if (!mlir::isa<mlir::cxx::PointerType>(objectPtr.getType())) return objectPtr;
+
+  fromClass = classDefinition(fromClass);
+  targetClass = classDefinition(targetClass);
+  if (fromClass == targetClass) return objectPtr;
+
+  std::vector<BaseClassSymbol*> path;
+  if (!findBaseClassPath(fromClass, targetClass, path)) return objectPtr;
+
+  auto current = objectPtr;
+  auto currentClass = fromClass;
+
+  for (auto step : path) {
+    auto baseClass = classDefinition(symbol_cast<ClassSymbol>(step->symbol()));
+
+    if (step->isVirtual()) {
+      current = emitVirtualBaseAddress(loc, current, currentClass, baseClass);
+    } else {
+      int index = 0;
+      if (auto layout = currentClass->layout()) {
+        if (auto baseInfo = layout->getBaseInfo(baseClass)) {
+          index = baseInfo->index;
+        }
+      }
+      current = memberAddress(loc, current, baseClass->type(), index);
+    }
+
+    currentClass = baseClass;
+  }
+
+  return current;
+}
+
+auto Codegen::computeFunctionSignature(FunctionSymbol* functionSymbol)
+    -> mlir::cxx::FunctionType {
+  const auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  if (!functionType) return {};
+  return computeFunctionSignature(functionType, functionSymbol);
+}
+
+auto Codegen::computeFunctionSignature(const FunctionType* functionType,
+                                       FunctionSymbol* functionSymbol)
+    -> mlir::cxx::FunctionType {
+  const auto returnType = functionType->returnType();
+  const auto needsExitValue = !unit_->typeTraits().is_void(returnType);
+  const auto returnAbi = classifyClassValueAbi(returnType);
+
+  std::vector<mlir::Type> inputTypes;
+  std::vector<mlir::Type> resultTypes;
+
+  if (returnAbi.kind == ClassValueAbi::Kind::Indirect) {
+    inputTypes.push_back(
+        mlir::cxx::PointerType::get(context_, convertType(returnType)));
+  }
+
+  if (functionSymbol && functionSymbol->isImplicitObjectMemberFunction()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(
+        functionSymbol->enclosingNonTemplateParametersScope());
+    inputTypes.push_back(mlir::cxx::PointerType::get(
+        context_, convertType(classSymbol->type())));
+  }
+
+  for (auto paramTy : functionType->parameterTypes()) {
+    const auto paramAbi = classifyClassValueAbi(paramTy);
+    switch (paramAbi.kind) {
+      case ClassValueAbi::Kind::Direct:
+        inputTypes.push_back(convertType(paramTy));
+        break;
+      case ClassValueAbi::Kind::Empty:
+        break;
+      case ClassValueAbi::Kind::Scalar:
+        inputTypes.push_back(convertType(paramAbi.scalarType));
+        break;
+      case ClassValueAbi::Kind::Indirect:
+        inputTypes.push_back(
+            mlir::cxx::PointerType::get(context_, convertType(paramTy)));
+        break;
+    }
+  }
+
+  if (functionSymbol && structorReturnsThis(functionSymbol)) {
+    resultTypes.push_back(inputTypes.front());
+  } else if (needsExitValue) {
+    switch (returnAbi.kind) {
+      case ClassValueAbi::Kind::Direct:
+        resultTypes.push_back(convertType(returnType));
+        break;
+      case ClassValueAbi::Kind::Scalar:
+        resultTypes.push_back(convertType(returnAbi.scalarType));
+        break;
+      case ClassValueAbi::Kind::Indirect:
+      case ClassValueAbi::Kind::Empty:
+        break;
+    }
+  }
+
+  return mlir::cxx::FunctionType::get(context_, inputTypes, resultTypes,
+                                      functionType->isVariadic());
+}
+
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> mlir::cxx::FuncOp {
   auto canonicalSymbol = functionSymbol->canonical();
@@ -858,37 +1355,46 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     return {};
   }
 
-  const auto returnType = functionType->returnType();
-  const auto needsExitValue = !unit_->typeTraits().is_void(returnType);
+  auto funcType = computeFunctionSignature(emittedSymbol);
 
-  std::vector<mlir::Type> inputTypes;
-  std::vector<mlir::Type> resultTypes;
-
-  if (auto classSymbol = symbol_cast<ClassSymbol>(
-          emittedSymbol->enclosingNonTemplateParametersScope());
-      !emittedSymbol->isStatic() && classSymbol) {
-    inputTypes.push_back(mlir::cxx::PointerType::get(
-        context_, convertType(classSymbol->type())));
-  }
-
-  for (auto paramTy : functionType->parameterTypes()) {
-    inputTypes.push_back(convertType(paramTy));
-  }
-
-  if (needsExitValue) {
-    resultTypes.push_back(convertType(returnType));
-  }
-
-  auto funcType = mlir::cxx::FunctionType::get(
-      context_, inputTypes, resultTypes, functionType->isVariadic());
+  auto visibility = applyEntryPointABI(emittedSymbol, functionType);
 
   std::string name;
+  bool isStructor = false;
 
-  if (emittedSymbol->hasCLinkage()) {
+  if (auto externalName = emittedSymbol->externalName()) {
+    name = externalName->name();
+  } else if (emittedSymbol->hasCLinkage()) {
     name = to_string(emittedSymbol->name());
   } else {
     ExternalNameEncoder encoder;
     name = encoder.encode(emittedSymbol);
+    isStructor = emittedSymbol->isConstructor() ||
+                 name_cast<DestructorId>(emittedSymbol->name());
+  }
+
+  mlir::cxx::VisibilityAttr visibilityAttr;
+  if (visibility != mlir::cxx::Visibility::Default) {
+    visibilityAttr = mlir::cxx::VisibilityAttr::get(context_, visibility);
+  }
+
+  mlir::StringAttr aliasNameAttr;
+  if (auto aliasName = emittedSymbol->aliasName()) {
+    aliasNameAttr = mlir::StringAttr::get(context_, aliasName->name());
+  } else if (isStructor &&
+             (emittedSymbol->isDefined() || emittedSymbol->definition()) &&
+             !emittedSymbol->completeObjectVariant() &&
+             !emittedSymbol->isStructorVariant()) {
+    ExternalNameEncoder encoder;
+    encoder.setStructorVariant(ExternalNameEncoder::StructorVariant::Base);
+    aliasNameAttr =
+        mlir::StringAttr::get(context_, encoder.encode(emittedSymbol));
+  }
+
+  if (auto existingFunc = module_.lookupSymbol<mlir::cxx::FuncOp>(name)) {
+    funcOps_.insert_or_assign(emittedSymbol, existingFunc);
+    enqueueFunctionBody(emittedSymbol);
+    return existingFunc;
   }
 
   const auto loc = getLocation(functionSymbol->location());
@@ -919,13 +1425,15 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
   } else if (emittedSymbol->isDefaulted()) {
     linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
+  } else if (emittedSymbol->isStructorVariant()) {
+    linkageKind = mlir::cxx::LinkageKind::LinkOnceODR;
   }
 
   auto linkageAttr = mlir::cxx::LinkageKindAttr::get(context_, linkageKind);
 
-  auto func = mlir::cxx::FuncOp::create(builder_, loc, name, funcType,
-                                        linkageAttr, inlineAttr,
-                                        mlir::ArrayAttr{}, mlir::ArrayAttr{});
+  auto func = mlir::cxx::FuncOp::create(
+      builder_, loc, name, funcType, linkageAttr, inlineAttr, visibilityAttr,
+      aliasNameAttr, mlir::ArrayAttr{}, mlir::ArrayAttr{});
 
   funcOps_.insert_or_assign(emittedSymbol, func);
 
@@ -936,8 +1444,12 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
 void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
   auto target = symbol->isSpecialization() ? symbol : symbol->canonical();
-  if (auto def = target->definition()) target = def;
+  target = target->resolvedDefinition();
   if (!target->declaration()) return;
+  if (!target->isInline() &&
+      isMemberOfExplicitInstantiationDeclaredClass(target)) {
+    return;
+  }
   if (!enqueuedFunctions_.insert(target).second) return;
   pendingFunctions_.push_back(target);
 }
@@ -947,8 +1459,7 @@ void Codegen::processPendingFunctions() {
     auto sym = pendingFunctions_.back();
     pendingFunctions_.pop_back();
 
-    auto target = sym;
-    if (auto def = sym->definition()) target = def;
+    auto target = sym->resolvedDefinition();
 
     if (auto funcDecl = target->declaration()) {
       declaration(funcDecl);
@@ -988,7 +1499,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     }
   }
   if (!defVar->constValue().has_value()) {
-    if (auto d = canonicalVar->definition()) defVar = d;
+    defVar = canonicalVar->resolvedDefinition();
   }
 
   auto varType = convertType(defVar->type());
@@ -1023,7 +1534,6 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   std::string name;
 
   if (!variableSymbol->name()) {
-    // Anonymous symbols (e.g. compound literals) get a unique internal name.
     name = newUniqueSymbolName(".compoundliteral");
   } else if (variableSymbol->isStatic() ||
              !is_global_namespace(variableSymbol->parent())) {
@@ -1087,7 +1597,6 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
         stringLiteral->initialize(stringLiteral->encoding());
         std::string str(stringLiteral->stringValue());
 
-        // Append null terminator.
         switch (stringLiteral->encoding()) {
           case StringLiteralEncoding::kUtf16:
             str.push_back('\0');
@@ -1162,6 +1671,182 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   return var;
 }
 
+auto Codegen::findOrCreateExternField(FieldSymbol* field)
+    -> mlir::cxx::GlobalOp {
+  if (auto it = externFieldGlobalOps_.find(field);
+      it != externFieldGlobalOps_.end()) {
+    return it->second;
+  }
+
+  auto varType = convertType(field->type());
+  const auto loc = getLocation(field->location());
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+      context_, mlir::cxx::LinkageKind::External);
+
+  ExternalNameEncoder encoder;
+  auto name = encoder.encode(field);
+
+  const auto isConstant =
+      field->isConstexpr() || unit_->typeTraits().is_const(field->type());
+
+  mlir::IntegerAttr alignmentAttr;
+
+  auto var = mlir::cxx::GlobalOp::create(
+      builder_, loc, mlir::TypeRange(), varType, isConstant,
+      llvm::StringRef(name), /*initializer=*/mlir::Attribute(), linkageAttr,
+      alignmentAttr);
+
+  externFieldGlobalOps_.insert_or_assign(field, var);
+
+  return var;
+}
+
+void Codegen::emitGlobalVarInit(VariableSymbol* var,
+                                mlir::cxx::GlobalOp global) {
+  auto canonicalVar = var->canonical();
+
+  VariableSymbol* defVar = canonicalVar->resolvedDefinition();
+
+  if (defVar->isExtern()) return;
+  if (defVar->constValue().has_value()) return;
+  if (!defVar->constructor() && !defVar->initializer()) return;
+
+  if (!emittedGlobalVarInits_.insert(canonicalVar).second) return;
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  builder_.setInsertionPointToEnd(module_.getBody());
+
+  const auto loc = getLocation(defVar->location());
+
+  std::string name = "__cxx_global_var_init";
+  if (globalVarInitCount_ > 0) {
+    name = std::format("__cxx_global_var_init.{}", globalVarInitCount_);
+  }
+  ++globalVarInitCount_;
+
+  auto funcType = mlir::cxx::FunctionType::get(
+      context_, llvm::ArrayRef<mlir::Type>{}, llvm::ArrayRef<mlir::Type>{},
+      /*isVariadic=*/false);
+
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+      context_, mlir::cxx::LinkageKind::Internal);
+  auto inlineAttr =
+      mlir::cxx::InlineKindAttr::get(context_, mlir::cxx::InlineKind::NoInline);
+
+  auto func = mlir::cxx::FuncOp::create(
+      builder_, loc, name, funcType, linkageAttr, inlineAttr,
+      mlir::cxx::VisibilityAttr{}, mlir::StringAttr{}, mlir::ArrayAttr{},
+      mlir::ArrayAttr{});
+
+  func->setAttr("cxx.global_ctor", builder_.getI32IntegerAttr(65535));
+
+  auto entryBlock = builder_.createBlock(&func.getBody());
+  auto exitBlock = builder_.createBlock(&func.getBody());
+
+  mlir::cxx::AllocaOp exitValue;
+  std::unordered_map<Symbol*, mlir::Value> locals;
+  std::unordered_map<const Name*, int> staticLocalCounts;
+  std::vector<CleanupScope> cleanupStack;
+  FunctionSymbol* functionSymbol = nullptr;
+  mlir::Value thisValue;
+
+  std::swap(function_, func);
+  std::swap(entryBlock_, entryBlock);
+  std::swap(exitBlock_, exitBlock);
+  std::swap(exitValue_, exitValue);
+  std::swap(locals_, locals);
+  std::swap(staticLocalCounts_, staticLocalCounts);
+  std::swap(cleanupStack_, cleanupStack);
+  std::swap(currentFunctionSymbol_, functionSymbol);
+  std::swap(thisValue_, thisValue);
+
+  builder_.setInsertionPointToEnd(entryBlock_);
+
+  auto ptrType =
+      mlir::cxx::PointerType::get(context_, convertType(defVar->type()));
+  mlir::Value addr = mlir::cxx::AddressOfOp::create(builder_, loc, ptrType,
+                                                    global.getSymName());
+
+  auto initializer = defVar->initializer();
+
+  const auto initLoc =
+      initializer ? initializer->firstSourceLocation() : defVar->location();
+
+  if (auto ctor = defVar->constructor()) {
+    std::vector<ExpressionResult> args;
+
+    if (initializer) {
+      if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+        for (auto it = paren->expressionList; it; it = it->next) {
+          args.push_back(expression(it->value));
+        }
+      } else if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
+        for (auto it = braced->expressionList; it; it = it->next) {
+          args.push_back(expression(it->value));
+        }
+      } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
+          for (auto it = braced->expressionList; it; it = it->next) {
+            args.push_back(expression(it->value));
+          }
+        } else {
+          args.push_back(expression(equal->expression));
+        }
+      }
+    }
+
+    (void)emitCtorCall(initLoc, ctor, addr, std::move(args),
+                       /*completeObject=*/true);
+  } else if (initializer) {
+    ExpressionAST* initExpr = nullptr;
+    if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+      initExpr = equal->expression;
+    } else if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+      if (paren->expressionList && !paren->expressionList->next) {
+        initExpr = paren->expressionList->value;
+      }
+    } else {
+      initExpr = initializer;
+    }
+
+    if (initExpr) {
+      auto result = expression(initExpr);
+      mlir::cxx::StoreOp::create(builder_, getLocation(initLoc), result.value,
+                                 addr, getAlignment(defVar->type()));
+    }
+  }
+
+  if (unit_->typeTraits().is_class(defVar->type())) {
+    auto classType =
+        type_cast<ClassType>(unit_->typeTraits().remove_cv(defVar->type()));
+    if (classType && classType->symbol()) {
+      if (auto dtor = classType->symbol()->destructor()) {
+        emitGlobalVarDtorRegistration(defVar, completeObjectDtor(dtor), global,
+                                      loc);
+      }
+    }
+  }
+
+  emitBranchWithCleanups(initLoc, exitBlock_, 0);
+
+  builder_.setInsertionPointToEnd(exitBlock_);
+  mlir::cxx::ReturnOp::create(builder_, loc);
+
+  std::swap(function_, func);
+  std::swap(entryBlock_, entryBlock);
+  std::swap(exitBlock_, exitBlock);
+  std::swap(exitValue_, exitValue);
+  std::swap(locals_, locals);
+  std::swap(staticLocalCounts_, staticLocalCounts);
+  std::swap(cleanupStack_, cleanupStack);
+  std::swap(currentFunctionSymbol_, functionSymbol);
+  std::swap(thisValue_, thisValue);
+}
+
 auto Codegen::getCompileUnitAttr(std::string_view filename)
     -> mlir::LLVM::DICompileUnitAttr {
   if (auto it = compileUnitAttrs_.find(filename);
@@ -1228,6 +1913,9 @@ auto Codegen::getLocation(SourceLocation location) -> mlir::Location {
 
 auto Codegen::emitTodoStmt(SourceLocation location, std::string_view message)
     -> mlir::cxx::TodoStmtOp {
+  unit_->error(
+      location,
+      std::format("unable to generate code for this statement ({})", message));
   const auto loc = getLocation(location);
   auto op = mlir::cxx::TodoStmtOp::create(builder_, loc, message);
   return op;
@@ -1235,51 +1923,217 @@ auto Codegen::emitTodoStmt(SourceLocation location, std::string_view message)
 
 auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
     -> mlir::cxx::TodoExprOp {
+  unit_->error(
+      location,
+      std::format("unable to generate code for this expression ({})", message));
   const auto loc = getLocation(location);
   auto op = mlir::cxx::TodoExprOp::create(builder_, loc, message);
   return op;
 }
 
-auto Codegen::computeVtableSlots(ClassSymbol* classSymbol)
-    -> std::vector<FunctionSymbol*> {
-  std::vector<FunctionSymbol*> vtableSlots;
+auto Codegen::encodeSecondaryVTableName(ClassSymbol* classSymbol,
+                                        ClassSymbol* base) -> std::string {
+  ExternalNameEncoder classEncoder;
+  ExternalNameEncoder baseEncoder;
+  return std::format("__cxx_secondary_vtable${}${}",
+                     classEncoder.encodeVTable(classSymbol),
+                     baseEncoder.encodeVTable(base));
+}
 
-  auto baseClasses = classSymbol->baseClasses();
-  if (!baseClasses.empty()) {
-    auto baseClassSym = symbol_cast<ClassSymbol>(baseClasses[0]->symbol());
-    if (baseClassSym && baseClassSym->layout() &&
-        baseClassSym->layout()->hasVtable()) {
-      vtableSlots = computeVtableSlots(baseClassSym);
-    }
+auto Codegen::vtableSlotIndex(FunctionSymbol* function) -> int {
+  if (function->vtableSlotIndex() >= 0) return function->vtableSlotIndex();
+  if (auto canonical = function->canonical();
+      canonical && canonical->vtableSlotIndex() >= 0)
+    return canonical->vtableSlotIndex();
+  if (auto definition = function->definition();
+      definition && definition->vtableSlotIndex() >= 0)
+    return definition->vtableSlotIndex();
+  return 0;
+}
+
+void Codegen::emitVTableGroupOp(mlir::Location loc, llvm::StringRef name,
+                                const VTableLayout::Group& group) {
+  mlir::SmallVector<std::int64_t> vbaseOffsets;
+  for (auto& vbaseOffset : group.vbaseOffsets) {
+    vbaseOffsets.push_back(vbaseOffset.second);
   }
 
-  for (auto member : views::members(classSymbol)) {
-    auto processFunc = [&](FunctionSymbol* func) {
-      if (!func->isVirtual()) return;
-      bool foundOverride = false;
-      for (size_t i = 0; i < vtableSlots.size(); ++i) {
-        auto isOverride = vtableSlots[i]->name() == func->name() ||
-                          (name_cast<DestructorId>(vtableSlots[i]->name()) &&
-                           name_cast<DestructorId>(func->name()));
-        if (isOverride) {
-          vtableSlots[i] = func;
-          foundOverride = true;
-          break;
-        }
-      }
-      if (!foundOverride) {
-        vtableSlots.push_back(func);
-      }
-    };
-
-    if (auto func = symbol_cast<FunctionSymbol>(member)) {
-      processFunc(func);
-    } else if (auto ovl = symbol_cast<OverloadSetSymbol>(member)) {
-      for (auto f : ovl->functions()) processFunc(f);
-    }
+  mlir::SmallVector<std::int64_t> vcallOffsets;
+  for (auto& vcallOffset : group.vcallOffsets) {
+    vcallOffsets.push_back(vcallOffset.second);
   }
 
-  return vtableSlots;
+  const auto wordSize =
+      static_cast<std::int64_t>(control()->memoryLayout()->sizeOfPointer());
+  auto vcallSlotByteOffset = [&](int index) -> std::int64_t {
+    const auto distWords =
+        2 + static_cast<std::int64_t>(vbaseOffsets.size()) +
+        (static_cast<std::int64_t>(vcallOffsets.size()) - index);
+    return -wordSize * distWords;
+  };
+
+  mlir::SmallVector<mlir::Attribute> slotAttrs;
+  for (auto& slot : group.slots) {
+    if (!slot.function) {
+      slotAttrs.push_back(builder_.getUnitAttr());
+      continue;
+    }
+
+    FunctionSymbol* target = slot.function;
+    if (slot.kind == VTableLayout::SlotKind::kDeletingDtor) {
+      auto deletingDtor = slot.function->deletingDtorVariant();
+      target = deletingDtor ? deletingDtor : completeObjectDtor(slot.function);
+    } else if (slot.kind == VTableLayout::SlotKind::kCompleteDtor) {
+      target = completeObjectDtor(slot.function);
+    }
+
+    mlir::cxx::FuncOp funcOp;
+    if (slot.vcallOffsetIndex >= 0) {
+      funcOp = findOrCreateVirtualThunk(
+          target, vcallSlotByteOffset(slot.vcallOffsetIndex));
+    } else if (slot.thisAdjustment != 0) {
+      funcOp = findOrCreateThisAdjustingThunk(
+          target, static_cast<std::int64_t>(slot.thisAdjustment));
+    } else {
+      funcOp = findOrCreateFunction(target);
+    }
+
+    slotAttrs.push_back(
+        mlir::FlatSymbolRefAttr::get(context_, funcOp.getSymName()));
+  }
+
+  auto linkage = mlir::cxx::LinkageKind::LinkOnceODR;
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(context_, linkage);
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  mlir::cxx::VTableOp::create(builder_, loc, name,
+                              builder_.getI64ArrayAttr(vbaseOffsets),
+                              builder_.getI64ArrayAttr(vcallOffsets),
+                              -static_cast<std::int64_t>(group.offset),
+                              builder_.getArrayAttr(slotAttrs), linkageAttr);
+}
+
+void Codegen::generateSecondaryVTables(ClassSymbol* classSymbol) {
+  auto vtableLayout = classSymbol->vtableLayout();
+  if (!vtableLayout) return;
+
+  for (auto& group : vtableLayout->secondary) {
+    auto secondaryVtableName =
+        encodeSecondaryVTableName(classSymbol, group.base);
+
+    if (module_.lookupSymbol<mlir::cxx::VTableOp>(secondaryVtableName)) {
+      continue;
+    }
+
+    auto loc = getLocation(classSymbol->location());
+    emitVTableGroupOp(loc, secondaryVtableName, group);
+  }
+}
+
+auto Codegen::findOrCreateThunk(
+    FunctionSymbol* target, llvm::StringRef thunkName,
+    const std::function<mlir::Value(mlir::Value rawThisI8, mlir::Location loc)>&
+        computeAdjustedThisI8) -> mlir::cxx::FuncOp {
+  auto targetFuncOp = findOrCreateFunction(target);
+  if (!targetFuncOp) return {};
+
+  if (auto existing = module_.lookupSymbol<mlir::cxx::FuncOp>(thunkName)) {
+    return existing;
+  }
+
+  auto funcType = targetFuncOp.getFunctionType();
+
+  auto functionType = type_cast<FunctionType>(target->type());
+  const auto returnAbi = classifyClassValueAbi(functionType->returnType());
+  const size_t thisIndex =
+      returnAbi.kind == ClassValueAbi::Kind::Indirect ? 1 : 0;
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  auto loc = getLocation(target->location());
+
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+      context_, mlir::cxx::LinkageKind::LinkOnceODR);
+  auto inlineAttr =
+      mlir::cxx::InlineKindAttr::get(context_, mlir::cxx::InlineKind::NoInline);
+
+  auto thunkFunc = mlir::cxx::FuncOp::create(
+      builder_, loc, thunkName, funcType, linkageAttr, inlineAttr,
+      mlir::cxx::VisibilityAttr{}, mlir::StringAttr{}, mlir::ArrayAttr{},
+      mlir::ArrayAttr{});
+
+  auto entryBlock = builder_.createBlock(&thunkFunc.getBody());
+  mlir::SmallVector<mlir::Value> blockArgs;
+  for (auto inputType : funcType.getInputs()) {
+    blockArgs.push_back(entryBlock->addArgument(inputType, loc));
+  }
+  builder_.setInsertionPointToEnd(entryBlock);
+
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
+
+  auto rawThis = blockArgs[thisIndex];
+  auto rawThisI8 =
+      mlir::cxx::BitcastOp::create(builder_, loc, i8PtrType, rawThis);
+
+  auto adjustedThisI8 = computeAdjustedThisI8(rawThisI8, loc);
+
+  auto adjustedThis = mlir::cxx::BitcastOp::create(
+      builder_, loc, rawThis.getType(), adjustedThisI8);
+
+  mlir::SmallVector<mlir::Value> callArgs(blockArgs.begin(), blockArgs.end());
+  callArgs[thisIndex] = adjustedThis;
+
+  auto callOp = mlir::cxx::CallOp::create(builder_, loc, funcType.getResults(),
+                                          targetFuncOp.getSymName(), callArgs,
+                                          mlir::TypeAttr{});
+
+  if (funcType.getResults().empty()) {
+    mlir::cxx::ReturnOp::create(builder_, loc);
+  } else {
+    mlir::cxx::ReturnOp::create(builder_, loc, callOp->getResults());
+  }
+
+  return thunkFunc;
+}
+
+auto Codegen::findOrCreateThisAdjustingThunk(FunctionSymbol* target,
+                                             std::int64_t offset)
+    -> mlir::cxx::FuncOp {
+  auto targetFuncOp = findOrCreateFunction(target);
+  if (!targetFuncOp) return {};
+
+  auto thunkName = std::format("__cxx_thunk.{}.{}", offset,
+                               std::string(targetFuncOp.getSymName()));
+
+  return findOrCreateThunk(
+      target, thunkName, [&](mlir::Value rawThisI8, mlir::Location loc) {
+        auto offsetType = convertType(control()->getIntType());
+        auto offsetOp = mlir::arith::ConstantOp::create(
+            builder_, loc, offsetType,
+            builder_.getIntegerAttr(offsetType, static_cast<int64_t>(-offset)));
+        return mlir::cxx::PtrAddOp::create(builder_, loc, rawThisI8.getType(),
+                                           rawThisI8, offsetOp)
+            .getResult();
+      });
+}
+
+auto Codegen::findOrCreateVirtualThunk(FunctionSymbol* target,
+                                       std::int64_t vcallSlotByteOffset)
+    -> mlir::cxx::FuncOp {
+  auto targetFuncOp = findOrCreateFunction(target);
+  if (!targetFuncOp) return {};
+
+  auto thunkName = std::format("__cxx_vthunk.{}.{}", vcallSlotByteOffset,
+                               std::string(targetFuncOp.getSymName()));
+
+  return findOrCreateThunk(
+      target, thunkName, [&](mlir::Value rawThisI8, mlir::Location loc) {
+        return adjustByVtableWord(loc, rawThisI8, vcallSlotByteOffset);
+      });
 }
 
 void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
@@ -1292,16 +2146,18 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
   auto layout = classSymbol->layout();
   if (!layout || !layout->hasVtable()) return;
 
+  auto vtableLayout = classSymbol->vtableLayout();
+  if (!vtableLayout) return;
+
   ExternalNameEncoder encoder;
   auto vtableName = encoder.encodeVTable(classSymbol);
 
-  auto vtableSlots = computeVtableSlots(classSymbol);
-  size_t vtableSize = 2 + vtableSlots.size();
+  auto& primary = vtableLayout->primary;
 
   auto i8Type = builder_.getI8Type();
   auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
   auto vtableArrayType =
-      mlir::cxx::ArrayType::get(context_, i8PtrType, vtableSize);
+      mlir::cxx::ArrayType::get(context_, i8PtrType, primary.wordCount());
   auto vtablePtrType = mlir::cxx::PointerType::get(context_, vtableArrayType);
 
   auto vtableAddr = mlir::cxx::AddressOfOp::create(
@@ -1310,10 +2166,13 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
 
   auto intTy = convertType(control()->getIntType());
   auto twoOp = mlir::arith::ConstantOp::create(
-      builder_, loc, intTy, builder_.getIntegerAttr(intTy, 2));
+      builder_, loc, intTy,
+      builder_.getIntegerAttr(intTy,
+                              static_cast<int64_t>(primary.headerWordCount())));
 
-  auto vtableDataPtr =
-      mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, vtableAddr, twoOp);
+  auto vtableDataPtr = mlir::cxx::PtrAddOp::create(
+      builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
+      vtableAddr, twoOp);
 
   auto thisType = convertType(classSymbol->type());
   auto ptrType = mlir::cxx::PointerType::get(context_, thisType);
@@ -1322,45 +2181,92 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       builder_, loc, ptrType, thisValue_,
       getAlignment(unit_->typeTraits().add_pointer(classSymbol->type())));
 
-  mlir::Value vptrFieldPtr;
-  if (layout->hasDirectVtable()) {
-    vptrFieldPtr = mlir::cxx::MemberOp::create(
-        builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
-        thisPtr, layout->vtableIndex());
-  } else {
-    mlir::Value current = thisPtr;
-    auto currentClass = classSymbol;
-    auto currentLayout = layout;
-
-    while (currentLayout && !currentLayout->hasDirectVtable()) {
-      auto baseIdx = currentLayout->vtableIndex();
-      ClassSymbol* baseSym = nullptr;
-      for (auto base : currentClass->baseClasses()) {
-        auto bs = symbol_cast<ClassSymbol>(base->symbol());
-        if (!bs) continue;
-        auto bi = currentLayout->getBaseInfo(bs);
-        if (bi && bi->index == baseIdx) {
-          baseSym = bs;
-          break;
-        }
-      }
-      if (!baseSym) break;
-
-      auto basePtrType =
-          mlir::cxx::PointerType::get(context_, convertType(baseSym->type()));
-      current = mlir::cxx::MemberOp::create(builder_, loc, basePtrType, current,
-                                            baseIdx);
-      currentClass = baseSym;
-      currentLayout = baseSym->layout();
-    }
-
-    auto vtableIdx = currentLayout ? currentLayout->vtableIndex() : 0;
-    vptrFieldPtr = mlir::cxx::MemberOp::create(
-        builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
-        current, vtableIdx);
-  }
+  auto vptrFieldPtr = resolveVptrField(thisPtr, classSymbol, loc);
 
   mlir::cxx::StoreOp::create(builder_, loc, vtableDataPtr, vptrFieldPtr, 8);
+
+  for (auto& group : vtableLayout->secondary) {
+    auto secondaryVtableName =
+        encodeSecondaryVTableName(classSymbol, group.base);
+
+    auto groupArrayType =
+        mlir::cxx::ArrayType::get(context_, i8PtrType, group.wordCount());
+    auto groupPtrType = mlir::cxx::PointerType::get(context_, groupArrayType);
+
+    auto groupVtableAddr = mlir::cxx::AddressOfOp::create(
+        builder_, loc, groupPtrType,
+        mlir::FlatSymbolRefAttr::get(context_, secondaryVtableName));
+
+    auto groupHeaderOp = mlir::arith::ConstantOp::create(
+        builder_, loc, intTy,
+        builder_.getIntegerAttr(intTy,
+                                static_cast<int64_t>(group.headerWordCount())));
+
+    auto groupDataPtr = mlir::cxx::PtrAddOp::create(
+        builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
+        groupVtableAddr, groupHeaderOp);
+
+    auto baseSubobjectPtr =
+        memberAddress(loc, thisPtr, group.base->type(),
+                      layout->getBaseInfo(group.base)->index);
+
+    auto baseVptrFieldPtr = resolveVptrField(baseSubobjectPtr, group.base, loc);
+
+    mlir::cxx::StoreOp::create(builder_, loc, groupDataPtr, baseVptrFieldPtr,
+                               8);
+  }
+}
+
+auto Codegen::memberAddress(mlir::Location loc, mlir::Value objectPtr,
+                            const Type* memberType, std::uint32_t index)
+    -> mlir::Value {
+  return memberAddress(loc, objectPtr, convertType(memberType), index);
+}
+
+auto Codegen::memberAddress(mlir::Location loc, mlir::Value objectPtr,
+                            mlir::Type memberType, std::uint32_t index)
+    -> mlir::Value {
+  auto ptrType = mlir::cxx::PointerType::get(context_, memberType);
+  return mlir::cxx::MemberOp::create(builder_, loc, ptrType, objectPtr, index);
+}
+
+auto Codegen::resolveVptrField(mlir::Value basePtr, ClassSymbol* baseClassSym,
+                               mlir::Location loc) -> mlir::Value {
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
+
+  auto layout = baseClassSym->layout();
+  if (!layout) return {};
+
+  if (layout->hasDirectVtable()) {
+    return memberAddress(loc, basePtr, i8PtrType, layout->vtableIndex());
+  }
+
+  mlir::Value current = basePtr;
+  auto currentClass = baseClassSym;
+  auto currentLayout = layout;
+
+  while (currentLayout && !currentLayout->hasDirectVtable()) {
+    auto baseIdx = currentLayout->vtableIndex();
+    ClassSymbol* baseSym = nullptr;
+    for (auto base : currentClass->baseClasses()) {
+      auto bs = symbol_cast<ClassSymbol>(base->symbol());
+      if (!bs) continue;
+      auto bi = currentLayout->getBaseInfo(bs);
+      if (bi && bi->index == baseIdx) {
+        baseSym = bs;
+        break;
+      }
+    }
+    if (!baseSym) break;
+
+    current = memberAddress(loc, current, baseSym->type(), baseIdx);
+    currentClass = baseSym;
+    currentLayout = baseSym->layout();
+  }
+
+  auto vtableIdx = currentLayout ? currentLayout->vtableIndex() : 0;
+  return memberAddress(loc, current, i8PtrType, vtableIdx);
 }
 
 void Codegen::generateVTable(ClassSymbol* classSymbol) {
@@ -1369,44 +2275,140 @@ void Codegen::generateVTable(ClassSymbol* classSymbol) {
     return;
   }
 
+  if (classSymbol->isExplicitInstantiationDeclared()) return;
+
   if (!emittedVTables_.insert(classSymbol).second) return;
 
-  auto vtableSlots = computeVtableSlots(classSymbol);
+  auto vtableLayout = classSymbol->vtableLayout();
+  if (!vtableLayout) return;
 
   ExternalNameEncoder encoder;
   auto vtableName = encoder.encodeVTable(classSymbol);
 
   auto loc = getLocation(classSymbol->location());
 
-  mlir::SmallVector<mlir::Attribute> vtableEntries;
+  emitVTableGroupOp(loc, vtableName, vtableLayout->primary);
 
-  auto i64Type = builder_.getIntegerType(64);
-  auto nullEntry = builder_.getIntegerAttr(i64Type, 0);
-  vtableEntries.push_back(nullEntry);
-
-  vtableEntries.push_back(nullEntry);
-
-  for (auto func : vtableSlots) {
-    auto funcOp = findOrCreateFunction(func);
-    auto funcSymRef =
-        mlir::FlatSymbolRefAttr::get(context_, funcOp.getSymName());
-    vtableEntries.push_back(funcSymRef);
-  }
-
-  auto entriesAttr = builder_.getArrayAttr(vtableEntries);
-
-  auto linkage = mlir::cxx::LinkageKind::LinkOnceODR;
-  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(context_, linkage);
-
-  auto savedInsertionPoint = builder_.saveInsertionPoint();
-
-  builder_.setInsertionPointToStart(module_.getBody());
-
-  mlir::cxx::VTableOp::create(builder_, loc, mlir::TypeRange(),
-                              llvm::StringRef(vtableName), entriesAttr,
-                              linkageAttr);
-
-  builder_.restoreInsertionPoint(savedInsertionPoint);
+  generateSecondaryVTables(classSymbol);
 }
 
+auto Codegen::findOrCreateCxaAtexit(mlir::Location loc) -> mlir::cxx::FuncOp {
+  const llvm::StringRef name = "__cxa_atexit";
+
+  if (auto existingFunc = module_.lookupSymbol<mlir::cxx::FuncOp>(name)) {
+    return existingFunc;
+  }
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
+  auto i32Type = builder_.getI32Type();
+
+  mlir::SmallVector<mlir::Type> paramTypes{i8PtrType, i8PtrType, i8PtrType};
+  mlir::SmallVector<mlir::Type> resultTypes{i32Type};
+  auto funcType =
+      mlir::cxx::FunctionType::get(context_, paramTypes, resultTypes,
+                                   /*isVariadic=*/false);
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+      context_, mlir::cxx::LinkageKind::External);
+  auto inlineAttr =
+      mlir::cxx::InlineKindAttr::get(context_, mlir::cxx::InlineKind::NoInline);
+  return mlir::cxx::FuncOp::create(builder_, loc, name, funcType, linkageAttr,
+                                   inlineAttr, mlir::cxx::VisibilityAttr{},
+                                   mlir::StringAttr{}, mlir::ArrayAttr{},
+                                   mlir::ArrayAttr{});
+}
+
+auto Codegen::findOrCreateDsoHandle(mlir::Location loc) -> mlir::cxx::GlobalOp {
+  const llvm::StringRef name = "__dso_handle";
+
+  if (auto existing = module_.lookupSymbol<mlir::cxx::GlobalOp>(name)) {
+    return existing;
+  }
+
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  builder_.setInsertionPointToStart(module_.getBody());
+
+  auto i8Type = builder_.getI8Type();
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+      context_, mlir::cxx::LinkageKind::External);
+
+  mlir::IntegerAttr alignmentAttr;
+
+  return mlir::cxx::GlobalOp::create(
+      builder_, loc, mlir::TypeRange(), i8Type, /*isConstant=*/false, name,
+      /*initializer=*/mlir::Attribute(), linkageAttr, alignmentAttr);
+}
+
+void Codegen::emitGlobalVarDtorRegistration(VariableSymbol* defVar,
+                                            FunctionSymbol* dtor,
+                                            mlir::cxx::GlobalOp global,
+                                            mlir::Location loc) {
+  auto savedInsertionPoint = builder_.saveInsertionPoint();
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+
+  auto i8Type = builder_.getI8Type();
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, i8Type);
+
+  std::string thunkName = "__cxx_global_array_dtor";
+  if (globalVarDtorCount_ > 0) {
+    thunkName = std::format("__cxx_global_array_dtor.{}", globalVarDtorCount_);
+  }
+  ++globalVarDtorCount_;
+
+  mlir::SmallVector<mlir::Type> paramTypes{i8PtrType};
+  mlir::SmallVector<mlir::Type> resultTypes;
+  auto funcType =
+      mlir::cxx::FunctionType::get(context_, paramTypes, resultTypes,
+                                   /*isVariadic=*/false);
+  auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
+      context_, mlir::cxx::LinkageKind::Internal);
+  auto inlineAttr =
+      mlir::cxx::InlineKindAttr::get(context_, mlir::cxx::InlineKind::NoInline);
+
+  builder_.setInsertionPointToEnd(module_.getBody());
+
+  auto thunkFunc = mlir::cxx::FuncOp::create(
+      builder_, loc, thunkName, funcType, linkageAttr, inlineAttr,
+      mlir::cxx::VisibilityAttr{}, mlir::StringAttr{}, mlir::ArrayAttr{},
+      mlir::ArrayAttr{});
+
+  auto entryBlock = builder_.createBlock(&thunkFunc.getBody());
+  entryBlock->addArgument(i8PtrType, loc);
+  builder_.setInsertionPointToEnd(entryBlock);
+
+  auto ptrType =
+      mlir::cxx::PointerType::get(context_, convertType(defVar->type()));
+  auto addr = mlir::cxx::AddressOfOp::create(builder_, loc, ptrType,
+                                             global.getSymName());
+
+  (void)emitCall(defVar->location(), dtor, {addr}, {});
+
+  mlir::cxx::ReturnOp::create(builder_, loc);
+
+  builder_.setInsertionPointToEnd(module_.getBody());
+
+  auto atexitFunc = findOrCreateCxaAtexit(loc);
+  auto dsoHandle = findOrCreateDsoHandle(loc);
+
+  builder_.restoreInsertionPoint(savedInsertionPoint);
+
+  auto thunkPtr = mlir::cxx::AddressOfOp::create(builder_, loc, i8PtrType,
+                                                 thunkFunc.getSymName());
+  auto nullPtr = mlir::cxx::NullPtrConstantOp::create(builder_, loc, i8PtrType);
+  auto dsoHandlePtr = mlir::cxx::AddressOfOp::create(builder_, loc, i8PtrType,
+                                                     dsoHandle.getSymName());
+
+  mlir::SmallVector<mlir::Value> args{thunkPtr, nullPtr, dsoHandlePtr};
+  mlir::SmallVector<mlir::Type> callResultTypes{builder_.getI32Type()};
+  mlir::cxx::CallOp::create(builder_, loc, callResultTypes,
+                            atexitFunc.getSymName(), args, mlir::TypeAttr{});
+}
+
+auto Codegen::completeObjectDtor(FunctionSymbol* dtor) -> FunctionSymbol* {
+  if (auto variant = dtor->completeObjectVariant()) return variant;
+  return dtor;
+}
 }  // namespace cxx

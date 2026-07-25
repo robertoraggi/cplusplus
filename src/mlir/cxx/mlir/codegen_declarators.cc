@@ -18,17 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/mlir/codegen.h>
-
-// cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/mlir/codegen.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
 namespace cxx {
-
 struct Codegen::PtrOperatorVisitor {
   Codegen& gen;
 
@@ -72,6 +70,18 @@ struct Codegen::MemInitializerVisitor {
 
   [[nodiscard]] auto operator()(BracedMemInitializerAST* ast)
       -> MemInitializerResult;
+
+  [[nodiscard]] auto emitSubobjectInit(MemInitializerAST* ast,
+                                       BracedInitListAST* bracedInitList,
+                                       List<ExpressionAST*>* expressionList)
+      -> MemInitializerResult;
+
+  [[nodiscard]] auto emitDelegationOrVirtualBaseInit(
+      MemInitializerAST* ast, ClassSymbol* targetClass,
+      const std::vector<ExpressionResult>& args) -> MemInitializerResult;
+
+  [[nodiscard]] auto subobjectIndex(ClassSymbol* classSymbol,
+                                    Symbol* symbol) const -> std::optional<int>;
 };
 
 struct Codegen::LambdaCaptureVisitor {
@@ -362,153 +372,126 @@ auto Codegen::RequirementVisitor::operator()(NestedRequirementAST* ast)
 
 auto Codegen::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
     -> MemInitializerResult {
-  auto symbol = ast->symbol;
-  if (!symbol) return {};
-
-  auto loc = gen.getLocation(ast->firstSourceLocation());
-
-  std::vector<ExpressionResult> args;
-  for (auto node : ListView{ast->expressionList}) {
-    args.push_back(gen.expression(node));
-  }
-
-  auto classSymbol = symbol_cast<ClassSymbol>(symbol->parent());
-  if (!classSymbol) return {};
-
-  int index = 0;
-  bool found = false;
-  for (auto base : classSymbol->baseClasses()) {
-    if (base == symbol) {
-      found = true;
-      break;
-    }
-    index++;
-  }
-
-  if (!found) {
-    for (auto field :
-         cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
-      if (field == symbol) {
-        found = true;
-        break;
-      }
-      index++;
-    }
-  }
-
-  if (!found) return {};
-
-  auto layout = classSymbol->layout();
-  if (layout) {
-    if (auto field = symbol_cast<FieldSymbol>(symbol)) {
-      if (auto fi = layout->getFieldInfo(field)) {
-        index = fi->index;
-      }
-    } else if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
-      auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
-      if (baseSym) {
-        if (auto bi = layout->getBaseInfo(baseSym)) {
-          index = bi->index;
-        }
-      }
-    }
-  }
-
-  const Type* targetType = nullptr;
-  if (auto field = symbol_cast<FieldSymbol>(symbol)) {
-    targetType = field->type();
-  } else if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
-    targetType = base->type();
-  }
-
-  auto memberPtrType =
-      mlir::cxx::PointerType::get(gen.context_, gen.convertType(targetType));
-
-  auto thisPtrType = mlir::cxx::PointerType::get(
-      gen.context_, gen.convertType(classSymbol->type()));
-
-  auto thisPtr = mlir::cxx::LoadOp::create(
-      gen.builder_, loc, thisPtrType, gen.thisValue_,
-      gen.getAlignment(gen.control()->getPointerType(classSymbol->type())));
-
-  auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc, memberPtrType,
-                                              thisPtr, index);
-
-  if (ast->constructor) {
-    (void)gen.emitCall(ast->firstSourceLocation(), ast->constructor, {fieldPtr},
-                       args);
-  } else if (args.size() == 1) {
-    mlir::cxx::StoreOp::create(gen.builder_, loc, args[0].value, fieldPtr, 1);
-  }
-
-  return {};
+  return emitSubobjectInit(ast, /*bracedInitList=*/nullptr,
+                           ast->expressionList);
 }
 
 auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
     -> MemInitializerResult {
+  return emitSubobjectInit(
+      ast, ast->bracedInitList,
+      ast->bracedInitList ? ast->bracedInitList->expressionList : nullptr);
+}
+
+auto Codegen::MemInitializerVisitor::subobjectIndex(ClassSymbol* classSymbol,
+                                                    Symbol* symbol) const
+    -> std::optional<int> {
+  auto layout = classSymbol->layout();
+
+  if (auto field = symbol_cast<FieldSymbol>(symbol)) {
+    if (layout) {
+      if (auto fi = layout->getFieldInfo(field)) return fi->index;
+    }
+  } else if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
+    if (layout) {
+      if (auto baseSym = symbol_cast<ClassSymbol>(base->symbol())) {
+        if (auto bi = layout->getBaseInfo(baseSym)) return bi->index;
+      }
+    }
+  }
+
+  int index = 0;
+  for (auto base : classSymbol->baseClasses()) {
+    if (base == symbol) return index;
+    ++index;
+  }
+  for (auto field :
+       cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
+    if (field == symbol) return index;
+    ++index;
+  }
+  return std::nullopt;
+}
+
+auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
+    MemInitializerAST* ast, ClassSymbol* targetClass,
+    const std::vector<ExpressionResult>& args) -> MemInitializerResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+
+  auto currentClass = symbol_cast<ClassSymbol>(
+      gen.currentFunctionSymbol_ ? gen.currentFunctionSymbol_->parent()
+                                 : nullptr);
+  if (!currentClass || !ast->constructor) return {};
+
+  auto thisPtrType = mlir::cxx::PointerType::get(
+      gen.context_, gen.convertType(currentClass->type()));
+  auto thisPtr = mlir::cxx::LoadOp::create(
+      gen.builder_, loc, thisPtrType, gen.thisValue_,
+      gen.getAlignment(gen.control()->getPointerType(currentClass->type())));
+
+  mlir::Value targetPtr = thisPtr;
+  if (targetClass != currentClass &&
+      targetClass != currentClass->definition()) {
+    if (!gen.currentFunctionSymbol_ ||
+        !gen.currentFunctionSymbol_->isStructorVariant()) {
+      return {};
+    }
+    auto layout = currentClass->layout();
+    std::optional<ClassLayout::MemberInfo> baseInfo;
+    if (layout) baseInfo = layout->getBaseInfo(targetClass);
+    if (!baseInfo) return {};
+    targetPtr =
+        gen.memberAddress(loc, thisPtr, targetClass->type(), baseInfo->index);
+  }
+
+  (void)gen.emitCtorCall(ast->firstSourceLocation(), ast->constructor,
+                         targetPtr, args, /*completeObject=*/false);
+  return {};
+}
+
+auto Codegen::MemInitializerVisitor::emitSubobjectInit(
+    MemInitializerAST* ast, BracedInitListAST* bracedInitList,
+    List<ExpressionAST*>* expressionList) -> MemInitializerResult {
   auto symbol = ast->symbol;
   if (!symbol) return {};
 
+  if (auto base = symbol_cast<BaseClassSymbol>(symbol);
+      base && base->isVirtual()) {
+    return {};
+  }
+
   auto loc = gen.getLocation(ast->firstSourceLocation());
-
-  std::vector<ExpressionResult> args;
-  if (ast->bracedInitList) {
-    for (auto node : ListView{ast->bracedInitList->expressionList}) {
-      args.push_back(gen.expression(node));
-    }
-  }
-
-  auto classSymbol = symbol_cast<ClassSymbol>(symbol->parent());
-  if (!classSymbol) return {};
-
-  int index = 0;
-  bool found = false;
-  for (auto base : classSymbol->baseClasses()) {
-    if (base == symbol) {
-      found = true;
-      break;
-    }
-    index++;
-  }
-
-  if (!found) {
-    for (auto field :
-         cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
-      if (field == symbol) {
-        found = true;
-        break;
-      }
-      index++;
-    }
-  }
-
-  if (!found) return {};
-
-  auto layout = classSymbol->layout();
-  if (layout) {
-    if (auto field = symbol_cast<FieldSymbol>(symbol)) {
-      if (auto fi = layout->getFieldInfo(field)) {
-        index = fi->index;
-      }
-    } else if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
-      auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
-      if (baseSym) {
-        if (auto bi = layout->getBaseInfo(baseSym)) {
-          index = bi->index;
-        }
-      }
-    }
-  }
 
   const Type* targetType = nullptr;
   if (auto field = symbol_cast<FieldSymbol>(symbol)) {
     targetType = field->type();
   } else if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
-    targetType = base->type();
+    targetType = base->symbol() ? base->symbol()->type() : nullptr;
   }
 
-  auto memberPtrType =
-      mlir::cxx::PointerType::get(gen.context_, gen.convertType(targetType));
+  const auto aggregateInit =
+      bracedInitList && !ast->constructor && targetType &&
+      (gen.unit_->typeTraits().is_class_or_union(
+           gen.unit_->typeTraits().remove_cv(targetType)) ||
+       gen.unit_->typeTraits().is_array(targetType));
+
+  std::vector<ExpressionResult> args;
+  if (!aggregateInit) {
+    for (auto node : ListView{expressionList}) {
+      args.push_back(gen.expression(node));
+    }
+  }
+
+  if (auto targetClass = symbol_cast<ClassSymbol>(symbol)) {
+    return emitDelegationOrVirtualBaseInit(ast, targetClass, args);
+  }
+
+  auto classSymbol = symbol_cast<ClassSymbol>(symbol->parent());
+  if (!classSymbol) return {};
+  if (!targetType) return {};
+
+  auto index = subobjectIndex(classSymbol, symbol);
+  if (!index) return {};
 
   auto thisPtrType = mlir::cxx::PointerType::get(
       gen.context_, gen.convertType(classSymbol->type()));
@@ -517,15 +500,44 @@ auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
       gen.builder_, loc, thisPtrType, gen.thisValue_,
       gen.getAlignment(gen.control()->getPointerType(classSymbol->type())));
 
-  auto fieldPtr = mlir::cxx::MemberOp::create(gen.builder_, loc, memberPtrType,
-                                              thisPtr, index);
+  auto fieldPtr = gen.memberAddress(loc, thisPtr, targetType, *index);
 
   if (ast->constructor) {
-    (void)gen.emitCall(ast->firstSourceLocation(), ast->constructor, {fieldPtr},
-                       args);
-  } else if (args.size() == 1) {
-    mlir::cxx::StoreOp::create(gen.builder_, loc, args[0].value, fieldPtr, 1);
+    (void)gen.emitCtorCall(ast->firstSourceLocation(), ast->constructor,
+                           fieldPtr, args, /*completeObject=*/false);
+    return {};
   }
+
+  if (aggregateInit) {
+    gen.emitAggregateInit(fieldPtr, targetType, bracedInitList);
+    return {};
+  }
+
+  if (args.size() != 1) return {};
+
+  auto layout = classSymbol->layout();
+  if (auto field = symbol_cast<FieldSymbol>(symbol);
+      field && field->isBitField() && layout) {
+    if (auto fi = layout->getFieldInfo(field)) {
+      mlir::cxx::BitfieldStoreOp::create(
+          gen.builder_, loc, args[0].value, fieldPtr,
+          gen.builder_.getI32IntegerAttr(fi->bitOffset),
+          gen.builder_.getI32IntegerAttr(fi->bitWidth),
+          gen.builder_.getI64IntegerAttr(fi->allocUnitSizeBytes));
+      return {};
+    }
+  }
+
+  auto value = args[0].value;
+  if (gen.unit_->typeTraits().is_class(
+          gen.unit_->typeTraits().remove_cv(targetType)) &&
+      value && mlir::isa<mlir::cxx::PointerType>(value.getType())) {
+    value = mlir::cxx::LoadOp::create(gen.builder_, loc,
+                                      gen.convertType(targetType), value,
+                                      gen.getAlignment(targetType));
+  }
+
+  mlir::cxx::StoreOp::create(gen.builder_, loc, value, fieldPtr, 1);
 
   return {};
 }
@@ -563,5 +575,4 @@ auto Codegen::LambdaCaptureVisitor::operator()(InitLambdaCaptureAST* ast)
 
   return {};
 }
-
 }  // namespace cxx

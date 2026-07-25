@@ -549,6 +549,16 @@ void ASTPrinter::visit(StructuredBindingDeclarationAST* ast) {
     --indent_;
   }
   accept(ast->initializer, "initializer");
+  accept(ast->hiddenVariable, "hidden-variable");
+  if (ast->bindingDeclaratorList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "binding-declarator-list");
+    for (auto node : ListView{ast->bindingDeclaratorList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(AsmOperandAST* ast) {
@@ -1005,6 +1015,18 @@ void ASTPrinter::visit(DoStatementAST* ast) {
 
 void ASTPrinter::visit(ForRangeStatementAST* ast) {
   out_ << std::format("{}\n", "for-range-statement");
+  if (ast->usesMemberBeginEnd) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("uses-member-begin-end: {}\n", ast->usesMemberBeginEnd);
+    --indent_;
+  }
+  if (ast->isPointerIterator) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-pointer-iterator: {}\n", ast->isPointerIterator);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1517,6 +1539,12 @@ void ASTPrinter::visit(SubscriptExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
+    --indent_;
+  }
   accept(ast->baseExpression, "base-expression");
   accept(ast->indexExpression, "index-expression");
 }
@@ -1528,6 +1556,12 @@ void ASTPrinter::visit(CallExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
+    --indent_;
+  }
   accept(ast->baseExpression, "base-expression");
   if (ast->expressionList) {
     ++indent_;
@@ -1630,6 +1664,12 @@ void ASTPrinter::visit(PostIncrExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
     --indent_;
   }
   accept(ast->baseExpression, "base-expression");
@@ -1775,6 +1815,12 @@ void ASTPrinter::visit(UnaryExpressionAST* ast) {
     out_ << std::format("op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
@@ -1901,6 +1947,12 @@ void ASTPrinter::visit(ImplicitCastExpressionAST* ast) {
   out_ << std::format("{:{}}", "", indent_ * 2);
   out_ << std::format("cast-kind: {}\n", to_string(ast->castKind));
   --indent_;
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
@@ -1915,6 +1967,12 @@ void ASTPrinter::visit(BinaryExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
     --indent_;
   }
   accept(ast->leftExpression, "left-expression");
@@ -1966,6 +2024,12 @@ void ASTPrinter::visit(AssignmentExpressionAST* ast) {
     out_ << std::format("op: {}\n", Token::spell(ast->op));
     --indent_;
   }
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
+    --indent_;
+  }
   accept(ast->leftExpression, "left-expression");
   accept(ast->rightExpression, "right-expression");
 }
@@ -1999,6 +2063,12 @@ void ASTPrinter::visit(CompoundAssignmentExpressionAST* ast) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
     out_ << std::format("op: {}\n", Token::spell(ast->op));
+    --indent_;
+  }
+  if (ast->isVirtualDispatch) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-virtual-dispatch: {}\n", ast->isVirtualDispatch);
     --indent_;
   }
   accept(ast->targetExpression, "target-expression");
@@ -2963,6 +3033,7 @@ void ASTPrinter::visit(BracedMemInitializerAST* ast) {
 
 void ASTPrinter::visit(ThisLambdaCaptureAST* ast) {
   out_ << std::format("{}\n", "this-lambda-capture");
+  accept(ast->initializer, "initializer");
 }
 
 void ASTPrinter::visit(DerefThisLambdaCaptureAST* ast) {
@@ -2972,11 +3043,13 @@ void ASTPrinter::visit(DerefThisLambdaCaptureAST* ast) {
 void ASTPrinter::visit(SimpleLambdaCaptureAST* ast) {
   out_ << std::format("{}\n", "simple-lambda-capture");
   accept(ast->identifier, "identifier");
+  accept(ast->initializer, "initializer");
 }
 
 void ASTPrinter::visit(RefLambdaCaptureAST* ast) {
   out_ << std::format("{}\n", "ref-lambda-capture");
   accept(ast->identifier, "identifier");
+  accept(ast->initializer, "initializer");
 }
 
 void ASTPrinter::visit(RefInitLambdaCaptureAST* ast) {

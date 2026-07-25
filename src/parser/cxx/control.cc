@@ -31,9 +31,7 @@
 #include <unordered_set>
 
 namespace cxx {
-
 namespace {
-
 template <typename Literal>
 struct LiteralHash {
   using is_transparent = void;
@@ -62,7 +60,6 @@ struct LiteralEqualTo {
 template <typename Literal>
 using LiteralSet =
     std::unordered_set<Literal, LiteralHash<Literal>, LiteralEqualTo<Literal>>;
-
 }  // namespace
 
 struct Control::Private {
@@ -130,6 +127,7 @@ struct Control::Private {
   std::set<UnresolvedNameType> unresolvedNameTypes;
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
+  std::set<UnresolvedBuiltinType> unresolvedBuiltinTypes;
   std::set<ClassType> classTypes;
   std::set<NamespaceType> namespaceTypes;
   std::set<EnumType> enumTypes;
@@ -345,10 +343,7 @@ auto Control::getTemplateId(const Name* name,
   return &*d->templateIds.emplace(name, std::move(arguments)).first;
 }
 
-auto Control::getSizeType() -> const Type* {
-  // TODO: use the correct type
-  return getUnsignedLongIntType();
-}
+auto Control::getSizeType() -> const Type* { return getUnsignedLongIntType(); }
 
 auto Control::getBuiltinVaListType() -> const BuiltinVaListType* {
   return &d->builtinVaListType;
@@ -547,6 +542,13 @@ auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
                                           TypeIdAST* typeId)
     -> const UnresolvedUnderlyingType* {
   return &*d->unresolvedUnderlyingTypes.emplace(unit, typeId).first;
+}
+
+auto Control::getUnresolvedBuiltinType(TranslationUnit* unit,
+                                       UnaryBuiltinTypeKind builtinKind,
+                                       TypeIdAST* typeId)
+    -> const UnresolvedBuiltinType* {
+  return &*d->unresolvedBuiltinTypes.emplace(unit, builtinKind, typeId).first;
 }
 
 auto Control::getClassType(ClassSymbol* symbol) -> const ClassType* {
@@ -785,5 +787,4 @@ auto Control::newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
   symbol->setLocation(loc);
   return symbol;
 }
-
 }  // namespace cxx

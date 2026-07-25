@@ -26,7 +26,6 @@
 #include <optional>
 
 namespace cxx {
-
 class MemoryLayout {
  public:
   explicit MemoryLayout(std::size_t bits);
@@ -51,6 +50,7 @@ class MemoryLayout {
       -> std::optional<std::size_t>;
 
   [[nodiscard]] auto triple() const -> const std::string&;
+  [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
   void setTriple(std::string triple);
 
  private:
@@ -63,5 +63,4 @@ class MemoryLayout {
 };
 
 #undef DECLARE_METHOD
-
 }  // namespace cxx

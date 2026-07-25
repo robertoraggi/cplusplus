@@ -25,6 +25,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <expected>
@@ -33,11 +34,14 @@
 #include <vector>
 
 namespace cxx {
-
 class DeclSpecs;
 class Decl;
 
 class TranslationUnit;
+
+[[nodiscard]] auto areTemplateHeadsEquivalentForRedeclaration(
+    TranslationUnit* unit, TemplateDeclarationAST* a, TemplateDeclarationAST* b)
+    -> bool;
 
 class Binder {
  public:
@@ -53,6 +57,20 @@ class Binder {
 
   [[nodiscard]] auto reportErrors() const -> bool;
   void setReportErrors(bool reportErrors);
+
+  struct ClosureNamingState {
+    int lambdaCount = 0;
+    std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators;
+  };
+
+  [[nodiscard]] auto closureNamingState() const -> ClosureNamingState {
+    return {lambdaCount_, lambdaDiscriminators_};
+  }
+
+  void setClosureNamingState(ClosureNamingState state) {
+    lambdaCount_ = state.lambdaCount;
+    lambdaDiscriminators_ = std::move(state.lambdaDiscriminators);
+  }
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
@@ -81,6 +99,11 @@ class Binder {
 
   [[nodiscard]] auto inTemplate() const -> bool;
 
+  void enterExplicitTemplateHead();
+  void leaveExplicitTemplateHead();
+
+  void finishAutoReturnType(FunctionSymbol* functionSymbol);
+
   [[nodiscard]] auto enterBlock(SourceLocation loc) -> BlockSymbol*;
 
   [[nodiscard]] auto declareTypeAlias(SourceLocation identifierLoc,
@@ -107,6 +130,15 @@ class Binder {
   [[nodiscard]] auto declareMemberSymbol(DeclaratorAST* declarator,
                                          const Decl& decl) -> Symbol*;
 
+  void bindStructuredBindings(StructuredBindingDeclarationAST* ast,
+                              const DeclSpecs& specs);
+
+  [[nodiscard]] auto declareStructuredBindingEntity(
+      SourceLocation loc, const Identifier* name, const DeclSpecs& specs,
+      TokenKind refOp, ExpressionAST* initializer) -> InitDeclaratorAST*;
+
+  void finishForRangeDeclaration(ForRangeStatementAST* ast);
+
   void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
@@ -119,6 +151,10 @@ class Binder {
   void bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs);
 
   void complete(ClassSpecifierAST* ast);
+
+  void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
+
+  void synthesizeDefaultedMemberBody(FunctionSymbol* fn);
 
   void bind(DecltypeSpecifierAST* ast);
 
@@ -171,7 +207,9 @@ class Binder {
   [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol*;
 
   [[nodiscard]] auto getFunction(ScopeSymbol* scope, const Name* name,
-                                 const Type* type) -> FunctionSymbol*;
+                                 const Type* type,
+                                 TemplateDeclarationAST* templateHead = nullptr)
+      -> FunctionSymbol*;
 
   class ScopeGuard {
    public:
@@ -208,6 +246,18 @@ class Binder {
   void injectUsing(ScopeSymbol* scope, const Name* name, Symbol* target,
                    SourceLocation loc);
 
+  [[nodiscard]] auto lookupCaptureName(ScopeSymbol* scope, const Name* name)
+      -> Symbol*;
+
+  [[nodiscard]] auto enclosingThisType(ScopeSymbol* scope) -> const Type*;
+
+  [[nodiscard]] auto usesImplicitThis(StatementAST* stmt) -> bool;
+
+  [[nodiscard]] auto addImplicitThisCapture(ClassSymbol* classSymbol,
+                                            const Type* thisType,
+                                            SourceLocation loc)
+      -> ThisLambdaCaptureAST*;
+
  private:
   struct BindClass;
   struct BuildRecordLayout;
@@ -222,10 +272,11 @@ class Binder {
   SourceLocation instantiationLoc_{};
   LanguageKind languageLinkage_ = LanguageKind::kCXX;
   int lambdaCount_ = 0;
+  int explicitTemplateHeadDepth_ = 0;
   bool inTemplate_ = false;
   bool reportErrors_ = true;
+  std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators_;
   std::unordered_map<FunctionSymbol*, std::vector<DefaultArgumentInfo>>
       defaultArguments_;
 };
-
 }  // namespace cxx

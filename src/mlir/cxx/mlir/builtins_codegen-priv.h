@@ -19,6 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+
 auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind)
     -> std::optional<ExpressionResult> {
@@ -64,6 +65,18 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
 
     case BuiltinFunctionKind::T___BUILTIN_ALLOCA:
       return codegenBuiltinAlloca(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
+      return codegenBuiltinAssumeAligned(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDRESSOF:
+      return codegenBuiltinAddressof(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZG:
+      return codegenBuiltinCountZerosGeneric(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLZG:
+      return codegenBuiltinCountZerosGeneric(ast);
 
     default:
       return std::nullopt;

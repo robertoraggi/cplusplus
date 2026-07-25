@@ -23,5 +23,7 @@ config.filecheck = "@FILECHECK_EXECUTABLE@"
 
 config.cxx_unit_tests_root = "@CMAKE_CURRENT_SOURCE_DIR@"
 
+config.have_lld = @CXX_LIT_HAVE_LLD@
+
 lit_config.load_config(
     config, os.path.join(config.cxx_unit_tests_root, "lit.cfg.py"))

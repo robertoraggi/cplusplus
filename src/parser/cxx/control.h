@@ -34,7 +34,6 @@
 #include <vector>
 
 namespace cxx {
-
 class MemoryLayout;
 class TypeTraits;
 
@@ -154,6 +153,10 @@ class Control {
   [[nodiscard]] auto getUnresolvedUnderlyingType(TranslationUnit* unit,
                                                  TypeIdAST* typeId)
       -> const UnresolvedUnderlyingType*;
+  [[nodiscard]] auto getUnresolvedBuiltinType(TranslationUnit* unit,
+                                              UnaryBuiltinTypeKind builtinKind,
+                                              TypeIdAST* typeId)
+      -> const UnresolvedBuiltinType*;
 
   [[nodiscard]] auto getClassType(ClassSymbol* symbol) -> const ClassType*;
   [[nodiscard]] auto getNamespaceType(NamespaceSymbol* symbol)
@@ -255,5 +258,4 @@ class Control {
   struct Private;
   std::unique_ptr<Private> d;
 };
-
 }  // namespace cxx

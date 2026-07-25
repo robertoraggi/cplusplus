@@ -24,14 +24,13 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
-#include <cxx/symbols_fwd.h>
+#include <cxx/symbols.h>
 #include <cxx/types_fwd.h>
-
-// mlir
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -40,7 +39,6 @@ class FuncOp;
 }
 
 namespace cxx {
-
 class TranslationUnit;
 class Control;
 
@@ -64,6 +62,8 @@ class Codegen {
 
   struct ExpressionResult {
     mlir::Value value;
+    ValueCategory category = ValueCategory::kNone;
+    bool isRValueMaterialized = false;
   };
 
   struct TemplateParameterResult {};
@@ -110,7 +110,6 @@ class Codegen {
   struct NewPlacementResult {};
   struct NestedNamespaceSpecifierResult {};
 
-  // run on the base nodes
   [[nodiscard]] auto operator()(UnitAST* ast) -> UnitResult;
 
   [[nodiscard]] auto declaration(DeclarationAST* ast) -> DeclarationResult;
@@ -176,7 +175,6 @@ class Codegen {
   [[nodiscard]] auto attributeToken(AttributeTokenAST* ast)
       -> AttributeTokenResult;
 
-  // run on the misc nodes
   [[nodiscard]] auto splicer(SplicerAST* ast) -> SplicerResult;
 
   [[nodiscard]] auto globalModuleFragment(GlobalModuleFragmentAST* ast)
@@ -248,8 +246,12 @@ class Codegen {
   void asmClobber(AsmClobberAST* ast);
   void asmGotoLabel(AsmGotoLabelAST* ast);
   void arrayInit(mlir::Value address, const Type* type, ExpressionAST* init);
+  [[nodiscard]] auto emitInPlaceConstruction(mlir::Value address,
+                                             ExpressionAST* ast) -> bool;
+
   void emitAggregateInit(mlir::Value address, const Type* type,
                          BracedInitListAST* ast);
+  void emitLocalVariableInit(VariableSymbol* var, InitDeclaratorAST* node);
   void emitDesignatedInit(mlir::Value address, const Type* type,
                           DesignatedInitializerClauseAST* ast);
 
@@ -273,6 +275,17 @@ class Codegen {
 
   [[nodiscard]] auto convertType(const Type* type) -> mlir::Type;
 
+  [[nodiscard]] auto convertBaseSubobjectType(ClassSymbol* classSymbol)
+      -> mlir::Type;
+
+  [[nodiscard]] auto buildClassMemberTypes(ClassSymbol* classSymbol,
+                                           bool includeVirtualBases)
+      -> std::vector<mlir::Type>;
+
+  [[nodiscard]] auto convertBaseEmbedding(ClassSymbol* baseSymbol,
+                                          std::uint64_t availableBytes)
+      -> mlir::Type;
+
   [[nodiscard]] auto convertDebugType(const Type* type)
       -> mlir::LLVM::DITypeAttr;
 
@@ -283,6 +296,69 @@ class Codegen {
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;
 
+  [[nodiscard]] auto computeFunctionSignature(FunctionSymbol* functionSymbol)
+      -> mlir::cxx::FunctionType;
+
+  [[nodiscard]] auto computeFunctionSignature(const FunctionType* functionType,
+                                              FunctionSymbol* functionSymbol)
+      -> mlir::cxx::FunctionType;
+
+  [[nodiscard]] auto applyEntryPointABI(FunctionSymbol* symbol,
+                                        const FunctionType* functionType)
+      -> mlir::cxx::Visibility;
+
+  [[nodiscard]] auto structorReturnsThis(FunctionSymbol* symbol) -> bool;
+
+  struct ClassValueAbi {
+    enum class Kind { Direct, Empty, Scalar, Indirect };
+    Kind kind = Kind::Direct;
+    const Type* scalarType = nullptr;
+  };
+
+  [[nodiscard]] auto classifyClassValueAbi(const Type* type) -> ClassValueAbi;
+
+  [[nodiscard]] auto classValueAddress(SourceLocation loc, const Type* type,
+                                       mlir::Value value) -> mlir::Value;
+
+  [[nodiscard]] auto abiLowerClassArgument(SourceLocation loc,
+                                           const Type* paramType,
+                                           mlir::Value value) -> mlir::Value;
+
+  [[nodiscard]] auto abiPrepareResult(
+      SourceLocation loc, const Type* returnType,
+      mlir::SmallVector<mlir::Type>& resultTypes) -> mlir::Value;
+
+  [[nodiscard]] auto abiFinishResult(SourceLocation loc, const Type* returnType,
+                                     mlir::cxx::CallOp callOp,
+                                     mlir::Value sretTemp) -> ExpressionResult;
+
+  [[nodiscard]] auto emitVirtualBaseAddress(mlir::Location loc,
+                                            mlir::Value objectPtr,
+                                            ClassSymbol* fromClass,
+                                            ClassSymbol* vbaseClass)
+      -> mlir::Value;
+
+  [[nodiscard]] auto adjustByVtableWord(mlir::Location loc,
+                                        mlir::Value objectPtrI8,
+                                        std::int64_t byteOffset) -> mlir::Value;
+
+  [[nodiscard]] auto emitBaseClassAddress(mlir::Location loc,
+                                          mlir::Value objectPtr,
+                                          ClassSymbol* fromClass,
+                                          ClassSymbol* targetClass)
+      -> mlir::Value;
+
+  [[nodiscard]] auto navigateToClass(mlir::Location loc, mlir::Value value,
+                                     ClassSymbol* from, ClassSymbol* to)
+      -> mlir::Value;
+
+  [[nodiscard]] auto memberAddress(mlir::Location loc, mlir::Value objectPtr,
+                                   const Type* memberType, std::uint32_t index)
+      -> mlir::Value;
+  [[nodiscard]] auto memberAddress(mlir::Location loc, mlir::Value objectPtr,
+                                   mlir::Type memberType, std::uint32_t index)
+      -> mlir::Value;
+
   void enqueueFunctionBody(FunctionSymbol* symbol);
   void processPendingFunctions();
   void resolveLabels();
@@ -290,12 +366,54 @@ class Codegen {
   [[nodiscard]] auto findOrCreateGlobal(Symbol* symbol)
       -> std::optional<mlir::cxx::GlobalOp>;
 
+  [[nodiscard]] auto findOrCreateExternField(FieldSymbol* field)
+      -> mlir::cxx::GlobalOp;
+
+  void emitGlobalVarInit(VariableSymbol* var, mlir::cxx::GlobalOp global);
+
   void generateVTable(ClassSymbol* classSymbol);
+
+  [[nodiscard]] auto findOrCreateCxaAtexit(mlir::Location loc)
+      -> mlir::cxx::FuncOp;
+
+  [[nodiscard]] auto findOrCreateDsoHandle(mlir::Location loc)
+      -> mlir::cxx::GlobalOp;
+
+  void emitGlobalVarDtorRegistration(VariableSymbol* defVar,
+                                     FunctionSymbol* dtor,
+                                     mlir::cxx::GlobalOp global,
+                                     mlir::Location loc);
 
   void emitCtorVtableInit(FunctionSymbol* functionSymbol, mlir::Location loc);
 
-  [[nodiscard]] static auto computeVtableSlots(ClassSymbol* classSymbol)
-      -> std::vector<FunctionSymbol*>;
+  [[nodiscard]] auto vtableSlotIndex(FunctionSymbol* function) -> int;
+
+  void emitVTableGroupOp(mlir::Location loc, llvm::StringRef name,
+                         const VTableLayout::Group& group);
+
+  void generateSecondaryVTables(ClassSymbol* classSymbol);
+
+  [[nodiscard]] auto encodeSecondaryVTableName(ClassSymbol* classSymbol,
+                                               ClassSymbol* base)
+      -> std::string;
+
+  [[nodiscard]] auto findOrCreateThunk(
+      FunctionSymbol* target, llvm::StringRef thunkName,
+      const std::function<mlir::Value(
+          mlir::Value rawThisI8, mlir::Location loc)>& computeAdjustedThisI8)
+      -> mlir::cxx::FuncOp;
+
+  [[nodiscard]] auto findOrCreateThisAdjustingThunk(FunctionSymbol* target,
+                                                    std::int64_t offset)
+      -> mlir::cxx::FuncOp;
+
+  [[nodiscard]] auto findOrCreateVirtualThunk(FunctionSymbol* target,
+                                              std::int64_t vcallSlotByteOffset)
+      -> mlir::cxx::FuncOp;
+
+  [[nodiscard]] auto resolveVptrField(mlir::Value basePtr,
+                                      ClassSymbol* baseClassSym,
+                                      mlir::Location loc) -> mlir::Value;
 
   [[nodiscard]] auto newTemp(const Type* type, SourceLocation loc)
       -> mlir::cxx::AllocaOp;
@@ -305,8 +423,24 @@ class Codegen {
 
   [[nodiscard]] auto emitCall(SourceLocation loc, FunctionSymbol* symbol,
                               ExpressionResult thisValue,
+                              std::vector<ExpressionResult> arguments,
+                              bool isVirtualDispatch = false)
+      -> ExpressionResult;
+
+  [[nodiscard]] auto emitCall(SourceLocation loc,
+                              const FunctionType* functionType,
+                              FunctionSymbol* symbol, bool isVirtualDispatch,
+                              ExpressionResult thisValue,
                               std::vector<ExpressionResult> arguments)
       -> ExpressionResult;
+
+  [[nodiscard]] auto emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
+                                  mlir::Value thisPtr,
+                                  std::vector<ExpressionResult> args,
+                                  bool completeObject) -> ExpressionResult;
+
+  [[nodiscard]] static auto completeObjectDtor(FunctionSymbol* dtor)
+      -> FunctionSymbol*;
 
   [[nodiscard]] auto newBlock() -> mlir::Block*;
 
@@ -347,6 +481,14 @@ class Codegen {
   void emitBranchWithCleanups(SourceLocation loc, mlir::Block* target,
                               std::size_t targetDepth);
   void addCleanup(mlir::Value address, FunctionSymbol* dtor);
+
+  struct CleanupSnapshot {
+    mlir::SmallVector<mlir::Value> addresses;
+    mlir::SmallVector<mlir::Attribute> destructors;
+    mlir::SmallVector<mlir::Attribute> depths;
+  };
+
+  [[nodiscard]] auto collectCleanupSnapshot() -> CleanupSnapshot;
 
   struct Switch {
     std::vector<std::int64_t> caseValues;
@@ -409,12 +551,15 @@ class Codegen {
   mlir::Value targetValue_;
   FunctionSymbol* currentFunctionSymbol_ = nullptr;
   std::unordered_map<ClassSymbol*, mlir::Type> classNames_;
+  std::unordered_map<ClassSymbol*, mlir::Type> baseSubobjectTypeNames_;
   std::unordered_map<Symbol*, mlir::Value> locals_;
   std::unordered_map<FunctionSymbol*, mlir::cxx::FuncOp> funcOps_;
   std::vector<FunctionSymbol*> pendingFunctions_;
   std::unordered_set<FunctionSymbol*> enqueuedFunctions_;
   std::unordered_set<ClassSymbol*> emittedVTables_;
   std::unordered_map<VariableSymbol*, mlir::cxx::GlobalOp> globalOps_;
+  std::unordered_map<FieldSymbol*, mlir::cxx::GlobalOp> externFieldGlobalOps_;
+  std::unordered_set<VariableSymbol*> emittedGlobalVarInits_;
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;
   std::unordered_map<std::string, mlir::LLVM::DIFileAttr> fileAttrs_;
@@ -424,10 +569,13 @@ class Codegen {
   Switch switch_;
   std::vector<CleanupScope> cleanupStack_;
   int count_ = 0;
+  int globalVarInitCount_ = 0;
+  int globalVarDtorCount_ = 0;
   std::unordered_map<const Type*, mlir::LLVM::DITypeAttr> debugTypeCache_;
   std::unordered_map<Symbol*, mlir::LLVM::DIScopeAttr> diScopes_;
   std::unordered_map<const Name*, int> staticLocalCounts_;
   bool debugInfo_ = true;
+  bool isWasm32Target_ = false;
+  bool isWasmTarget_ = false;
 };
-
 }  // namespace cxx

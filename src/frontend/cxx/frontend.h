@@ -28,7 +28,6 @@
 #include <string>
 
 namespace cxx {
-
 class Toolchain;
 
 class Frontend {
@@ -41,11 +40,12 @@ class Frontend {
   [[nodiscard]] auto fileName() const -> const std::string&;
   void addAction(std::function<void()> action);
 
+  void setObjectOutput(std::string path);
+
   [[nodiscard]] auto operator()() -> bool;
 
  private:
   struct Private;
   std::unique_ptr<Private> priv;
 };
-
 }  // namespace cxx

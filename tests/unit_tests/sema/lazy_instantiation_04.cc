@@ -20,7 +20,11 @@ struct Derived : Base<int> {
 //      CHECK:      class Base<int>
 // CHECK-NEXT:        constructor defaulted void Base()
 // CHECK-NEXT:        constructor defaulted void Base(const ::Base<int>&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter const ::Base<int>&
 // CHECK-NEXT:        constructor defaulted void Base(::Base<int>&&)
+// CHECK-NEXT:          parameters
+// CHECK-NEXT:            parameter ::Base<int>&&
 // CHECK-NEXT:        injected class name Base
 // CHECK-NEXT:        field int value
-// CHECK-NEXT:        function int get()
+// CHECK-NEXT:        function inline int get()

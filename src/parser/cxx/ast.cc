@@ -492,10 +492,14 @@ auto StructuredBindingDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(hiddenVariable)) return loc;
+  if (auto loc = cxx::firstSourceLocation(bindingDeclaratorList)) return loc;
   return {};
 }
 
 auto StructuredBindingDeclarationAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(bindingDeclaratorList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(hiddenVariable)) return loc;
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
@@ -3453,10 +3457,12 @@ auto BracedMemInitializerAST::lastSourceLocation() -> SourceLocation {
 
 auto ThisLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(thisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   return {};
 }
 
 auto ThisLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(thisLoc)) return loc;
   return {};
 }
@@ -3476,10 +3482,12 @@ auto DerefThisLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
 auto SimpleLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   return {};
 }
 
 auto SimpleLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   return {};
@@ -3489,10 +3497,12 @@ auto RefLambdaCaptureAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(ampLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   return {};
 }
 
 auto RefLambdaCaptureAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(ampLoc)) return loc;
@@ -5348,6 +5358,16 @@ auto StructuredBindingDeclarationAST::clone(Arena* arena)
 
   node->semicolonLoc = semicolonLoc;
 
+  if (hiddenVariable) node->hiddenVariable = hiddenVariable->clone(arena);
+
+  if (bindingDeclaratorList) {
+    auto it = &node->bindingDeclaratorList;
+    for (auto node : ListView{bindingDeclaratorList}) {
+      *it = make_list_node<InitDeclaratorAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   return node;
 }
 
@@ -5362,7 +5382,9 @@ auto StructuredBindingDeclarationAST::create(
     List<SpecifierAST*>* declSpecifierList, SourceLocation refQualifierLoc,
     SourceLocation lbracketLoc, List<NameIdAST*>* bindingList,
     SourceLocation rbracketLoc, ExpressionAST* initializer,
-    SourceLocation semicolonLoc) -> StructuredBindingDeclarationAST* {
+    SourceLocation semicolonLoc, InitDeclaratorAST* hiddenVariable,
+    List<InitDeclaratorAST*>* bindingDeclaratorList)
+    -> StructuredBindingDeclarationAST* {
   auto node = new (arena) StructuredBindingDeclarationAST();
   node->attributeList = attributeList;
   node->declSpecifierList = declSpecifierList;
@@ -5372,18 +5394,24 @@ auto StructuredBindingDeclarationAST::create(
   node->rbracketLoc = rbracketLoc;
   node->initializer = initializer;
   node->semicolonLoc = semicolonLoc;
+  node->hiddenVariable = hiddenVariable;
+  node->bindingDeclaratorList = bindingDeclaratorList;
   return node;
 }
 
 auto StructuredBindingDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     List<SpecifierAST*>* declSpecifierList, List<NameIdAST*>* bindingList,
-    ExpressionAST* initializer) -> StructuredBindingDeclarationAST* {
+    ExpressionAST* initializer, InitDeclaratorAST* hiddenVariable,
+    List<InitDeclaratorAST*>* bindingDeclaratorList)
+    -> StructuredBindingDeclarationAST* {
   auto node = new (arena) StructuredBindingDeclarationAST();
   node->attributeList = attributeList;
   node->declSpecifierList = declSpecifierList;
   node->bindingList = bindingList;
   node->initializer = initializer;
+  node->hiddenVariable = hiddenVariable;
+  node->bindingDeclaratorList = bindingDeclaratorList;
   return node;
 }
 
@@ -7111,6 +7139,13 @@ auto ForRangeStatementAST::clone(Arena* arena) -> ForRangeStatementAST* {
   if (statement) node->statement = statement->clone(arena);
 
   node->symbol = symbol;
+  node->beginFunction = beginFunction;
+  node->endFunction = endFunction;
+  node->derefFunction = derefFunction;
+  node->incrementFunction = incrementFunction;
+  node->notEqualFunction = notEqualFunction;
+  node->usesMemberBeginEnd = usesMemberBeginEnd;
+  node->isPointerIterator = isPointerIterator;
 
   return node;
 }
@@ -7125,7 +7160,10 @@ auto ForRangeStatementAST::create(
     SourceLocation forLoc, SourceLocation lparenLoc, StatementAST* initializer,
     DeclarationAST* rangeDeclaration, SourceLocation colonLoc,
     ExpressionAST* rangeInitializer, SourceLocation rparenLoc,
-    StatementAST* statement, BlockSymbol* symbol) -> ForRangeStatementAST* {
+    StatementAST* statement, BlockSymbol* symbol, FunctionSymbol* beginFunction,
+    FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
+    FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
+    bool usesMemberBeginEnd, bool isPointerIterator) -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
   node->attributeList = attributeList;
   node->forLoc = forLoc;
@@ -7137,16 +7175,24 @@ auto ForRangeStatementAST::create(
   node->rparenLoc = rparenLoc;
   node->statement = statement;
   node->symbol = symbol;
+  node->beginFunction = beginFunction;
+  node->endFunction = endFunction;
+  node->derefFunction = derefFunction;
+  node->incrementFunction = incrementFunction;
+  node->notEqualFunction = notEqualFunction;
+  node->usesMemberBeginEnd = usesMemberBeginEnd;
+  node->isPointerIterator = isPointerIterator;
   return node;
 }
 
-auto ForRangeStatementAST::create(Arena* arena,
-                                  List<AttributeSpecifierAST*>* attributeList,
-                                  StatementAST* initializer,
-                                  DeclarationAST* rangeDeclaration,
-                                  ExpressionAST* rangeInitializer,
-                                  StatementAST* statement, BlockSymbol* symbol)
-    -> ForRangeStatementAST* {
+auto ForRangeStatementAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    StatementAST* initializer, DeclarationAST* rangeDeclaration,
+    ExpressionAST* rangeInitializer, StatementAST* statement,
+    BlockSymbol* symbol, FunctionSymbol* beginFunction,
+    FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
+    FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
+    bool usesMemberBeginEnd, bool isPointerIterator) -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
   node->attributeList = attributeList;
   node->initializer = initializer;
@@ -7154,6 +7200,13 @@ auto ForRangeStatementAST::create(Arena* arena,
   node->rangeInitializer = rangeInitializer;
   node->statement = statement;
   node->symbol = symbol;
+  node->beginFunction = beginFunction;
+  node->endFunction = endFunction;
+  node->derefFunction = derefFunction;
+  node->incrementFunction = incrementFunction;
+  node->notEqualFunction = notEqualFunction;
+  node->usesMemberBeginEnd = usesMemberBeginEnd;
+  node->isPointerIterator = isPointerIterator;
   return node;
 }
 
@@ -8284,6 +8337,7 @@ auto LambdaExpressionAST::clone(Arena* arena) -> LambdaExpressionAST* {
 
   node->captureDefault = captureDefault;
   node->symbol = symbol;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8309,7 +8363,8 @@ auto LambdaExpressionAST::create(
     List<AttributeSpecifierAST*>* attributeList,
     TrailingReturnTypeAST* trailingReturnType,
     RequiresClauseAST* requiresClause, CompoundStatementAST* statement,
-    TokenKind captureDefault, LambdaSymbol* symbol, ValueCategory valueCategory,
+    TokenKind captureDefault, LambdaSymbol* symbol,
+    FunctionSymbol* constructorSymbol, ValueCategory valueCategory,
     const Type* type) -> LambdaExpressionAST* {
   auto node = new (arena) LambdaExpressionAST();
   node->lbracketLoc = lbracketLoc;
@@ -8333,6 +8388,7 @@ auto LambdaExpressionAST::create(
   node->statement = statement;
   node->captureDefault = captureDefault;
   node->symbol = symbol;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8350,7 +8406,8 @@ auto LambdaExpressionAST::create(
     List<AttributeSpecifierAST*>* attributeList,
     TrailingReturnTypeAST* trailingReturnType,
     RequiresClauseAST* requiresClause, CompoundStatementAST* statement,
-    TokenKind captureDefault, LambdaSymbol* symbol, ValueCategory valueCategory,
+    TokenKind captureDefault, LambdaSymbol* symbol,
+    FunctionSymbol* constructorSymbol, ValueCategory valueCategory,
     const Type* type) -> LambdaExpressionAST* {
   auto node = new (arena) LambdaExpressionAST();
   node->captureList = captureList;
@@ -8367,6 +8424,7 @@ auto LambdaExpressionAST::create(
   node->statement = statement;
   node->captureDefault = captureDefault;
   node->symbol = symbol;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8667,6 +8725,7 @@ auto SubscriptExpressionAST::clone(Arena* arena) -> SubscriptExpressionAST* {
 
   node->rbracketLoc = rbracketLoc;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8681,29 +8740,29 @@ auto SubscriptExpressionAST::create(Arena* arena) -> SubscriptExpressionAST* {
 auto SubscriptExpressionAST::create(
     Arena* arena, ExpressionAST* baseExpression, SourceLocation lbracketLoc,
     ExpressionAST* indexExpression, SourceLocation rbracketLoc,
-    FunctionSymbol* symbol, ValueCategory valueCategory, const Type* type)
-    -> SubscriptExpressionAST* {
+    FunctionSymbol* symbol, bool isVirtualDispatch, ValueCategory valueCategory,
+    const Type* type) -> SubscriptExpressionAST* {
   auto node = new (arena) SubscriptExpressionAST();
   node->baseExpression = baseExpression;
   node->lbracketLoc = lbracketLoc;
   node->indexExpression = indexExpression;
   node->rbracketLoc = rbracketLoc;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
-auto SubscriptExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
-                                    ExpressionAST* indexExpression,
-                                    FunctionSymbol* symbol,
-                                    ValueCategory valueCategory,
-                                    const Type* type)
-    -> SubscriptExpressionAST* {
+auto SubscriptExpressionAST::create(
+    Arena* arena, ExpressionAST* baseExpression, ExpressionAST* indexExpression,
+    FunctionSymbol* symbol, bool isVirtualDispatch, ValueCategory valueCategory,
+    const Type* type) -> SubscriptExpressionAST* {
   auto node = new (arena) SubscriptExpressionAST();
   node->baseExpression = baseExpression;
   node->indexExpression = indexExpression;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8725,6 +8784,8 @@ auto CallExpressionAST::clone(Arena* arena) -> CallExpressionAST* {
   }
 
   node->rparenLoc = rparenLoc;
+  node->isVirtualDispatch = isVirtualDispatch;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8739,7 +8800,8 @@ auto CallExpressionAST::create(Arena* arena) -> CallExpressionAST* {
 auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                SourceLocation lparenLoc,
                                List<ExpressionAST*>* expressionList,
-                               SourceLocation rparenLoc,
+                               SourceLocation rparenLoc, bool isVirtualDispatch,
+                               FunctionSymbol* constructorSymbol,
                                ValueCategory valueCategory, const Type* type)
     -> CallExpressionAST* {
   auto node = new (arena) CallExpressionAST();
@@ -8747,6 +8809,8 @@ auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
   node->lparenLoc = lparenLoc;
   node->expressionList = expressionList;
   node->rparenLoc = rparenLoc;
+  node->isVirtualDispatch = isVirtualDispatch;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8754,11 +8818,15 @@ auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
 
 auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                List<ExpressionAST*>* expressionList,
+                               bool isVirtualDispatch,
+                               FunctionSymbol* constructorSymbol,
                                ValueCategory valueCategory, const Type* type)
     -> CallExpressionAST* {
   auto node = new (arena) CallExpressionAST();
   node->baseExpression = baseExpression;
   node->expressionList = expressionList;
+  node->isVirtualDispatch = isVirtualDispatch;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8780,6 +8848,7 @@ auto TypeConstructionAST::clone(Arena* arena) -> TypeConstructionAST* {
   }
 
   node->rparenLoc = rparenLoc;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8795,6 +8864,7 @@ auto TypeConstructionAST::create(Arena* arena, SpecifierAST* typeSpecifier,
                                  SourceLocation lparenLoc,
                                  List<ExpressionAST*>* expressionList,
                                  SourceLocation rparenLoc,
+                                 FunctionSymbol* constructorSymbol,
                                  ValueCategory valueCategory, const Type* type)
     -> TypeConstructionAST* {
   auto node = new (arena) TypeConstructionAST();
@@ -8802,6 +8872,7 @@ auto TypeConstructionAST::create(Arena* arena, SpecifierAST* typeSpecifier,
   node->lparenLoc = lparenLoc;
   node->expressionList = expressionList;
   node->rparenLoc = rparenLoc;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8809,11 +8880,13 @@ auto TypeConstructionAST::create(Arena* arena, SpecifierAST* typeSpecifier,
 
 auto TypeConstructionAST::create(Arena* arena, SpecifierAST* typeSpecifier,
                                  List<ExpressionAST*>* expressionList,
+                                 FunctionSymbol* constructorSymbol,
                                  ValueCategory valueCategory, const Type* type)
     -> TypeConstructionAST* {
   auto node = new (arena) TypeConstructionAST();
   node->typeSpecifier = typeSpecifier;
   node->expressionList = expressionList;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8827,6 +8900,7 @@ auto BracedTypeConstructionAST::clone(Arena* arena)
 
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -8842,12 +8916,14 @@ auto BracedTypeConstructionAST::create(Arena* arena)
 auto BracedTypeConstructionAST::create(Arena* arena,
                                        SpecifierAST* typeSpecifier,
                                        BracedInitListAST* bracedInitList,
+                                       FunctionSymbol* constructorSymbol,
                                        ValueCategory valueCategory,
                                        const Type* type)
     -> BracedTypeConstructionAST* {
   auto node = new (arena) BracedTypeConstructionAST();
   node->typeSpecifier = typeSpecifier;
   node->bracedInitList = bracedInitList;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -8988,6 +9064,7 @@ auto PostIncrExpressionAST::clone(Arena* arena) -> PostIncrExpressionAST* {
   node->opLoc = opLoc;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9002,6 +9079,7 @@ auto PostIncrExpressionAST::create(Arena* arena) -> PostIncrExpressionAST* {
 auto PostIncrExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                    SourceLocation opLoc, TokenKind op,
                                    FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST* {
   auto node = new (arena) PostIncrExpressionAST();
@@ -9009,6 +9087,7 @@ auto PostIncrExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
   node->opLoc = opLoc;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9016,12 +9095,14 @@ auto PostIncrExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
 
 auto PostIncrExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                    TokenKind op, FunctionSymbol* symbol,
+                                   bool isVirtualDispatch,
                                    ValueCategory valueCategory,
                                    const Type* type) -> PostIncrExpressionAST* {
   auto node = new (arena) PostIncrExpressionAST();
   node->baseExpression = baseExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9565,6 +9646,7 @@ auto UnaryExpressionAST::clone(Arena* arena) -> UnaryExpressionAST* {
 
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9578,7 +9660,7 @@ auto UnaryExpressionAST::create(Arena* arena) -> UnaryExpressionAST* {
 
 auto UnaryExpressionAST::create(Arena* arena, SourceLocation opLoc,
                                 ExpressionAST* expression, TokenKind op,
-                                FunctionSymbol* symbol,
+                                FunctionSymbol* symbol, bool isVirtualDispatch,
                                 ValueCategory valueCategory, const Type* type)
     -> UnaryExpressionAST* {
   auto node = new (arena) UnaryExpressionAST();
@@ -9586,6 +9668,7 @@ auto UnaryExpressionAST::create(Arena* arena, SourceLocation opLoc,
   node->expression = expression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9593,12 +9676,14 @@ auto UnaryExpressionAST::create(Arena* arena, SourceLocation opLoc,
 
 auto UnaryExpressionAST::create(Arena* arena, ExpressionAST* expression,
                                 TokenKind op, FunctionSymbol* symbol,
+                                bool isVirtualDispatch,
                                 ValueCategory valueCategory, const Type* type)
     -> UnaryExpressionAST* {
   auto node = new (arena) UnaryExpressionAST();
   node->expression = expression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10015,6 +10100,7 @@ auto DeleteExpressionAST::clone(Arena* arena) -> DeleteExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10026,29 +10112,30 @@ auto DeleteExpressionAST::create(Arena* arena) -> DeleteExpressionAST* {
   return node;
 }
 
-auto DeleteExpressionAST::create(Arena* arena, SourceLocation scopeLoc,
-                                 SourceLocation deleteLoc,
-                                 SourceLocation lbracketLoc,
-                                 SourceLocation rbracketLoc,
-                                 ExpressionAST* expression,
-                                 ValueCategory valueCategory, const Type* type)
-    -> DeleteExpressionAST* {
+auto DeleteExpressionAST::create(
+    Arena* arena, SourceLocation scopeLoc, SourceLocation deleteLoc,
+    SourceLocation lbracketLoc, SourceLocation rbracketLoc,
+    ExpressionAST* expression, FunctionSymbol* symbol,
+    ValueCategory valueCategory, const Type* type) -> DeleteExpressionAST* {
   auto node = new (arena) DeleteExpressionAST();
   node->scopeLoc = scopeLoc;
   node->deleteLoc = deleteLoc;
   node->lbracketLoc = lbracketLoc;
   node->rbracketLoc = rbracketLoc;
   node->expression = expression;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto DeleteExpressionAST::create(Arena* arena, ExpressionAST* expression,
+                                 FunctionSymbol* symbol,
                                  ValueCategory valueCategory, const Type* type)
     -> DeleteExpressionAST* {
   auto node = new (arena) DeleteExpressionAST();
   node->expression = expression;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10110,6 +10197,9 @@ auto ImplicitCastExpressionAST::clone(Arena* arena)
   if (expression) node->expression = expression->clone(arena);
 
   node->castKind = castKind;
+  node->constValue = constValue;
+  node->conversionFunction = conversionFunction;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10122,14 +10212,17 @@ auto ImplicitCastExpressionAST::create(Arena* arena)
   return node;
 }
 
-auto ImplicitCastExpressionAST::create(Arena* arena, ExpressionAST* expression,
-                                       ImplicitCastKind castKind,
-                                       ValueCategory valueCategory,
-                                       const Type* type)
+auto ImplicitCastExpressionAST::create(
+    Arena* arena, ExpressionAST* expression, ImplicitCastKind castKind,
+    const ConstValue* constValue, FunctionSymbol* conversionFunction,
+    bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
     -> ImplicitCastExpressionAST* {
   auto node = new (arena) ImplicitCastExpressionAST();
   node->expression = expression;
   node->castKind = castKind;
+  node->constValue = constValue;
+  node->conversionFunction = conversionFunction;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10146,6 +10239,7 @@ auto BinaryExpressionAST::clone(Arena* arena) -> BinaryExpressionAST* {
 
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10160,7 +10254,7 @@ auto BinaryExpressionAST::create(Arena* arena) -> BinaryExpressionAST* {
 auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
                                  SourceLocation opLoc,
                                  ExpressionAST* rightExpression, TokenKind op,
-                                 FunctionSymbol* symbol,
+                                 FunctionSymbol* symbol, bool isVirtualDispatch,
                                  ValueCategory valueCategory, const Type* type)
     -> BinaryExpressionAST* {
   auto node = new (arena) BinaryExpressionAST();
@@ -10169,6 +10263,7 @@ auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
   node->rightExpression = rightExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10176,7 +10271,7 @@ auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
 
 auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
                                  ExpressionAST* rightExpression, TokenKind op,
-                                 FunctionSymbol* symbol,
+                                 FunctionSymbol* symbol, bool isVirtualDispatch,
                                  ValueCategory valueCategory, const Type* type)
     -> BinaryExpressionAST* {
   auto node = new (arena) BinaryExpressionAST();
@@ -10184,6 +10279,7 @@ auto BinaryExpressionAST::create(Arena* arena, ExpressionAST* leftExpression,
   node->rightExpression = rightExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10338,6 +10434,7 @@ auto AssignmentExpressionAST::clone(Arena* arena) -> AssignmentExpressionAST* {
 
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10352,13 +10449,15 @@ auto AssignmentExpressionAST::create(Arena* arena) -> AssignmentExpressionAST* {
 auto AssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* leftExpression, SourceLocation opLoc,
     ExpressionAST* rightExpression, TokenKind op, FunctionSymbol* symbol,
-    ValueCategory valueCategory, const Type* type) -> AssignmentExpressionAST* {
+    bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
+    -> AssignmentExpressionAST* {
   auto node = new (arena) AssignmentExpressionAST();
   node->leftExpression = leftExpression;
   node->opLoc = opLoc;
   node->rightExpression = rightExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10366,13 +10465,14 @@ auto AssignmentExpressionAST::create(
 
 auto AssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* leftExpression, ExpressionAST* rightExpression,
-    TokenKind op, FunctionSymbol* symbol, ValueCategory valueCategory,
-    const Type* type) -> AssignmentExpressionAST* {
+    TokenKind op, FunctionSymbol* symbol, bool isVirtualDispatch,
+    ValueCategory valueCategory, const Type* type) -> AssignmentExpressionAST* {
   auto node = new (arena) AssignmentExpressionAST();
   node->leftExpression = leftExpression;
   node->rightExpression = rightExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10438,6 +10538,7 @@ auto CompoundAssignmentExpressionAST::clone(Arena* arena)
 
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10454,7 +10555,7 @@ auto CompoundAssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* targetExpression, SourceLocation opLoc,
     ExpressionAST* leftExpression, ExpressionAST* rightExpression,
     ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
-    ValueCategory valueCategory, const Type* type)
+    bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
     -> CompoundAssignmentExpressionAST* {
   auto node = new (arena) CompoundAssignmentExpressionAST();
   node->targetExpression = targetExpression;
@@ -10464,6 +10565,7 @@ auto CompoundAssignmentExpressionAST::create(
   node->adjustExpression = adjustExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10473,7 +10575,7 @@ auto CompoundAssignmentExpressionAST::create(
     Arena* arena, ExpressionAST* targetExpression,
     ExpressionAST* leftExpression, ExpressionAST* rightExpression,
     ExpressionAST* adjustExpression, TokenKind op, FunctionSymbol* symbol,
-    ValueCategory valueCategory, const Type* type)
+    bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
     -> CompoundAssignmentExpressionAST* {
   auto node = new (arena) CompoundAssignmentExpressionAST();
   node->targetExpression = targetExpression;
@@ -10482,6 +10584,7 @@ auto CompoundAssignmentExpressionAST::create(
   node->adjustExpression = adjustExpression;
   node->op = op;
   node->symbol = symbol;
+  node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -14099,6 +14202,8 @@ auto ThisLambdaCaptureAST::clone(Arena* arena) -> ThisLambdaCaptureAST* {
 
   node->thisLoc = thisLoc;
 
+  if (initializer) node->initializer = initializer->clone(arena);
+
   return node;
 }
 
@@ -14107,10 +14212,19 @@ auto ThisLambdaCaptureAST::create(Arena* arena) -> ThisLambdaCaptureAST* {
   return node;
 }
 
-auto ThisLambdaCaptureAST::create(Arena* arena, SourceLocation thisLoc)
+auto ThisLambdaCaptureAST::create(Arena* arena, SourceLocation thisLoc,
+                                  ExpressionAST* initializer)
     -> ThisLambdaCaptureAST* {
   auto node = new (arena) ThisLambdaCaptureAST();
   node->thisLoc = thisLoc;
+  node->initializer = initializer;
+  return node;
+}
+
+auto ThisLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer)
+    -> ThisLambdaCaptureAST* {
+  auto node = new (arena) ThisLambdaCaptureAST();
+  node->initializer = initializer;
   return node;
 }
 
@@ -14146,6 +14260,8 @@ auto SimpleLambdaCaptureAST::clone(Arena* arena) -> SimpleLambdaCaptureAST* {
   node->ellipsisLoc = ellipsisLoc;
   node->identifier = identifier;
 
+  if (initializer) node->initializer = initializer->clone(arena);
+
   return node;
 }
 
@@ -14156,19 +14272,23 @@ auto SimpleLambdaCaptureAST::create(Arena* arena) -> SimpleLambdaCaptureAST* {
 
 auto SimpleLambdaCaptureAST::create(Arena* arena, SourceLocation identifierLoc,
                                     SourceLocation ellipsisLoc,
-                                    const Identifier* identifier)
+                                    const Identifier* identifier,
+                                    ExpressionAST* initializer)
     -> SimpleLambdaCaptureAST* {
   auto node = new (arena) SimpleLambdaCaptureAST();
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
   node->identifier = identifier;
+  node->initializer = initializer;
   return node;
 }
 
-auto SimpleLambdaCaptureAST::create(Arena* arena, const Identifier* identifier)
+auto SimpleLambdaCaptureAST::create(Arena* arena, const Identifier* identifier,
+                                    ExpressionAST* initializer)
     -> SimpleLambdaCaptureAST* {
   auto node = new (arena) SimpleLambdaCaptureAST();
   node->identifier = identifier;
+  node->initializer = initializer;
   return node;
 }
 
@@ -14179,6 +14299,8 @@ auto RefLambdaCaptureAST::clone(Arena* arena) -> RefLambdaCaptureAST* {
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
   node->identifier = identifier;
+
+  if (initializer) node->initializer = initializer->clone(arena);
 
   return node;
 }
@@ -14191,20 +14313,24 @@ auto RefLambdaCaptureAST::create(Arena* arena) -> RefLambdaCaptureAST* {
 auto RefLambdaCaptureAST::create(Arena* arena, SourceLocation ampLoc,
                                  SourceLocation identifierLoc,
                                  SourceLocation ellipsisLoc,
-                                 const Identifier* identifier)
+                                 const Identifier* identifier,
+                                 ExpressionAST* initializer)
     -> RefLambdaCaptureAST* {
   auto node = new (arena) RefLambdaCaptureAST();
   node->ampLoc = ampLoc;
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
   node->identifier = identifier;
+  node->initializer = initializer;
   return node;
 }
 
-auto RefLambdaCaptureAST::create(Arena* arena, const Identifier* identifier)
+auto RefLambdaCaptureAST::create(Arena* arena, const Identifier* identifier,
+                                 ExpressionAST* initializer)
     -> RefLambdaCaptureAST* {
   auto node = new (arena) RefLambdaCaptureAST();
   node->identifier = identifier;
+  node->initializer = initializer;
   return node;
 }
 
@@ -14676,6 +14802,8 @@ auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view {
       return "pointer-conversion";
     case ImplicitCastKind::kPointerToMemberConversion:
       return "pointer-to-member-conversion";
+    case ImplicitCastKind::kDerivedToBaseConversion:
+      return "derived-to-base-conversion";
     case ImplicitCastKind::kBooleanConversion:
       return "boolean-conversion";
     case ImplicitCastKind::kFunctionPointerConversion:

@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/ast_rewriter.h>
-
-// cxx
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -30,7 +29,6 @@
 #include <cxx/type_checker.h>
 
 namespace cxx {
-
 struct ASTRewriter::StatementVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -217,6 +215,18 @@ auto ASTRewriter::StatementVisitor::operator()(CaseStatementAST* ast)
   copy->expression = rewrite.expression(ast->expression);
   copy->colonLoc = ast->colonLoc;
 
+  copy->caseValue = ast->caseValue;
+  if (copy->expression) {
+    auto interp = ASTInterpreter{translationUnit()};
+    if (auto value = interp.evaluate(copy->expression)) {
+      if (translationUnit()->typeTraits().is_unsigned(copy->expression->type)) {
+        if (auto v = interp.toUInt(*value)) copy->caseValue = *v;
+      } else if (auto v = interp.toInt(*value)) {
+        copy->caseValue = *v;
+      }
+    }
+  }
+
   return copy;
 }
 
@@ -302,9 +312,26 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
   copy->condition = rewrite.expression(ast->condition);
   typeChecker().check_bool_condition(copy->condition);
   copy->rparenLoc = ast->rparenLoc;
-  copy->statement = rewrite.statement(ast->statement);
+
+  std::optional<bool> constexprValue;
+  if (ast->constexprLoc && copy->condition) {
+    auto interp = ASTInterpreter{rewrite.unit_};
+    if (auto val = interp.evaluate(copy->condition)) {
+      constexprValue = interp.toBool(*val);
+    }
+  }
+
   copy->elseLoc = ast->elseLoc;
-  copy->elseStatement = rewrite.statement(ast->elseStatement);
+  if (constexprValue.has_value()) {
+    if (*constexprValue) {
+      copy->statement = rewrite.statement(ast->statement);
+    } else {
+      copy->elseStatement = rewrite.statement(ast->elseStatement);
+    }
+  } else {
+    copy->statement = rewrite.statement(ast->statement);
+    copy->elseStatement = rewrite.statement(ast->elseStatement);
+  }
 
   return copy;
 }
@@ -432,6 +459,9 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
   copy->rangeDeclaration = rewrite.declaration(ast->rangeDeclaration);
   copy->colonLoc = ast->colonLoc;
   copy->rangeInitializer = rewrite.expression(ast->rangeInitializer);
+
+  binder()->finishForRangeDeclaration(copy);
+
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
 
@@ -670,5 +700,4 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
 
   return copy;
 }
-
 }  // namespace cxx

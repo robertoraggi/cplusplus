@@ -18,6 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
+import shutil
 
 import lit.util
 import lit.formats
@@ -32,3 +33,14 @@ config.test_source_root = os.path.dirname(__file__)
 
 config.substitutions.append(("%cxx", config.cxx))
 config.substitutions.append(("%filecheck", config.filecheck))
+
+# The 'lld' feature is available when cxx was built with an embedded lld linker.
+if getattr(config, "have_lld", False):
+    config.available_features.add("lld")
+
+# The 'wasmtime' feature is available when a wasmtime runtime is on PATH, which
+# lets link tests execute the wasm32-wasi executables they produce.
+wasmtime = shutil.which("wasmtime")
+if wasmtime:
+    config.available_features.add("wasmtime")
+    config.substitutions.append(("%wasmtime", wasmtime))

@@ -20,18 +20,26 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <string>
 #include <unordered_map>
 
 namespace cxx {
-
 class ExternalNameEncoder {
  public:
+  enum class StructorVariant { Complete, Base, Deleting };
+
   ExternalNameEncoder();
+
+  void setStructorVariant(StructorVariant variant) {
+    structorVariant_ = variant;
+    hasExplicitStructorVariant_ = true;
+  }
 
   [[nodiscard]] auto encode(Symbol* symbol, std::string_view suffix = "")
       -> std::string;
@@ -48,18 +56,24 @@ class ExternalNameEncoder {
 
   void encodeName(Symbol* symbol);
   [[nodiscard]] auto encodeLocalName(Symbol* symbol) -> bool;
+  void encodeClosureSourceName(ClassSymbol* classSymbol);
   [[nodiscard]] auto encodeNestedName(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeUnscopedName(Symbol* symbol) -> bool;
-  [[nodiscard]] auto encodeOperatorName(const Name* name, bool isUnary)
+  [[nodiscard]] auto encodeOperatorName(TokenKind op, bool isUnary)
       -> std::string_view;
 
   void encodeType(const Type* type);
+  [[nodiscard]] auto encodeDependentName(NestedNameSpecifierAST* nns,
+                                         UnqualifiedIdAST* id) -> bool;
+  [[nodiscard]] auto encodeExpression(ExpressionAST* expr) -> bool;
+  void encodeTemplateParamValue(int index);
   void encodeConstValue(const Type* type, const ConstValue& value);
   void encodeBareFunctionType(const FunctionType* functionType,
                               bool includeReturnType = false);
 
-  [[nodiscard]] auto encodeSubstitution(const Type* type) -> bool;
-  void enterSubstitution(const Type* type);
+  [[nodiscard]] auto encodeTemplateNameSubstitution(Symbol* symbol) -> bool;
+  [[nodiscard]] auto encodeSubstitution(const void* key) -> bool;
+  void enterSubstitution(const void* key);
 
   void out(std::string_view str) { out_.append(str); }
 
@@ -67,9 +81,10 @@ class ExternalNameEncoder {
   struct EncodeUnqualifiedName;
 
  private:
-  std::unordered_map<const Type*, int> substs_;
+  std::unordered_map<const void*, int> substs_;
   std::string out_;
   int substCount_ = 0;
+  StructorVariant structorVariant_ = StructorVariant::Complete;
+  bool hasExplicitStructorVariant_ = false;
 };
-
 }  // namespace cxx

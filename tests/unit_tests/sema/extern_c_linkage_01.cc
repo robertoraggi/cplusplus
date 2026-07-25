@@ -44,23 +44,45 @@ void test() {
 // clang-format off
 //      CHECK:namespace
 // CHECK-NEXT:  function extern "C" char* strcpy(char*, const char*)
+// CHECK-NEXT:    parameters
+// CHECK-NEXT:      parameter char* dst
+// CHECK-NEXT:      parameter const char* src
 // CHECK-NEXT:  function extern "C" int strcmp(const char*, const char*)
+// CHECK-NEXT:    parameters
+// CHECK-NEXT:      parameter const char* a
+// CHECK-NEXT:      parameter const char* b
 // CHECK-NEXT:  function extern "C" void abort()
 // CHECK-NEXT:    [redeclarations]
 // CHECK-NEXT:      function extern "C" void abort()
 // CHECK-NEXT:  namespace std
 // CHECK-NEXT:    function extern "C" void* malloc(unsigned long)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter unsigned long size
 // CHECK-NEXT:    function extern "C" void free(void*)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter void* ptr
 // CHECK-NEXT:    function extern "C" int printf(const char*...)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const char* fmt
 // CHECK-NEXT:  function int cpp_func(int)
+// CHECK-NEXT:    parameters
+// CHECK-NEXT:      parameter int x
 // CHECK-NEXT:  class Widget
 // CHECK-NEXT:    constructor defaulted void Widget()
 // CHECK-NEXT:    constructor defaulted void Widget(const ::Widget&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const ::Widget&
 // CHECK-NEXT:    constructor defaulted void Widget(::Widget&&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter ::Widget&&
 // CHECK-NEXT:    injected class name Widget
 // CHECK-NEXT:    function void draw()
 // CHECK-NEXT:    function defaulted ::Widget& operator =(const ::Widget&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter const ::Widget&
 // CHECK-NEXT:    function defaulted ::Widget& operator =(::Widget&&)
+// CHECK-NEXT:      parameters
+// CHECK-NEXT:        parameter ::Widget&&
 // CHECK-NEXT:    function defaulted void ~Widget()
 // CHECK-NEXT:  function void test()
 // CHECK-NEXT:    block

@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <optional>
@@ -30,7 +31,6 @@
 #include <vector>
 
 namespace cxx {
-
 class Type {
  public:
   explicit Type(TypeKind kind) : kind_(kind) {}
@@ -544,6 +544,27 @@ class UnresolvedUnderlyingType final
   [[nodiscard]] auto typeId() const -> TypeIdAST* { return std::get<1>(*this); }
 };
 
+class UnresolvedBuiltinType final
+    : public Type,
+      public std::tuple<TranslationUnit*, UnaryBuiltinTypeKind, TypeIdAST*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedBuiltin;
+
+  UnresolvedBuiltinType(TranslationUnit* unit, UnaryBuiltinTypeKind builtinKind,
+                        TypeIdAST* typeId)
+      : Type(Kind), tuple(unit, builtinKind, typeId) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto builtinKind() const -> UnaryBuiltinTypeKind {
+    return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto typeId() const -> TypeIdAST* { return std::get<2>(*this); }
+};
+
 class BitIntType final : public Type, public std::tuple<int> {
  public:
   static constexpr TypeKind Kind = TypeKind::kBitInt;
@@ -593,7 +614,7 @@ auto visit(Visitor&& visitor, const Type* type) {
     CXX_FOR_EACH_TYPE_KIND(PROCESS_TYPE)
     default:
       cxx_runtime_error("invalid type kind");
-  }  // switch
+  }
 
 #undef PROCESS_TYPE
 }
@@ -612,5 +633,4 @@ template <typename T>
     return TypeParamInfo{t->index(), t->depth(), t->isParameterPack()};
   return std::nullopt;
 }
-
 }  // namespace cxx

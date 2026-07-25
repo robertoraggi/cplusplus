@@ -26,7 +26,6 @@
 #include <utility>
 
 namespace cxx {
-
 class Name;
 
 #define CXX_FOR_EACH_TYPE_KIND(V) \
@@ -74,6 +73,7 @@ class Name;
   V(UnresolvedName)               \
   V(UnresolvedBoundedArray)       \
   V(UnresolvedUnderlying)         \
+  V(UnresolvedBuiltin)            \
   V(OverloadSet)                  \
   V(BuiltinVaList)                \
   V(BuiltinMetaInfo)              \
@@ -138,5 +138,4 @@ enum class RefQualifier {
 
 auto to_string(const Type* type, const std::string& id = "") -> std::string;
 auto to_string(const Type* type, const Name* name) -> std::string;
-
 }  // namespace cxx

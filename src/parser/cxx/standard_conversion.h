@@ -27,7 +27,6 @@
 #include <cxx/types_fwd.h>
 
 namespace cxx {
-
 class Arena;
 class Control;
 class TranslationUnit;
@@ -49,6 +48,7 @@ class StandardConversion {
   void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
                             ExpressionAST*& expr);
 
+  [[nodiscard]] auto adjustedCvType(const Type* type) const -> const Type*;
   void adjustCv(ExpressionAST* expr);
 
   [[nodiscard]] auto checkCvQualifiers(CvQualifiers target,
@@ -62,8 +62,14 @@ class StandardConversion {
                                                ExpressionAST*& other)
       -> const Type*;
 
+  [[nodiscard]] auto commonArithmeticType(const Type* a, const Type* b)
+      -> const Type*;
+
   [[nodiscard]] auto convertImplicitly(ExpressionAST*& expr,
                                        const Type* destinationType) -> bool;
+
+  [[nodiscard]] auto convertClassOperandForBuiltinOperator(ExpressionAST*& expr)
+      -> bool;
 
   [[nodiscard]] auto integralPromotion(ExpressionAST*& expr,
                                        const Type* destinationType = nullptr)
@@ -75,6 +81,32 @@ class StandardConversion {
   [[nodiscard]] auto isNullPointerConstant(ExpressionAST* expr) const -> bool;
 
   [[nodiscard]] auto lvalueToRvalue(ExpressionAST*& expr) -> bool;
+
+  void foldConstantRead(ImplicitCastExpressionAST* cast);
+
+  void recordUserDefinedConversion(ImplicitCastExpressionAST* cast,
+                                   FunctionSymbol* function);
+
+  void appendDefaultArguments(FunctionSymbol* function,
+                              List<ExpressionAST*>** list);
+
+  void materializeConstructorArguments(ImplicitCastExpressionAST* cast,
+                                       FunctionSymbol* constructor);
+
+  [[nodiscard]] auto listInitializes(BracedInitListAST* bracedInitList,
+                                     const Type* targetType) -> bool;
+
+  [[nodiscard]] static auto parameters(FunctionSymbol* function)
+      -> std::vector<ParameterSymbol*>;
+
+  [[nodiscard]] static auto isCallableWithOneArgument(FunctionSymbol* ctor)
+      -> bool;
+
+  [[nodiscard]] auto isKnownCompleteObject(ExpressionAST* expression) -> bool;
+
+  [[nodiscard]] auto isVirtualMemberDispatch(FunctionSymbol* function,
+                                             ExpressionAST* objectExpression)
+      -> bool;
 
   [[nodiscard]] auto functionToPointer(ExpressionAST*& expr) -> bool;
 
@@ -91,6 +123,9 @@ class StandardConversion {
       -> bool;
 
  private:
+  [[nodiscard]] auto convertArithmetic(ExpressionAST*& expr,
+                                       const Type* destinationType) -> bool;
+
   [[nodiscard]] auto integralConversion(ExpressionAST*& expr,
                                         const Type* destinationType) -> bool;
   [[nodiscard]] auto floatingPointConversion(ExpressionAST*& expr,
@@ -126,5 +161,4 @@ class StandardConversion {
   Arena* arena_;
   bool isC_ = false;
 };
-
 }  // namespace cxx
