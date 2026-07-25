@@ -42,9 +42,9 @@
     "url": "https://github.com/robertoraggi/cplusplus/issues"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "prettier": "^3.8.1",
-    "typedoc": "^0.28.18",
+    "@types/node": "^26.1.1",
+    "prettier": "^3.9.6",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.2"
   }
 }
