@@ -9,15 +9,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install emsdk
-        run: |
-          git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
-          /opt/emsdk/emsdk install latest
-          /opt/emsdk/emsdk activate latest
-
       - name: Install dependencies
         run: |
           npm ci
+
+      - name: Install emsdk
+        run: |
+          git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
+          /opt/emsdk/emsdk install 6.0.3
+          /opt/emsdk/emsdk activate 6.0.3
 
       - name: Build
         run: |
