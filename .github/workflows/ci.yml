@@ -178,7 +178,7 @@ jobs:
           retention-days: 1
 
   build-macos:
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v7
