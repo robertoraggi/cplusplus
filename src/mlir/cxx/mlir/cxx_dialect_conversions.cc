@@ -46,6 +46,9 @@
 
 namespace mlir {
 namespace {
+constexpr std::uint32_t kDefaultGlobalCtorPriority = 65535;
+}
+namespace {
 static auto getBoolMemoryType(MLIRContext* context) -> IntegerType {
   return IntegerType::get(context, 8);
 }
@@ -713,29 +716,6 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       auto vaArgOp = LLVM::VaArgOp::create(rewriter, loc, resultTypes.front(),
                                            adaptor.getInputs()[0]);
       rewriter.replaceOp(op, vaArgOp);
-      return success();
-    }
-
-    if (name == "__builtin_operator_new") {
-      auto context = getContext();
-      auto ptrType = LLVM::LLVMPointerType::get(context);
-      if (adaptor.getInputs().empty()) {
-        return rewriter.notifyMatchFailure(
-            op, "operator_new expects at least 1 argument");
-      }
-      auto argType = adaptor.getInputs()[0].getType();
-      llvm::StringRef opNewName = "_Znwm";
-      auto module = op->getParentOfType<ModuleOp>();
-      if (!module.lookupSymbol(opNewName)) {
-        auto funcType = LLVM::LLVMFunctionType::get(
-            context, ptrType, ArrayRef<Type>{argType}, false);
-        OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointToStart(module.getBody());
-        LLVM::LLVMFuncOp::create(rewriter, op.getLoc(), opNewName, funcType);
-      }
-      auto callOp = LLVM::CallOp::create(rewriter, op.getLoc(), ptrType,
-                                         opNewName, adaptor.getInputs()[0]);
-      rewriter.replaceOp(op, callOp);
       return success();
     }
 
@@ -1915,22 +1895,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
 
-#if false
-  {
-    IRRewriter rewriter(context);
-    module.walk([&](cxx::FuncOp funcOp) {
-      for (auto& region : funcOp->getRegions()) {
-        (void)eraseUnreachableBlocks(rewriter, region);
-      }
-    });
-  }
-#endif
-
   SmallVector<Attribute> globalCtors;
-  module.walk([&](cxx::FuncOp funcOp) {
-    if (!funcOp->hasAttr("cxx.global_ctor")) return;
-    funcOp->removeAttr("cxx.global_ctor");
-    globalCtors.push_back(FlatSymbolRefAttr::get(funcOp.getSymNameAttr()));
+  module.walk([&](cxx::GlobalCtorOp ctorOp) {
+    globalCtors.push_back(ctorOp.getCtorAttr());
+    ctorOp.erase();
   });
 
   if (failed(applyPartialConversion(module, target, std::move(patterns)))) {
@@ -1961,7 +1929,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
         ctorBuilder, loc,
         ctorBuilder.getArrayAttr(
             {FlatSymbolRefAttr::get(subFn.getSymNameAttr())}),
-        ctorBuilder.getArrayAttr({ctorBuilder.getI32IntegerAttr(65535)}),
+        ctorBuilder.getArrayAttr(
+            {ctorBuilder.getI32IntegerAttr(kDefaultGlobalCtorPriority)}),
         ctorBuilder.getArrayAttr({LLVM::ZeroAttr::get(context)}));
   }
 

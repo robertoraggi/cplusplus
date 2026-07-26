@@ -52,6 +52,8 @@ struct ImplicitConversionSequence {
 
   std::vector<Step> steps;
 
+  const Type* destinationType = nullptr;
+
   FunctionSymbol* userDefinedConversionFunction = nullptr;
   ConversionRank secondStandardConversionRank = ConversionRank::kNone;
   const Type* secondStandardConversionTarget = nullptr;

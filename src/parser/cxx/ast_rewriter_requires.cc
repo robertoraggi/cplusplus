@@ -28,9 +28,13 @@
 #include <cxx/type_checker.h>
 
 namespace cxx {
-auto ASTRewriter::shouldCaptureBodyErrors() const -> bool {
+auto ASTRewriter::shouldReportCheckErrors() const -> bool {
   return symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
          binder_.reportErrors();
+}
+
+auto ASTRewriter::shouldCaptureBodyErrors() const -> bool {
+  return rewritingFunctionBody_ && shouldReportCheckErrors();
 }
 
 void ASTRewriter::typeCheckAndCapture(std::function<void()> checkFn) {
@@ -114,7 +118,7 @@ void ASTRewriter::check(ExpressionAST* ast) {
 
   auto typeChecker = TypeChecker{unit_};
   typeChecker.setScope(binder_.scope());
-  typeChecker.setReportErrors(shouldCaptureBodyErrors());
+  typeChecker.setReportErrors(shouldReportCheckErrors());
   typeCheckAndCapture([&] { typeChecker.check(ast); });
 }
 }  // namespace cxx

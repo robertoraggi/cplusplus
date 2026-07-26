@@ -179,6 +179,7 @@ class [[nodiscard]] ASTRewriter {
   auto nestedNameSpecifier(NestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
   auto functionBody(FunctionBodyAST* ast) -> FunctionBodyAST*;
+  auto lambdaBody(StatementAST* ast) -> CompoundStatementAST*;
   auto templateArgument(TemplateArgumentAST* ast) -> TemplateArgumentAST*;
   auto exceptionSpecifier(ExceptionSpecifierAST* ast) -> ExceptionSpecifierAST*;
   auto requirement(RequirementAST* ast) -> RequirementAST*;
@@ -255,6 +256,7 @@ class [[nodiscard]] ASTRewriter {
  private:
   auto rewriter() -> ASTRewriter* { return this; }
 
+  auto shouldReportCheckErrors() const -> bool;
   auto shouldCaptureBodyErrors() const -> bool;
   void typeCheckAndCapture(std::function<void()> checkFn);
 
@@ -282,6 +284,7 @@ class [[nodiscard]] ASTRewriter {
   TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
   std::vector<Diagnostic> bodyErrors_;
+  bool rewritingFunctionBody_ = false;
   ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
   Binder binder_;

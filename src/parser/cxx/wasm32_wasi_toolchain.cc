@@ -18,9 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
+#include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
+#include <cxx/types.h>
+#include <cxx/views/symbol_chain.h>
+#include <cxx/views/symbols.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 
 #include <format>
@@ -100,6 +108,34 @@ void Wasm32WasiToolchain::addLinkerStartArgs(
 
   args.push_back(std::format("{}/crt1.o", libdir));
   args.push_back(std::format("-L{}", libdir));
+}
+
+void Wasm32WasiToolchain::applyEntryPointAbi(TranslationUnit* unit) const {
+  auto control = unit->control();
+  auto main = views::find_function(
+      unit->globalScope()->find(control->getIdentifier("main")),
+      [](FunctionSymbol* func) { return func->isDefined(); });
+
+  if (!main) return;
+  if (main->externalName() || main->aliasName()) return;
+
+  auto functionType = type_cast<FunctionType>(main->type());
+  if (!functionType || functionType->isVariadic()) return;
+  if (functionType->returnType() != control->getIntType()) return;
+
+  const auto& params = functionType->parameterTypes();
+
+  if (params.empty()) {
+    main->setAliasName(control->getIdentifier("__main_void"));
+    main->setHiddenVisibility(true);
+    return;
+  }
+
+  if (params.size() == 2 && params[0] == control->getIntType() &&
+      type_cast<PointerType>(params[1])) {
+    main->setExternalName(control->getIdentifier("__main_argc_argv"));
+    main->setHiddenVisibility(true);
+  }
 }
 
 void Wasm32WasiToolchain::addLinkerEndArgs(

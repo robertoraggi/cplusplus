@@ -154,6 +154,7 @@ void TemplateArgumentDeduction::collectTemplateParameters(
   explicitParamArg_.assign(n, nullptr);
   explicitPackArgs_.assign(n, {});
   deducedTypes_.assign(n, nullptr);
+  deducedValues_.assign(n, std::nullopt);
   deducedPacks_.assign(n, {});
 }
 
@@ -279,6 +280,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
 
       return true;
     }
+
+    if (deduceArrayBound(bareParam, bareArg)) return true;
 
     if (auto fnParam =
             type_cast<FunctionType>(unit_->typeTraits().remove_cv(bareParam))) {
@@ -435,11 +438,48 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
   return true;
 }
 
+auto TemplateArgumentDeduction::nonTypeParameterIndex(ExpressionAST* expr) const
+    -> int {
+  auto idExpression = ast_cast<IdExpressionAST>(expr);
+  if (!idExpression) return -1;
+
+  auto parameter = symbol_cast<NonTypeParameterSymbol>(idExpression->symbol);
+  if (!parameter) return -1;
+
+  auto index = parameter->index();
+  if (index < 0 || index >= static_cast<int>(templateParams_.size())) return -1;
+
+  return index;
+}
+
+auto TemplateArgumentDeduction::deduceArrayBound(const Type* P, const Type* A)
+    -> bool {
+  auto unresolvedParam =
+      type_cast<UnresolvedBoundedArrayType>(unit_->typeTraits().remove_cv(P));
+  if (!unresolvedParam) return false;
+
+  auto boundedArg =
+      type_cast<BoundedArrayType>(unit_->typeTraits().remove_cv(A));
+  if (!boundedArg) return false;
+
+  auto index = nonTypeParameterIndex(unresolvedParam->size());
+  if (index < 0) return false;
+
+  const auto bound = static_cast<std::uint64_t>(boundedArg->size());
+
+  if (deducedValues_[index] && *deducedValues_[index] != bound) return false;
+  deducedValues_[index] = bound;
+
+  return deduceTypeFromType(unresolvedParam->elementType(),
+                            boundedArg->elementType());
+}
+
 auto TemplateArgumentDeduction::checkDeducedArguments() -> bool {
   for (int i = 0; i < static_cast<int>(templateParams_.size()); ++i) {
     if (templateParams_[i].isPack) continue;
     if (templateParams_[i].hasDefault) continue;
     if (explicitParamArg_[i]) continue;
+    if (deducedValues_[i]) continue;
     if (!deducedTypes_[i]) return false;
   }
   return true;
@@ -501,6 +541,19 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
       if (!isExplicitArgumentCompatible(templateParams_[i], explicitArg))
         return std::nullopt;
       *argListIt = make_list_node<TemplateArgumentAST>(arena_, explicitArg);
+      argListIt = &(*argListIt)->next;
+      continue;
+    }
+
+    if (!deducedTypes_[i] && deducedValues_[i]) {
+      auto literal =
+          control_->integerLiteral(std::to_string(*deducedValues_[i]));
+      auto value = IntLiteralExpressionAST::create(
+          arena_, literal, ValueCategory::kPrValue, control_->getSizeType());
+
+      auto exprArg = ExpressionTemplateArgumentAST::create(arena_);
+      exprArg->expression = value;
+      *argListIt = make_list_node<TemplateArgumentAST>(arena_, exprArg);
       argListIt = &(*argListIt)->next;
       continue;
     }

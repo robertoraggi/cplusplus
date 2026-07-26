@@ -254,6 +254,10 @@ struct TypeChecker::Visitor {
 
   [[nodiscard]] auto type_info_type(SourceLocation loc) -> const Type*;
 
+  [[nodiscard]] auto comparison_category_type(SourceLocation loc,
+                                              std::string_view name)
+      -> const Type*;
+
   StandardConversion stdconv_{check.unit_,
                               check.unit_->language() == LanguageKind::kC};
 
@@ -324,6 +328,9 @@ struct TypeChecker::Visitor {
   void check_unary_promote(UnaryExpressionAST* ast);
   void check_shift(BinaryExpressionAST* ast);
   void check_relational(BinaryExpressionAST* ast);
+  void check_three_way_comparison(BinaryExpressionAST* ast);
+  [[nodiscard]] auto rewrite_not_equal_as_negated_equal(
+      BinaryExpressionAST* ast) -> bool;
   void check_equality(BinaryExpressionAST* ast);
   void prepare_comparison_operands(BinaryExpressionAST* ast);
   void set_base_symbol(ExpressionAST* base, Symbol* sym);
@@ -1659,7 +1666,10 @@ void TypeChecker::Visitor::check_call_arguments(
             std::format("invalid argument of type '{}' for parameter of type "
                         "'{}'",
                         to_string(it->value->type), to_string(targetType)));
+      continue;
     }
+
+    check.reportDeletedConversion(it->value);
   }
 }
 
@@ -2233,12 +2243,18 @@ void TypeChecker::Visitor::resolveBuiltinLibcall(CallExpressionAST* ast) {
   auto kind = nameId->identifier->builtinFunction();
   if (kind == BuiltinFunctionKind::T_NONE) return;
 
-  if (kind == BuiltinFunctionKind::T___BUILTIN_OPERATOR_DELETE) {
+  const auto isOperatorNew =
+      kind == BuiltinFunctionKind::T___BUILTIN_OPERATOR_NEW;
+
+  if (isOperatorNew ||
+      kind == BuiltinFunctionKind::T___BUILTIN_OPERATOR_DELETE) {
     std::vector<const Type*> argumentTypes;
     for (auto it = ast->expressionList; it; it = it->next)
       argumentTypes.push_back(it->value ? it->value->type : nullptr);
     ast->constructorSymbol =
-        resolveBuiltinOperatorDelete(check.unit_, argumentTypes);
+        isOperatorNew
+            ? resolveBuiltinOperatorNew(check.unit_, argumentTypes)
+            : resolveBuiltinOperatorDelete(check.unit_, argumentTypes);
     return;
   }
 
@@ -3064,6 +3080,65 @@ void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {
   ast->valueCategory = ValueCategory::kPrValue;
 }
 
+auto TypeChecker::Visitor::comparison_category_type(SourceLocation loc,
+                                                    std::string_view name)
+    -> const Type* {
+  Symbol* categorySymbol = nullptr;
+
+  auto stdId = control()->getIdentifier("std");
+  if (auto stdNamespace =
+          symbol_cast<NamespaceSymbol>(qualifiedLookup(globalScope(), stdId))) {
+    categorySymbol =
+        qualifiedLookup(stdNamespace, control()->getIdentifier(name),
+                        [](Symbol* s) { return is_type(s); });
+  }
+
+  const Type* categoryType = nullptr;
+  if (categorySymbol) {
+    categoryType = type_cast<ClassType>(
+        check.unit_->typeTraits().remove_cv(categorySymbol->type()));
+  }
+
+  if (!categoryType) {
+    error(loc, "you need to include <compare> before using the '<=>' operator");
+    return nullptr;
+  }
+
+  return categoryType;
+}
+
+void TypeChecker::Visitor::check_three_way_comparison(
+    BinaryExpressionAST* ast) {
+  ast->valueCategory = ValueCategory::kPrValue;
+
+  auto traits = check.unit_->typeTraits();
+
+  auto leftType = traits.remove_cvref(ast->leftExpression->type);
+  auto rightType = traits.remove_cvref(ast->rightExpression->type);
+
+  if (traits.is_pointer(leftType) && traits.is_pointer(rightType)) {
+    ast->type = comparison_category_type(ast->opLoc, "strong_ordering");
+    return;
+  }
+
+  auto commonType = stdconv_.usualArithmeticConversion(ast->leftExpression,
+                                                       ast->rightExpression);
+
+  if (!commonType) {
+    error(ast->firstSourceLocation(),
+          std::format("invalid operands to binary expression ('{}' and '{}')",
+                      to_string(ast->leftExpression->type),
+                      to_string(ast->rightExpression->type)));
+    return;
+  }
+
+  const auto category = traits.is_floating_point(commonType)
+                            ? std::string_view{"partial_ordering"}
+                            : std::string_view{"strong_ordering"};
+
+  ast->type = comparison_category_type(ast->opLoc, category);
+}
+
 auto TypeChecker::Visitor::type_info_type(SourceLocation loc) -> const Type* {
   Symbol* typeInfoSymbol = nullptr;
 
@@ -3601,6 +3676,8 @@ void TypeChecker::Visitor::operator()(ImplicitCastExpressionAST* ast) {
     if (sequence.kind == ConversionSequenceKind::kUserDefined) {
       stdconv_.recordUserDefinedConversion(
           ast, sequence.userDefinedConversionFunction);
+    } else {
+      (void)stdconv_.recordClassCopyConstructor(ast);
     }
   } else if (!ast->type || is_dependent_type(ast->type)) {
     ast->type = ast->expression->type;
@@ -3697,10 +3774,50 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
                     to_string(ast->rightExpression->type)));
 }
 
+auto TypeChecker::Visitor::rewrite_not_equal_as_negated_equal(
+    BinaryExpressionAST* ast) -> bool {
+  if (isC()) return false;
+  if (ast->op != TokenKind::T_EXCLAIM_EQUAL) return false;
+
+  auto boolType = control()->getBoolType();
+
+  auto equalExpression = BinaryExpressionAST::create(check.unit_->arena());
+  equalExpression->leftExpression = ast->leftExpression;
+  equalExpression->opLoc = ast->opLoc;
+  equalExpression->rightExpression = ast->rightExpression;
+  equalExpression->op = TokenKind::T_EQUAL_EQUAL;
+  equalExpression->type = boolType;
+  equalExpression->valueCategory = ValueCategory::kPrValue;
+
+  if (!resolve_binary_overload(equalExpression, false)) return false;
+  if (!equalExpression->symbol) return false;
+
+  ExpressionAST* comparison = equalExpression;
+  if (!implicit_conversion(comparison, boolType)) return false;
+
+  auto negated = BoolLiteralExpressionAST::create(check.unit_->arena());
+  negated->literalLoc = ast->opLoc;
+  negated->isTrue = false;
+  negated->type = boolType;
+  negated->valueCategory = ValueCategory::kPrValue;
+
+  ast->leftExpression = comparison;
+  ast->rightExpression = negated;
+  ast->op = TokenKind::T_EQUAL_EQUAL;
+  ast->symbol = nullptr;
+  ast->isVirtualDispatch = false;
+  ast->type = boolType;
+  ast->valueCategory = ValueCategory::kPrValue;
+
+  return true;
+}
+
 void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
   ast->type = control()->getBoolType();
 
   if (resolve_binary_overload(ast, false)) return;
+
+  if (rewrite_not_equal_as_negated_equal(ast)) return;
 
   prepare_comparison_operands(ast);
 
@@ -3816,9 +3933,8 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
       break;
 
     case TokenKind::T_LESS_EQUAL_GREATER:
-      (void)stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                               ast->rightExpression);
-      ast->type = control()->getIntType();
+      if (resolve_binary_overload(ast)) break;
+      check_three_way_comparison(ast);
       break;
 
     case TokenKind::T_LESS_EQUAL:
@@ -3911,12 +4027,7 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
     return;
   }
 
-  if (!implicit_conversion(ast->condition, control()->getBoolType())) {
-    error(ast->condition->firstSourceLocation(),
-          std::format("invalid condition expression of type '{}'",
-                      to_string(ast->condition->type)));
-    return;
-  }
+  if (!check.check_bool_condition(ast->condition)) return;
 
   auto check_void_type = [&] {
     if (!check.unit_->typeTraits().is_void(ast->iftrueExpression->type) &&
@@ -4316,24 +4427,8 @@ void TypeChecker::Visitor::operator()(ConditionExpressionAST* ast) {
   }
 
   if (report_unresolved_id(ast->initializer)) return;
-  if (!ast->initializer->type) return;
 
-  if (is_dependent_type(ast->initializer->type)) {
-    ast->type = control()->getBoolType();
-    ast->valueCategory = ValueCategory::kPrValue;
-    return;
-  }
-
-  auto condition = ast->initializer;
-  if (!implicit_conversion(condition, control()->getBoolType())) {
-    error(ast->initializer->firstSourceLocation(),
-          std::format("invalid condition expression of type '{}'",
-                      to_string(ast->initializer->type)));
-    return;
-  }
-
-  ast->type = control()->getBoolType();
-  ast->valueCategory = ValueCategory::kPrValue;
+  check.check_condition_declaration(ast);
 }
 
 void TypeChecker::Visitor::operator()(EqualInitializerAST* ast) {
@@ -4653,6 +4748,19 @@ void TypeChecker::check_mem_initializers(
       memInit->constructor = check_class_initializer(
           targetType, initializer, memInit->firstSourceLocation(),
           memInitArguments);
+    } else if (unit_->typeTraits().is_array(targetType)) {
+      auto braced = ast_cast<BracedMemInitializerAST>(memInit);
+      auto paren = ast_cast<ParenMemInitializerAST>(memInit);
+
+      const auto valueInitialized = paren && !paren->expressionList;
+
+      if (braced && braced->bracedInitList) {
+        check_braced_init_list(targetType, braced->bracedInitList);
+      } else if (!valueInitialized) {
+        error(memInit->firstSourceLocation(),
+              "an array member must be initialized with a braced "
+              "initializer list");
+      }
     } else {
       if (args.size() == 1) {
         (void)implicit_conversion(*args[0], targetType);
@@ -4737,6 +4845,40 @@ void TypeChecker::check_mem_initializers(
 
     if (auto ctor = field->constructor())
       return makeInit(ctor, make_list_node<ExpressionAST>(pool, expr));
+
+    return nullptr;
+  };
+
+  auto makeNsdmiInit =
+      [&](FieldSymbol* field,
+          ExpressionAST* initializer) -> ParenMemInitializerAST* {
+    if (type_cast<ClassType>(traits.remove_cv(field->type())))
+      return makeClassNsdmiInit(field, initializer);
+
+    if (auto braced = ast_cast<BracedInitListAST>(initializer);
+        braced && !braced->type) {
+      braced->type = field->type();
+    }
+
+    return ParenMemInitializerAST::create(
+        pool, /*nestedNameSpecifier=*/nullptr, /*unqualifiedId=*/nullptr,
+        make_list_node<ExpressionAST>(pool, initializer),
+        /*symbol=*/field, /*constructor=*/nullptr);
+  };
+
+  auto makeAnonymousUnionInit =
+      [&](FieldSymbol* field) -> ParenMemInitializerAST* {
+    auto unionType = type_cast<ClassType>(traits.remove_cv(field->type()));
+    if (!unionType || !unionType->symbol()) return nullptr;
+
+    auto unionSymbol = unionType->symbol()->resolvedDefinition();
+    if (!unionSymbol->isUnion() || unionSymbol->name()) return nullptr;
+
+    for (auto member :
+         cxx::views::members(unionSymbol) | cxx::views::non_static_fields) {
+      if (auto initializer = member->initializer())
+        return makeNsdmiInit(member, initializer);
+    }
 
     return nullptr;
   };
@@ -4826,6 +4968,11 @@ void TypeChecker::check_mem_initializers(
         }
       }
       if (placedAnonymousMember) continue;
+
+      if (auto anonymousInit = makeAnonymousUnionInit(field)) {
+        append(anonymousInit);
+        continue;
+      }
     }
 
     if (classSymbol->isUnion()) continue;
@@ -4836,19 +4983,7 @@ void TypeChecker::check_mem_initializers(
     ParenMemInitializerAST* syntheticInit = nullptr;
 
     if (auto initializer = field->initializer()) {
-      if (type_cast<ClassType>(fieldType)) {
-        syntheticInit = makeClassNsdmiInit(field, initializer);
-      } else {
-        if (auto braced = ast_cast<BracedInitListAST>(initializer);
-            braced && !braced->type) {
-          braced->type = field->type();
-        }
-
-        syntheticInit = ParenMemInitializerAST::create(
-            pool, /*nestedNameSpecifier=*/nullptr, /*unqualifiedId=*/nullptr,
-            make_list_node<ExpressionAST>(pool, initializer),
-            /*symbol=*/field, /*constructor=*/nullptr);
-      }
+      syntheticInit = makeNsdmiInit(field, initializer);
     } else if (auto classType = type_cast<ClassType>(fieldType)) {
       auto fieldClassSymbol = classType->symbol();
       if (!fieldClassSymbol || !fieldClassSymbol->name()) continue;
@@ -5409,6 +5544,9 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
 
     if (symbol->isEnumerator()) {
       ast->valueCategory = ValueCategory::kPrValue;
+    } else if (check.unit_->typeTraits().is_reference(symbol->type())) {
+      ast->type = check.unit_->typeTraits().remove_reference(symbol->type());
+      ast->valueCategory = ValueCategory::kLValue;
     } else {
       if (is_lvalue(ast->baseExpression) ||
           ast->accessOp == TokenKind::T_MINUS_GREATER) {
@@ -5533,8 +5671,63 @@ void TypeChecker::check_return_statement(ReturnStatementAST* ast) {
       isDependent(unit_, ast->expression->type))
     return;
 
+  treatMoveEligibleOperandAsRvalue(ast->expression, functionScope, targetType);
+
   auto seq = checkImplicitConversion(ast->expression, targetType);
   applyImplicitConversion(seq, ast->expression);
+  reportDeletedConversion(ast->expression);
+}
+
+auto TypeChecker::isMoveEligibleOperand(ExpressionAST* expr,
+                                        ScopeSymbol* functionScope) const
+    -> bool {
+  if (!expr || !functionScope) return false;
+  if (expr->valueCategory != ValueCategory::kLValue) return false;
+  if (!unit_->typeTraits().is_class(expr->type)) return false;
+
+  auto idExpression = ast_cast<IdExpressionAST>(expr);
+  if (!idExpression || idExpression->nestedNameSpecifier) return false;
+
+  auto symbol = idExpression->symbol;
+  if (auto var = symbol_cast<VariableSymbol>(symbol)) {
+    if (var->isStatic() || var->isExtern() || var->isThreadLocal())
+      return false;
+  } else if (!symbol_cast<ParameterSymbol>(symbol)) {
+    return false;
+  }
+
+  if (unit_->typeTraits().is_reference(symbol->type())) return false;
+  if (unit_->typeTraits().is_volatile(symbol->type())) return false;
+
+  for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
+    if (scope == functionScope) return true;
+    if (scope->isFunction() || scope->isLambda()) return false;
+    if (scope->isClass() || scope->isNamespace()) return false;
+  }
+
+  return false;
+}
+
+void TypeChecker::treatMoveEligibleOperandAsRvalue(ExpressionAST*& expr,
+                                                   ScopeSymbol* functionScope,
+                                                   const Type* targetType) {
+  if (!isMoveEligibleOperand(expr, functionScope)) return;
+
+  auto cast = ImplicitCastExpressionAST::create(unit_->arena());
+  cast->castKind = ImplicitCastKind::kIdentity;
+  cast->expression = expr;
+  cast->type = expr->type;
+  cast->valueCategory = ValueCategory::kXValue;
+
+  Visitor visitor{*this};
+  auto constructor = visitor.stdconv_.selectCopyConstructor(cast, targetType);
+  if (!constructor) return;
+
+  auto params = StandardConversion::parameters(constructor);
+  if (params.empty()) return;
+  if (!type_cast<RvalueReferenceType>(params[0]->type())) return;
+
+  expr = cast;
 }
 
 auto TypeChecker::implicit_conversion(ExpressionAST*& yyast,
@@ -5543,22 +5736,52 @@ auto TypeChecker::implicit_conversion(ExpressionAST*& yyast,
   return visitor.implicit_conversion(yyast, targetType);
 }
 
-void TypeChecker::check_bool_condition(ExpressionAST*& expr) {
-  if (expr && expr->type && isDependent(unit_, expr->type)) return;
+auto TypeChecker::check_bool_condition(ExpressionAST*& expr) -> bool {
+  if (!expr || !expr->type) return false;
+  if (isDependent(unit_, expr->type)) return true;
+
+  auto conditionType = expr->type;
+
   Visitor visitor{*this};
-  (void)visitor.implicit_conversion(expr, unit_->control()->getBoolType());
+  if (visitor.implicit_conversion(expr, unit_->control()->getBoolType()))
+    return true;
+
+  error(expr->firstSourceLocation(),
+        std::format("invalid condition expression of type '{}'",
+                    to_string(conditionType)));
+  return false;
 }
 
 void TypeChecker::check_integral_condition(ExpressionAST*& expr) {
-  if (expr && expr->type && isDependent(unit_, expr->type)) return;
-  auto control = unit_->control();
-  if (!unit_->typeTraits().is_integral(expr->type) &&
-      !unit_->typeTraits().is_enum(expr->type))
-    return;
+  if (!expr || !expr->type) return;
+  if (isDependent(unit_, expr->type)) return;
+
+  auto traits = unit_->typeTraits();
   Visitor visitor{*this};
+
+  auto conditionType = expr->type;
+
+  if (traits.is_class(traits.remove_cv(conditionType)))
+    (void)visitor.stdconv_.convertClassOperandForBuiltinOperator(expr);
+
+  if (!traits.is_integral(expr->type) && !traits.is_enum(expr->type)) {
+    error(expr->firstSourceLocation(),
+          std::format("condition of type '{}' is not of integral or "
+                      "enumeration type",
+                      to_string(conditionType)));
+    return;
+  }
+
   (void)visitor.stdconv_.lvalueToRvalue(expr);
   visitor.stdconv_.adjustCv(expr);
   (void)visitor.stdconv_.integralPromotion(expr);
+}
+
+void TypeChecker::reportDeletedConversion(ExpressionAST* expr) {
+  auto cast = ast_cast<ImplicitCastExpressionAST>(expr);
+  if (!cast) return;
+  if (cast->castKind != ImplicitCastKind::kUserDefinedConversion) return;
+  reportDeletedFunction(cast->conversionFunction, expr->firstSourceLocation());
 }
 
 void TypeChecker::reportDeletedFunction(FunctionSymbol* function,

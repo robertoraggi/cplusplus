@@ -219,7 +219,8 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto codegenBuiltinCountZerosGeneric(CallExpressionAST* ast)
       -> ExpressionResult;
 
-  auto emitClassConstruction(SourceLocation loc, const Type* classType,
+  auto emitClassConstruction(ExpressionAST* ast, SourceLocation loc,
+                             const Type* classType,
                              List<ExpressionAST*>* argList,
                              FunctionSymbol* constructorSymbol = nullptr)
       -> ExpressionResult;
@@ -271,6 +272,7 @@ void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
       auto nextBlock = newBlock();
       condition(binop->leftExpression, nextBlock, falseBlock);
       builder_.setInsertionPointToEnd(nextBlock);
+      auto conditionalEvaluation = ConditionalEvaluation{*this};
       condition(binop->rightExpression, trueBlock, falseBlock);
       return;
     }
@@ -279,6 +281,7 @@ void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
       auto nextBlock = newBlock();
       condition(binop->leftExpression, trueBlock, nextBlock);
       builder_.setInsertionPointToEnd(nextBlock);
+      auto conditionalEvaluation = ConditionalEvaluation{*this};
       condition(binop->rightExpression, trueBlock, falseBlock);
       return;
     }
@@ -286,20 +289,31 @@ void Codegen::condition(ExpressionAST* ast, mlir::Block* trueBlock,
 
   const auto loc = getLocation(ast->firstSourceLocation());
   auto value = expression(ast);
-  auto val = value.value;
 
-  if (auto ptrType = mlir::dyn_cast<mlir::cxx::PointerType>(val.getType())) {
-    auto nullOp = mlir::cxx::NullPtrConstantOp::create(builder_, loc, ptrType);
-    auto i1Type = mlir::IntegerType::get(context_, 1);
-    auto ptrIntTy = builder_.getI64Type();
-    auto lhsInt = mlir::cxx::PtrToIntOp::create(builder_, loc, ptrIntTy, val);
-    auto rhsInt = mlir::cxx::PtrToIntOp::create(builder_, loc, ptrIntTy,
-                                                nullOp.getResult());
-    val = mlir::arith::CmpIOp::create(
-        builder_, loc, mlir::arith::CmpIPredicate::ne, lhsInt, rhsInt);
-  }
+  mlir::cf::CondBranchOp::create(builder_, loc, value.value, trueBlock,
+                                 falseBlock);
+}
 
-  mlir::cf::CondBranchOp::create(builder_, loc, val, trueBlock, falseBlock);
+void Codegen::conditionWithCleanups(ExpressionAST* ast, mlir::Block* trueBlock,
+                                    mlir::Block* falseBlock) {
+  if (!ast) return;
+
+  const auto outerDepth = cleanupStack_.size();
+  const auto endLoc = ast->lastSourceLocation();
+
+  auto trueCleanupBlock = newBlock();
+  auto falseCleanupBlock = newBlock();
+
+  pushFullExpressionCleanup();
+  condition(ast, trueCleanupBlock, falseCleanupBlock);
+
+  builder_.setInsertionPointToEnd(trueCleanupBlock);
+  emitBranchWithCleanups(endLoc, trueBlock, outerDepth);
+
+  builder_.setInsertionPointToEnd(falseCleanupBlock);
+  emitBranchWithCleanups(endLoc, falseBlock, outerDepth);
+
+  popCleanup(endLoc);
 }
 
 auto Codegen::newInitializer(NewInitializerAST* ast) -> NewInitializerResult {
@@ -564,6 +578,12 @@ auto Codegen::ExpressionVisitor::operator()(NestedStatementExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(NestedExpressionAST* ast)
     -> ExpressionResult {
+  if (auto object = gen.takeResultObject(ast)) {
+    (void)gen.emitPrvalueInto(object, ast->type, ast->expression,
+                              ast->firstSourceLocation());
+    return {object};
+  }
+
   return gen.expression(ast->expression, format);
 }
 
@@ -1041,7 +1061,7 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   FunctionSymbol* functionSymbol = nullptr;
   if (id) {
     if (auto classSym = symbol_cast<ClassSymbol>(id->symbol)) {
-      return emitClassConstruction(ast->lparenLoc, classSym->type(),
+      return emitClassConstruction(ast, ast->lparenLoc, classSym->type(),
                                    ast->expressionList, ast->constructorSymbol);
     }
     if (functionSymbol = symbol_cast<FunctionSymbol>(id->symbol)) {
@@ -1059,12 +1079,7 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
           }
         }
 
-        auto thisPtrType = gen.convertType(
-            gen.control()->getPointerType(currentClass->type()));
-        auto loadedThis = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, thisPtrType, gen.thisValue_,
-            gen.getAlignment(
-                gen.control()->getPointerType(currentClass->type())));
+        auto loadedThis = gen.loadThisPointer(loc, currentClass);
 
         auto adjustedThis = gen.emitBaseClassAddress(loc, loadedThis,
                                                      currentClass, classSymbol);
@@ -1126,8 +1141,14 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   const bool isVirtualCall =
       ast->isVirtualDispatch && functionSymbol && thisValue.value;
 
-  return gen.emitCall(ast->lparenLoc, functionType, functionSymbol,
-                      isVirtualCall, thisValue, std::move(callArguments));
+  const bool returnsIndirectly =
+      gen.classifyClassValueAbi(functionType->returnType()).kind ==
+      ClassValueAbi::Kind::Indirect;
+
+  return gen.emitCall(
+      ast->lparenLoc, functionType, functionSymbol, isVirtualCall, thisValue,
+      std::move(callArguments),
+      returnsIndirectly ? gen.takeResultObject(ast) : mlir::Value{});
 }
 
 auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
@@ -1142,7 +1163,7 @@ auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   if (gen.unit_->typeTraits().is_class(targetType)) {
-    return emitClassConstruction(ast->firstSourceLocation(), targetType,
+    return emitClassConstruction(ast, ast->firstSourceLocation(), targetType,
                                  ast->expressionList, ast->constructorSymbol);
   }
 
@@ -1219,7 +1240,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
   if (gen.unit_->typeTraits().is_class(targetType)) {
     if (ast->constructorSymbol) {
       return emitClassConstruction(
-          ast->firstSourceLocation(), targetType,
+          ast, ast->firstSourceLocation(), targetType,
           ast->bracedInitList ? ast->bracedInitList->expressionList : nullptr,
           ast->constructorSymbol);
     }
@@ -1368,11 +1389,7 @@ auto Codegen::ExpressionVisitor::emitThisFieldAddress(FieldSymbol* field,
     }
   }
 
-  auto thisPtrType =
-      gen.convertType(gen.control()->getPointerType(currentClass->type()));
-  auto thisPtr = mlir::cxx::LoadOp::create(
-      gen.builder_, loc, thisPtrType, gen.thisValue_,
-      gen.getAlignment(gen.control()->getPointerType(currentClass->type())));
+  auto thisPtr = gen.loadThisPointer(loc, currentClass);
 
   auto adjustedThis =
       gen.navigateToClass(loc, thisPtr, currentClass, classSymbol);
@@ -2708,18 +2725,13 @@ auto Codegen::ExpressionVisitor::emitUserDefinedConversion(
   }
 
   if (function->isConstructor()) {
-    auto temp = gen.newTemp(ast->type, ast->firstSourceLocation());
-    std::vector<ExpressionResult> args;
-    if (auto paren = ast_cast<ParenInitializerAST>(ast->expression)) {
-      for (auto it = paren->expressionList; it; it = it->next)
-        args.push_back(gen.expression(it->value));
-    } else {
-      args.push_back(gen.expression(ast->expression));
+    auto paren = ast_cast<ParenInitializerAST>(ast->expression);
+    if (!paren) {
+      return {gen.emitTodoExpr(ast->firstSourceLocation(),
+                               "user-defined conversion: no argument list")};
     }
-    (void)gen.emitCtorCall(ast->firstSourceLocation(), function,
-                           temp.getResult(), args,
-                           /*completeObject=*/true);
-    return ExpressionResult{temp.getResult()};
+    return emitClassConstruction(ast, ast->firstSourceLocation(), ast->type,
+                                 paren->expressionList, function);
   }
 
   auto exprResult = gen.expression(ast->expression);
@@ -2816,7 +2828,13 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     -> ExpressionResult {
   if (ast->op == TokenKind::T_COMMA) {
+    auto object = gen.takeResultObject(ast);
     (void)gen.expression(ast->leftExpression, ExpressionFormat::kSideEffect);
+    if (object) {
+      (void)gen.emitPrvalueInto(object, ast->type, ast->rightExpression,
+                                ast->opLoc);
+      return {object};
+    }
     return gen.expression(ast->rightExpression, format);
   }
 
@@ -2836,7 +2854,10 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     gen.condition(ast->leftExpression, trueBlock, continueBlock);
 
     gen.builder_.setInsertionPointToEnd(continueBlock);
-    gen.condition(ast->rightExpression, trueBlock, falseBlock);
+    {
+      auto conditionalEvaluation = ConditionalEvaluation{gen};
+      gen.condition(ast->rightExpression, trueBlock, falseBlock);
+    }
 
     gen.builder_.setInsertionPointToEnd(trueBlock);
 
@@ -2884,7 +2905,10 @@ auto Codegen::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
     gen.condition(ast->leftExpression, continueBlock, falseBlock);
 
     gen.builder_.setInsertionPointToEnd(continueBlock);
-    gen.condition(ast->rightExpression, trueBlock, falseBlock);
+    {
+      auto conditionalEvaluation = ConditionalEvaluation{gen};
+      gen.condition(ast->rightExpression, trueBlock, falseBlock);
+    }
 
     gen.builder_.setInsertionPointToEnd(trueBlock);
 
@@ -3338,6 +3362,12 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
 
   const bool isVoid = gen.unit_->typeTraits().is_void(ast->type);
 
+  const bool sharesResultObject =
+      !isVoid && ast->valueCategory == ValueCategory::kPrValue &&
+      gen.unit_->typeTraits().is_class(ast->type);
+
+  auto object = sharesResultObject ? gen.takeResultObject(ast) : mlir::Value{};
+
   mlir::Value t;
   const Type* type = nullptr;
   if (!isVoid) {
@@ -3345,7 +3375,7 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
     if (ast->valueCategory != ValueCategory::kPrValue) {
       type = control()->getPointerType(type);
     }
-    t = gen.newTemp(type, ast->questionLoc);
+    t = object ? object : gen.newTemp(type, ast->questionLoc).getResult();
   }
 
   gen.condition(ast->condition, trueBlock, falseBlock);
@@ -3365,23 +3395,32 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
     return {};
   }
 
-  gen.builder_.setInsertionPointToEnd(trueBlock);
-  auto trueExpressionResult = gen.expression(ast->iftrueExpression);
-  mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->questionLoc),
-                             trueExpressionResult.value, t,
-                             gen.getAlignment(type));
-  gen.branch(endLoc, endBlock);
+  if (sharesResultObject && !object) gen.addTemporaryCleanup(t, type);
 
-  gen.builder_.setInsertionPointToEnd(falseBlock);
-  auto falseExpressionResult = gen.expression(ast->iffalseExpression);
-  mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(ast->colonLoc),
-                             falseExpressionResult.value, t,
-                             gen.getAlignment(type));
-  gen.branch(endLoc, endBlock);
+  auto emitArm = [&](ExpressionAST* arm, mlir::Block* armBlock,
+                     SourceLocation storeLoc) {
+    gen.builder_.setInsertionPointToEnd(armBlock);
+    auto conditionalEvaluation = ConditionalEvaluation{gen};
+
+    if (sharesResultObject) {
+      (void)gen.emitPrvalueInto(t, type, arm, storeLoc);
+    } else {
+      auto armResult = gen.expression(arm);
+      mlir::cxx::StoreOp::create(gen.builder_, gen.getLocation(storeLoc),
+                                 armResult.value, t, gen.getAlignment(type));
+    }
+
+    gen.branch(endLoc, endBlock);
+  };
+
+  emitArm(ast->iftrueExpression, trueBlock, ast->questionLoc);
+  emitArm(ast->iffalseExpression, falseBlock, ast->colonLoc);
 
   gen.builder_.setInsertionPointToEnd(endBlock);
 
   if (format == ExpressionFormat::kSideEffect) return {};
+
+  if (sharesResultObject) return {t};
 
   auto resultType = gen.convertType(type);
   auto loadOp =
@@ -3691,8 +3730,9 @@ auto Codegen::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
   auto var = ast->symbol;
   if (!var) return {};
 
+  gen.emitLocalVariableInit(var, ast->initializer);
+
   auto local = gen.findOrCreateLocal(var);
-  const auto loc = gen.getLocation(ast->firstSourceLocation());
 
   if (!local.has_value()) {
     gen.unit_->error(
@@ -3701,59 +3741,7 @@ auto Codegen::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     return {};
   }
 
-  if (gen.unit_->typeTraits().is_array(var->type())) {
-    gen.arrayInit(local.value(), var->type(), ast->initializer);
-  } else if (gen.unit_->typeTraits().is_class(var->type())) {
-    if (auto ctor = var->constructor()) {
-      std::vector<ExpressionResult> args;
-      if (ast->initializer) {
-        if (auto paren = ast_cast<ParenInitializerAST>(ast->initializer)) {
-          for (auto it = paren->expressionList; it; it = it->next) {
-            args.push_back(gen.expression(it->value));
-          }
-        } else if (auto braced =
-                       ast_cast<BracedInitListAST>(ast->initializer)) {
-          for (auto it = braced->expressionList; it; it = it->next) {
-            args.push_back(gen.expression(it->value));
-          }
-        } else if (auto equal =
-                       ast_cast<EqualInitializerAST>(ast->initializer)) {
-          args.push_back(gen.expression(equal->expression));
-        }
-      }
-      (void)gen.emitCtorCall(ast->initializer
-                                 ? ast->initializer->firstSourceLocation()
-                                 : var->location(),
-                             ctor, local.value(), args,
-                             /*completeObject=*/true);
-    } else {
-      if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
-        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
-          braced->type = var->type();
-        }
-      }
-    }
-  } else {
-    if (ast->initializer) {
-      if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
-        auto expressionResult = gen.expression(equal->expression);
-        mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
-                                   local.value(),
-                                   gen.getAlignment(var->type()));
-      } else {
-        auto expressionResult = gen.expression(ast->initializer);
-        mlir::cxx::StoreOp::create(gen.builder_, loc, expressionResult.value,
-                                   local.value(),
-                                   gen.getAlignment(var->type()));
-      }
-    }
-  }
-
-  auto type = gen.convertType(var->type());
-  auto val = mlir::cxx::LoadOp::create(gen.builder_, loc, type, local.value(),
-                                       gen.getAlignment(var->type()));
-
-  return {val};
+  return {local.value()};
 }
 
 auto Codegen::ExpressionVisitor::operator()(EqualInitializerAST* ast)
@@ -3962,6 +3950,10 @@ void Codegen::emitAggregateInit(mlir::Value address, const Type* type,
         emitDesignatedInit(address, type, desig);
       } else if (unit_->typeTraits().is_array(elementType)) {
         arrayInit(elementAddress, elementType, node);
+      } else if (unit_->typeTraits().is_class_or_union(
+                     unit_->typeTraits().remove_cv(elementType))) {
+        (void)emitPrvalueInto(elementAddress, elementType, node,
+                              node->firstSourceLocation());
       } else {
         auto val = expression(node);
         mlir::cxx::StoreOp::create(builder_, elemLoc, val.value, elementAddress,
@@ -4253,14 +4245,18 @@ void Codegen::emitDesignatedInit(mlir::Value address, const Type* type,
 }
 
 auto Codegen::ExpressionVisitor::emitClassConstruction(
-    SourceLocation loc, const Type* classType, List<ExpressionAST*>* argList,
-    FunctionSymbol* constructorSymbol) -> ExpressionResult {
+    ExpressionAST* ast, SourceLocation loc, const Type* classType,
+    List<ExpressionAST*>* argList, FunctionSymbol* constructorSymbol)
+    -> ExpressionResult {
+  classType = gen.unit_->typeTraits().remove_cv(classType);
+
   auto classT = type_cast<ClassType>(classType);
   if (!classT || !classT->symbol())
     return {gen.emitTodoExpr(loc, "class construction: no class symbol")};
 
-  auto classSymbol = classT->symbol();
-  auto temp = gen.newTemp(classType, loc);
+  auto object = gen.takeResultObject(ast);
+  const bool ownsTemporary = !object;
+  if (ownsTemporary) object = gen.newTemp(classType, loc).getResult();
 
   std::vector<ExpressionResult> args;
   for (auto it = argList; it; it = it->next)
@@ -4268,15 +4264,17 @@ auto Codegen::ExpressionVisitor::emitClassConstruction(
 
   int argCount = static_cast<int>(args.size());
 
+  if (!constructorSymbol && argCount != 0)
+    return {gen.emitTodoExpr(loc, "class construction: no recorded ctor")};
+
   if (constructorSymbol) {
-    (void)gen.emitCtorCall(loc, constructorSymbol, temp.getResult(), args,
+    (void)gen.emitCtorCall(loc, constructorSymbol, object, args,
                            /*completeObject=*/true);
-    return {temp.getResult()};
   }
 
-  if (argCount == 0) return {temp.getResult()};
+  if (ownsTemporary) gen.addTemporaryCleanup(object, classType);
 
-  return {gen.emitTodoExpr(loc, "class construction: no recorded ctor")};
+  return {object};
 }
 
 auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
@@ -4290,8 +4288,8 @@ auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
 auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
                        FunctionSymbol* symbol, bool isVirtualDispatch,
                        ExpressionResult thisValue,
-                       std::vector<ExpressionResult> arguments)
-    -> ExpressionResult {
+                       std::vector<ExpressionResult> arguments,
+                       mlir::Value resultObject) -> ExpressionResult {
   if (!functionType) return {};
 
   auto mlirLoc = getLocation(loc);
@@ -4340,7 +4338,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
       resultTypes.push_back(args[0].getType());
     }
   } else {
-    sretTemp = abiPrepareResult(loc, functionType->returnType(), resultTypes);
+    sretTemp = abiPrepareResult(loc, functionType->returnType(), resultTypes,
+                                resultObject);
   }
 
   if (sretTemp) {
@@ -4408,7 +4407,13 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
 
   if (returnsThis) return {};
 
-  return abiFinishResult(loc, functionType->returnType(), callOp, sretTemp);
+  auto result =
+      abiFinishResult(loc, functionType->returnType(), callOp, sretTemp);
+
+  if (sretTemp && !resultObject)
+    addTemporaryCleanup(sretTemp, functionType->returnType());
+
+  return result;
 }
 
 auto Codegen::emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,

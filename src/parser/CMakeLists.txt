@@ -57,6 +57,7 @@ add_library(cxx-parser
     cxx/binder_range_for.cc
     cxx/binder_structured_bindings.cc
     cxx/bind_class.cc
+    cxx/class_value_abi.cc
     cxx/cli.cc
     cxx/const_value.cc
     cxx/control.cc

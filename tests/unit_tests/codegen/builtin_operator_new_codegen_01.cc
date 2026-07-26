@@ -2,4 +2,4 @@
 
 void* do_new() { return __builtin_operator_new(16); }
 
-// CHECK: cxx.builtin.call "__builtin_operator_new"
+// CHECK: cxx.call @_Znwm

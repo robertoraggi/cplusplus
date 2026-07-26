@@ -137,26 +137,13 @@ void Codegen::resolveLabels() {
     }
   }
 
-  for (auto gotoOp : gotoOps) {
-    auto targetBlock = labels.lookup(gotoOp.getLabel());
-    if (!targetBlock) continue;
-
-    auto labelDepth = labelCleanupDepths.lookup(gotoOp.getLabel());
-    auto addresses = gotoOp.getAddresses();
-    auto destructors = gotoOp.getDestructors();
-    auto depths = gotoOp.getDepths();
-    auto gotoLoc = gotoOp.getLoc();
-
-    rewriter.setInsertionPoint(gotoOp);
-
-    if (auto nextOp = ++gotoOp->getIterator();
-        mlir::isa<mlir::cf::BranchOp>(&*nextOp)) {
-      rewriter.eraseOp(&*nextOp);
-    }
-
+  auto emitCleanupCalls = [&](mlir::Location loc, mlir::ValueRange addresses,
+                              mlir::ArrayAttr destructors,
+                              mlir::ValueRange activeFlags,
+                              llvm::ArrayRef<std::int32_t> activeFlagIndices,
+                              llvm::function_ref<bool(unsigned)> selects) {
     for (unsigned i = 0; i < addresses.size(); ++i) {
-      auto depthAttr = mlir::cast<mlir::IntegerAttr>(depths[i]);
-      if (depthAttr.getValue().getSExtValue() < labelDepth) continue;
+      if (selects && !selects(i)) continue;
 
       auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
       mlir::SmallVector<mlir::Type> resultTypes;
@@ -165,10 +152,59 @@ void Codegen::resolveLabels() {
         auto results = dtorFunc.getFunctionType().getResults();
         resultTypes.append(results.begin(), results.end());
       }
-      mlir::cxx::CallOp::create(rewriter, gotoLoc, resultTypes, dtorRef,
+
+      const auto flagIndex =
+          i < activeFlagIndices.size() ? activeFlagIndices[i] : -1;
+
+      if (flagIndex < 0) {
+        mlir::cxx::CallOp::create(rewriter, loc, resultTypes, dtorRef,
+                                  mlir::ValueRange{addresses[i]},
+                                  mlir::TypeAttr{});
+        continue;
+      }
+
+      auto* currentBlock = rewriter.getInsertionBlock();
+      auto* continueBlock =
+          rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+      auto* destroyBlock = rewriter.createBlock(continueBlock);
+
+      rewriter.setInsertionPointToEnd(destroyBlock);
+      mlir::cxx::CallOp::create(rewriter, loc, resultTypes, dtorRef,
                                 mlir::ValueRange{addresses[i]},
                                 mlir::TypeAttr{});
+      mlir::cf::BranchOp::create(rewriter, loc, continueBlock);
+
+      rewriter.setInsertionPointToEnd(currentBlock);
+      auto flag = mlir::cxx::LoadOp::create(rewriter, loc, rewriter.getI1Type(),
+                                            activeFlags[flagIndex], 1);
+      mlir::cf::CondBranchOp::create(rewriter, loc, flag, destroyBlock,
+                                     continueBlock);
+
+      rewriter.setInsertionPointToStart(continueBlock);
     }
+  };
+
+  for (auto gotoOp : gotoOps) {
+    auto targetBlock = labels.lookup(gotoOp.getLabel());
+    if (!targetBlock) continue;
+
+    auto labelDepth = labelCleanupDepths.lookup(gotoOp.getLabel());
+    auto depths = gotoOp.getDepths();
+
+    rewriter.setInsertionPoint(gotoOp);
+
+    if (auto nextOp = ++gotoOp->getIterator();
+        mlir::isa<mlir::cf::BranchOp>(&*nextOp)) {
+      rewriter.eraseOp(&*nextOp);
+    }
+
+    emitCleanupCalls(gotoOp.getLoc(), gotoOp.getAddresses(),
+                     gotoOp.getDestructors(), gotoOp.getActiveFlags(),
+                     gotoOp.getActiveFlagIndices(), [&](unsigned i) {
+                       auto depthAttr =
+                           mlir::cast<mlir::IntegerAttr>(depths[i]);
+                       return depthAttr.getValue().getSExtValue() >= labelDepth;
+                     });
 
     rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(gotoOp, targetBlock);
   }
@@ -216,20 +252,12 @@ void Codegen::resolveLabels() {
 
   for (auto cbOp : cleanupBranchOps) {
     rewriter.setInsertionPoint(cbOp);
-    auto addresses = cbOp.getAddresses();
-    auto destructors = cbOp.getDestructors();
-    for (unsigned i = 0; i < addresses.size(); ++i) {
-      auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
-      mlir::SmallVector<mlir::Type> resultTypes;
-      if (auto dtorFunc =
-              module_.lookupSymbol<mlir::cxx::FuncOp>(dtorRef.getValue())) {
-        auto results = dtorFunc.getFunctionType().getResults();
-        resultTypes.append(results.begin(), results.end());
-      }
-      mlir::cxx::CallOp::create(rewriter, cbOp.getLoc(), resultTypes, dtorRef,
-                                mlir::ValueRange{addresses[i]},
-                                mlir::TypeAttr{});
-    }
+
+    emitCleanupCalls(cbOp.getLoc(), cbOp.getAddresses(), cbOp.getDestructors(),
+                     cbOp.getActiveFlags(), cbOp.getActiveFlagIndices(),
+                     nullptr);
+
+    rewriter.setInsertionPoint(cbOp);
     rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(cbOp, cbOp.getDest());
   }
 

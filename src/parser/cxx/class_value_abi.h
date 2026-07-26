@@ -20,37 +20,18 @@
 
 #pragma once
 
-#include <cxx/toolchain.h>
-
-#include <optional>
-#include <string>
+#include <cxx/cxx_fwd.h>
+#include <cxx/types_fwd.h>
 
 namespace cxx {
-class Wasm32WasiToolchain final : public Toolchain {
- public:
-  explicit Wasm32WasiToolchain(Preprocessor* preprocessor);
 
-  const std::string& appdir() const;
-  void setAppdir(std::string appdir);
-
-  const std::string& sysroot() const;
-  void setSysroot(std::string sysroot);
-
-  void addSystemIncludePaths() override;
-  void addSystemCppIncludePaths() override;
-  void addPredefinedMacros() override;
-
-  [[nodiscard]] auto linkerFlavor() const -> LinkerFlavor override {
-    return LinkerFlavor::kWasm;
-  }
-  void addLinkerStartArgs(std::vector<std::string>& args) const override;
-  void addLinkerEndArgs(std::vector<std::string>& args) const override;
-
-  void applyEntryPointAbi(TranslationUnit* unit) const override;
-
- private:
-  std::string appdir_;
-  std::string sysroot_;
-  std::optional<int> version_;
+struct ClassValueAbi {
+  enum class Kind { Direct, Empty, Scalar, Indirect };
+  Kind kind = Kind::Direct;
+  const Type* scalarType = nullptr;
 };
+
+[[nodiscard]] auto classifyClassValueAbi(TranslationUnit* unit,
+                                         const Type* type) -> ClassValueAbi;
+
 }  // namespace cxx

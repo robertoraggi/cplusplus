@@ -79,9 +79,6 @@ struct Codegen::MemInitializerVisitor {
   [[nodiscard]] auto emitDelegationOrVirtualBaseInit(
       MemInitializerAST* ast, ClassSymbol* targetClass,
       const std::vector<ExpressionResult>& args) -> MemInitializerResult;
-
-  [[nodiscard]] auto subobjectIndex(ClassSymbol* classSymbol,
-                                    Symbol* symbol) const -> std::optional<int>;
 };
 
 struct Codegen::LambdaCaptureVisitor {
@@ -383,36 +380,6 @@ auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
       ast->bracedInitList ? ast->bracedInitList->expressionList : nullptr);
 }
 
-auto Codegen::MemInitializerVisitor::subobjectIndex(ClassSymbol* classSymbol,
-                                                    Symbol* symbol) const
-    -> std::optional<int> {
-  auto layout = classSymbol->layout();
-
-  if (auto field = symbol_cast<FieldSymbol>(symbol)) {
-    if (layout) {
-      if (auto fi = layout->getFieldInfo(field)) return fi->index;
-    }
-  } else if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
-    if (layout) {
-      if (auto baseSym = symbol_cast<ClassSymbol>(base->symbol())) {
-        if (auto bi = layout->getBaseInfo(baseSym)) return bi->index;
-      }
-    }
-  }
-
-  int index = 0;
-  for (auto base : classSymbol->baseClasses()) {
-    if (base == symbol) return index;
-    ++index;
-  }
-  for (auto field :
-       cxx::views::members(classSymbol) | cxx::views::non_static_fields) {
-    if (field == symbol) return index;
-    ++index;
-  }
-  return std::nullopt;
-}
-
 auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
     MemInitializerAST* ast, ClassSymbol* targetClass,
     const std::vector<ExpressionResult>& args) -> MemInitializerResult {
@@ -423,11 +390,7 @@ auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
                                  : nullptr);
   if (!currentClass || !ast->constructor) return {};
 
-  auto thisPtrType = mlir::cxx::PointerType::get(
-      gen.context_, gen.convertType(currentClass->type()));
-  auto thisPtr = mlir::cxx::LoadOp::create(
-      gen.builder_, loc, thisPtrType, gen.thisValue_,
-      gen.getAlignment(gen.control()->getPointerType(currentClass->type())));
+  auto thisPtr = gen.loadThisPointer(loc, currentClass);
 
   mlir::Value targetPtr = thisPtr;
   if (targetClass != currentClass &&
@@ -486,25 +449,24 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     return emitDelegationOrVirtualBaseInit(ast, targetClass, args);
   }
 
-  auto classSymbol = symbol_cast<ClassSymbol>(symbol->parent());
-  if (!classSymbol) return {};
+  auto declaringClass = symbol_cast<ClassSymbol>(symbol->parent());
+  if (!declaringClass) return {};
   if (!targetType) return {};
 
-  auto index = subobjectIndex(classSymbol, symbol);
-  if (!index) return {};
+  auto classSymbol = symbol_cast<ClassSymbol>(
+      gen.currentFunctionSymbol_ ? gen.currentFunctionSymbol_->parent()
+                                 : nullptr);
+  if (!classSymbol) classSymbol = declaringClass;
 
-  auto thisPtrType = mlir::cxx::PointerType::get(
-      gen.context_, gen.convertType(classSymbol->type()));
+  auto thisPtr = gen.loadThisPointer(loc, classSymbol);
 
-  auto thisPtr = mlir::cxx::LoadOp::create(
-      gen.builder_, loc, thisPtrType, gen.thisValue_,
-      gen.getAlignment(gen.control()->getPointerType(classSymbol->type())));
-
-  auto fieldPtr = gen.memberAddress(loc, thisPtr, targetType, *index);
+  auto fieldPtr = gen.subobjectAddress(loc, thisPtr, classSymbol, symbol);
+  if (!fieldPtr) return {};
 
   if (ast->constructor) {
     (void)gen.emitCtorCall(ast->firstSourceLocation(), ast->constructor,
-                           fieldPtr, args, /*completeObject=*/false);
+                           fieldPtr, args,
+                           symbol_cast<FieldSymbol>(symbol) != nullptr);
     return {};
   }
 
@@ -515,7 +477,7 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
 
   if (args.size() != 1) return {};
 
-  auto layout = classSymbol->layout();
+  auto layout = declaringClass->layout();
   if (auto field = symbol_cast<FieldSymbol>(symbol);
       field && field->isBitField() && layout) {
     if (auto fi = layout->getFieldInfo(field)) {

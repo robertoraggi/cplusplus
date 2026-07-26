@@ -254,6 +254,10 @@ class Control {
                                                SourceLocation sourceLocation)
       -> UsingDeclarationSymbol*;
 
+  [[nodiscard]] auto beginCopyConstructorSelection(ClassSymbol* classSymbol)
+      -> bool;
+  void endCopyConstructorSelection(ClassSymbol* classSymbol);
+
  private:
   struct Private;
   std::unique_ptr<Private> d;

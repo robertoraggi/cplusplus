@@ -169,6 +169,10 @@ template <typename Predicate>
     TranslationUnit* unit, std::span<const Type* const> argumentTypes)
     -> FunctionSymbol*;
 
+[[nodiscard]] auto resolveBuiltinOperatorNew(
+    TranslationUnit* unit, std::span<const Type* const> argumentTypes)
+    -> FunctionSymbol*;
+
 [[nodiscard]] auto resolveBuiltinLibcallSymbol(TranslationUnit* unit,
                                                const char* nameStr,
                                                const FunctionType* funcType)

@@ -78,11 +78,19 @@ struct Frontend::Private {
   std::unique_ptr<llvm::Module> llvmModule_;
 #endif
   bool shouldExit_ = false;
-  bool loweringFailed_ = false;
-  int exitStatus_ = 0;
+  bool failed_ = false;
 
   Private(Frontend& frontend, const CLI& cli, std::string fileName);
   ~Private();
+
+  void fail() {
+    shouldExit_ = true;
+    failed_ = true;
+  }
+
+  void exitIfErrors() {
+    if (diagnosticsClient_->hasErrors()) shouldExit_ = true;
+  }
 
   [[nodiscard]] auto needsIR() const -> bool {
     return cli.opt_emit_cxx_ir || cli.opt_emit_mlir || cli.opt_emit_llvm ||
@@ -169,7 +177,7 @@ auto Frontend::operator()() -> bool {
 
   priv->diagnosticsClient_->verifyExpectedDiagnostics();
 
-  return !priv->diagnosticsClient_->hasErrors() && !priv->loweringFailed_;
+  return !priv->diagnosticsClient_->hasErrors() && !priv->failed_;
 }
 
 Frontend::Private::Private(Frontend& frontend, const CLI& cli,
@@ -191,19 +199,11 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
   actions_.emplace_back([this]() { dumpAst(); });
   actions_.emplace_back([this]() { printAstIfNeeded(); });
   actions_.emplace_back([this]() { serializeAst(); });
-  actions_.emplace_back([this]() {
-    if (diagnosticsClient_->hasErrors()) {
-      shouldExit_ = true;
-      exitStatus_ = EXIT_FAILURE;
-    }
-  });
+  actions_.emplace_back([this]() { exitIfErrors(); });
+  actions_.emplace_back(
+      [this]() { toolchain_->applyEntryPointAbi(unit_.get()); });
   actions_.emplace_back([this]() { generateIR(); });
-  actions_.emplace_back([this]() {
-    if (diagnosticsClient_->hasErrors()) {
-      shouldExit_ = true;
-      exitStatus_ = EXIT_FAILURE;
-    }
-  });
+  actions_.emplace_back([this]() { exitIfErrors(); });
   actions_.emplace_back([this]() { emitCxxIR(); });
   actions_.emplace_back([this]() { lowerIR(); });
   actions_.emplace_back([this]() { emitMLIR(); });
@@ -347,8 +347,7 @@ void Frontend::Private::preprocess() {
   if (!source.has_value()) {
     std::cerr << std::format("cxx: No such file or directory: '{}'\n",
                              fileName_);
-    shouldExit_ = true;
-    exitStatus_ = EXIT_FAILURE;
+    fail();
     return;
   }
 
@@ -770,9 +769,7 @@ void Frontend::Private::lowerIR() {
   }
 
   std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
-  shouldExit_ = true;
-  loweringFailed_ = true;
-  exitStatus_ = EXIT_FAILURE;
+  fail();
   module_ = nullptr;
 #endif
 }
@@ -808,9 +805,7 @@ void Frontend::Private::emitLLVMIR() {
 
   if (!llvmModule_) {
     std::cerr << "cxx: failed to lower MLIR module to LLVM IR" << std::endl;
-    shouldExit_ = true;
-    loweringFailed_ = true;
-    exitStatus_ = EXIT_FAILURE;
+    fail();
     return;
   }
 
@@ -839,9 +834,7 @@ void Frontend::Private::emitCode() {
   if (!target) {
     std::cerr << std::format("cxx: cannot find target for triple '{}': {}\n",
                              triple.getTriple(), error);
-    shouldExit_ = true;
-    loweringFailed_ = true;
-    exitStatus_ = EXIT_FAILURE;
+    fail();
     return;
   }
 
@@ -855,9 +848,7 @@ void Frontend::Private::emitCode() {
   if (!targetMachine) {
     std::cerr << std::format("cxx: cannot create target machine for '{}': {}\n",
                              triple.getTriple(), error);
-    shouldExit_ = true;
-    loweringFailed_ = true;
-    exitStatus_ = EXIT_FAILURE;
+    fail();
     return;
   }
 
@@ -872,9 +863,7 @@ void Frontend::Private::emitCode() {
 
     if (targetMachine->addPassesToEmitFile(pm, out, nullptr, fileType)) {
       std::cerr << "cxx: target machine cannot emit assembly\n";
-      shouldExit_ = true;
-      loweringFailed_ = true;
-      exitStatus_ = EXIT_FAILURE;
+      fail();
       return;
     }
 
@@ -888,9 +877,7 @@ void Frontend::Private::emitCode() {
     if (ec) {
       std::cerr << std::format("cxx: cannot open '{}': {}\n", *objectOutput_,
                                ec.message());
-      shouldExit_ = true;
-      loweringFailed_ = true;
-      exitStatus_ = EXIT_FAILURE;
+      fail();
       return;
     }
     emit(out);

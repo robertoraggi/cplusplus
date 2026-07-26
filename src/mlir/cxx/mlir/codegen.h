@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/class_value_abi.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
@@ -127,6 +128,9 @@ class Codegen {
 
   void condition(ExpressionAST* ast, mlir::Block* trueBlock,
                  mlir::Block* falseBlock);
+
+  void conditionWithCleanups(ExpressionAST* ast, mlir::Block* trueBlock,
+                             mlir::Block* falseBlock);
 
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterResult;
@@ -251,7 +255,9 @@ class Codegen {
 
   void emitAggregateInit(mlir::Value address, const Type* type,
                          BracedInitListAST* ast);
-  void emitLocalVariableInit(VariableSymbol* var, InitDeclaratorAST* node);
+  void emitLocalVariableInit(VariableSymbol* var, ExpressionAST* initializer);
+  void emitReferenceInit(VariableSymbol* var, mlir::Value local,
+                         ExpressionAST* initExpr, mlir::Location loc);
   void emitDesignatedInit(mlir::Value address, const Type* type,
                           DesignatedInitializerClauseAST* ast);
 
@@ -303,17 +309,7 @@ class Codegen {
                                               FunctionSymbol* functionSymbol)
       -> mlir::cxx::FunctionType;
 
-  [[nodiscard]] auto applyEntryPointABI(FunctionSymbol* symbol,
-                                        const FunctionType* functionType)
-      -> mlir::cxx::Visibility;
-
   [[nodiscard]] auto structorReturnsThis(FunctionSymbol* symbol) -> bool;
-
-  struct ClassValueAbi {
-    enum class Kind { Direct, Empty, Scalar, Indirect };
-    Kind kind = Kind::Direct;
-    const Type* scalarType = nullptr;
-  };
 
   [[nodiscard]] auto classifyClassValueAbi(const Type* type) -> ClassValueAbi;
 
@@ -326,7 +322,8 @@ class Codegen {
 
   [[nodiscard]] auto abiPrepareResult(
       SourceLocation loc, const Type* returnType,
-      mlir::SmallVector<mlir::Type>& resultTypes) -> mlir::Value;
+      mlir::SmallVector<mlir::Type>& resultTypes, mlir::Value resultObject = {})
+      -> mlir::Value;
 
   [[nodiscard]] auto abiFinishResult(SourceLocation loc, const Type* returnType,
                                      mlir::cxx::CallOp callOp,
@@ -358,6 +355,51 @@ class Codegen {
   [[nodiscard]] auto memberAddress(mlir::Location loc, mlir::Value objectPtr,
                                    mlir::Type memberType, std::uint32_t index)
       -> mlir::Value;
+
+  [[nodiscard]] auto loadThisPointer(mlir::Location loc,
+                                     ClassSymbol* classSymbol) -> mlir::Value;
+
+  struct ClassSubobjectShape {
+    ClassSymbol* classSymbol = nullptr;
+    const Type* elementType = nullptr;
+    std::uint64_t elementCount = 1;
+  };
+
+  [[nodiscard]] auto classSubobjectShape(const Type* type) const
+      -> std::optional<ClassSubobjectShape>;
+
+  [[nodiscard]] auto subobjectType(Symbol* subobject) const -> const Type*;
+
+  [[nodiscard]] auto subobjectIndex(ClassSymbol* classSymbol,
+                                    Symbol* subobject) const
+      -> std::optional<int>;
+
+  [[nodiscard]] auto subobjectAddress(mlir::Location loc, mlir::Value objectPtr,
+                                      ClassSymbol* classSymbol,
+                                      Symbol* subobject) -> mlir::Value;
+
+  [[nodiscard]] auto subobjectElementAddresses(mlir::Location loc,
+                                               mlir::Value subobjectPtr,
+                                               const ClassSubobjectShape& shape)
+      -> std::vector<mlir::Value>;
+
+  [[nodiscard]] auto subobjectsInDeclarationOrder(
+      ClassSymbol* classSymbol) const -> std::vector<Symbol*>;
+
+  [[nodiscard]] auto isImplicitlyInitializedSubobject(ClassSymbol* classSymbol,
+                                                      Symbol* subobject) const
+      -> bool;
+
+  [[nodiscard]] auto defaultConstructorArguments(FunctionSymbol* constructor)
+      -> std::vector<ExpressionResult>;
+
+  void emitSubobjectDestruction(SourceLocation loc, mlir::Value objectPtr,
+                                ClassSymbol* classSymbol, Symbol* subobject);
+
+  void emitSubobjectDefaultConstruction(SourceLocation loc,
+                                        mlir::Value objectPtr,
+                                        ClassSymbol* classSymbol,
+                                        Symbol* subobject);
 
   void enqueueFunctionBody(FunctionSymbol* symbol);
   void processPendingFunctions();
@@ -431,7 +473,8 @@ class Codegen {
                               const FunctionType* functionType,
                               FunctionSymbol* symbol, bool isVirtualDispatch,
                               ExpressionResult thisValue,
-                              std::vector<ExpressionResult> arguments)
+                              std::vector<ExpressionResult> arguments,
+                              mlir::Value resultObject = {})
       -> ExpressionResult;
 
   [[nodiscard]] auto emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
@@ -472,23 +515,82 @@ class Codegen {
     struct Entry {
       mlir::Value address;
       FunctionSymbol* destructor;
+      mlir::Value activeFlag;
     };
     std::vector<Entry> entries;
+    bool isFullExpression = false;
+    mlir::Block* startBlock = nullptr;
+    mlir::Operation* startAnchor = nullptr;
   };
 
   void pushCleanup();
+  void pushFullExpressionCleanup();
   void popCleanup(SourceLocation loc);
   void emitBranchWithCleanups(SourceLocation loc, mlir::Block* target,
                               std::size_t targetDepth);
   void addCleanup(mlir::Value address, FunctionSymbol* dtor);
+  void addTemporaryCleanup(mlir::Value address, const Type* type);
+
+  [[nodiscard]] auto allocaInEntryBlock(mlir::Location loc,
+                                        mlir::Type elementType,
+                                        std::uint64_t alignment) -> mlir::Value;
+
+  void hoistAllocaToEntryBlock(mlir::Value address);
+
+  [[nodiscard]] auto createConditionalCleanupFlag(mlir::Location loc,
+                                                  CleanupScope& scope)
+      -> mlir::Value;
+
+  class FullExpression {
+   public:
+    FullExpression(Codegen& gen, SourceLocation endLoc);
+    ~FullExpression();
+
+   private:
+    Codegen& gen_;
+    SourceLocation endLoc_;
+  };
+
+  class ConditionalEvaluation {
+   public:
+    explicit ConditionalEvaluation(Codegen& gen) : gen_(gen) {
+      ++gen_.conditionalEvaluationDepth_;
+    }
+    ~ConditionalEvaluation() { --gen_.conditionalEvaluationDepth_; }
+
+   private:
+    Codegen& gen_;
+  };
+
+  [[nodiscard]] auto takeResultObject(ExpressionAST* ast) -> mlir::Value;
+
+  auto emitPrvalueInto(mlir::Value object, const Type* objectType,
+                       ExpressionAST* ast, SourceLocation loc) -> bool;
+
+  class ResultObject {
+   public:
+    ResultObject(Codegen& gen, ExpressionAST* ast, mlir::Value address);
+    ~ResultObject();
+
+    [[nodiscard]] auto wasConsumed() const -> bool;
+
+   private:
+    Codegen& gen_;
+    ExpressionAST* savedOwner_;
+    mlir::Value savedAddress_;
+    bool savedInitialized_;
+  };
 
   struct CleanupSnapshot {
     mlir::SmallVector<mlir::Value> addresses;
     mlir::SmallVector<mlir::Attribute> destructors;
     mlir::SmallVector<mlir::Attribute> depths;
+    mlir::SmallVector<mlir::Value> activeFlags;
+    mlir::SmallVector<std::int32_t> activeFlagIndices;
   };
 
-  [[nodiscard]] auto collectCleanupSnapshot() -> CleanupSnapshot;
+  [[nodiscard]] auto collectCleanupSnapshot(std::size_t targetDepth = 0)
+      -> CleanupSnapshot;
 
   struct Switch {
     std::vector<std::int64_t> caseValues;
@@ -568,6 +670,10 @@ class Codegen {
   Loop loop_;
   Switch switch_;
   std::vector<CleanupScope> cleanupStack_;
+  ExpressionAST* resultObjectOwner_ = nullptr;
+  bool resultObjectInitialized_ = false;
+  int conditionalEvaluationDepth_ = 0;
+  mlir::Value resultObjectAddress_;
   int count_ = 0;
   int globalVarInitCount_ = 0;
   int globalVarDtorCount_ = 0;
@@ -575,7 +681,6 @@ class Codegen {
   std::unordered_map<Symbol*, mlir::LLVM::DIScopeAttr> diScopes_;
   std::unordered_map<const Name*, int> staticLocalCounts_;
   bool debugInfo_ = true;
-  bool isWasm32Target_ = false;
   bool isWasmTarget_ = false;
 };
 }  // namespace cxx

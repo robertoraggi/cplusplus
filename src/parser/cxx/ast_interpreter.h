@@ -63,7 +63,8 @@ class ASTInterpreter {
       -> std::optional<long double>;
 
   [[nodiscard]] auto evaluateCall(FunctionSymbol* func,
-                                  std::vector<ConstValue> args)
+                                  std::vector<ConstValue> args,
+                                  std::shared_ptr<ConstObject> thisObject = {})
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,

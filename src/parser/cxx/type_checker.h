@@ -51,9 +51,18 @@ class TypeChecker {
 
   void check_return_statement(ReturnStatementAST* ast);
 
-  void check_bool_condition(ExpressionAST*& ast);
+  [[nodiscard]] auto isMoveEligibleOperand(ExpressionAST* expr,
+                                           ScopeSymbol* functionScope) const
+      -> bool;
+
+  void treatMoveEligibleOperandAsRvalue(ExpressionAST*& expr,
+                                        ScopeSymbol* functionScope,
+                                        const Type* targetType);
+
+  auto check_bool_condition(ExpressionAST*& ast) -> bool;
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl);
+  void check_condition_declaration(ConditionExpressionAST* ast);
   void check_field_initializer(FieldSymbol* field);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
   void check_braced_init_list(const Type* type, BracedInitListAST* ast);
@@ -113,6 +122,8 @@ class TypeChecker {
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
   void reportDeletedFunction(FunctionSymbol* function, SourceLocation loc);
+
+  void reportDeletedConversion(ExpressionAST* expr);
 
   [[nodiscard]] auto as_pointer(const Type* type) const -> const PointerType*;
   [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
