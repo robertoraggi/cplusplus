@@ -67,6 +67,8 @@ class Toolchain {
 
   virtual void addLinkerEndArgs(std::vector<std::string>& args) const {}
 
+  virtual void applyEntryPointAbi(TranslationUnit* unit) const {}
+
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
     return preprocessor_;
   }

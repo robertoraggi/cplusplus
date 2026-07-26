@@ -971,6 +971,14 @@ void FunctionSymbol::setAliasName(const Identifier* aliasName) {
   aliasName_ = aliasName;
 }
 
+auto FunctionSymbol::hasHiddenVisibility() const -> bool {
+  return hasHiddenVisibility_;
+}
+
+void FunctionSymbol::setHiddenVisibility(bool hasHiddenVisibility) {
+  hasHiddenVisibility_ = hasHiddenVisibility;
+}
+
 auto FunctionSymbol::hasPendingBody() const -> bool {
   return pendingBody_ != nullptr;
 }

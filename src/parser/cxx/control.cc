@@ -65,6 +65,8 @@ using LiteralSet =
 struct Control::Private {
   explicit Private(Control*) {}
 
+  std::unordered_set<ClassSymbol*> copyConstructorSelections;
+
   MemoryLayout* memoryLayout = nullptr;
   LiteralSet<IntegerLiteral> integerLiterals;
   LiteralSet<FloatLiteral> floatLiterals;
@@ -787,4 +789,12 @@ auto Control::newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
   symbol->setLocation(loc);
   return symbol;
 }
+auto Control::beginCopyConstructorSelection(ClassSymbol* classSymbol) -> bool {
+  return d->copyConstructorSelections.insert(classSymbol).second;
+}
+
+void Control::endCopyConstructorSelection(ClassSymbol* classSymbol) {
+  d->copyConstructorSelections.erase(classSymbol);
+}
+
 }  // namespace cxx

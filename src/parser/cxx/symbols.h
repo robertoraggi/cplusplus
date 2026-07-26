@@ -830,6 +830,9 @@ class FunctionSymbol final
   [[nodiscard]] auto aliasName() const -> const Identifier*;
   void setAliasName(const Identifier* aliasName);
 
+  [[nodiscard]] auto hasHiddenVisibility() const -> bool;
+  void setHiddenVisibility(bool hasHiddenVisibility);
+
   [[nodiscard]] auto hasPendingBody() const -> bool;
   [[nodiscard]] auto pendingBody() const -> PendingBodyInstantiation*;
   void setPendingBody(std::unique_ptr<PendingBodyInstantiation> pending);
@@ -895,6 +898,7 @@ class FunctionSymbol final
       std::uint32_t isOverride_ : 1;
       std::uint32_t isFinal_ : 1;
       std::uint32_t hasNoPrototype_ : 1;
+      std::uint32_t hasHiddenVisibility_ : 1;
     };
   };
 };

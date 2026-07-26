@@ -93,6 +93,19 @@ class StandardConversion {
   void materializeConstructorArguments(ImplicitCastExpressionAST* cast,
                                        FunctionSymbol* constructor);
 
+  [[nodiscard]] auto requiresCopyConstruction(ExpressionAST* expr,
+                                              const Type* destinationType) const
+      -> bool;
+
+  [[nodiscard]] auto selectCopyConstructor(ExpressionAST* expr,
+                                           const Type* destinationType)
+      -> FunctionSymbol*;
+
+  auto recordClassCopyConstructor(ImplicitCastExpressionAST* cast) -> bool;
+
+  auto copyInitializeClassPrvalue(ExpressionAST*& expr,
+                                  const Type* destinationType) -> bool;
+
   [[nodiscard]] auto listInitializes(BracedInitListAST* bracedInitList,
                                      const Type* targetType) -> bool;
 

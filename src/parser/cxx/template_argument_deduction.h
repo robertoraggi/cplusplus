@@ -95,6 +95,10 @@ class TemplateArgumentDeduction {
       ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P)
       -> bool;
 
+  [[nodiscard]] auto deduceArrayBound(const Type* P, const Type* A) -> bool;
+
+  [[nodiscard]] auto nonTypeParameterIndex(ExpressionAST* expr) const -> int;
+
   TranslationUnit* unit_;
   Control* control_;
   Arena* arena_;
@@ -103,6 +107,7 @@ class TemplateArgumentDeduction {
   std::vector<TemplateArgumentAST*> explicitParamArg_;
   std::vector<std::vector<TemplateArgumentAST*>> explicitPackArgs_;
   std::vector<const Type*> deducedTypes_;
+  std::vector<std::optional<std::uint64_t>> deducedValues_;
   std::vector<std::vector<const Type*>> deducedPacks_;
   List<ParameterDeclarationAST*>* parameterDeclarations_ = nullptr;
   TemplateDeclarationAST* templateDecl_ = nullptr;

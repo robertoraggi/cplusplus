@@ -159,6 +159,14 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
   let hasCustomAssemblyFormat = 1;
 }
 
+def Cxx_GlobalCtorOp : Cxx_Op<"global_ctor"> {
+  let summary = "run a function before main, in module order";
+
+  let arguments = (ins FlatSymbolRefAttr:$ctor);
+
+  let assemblyFormat = "$ctor attr-dict";
+}
+
 def Cxx_VTableOp : Cxx_Op<"vtable"> {
   let summary = "one Itanium vtable group";
   let description = [{
@@ -384,21 +392,17 @@ def Cxx_LabelOp : Cxx_Op<"label"> {
   let assemblyFormat = "$name `cleanup_depth` $cleanup_depth attr-dict";
 }
 
-def Cxx_GotoOp : Cxx_Op<"goto"> {
-  // `addresses`/`destructors`/`depths` snapshot every cleanup entry active
-  // at the goto (innermost scope first); `depths[i]` is the 0-based
-  // enclosing-scope index that `addresses[i]`/`destructors[i]` belongs to.
-  // resolveLabels (codegen_units.cc) compares this against the target
-  // label's `cleanup_depth` to run the destructors for scopes the goto
-  // jumps out of before branching.
+def Cxx_GotoOp : Cxx_Op<"goto", [AttrSizedOperandSegments]> {
   let arguments = (ins
       Variadic<Cxx_PointerType>:$addresses
+    , Variadic<Cxx_PointerType>:$activeFlags
     , ArrayAttr:$destructors
     , ArrayAttr:$depths
+    , DenseI32ArrayAttr:$activeFlagIndices
     , StringProp:$label
   );
 
-  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths attr-dict";
+  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices attr-dict";
 }
 
 def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
@@ -417,15 +421,18 @@ def Cxx_IndirectGotoOp : Cxx_Op<"indirect_goto", [Terminator]> {
   let assemblyFormat = "$target `[` $destinations `]` attr-dict `:` type($target)";
 }
 
-def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch", [Terminator]> {
+def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch",
+    [Terminator, AttrSizedOperandSegments]> {
   let arguments = (ins
       Variadic<Cxx_PointerType>:$addresses
+    , Variadic<Cxx_PointerType>:$activeFlags
     , ArrayAttr:$destructors
+    , DenseI32ArrayAttr:$activeFlagIndices
   );
 
   let successors = (successor AnySuccessor:$dest);
 
-  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors $dest attr-dict";
+  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices $dest attr-dict";
 }
 
 //

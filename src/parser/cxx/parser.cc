@@ -3315,8 +3315,6 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
   SourceLocation questionLoc;
   if (!match(TokenKind::T_QUESTION, questionLoc)) return true;
 
-  check_bool_condition(yyast);
-
   auto ast = ConditionalExpressionAST::create(pool_);
   ast->condition = yyast;
   ast->questionLoc = questionLoc;

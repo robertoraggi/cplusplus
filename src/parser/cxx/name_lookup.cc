@@ -440,19 +440,16 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
   return fn;
 }
 
-auto resolveBuiltinOperatorDelete(TranslationUnit* unit,
-                                  std::span<const Type* const> argumentTypes)
-    -> FunctionSymbol* {
-  auto control = unit->control();
-  auto name = control->getOperatorId(TokenKind::T_DELETE);
-  auto voidType = control->getVoidType();
-  auto globalScope = unit->globalScope();
+namespace {
 
-  std::vector<const Type*> parameterTypes;
-  parameterTypes.push_back(control->getPointerType(voidType));
-  if (argumentTypes.size() >= 2)
-    parameterTypes.push_back(control->getSizeType());
-  if (argumentTypes.size() >= 3) parameterTypes.push_back(argumentTypes[2]);
+auto findOrDeclareGlobalAllocationFunction(
+    TranslationUnit* unit, TokenKind op, const Type* returnType,
+    std::vector<const Type*> parameterTypes) -> FunctionSymbol* {
+  if (std::ranges::contains(parameterTypes, nullptr)) return nullptr;
+
+  auto control = unit->control();
+  auto name = control->getOperatorId(op);
+  auto globalScope = unit->globalScope();
 
   auto matches = [&](FunctionSymbol* fn) {
     auto funcType = type_cast<FunctionType>(fn->type());
@@ -465,10 +462,44 @@ auto resolveBuiltinOperatorDelete(TranslationUnit* unit,
 
   auto fn = control->newFunctionSymbol(globalScope, {});
   fn->setName(name);
-  fn->setType(control->getFunctionType(voidType, std::move(parameterTypes)));
+  fn->setType(control->getFunctionType(returnType, std::move(parameterTypes)));
   fn->setLanguageLinkage(LanguageKind::kCXX);
   globalScope->addSymbol(fn);
   return fn;
+}
+
+}  // namespace
+
+auto resolveBuiltinOperatorDelete(TranslationUnit* unit,
+                                  std::span<const Type* const> argumentTypes)
+    -> FunctionSymbol* {
+  auto control = unit->control();
+  auto voidType = control->getVoidType();
+
+  std::vector<const Type*> parameterTypes;
+  parameterTypes.push_back(control->getPointerType(voidType));
+  if (argumentTypes.size() >= 2)
+    parameterTypes.push_back(control->getSizeType());
+  if (argumentTypes.size() >= 3) parameterTypes.push_back(argumentTypes[2]);
+
+  return findOrDeclareGlobalAllocationFunction(
+      unit, TokenKind::T_DELETE, voidType, std::move(parameterTypes));
+}
+
+auto resolveBuiltinOperatorNew(TranslationUnit* unit,
+                               std::span<const Type* const> argumentTypes)
+    -> FunctionSymbol* {
+  auto control = unit->control();
+
+  std::vector<const Type*> parameterTypes;
+  parameterTypes.push_back(control->getSizeType());
+  for (auto argumentType :
+       argumentTypes.subspan(std::min<std::size_t>(1, argumentTypes.size())))
+    parameterTypes.push_back(argumentType);
+
+  return findOrDeclareGlobalAllocationFunction(
+      unit, TokenKind::T_NEW, control->getPointerType(control->getVoidType()),
+      std::move(parameterTypes));
 }
 
 auto resolveBuiltinLibcallSymbol(TranslationUnit* unit, const char* nameStr,

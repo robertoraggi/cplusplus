@@ -191,7 +191,20 @@ auto ASTRewriter::templateParameter(TemplateParameterAST* ast)
 
 auto ASTRewriter::functionBody(FunctionBodyAST* ast) -> FunctionBodyAST* {
   if (!ast) return {};
-  return visit(FunctionBodyVisitor{*this}, ast);
+  const auto savedRewritingFunctionBody =
+      std::exchange(rewritingFunctionBody_, true);
+  auto body = visit(FunctionBodyVisitor{*this}, ast);
+  rewritingFunctionBody_ = savedRewritingFunctionBody;
+  return body;
+}
+
+auto ASTRewriter::lambdaBody(StatementAST* ast) -> CompoundStatementAST* {
+  if (!ast) return {};
+  const auto savedRewritingFunctionBody =
+      std::exchange(rewritingFunctionBody_, true);
+  auto body = ast_cast<CompoundStatementAST>(statement(ast));
+  rewritingFunctionBody_ = savedRewritingFunctionBody;
+  return body;
 }
 
 auto ASTRewriter::requirement(RequirementAST* ast) -> RequirementAST* {

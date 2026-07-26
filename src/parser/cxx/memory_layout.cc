@@ -380,10 +380,18 @@ auto MemoryLayout::alignmentOf(const Type* type) const
 
 auto MemoryLayout::triple() const -> const std::string& { return triple_; }
 
+auto MemoryLayout::arch() const -> std::string_view {
+  return std::string_view{triple_}.substr(0, triple_.find('-'));
+}
+
 auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
-  const auto arch = std::string_view{triple_}.substr(0, triple_.find('-'));
+  const auto arch = this->arch();
   return arch.starts_with("arm") || arch.starts_with("aarch64") ||
          arch.starts_with("thumb") || arch.starts_with("wasm");
+}
+
+auto MemoryLayout::usesSingleScalarClassAbi() const -> bool {
+  return arch().starts_with("wasm");
 }
 
 void MemoryLayout::setTriple(std::string triple) {

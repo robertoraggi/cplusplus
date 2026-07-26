@@ -387,7 +387,8 @@ void ASTInterpreter::popFrame() {
 }
 
 auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
-                                  std::vector<ConstValue> args)
+                                  std::vector<ConstValue> args,
+                                  std::shared_ptr<ConstObject> thisObject)
     -> std::optional<ConstValue> {
   if (!func || !func->isConstexpr()) return std::nullopt;
 
@@ -419,7 +420,11 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
   auto savedFunctionName =
       std::exchange(currentFunctionName_, std::move(funcNameStr));
 
+  auto savedThis = thisObject_;
+  if (thisObject) thisObject_ = std::move(thisObject);
+
   if (!bindParameters(func, args)) {
+    thisObject_ = std::move(savedThis);
     currentFunctionName_ = std::move(savedFunctionName);
     popFrame();
     --depth_;
@@ -431,6 +436,7 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
 
   auto result = takeReturnValue();
 
+  thisObject_ = std::move(savedThis);
   currentFunctionName_ = std::move(savedFunctionName);
   popFrame();
   --depth_;

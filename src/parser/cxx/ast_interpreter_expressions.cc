@@ -505,6 +505,9 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast)
       -> ExpressionResult;
 
+  [[nodiscard]] auto evaluateConstructorConversion(
+      ImplicitCastExpressionAST* ast) -> ExpressionResult;
+
   [[nodiscard]] auto operator()(BinaryExpressionAST* ast) -> ExpressionResult;
 
   [[nodiscard]] auto operator()(ConditionalExpressionAST* ast)
@@ -1742,9 +1745,43 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CastExpressionAST* ast)
   return expressionResult;
 }
 
+auto ASTInterpreter::ExpressionVisitor::evaluateConstructorConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto constructor = ast->conversionFunction;
+
+  std::vector<ConstValue> args;
+  auto paren = ast_cast<ParenInitializerAST>(ast->expression);
+  if (!paren) return std::nullopt;
+
+  for (auto node : ListView{paren->expressionList}) {
+    auto value = interp.evaluate(node);
+    if (!value) return std::nullopt;
+    args.push_back(std::move(*value));
+  }
+
+  if (constructor->isConstexpr()) {
+    return interp.evaluateConstructor(constructor, ast->type, std::move(args));
+  }
+
+  if (!constructor->isDefaulted()) return std::nullopt;
+
+  if (args.size() != 1) return std::nullopt;
+
+  auto source = std::get_if<std::shared_ptr<ConstObject>>(&args[0]);
+  if (!source || !*source) return std::nullopt;
+
+  return ConstValue{
+      std::make_shared<ConstObject>(ast->type, (*source)->fields())};
+}
+
 auto ASTInterpreter::ExpressionVisitor::operator()(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   if (!ast->type) return std::nullopt;
+
+  if (ast->castKind == ImplicitCastKind::kUserDefinedConversion &&
+      ast->conversionFunction && ast->conversionFunction->isConstructor()) {
+    return evaluateConstructorConversion(ast);
+  }
 
   if (ast->castKind == ImplicitCastKind::kArrayToPointerConversion) {
     auto innerExpr = ast->expression;
@@ -2029,6 +2066,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
 
   auto right = evaluate(ast->rightExpression);
   if (!right.has_value()) return std::nullopt;
+
+  if (ast->symbol) {
+    if (ast->symbol->isImplicitObjectMemberFunction()) {
+      auto object = std::get_if<std::shared_ptr<ConstObject>>(&*left);
+      if (!object || !*object) return std::nullopt;
+      return interp.evaluateCall(ast->symbol, {std::move(*right)}, *object);
+    }
+
+    return interp.evaluateCall(ast->symbol,
+                               {std::move(*left), std::move(*right)});
+  }
 
   auto result = applyBinaryOp(ast->op, ast->leftExpression->type, left, right);
   if (!result.has_value())

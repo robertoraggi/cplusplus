@@ -209,6 +209,17 @@ struct IsDependent {
     if (sym->templateDeclaration() && !sym->primaryTemplateSymbol())
       return true;
 
+    if (!sym->primaryTemplateSymbol()) {
+      for (auto enclosing = sym->parent(); enclosing;
+           enclosing = enclosing->parent()) {
+        auto enclosingClass = symbol_cast<ClassSymbol>(enclosing);
+        if (!enclosingClass) break;
+        if (enclosingClass->templateDeclaration() &&
+            !enclosingClass->primaryTemplateSymbol())
+          return true;
+      }
+    }
+
     for (const auto& arg : sym->templateArguments()) {
       if (const auto typeArg = std::get_if<const Type*>(&arg))
         if (isDependent(*typeArg)) return true;
@@ -578,9 +589,14 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
     if (field->isStatic() && field->initializer()) {
       if (isInTemplateScope(field)) return true;
     }
+    if (isDependent(field->type())) return true;
   }
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
     if (var->initializer() && isInTemplateScope(var)) return true;
+    if (isDependent(var->type())) return true;
+  }
+  if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
+    if (isDependent(param->type())) return true;
   }
 
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {

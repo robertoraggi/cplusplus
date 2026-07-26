@@ -845,6 +845,11 @@ void BracedInitListChecker::checkArrayElements(const Type* type,
   size_t index = 0;
 
   for (auto it = ast->expressionList; it; it = it->next) {
+    if (ast_cast<PackExpansionExpressionAST>(it->value)) {
+      ++index;
+      continue;
+    }
+
     auto desig = ast_cast<DesignatedInitializerClauseAST>(it->value);
 
     if (desig && desig->designatorList) {
@@ -1209,25 +1214,25 @@ auto ClassInitChecker::tryInitializerListConstructor(
 struct ScalarInitChecker {
   InitContext& ctx;
 
-  void checkScalarInit(VariableSymbol* var, InitDeclaratorAST* ast,
+  void checkScalarInit(VariableSymbol* var, ExpressionAST*& initializer,
                        const Type* targetType);
 };
 
 void ScalarInitChecker::checkScalarInit(VariableSymbol* var,
-                                        InitDeclaratorAST* ast,
+                                        ExpressionAST*& initializer,
                                         const Type* targetType) {
-  if (!ast->initializer) return;
+  if (!initializer) return;
 
-  auto bracedInitList = InitUnwrapper::getBracedInitList(ast->initializer);
+  auto bracedInitList = InitUnwrapper::getBracedInitList(initializer);
   if (bracedInitList) {
     ctx.checker.check_braced_init_list(targetType, bracedInitList);
     return;
   }
 
-  auto initExpr = InitUnwrapper::unwrapSingleExpr(ast->initializer);
+  auto initExpr = InitUnwrapper::unwrapSingleExpr(initializer);
   if (!initExpr) return;
 
-  auto convTarget = InitUnwrapper::getConversionTarget(ast->initializer);
+  auto convTarget = InitUnwrapper::getConversionTarget(initializer);
   ExpressionAST*& target = convTarget ? *convTarget : initExpr;
 
   if (!ctx.checker.implicit_conversion(target, targetType)) {
@@ -1235,49 +1240,49 @@ void ScalarInitChecker::checkScalarInit(VariableSymbol* var,
     ctx.checker.applyImplicitConversion(seq, target);
   }
 
-  var->setInitializer(ast->initializer);
+  var->setInitializer(initializer);
 }
 
 struct ReferenceInitChecker {
   InitContext& ctx;
 
-  void check(VariableSymbol* var, InitDeclaratorAST* ast);
+  void check(VariableSymbol* var, ExpressionAST*& initializer,
+             SourceLocation location);
 };
 
-void ReferenceInitChecker::check(VariableSymbol* var, InitDeclaratorAST* ast) {
+void ReferenceInitChecker::check(VariableSymbol* var,
+                                 ExpressionAST*& initializer,
+                                 SourceLocation location) {
   auto targetType = var->type();
 
   if (isDependent(ctx.unit, targetType)) return;
 
-  if (!ast->initializer) {
-    auto loc = ctx.checker.getInitDeclaratorLocation(ast, var);
-    ctx.error(loc,
+  if (!initializer) {
+    ctx.error(location,
               std::format("reference variable of type '{}' must be initialized",
                           to_string(targetType)));
     return;
   }
 
-  if (auto bracedInitList =
-          InitUnwrapper::getBracedInitList(ast->initializer)) {
+  if (auto bracedInitList = InitUnwrapper::getBracedInitList(initializer)) {
     if (!bracedInitList->expressionList ||
         bracedInitList->expressionList->next) {
-      ctx.error(ast->initializer->firstSourceLocation(),
+      ctx.error(initializer->firstSourceLocation(),
                 "reference initializer must be a single expression");
       return;
     }
   }
 
-  auto initExpr = InitUnwrapper::unwrapSingleExpr(ast->initializer);
+  auto initExpr = InitUnwrapper::unwrapSingleExpr(initializer);
   if (!initExpr) {
-    ctx.error(ast->initializer->firstSourceLocation(),
+    ctx.error(initializer->firstSourceLocation(),
               "reference initializer must be a single expression");
     return;
   }
 
-  auto strippedInitializer =
-      InitUnwrapper::stripImplicitCasts(ast->initializer);
+  auto strippedInitializer = InitUnwrapper::stripImplicitCasts(initializer);
   ExpressionAST*& conversionTarget =
-      ast_cast<EqualInitializerAST>(strippedInitializer) ? ast->initializer
+      ast_cast<EqualInitializerAST>(strippedInitializer) ? initializer
                                                          : initExpr;
 
   auto seq = ctx.checker.checkImplicitConversion(conversionTarget, targetType);
@@ -1293,7 +1298,7 @@ void ReferenceInitChecker::check(VariableSymbol* var, InitDeclaratorAST* ast) {
   }
 
   ctx.checker.applyImplicitConversion(seq, conversionTarget);
-  var->setInitializer(ast->initializer);
+  var->setInitializer(initializer);
 }
 
 struct TypeDeducer {
@@ -1544,6 +1549,8 @@ struct InitDeclaratorChecker {
         constexprEval{ctx} {}
 
   void checkInitDeclarator(InitDeclaratorAST* ast);
+  void checkVariable(VariableSymbol* var, ExpressionAST*& initializer,
+                     SourceLocation location);
   void checkBracedInitList(const Type* type, BracedInitListAST* ast);
   void checkFieldInitializer(FieldSymbol* field);
   [[nodiscard]] auto checkClassInitializer(const Type* targetType,
@@ -1553,7 +1560,8 @@ struct InitDeclaratorChecker {
       -> FunctionSymbol*;
 
  private:
-  void checkInitialization(VariableSymbol* var, InitDeclaratorAST* ast);
+  void checkInitialization(VariableSymbol* var, ExpressionAST*& initializer,
+                           SourceLocation location);
   void evaluateConstValue(VariableSymbol* var);
 };
 
@@ -1561,14 +1569,21 @@ void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast) {
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
 
-  var->setInitializer(ast->initializer);
+  checkVariable(var, ast->initializer,
+                ctx.checker.getInitDeclaratorLocation(ast, var));
+}
+
+void InitDeclaratorChecker::checkVariable(VariableSymbol* var,
+                                          ExpressionAST*& initializer,
+                                          SourceLocation location) {
+  var->setInitializer(initializer);
 
   typeDeducer.deduceArraySize(var);
   typeDeducer.deduceAutoType(var);
 
   if (var->isConstexpr()) var->setType(ctx.traits.add_const(var->type()));
 
-  checkInitialization(var, ast);
+  checkInitialization(var, initializer, location);
   evaluateConstValue(var);
 }
 
@@ -1592,9 +1607,10 @@ auto InitDeclaratorChecker::checkClassInitializer(
 }
 
 void InitDeclaratorChecker::checkInitialization(VariableSymbol* var,
-                                                InitDeclaratorAST* ast) {
+                                                ExpressionAST*& initializer,
+                                                SourceLocation location) {
   if (ctx.traits.is_reference(var->type())) {
-    refChecker.check(var, ast);
+    refChecker.check(var, initializer, location);
     return;
   }
 
@@ -1603,19 +1619,19 @@ void InitDeclaratorChecker::checkInitialization(VariableSymbol* var,
   if (ctx.traits.is_class(targetType)) {
     ClassInitChecker::Target target{
         .type = var->type(),
-        .initializer = ast->initializer,
+        .initializer = initializer,
         .location = var->location(),
-        .diagnoseUnresolved = ast->initializer || !var->isExtern()};
+        .diagnoseUnresolved = initializer || !var->isExtern()};
     classChecker.checkClassInit(target);
     if (target.constructor) var->setConstructor(target.constructor);
-    if (target.initializer != ast->initializer) {
-      ast->initializer = target.initializer;
+    if (target.initializer != initializer) {
+      initializer = target.initializer;
       var->setInitializer(target.initializer);
     }
     return;
   }
 
-  scalarChecker.checkScalarInit(var, ast, targetType);
+  scalarChecker.checkScalarInit(var, initializer, targetType);
 }
 
 void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
@@ -1686,6 +1702,16 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var) {
 
 void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
   InitDeclaratorChecker{*this}.checkInitDeclarator(ast);
+}
+
+void TypeChecker::check_condition_declaration(ConditionExpressionAST* ast) {
+  auto var = ast->symbol;
+  if (!var) return;
+  InitDeclaratorChecker{*this}.checkVariable(var, ast->initializer,
+                                             var->location());
+
+  ast->type = var->type();
+  ast->valueCategory = ValueCategory::kLValue;
 }
 
 void TypeChecker::check_field_initializer(FieldSymbol* field) {

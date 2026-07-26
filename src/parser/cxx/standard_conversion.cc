@@ -821,6 +821,8 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
   ImplicitConversionSequence seq;
   if (!expr || !targetType) return seq;
 
+  seq.destinationType = targetType;
+
   const Type* currentType = expr->type;
   ValueCategory currentValCat = expr->valueCategory;
 
@@ -985,8 +987,10 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
              !unit_->typeTraits().is_reference(targetType)) {
     currentType =
         adjustedCvType(unit_->typeTraits().remove_reference(currentType));
-    currentValCat = ValueCategory::kPrValue;
-    addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
+    if (isC_ || !unit_->typeTraits().is_class(currentType)) {
+      currentValCat = ValueCategory::kPrValue;
+      addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
+    }
   }
 
   auto comparisonTargetType = unit_->typeTraits().remove_reference(targetType);
@@ -995,8 +999,21 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
   auto unqualTo = unit_->typeTraits().remove_cv(comparisonTargetType);
 
   if (unit_->typeTraits().is_same(unqualFrom, unqualTo)) {
+    if (requiresCopyConstruction(expr, targetType) &&
+        !selectCopyConstructor(expr, targetType)) {
+      return seq;
+    }
+
     seq.rank = ConversionRank::kExactMatch;
     addStep(ImplicitCastKind::kIdentity, comparisonTargetType);
+    return seq;
+  }
+
+  if (!isC_ && unit_->typeTraits().is_class(unqualFrom) &&
+      unit_->typeTraits().is_class(unqualTo) &&
+      unit_->typeTraits().is_base_of(unqualTo, unqualFrom)) {
+    seq.rank = ConversionRank::kConversion;
+    addStep(ImplicitCastKind::kDerivedToBaseConversion, comparisonTargetType);
     return seq;
   }
 
@@ -1347,23 +1364,100 @@ void StandardConversion::applyConversionSequence(
     }
   }
 
-  if (!sequence.secondStandardConversionTarget) return;
+  if (sequence.secondStandardConversionTarget) {
+    auto second = computeConversionSequence(
+        expr, sequence.secondStandardConversionTarget);
 
-  auto second =
-      computeConversionSequence(expr, sequence.secondStandardConversionTarget);
+    if (second.kind != ConversionSequenceKind::kStandard) return;
 
-  if (second.kind != ConversionSequenceKind::kStandard) return;
+    applyConversionSequence(second, expr);
+    return;
+  }
 
-  applyConversionSequence(second, expr);
+  if (sequence.bindsToReference || sequence.bindsToRvalueRef) return;
+
+  (void)copyInitializeClassPrvalue(expr, sequence.destinationType);
+}
+
+auto StandardConversion::requiresCopyConstruction(
+    ExpressionAST* expr, const Type* destinationType) const -> bool {
+  if (isC_ || !expr || !expr->type || !destinationType) return false;
+  if (!is_glvalue(expr)) return false;
+  if (unit_->typeTraits().is_reference(destinationType)) return false;
+
+  auto classType =
+      type_cast<ClassType>(unit_->typeTraits().remove_cv(destinationType));
+  if (!classType || !classType->symbol()) return false;
+
+  auto classSymbol = classType->symbol()->resolvedDefinition();
+  if (!classSymbol->isComplete()) return false;
+
+  if (!classSymbol->copyConstructor() && !classSymbol->moveConstructor())
+    return false;
+
+  auto sourceType = unit_->typeTraits().remove_cvref(expr->type);
+  return unit_->typeTraits().is_same(sourceType, classType);
+}
+
+auto StandardConversion::selectCopyConstructor(ExpressionAST* expr,
+                                               const Type* destinationType)
+    -> FunctionSymbol* {
+  if (!requiresCopyConstruction(expr, destinationType)) return nullptr;
+
+  auto classType =
+      type_cast<ClassType>(unit_->typeTraits().remove_cv(destinationType));
+  auto classSymbol = classType->symbol()->resolvedDefinition();
+
+  if (!control_->beginCopyConstructorSelection(classSymbol)) return nullptr;
+
+  OverloadResolution resolution(unit_);
+  auto resolved = resolution.resolveConstructor(classSymbol, {expr});
+
+  control_->endCopyConstructorSelection(classSymbol);
+
+  if (!resolved.best || resolved.ambiguous) return nullptr;
+
+  return resolved.best->symbol;
+}
+
+auto StandardConversion::recordClassCopyConstructor(
+    ImplicitCastExpressionAST* cast) -> bool {
+  auto constructor = selectCopyConstructor(cast->expression, cast->type);
+  if (!constructor) return false;
+
+  recordUserDefinedConversion(cast, constructor);
+  return true;
+}
+
+auto StandardConversion::copyInitializeClassPrvalue(ExpressionAST*& expr,
+                                                    const Type* destinationType)
+    -> bool {
+  auto constructor = selectCopyConstructor(expr, destinationType);
+  if (!constructor) return false;
+
+  auto cast = ImplicitCastExpressionAST::create(arena_);
+  cast->castKind = ImplicitCastKind::kUserDefinedConversion;
+  cast->expression = expr;
+  cast->type = unit_->typeTraits().remove_cv(destinationType);
+  cast->valueCategory = ValueCategory::kPrValue;
+  expr = cast;
+
+  recordUserDefinedConversion(cast, constructor);
+  return true;
 }
 
 void StandardConversion::materializeConstructorArguments(
     ImplicitCastExpressionAST* cast, FunctionSymbol* constructor) {
   auto params = parameters(constructor);
-  if (params.size() < 2) return;
+  if (params.empty()) return;
   if (ast_cast<ParenInitializerAST>(cast->expression)) return;
 
   auto arguments = make_list_node<ExpressionAST>(arena_, cast->expression);
+
+  auto sequence =
+      computeConversionSequence(arguments->value, params[0]->type());
+  applyConversionSequence(sequence, arguments->value);
+
   appendDefaultArguments(constructor, &arguments);
 
   auto paren = ParenInitializerAST::create(

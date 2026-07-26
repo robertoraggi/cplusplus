@@ -32,6 +32,7 @@
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -43,6 +44,12 @@ struct ASTRewriter::ExpressionVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return rewrite.unit_;
+  }
+
+  [[nodiscard]] auto typeChecker() -> TypeChecker {
+    auto typeChecker = TypeChecker{rewrite.unit_};
+    typeChecker.setScope(binder()->scope());
+    return typeChecker;
   }
 
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
@@ -804,21 +811,18 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
       }
 
       rewrite.pushLambdaCaptureFields(std::move(captureFields));
-      copy->statement =
-          ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));
+      copy->statement = rewrite.lambdaBody(ast->statement);
       rewrite.popLambdaCaptureFields();
 
       binder()->completeLambdaBody(copy);
     } else {
-      copy->statement =
-          ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));
+      copy->statement = rewrite.lambdaBody(ast->statement);
     }
 
     return copy;
   }
 
-  copy->statement =
-      ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));
+  copy->statement = rewrite.lambdaBody(ast->statement);
   copy->symbol = ast->symbol;
 
   return copy;
@@ -1916,9 +1920,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     rewrite.addSymbolRemap(ast->symbol, copy->symbol);
   }
 
-  if (copy->symbol) {
-    copy->type = copy->symbol->type();
-  }
+  typeChecker().check_condition_declaration(copy);
 
   return copy;
 }

@@ -50,7 +50,9 @@ class MemoryLayout {
       -> std::optional<std::size_t>;
 
   [[nodiscard]] auto triple() const -> const std::string&;
+  [[nodiscard]] auto arch() const -> std::string_view;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
+  [[nodiscard]] auto usesSingleScalarClassAbi() const -> bool;
   void setTriple(std::string triple);
 
  private:

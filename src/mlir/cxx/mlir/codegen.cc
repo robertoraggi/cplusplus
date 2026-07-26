@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/class_value_abi.h>
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -86,8 +87,8 @@ Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
       unit_(unit),
       debugInfo_(debugInfo) {
   const auto triple = llvm::Triple(unit->control()->memoryLayout()->triple());
-  isWasm32Target_ = triple.getArch() == llvm::Triple::wasm32;
-  isWasmTarget_ = isWasm32Target_ || triple.getArch() == llvm::Triple::wasm64;
+  isWasmTarget_ = triple.getArch() == llvm::Triple::wasm32 ||
+                  triple.getArch() == llvm::Triple::wasm64;
 }
 
 Codegen::~Codegen() {}
@@ -823,6 +824,18 @@ auto Codegen::newTemp(const Type* type, SourceLocation loc)
 
 void Codegen::pushCleanup() { cleanupStack_.emplace_back(); }
 
+void Codegen::pushFullExpressionCleanup() {
+  auto& scope = cleanupStack_.emplace_back();
+  scope.isFullExpression = true;
+  scope.startBlock = builder_.getInsertionBlock();
+
+  if (scope.startBlock) {
+    auto insertionPoint = builder_.getInsertionPoint();
+    if (insertionPoint != scope.startBlock->begin())
+      scope.startAnchor = &*std::prev(insertionPoint);
+  }
+}
+
 void Codegen::popCleanup(SourceLocation loc) {
   auto& scope = cleanupStack_.back();
   if (scope.entries.empty() || currentBlockMightHaveTerminator()) {
@@ -841,38 +854,395 @@ void Codegen::emitBranchWithCleanups(SourceLocation loc, mlir::Block* target,
 
   auto mlirLoc = getLocation(loc);
 
-  llvm::SmallVector<mlir::Value> addresses;
-  llvm::SmallVector<mlir::Attribute> destructors;
+  auto snapshot = collectCleanupSnapshot(targetDepth);
 
-  for (auto i = cleanupStack_.size(); i > targetDepth; --i) {
-    auto& scope = cleanupStack_[i - 1];
-    for (auto jt = scope.entries.rbegin(); jt != scope.entries.rend(); ++jt) {
-      addresses.push_back(jt->address);
-      auto funcOp = findOrCreateFunction(jt->destructor);
-      destructors.push_back(
-          mlir::FlatSymbolRefAttr::get(funcOp.getSymNameAttr()));
-    }
-  }
-
-  if (addresses.empty()) {
+  if (snapshot.addresses.empty()) {
     mlir::cf::BranchOp::create(builder_, mlirLoc, target);
     return;
   }
 
-  auto destructorsAttr = mlir::ArrayAttr::get(context_, destructors);
-  mlir::cxx::CleanupBranchOp::create(builder_, mlirLoc, addresses,
-                                     destructorsAttr, target);
+  mlir::cxx::CleanupBranchOp::create(
+      builder_, mlirLoc, snapshot.addresses, snapshot.activeFlags,
+      mlir::ArrayAttr::get(context_, snapshot.destructors),
+      builder_.getDenseI32ArrayAttr(snapshot.activeFlagIndices), target);
 }
 
 void Codegen::addCleanup(mlir::Value address, FunctionSymbol* dtor) {
-  if (cleanupStack_.empty()) return;
-  cleanupStack_.back().entries.push_back({address, dtor});
+  for (auto i = cleanupStack_.size(); i > 0; --i) {
+    auto& scope = cleanupStack_[i - 1];
+    if (scope.isFullExpression) continue;
+    scope.entries.push_back({address, dtor});
+    return;
+  }
 }
 
-auto Codegen::collectCleanupSnapshot() -> CleanupSnapshot {
+auto Codegen::allocaInEntryBlock(mlir::Location loc, mlir::Type elementType,
+                                 std::uint64_t alignment) -> mlir::Value {
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToStart(entryBlock_);
+  return mlir::cxx::AllocaOp::create(
+      builder_, loc, mlir::cxx::PointerType::get(context_, elementType),
+      alignment);
+}
+
+void Codegen::hoistAllocaToEntryBlock(mlir::Value address) {
+  auto allocaOp = address.getDefiningOp<mlir::cxx::AllocaOp>();
+  if (!allocaOp || !entryBlock_) return;
+  if (allocaOp->getBlock() == entryBlock_) return;
+
+  for (auto& scope : cleanupStack_) {
+    if (scope.startAnchor != allocaOp.getOperation()) continue;
+
+    auto position = allocaOp->getIterator();
+    scope.startAnchor = position == allocaOp->getBlock()->begin()
+                            ? nullptr
+                            : &*std::prev(position);
+  }
+
+  allocaOp->moveBefore(entryBlock_, entryBlock_->begin());
+}
+
+auto Codegen::createConditionalCleanupFlag(mlir::Location loc,
+                                           CleanupScope& scope) -> mlir::Value {
+  auto boolType = builder_.getIntegerType(1);
+  auto flag = allocaInEntryBlock(loc, boolType, 1);
+
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+
+  if (scope.startAnchor) {
+    builder_.setInsertionPointAfter(scope.startAnchor);
+  } else if (scope.startBlock &&
+             scope.startBlock != flag.getDefiningOp()->getBlock()) {
+    builder_.setInsertionPointToStart(scope.startBlock);
+  } else {
+    builder_.setInsertionPointAfter(flag.getDefiningOp());
+  }
+
+  auto inactive = mlir::arith::ConstantOp::create(
+      builder_, loc, boolType, builder_.getIntegerAttr(boolType, 0));
+  mlir::cxx::StoreOp::create(builder_, loc, inactive, flag, 1);
+
+  return flag;
+}
+
+void Codegen::addTemporaryCleanup(mlir::Value address, const Type* type) {
+  if (cleanupStack_.empty() || !cleanupStack_.back().isFullExpression) return;
+  auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(type));
+  if (!classType || !classType->symbol()) return;
+  auto dtor = classType->symbol()->resolvedDefinition()->destructor();
+  if (!dtor) return;
+
+  auto& scope = cleanupStack_.back();
+
+  mlir::Value activeFlag;
+
+  if (conditionalEvaluationDepth_ > 0) {
+    hoistAllocaToEntryBlock(address);
+
+    auto loc = address.getLoc();
+    activeFlag = createConditionalCleanupFlag(loc, scope);
+
+    auto boolType = builder_.getIntegerType(1);
+    auto active = mlir::arith::ConstantOp::create(
+        builder_, loc, boolType, builder_.getIntegerAttr(boolType, 1));
+    mlir::cxx::StoreOp::create(builder_, loc, active, activeFlag, 1);
+  }
+
+  scope.entries.push_back({address, completeObjectDtor(dtor), activeFlag});
+}
+
+auto Codegen::loadThisPointer(mlir::Location loc, ClassSymbol* classSymbol)
+    -> mlir::Value {
+  if (!thisValue_ || !classSymbol) return {};
+
+  auto pointerType = control()->getPointerType(classSymbol->type());
+
+  return mlir::cxx::LoadOp::create(
+      builder_, loc,
+      mlir::cxx::PointerType::get(context_, convertType(classSymbol->type())),
+      thisValue_, getAlignment(pointerType));
+}
+
+auto Codegen::classSubobjectShape(const Type* type) const
+    -> std::optional<ClassSubobjectShape> {
+  if (!type) return std::nullopt;
+
+  ClassSubobjectShape shape;
+
+  auto elementType = unit_->typeTraits().remove_cv(type);
+  while (unit_->typeTraits().is_array(elementType)) {
+    auto arrayType = type_cast<BoundedArrayType>(elementType);
+    if (!arrayType) return std::nullopt;
+    shape.elementCount *= arrayType->size();
+    elementType = unit_->typeTraits().remove_cv(arrayType->elementType());
+  }
+
+  auto classType = type_cast<ClassType>(elementType);
+  if (!classType || !classType->symbol()) return std::nullopt;
+
+  shape.classSymbol = classType->symbol()->resolvedDefinition();
+  shape.elementType = elementType;
+  return shape;
+}
+
+auto Codegen::subobjectType(Symbol* subobject) const -> const Type* {
+  if (auto field = symbol_cast<FieldSymbol>(subobject)) return field->type();
+  if (auto base = symbol_cast<BaseClassSymbol>(subobject))
+    return base->symbol() ? base->symbol()->type() : nullptr;
+  return nullptr;
+}
+
+auto Codegen::subobjectIndex(ClassSymbol* classSymbol, Symbol* subobject) const
+    -> std::optional<int> {
+  auto layout = classSymbol->layout();
+
+  if (auto field = symbol_cast<FieldSymbol>(subobject)) {
+    if (layout) {
+      if (auto fi = layout->getFieldInfo(field)) return fi->index;
+    }
+  } else if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
+    if (layout) {
+      if (auto baseSym = symbol_cast<ClassSymbol>(base->symbol())) {
+        if (auto bi = layout->getBaseInfo(baseSym)) return bi->index;
+      }
+    }
+  }
+
+  int index = 0;
+  for (auto base : classSymbol->baseClasses()) {
+    if (base == subobject) return index;
+    ++index;
+  }
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    if (field == subobject) return index;
+    ++index;
+  }
+  return std::nullopt;
+}
+
+auto Codegen::subobjectAddress(mlir::Location loc, mlir::Value objectPtr,
+                               ClassSymbol* classSymbol, Symbol* subobject)
+    -> mlir::Value {
+  auto type = subobjectType(subobject);
+  if (!type) return {};
+
+  auto declaringClass = symbol_cast<ClassSymbol>(subobject->parent());
+  if (declaringClass) declaringClass = declaringClass->resolvedDefinition();
+
+  const auto declaredHere = !declaringClass || declaringClass == classSymbol ||
+                            declaringClass == classSymbol->definition();
+
+  if (!declaredHere && !declaringClass->name()) {
+    auto enclosingClass = symbol_cast<ClassSymbol>(declaringClass->parent());
+    if (!enclosingClass) return {};
+    enclosingClass = enclosingClass->resolvedDefinition();
+
+    for (auto field :
+         views::members(enclosingClass) | views::non_static_fields) {
+      auto fieldClass =
+          type_cast<ClassType>(unit_->typeTraits().remove_cv(field->type()));
+      if (!fieldClass || !fieldClass->symbol()) continue;
+      if (fieldClass->symbol()->resolvedDefinition() != declaringClass)
+        continue;
+
+      auto enclosing = subobjectAddress(loc, objectPtr, classSymbol, field);
+      if (!enclosing) return {};
+
+      auto index = subobjectIndex(declaringClass, subobject);
+      if (!index) return {};
+      return memberAddress(loc, enclosing, type, *index);
+    }
+
+    return {};
+  }
+
+  auto index = subobjectIndex(classSymbol, subobject);
+  if (!index) return {};
+  return memberAddress(loc, objectPtr, type, *index);
+}
+
+auto Codegen::subobjectElementAddresses(mlir::Location loc,
+                                        mlir::Value subobjectPtr,
+                                        const ClassSubobjectShape& shape)
+    -> std::vector<mlir::Value> {
+  if (shape.elementCount == 1) return {subobjectPtr};
+
+  auto elementPtrType =
+      mlir::cxx::PointerType::get(context_, convertType(shape.elementType));
+  auto basePtr =
+      mlir::cxx::BitcastOp::create(builder_, loc, elementPtrType, subobjectPtr);
+
+  auto indexType = builder_.getIntegerType(64);
+
+  std::vector<mlir::Value> addresses;
+  addresses.reserve(shape.elementCount);
+
+  for (std::uint64_t i = 0; i < shape.elementCount; ++i) {
+    auto offset = mlir::arith::ConstantOp::create(
+        builder_, loc, indexType,
+        builder_.getIntegerAttr(indexType, static_cast<std::int64_t>(i)));
+    addresses.push_back(mlir::cxx::PtrAddOp::create(
+        builder_, loc, elementPtrType, basePtr, offset));
+  }
+
+  return addresses;
+}
+
+auto Codegen::subobjectsInDeclarationOrder(ClassSymbol* classSymbol) const
+    -> std::vector<Symbol*> {
+  std::vector<Symbol*> subobjects;
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
+    subobjects.push_back(base);
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields)
+    subobjects.push_back(field);
+
+  return subobjects;
+}
+
+auto Codegen::isImplicitlyInitializedSubobject(ClassSymbol* classSymbol,
+                                               Symbol* subobject) const
+    -> bool {
+  if (!classSymbol->isUnion()) return true;
+  return !symbol_cast<FieldSymbol>(subobject);
+}
+
+auto Codegen::defaultConstructorArguments(FunctionSymbol* constructor)
+    -> std::vector<ExpressionResult> {
+  std::vector<ExpressionResult> args;
+
+  auto params = constructor->functionParameters();
+  if (!params) return args;
+
+  for (auto member : views::members(params)) {
+    auto param = symbol_cast<ParameterSymbol>(member);
+    if (!param || !param->defaultArgument()) continue;
+    args.push_back(expression(param->defaultArgument()));
+  }
+
+  return args;
+}
+
+void Codegen::emitSubobjectDestruction(SourceLocation loc,
+                                       mlir::Value objectPtr,
+                                       ClassSymbol* classSymbol,
+                                       Symbol* subobject) {
+  if (!isImplicitlyInitializedSubobject(classSymbol, subobject)) return;
+
+  auto shape = classSubobjectShape(subobjectType(subobject));
+  if (!shape) return;
+
+  auto dtor = shape->classSymbol->destructor();
+  if (!dtor) return;
+
+  if (symbol_cast<FieldSymbol>(subobject)) dtor = completeObjectDtor(dtor);
+
+  auto mlirLoc = getLocation(loc);
+
+  auto subobjectPtr =
+      subobjectAddress(mlirLoc, objectPtr, classSymbol, subobject);
+  if (!subobjectPtr) return;
+
+  auto addresses = subobjectElementAddresses(mlirLoc, subobjectPtr, *shape);
+
+  for (auto it = addresses.rbegin(); it != addresses.rend(); ++it)
+    (void)emitCall(loc, dtor, {*it}, {});
+}
+
+void Codegen::emitSubobjectDefaultConstruction(SourceLocation loc,
+                                               mlir::Value objectPtr,
+                                               ClassSymbol* classSymbol,
+                                               Symbol* subobject) {
+  if (!isImplicitlyInitializedSubobject(classSymbol, subobject)) return;
+
+  auto shape = classSubobjectShape(subobjectType(subobject));
+  if (!shape) return;
+
+  auto defaultConstructor = shape->classSymbol->defaultConstructor();
+  if (!defaultConstructor) return;
+
+  auto mlirLoc = getLocation(loc);
+
+  auto subobjectPtr =
+      subobjectAddress(mlirLoc, objectPtr, classSymbol, subobject);
+  if (!subobjectPtr) return;
+
+  const auto completeObject = symbol_cast<FieldSymbol>(subobject) != nullptr;
+
+  for (auto address : subobjectElementAddresses(mlirLoc, subobjectPtr, *shape))
+    (void)emitCtorCall(loc, defaultConstructor, address,
+                       defaultConstructorArguments(defaultConstructor),
+                       completeObject);
+}
+
+Codegen::FullExpression::FullExpression(Codegen& gen, SourceLocation endLoc)
+    : gen_(gen), endLoc_(endLoc) {
+  gen_.pushFullExpressionCleanup();
+}
+
+Codegen::FullExpression::~FullExpression() { gen_.popCleanup(endLoc_); }
+
+auto Codegen::takeResultObject(ExpressionAST* ast) -> mlir::Value {
+  if (!ast || resultObjectOwner_ != ast) return {};
+  resultObjectOwner_ = nullptr;
+  resultObjectInitialized_ = true;
+  return std::exchange(resultObjectAddress_, mlir::Value{});
+}
+
+auto Codegen::emitPrvalueInto(mlir::Value object, const Type* objectType,
+                              ExpressionAST* ast, SourceLocation loc) -> bool {
+  auto resultObject = ResultObject{*this, ast, object};
+
+  auto result = expression(ast);
+
+  if (resultObject.wasConsumed()) return true;
+  if (!result.value) return false;
+
+  auto objectMlirType = convertType(objectType);
+  auto value = result.value;
+
+  const bool yieldedClassAddress =
+      unit_->typeTraits().is_class(objectType) &&
+      value.getType() != objectMlirType &&
+      mlir::isa<mlir::cxx::PointerType>(value.getType());
+
+  if (yieldedClassAddress) {
+    value =
+        mlir::cxx::LoadOp::create(builder_, getLocation(loc), objectMlirType,
+                                  value, getAlignment(objectType));
+  }
+
+  mlir::cxx::StoreOp::create(builder_, getLocation(loc), value, object,
+                             getAlignment(objectType));
+
+  return true;
+}
+
+Codegen::ResultObject::ResultObject(Codegen& gen, ExpressionAST* ast,
+                                    mlir::Value address)
+    : gen_(gen),
+      savedOwner_(std::exchange(gen.resultObjectOwner_, ast)),
+      savedAddress_(std::exchange(gen.resultObjectAddress_, address)),
+      savedInitialized_(std::exchange(gen.resultObjectInitialized_, false)) {}
+
+Codegen::ResultObject::~ResultObject() {
+  gen_.resultObjectOwner_ = savedOwner_;
+  gen_.resultObjectAddress_ = savedAddress_;
+  gen_.resultObjectInitialized_ = savedInitialized_;
+}
+
+auto Codegen::ResultObject::wasConsumed() const -> bool {
+  return gen_.resultObjectInitialized_;
+}
+
+auto Codegen::collectCleanupSnapshot(std::size_t targetDepth)
+    -> CleanupSnapshot {
   CleanupSnapshot snapshot;
 
-  for (auto i = cleanupStack_.size(); i > 0; --i) {
+  for (auto i = cleanupStack_.size(); i > targetDepth; --i) {
     auto depthAttr =
         mlir::IntegerAttr::get(mlir::IntegerType::get(context_, 64), i - 1);
     auto& scope = cleanupStack_[i - 1];
@@ -882,44 +1252,19 @@ auto Codegen::collectCleanupSnapshot() -> CleanupSnapshot {
       snapshot.destructors.push_back(
           mlir::FlatSymbolRefAttr::get(funcOp.getSymNameAttr()));
       snapshot.depths.push_back(depthAttr);
+
+      if (!jt->activeFlag) {
+        snapshot.activeFlagIndices.push_back(-1);
+        continue;
+      }
+
+      snapshot.activeFlagIndices.push_back(
+          static_cast<std::int32_t>(snapshot.activeFlags.size()));
+      snapshot.activeFlags.push_back(jt->activeFlag);
     }
   }
 
   return snapshot;
-}
-
-auto Codegen::applyEntryPointABI(FunctionSymbol* symbol,
-                                 const FunctionType* functionType)
-    -> mlir::cxx::Visibility {
-  auto id = name_cast<Identifier>(symbol->name());
-  if (!id || id->name() != "main" || !is_global_namespace(symbol->parent()) ||
-      !symbol->isDefined() || symbol->externalName() || symbol->aliasName()) {
-    return mlir::cxx::Visibility::Default;
-  }
-
-  if (!isWasm32Target_) {
-    return mlir::cxx::Visibility::Default;
-  }
-
-  if (functionType->isVariadic() ||
-      functionType->returnType() != control()->getIntType()) {
-    return mlir::cxx::Visibility::Default;
-  }
-
-  const auto& params = functionType->parameterTypes();
-
-  if (params.empty()) {
-    symbol->setAliasName(control()->getIdentifier("__main_void"));
-    return mlir::cxx::Visibility::Hidden;
-  }
-
-  if (params.size() == 2 && params[0] == control()->getIntType() &&
-      type_cast<PointerType>(params[1])) {
-    symbol->setExternalName(control()->getIdentifier("__main_argc_argv"));
-    return mlir::cxx::Visibility::Hidden;
-  }
-
-  return mlir::cxx::Visibility::Default;
 }
 
 auto Codegen::structorReturnsThis(FunctionSymbol* symbol) -> bool {
@@ -931,118 +1276,8 @@ auto Codegen::structorReturnsThis(FunctionSymbol* symbol) -> bool {
   return isWasmTarget_;
 }
 
-namespace {
-auto isEmptyClassForAbi(TypeTraits& traits, ClassSymbol* classSymbol) -> bool {
-  if (!classSymbol || !classSymbol->isComplete()) return false;
-  if (classSymbol->isPolymorphic() || classSymbol->hasVirtualBaseClasses())
-    return false;
-
-  for (auto base : classSymbol->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (baseClass) baseClass = baseClass->resolvedDefinition();
-    if (!isEmptyClassForAbi(traits, baseClass)) return false;
-  }
-
-  for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    if (field->isBitField()) return false;
-    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
-    auto fieldClassType = type_cast<ClassType>(fieldType);
-    if (!fieldClassType) return false;
-    auto fieldClass = fieldClassType->symbol();
-    if (fieldClass) fieldClass = fieldClass->resolvedDefinition();
-    if (!isEmptyClassForAbi(traits, fieldClass)) return false;
-  }
-
-  return true;
-}
-
-auto singleElementForAbi(TypeTraits& traits, ClassSymbol* classSymbol)
-    -> const Type* {
-  if (!classSymbol || !classSymbol->isComplete()) return nullptr;
-  if (classSymbol->isUnion()) return nullptr;
-  if (classSymbol->isPolymorphic() || classSymbol->hasVirtualBaseClasses())
-    return nullptr;
-
-  const Type* element = nullptr;
-
-  for (auto base : classSymbol->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (baseClass) baseClass = baseClass->resolvedDefinition();
-    if (isEmptyClassForAbi(traits, baseClass)) continue;
-    if (element) return nullptr;
-    element = singleElementForAbi(traits, baseClass);
-    if (!element) return nullptr;
-  }
-
-  for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    if (field->isBitField()) return nullptr;
-
-    auto fieldType = traits.remove_cv(field->type());
-
-    auto leafType = traits.remove_all_extents(fieldType);
-    if (auto leafClassType = type_cast<ClassType>(leafType)) {
-      auto leafClass = leafClassType->symbol();
-      if (leafClass) leafClass = leafClass->resolvedDefinition();
-      if (isEmptyClassForAbi(traits, leafClass)) continue;
-    }
-
-    if (element) return nullptr;
-
-    while (auto arrayType = type_cast<BoundedArrayType>(fieldType)) {
-      if (arrayType->size() != 1) return nullptr;
-      fieldType = traits.remove_cv(arrayType->elementType());
-    }
-
-    if (auto fieldClassType = type_cast<ClassType>(fieldType)) {
-      auto fieldClass = fieldClassType->symbol();
-      if (fieldClass) fieldClass = fieldClass->resolvedDefinition();
-      element = singleElementForAbi(traits, fieldClass);
-      if (!element) return nullptr;
-    } else if (traits.is_scalar(fieldType)) {
-      element = fieldType;
-    } else {
-      return nullptr;
-    }
-  }
-
-  return element;
-}
-}  // namespace
-
 auto Codegen::classifyClassValueAbi(const Type* type) -> ClassValueAbi {
-  if (!type) return {};
-
-  auto traits = unit_->typeTraits();
-  auto classType = type_cast<ClassType>(traits.remove_cv(type));
-  if (!classType) return {};
-
-  if (!isWasmTarget_) return {};
-
-  auto classSymbol = classType->symbol();
-  if (classSymbol) classSymbol = classSymbol->resolvedDefinition();
-
-  if (!classSymbol || !classSymbol->isComplete()) {
-    return {.kind = ClassValueAbi::Kind::Indirect};
-  }
-
-  if (isEmptyClassForAbi(traits, classSymbol)) {
-    return {.kind = ClassValueAbi::Kind::Empty};
-  }
-
-  if (!traits.is_trivially_copyable(classType) ||
-      classSymbol->isPolymorphic() || classSymbol->hasVirtualBaseClasses()) {
-    return {.kind = ClassValueAbi::Kind::Indirect};
-  }
-
-  if (auto element = singleElementForAbi(traits, classSymbol)) {
-    auto elementSize = control()->memoryLayout()->sizeOf(element);
-    auto classSize = control()->memoryLayout()->sizeOf(classType);
-    if (elementSize && classSize && *elementSize == *classSize) {
-      return {.kind = ClassValueAbi::Kind::Scalar, .scalarType = element};
-    }
-  }
-
-  return {.kind = ClassValueAbi::Kind::Indirect};
+  return cxx::classifyClassValueAbi(unit_, type);
 }
 
 auto Codegen::classValueAddress(SourceLocation loc, const Type* type,
@@ -1091,8 +1326,8 @@ auto Codegen::abiLowerClassArgument(SourceLocation loc, const Type* paramType,
 }
 
 auto Codegen::abiPrepareResult(SourceLocation loc, const Type* returnType,
-                               mlir::SmallVector<mlir::Type>& resultTypes)
-    -> mlir::Value {
+                               mlir::SmallVector<mlir::Type>& resultTypes,
+                               mlir::Value resultObject) -> mlir::Value {
   if (unit_->typeTraits().is_void(returnType)) return {};
 
   const auto abi = classifyClassValueAbi(returnType);
@@ -1110,6 +1345,7 @@ auto Codegen::abiPrepareResult(SourceLocation loc, const Type* returnType,
       return {};
 
     case ClassValueAbi::Kind::Indirect:
+      if (resultObject) return resultObject;
       return newTemp(returnType, loc);
   }
 
@@ -1357,8 +1593,6 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   auto funcType = computeFunctionSignature(emittedSymbol);
 
-  auto visibility = applyEntryPointABI(emittedSymbol, functionType);
-
   std::string name;
   bool isStructor = false;
 
@@ -1374,8 +1608,9 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   }
 
   mlir::cxx::VisibilityAttr visibilityAttr;
-  if (visibility != mlir::cxx::Visibility::Default) {
-    visibilityAttr = mlir::cxx::VisibilityAttr::get(context_, visibility);
+  if (emittedSymbol->hasHiddenVisibility()) {
+    visibilityAttr =
+        mlir::cxx::VisibilityAttr::get(context_, mlir::cxx::Visibility::Hidden);
   }
 
   mlir::StringAttr aliasNameAttr;
@@ -1742,7 +1977,7 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
       mlir::cxx::VisibilityAttr{}, mlir::StringAttr{}, mlir::ArrayAttr{},
       mlir::ArrayAttr{});
 
-  func->setAttr("cxx.global_ctor", builder_.getI32IntegerAttr(65535));
+  mlir::cxx::GlobalCtorOp::create(builder_, loc, func.getSymName());
 
   auto entryBlock = builder_.createBlock(&func.getBody());
   auto exitBlock = builder_.createBlock(&func.getBody());
@@ -1776,47 +2011,51 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
   const auto initLoc =
       initializer ? initializer->firstSourceLocation() : defVar->location();
 
-  if (auto ctor = defVar->constructor()) {
-    std::vector<ExpressionResult> args;
+  {
+    auto fullExpression = FullExpression{*this, initLoc};
 
-    if (initializer) {
-      if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
-        for (auto it = paren->expressionList; it; it = it->next) {
-          args.push_back(expression(it->value));
-        }
-      } else if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
-        for (auto it = braced->expressionList; it; it = it->next) {
-          args.push_back(expression(it->value));
-        }
-      } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
-        if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
+    if (auto ctor = defVar->constructor()) {
+      std::vector<ExpressionResult> args;
+
+      if (initializer) {
+        if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+          for (auto it = paren->expressionList; it; it = it->next) {
+            args.push_back(expression(it->value));
+          }
+        } else if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
           for (auto it = braced->expressionList; it; it = it->next) {
             args.push_back(expression(it->value));
           }
-        } else {
-          args.push_back(expression(equal->expression));
+        } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+          if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
+            for (auto it = braced->expressionList; it; it = it->next) {
+              args.push_back(expression(it->value));
+            }
+          } else {
+            args.push_back(expression(equal->expression));
+          }
         }
       }
-    }
 
-    (void)emitCtorCall(initLoc, ctor, addr, std::move(args),
-                       /*completeObject=*/true);
-  } else if (initializer) {
-    ExpressionAST* initExpr = nullptr;
-    if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
-      initExpr = equal->expression;
-    } else if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
-      if (paren->expressionList && !paren->expressionList->next) {
-        initExpr = paren->expressionList->value;
+      (void)emitCtorCall(initLoc, ctor, addr, std::move(args),
+                         /*completeObject=*/true);
+    } else if (initializer) {
+      ExpressionAST* initExpr = nullptr;
+      if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
+        initExpr = equal->expression;
+      } else if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
+        if (paren->expressionList && !paren->expressionList->next) {
+          initExpr = paren->expressionList->value;
+        }
+      } else {
+        initExpr = initializer;
       }
-    } else {
-      initExpr = initializer;
-    }
 
-    if (initExpr) {
-      auto result = expression(initExpr);
-      mlir::cxx::StoreOp::create(builder_, getLocation(initLoc), result.value,
-                                 addr, getAlignment(defVar->type()));
+      if (initExpr) {
+        auto result = expression(initExpr);
+        mlir::cxx::StoreOp::create(builder_, getLocation(initLoc), result.value,
+                                   addr, getAlignment(defVar->type()));
+      }
     }
   }
 
@@ -1835,6 +2074,8 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
 
   builder_.setInsertionPointToEnd(exitBlock_);
   mlir::cxx::ReturnOp::create(builder_, loc);
+
+  resolveLabels();
 
   std::swap(function_, func);
   std::swap(entryBlock_, entryBlock);
@@ -2174,12 +2415,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       builder_, loc, mlir::cxx::PointerType::get(context_, i8PtrType),
       vtableAddr, twoOp);
 
-  auto thisType = convertType(classSymbol->type());
-  auto ptrType = mlir::cxx::PointerType::get(context_, thisType);
-
-  auto thisPtr = mlir::cxx::LoadOp::create(
-      builder_, loc, ptrType, thisValue_,
-      getAlignment(unit_->typeTraits().add_pointer(classSymbol->type())));
+  auto thisPtr = loadThisPointer(loc, classSymbol);
 
   auto vptrFieldPtr = resolveVptrField(thisPtr, classSymbol, loc);
 
