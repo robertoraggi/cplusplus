@@ -154,7 +154,6 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast) {
     return;
   }
 
-  auto traits = unit_->typeTraits();
   auto rangeType = traits.remove_cvref(rangeInitializer->type);
 
   auto elementType = resolveRangeIteration(unit_, ast, rangeType);

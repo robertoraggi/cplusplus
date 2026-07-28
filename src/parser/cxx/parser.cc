@@ -232,7 +232,8 @@ struct Parser::ExplicitTemplateHeadGuard {
   ~ExplicitTemplateHeadGuard() { parser->binder_.leaveExplicitTemplateHead(); }
 };
 
-Parser::Parser(TranslationUnit* unit) : unit_(unit), binder_(unit) {
+Parser::Parser(TranslationUnit* unit)
+    : unit_(unit), traits(unit), binder_(unit) {
   control_ = unit_->control();
   diagnosticClient_ = unit->diagnosticsClient();
   lang_ = unit_->language();
@@ -679,7 +680,7 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           break;
       }
 
-      if (isCxx()) elementType = unit_->typeTraits().add_const(elementType);
+      if (isCxx()) elementType = traits.add_const(elementType);
 
       ast->type = control_->getBoundedArrayType(elementType, extent);
       ast->valueCategory = ValueCategory::kLValue;
@@ -1262,8 +1263,8 @@ auto Parser::parse_template_nested_name_specifier(
             templateId->identifierLoc);
 
         if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-          if (auto classType = type_cast<ClassType>(
-                  unit_->typeTraits().remove_cv(alias->type()))) {
+          if (auto classType =
+                  type_cast<ClassType>(traits.remove_cv(alias->type()))) {
             ast->symbol = classType->symbol();
           }
         } else {
@@ -1275,7 +1276,7 @@ auto Parser::parse_template_nested_name_specifier(
       }
 
       if (auto cls = symbol_cast<ClassSymbol>(ast->symbol)) {
-        unit_->typeTraits().requireCompleteClass(cls);
+        traits.requireCompleteClass(cls);
       }
     } else {
       if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
@@ -3695,7 +3696,7 @@ auto Parser::parse_case_statement(StatementAST*& yyast) -> bool {
 
   if (value.has_value()) {
     auto interp = ASTInterpreter{unit_};
-    if (unit_->typeTraits().is_unsigned(expression->type)) {
+    if (traits.is_unsigned(expression->type)) {
       ast->caseValue = *interp.toUInt(*value);
     } else {
       ast->caseValue = *interp.toInt(*value);
@@ -7453,7 +7454,7 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
 
     if (!enumerator->expression) {
       if (lastValue.has_value()) {
-        if (unit_->typeTraits().is_unsigned(type)) {
+        if (traits.is_unsigned(type)) {
           if (auto v = interp.toUInt(lastValue.value())) {
             lastValue = std::bit_cast<std::intmax_t>(v.value() + 1);
           } else {
@@ -11063,7 +11064,7 @@ void Parser::check(DeclarationAST* ast) {
 
     auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
     if (!var) continue;
-    if (!unit_->typeTraits().is_reference(var->type())) continue;
+    if (!traits.is_reference(var->type())) continue;
 
     unit_->error(var->location(),
                  std::format("reference variable of type '{}' must be "
@@ -11083,7 +11084,7 @@ void Parser::check_init_declarator(InitDeclaratorAST* ast) {
 
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
-  if (!unit_->typeTraits().is_reference(var->type())) return;
+  if (!traits.is_reference(var->type())) return;
 
   unit_->error(var->location(),
                std::format("reference variable of type '{}' must be "

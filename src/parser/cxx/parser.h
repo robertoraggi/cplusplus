@@ -27,6 +27,7 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 
 #include <algorithm>
 #include <deque>
@@ -910,6 +911,7 @@ class Parser final {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  TypeTraits traits;
   Binder binder_;
   Arena* pool_ = nullptr;
   Control* control_ = nullptr;

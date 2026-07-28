@@ -148,7 +148,8 @@ struct ASTInterpreter::ToBool {
   }
 };
 
-ASTInterpreter::ASTInterpreter(TranslationUnit* unit) : unit_(unit) {}
+ASTInterpreter::ASTInterpreter(TranslationUnit* unit)
+    : unit_(unit), traits(unit) {}
 
 ASTInterpreter::~ASTInterpreter() {}
 
@@ -255,7 +256,7 @@ auto ASTInterpreter::bindParameters(FunctionSymbol* func,
 auto ASTInterpreter::bindOneParameter(Symbol* paramSymbol,
                                       ExpressionAST* argExpr) -> bool {
   auto param = symbol_cast<ParameterSymbol>(paramSymbol);
-  if (param && unit_->typeTraits().is_reference(param->type())) {
+  if (param && traits.is_reference(param->type())) {
     if (auto slot = lvalue(argExpr)) {
       bindReference(paramSymbol, slot);
       return true;
@@ -345,7 +346,7 @@ void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
 
 auto ASTInterpreter::defaultConstruct(const Type* type)
     -> std::optional<ConstValue> {
-  auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(type));
+  auto classType = type_cast<ClassType>(traits.remove_cv(type));
   if (!classType || !classType->symbol()) return std::nullopt;
 
   auto callableWithNoArgs = [](FunctionSymbol* ctor) {

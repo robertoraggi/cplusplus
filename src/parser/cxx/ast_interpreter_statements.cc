@@ -278,7 +278,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverArray(
   if (!listPtr || !*listPtr) return {};
   auto list = *listPtr;
 
-  const bool bindByRef = interp.unit_->typeTraits().is_reference(var->type());
+  const bool bindByRef = interp.traits.is_reference(var->type());
 
   for (std::size_t i = 0; i < list->elements.size(); ++i) {
     if (!interp.tick()) return {};
@@ -325,7 +325,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverPointerIterator(
   if (!beginAddr || !*beginAddr || !endAddr || !*endAddr) return {};
   if ((*beginAddr)->symbol() != (*endAddr)->symbol()) return {};
 
-  const bool bindByRef = interp.unit_->typeTraits().is_reference(var->type());
+  const bool bindByRef = interp.traits.is_reference(var->type());
   const auto base = (*beginAddr)->offset();
 
   for (auto off = base; off < (*endAddr)->offset(); ++off) {
@@ -402,7 +402,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverClassIterator(
     return interp.evaluateCall(f, {ConstValue{a}, ConstValue{b}});
   };
 
-  const bool bindByRef = interp.unit_->typeTraits().is_reference(var->type());
+  const bool bindByRef = interp.traits.is_reference(var->type());
 
   for (;;) {
     if (!interp.tick()) return {};
@@ -454,8 +454,7 @@ auto ASTInterpreter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 
   if (var && rangeType) {
     if (!ast->beginFunction &&
-        type_cast<BoundedArrayType>(
-            interp.unit_->typeTraits().remove_cvref(rangeType))) {
+        type_cast<BoundedArrayType>(interp.traits.remove_cvref(rangeType))) {
       return forRangeOverArray(ast, var);
     }
     if (ast->beginFunction && ast->isPointerIterator) {
@@ -549,7 +548,7 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
 
       auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
 
-      if (var && interp.unit_->typeTraits().is_reference(var->type())) {
+      if (var && interp.traits.is_reference(var->type())) {
         auto initExpr = initDecl->initializer;
         if (auto eq = ast_cast<EqualInitializerAST>(initExpr))
           initExpr = eq->expression;
@@ -565,7 +564,7 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
         if (auto parenInit =
                 ast_cast<ParenInitializerAST>(initDecl->initializer)) {
           if (var) {
-            auto varType = interp.unit_->typeTraits().remove_cv(var->type());
+            auto varType = interp.traits.remove_cv(var->type());
             if (auto classType = type_cast<ClassType>(varType)) {
               std::vector<ConstValue> args;
               bool argsOk = true;

@@ -24,6 +24,7 @@
 #include <cxx/implicit_conversion_sequence.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
 namespace cxx {
@@ -35,7 +36,7 @@ class StandardConversion {
  public:
   explicit StandardConversion(TranslationUnit* unit, bool isC = false);
 
-  [[nodiscard]] auto initializerListElementType(const Type* targetType) const
+  [[nodiscard]] auto initializerListElementType(const Type* targetType)
       -> const Type*;
 
   [[nodiscard]] auto computeConversionSequence(ExpressionAST* expr,
@@ -170,6 +171,7 @@ class StandardConversion {
 
  private:
   TranslationUnit* unit_;
+  TypeTraits traits;
   Control* control_;
   Arena* arena_;
   bool isC_ = false;

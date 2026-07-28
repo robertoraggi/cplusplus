@@ -881,7 +881,7 @@ auto Binder::DeclareFunction::findOverriddenFunctionImpl(
       if (fn->isDestructor() && member->isDestructor()) return member;
 
       if (fn->name() == member->name() &&
-          binder.unit_->typeTraits().is_same(fn->type(), member->type())) {
+          binder.traits.is_same(fn->type(), member->type())) {
         return member;
       }
       return nullptr;

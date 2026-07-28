@@ -230,8 +230,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
                                     ExpressionAST* initializer) {
   const bool isVLA =
       type_cast<UnresolvedBoundedArrayType>(var->type()) != nullptr;
-  if (!isVLA && !initializer && !unit_->typeTraits().is_class(var->type()))
-    return;
+  if (!isVLA && !initializer && !traits.is_class(var->type())) return;
 
   const auto loc = getLocation(var->location());
 
@@ -255,15 +254,14 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
     return;
   }
 
-  if (unit_->typeTraits().is_array(var->type())) {
+  if (traits.is_array(var->type())) {
     arrayInit(local.value(), var->type(), initializer);
     return;
   }
 
-  if (unit_->typeTraits().is_class(var->type())) {
+  if (traits.is_class(var->type())) {
     auto registerCleanup = [&] {
-      auto classType =
-          type_cast<ClassType>(unit_->typeTraits().remove_cv(var->type()));
+      auto classType = type_cast<ClassType>(traits.remove_cv(var->type()));
       if (!classType || !classType->symbol()) return;
       auto dtor = classType->symbol()->destructor();
       if (!dtor) return;
@@ -286,9 +284,8 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
     if (singleInitExpr &&
         singleInitExpr->valueCategory == ValueCategory::kPrValue &&
         singleInitExpr->type &&
-        unit_->typeTraits().is_same(
-            unit_->typeTraits().remove_cv(singleInitExpr->type),
-            unit_->typeTraits().remove_cv(var->type()))) {
+        traits.is_same(traits.remove_cv(singleInitExpr->type),
+                       traits.remove_cv(var->type()))) {
       if (emitPrvalueInto(local.value(), var->type(), singleInitExpr,
                           initializer->firstSourceLocation())) {
         registerCleanup();
@@ -359,7 +356,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
       initExpr = initializer;
     }
 
-    if (unit_->typeTraits().is_reference(var->type())) {
+    if (traits.is_reference(var->type())) {
       emitReferenceInit(var, local.value(), initExpr, loc);
       return;
     }
@@ -379,7 +376,7 @@ void Codegen::emitReferenceInit(VariableSymbol* var, mlir::Value local,
     return;
   }
 
-  auto elementType = unit_->typeTraits().remove_reference(var->type());
+  auto elementType = traits.remove_reference(var->type());
   auto tempPtrType =
       mlir::cxx::PointerType::get(context_, convertType(elementType));
   auto extendedTemporary = mlir::cxx::AllocaOp::create(
@@ -388,8 +385,7 @@ void Codegen::emitReferenceInit(VariableSymbol* var, mlir::Value local,
   (void)emitPrvalueInto(extendedTemporary, elementType, initExpr,
                         initExpr->firstSourceLocation());
 
-  if (auto classType =
-          type_cast<ClassType>(unit_->typeTraits().remove_cv(elementType))) {
+  if (auto classType = type_cast<ClassType>(traits.remove_cv(elementType))) {
     if (classType->symbol()) {
       if (auto dtor = classType->symbol()->resolvedDefinition()->destructor())
         addCleanup(extendedTemporary, completeObjectDtor(dtor));
@@ -536,7 +532,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (!func.getBody().empty()) return {};
 
-  const auto needsExitValue = !gen.unit_->typeTraits().is_void(returnType);
+  const auto needsExitValue = !gen.traits.is_void(returnType);
 
   const auto returnAbi = gen.classifyClassValueAbi(returnType);
   const bool sretReturn = returnAbi.kind == ClassValueAbi::Kind::Indirect;
@@ -605,23 +601,20 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = mlir::cxx::PointerType::get(gen.context_, thisType);
 
-    auto allocaOp =
-        gen.newTemp(gen.unit_->typeTraits().add_pointer(classSymbol->type()),
-                    ast->firstSourceLocation());
+    auto allocaOp = gen.newTemp(gen.traits.add_pointer(classSymbol->type()),
+                                ast->firstSourceLocation());
     thisValue = allocaOp;
 
     if (gen.unit_->language() == LanguageKind::kCXX) {
       gen.attachDebugInfo(
-          allocaOp, gen.unit_->typeTraits().add_pointer(classSymbol->type()),
-          "this", 1,
+          allocaOp, gen.traits.add_pointer(classSymbol->type()), "this", 1,
           mlir::LLVM::DIFlags::Artificial | mlir::LLVM::DIFlags::ObjectPointer);
     }
 
     mlir::cxx::StoreOp::create(
         gen.builder_, loc, gen.entryBlock_->getArgument(sretReturn ? 1 : 0),
         thisValue,
-        gen.getAlignment(
-            gen.unit_->typeTraits().add_pointer(classSymbol->type())));
+        gen.getAlignment(gen.traits.add_pointer(classSymbol->type())));
   }
 
   FunctionParametersSymbol* params = nullptr;
@@ -1117,7 +1110,7 @@ void Codegen::FunctionBodyVisitor::emitFieldInitializer(
 
   auto loc = gen.getLocation(sourceLoc);
 
-  auto fieldType = gen.unit_->typeTraits().remove_cv(field->type());
+  auto fieldType = gen.traits.remove_cv(field->type());
   auto classType = type_cast<ClassType>(fieldType);
 
   if (!classType) {
@@ -1150,8 +1143,7 @@ void Codegen::FunctionBodyVisitor::emitFieldInitializer(
     if (auto ctor = field->constructor()) {
       const auto passListWhole =
           braced->type &&
-          !gen.unit_->typeTraits().is_same(
-              gen.unit_->typeTraits().remove_cv(braced->type), fieldType);
+          !gen.traits.is_same(gen.traits.remove_cv(braced->type), fieldType);
       std::vector<ExpressionResult> args;
       if (passListWhole) {
         args.push_back(gen.expression(braced));
@@ -1176,8 +1168,7 @@ void Codegen::FunctionBodyVisitor::emitFieldInitializer(
 
   const auto isSameClassPrvalue =
       expr->valueCategory == ValueCategory::kPrValue && expr->type &&
-      gen.unit_->typeTraits().is_same(
-          gen.unit_->typeTraits().remove_cv(expr->type), fieldType);
+      gen.traits.is_same(gen.traits.remove_cv(expr->type), fieldType);
 
   if (!isSameClassPrvalue) {
     if (auto ctor = field->constructor()) {
@@ -1204,8 +1195,7 @@ void Codegen::FunctionBodyVisitor::emitFieldInitializer(
 auto Codegen::FunctionBodyVisitor::emitAnonymousUnionInitializer(
     SourceLocation sourceLoc, mlir::Value thisPtr, ClassSymbol* classSymbol,
     FieldSymbol* field) -> bool {
-  auto unionType =
-      type_cast<ClassType>(gen.unit_->typeTraits().remove_cv(field->type()));
+  auto unionType = type_cast<ClassType>(gen.traits.remove_cv(field->type()));
   if (!unionType || !unionType->symbol()) return false;
 
   auto unionSymbol = unionType->symbol()->resolvedDefinition();

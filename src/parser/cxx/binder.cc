@@ -43,7 +43,7 @@
 #include <format>
 
 namespace cxx {
-Binder::Binder(TranslationUnit* unit) : unit_(unit) {
+Binder::Binder(TranslationUnit* unit) : unit_(unit), traits(unit) {
   languageLinkage_ = unit_->language();
 }
 
@@ -321,13 +321,12 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
                   bool inTemplateParameters) {
   ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 
-  if (unit_->typeTraits().is_array(ast->type))
-    ast->type = unit_->typeTraits().add_pointer(
-        unit_->typeTraits().remove_extent(ast->type));
-  else if (unit_->typeTraits().is_function(ast->type))
-    ast->type = unit_->typeTraits().add_pointer(ast->type);
-  else if (unit_->typeTraits().is_scalar(ast->type))
-    ast->type = unit_->typeTraits().remove_cv(ast->type);
+  if (traits.is_array(ast->type))
+    ast->type = traits.add_pointer(traits.remove_extent(ast->type));
+  else if (traits.is_function(ast->type))
+    ast->type = traits.add_pointer(ast->type);
+  else if (traits.is_scalar(ast->type))
+    ast->type = traits.remove_cv(ast->type);
 
   if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
     auto paramName = get_name(control(), declId->unqualifiedId);
@@ -356,11 +355,9 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
     if (member->symbol) ast->type = member->symbol->type();
   } else if (ast->expression && ast->expression->type) {
     if (isCxx() && is_lvalue(ast->expression)) {
-      ast->type =
-          unit_->typeTraits().add_lvalue_reference(ast->expression->type);
+      ast->type = traits.add_lvalue_reference(ast->expression->type);
     } else if (isCxx() && is_xvalue(ast->expression)) {
-      ast->type =
-          unit_->typeTraits().add_rvalue_reference(ast->expression->type);
+      ast->type = traits.add_rvalue_reference(ast->expression->type);
     } else {
       ast->type = ast->expression->type;
     }
@@ -477,7 +474,7 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
     for (auto candidate : scope->find(name)) {
       if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
         if (existing->type() && symbol->type() &&
-            !unit_->typeTraits().is_same(existing->type(), symbol->type())) {
+            !traits.is_same(existing->type(), symbol->type())) {
           if (should_report_conflict(identifierLoc)) {
             error(identifierLoc, std::format("conflicting declaration of '{}'",
                                              to_string(name)));
@@ -589,8 +586,8 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   Symbol* symbol = nullptr;
 
   if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
-    if (auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(
-            decltypeId->decltypeSpecifier->type))) {
+    if (auto classType = type_cast<ClassType>(
+            traits.remove_cv(decltypeId->decltypeSpecifier->type))) {
       symbol = classType->symbol();
     }
   } else {
@@ -599,8 +596,8 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   }
 
   if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (auto classType = type_cast<ClassType>(
-            unit_->typeTraits().remove_cv(typeAlias->type()))) {
+    if (auto classType =
+            type_cast<ClassType>(traits.remove_cv(typeAlias->type()))) {
       symbol = classType->symbol();
     }
   }
@@ -647,7 +644,7 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   }
 
   if (auto baseClass = symbol_cast<ClassSymbol>(symbol)) {
-    unit_->typeTraits().requireCompleteClass(baseClass);
+    traits.requireCompleteClass(baseClass);
   }
 
   if (auto baseClass = symbol_cast<ClassSymbol>(symbol)) {
@@ -944,7 +941,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
     for (auto it = params->parameterDeclarationList; it; it = it->next) {
       auto paramType = it->value->type;
 
-      if (unit_->typeTraits().is_void(paramType)) {
+      if (traits.is_void(paramType)) {
         continue;
       }
 
@@ -1049,10 +1046,9 @@ void Binder::complete(LambdaExpressionAST* ast) {
                                         simple->identifier->name()));
           continue;
         }
-        auto fieldType =
-            unit_->typeTraits().remove_reference(outerSymbol->type());
+        auto fieldType = traits.remove_reference(outerSymbol->type());
         if (type_cast<ClassType>(fieldType) &&
-            !unit_->typeTraits().is_trivially_copyable(fieldType)) {
+            !traits.is_trivially_copyable(fieldType)) {
           error(captureLoc,
                 std::format("capturing '{}' by value is not yet supported for "
                             "non-trivially-copyable class types",
@@ -1078,8 +1074,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
                                         ref->identifier->name()));
           continue;
         }
-        auto elementType =
-            unit_->typeTraits().remove_reference(outerSymbol->type());
+        auto elementType = traits.remove_reference(outerSymbol->type());
         auto fieldType = control()->getLvalueReferenceType(elementType);
 
         auto idExpr = IdExpressionAST::create(ar);
@@ -1110,10 +1105,9 @@ void Binder::complete(LambdaExpressionAST* ast) {
         error(captureLoc, "capture of '*this' is not yet supported");
       } else if (auto initCap = ast_cast<InitLambdaCaptureAST>(captureNode)) {
         if (!initCap->initializer) continue;
-        auto fieldType =
-            unit_->typeTraits().remove_reference(initCap->initializer->type);
+        auto fieldType = traits.remove_reference(initCap->initializer->type);
         if (type_cast<ClassType>(fieldType) &&
-            !unit_->typeTraits().is_trivially_copyable(fieldType)) {
+            !traits.is_trivially_copyable(fieldType)) {
           error(captureLoc,
                 std::format("init-capturing '{}' by value is not yet "
                             "supported for non-trivially-copyable class types",
@@ -1125,7 +1119,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
                      ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
         if (!refInitCap->initializer) continue;
         auto elementType =
-            unit_->typeTraits().remove_reference(refInitCap->initializer->type);
+            traits.remove_reference(refInitCap->initializer->type);
         auto fieldType = control()->getLvalueReferenceType(elementType);
         addField(refInitCap->identifier, fieldType);
       }
@@ -1349,7 +1343,7 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   for (auto candidate : scope()->find(name)) {
     if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
       if (existing->type() && symbol->type() &&
-          !unit_->typeTraits().is_same(existing->type(), symbol->type())) {
+          !traits.is_same(existing->type(), symbol->type())) {
         if (should_report_conflict(decl.location())) {
           error(decl.location(), std::format("conflicting declaration of '{}'",
                                              to_string(name)));
@@ -1600,7 +1594,7 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
           classSymbol->members(), [&](FunctionSymbol* member) {
             if (fn->isDestructor() && member->isDestructor()) return true;
             return fn->name() == member->name() &&
-                   unit_->typeTraits().is_same(fn->type(), member->type());
+                   traits.is_same(fn->type(), member->type());
           });
       return match && !match->isPure();
     };
@@ -1633,7 +1627,7 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
               baseClass->members(), [&](FunctionSymbol* m) {
                 if (fn->isDestructor() && m->isDestructor()) return true;
                 return fn->name() == m->name() &&
-                       unit_->typeTraits().is_same(fn->type(), m->type());
+                       traits.is_same(fn->type(), m->type());
               });
           if (match && !match->isPure()) return true;
           return overridesInClass(fn);
@@ -1728,8 +1722,7 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   if (decl.isBitField()) {
     fieldSymbol->setBitField(true);
 
-    if (!unit_->typeTraits().is_integral(type) &&
-        !unit_->typeTraits().is_enum(type) && !inTemplate() &&
+    if (!traits.is_integral(type) && !traits.is_enum(type) && !inTemplate() &&
         !isDependent(unit_, type)) {
       error(decl.location(), "bit-field has non-integral type");
     }
@@ -1800,8 +1793,8 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
     if (auto nns = declId->nestedNameSpecifier; nns && nns->symbol) {
       auto classSymbol = symbol_cast<ClassSymbol>(nns->symbol);
       if (!classSymbol) {
-        if (auto classType = type_cast<ClassType>(
-                unit_->typeTraits().remove_cv(nns->symbol->type()))) {
+        if (auto classType =
+                type_cast<ClassType>(traits.remove_cv(nns->symbol->type()))) {
           classSymbol = classType->symbol();
         }
       }
@@ -1818,9 +1811,8 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
       }
     }
   }
-  if (auto classType =
-          type_cast<ClassType>(unit_->typeTraits().remove_cv(type))) {
-    unit_->typeTraits().requireCompleteClass(classType->symbol());
+  if (auto classType = type_cast<ClassType>(traits.remove_cv(type))) {
+    traits.requireCompleteClass(classType->symbol());
   }
   if (addSymbolToParentScope) {
     for (auto candidate : targetScope->find(name)) {
@@ -1898,12 +1890,12 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
 
 auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
-    unit_->typeTraits().requireCompleteClass(classSymbol);
+    traits.requireCompleteClass(classSymbol);
     return classSymbol;
   }
 
   if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol)) {
-    unit_->typeTraits().requireCompleteClass(injected->classSymbol());
+    traits.requireCompleteClass(injected->classSymbol());
     return injected->classSymbol();
   }
 
@@ -1917,7 +1909,7 @@ auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
 
   if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(symbol)) {
     if (auto classType = type_cast<ClassType>(typeAliasSymbol->type())) {
-      unit_->typeTraits().requireCompleteClass(classType->symbol());
+      traits.requireCompleteClass(classType->symbol());
       return classType->symbol();
     }
 
@@ -2173,7 +2165,7 @@ void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
 
   if (auto classSymbol =
           symbol_cast<ClassSymbol>(ast->nestedNameSpecifier->symbol)) {
-    unit_->typeTraits().requireCompleteClass(classSymbol);
+    traits.requireCompleteClass(classSymbol);
   }
 
   auto name = get_name(control(), ast->unqualifiedId);
