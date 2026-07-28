@@ -230,12 +230,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
     auto parent = ast->nestedNameSpecifier->symbol;
 
     if (!parent || !parent->isClassOrNamespace()) {
-      const bool isDependentNested =
-          isDependentNestedNameSpecifier(ast->nestedNameSpecifier);
-      if (!inTemplate() && !isDependentNested) {
-        error(ast->nestedNameSpecifier->firstSourceLocation(),
-              "nested name specifier must be a class or namespace");
-      }
+      (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
       return;
     }
 
@@ -517,28 +512,14 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
     return alias;
   };
 
-  bool dependentQualifier = false;
-
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
-    const bool isDependentNested =
-        isDependentNestedNameSpecifier(ast->nestedNameSpecifier);
-    if (!inTemplate() && !isDependentNested) {
-      error(ast->nestedNameSpecifier->firstSourceLocation(),
-            "nested name specifier must be a class or namespace");
-      return;
-    }
-    dependentQualifier = true;
-    target = makeDependentTypeTarget();
+    if (reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
   }
 
-  if (!dependentQualifier && inTemplate() && ast->nestedNameSpecifier &&
-      ast->nestedNameSpecifier->symbol) {
-    if (auto qualifierType = ast->nestedNameSpecifier->symbol->type();
-        qualifierType && isDependent(unit_, qualifierType)) {
-      dependentQualifier = true;
-      target = makeDependentTypeTarget();
-    }
-  }
+  const bool dependentQualifier =
+      inTemplate() && isDependent(unit_, ast->nestedNameSpecifier);
+
+  if (dependentQualifier) target = makeDependentTypeTarget();
 
   if (auto u = symbol_cast<UsingDeclarationSymbol>(target)) {
     target = u->target();
@@ -552,7 +533,6 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
                         to_string(missingName)));
       return;
     }
-    dependentQualifier = true;
     target = makeDependentTypeTarget();
   }
 
@@ -574,12 +554,7 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   const auto checkTemplates = unit_->config().checkTypes;
 
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
-    const bool isDependentNested =
-        isDependentNestedNameSpecifier(ast->nestedNameSpecifier);
-    if (!inTemplate() && !isDependentNested) {
-      error(ast->nestedNameSpecifier->firstSourceLocation(),
-            "nested name specifier must be a class or namespace");
-    }
+    (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
     return;
   }
 
@@ -1888,6 +1863,16 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
   symbol->setInline(specs.isInline);
 }
 
+auto Binder::reportUnresolvedNestedNameSpecifier(NestedNameSpecifierAST* ast)
+    -> bool {
+  if (inTemplate() || isDependentNestedNameSpecifier(ast)) return false;
+
+  error(ast->firstSourceLocation(),
+        "nested name specifier must be a class or namespace");
+
+  return true;
+}
+
 auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
     traits.requireCompleteClass(classSymbol);
@@ -2135,6 +2120,7 @@ void Binder::bind(IdExpressionAST* ast) {
 
   if (ast->nestedNameSpecifier) {
     if (!ast->nestedNameSpecifier->symbol) {
+      (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
       return;
     }
 
