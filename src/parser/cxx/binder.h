@@ -207,6 +207,9 @@ class Binder {
 
   [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol*;
 
+  [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
+      NestedNameSpecifierAST* ast) -> bool;
+
   [[nodiscard]] auto getFunction(ScopeSymbol* scope, const Name* name,
                                  const Type* type,
                                  TemplateDeclarationAST* templateHead = nullptr)

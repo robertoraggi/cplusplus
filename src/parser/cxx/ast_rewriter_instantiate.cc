@@ -505,13 +505,16 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
       if (sfinaeClient->hadError()) return nullptr;
     }
     if (rewriter.substitutionFailed()) return nullptr;
+
+    registerFunctionSpecialization(instance);
+
     auto bodyErrors = rewriter.takeBodyErrors();
     if (!bodyErrors.empty() && instance) {
       if (auto spec = findMutableSpecialization(symbol, instance)) {
         spec->instantiationErrors = std::move(bodyErrors);
       }
     }
-    registerFunctionSpecialization(instance);
+
     return instance;
   }
 
@@ -522,6 +525,8 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
       visit(Instantiate{rewriter, parentScope, declarationOnly}, symbol);
 
   (void)unit->changeDiagnosticsClient(capturing.parent);
+
+  registerFunctionSpecialization(instantiatedSymbol);
 
   auto bodyErrors = rewriter.takeBodyErrors();
   capturing.diagnostics.insert(capturing.diagnostics.end(),
@@ -541,8 +546,6 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
                              label, name));
     }
   }
-
-  registerFunctionSpecialization(instantiatedSymbol);
 
   return instantiatedSymbol;
 }

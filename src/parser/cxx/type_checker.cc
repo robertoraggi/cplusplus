@@ -41,6 +41,7 @@
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <format>
@@ -52,6 +53,15 @@
 namespace cxx {
 namespace {
 constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
+
+[[nodiscard]] auto describe_scope(Symbol* symbol) -> std::string {
+  const auto name = to_string(symbol->name());
+
+  if (!symbol_cast<NamespaceSymbol>(symbol)) return std::format("'{}'", name);
+  if (name.empty()) return "the unnamed namespace";
+
+  return std::format("namespace '{}'", name);
+}
 
 struct IsPotentiallyThrowing {
   auto operator()(ExpressionAST*) -> bool { return false; }
@@ -250,6 +260,18 @@ struct TypeChecker::Visitor {
   }
 
   [[nodiscard]] auto report_unresolved_id(ExpressionAST* expr) -> bool;
+
+  void report_unresolved_qualified_id(IdExpressionAST* ast);
+
+  [[nodiscard]] auto add_implicit_object_cv(const Type* fieldType,
+                                            FieldSymbol* field) -> const Type*;
+
+  [[nodiscard]] auto base_symbol(ExpressionAST* base) -> Symbol*;
+
+  [[nodiscard]] auto explicit_template_arguments(ExpressionAST* base)
+      -> List<TemplateArgumentAST*>*;
+
+  [[nodiscard]] auto enclosing_function() -> FunctionSymbol*;
 
   [[nodiscard]] auto strip_parentheses(ExpressionAST* ast) -> ExpressionAST*;
   [[nodiscard]] auto strip_cv(const Type*& type) -> CvQualifiers;
@@ -768,67 +790,89 @@ void TypeChecker::Visitor::operator()(NestedExpressionAST* ast) {
   ast->valueCategory = ast->expression->valueCategory;
 }
 
+auto TypeChecker::Visitor::add_implicit_object_cv(const Type* fieldType,
+                                                  FieldSymbol* field)
+    -> const Type* {
+  auto fieldClass = symbol_cast<ClassSymbol>(field->parent());
+  if (!fieldClass) return fieldType;
+
+  auto func = enclosing_function();
+  if (!func) return fieldType;
+
+  auto funcClass =
+      symbol_cast<ClassSymbol>(func->enclosingNonTemplateParametersScope());
+
+  if (!funcClass) return fieldType;
+  if (!traits.is_base_of(fieldClass->type(), funcClass->type()))
+    return fieldType;
+
+  auto funcType = type_cast<FunctionType>(func->type());
+  if (!funcType) return fieldType;
+
+  const auto objectCv = funcType->cvQualifiers();
+
+  if (is_volatile(objectCv)) fieldType = traits.add_volatile(fieldType);
+  if (!field->isMutable() && is_const(objectCv))
+    fieldType = traits.add_const(fieldType);
+
+  return fieldType;
+}
+
 void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
-  if (ast->symbol) {
-    if (auto usingDecl = symbol_cast<UsingDeclarationSymbol>(ast->symbol);
-        usingDecl && !usingDecl->target() && in_template()) {
+  if (!ast->symbol) {
+    if (!ast->nestedNameSpecifier) return;
+
+    if (!isDependent(check.unit_, ast->nestedNameSpecifier)) {
+      report_unresolved_qualified_id(ast);
+    } else if (in_template()) {
       ast->type = dependent_type();
-      ast->valueCategory = ValueCategory::kLValue;
-    } else if (auto conceptSymbol = symbol_cast<ConceptSymbol>(ast->symbol)) {
-      ast->type = control()->getBoolType();
       ast->valueCategory = ValueCategory::kPrValue;
-    } else if (auto funcSymbol = symbol_cast<FunctionSymbol>(ast->symbol);
-               funcSymbol && funcSymbol->templateDeclaration() &&
-               !funcSymbol->isSpecialization() &&
-               !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
-      auto overloadSet = control()->newOverloadSetSymbol(
-          funcSymbol->parent(), ast->firstSourceLocation());
-      overloadSet->addFunction(funcSymbol);
-      ast->type = overloadSet->type();
-      ast->valueCategory = ValueCategory::kLValue;
-    } else {
-      ast->type = traits.remove_reference(ast->symbol->type());
-
-      if (ast->symbol->isEnumerator() || ast->symbol->isNonTypeParameter()) {
-        ast->valueCategory = ValueCategory::kPrValue;
-        stdconv_.adjustCv(ast);
-      } else {
-        ast->valueCategory = ValueCategory::kLValue;
-
-        if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
-            field && !field->isStatic() && !ast->nestedNameSpecifier) {
-          auto fieldClass = symbol_cast<ClassSymbol>(field->parent());
-          for (auto current = check.scope_; current;
-               current = current->parent()) {
-            auto funcSym = symbol_cast<FunctionSymbol>(current);
-            if (!funcSym) continue;
-            auto funcClass = symbol_cast<ClassSymbol>(
-                funcSym->enclosingNonTemplateParametersScope());
-            if (funcClass && fieldClass &&
-                traits.is_base_of(fieldClass->type(), funcClass->type())) {
-              if (auto funcType = type_cast<FunctionType>(funcSym->type())) {
-                auto objectCv = funcType->cvQualifiers();
-                if (is_volatile(objectCv)) {
-                  ast->type = traits.add_volatile(ast->type);
-                }
-                if (!field->isMutable() && is_const(objectCv)) {
-                  ast->type = traits.add_const(ast->type);
-                }
-              }
-            }
-            break;
-          }
-        }
-      }
     }
-  } else {
-    if (in_template() && ast->nestedNameSpecifier && !ast->symbol) {
-      if (isDependent(check.unit_, ast->nestedNameSpecifier)) {
-        ast->type = dependent_type();
-        ast->valueCategory = ValueCategory::kPrValue;
-      }
-    }
+
+    return;
   }
+
+  if (auto usingDecl = symbol_cast<UsingDeclarationSymbol>(ast->symbol);
+      usingDecl && !usingDecl->target() && in_template()) {
+    ast->type = dependent_type();
+    ast->valueCategory = ValueCategory::kLValue;
+    return;
+  }
+
+  if (symbol_cast<ConceptSymbol>(ast->symbol)) {
+    ast->type = control()->getBoolType();
+    ast->valueCategory = ValueCategory::kPrValue;
+    return;
+  }
+
+  if (auto funcSymbol = symbol_cast<FunctionSymbol>(ast->symbol);
+      funcSymbol && funcSymbol->templateDeclaration() &&
+      !funcSymbol->isSpecialization() &&
+      !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
+    auto overloadSet = control()->newOverloadSetSymbol(
+        funcSymbol->parent(), ast->firstSourceLocation());
+    overloadSet->addFunction(funcSymbol);
+    ast->type = overloadSet->type();
+    ast->valueCategory = ValueCategory::kLValue;
+    return;
+  }
+
+  ast->type = traits.remove_reference(ast->symbol->type());
+
+  if (ast->symbol->isEnumerator() || ast->symbol->isNonTypeParameter()) {
+    ast->valueCategory = ValueCategory::kPrValue;
+    stdconv_.adjustCv(ast);
+    return;
+  }
+
+  ast->valueCategory = ValueCategory::kLValue;
+
+  if (ast->nestedNameSpecifier) return;
+
+  auto field = symbol_cast<FieldSymbol>(ast->symbol);
+  if (!field || field->isStatic()) return;
+
+  ast->type = add_implicit_object_cv(ast->type, field);
 }
 
 void TypeChecker::Visitor::operator()(LambdaExpressionAST* ast) {
@@ -1041,23 +1085,50 @@ void TypeChecker::Visitor::set_base_symbol(ExpressionAST* base, Symbol* sym) {
     member->symbol = sym;
 }
 
+auto TypeChecker::Visitor::base_symbol(ExpressionAST* base) -> Symbol* {
+  if (auto id = ast_cast<IdExpressionAST>(base)) return id->symbol;
+  if (auto member = ast_cast<MemberExpressionAST>(base)) return member->symbol;
+  return nullptr;
+}
+
+auto TypeChecker::Visitor::explicit_template_arguments(ExpressionAST* base)
+    -> List<TemplateArgumentAST*>* {
+  auto unqualifiedId = [&]() -> UnqualifiedIdAST* {
+    if (auto id = ast_cast<IdExpressionAST>(base)) return id->unqualifiedId;
+    if (auto member = ast_cast<MemberExpressionAST>(base))
+      return member->unqualifiedId;
+    return nullptr;
+  }();
+
+  auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId);
+  if (!templateId) return nullptr;
+
+  return templateId->templateArgumentList;
+}
+
+auto TypeChecker::Visitor::enclosing_function() -> FunctionSymbol* {
+  if (!check.scope_) return nullptr;
+  if (auto func = symbol_cast<FunctionSymbol>(check.scope_)) return func;
+  return check.scope_->enclosingFunction();
+}
+
 void TypeChecker::Visitor::resolve_call_overload(
     CallExpressionAST* ast, const std::vector<const Type*>& argumentTypes) {
   auto ovl = type_cast<OverloadSetType>(ast->baseExpression->type);
   if (!ovl) return;
 
-  if (ovl->symbol()->functions().size() == 1) {
+  const auto& overloadFunctions = ovl->symbol()->functions();
+
+  if (overloadFunctions.size() == 1) {
     auto stripped = ast->baseExpression;
     while (auto nested = ast_cast<NestedExpressionAST>(stripped))
       stripped = nested->expression;
-    FunctionSymbol* directSymbol = nullptr;
-    if (auto idExpr = ast_cast<IdExpressionAST>(stripped))
-      directSymbol = symbol_cast<FunctionSymbol>(idExpr->symbol);
-    else if (auto memberExpr = ast_cast<MemberExpressionAST>(stripped))
-      directSymbol = symbol_cast<FunctionSymbol>(memberExpr->symbol);
-    if (directSymbol && directSymbol->templateDeclaration() &&
-        !directSymbol->isSpecialization() &&
-        ovl->symbol()->functions().front() == directSymbol) {
+
+    auto directSymbol = symbol_cast<FunctionSymbol>(base_symbol(stripped));
+
+    if (directSymbol && directSymbol == overloadFunctions.front() &&
+        directSymbol->templateDeclaration() &&
+        !directSymbol->isSpecialization()) {
       return;
     }
   }
@@ -1084,68 +1155,45 @@ void TypeChecker::Visitor::resolve_call_overload(
   }
 
   std::vector<FunctionSymbol*> allFunctions;
-  for (auto func : ovl->symbol()->functions()) {
+  for (auto func : overloadFunctions) {
     if (func->canonical() != func) continue;
     if (func->isSpecialization()) continue;
     if (isPureFriend(func)) continue;
     allFunctions.push_back(func);
   }
 
-  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-    if (!idExpr->nestedNameSpecifier) {
-      bool foundClassMember = false;
-      for (auto func : allFunctions) {
-        if (func->isFriend()) continue;
-        if (func->parent() && func->parent()->isClass()) {
-          foundClassMember = true;
-          break;
-        }
-      }
+  if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression);
+      idExpr && !idExpr->nestedNameSpecifier) {
+    auto isClassMember = [](FunctionSymbol* func) {
+      return !func->isFriend() && func->parent() && func->parent()->isClass();
+    };
 
-      if (!foundClassMember) {
-        auto adlCandidates = argumentDependentLookup(
-            check.unit_, ovl->symbol()->name(), argumentTypes);
-        for (auto f : adlCandidates)
-          if (std::find(allFunctions.begin(), allFunctions.end(), f) ==
-              allFunctions.end())
-            allFunctions.push_back(f);
-      }
+    if (std::ranges::none_of(allFunctions, isClassMember)) {
+      auto adlCandidates = argumentDependentLookup(
+          check.unit_, ovl->symbol()->name(), argumentTypes);
+      for (auto f : adlCandidates)
+        if (std::find(allFunctions.begin(), allFunctions.end(), f) ==
+            allFunctions.end())
+          allFunctions.push_back(f);
     }
   }
 
   if (!isMemberCall && !allFunctions.empty() &&
       !allFunctions.front()->isStatic()) {
-    for (auto current = check.scope_; current; current = current->parent()) {
-      if (auto funcSym = symbol_cast<FunctionSymbol>(current)) {
-        if (symbol_cast<ClassSymbol>(funcSym->parent())) {
-          if (auto funcType = type_cast<FunctionType>(funcSym->type())) {
-            isMemberCall = true;
-            objectCv = funcType->cvQualifiers();
-            objectValueCategory = ValueCategory::kLValue;
-          }
-        }
-        break;
+    if (auto funcSym = enclosing_function();
+        funcSym && symbol_cast<ClassSymbol>(funcSym->parent())) {
+      if (auto funcType = type_cast<FunctionType>(funcSym->type())) {
+        isMemberCall = true;
+        objectCv = funcType->cvQualifiers();
+        objectValueCategory = ValueCategory::kLValue;
       }
     }
   }
 
   std::vector<Candidate> candidates;
 
-  auto explicitTemplateArguments = [&]() -> List<TemplateArgumentAST*>* {
-    if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-      if (auto templateId =
-              ast_cast<SimpleTemplateIdAST>(idExpr->unqualifiedId)) {
-        return templateId->templateArgumentList;
-      }
-      return nullptr;
-    }
-
-    auto memberExpr = ast_cast<MemberExpressionAST>(ast->baseExpression);
-    if (!memberExpr) return nullptr;
-    auto templateId = ast_cast<SimpleTemplateIdAST>(memberExpr->unqualifiedId);
-    if (!templateId) return nullptr;
-    return templateId->templateArgumentList;
-  }();
+  auto explicitTemplateArguments =
+      explicit_template_arguments(ast->baseExpression);
 
   bool hasDependentTemplateCandidate = false;
 
@@ -1164,27 +1212,13 @@ void TypeChecker::Visitor::resolve_call_overload(
                                                  explicitTemplateArguments);
       if (!deducedArgs.has_value()) continue;
 
-      if (in_template()) {
-        bool dependentArgs = false;
-        for (auto arg : ListView{*deducedArgs}) {
-          if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-            if (typeArg->typeId && isDependent(check.unit_, typeArg->typeId)) {
-              dependentArgs = true;
-              break;
-            }
-          } else if (auto exprArg =
-                         ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-            if (exprArg->expression &&
-                isDependent(check.unit_, exprArg->expression)) {
-              dependentArgs = true;
-              break;
-            }
-          }
-        }
-        if (dependentArgs) {
-          hasDependentTemplateCandidate = true;
-          continue;
-        }
+      if (in_template() &&
+          std::ranges::any_of(
+              ListView{*deducedArgs}, [&](TemplateArgumentAST* arg) {
+                return isDependentTemplateArgument(check.unit_, arg);
+              })) {
+        hasDependentTemplateCandidate = true;
+        continue;
       }
       auto instFunc = ASTRewriter::instantiateForArgs(
           check.unit_, *deducedArgs, func,
@@ -1243,17 +1277,12 @@ void TypeChecker::Visitor::resolve_call_overload(
     }
 
     if (cand.viable && type->isVariadic()) {
-      int coveredArgs = static_cast<int>(type->parameterTypes().size());
-      int idx = 0;
-      for (auto argIt = ast->expressionList; argIt;
-           argIt = argIt->next, ++idx) {
-        if (idx >= coveredArgs) {
-          ImplicitConversionSequence ellipsisConv;
-          ellipsisConv.kind = ConversionSequenceKind::kEllipsis;
-          ellipsisConv.rank = ConversionRank::kConversion;
-          cand.conversions.push_back(ellipsisConv);
-        }
-      }
+      ImplicitConversionSequence ellipsisConv;
+      ellipsisConv.kind = ConversionSequenceKind::kEllipsis;
+      ellipsisConv.rank = ConversionRank::kConversion;
+
+      for (auto i = paramCount; i < argCount; ++i)
+        cand.conversions.push_back(ellipsisConv);
     }
 
     if (cand.viable) candidates.push_back(std::move(cand));
@@ -2121,20 +2150,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
 
     if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression);
         idExpr && !idExpr->symbol) {
-      if (auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
-        auto identifier = nameId->identifier;
-        auto name = identifier ? identifier->value() : std::string{};
-
-        if (std::string_view{name}.starts_with("__builtin_")) {
-          error(idExpr->firstSourceLocation(),
-                std::format("unknown builtin function '{}'", name));
-        } else {
-          error(idExpr->firstSourceLocation(),
-                std::format("use of undeclared identifier '{}'", name));
-        }
-      } else {
-        error(idExpr->firstSourceLocation(), "call to unresolved identifier");
-      }
+      (void)report_unresolved_id(idExpr);
       return;
     }
 
@@ -2153,22 +2169,8 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
         funcSym->isSpecialization())
       return;
 
-    auto explicitTemplateArguments = [&]() -> List<TemplateArgumentAST*>* {
-      if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
-        if (auto templateId =
-                ast_cast<SimpleTemplateIdAST>(idExpr->unqualifiedId)) {
-          return templateId->templateArgumentList;
-        }
-        return nullptr;
-      }
-
-      auto memberExpr = ast_cast<MemberExpressionAST>(ast->baseExpression);
-      if (!memberExpr) return nullptr;
-      auto templateId =
-          ast_cast<SimpleTemplateIdAST>(memberExpr->unqualifiedId);
-      if (!templateId) return nullptr;
-      return templateId->templateArgumentList;
-    }();
+    auto explicitTemplateArguments =
+        explicit_template_arguments(ast->baseExpression);
 
     auto deducedArgs = deduceTemplateArguments(funcSym, ast->expressionList,
                                                explicitTemplateArguments);
@@ -4408,19 +4410,31 @@ auto TypeChecker::Visitor::implicit_conversion(ExpressionAST*& expr,
   return stdconv_.convertImplicitly(expr, destinationType);
 }
 
+void TypeChecker::Visitor::report_unresolved_qualified_id(
+    IdExpressionAST* ast) {
+  const auto name = to_string(get_name(control(), ast->unqualifiedId));
+
+  error(ast->unqualifiedId->firstSourceLocation(),
+        std::format("no member named '{}' in {}", name,
+                    describe_scope(ast->nestedNameSpecifier->symbol)));
+}
+
 auto TypeChecker::Visitor::report_unresolved_id(ExpressionAST* expr) -> bool {
   if (!expr || expr->type) return false;
 
   auto idExpr = ast_cast<IdExpressionAST>(expr);
-  if (!idExpr || idExpr->symbol || idExpr->nestedNameSpecifier) return false;
+  if (!idExpr || idExpr->symbol) return false;
 
-  if (auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
-    auto identifier = nameId->identifier;
-    auto name = identifier ? identifier->value() : std::string{};
+  if (idExpr->nestedNameSpecifier) return true;
+
+  const auto name = to_string(get_name(control(), idExpr->unqualifiedId));
+
+  if (name.starts_with("__builtin_")) {
+    error(idExpr->firstSourceLocation(),
+          std::format("unknown builtin function '{}'", name));
+  } else {
     error(idExpr->firstSourceLocation(),
           std::format("use of undeclared identifier '{}'", name));
-  } else {
-    error(idExpr->firstSourceLocation(), "use of unresolved identifier");
   }
 
   return true;

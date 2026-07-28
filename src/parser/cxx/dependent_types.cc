@@ -479,6 +479,7 @@ auto IsDependent::isDependent(NestedNameSpecifierAST* ast) -> bool {
   if (!ast->symbol) return true;
   if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
   if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+  if (isDependent(ast->symbol->type())) return true;
   if (visit(*this, ast)) return true;
   return false;
 }
