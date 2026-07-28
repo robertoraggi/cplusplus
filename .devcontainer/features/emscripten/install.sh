@@ -4,5 +4,5 @@ set -e
 
 git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
 cd /opt/emsdk
-./emsdk install latest
-./emsdk activate latest
+./emsdk install 5.0.7
+./emsdk activate 5.0.7
