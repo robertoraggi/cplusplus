@@ -27,6 +27,9 @@
 #include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
+#include <cxx/wasm32_wasi_toolchain.h>
+
+// emscripten
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
@@ -40,6 +43,7 @@
 #ifdef CXX_WITH_MLIR
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/cxx_dialect_conversions.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <mlir/IR/MLIRContext.h>
 #endif
@@ -52,8 +56,10 @@ cxx::ASTSlot getSlot;
 
 struct DiagnosticsClient final : cxx::DiagnosticsClient {
   val messages = val::array();
+  int count = 0;
 
   void report(const cxx::Diagnostic& diag) override {
+    ++count;
     const auto start = preprocessor()->tokenStartPosition(diag.token());
     const auto end = preprocessor()->tokenEndPosition(diag.token());
 
@@ -71,6 +77,7 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
 struct WrappedUnit {
   std::unique_ptr<DiagnosticsClient> diagnosticsClient;
   std::unique_ptr<cxx::TranslationUnit> unit;
+  std::unique_ptr<cxx::Wasm32WasiToolchain> toolchain;
   val api;
 
   WrappedUnit(std::string source, std::string filename, val api = {})
@@ -80,6 +87,11 @@ struct WrappedUnit {
     unit = std::make_unique<cxx::TranslationUnit>(diagnosticsClient.get());
 
     if (auto preprocessor = unit->preprocessor()) {
+      toolchain = std::make_unique<cxx::Wasm32WasiToolchain>(preprocessor);
+
+      toolchain->initMemoryLayout();
+      toolchain->addPredefinedMacros();
+
       preprocessor->setCanResolveFiles(true);
     }
 
@@ -182,19 +194,29 @@ struct WrappedUnit {
 
     unit->endPreprocessing();
 
-    unit->parse();
+    unit->parse(cxx::ParserConfiguration{.checkTypes = true});
 
     co_return val{true};
   }
 
-  auto emitIR() -> std::string {
+  auto emitMLIR() -> std::string {
 #ifdef CXX_WITH_MLIR
-    mlir::MLIRContext context;
+    auto errorCount = diagnosticsClient->count;
+    if (errorCount > 0) {
+      return {};
+    }
+
+    mlir::MLIRContext context{mlir::MLIRContext::Threading::DISABLED};
+
     context.loadDialect<mlir::cxx::CxxDialect>();
 
     cxx::Codegen codegen(context, unit.get());
 
     auto ir = codegen(unit->ast());
+
+    if (failed(cxx::lowerToMLIR(ir.module))) {
+      return "<error lowering to MLIR>";
+    }
 
     mlir::OpPrintingFlags flags;
     flags.enableDebugInfo(true, true);
@@ -415,7 +437,7 @@ EMSCRIPTEN_BINDINGS(cxx) {
       .function("getHandle", &WrappedUnit::getHandle)
       .function("getUnitHandle", &WrappedUnit::getUnitHandle)
       .function("getDiagnostics", &WrappedUnit::getDiagnostics)
-      .function("emitIR", &WrappedUnit::emitIR);
+      .function("emitMLIR", &WrappedUnit::emitMLIR);
 
   function("createUnit", &createUnit, allow_raw_pointers());
   function("getASTKind", &getASTKind);

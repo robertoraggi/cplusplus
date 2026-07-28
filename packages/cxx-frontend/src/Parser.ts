@@ -105,9 +105,9 @@ export class Parser {
     return await this.getASTAsync();
   }
 
-  async emitIR(): Promise<string> {
+  async emitMLIR(): Promise<string> {
     const _ = await this.getASTAsync();
-    return this.#unit?.emitIR() ?? "";
+    return this.#unit?.emitMLIR() ?? "";
   }
 
   async #parseHelper(): Promise<AST> {

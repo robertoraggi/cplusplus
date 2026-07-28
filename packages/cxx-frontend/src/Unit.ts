@@ -26,5 +26,5 @@ export interface Unit {
   getHandle(): number;
   getUnitHandle(): number;
   getDiagnostics(): Diagnostic[];
-  emitIR(): string;
+  emitMLIR(): string;
 }
