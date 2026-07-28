@@ -343,7 +343,7 @@ void Binder::CompleteClass::addMoveConstructor() {
 
 auto Binder::CompleteClass::hasUserDeclaredAssignmentOperator(
     bool moveForm) const -> bool {
-  auto traits = binder.unit_->typeTraits();
+  auto traits = binder.traits;
   return views::any_function(
       classSymbol->find(TokenKind::T_EQUAL), [&](FunctionSymbol* fn) {
         auto funcType = type_cast<FunctionType>(fn->type());
@@ -398,7 +398,7 @@ void Binder::CompleteClass::addMoveAssignmentOperator() {
 
 auto Binder::CompleteClass::hasNonAssignableSubobject(bool moveForm) const
     -> bool {
-  auto traits = binder.unit_->typeTraits();
+  auto traits = binder.traits;
 
   auto subobjectAssignmentIsDeleted = [&](const Type* type) {
     auto classType = type_cast<ClassType>(traits.remove_cv(type));
@@ -530,7 +530,7 @@ auto Binder::CompleteClass::makeParamRef(ParameterSymbol* param)
   if (auto id = name_cast<Identifier>(param->name()))
     idExpr->unqualifiedId = NameIdAST::create(pool, id);
   idExpr->symbol = param;
-  idExpr->type = binder.unit_->typeTraits().remove_reference(param->type());
+  idExpr->type = binder.traits.remove_reference(param->type());
   idExpr->valueCategory = ValueCategory::kLValue;
   return idExpr;
 }
@@ -590,7 +590,7 @@ auto Binder::CompleteClass::pickVBaseConstructor(ClassSymbol* vbase,
 
 void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   auto layout = classSymbol->layout();
-  auto traits = binder.unit_->typeTraits();
+  auto traits = binder.traits;
 
   bool isCopy = false;
   bool isMove = false;
@@ -853,7 +853,7 @@ void Binder::CompleteClass::synthesizeCopyMoveCtorBody(FunctionSymbol* fn,
   auto param = ensureSourceParameter(fn);
   if (!param) return;
 
-  auto traits = binder.unit_->typeTraits();
+  auto traits = binder.traits;
 
   List<MemInitializerAST*>* memInits = nullptr;
   auto tail = &memInits;
@@ -936,7 +936,7 @@ void Binder::CompleteClass::synthesizeCopyMoveAssignBody(FunctionSymbol* fn,
   auto param = ensureSourceParameter(fn);
   if (!param) return;
 
-  auto traits = binder.unit_->typeTraits();
+  auto traits = binder.traits;
 
   TypeChecker check{binder.unit_};
   check.setScope(fn);
@@ -1132,7 +1132,7 @@ auto Binder::BuildRecordLayout::validate() -> std::expected<bool, std::string> {
           std::format("base class '{}' not found", to_string(base->name())));
     }
     if (!baseClassSymbol->isComplete()) {
-      binder.unit_->typeTraits().requireCompleteClass(baseClassSymbol);
+      binder.traits.requireCompleteClass(baseClassSymbol);
     }
     baseClassSymbol = baseClassSymbol->resolvedDefinition();
     if (!baseClassSymbol->isComplete()) {
@@ -1225,7 +1225,7 @@ void Binder::BuildRecordLayout::layoutBases() {
       foundPolymorphicBase = true;
     }
 
-    if (!binder.unit_->typeTraits().is_empty(baseClassSymbol->type())) {
+    if (!binder.traits.is_empty(baseClassSymbol->type())) {
       calculatedSize += baseSizeInBytes;
     }
     calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
@@ -1277,7 +1277,7 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
     layout->setBaseInfo(baseClassSymbol, baseInfo);
     layout->addVirtualBase(baseClassSymbol);
 
-    if (!binder.unit_->typeTraits().is_empty(baseClassSymbol->type())) {
+    if (!binder.traits.is_empty(baseClassSymbol->type())) {
       calculatedSize += baseSizeInBytes;
     }
     calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
@@ -1400,10 +1400,10 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
   closeBitfieldRun();
 
   std::optional<std::size_t> size;
-  if (binder.unit_->typeTraits().is_unbounded_array(field->type())) {
+  if (binder.traits.is_unbounded_array(field->type())) {
     size = 0;
   } else if (field->isNoUniqueAddress() &&
-             binder.unit_->typeTraits().is_empty(field->type())) {
+             binder.traits.is_empty(field->type())) {
     size = 0;
   } else {
     size = memoryLayout->sizeOf(field->type());
@@ -1450,9 +1450,9 @@ auto Binder::BuildRecordLayout::layoutFields()
   FieldSymbol* lastField = nullptr;
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    if (auto classType = type_cast<ClassType>(
-            binder.unit_->typeTraits().remove_cv(field->type()))) {
-      binder.unit_->typeTraits().requireCompleteClass(classType->symbol());
+    if (auto classType =
+            type_cast<ClassType>(binder.traits.remove_cv(field->type()))) {
+      binder.traits.requireCompleteClass(classType->symbol());
       if (!field->alignment()) {
         if (auto alignment =
                 binder.control()->memoryLayout()->alignmentOf(field->type())) {
@@ -1461,8 +1461,7 @@ auto Binder::BuildRecordLayout::layoutFields()
       }
     }
 
-    if (lastField &&
-        binder.unit_->typeTraits().is_unbounded_array(lastField->type())) {
+    if (lastField && binder.traits.is_unbounded_array(lastField->type())) {
       return std::unexpected(
           std::format("size of incomplete type '{}'",
                       to_string(lastField->type(), lastField->name())));
@@ -1589,7 +1588,7 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
 
   auto vtable = std::make_unique<VTableLayout>();
 
-  auto typeTraits = binder.unit_->typeTraits();
+  auto typeTraits = binder.traits;
 
   auto resolvedClass = [](Symbol* symbol) -> ClassSymbol* {
     auto classSym = symbol_cast<ClassSymbol>(symbol);

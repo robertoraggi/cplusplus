@@ -334,7 +334,7 @@ auto Binder::ResolveUnqualifiedId::resolveBuiltinTypePackElement(
 
 auto Binder::ResolveUnqualifiedId::resolveBuiltinCommonType(
     SimpleTemplateIdAST* templateId) -> Symbol* {
-  auto traits = binder.unit_->typeTraits();
+  auto traits = binder.traits;
 
   std::vector<TemplateArgumentAST*> args;
   for (auto arg : ListView{templateId->templateArgumentList})

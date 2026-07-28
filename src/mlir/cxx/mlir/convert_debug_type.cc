@@ -304,7 +304,7 @@ auto Codegen::ConvertDebugType::operator()(const UnsignedInt128Type* type)
 
 auto Codegen::ConvertDebugType::operator()(const CharType* type)
     -> mlir::LLVM::DITypeAttr {
-  auto isSigned = gen.unit_->typeTraits().is_signed(type);
+  auto isSigned = gen.traits.is_signed(type);
   return basicType(
       "char", type,
       isSigned ? llvm::dwarf::DW_ATE_signed : llvm::dwarf::DW_ATE_unsigned);
@@ -327,7 +327,7 @@ auto Codegen::ConvertDebugType::operator()(const Char32Type* type)
 
 auto Codegen::ConvertDebugType::operator()(const WideCharType* type)
     -> mlir::LLVM::DITypeAttr {
-  auto isSigned = gen.unit_->typeTraits().is_signed(type);
+  auto isSigned = gen.traits.is_signed(type);
   return basicType(
       "wchar_t", type,
       isSigned ? llvm::dwarf::DW_ATE_signed : llvm::dwarf::DW_ATE_unsigned);

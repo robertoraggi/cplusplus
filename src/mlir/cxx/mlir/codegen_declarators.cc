@@ -434,9 +434,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
 
   const auto aggregateInit =
       bracedInitList && !ast->constructor && targetType &&
-      (gen.unit_->typeTraits().is_class_or_union(
-           gen.unit_->typeTraits().remove_cv(targetType)) ||
-       gen.unit_->typeTraits().is_array(targetType));
+      (gen.traits.is_class_or_union(gen.traits.remove_cv(targetType)) ||
+       gen.traits.is_array(targetType));
 
   std::vector<ExpressionResult> args;
   if (!aggregateInit) {
@@ -491,9 +490,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
   }
 
   auto value = args[0].value;
-  if (gen.unit_->typeTraits().is_class(
-          gen.unit_->typeTraits().remove_cv(targetType)) &&
-      value && mlir::isa<mlir::cxx::PointerType>(value.getType())) {
+  if (gen.traits.is_class(gen.traits.remove_cv(targetType)) && value &&
+      mlir::isa<mlir::cxx::PointerType>(value.getType())) {
     value = mlir::cxx::LoadOp::create(gen.builder_, loc,
                                       gen.convertType(targetType), value,
                                       gen.getAlignment(targetType));

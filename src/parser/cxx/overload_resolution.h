@@ -25,6 +25,7 @@
 #include <cxx/standard_conversion.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
+#include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
 #include <optional>
@@ -104,7 +105,7 @@ class OverloadResolution {
     return lastLookupAmbiguous_;
   }
 
-  [[nodiscard]] auto initializerListElementType(const Type* targetType) const
+  [[nodiscard]] auto initializerListElementType(const Type* targetType)
       -> const Type*;
 
  private:
@@ -117,6 +118,7 @@ class OverloadResolution {
       FunctionSymbol* winner, List<TemplateArgumentAST*>* deducedTemplateArgs);
 
   TranslationUnit* unit_;
+  TypeTraits traits;
   Control* control_;
   Arena* arena_;
   StandardConversion stdconv_;

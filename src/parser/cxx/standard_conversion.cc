@@ -75,6 +75,7 @@ namespace {
 
 StandardConversion::StandardConversion(TranslationUnit* unit, bool isC)
     : unit_(unit),
+      traits(unit),
       control_(unit->control()),
       arena_(unit->arena()),
       isC_(isC) {}
@@ -101,13 +102,13 @@ auto StandardConversion::mergeCv(CvQualifiers cv1, CvQualifiers cv2) const
 auto StandardConversion::isReferenceCompatible(const Type* targetType,
                                                const Type* sourceType) const
     -> bool {
-  auto targetUnqual = unit_->typeTraits().remove_cv(targetType);
-  auto sourceUnqual = unit_->typeTraits().remove_cv(sourceType);
-  if (!unit_->typeTraits().is_same(targetUnqual, sourceUnqual) &&
-      !unit_->typeTraits().is_base_of(targetUnqual, sourceUnqual))
+  auto targetUnqual = traits.remove_cv(targetType);
+  auto sourceUnqual = traits.remove_cv(sourceType);
+  if (!traits.is_same(targetUnqual, sourceUnqual) &&
+      !traits.is_base_of(targetUnqual, sourceUnqual))
     return false;
-  return checkCvQualifiers(unit_->typeTraits().get_cv_qualifiers(targetType),
-                           unit_->typeTraits().get_cv_qualifiers(sourceType));
+  return checkCvQualifiers(traits.get_cv_qualifiers(targetType),
+                           traits.get_cv_qualifiers(sourceType));
 }
 
 auto StandardConversion::isNullPointerConstant(ExpressionAST* expr) const
@@ -115,7 +116,7 @@ auto StandardConversion::isNullPointerConstant(ExpressionAST* expr) const
   if (!expr) return false;
 
   for (;;) {
-    if (unit_->typeTraits().is_null_pointer(expr->type)) return true;
+    if (traits.is_null_pointer(expr->type)) return true;
 
     if (auto nestedExpr = ast_cast<NestedExpressionAST>(expr)) {
       expr = nestedExpr->expression;
@@ -145,21 +146,21 @@ auto StandardConversion::isNullPointerConstant(ExpressionAST* expr) const
   return false;
 }
 
-auto StandardConversion::initializerListElementType(
-    const Type* targetType) const -> const Type* {
-  return unit_->typeTraits().initializer_list_element_type(targetType);
+auto StandardConversion::initializerListElementType(const Type* targetType)
+    -> const Type* {
+  return traits.initializer_list_element_type(targetType);
 }
 
 auto StandardConversion::lvalueToRvalue(ExpressionAST*& expr) -> bool {
   if (!is_glvalue(expr)) return false;
-  if (unit_->typeTraits().is_function(expr->type)) return false;
-  if (unit_->typeTraits().is_array(expr->type)) return false;
-  if (!unit_->typeTraits().is_complete(expr->type)) return false;
+  if (traits.is_function(expr->type)) return false;
+  if (traits.is_array(expr->type)) return false;
+  if (!traits.is_complete(expr->type)) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
   cast->expression = expr;
-  cast->type = unit_->typeTraits().remove_reference(expr->type);
+  cast->type = traits.remove_reference(expr->type);
   cast->valueCategory = ValueCategory::kPrValue;
   adjustCv(cast);
   foldConstantRead(cast);
@@ -194,7 +195,7 @@ void StandardConversion::foldConstantRead(ImplicitCastExpressionAST* cast) {
   }
 
   if (!field || !field->isStatic()) return;
-  if (!unit_->typeTraits().is_scalar(field->type())) return;
+  if (!traits.is_scalar(field->type())) return;
 
   if (!throughObject && field->definition()) return;
 
@@ -205,13 +206,12 @@ void StandardConversion::foldConstantRead(ImplicitCastExpressionAST* cast) {
 }
 
 auto StandardConversion::arrayToPointer(ExpressionAST*& expr) -> bool {
-  auto unref = unit_->typeTraits().remove_reference(expr->type);
-  if (!unit_->typeTraits().is_array(unref)) return false;
+  auto unref = traits.remove_reference(expr->type);
+  if (!traits.is_array(unref)) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->expression = expr;
-  cast->type =
-      unit_->typeTraits().add_pointer(unit_->typeTraits().remove_extent(unref));
+  cast->type = traits.add_pointer(traits.remove_extent(unref));
   cast->valueCategory = ValueCategory::kPrValue;
 
   if (type_cast<UnresolvedBoundedArrayType>(unref)) {
@@ -225,13 +225,13 @@ auto StandardConversion::arrayToPointer(ExpressionAST*& expr) -> bool {
 }
 
 auto StandardConversion::functionToPointer(ExpressionAST*& expr) -> bool {
-  auto unref = unit_->typeTraits().remove_reference(expr->type);
-  if (!unit_->typeTraits().is_function(unref)) return false;
+  auto unref = traits.remove_reference(expr->type);
+  if (!traits.is_function(unref)) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->castKind = ImplicitCastKind::kFunctionToPointerConversion;
   cast->expression = expr;
-  cast->type = unit_->typeTraits().add_pointer(unref);
+  cast->type = traits.add_pointer(unref);
   cast->valueCategory = ValueCategory::kPrValue;
   expr = cast;
   return true;
@@ -241,8 +241,7 @@ auto StandardConversion::integralPromotion(ExpressionAST*& expr,
                                            const Type* destinationType)
     -> bool {
   if (!is_prvalue(expr)) return false;
-  if (!unit_->typeTraits().is_integral(expr->type) &&
-      !unit_->typeTraits().is_enum(expr->type))
+  if (!traits.is_integral(expr->type) && !traits.is_enum(expr->type))
     return false;
 
   auto make = [&](const Type* type) {
@@ -300,9 +299,9 @@ auto StandardConversion::floatingPointPromotion(ExpressionAST*& expr,
                                                 const Type* destinationType)
     -> bool {
   if (!is_prvalue(expr)) return false;
-  if (!unit_->typeTraits().is_floating_point(expr->type)) return false;
+  if (!traits.is_floating_point(expr->type)) return false;
   if (!destinationType) destinationType = control_->getDoubleType();
-  if (!unit_->typeTraits().is_floating_point(destinationType)) return false;
+  if (!traits.is_floating_point(destinationType)) return false;
   if (expr->type->kind() != TypeKind::kFloat) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
@@ -318,9 +317,8 @@ auto StandardConversion::integralConversion(ExpressionAST*& expr,
                                             const Type* destinationType)
     -> bool {
   if (!is_prvalue(expr)) return false;
-  if (!unit_->typeTraits().is_integral_or_unscoped_enum(expr->type))
-    return false;
-  if (!unit_->typeTraits().is_integer(destinationType)) return false;
+  if (!traits.is_integral_or_unscoped_enum(expr->type)) return false;
+  if (!traits.is_integer(destinationType)) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->castKind = ImplicitCastKind::kIntegralConversion;
@@ -335,9 +333,9 @@ auto StandardConversion::floatingPointConversion(ExpressionAST*& expr,
                                                  const Type* destinationType)
     -> bool {
   if (!is_prvalue(expr)) return false;
-  if (unit_->typeTraits().is_same(expr->type, destinationType)) return true;
-  if (!unit_->typeTraits().is_floating_point(expr->type)) return false;
-  if (!unit_->typeTraits().is_floating_point(destinationType)) return false;
+  if (traits.is_same(expr->type, destinationType)) return true;
+  if (!traits.is_floating_point(expr->type)) return false;
+  if (!traits.is_floating_point(destinationType)) return false;
 
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->castKind = ImplicitCastKind::kFloatingPointConversion;
@@ -362,14 +360,14 @@ auto StandardConversion::floatingIntegralConversion(ExpressionAST*& expr,
     expr = cast;
   };
 
-  if (unit_->typeTraits().is_integral_or_unscoped_enum(expr->type) &&
-      unit_->typeTraits().is_floating_point(destinationType)) {
+  if (traits.is_integral_or_unscoped_enum(expr->type) &&
+      traits.is_floating_point(destinationType)) {
     make();
     return true;
   }
 
-  if (!unit_->typeTraits().is_floating_point(expr->type)) return false;
-  if (!unit_->typeTraits().is_integer(destinationType)) return false;
+  if (!traits.is_floating_point(expr->type)) return false;
+  if (!traits.is_integer(destinationType)) return false;
   make();
   return true;
 }
@@ -385,8 +383,7 @@ auto StandardConversion::adjustedCvType(const Type* type) const -> const Type* {
   auto qualType = type_cast<QualType>(type);
   if (!qualType) return type;
 
-  if (unit_->typeTraits().is_class(type) || unit_->typeTraits().is_array(type))
-    return type;
+  if (traits.is_class(type) || traits.is_array(type)) return type;
 
   return qualType->elementType();
 }
@@ -403,7 +400,7 @@ auto StandardConversion::temporaryMaterialization(ExpressionAST*& expr)
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->castKind = ImplicitCastKind::kTemporaryMaterializationConversion;
   cast->expression = expr;
-  cast->type = unit_->typeTraits().remove_reference(expr->type);
+  cast->type = traits.remove_reference(expr->type);
   cast->valueCategory = ValueCategory::kXValue;
   expr = cast;
   return true;
@@ -427,14 +424,13 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
     ExpressionAST*& expr) -> bool {
   if (!expr || !expr->type) return false;
 
-  auto classType =
-      type_cast<ClassType>(unit_->typeTraits().remove_cvref(expr->type));
+  auto classType = type_cast<ClassType>(traits.remove_cvref(expr->type));
   if (!classType) return false;
 
   auto classSymbol = classType->symbol();
   if (!classSymbol) return false;
 
-  unit_->typeTraits().requireCompleteClass(classSymbol);
+  traits.requireCompleteClass(classSymbol);
 
   const Type* target = nullptr;
   std::vector<ClassSymbol*> pending{classSymbol->resolvedDefinition()};
@@ -456,16 +452,14 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
       auto convFuncType = type_cast<FunctionType>(convFunc->type());
       if (!convFuncType) continue;
 
-      auto returnType =
-          unit_->typeTraits().remove_cvref(convFuncType->returnType());
+      auto returnType = traits.remove_cvref(convFuncType->returnType());
       if (!returnType) continue;
 
-      if (!unit_->typeTraits().is_arithmetic_or_unscoped_enum(returnType) &&
-          !unit_->typeTraits().is_pointer(returnType))
+      if (!traits.is_arithmetic_or_unscoped_enum(returnType) &&
+          !traits.is_pointer(returnType))
         continue;
 
-      if (target && !unit_->typeTraits().is_same(target, returnType))
-        return false;
+      if (target && !traits.is_same(target, returnType)) return false;
 
       target = returnType;
     }
@@ -479,11 +473,9 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
 auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
                                                    ExpressionAST*& other)
     -> const Type* {
-  if (!unit_->typeTraits().is_arithmetic(expr->type) &&
-      !unit_->typeTraits().is_enum(expr->type))
+  if (!traits.is_arithmetic(expr->type) && !traits.is_enum(expr->type))
     return nullptr;
-  if (!unit_->typeTraits().is_arithmetic(other->type) &&
-      !unit_->typeTraits().is_enum(other->type))
+  if (!traits.is_arithmetic(other->type) && !traits.is_enum(other->type))
     return nullptr;
 
   (void)lvalueToRvalue(expr);
@@ -511,8 +503,6 @@ auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
 
 auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
     -> const Type* {
-  auto traits = unit_->typeTraits();
-
   auto isArith = [&](const Type* t) {
     return traits.is_arithmetic(t) ||
            (traits.is_enum(t) && !traits.is_scoped_enum(t));
@@ -658,7 +648,6 @@ auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
 auto StandardConversion::convertArithmetic(ExpressionAST*& expr,
                                            const Type* destinationType)
     -> bool {
-  auto traits = unit_->typeTraits();
   if (traits.is_same(expr->type, destinationType)) return true;
 
   if (traits.is_floating_point(destinationType)) {
@@ -689,34 +678,27 @@ auto StandardConversion::getQualificationCombinedType(
   auto cv2 = stripCv(right);
 
   auto bothPointerOrArray = [&] {
-    if (unit_->typeTraits().is_pointer(left) &&
-        unit_->typeTraits().is_pointer(right))
-      return true;
-    if (unit_->typeTraits().is_array(left) &&
-        unit_->typeTraits().is_array(right))
-      return true;
+    if (traits.is_pointer(left) && traits.is_pointer(right)) return true;
+    if (traits.is_array(left) && traits.is_array(right)) return true;
     return false;
   };
 
   if (!bothPointerOrArray()) {
     const auto cv3 = mergeCv(cv1, cv2);
 
-    if (unit_->typeTraits().is_same(left, right))
-      return unit_->typeTraits().add_cv(left, cv3);
-    if (unit_->typeTraits().is_base_of(left, right))
-      return unit_->typeTraits().add_cv(left, cv1);
-    if (unit_->typeTraits().is_base_of(right, left))
-      return unit_->typeTraits().add_cv(right, cv2);
+    if (traits.is_same(left, right)) return traits.add_cv(left, cv3);
+    if (traits.is_base_of(left, right)) return traits.add_cv(left, cv1);
+    if (traits.is_base_of(right, left)) return traits.add_cv(right, cv2);
     return nullptr;
   }
 
-  auto leftElem = unit_->typeTraits().get_element_type(left);
-  if (unit_->typeTraits().is_array(leftElem))
-    cv1 = mergeCv(cv1, unit_->typeTraits().get_cv_qualifiers(leftElem));
+  auto leftElem = traits.get_element_type(left);
+  if (traits.is_array(leftElem))
+    cv1 = mergeCv(cv1, traits.get_cv_qualifiers(leftElem));
 
-  auto rightElem = unit_->typeTraits().get_element_type(right);
-  if (unit_->typeTraits().is_array(rightElem))
-    cv2 = mergeCv(cv2, unit_->typeTraits().get_cv_qualifiers(rightElem));
+  auto rightElem = traits.get_element_type(right);
+  if (traits.is_array(rightElem))
+    cv2 = mergeCv(cv2, traits.get_cv_qualifiers(rightElem));
 
   auto elemType = getQualificationCombinedType(leftElem, rightElem,
                                                didChangeTypeOrQualifiers);
@@ -725,10 +707,9 @@ auto StandardConversion::getQualificationCombinedType(
   auto cv3 = mergeCv(cv1, cv2);
   if (didChangeTypeOrQualifiers) cv3 = cv3 | CvQualifiers::kConst;
   if (cv1 != cv3 || cv2 != cv3) didChangeTypeOrQualifiers = true;
-  elemType = unit_->typeTraits().add_cv(elemType, cv3);
+  elemType = traits.add_cv(elemType, cv3);
 
-  if (unit_->typeTraits().is_array(left) &&
-      unit_->typeTraits().is_array(right)) {
+  if (traits.is_array(left) && traits.is_array(right)) {
     auto leftArr = type_cast<BoundedArrayType>(left);
     auto rightArr = type_cast<BoundedArrayType>(right);
 
@@ -747,24 +728,22 @@ auto StandardConversion::getQualificationCombinedType(
 auto StandardConversion::compositePointerType(ExpressionAST*& expr,
                                               ExpressionAST*& other)
     -> const Type* {
-  if (unit_->typeTraits().is_null_pointer(expr->type) &&
-      unit_->typeTraits().is_null_pointer(other->type))
+  if (traits.is_null_pointer(expr->type) && traits.is_null_pointer(other->type))
     return control_->getNullptrType();
 
   if (isNullPointerConstant(expr)) return other->type;
   if (isNullPointerConstant(other)) return expr->type;
 
-  if (unit_->typeTraits().is_pointer(expr->type) &&
-      unit_->typeTraits().is_pointer(other->type)) {
-    auto t1 = unit_->typeTraits().get_element_type(expr->type);
+  if (traits.is_pointer(expr->type) && traits.is_pointer(other->type)) {
+    auto t1 = traits.get_element_type(expr->type);
     const auto cv1 = stripCv(t1);
-    auto t2 = unit_->typeTraits().get_element_type(other->type);
+    auto t2 = traits.get_element_type(other->type);
     const auto cv2 = stripCv(t2);
 
-    if (unit_->typeTraits().is_void(t1))
-      return control_->getPointerType(unit_->typeTraits().add_cv(t1, cv2));
-    if (unit_->typeTraits().is_void(t2))
-      return control_->getPointerType(unit_->typeTraits().add_cv(t2, cv1));
+    if (traits.is_void(t1))
+      return control_->getPointerType(traits.add_cv(t1, cv2));
+    if (traits.is_void(t2))
+      return control_->getPointerType(traits.add_cv(t2, cv1));
 
     if (auto type = getQualificationCombinedType(expr->type, other->type))
       return type;
@@ -777,8 +756,8 @@ auto StandardConversion::isIntegralPromotion(const Type* sourceType,
                                              const Type* targetType) const
     -> bool {
   if (!sourceType || !targetType) return false;
-  auto src = unit_->typeTraits().remove_cv(sourceType);
-  auto dst = unit_->typeTraits().remove_cv(targetType);
+  auto src = traits.remove_cv(sourceType);
+  auto dst = traits.remove_cv(targetType);
 
   switch (src->kind()) {
     case TypeKind::kChar:
@@ -799,8 +778,8 @@ auto StandardConversion::isIntegralPromotion(const Type* sourceType,
   }
 
   if (auto enumType = type_cast<EnumType>(src)) {
-    if (unit_->typeTraits().is_scoped_enum(src)) return false;
-    return unit_->typeTraits().is_integral(dst);
+    if (traits.is_scoped_enum(src)) return false;
+    return traits.is_integral(dst);
   }
 
   return false;
@@ -810,8 +789,8 @@ auto StandardConversion::isFloatingPointPromotion(const Type* sourceType,
                                                   const Type* targetType) const
     -> bool {
   if (!sourceType || !targetType) return false;
-  auto src = unit_->typeTraits().remove_cv(sourceType);
-  auto dst = unit_->typeTraits().remove_cv(targetType);
+  auto src = traits.remove_cv(sourceType);
+  auto dst = traits.remove_cv(targetType);
   return src->kind() == TypeKind::kFloat && dst->kind() == TypeKind::kDouble;
 }
 
@@ -830,8 +809,8 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     seq.steps.push_back({kind, type});
   };
 
-  if (auto ovlType = type_cast<OverloadSetType>(
-          unit_->typeTraits().remove_reference(currentType))) {
+  if (auto ovlType =
+          type_cast<OverloadSetType>(traits.remove_reference(currentType))) {
     if (auto ptrTarget = type_cast<PointerType>(targetType)) {
       if (auto targetFuncType =
               type_cast<FunctionType>(ptrTarget->elementType())) {
@@ -860,10 +839,9 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
       return seq;
     }
 
-    auto listTarget = unit_->typeTraits().remove_cv(
-        unit_->typeTraits().remove_reference(targetType));
+    auto listTarget = traits.remove_cv(traits.remove_reference(targetType));
 
-    if (!unit_->typeTraits().is_class(listTarget)) {
+    if (!traits.is_class(listTarget)) {
       auto elements = bracedInitList->expressionList;
       if (!elements || elements->next || !elements->value) return seq;
       seq = computeConversionSequence(elements->value, listTarget);
@@ -879,24 +857,21 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     return seq;
   }
 
-  if (unit_->typeTraits().is_reference(targetType)) {
+  if (traits.is_reference(targetType)) {
     if (auto rvalRef = type_cast<RvalueReferenceType>(targetType)) {
       if (currentValCat == ValueCategory::kLValue) {
-        auto sourceRefRemoved =
-            unit_->typeTraits().remove_reference(currentType);
+        auto sourceRefRemoved = traits.remove_reference(currentType);
         auto targetElem = rvalRef->elementType();
 
-        if (!unit_->typeTraits().is_function(
-                unit_->typeTraits().remove_reference(targetElem)))
+        if (!traits.is_function(traits.remove_reference(targetElem)))
           return seq;
 
         if (!isReferenceCompatible(targetElem, sourceRefRemoved)) return seq;
 
-        auto sameUnqual = unit_->typeTraits().is_same(
-            unit_->typeTraits().remove_cv(sourceRefRemoved),
-            unit_->typeTraits().remove_cv(targetElem));
-        auto sourceCv = unit_->typeTraits().get_cv_qualifiers(sourceRefRemoved);
-        auto targetCv = unit_->typeTraits().get_cv_qualifiers(targetElem);
+        auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
+                                         traits.remove_cv(targetElem));
+        auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
+        auto targetCv = traits.get_cv_qualifiers(targetElem);
 
         seq.bindsToRvalueRef = true;
         seq.bindsToReference = true;
@@ -918,17 +893,16 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
       bool isConst = false;
       if (auto qual = type_cast<QualType>(inner)) isConst = qual->isConst();
 
-      auto sourceRefRemoved = unit_->typeTraits().remove_reference(currentType);
+      auto sourceRefRemoved = traits.remove_reference(currentType);
 
       if (!isConst) {
         if (currentValCat != ValueCategory::kLValue) return seq;
         if (!isReferenceCompatible(inner, sourceRefRemoved)) return seq;
 
-        auto sameUnqual = unit_->typeTraits().is_same(
-            unit_->typeTraits().remove_cv(sourceRefRemoved),
-            unit_->typeTraits().remove_cv(inner));
-        auto sourceCv = unit_->typeTraits().get_cv_qualifiers(sourceRefRemoved);
-        auto targetCv = unit_->typeTraits().get_cv_qualifiers(inner);
+        auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
+                                         traits.remove_cv(inner));
+        auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
+        auto targetCv = traits.get_cv_qualifiers(inner);
 
         seq.bindsToReference = true;
         seq.referenceCv = targetCv;
@@ -944,11 +918,10 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
 
       if (currentValCat == ValueCategory::kLValue &&
           isReferenceCompatible(inner, sourceRefRemoved)) {
-        auto sameUnqual = unit_->typeTraits().is_same(
-            unit_->typeTraits().remove_cv(sourceRefRemoved),
-            unit_->typeTraits().remove_cv(inner));
-        auto sourceCv = unit_->typeTraits().get_cv_qualifiers(sourceRefRemoved);
-        auto targetCv = unit_->typeTraits().get_cv_qualifiers(inner);
+        auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
+                                         traits.remove_cv(inner));
+        auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
+        auto targetCv = traits.get_cv_qualifiers(inner);
 
         seq.bindsToReference = true;
         seq.referenceCv = targetCv;
@@ -966,39 +939,35 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     }
   }
 
-  if (unit_->typeTraits().is_array(
-          unit_->typeTraits().remove_reference(currentType))) {
-    auto unref = unit_->typeTraits().remove_reference(currentType);
-    currentType = unit_->typeTraits().add_pointer(
-        unit_->typeTraits().remove_extent(unref));
+  if (traits.is_array(traits.remove_reference(currentType))) {
+    auto unref = traits.remove_reference(currentType);
+    currentType = traits.add_pointer(traits.remove_extent(unref));
     currentValCat = ValueCategory::kPrValue;
     if (type_cast<UnresolvedBoundedArrayType>(unref)) {
       addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
     } else {
       addStep(ImplicitCastKind::kArrayToPointerConversion, currentType);
     }
-  } else if (unit_->typeTraits().is_function(
-                 unit_->typeTraits().remove_reference(currentType))) {
-    auto unref = unit_->typeTraits().remove_reference(currentType);
-    currentType = unit_->typeTraits().add_pointer(unref);
+  } else if (traits.is_function(traits.remove_reference(currentType))) {
+    auto unref = traits.remove_reference(currentType);
+    currentType = traits.add_pointer(unref);
     currentValCat = ValueCategory::kPrValue;
     addStep(ImplicitCastKind::kFunctionToPointerConversion, currentType);
   } else if (currentValCat != ValueCategory::kPrValue &&
-             !unit_->typeTraits().is_reference(targetType)) {
-    currentType =
-        adjustedCvType(unit_->typeTraits().remove_reference(currentType));
-    if (isC_ || !unit_->typeTraits().is_class(currentType)) {
+             !traits.is_reference(targetType)) {
+    currentType = adjustedCvType(traits.remove_reference(currentType));
+    if (isC_ || !traits.is_class(currentType)) {
       currentValCat = ValueCategory::kPrValue;
       addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
     }
   }
 
-  auto comparisonTargetType = unit_->typeTraits().remove_reference(targetType);
+  auto comparisonTargetType = traits.remove_reference(targetType);
 
-  auto unqualFrom = unit_->typeTraits().remove_cv(currentType);
-  auto unqualTo = unit_->typeTraits().remove_cv(comparisonTargetType);
+  auto unqualFrom = traits.remove_cv(currentType);
+  auto unqualTo = traits.remove_cv(comparisonTargetType);
 
-  if (unit_->typeTraits().is_same(unqualFrom, unqualTo)) {
+  if (traits.is_same(unqualFrom, unqualTo)) {
     if (requiresCopyConstruction(expr, targetType) &&
         !selectCopyConstructor(expr, targetType)) {
       return seq;
@@ -1009,47 +978,42 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     return seq;
   }
 
-  if (!isC_ && unit_->typeTraits().is_class(unqualFrom) &&
-      unit_->typeTraits().is_class(unqualTo) &&
-      unit_->typeTraits().is_base_of(unqualTo, unqualFrom)) {
+  if (!isC_ && traits.is_class(unqualFrom) && traits.is_class(unqualTo) &&
+      traits.is_base_of(unqualTo, unqualFrom)) {
     seq.rank = ConversionRank::kConversion;
     addStep(ImplicitCastKind::kDerivedToBaseConversion, comparisonTargetType);
     return seq;
   }
 
-  if (unit_->typeTraits().is_null_pointer(unqualFrom) &&
-      unit_->typeTraits().is_pointer(unqualTo)) {
+  if (traits.is_null_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
     seq.rank = ConversionRank::kConversion;
     addStep(ImplicitCastKind::kPointerConversion, comparisonTargetType);
     return seq;
   }
 
-  if (unit_->typeTraits().is_integral(unqualFrom) &&
-      unit_->typeTraits().is_pointer(unqualTo) && isNullPointerConstant(expr)) {
+  if (traits.is_integral(unqualFrom) && traits.is_pointer(unqualTo) &&
+      isNullPointerConstant(expr)) {
     seq.rank = ConversionRank::kConversion;
     addStep(ImplicitCastKind::kPointerConversion, comparisonTargetType);
     return seq;
   }
 
-  if (unit_->typeTraits().is_pointer(unqualFrom) &&
-      unit_->typeTraits().is_pointer(unqualTo)) {
-    auto fromPtr =
-        type_cast<PointerType>(unit_->typeTraits().remove_cv(unqualFrom));
-    auto toPtr =
-        type_cast<PointerType>(unit_->typeTraits().remove_cv(unqualTo));
+  if (traits.is_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
+    auto fromPtr = type_cast<PointerType>(traits.remove_cv(unqualFrom));
+    auto toPtr = type_cast<PointerType>(traits.remove_cv(unqualTo));
 
     if (fromPtr && toPtr) {
       auto fromPointee = fromPtr->elementType();
       auto toPointee = toPtr->elementType();
 
-      auto fromCv = unit_->typeTraits().get_cv_qualifiers(fromPointee);
-      auto toCv = unit_->typeTraits().get_cv_qualifiers(toPointee);
+      auto fromCv = traits.get_cv_qualifiers(fromPointee);
+      auto toCv = traits.get_cv_qualifiers(toPointee);
 
       if (cv_is_subset_of(fromCv, toCv)) {
-        auto fromUnqual = unit_->typeTraits().remove_cv(fromPointee);
-        auto toUnqual = unit_->typeTraits().remove_cv(toPointee);
+        auto fromUnqual = traits.remove_cv(fromPointee);
+        auto toUnqual = traits.remove_cv(toPointee);
 
-        if (unit_->typeTraits().is_same(fromUnqual, toUnqual)) {
+        if (traits.is_same(fromUnqual, toUnqual)) {
           seq.rank = ConversionRank::kExactMatch;
           seq.hasQualificationConversion = true;
           seq.pointeeUnqual = toUnqual;
@@ -1059,7 +1023,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
           return seq;
         }
 
-        if (unit_->typeTraits().is_void(toUnqual)) {
+        if (traits.is_void(toUnqual)) {
           seq.rank = ConversionRank::kConversion;
           seq.pointeeUnqual = toUnqual;
           seq.pointeeCv = toCv;
@@ -1067,9 +1031,8 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
           return seq;
         }
 
-        if (unit_->typeTraits().is_class(fromUnqual) &&
-            unit_->typeTraits().is_class(toUnqual)) {
-          if (unit_->typeTraits().is_base_of(toUnqual, fromUnqual)) {
+        if (traits.is_class(fromUnqual) && traits.is_class(toUnqual)) {
+          if (traits.is_base_of(toUnqual, fromUnqual)) {
             seq.rank = ConversionRank::kConversion;
             seq.pointeeUnqual = toUnqual;
             seq.pointeeCv = toCv;
@@ -1079,7 +1042,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
           }
         }
 
-        if (isC_ && unit_->typeTraits().is_void(fromUnqual)) {
+        if (isC_ && traits.is_void(fromUnqual)) {
           seq.rank = ConversionRank::kConversion;
           addStep(ImplicitCastKind::kPointerConversion, comparisonTargetType);
           return seq;
@@ -1088,9 +1051,9 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
         if (isC_) {
           auto areVlaCompatible = [&](auto& self, const Type* a,
                                       const Type* b) -> bool {
-            a = unit_->typeTraits().remove_cv(a);
-            b = unit_->typeTraits().remove_cv(b);
-            if (unit_->typeTraits().is_same(a, b)) return true;
+            a = traits.remove_cv(a);
+            b = traits.remove_cv(b);
+            if (traits.is_same(a, b)) return true;
             auto va = type_cast<UnresolvedBoundedArrayType>(a);
             auto vb = type_cast<UnresolvedBoundedArrayType>(b);
             if (va && vb)
@@ -1121,20 +1084,19 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     return seq;
   }
 
-  if ((unit_->typeTraits().is_arithmetic(unqualFrom) ||
-       (unit_->typeTraits().is_enum(unqualFrom) &&
-        !unit_->typeTraits().is_scoped_enum(unqualFrom))) &&
-      unit_->typeTraits().is_arithmetic(unqualTo)) {
+  if ((traits.is_arithmetic(unqualFrom) ||
+       (traits.is_enum(unqualFrom) && !traits.is_scoped_enum(unqualFrom))) &&
+      traits.is_arithmetic(unqualTo)) {
     seq.rank = ConversionRank::kConversion;
 
-    if (unit_->typeTraits().is_integral_or_unscoped_enum(unqualFrom) &&
-        unit_->typeTraits().is_integral(unqualTo)) {
+    if (traits.is_integral_or_unscoped_enum(unqualFrom) &&
+        traits.is_integral(unqualTo)) {
       addStep(ImplicitCastKind::kIntegralConversion, comparisonTargetType);
       return seq;
     }
 
-    if (unit_->typeTraits().is_floating_point(unqualFrom) &&
-        unit_->typeTraits().is_floating_point(unqualTo)) {
+    if (traits.is_floating_point(unqualFrom) &&
+        traits.is_floating_point(unqualTo)) {
       addStep(ImplicitCastKind::kFloatingPointConversion, comparisonTargetType);
       return seq;
     }
@@ -1144,15 +1106,13 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     return seq;
   }
 
-  if (unit_->typeTraits().is_member_pointer(unqualFrom) &&
-      unit_->typeTraits().is_member_pointer(unqualTo)) {
+  if (traits.is_member_pointer(unqualFrom) &&
+      traits.is_member_pointer(unqualTo)) {
     if (auto srcMop = type_cast<MemberObjectPointerType>(unqualFrom)) {
       if (auto dstMop = type_cast<MemberObjectPointerType>(unqualTo)) {
-        if (unit_->typeTraits().is_same(
-                unit_->typeTraits().remove_cv(srcMop->elementType()),
-                unit_->typeTraits().remove_cv(dstMop->elementType())) &&
-            unit_->typeTraits().is_base_of(dstMop->classType(),
-                                           srcMop->classType())) {
+        if (traits.is_same(traits.remove_cv(srcMop->elementType()),
+                           traits.remove_cv(dstMop->elementType())) &&
+            traits.is_base_of(dstMop->classType(), srcMop->classType())) {
           seq.rank = ConversionRank::kConversion;
           addStep(ImplicitCastKind::kPointerToMemberConversion,
                   comparisonTargetType);
@@ -1162,15 +1122,13 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     }
   }
 
-  if (unit_->typeTraits().is_member_pointer(unqualTo) &&
-      isNullPointerConstant(expr)) {
+  if (traits.is_member_pointer(unqualTo) && isNullPointerConstant(expr)) {
     seq.rank = ConversionRank::kConversion;
     addStep(ImplicitCastKind::kPointerToMemberConversion, comparisonTargetType);
     return seq;
   }
 
-  if (unit_->typeTraits().is_pointer(unqualFrom) &&
-      unit_->typeTraits().is_pointer(unqualTo)) {
+  if (traits.is_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
     auto srcPtr = type_cast<PointerType>(unqualFrom);
     auto dstPtr = type_cast<PointerType>(unqualTo);
     if (srcPtr && dstPtr) {
@@ -1178,8 +1136,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
       auto dstFunc = type_cast<FunctionType>(dstPtr->elementType());
       if (srcFunc && dstFunc && srcFunc->isNoexcept() &&
           !dstFunc->isNoexcept() &&
-          unit_->typeTraits().is_same(
-              unit_->typeTraits().remove_noexcept(srcFunc), dstFunc)) {
+          traits.is_same(traits.remove_noexcept(srcFunc), dstFunc)) {
         seq.rank = ConversionRank::kExactMatch;
         addStep(ImplicitCastKind::kFunctionPointerConversion,
                 comparisonTargetType);
@@ -1188,19 +1145,17 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     }
   }
 
-  if (unit_->typeTraits().is_same(unqualTo, control_->getBoolType())) {
-    if (unit_->typeTraits().is_arithmetic_or_unscoped_enum(unqualFrom) ||
-        unit_->typeTraits().is_pointer(unqualFrom) ||
-        unit_->typeTraits().is_member_pointer(unqualFrom)) {
+  if (traits.is_same(unqualTo, control_->getBoolType())) {
+    if (traits.is_arithmetic_or_unscoped_enum(unqualFrom) ||
+        traits.is_pointer(unqualFrom) || traits.is_member_pointer(unqualFrom)) {
       seq.rank = ConversionRank::kConversion;
       addStep(ImplicitCastKind::kBooleanConversion, comparisonTargetType);
       return seq;
     }
   }
 
-  if (isC_ && unit_->typeTraits().is_integral_or_unscoped_enum(unqualFrom) &&
-      unit_->typeTraits().is_enum(unqualTo) &&
-      !unit_->typeTraits().is_scoped_enum(unqualTo)) {
+  if (isC_ && traits.is_integral_or_unscoped_enum(unqualFrom) &&
+      traits.is_enum(unqualTo) && !traits.is_scoped_enum(unqualTo)) {
     seq.rank = ConversionRank::kConversion;
     addStep(ImplicitCastKind::kIntegralConversion, comparisonTargetType);
     return seq;
@@ -1225,8 +1180,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     auto resultType = conversionResultType(func);
     uds.steps.push_back({ImplicitCastKind::kUserDefinedConversion, resultType});
 
-    if (!unit_->typeTraits().is_same(unit_->typeTraits().remove_cv(resultType),
-                                     comparisonTargetType)) {
+    if (!traits.is_same(traits.remove_cv(resultType), comparisonTargetType)) {
       uds.secondStandardConversionTarget = comparisonTargetType;
     }
 
@@ -1237,16 +1191,12 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
 
   auto checkViability = [&](const Type* from,
                             const Type* to) -> std::pair<bool, ConversionRank> {
-    if (unit_->typeTraits().is_same(from, to))
-      return {true, ConversionRank::kExactMatch};
-    if (unit_->typeTraits().is_arithmetic(from) &&
-        unit_->typeTraits().is_arithmetic(to))
+    if (traits.is_same(from, to)) return {true, ConversionRank::kExactMatch};
+    if (traits.is_arithmetic(from) && traits.is_arithmetic(to))
       return {true, ConversionRank::kConversion};
-    if (unit_->typeTraits().is_pointer(from) &&
-        unit_->typeTraits().is_pointer(to))
+    if (traits.is_pointer(from) && traits.is_pointer(to))
       return {true, ConversionRank::kConversion};
-    if (unit_->typeTraits().is_null_pointer(from) &&
-        unit_->typeTraits().is_pointer(to))
+    if (traits.is_null_pointer(from) && traits.is_pointer(to))
       return {true, ConversionRank::kConversion};
     return {false, ConversionRank::kNone};
   };
@@ -1260,7 +1210,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
 
   if (auto destClassType = type_cast<ClassType>(unqualTo)) {
     if (auto destClass = destClassType->symbol()) {
-      unit_->typeTraits().requireCompleteClass(destClass);
+      traits.requireCompleteClass(destClass);
 
       for (auto ctor : destClass->convertingConstructors()) {
         if (ctor->templateDeclaration() && !ctor->isSpecialization()) {
@@ -1284,8 +1234,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
         auto& params = funcType->parameterTypes();
         if (!isCallableWithOneArgument(ctor)) continue;
 
-        auto paramUnqual = unit_->typeTraits().remove_cv(
-            unit_->typeTraits().remove_reference(params[0]));
+        auto paramUnqual = traits.remove_cv(traits.remove_reference(params[0]));
 
         auto [viable, s2Rank] = checkViability(unqualFrom, paramUnqual);
         if (viable) updateBest(ctor, s2Rank);
@@ -1315,11 +1264,10 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
           auto returnType = convFuncType->returnType();
           if (!returnType) continue;
 
-          auto retUnqual = unit_->typeTraits().remove_cv(returnType);
+          auto retUnqual = traits.remove_cv(returnType);
 
           auto [viable, s2Rank] = checkViability(retUnqual, unqualTo);
-          if (!viable &&
-              unit_->typeTraits().is_same(unqualTo, control_->getBoolType())) {
+          if (!viable && traits.is_same(unqualTo, control_->getBoolType())) {
             viable = true;
             s2Rank = ConversionRank::kConversion;
           }
@@ -1348,8 +1296,7 @@ void StandardConversion::applyConversionSequence(
   for (const auto& step : sequence.steps) {
     if (step.kind == ImplicitCastKind::kIdentity) {
       if (auto braced = ast_cast<BracedInitListAST>(expr);
-          braced && !braced->type && step.type &&
-          unit_->typeTraits().is_class(step.type)) {
+          braced && !braced->type && step.type && traits.is_class(step.type)) {
         braced->type = step.type;
         braced->valueCategory = ValueCategory::kPrValue;
       }
@@ -1383,10 +1330,9 @@ auto StandardConversion::requiresCopyConstruction(
     ExpressionAST* expr, const Type* destinationType) const -> bool {
   if (isC_ || !expr || !expr->type || !destinationType) return false;
   if (!is_glvalue(expr)) return false;
-  if (unit_->typeTraits().is_reference(destinationType)) return false;
+  if (traits.is_reference(destinationType)) return false;
 
-  auto classType =
-      type_cast<ClassType>(unit_->typeTraits().remove_cv(destinationType));
+  auto classType = type_cast<ClassType>(traits.remove_cv(destinationType));
   if (!classType || !classType->symbol()) return false;
 
   auto classSymbol = classType->symbol()->resolvedDefinition();
@@ -1395,8 +1341,8 @@ auto StandardConversion::requiresCopyConstruction(
   if (!classSymbol->copyConstructor() && !classSymbol->moveConstructor())
     return false;
 
-  auto sourceType = unit_->typeTraits().remove_cvref(expr->type);
-  return unit_->typeTraits().is_same(sourceType, classType);
+  auto sourceType = traits.remove_cvref(expr->type);
+  return traits.is_same(sourceType, classType);
 }
 
 auto StandardConversion::selectCopyConstructor(ExpressionAST* expr,
@@ -1404,8 +1350,7 @@ auto StandardConversion::selectCopyConstructor(ExpressionAST* expr,
     -> FunctionSymbol* {
   if (!requiresCopyConstruction(expr, destinationType)) return nullptr;
 
-  auto classType =
-      type_cast<ClassType>(unit_->typeTraits().remove_cv(destinationType));
+  auto classType = type_cast<ClassType>(traits.remove_cv(destinationType));
   auto classSymbol = classType->symbol()->resolvedDefinition();
 
   if (!control_->beginCopyConstructorSelection(classSymbol)) return nullptr;
@@ -1438,7 +1383,7 @@ auto StandardConversion::copyInitializeClassPrvalue(ExpressionAST*& expr,
   auto cast = ImplicitCastExpressionAST::create(arena_);
   cast->castKind = ImplicitCastKind::kUserDefinedConversion;
   cast->expression = expr;
-  cast->type = unit_->typeTraits().remove_cv(destinationType);
+  cast->type = traits.remove_cv(destinationType);
   cast->valueCategory = ValueCategory::kPrValue;
   expr = cast;
 
@@ -1468,8 +1413,7 @@ void StandardConversion::materializeConstructorArguments(
 
 auto StandardConversion::listInitializes(BracedInitListAST* bracedInitList,
                                          const Type* targetType) -> bool {
-  auto classType =
-      type_cast<ClassType>(unit_->typeTraits().remove_cv(targetType));
+  auto classType = type_cast<ClassType>(traits.remove_cv(targetType));
   if (!classType || !classType->symbol()) return false;
 
   auto classSymbol = classType->symbol()->resolvedDefinition();
@@ -1483,7 +1427,7 @@ auto StandardConversion::listInitializes(BracedInitListAST* bracedInitList,
     elements.push_back(it->value);
   }
 
-  if (!unit_->typeTraits().is_aggregate(classType)) {
+  if (!traits.is_aggregate(classType)) {
     OverloadResolution resolution(unit_);
     auto result = resolution.resolveConstructor(classSymbol, elements);
     return result.best && !result.ambiguous;
@@ -1502,7 +1446,7 @@ auto StandardConversion::listInitializes(BracedInitListAST* bracedInitList,
   if (elements.size() > slotTypes.size()) return false;
 
   for (std::size_t i = 0; i < elements.size(); ++i) {
-    if (unit_->typeTraits().is_array(slotTypes[i])) continue;
+    if (traits.is_array(slotTypes[i])) continue;
     if (!computeConversionSequence(elements[i], slotTypes[i])) return false;
   }
 
@@ -1578,10 +1522,10 @@ void StandardConversion::recordUserDefinedConversion(
   auto& objectExpression = cast->expression;
   if (objectExpression && objectExpression->type &&
       is_glvalue(objectExpression)) {
-    auto sourceType = unit_->typeTraits().remove_cv(
-        unit_->typeTraits().remove_reference(objectExpression->type));
-    if (!unit_->typeTraits().is_same(sourceType, classSymbol->type()) &&
-        unit_->typeTraits().is_base_of(classSymbol->type(), sourceType)) {
+    auto sourceType =
+        traits.remove_cv(traits.remove_reference(objectExpression->type));
+    if (!traits.is_same(sourceType, classSymbol->type()) &&
+        traits.is_base_of(classSymbol->type(), sourceType)) {
       wrapWithImplicitCast(ImplicitCastKind::kDerivedToBaseConversion,
                            classSymbol->type(), objectExpression);
     }
@@ -1619,7 +1563,7 @@ auto StandardConversion::isKnownCompleteObject(ExpressionAST* expression)
       !symbol_cast<FieldSymbol>(symbol))
     return false;
 
-  return !unit_->typeTraits().is_reference(symbol->type());
+  return !traits.is_reference(symbol->type());
 }
 
 auto StandardConversion::isVirtualMemberDispatch(
@@ -1634,8 +1578,8 @@ void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
                                               const Type* type,
                                               ExpressionAST*& expr) {
   if (castKind == ImplicitCastKind::kFunctionToPointerConversion) {
-    if (auto ovlType = type_cast<OverloadSetType>(
-            unit_->typeTraits().remove_reference(expr->type))) {
+    if (auto ovlType =
+            type_cast<OverloadSetType>(traits.remove_reference(expr->type))) {
       if (auto ptrTarget = type_cast<PointerType>(type)) {
         if (auto targetFuncType =
                 type_cast<FunctionType>(ptrTarget->elementType())) {
@@ -1669,7 +1613,7 @@ void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
                             : ValueCategory::kPrValue;
 
   if (castKind == ImplicitCastKind::kDerivedToBaseConversion &&
-      !unit_->typeTraits().is_pointer(type) && is_glvalue(expr)) {
+      !traits.is_pointer(type) && is_glvalue(expr)) {
     cast->valueCategory = expr->valueCategory;
   }
 
@@ -1682,34 +1626,29 @@ auto StandardConversion::isNarrowingConversion(const Type* from, const Type* to)
     -> bool {
   if (isC_) return false;
 
-  from = unit_->typeTraits().remove_cv(from);
-  to = unit_->typeTraits().remove_cv(to);
+  from = traits.remove_cv(from);
+  to = traits.remove_cv(to);
 
-  if (unit_->typeTraits().is_same(from, to)) return false;
+  if (traits.is_same(from, to)) return false;
 
-  if (unit_->typeTraits().is_floating_point(from) &&
-      unit_->typeTraits().is_integral(to))
-    return true;
+  if (traits.is_floating_point(from) && traits.is_integral(to)) return true;
 
-  if (unit_->typeTraits().is_floating_point(from) &&
-      unit_->typeTraits().is_floating_point(to)) {
+  if (traits.is_floating_point(from) && traits.is_floating_point(to)) {
     auto fromSize = control_->memoryLayout()->sizeOf(from);
     auto toSize = control_->memoryLayout()->sizeOf(to);
     if (fromSize && toSize && *fromSize > *toSize) return true;
   }
 
-  if (unit_->typeTraits().is_integral_or_unscoped_enum(from) &&
-      unit_->typeTraits().is_floating_point(to))
+  if (traits.is_integral_or_unscoped_enum(from) && traits.is_floating_point(to))
     return true;
 
-  if (unit_->typeTraits().is_integral_or_unscoped_enum(from) &&
-      unit_->typeTraits().is_integral(to)) {
+  if (traits.is_integral_or_unscoped_enum(from) && traits.is_integral(to)) {
     auto fromSize = control_->memoryLayout()->sizeOf(from);
     auto toSize = control_->memoryLayout()->sizeOf(to);
     if (fromSize && toSize) {
       if (*fromSize > *toSize) return true;
-      if (*fromSize == *toSize && unit_->typeTraits().is_signed(from) !=
-                                      unit_->typeTraits().is_signed(to))
+      if (*fromSize == *toSize &&
+          traits.is_signed(from) != traits.is_signed(to))
         return true;
     }
   }

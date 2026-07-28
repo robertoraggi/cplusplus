@@ -85,6 +85,7 @@ Codegen::Codegen(mlir::MLIRContext& context, TranslationUnit* unit,
     : context_(&context),
       builder_(&context),
       unit_(unit),
+      traits(unit),
       debugInfo_(debugInfo) {
   const auto triple = llvm::Triple(unit->control()->memoryLayout()->triple());
   isWasmTarget_ = triple.getArch() == llvm::Triple::wasm32 ||
@@ -126,7 +127,7 @@ auto Codegen::newUniqueSymbolName(std::string_view prefix) -> std::string {
 auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
                            const Type* type) -> std::optional<mlir::FloatAttr> {
   if (value.has_value()) {
-    auto ty = unit_->typeTraits().remove_cvref(type);
+    auto ty = traits.remove_cvref(type);
 
     auto interp = ASTInterpreter{unit_};
 
@@ -155,7 +156,7 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     -> std::optional<mlir::Attribute> {
   auto interp = ASTInterpreter{unit_};
 
-  if (unit_->typeTraits().is_integral_or_unscoped_enum(type)) {
+  if (traits.is_integral_or_unscoped_enum(type)) {
     auto constValue = interp.toInt(value);
     return builder_.getI64IntegerAttr(constValue.value_or(0));
   }
@@ -164,7 +165,7 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     return *attr;
   }
 
-  if (unit_->typeTraits().is_pointer(type)) {
+  if (traits.is_pointer(type)) {
     if (std::get_if<std::shared_ptr<ConstLabelAddress>>(&value))
       return std::nullopt;
     if (auto intVal = std::get_if<std::intmax_t>(&value)) {
@@ -173,8 +174,7 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     return std::nullopt;
   }
 
-  if (unit_->typeTraits().is_array(type) ||
-      unit_->typeTraits().is_class(type)) {
+  if (traits.is_array(type) || traits.is_class(type)) {
     if (auto constArrayPtr =
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto constArray = *constArrayPtr;
@@ -198,7 +198,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     -> mlir::Value {
   auto interp = ASTInterpreter{unit_};
 
-  if (unit_->typeTraits().is_integral_or_unscoped_enum(type)) {
+  if (traits.is_integral_or_unscoped_enum(type)) {
     auto mlirType = convertType(type);
     auto constValue = interp.toInt(value);
     return mlir::arith::ConstantOp::create(
@@ -206,7 +206,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
         builder.getIntegerAttr(mlirType, constValue.value_or(0)));
   }
 
-  if (unit_->typeTraits().is_floating_point(type)) {
+  if (traits.is_floating_point(type)) {
     auto mlirType = convertType(type);
     auto floatType = mlir::cast<mlir::FloatType>(mlirType);
     auto constValue = interp.toDouble(value);
@@ -215,7 +215,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
         mlir::FloatAttr::get(floatType, constValue.value_or(0.0)));
   }
 
-  if (unit_->typeTraits().is_pointer(type)) {
+  if (traits.is_pointer(type)) {
     auto ptrType = convertType(type);
     auto mlirPtrType = mlir::cast<mlir::cxx::PointerType>(ptrType);
 
@@ -280,8 +280,8 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     return mlir::cxx::NullPtrConstantOp::create(builder, loc, mlirPtrType);
   }
 
-  if (unit_->typeTraits().is_class_or_union(type)) {
-    auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(type));
+  if (traits.is_class_or_union(type)) {
+    auto classType = type_cast<ClassType>(traits.remove_cv(type));
     auto mlirType = convertType(type);
 
     if (classType && classType->isUnion()) {
@@ -488,7 +488,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     return mlir::cxx::ZeroOp::create(builder, loc, mlirType);
   }
 
-  if (unit_->typeTraits().is_array(type)) {
+  if (traits.is_array(type)) {
     auto mlirType = convertType(type);
     auto cxxArrType = mlir::dyn_cast<mlir::cxx::ArrayType>(mlirType);
 
@@ -728,8 +728,7 @@ auto Codegen::buildSubroutineTypeAttr(FunctionSymbol* functionSymbol)
 
   if (auto classType = type_cast<ClassType>(functionSymbol->parent()->type());
       classType && !functionSymbol->isStatic()) {
-    signatureType.push_back(
-        convertDebugType(unit_->typeTraits().add_pointer(classType)));
+    signatureType.push_back(convertDebugType(traits.add_pointer(classType)));
   }
 
   for (auto paramType : functionType->parameterTypes()) {
@@ -927,7 +926,7 @@ auto Codegen::createConditionalCleanupFlag(mlir::Location loc,
 
 void Codegen::addTemporaryCleanup(mlir::Value address, const Type* type) {
   if (cleanupStack_.empty() || !cleanupStack_.back().isFullExpression) return;
-  auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(type));
+  auto classType = type_cast<ClassType>(traits.remove_cv(type));
   if (!classType || !classType->symbol()) return;
   auto dtor = classType->symbol()->resolvedDefinition()->destructor();
   if (!dtor) return;
@@ -969,12 +968,12 @@ auto Codegen::classSubobjectShape(const Type* type) const
 
   ClassSubobjectShape shape;
 
-  auto elementType = unit_->typeTraits().remove_cv(type);
-  while (unit_->typeTraits().is_array(elementType)) {
+  auto elementType = traits.remove_cv(type);
+  while (traits.is_array(elementType)) {
     auto arrayType = type_cast<BoundedArrayType>(elementType);
     if (!arrayType) return std::nullopt;
     shape.elementCount *= arrayType->size();
-    elementType = unit_->typeTraits().remove_cv(arrayType->elementType());
+    elementType = traits.remove_cv(arrayType->elementType());
   }
 
   auto classType = type_cast<ClassType>(elementType);
@@ -1039,8 +1038,7 @@ auto Codegen::subobjectAddress(mlir::Location loc, mlir::Value objectPtr,
 
     for (auto field :
          views::members(enclosingClass) | views::non_static_fields) {
-      auto fieldClass =
-          type_cast<ClassType>(unit_->typeTraits().remove_cv(field->type()));
+      auto fieldClass = type_cast<ClassType>(traits.remove_cv(field->type()));
       if (!fieldClass || !fieldClass->symbol()) continue;
       if (fieldClass->symbol()->resolvedDefinition() != declaringClass)
         continue;
@@ -1205,8 +1203,7 @@ auto Codegen::emitPrvalueInto(mlir::Value object, const Type* objectType,
   auto value = result.value;
 
   const bool yieldedClassAddress =
-      unit_->typeTraits().is_class(objectType) &&
-      value.getType() != objectMlirType &&
+      traits.is_class(objectType) && value.getType() != objectMlirType &&
       mlir::isa<mlir::cxx::PointerType>(value.getType());
 
   if (yieldedClassAddress) {
@@ -1328,7 +1325,7 @@ auto Codegen::abiLowerClassArgument(SourceLocation loc, const Type* paramType,
 auto Codegen::abiPrepareResult(SourceLocation loc, const Type* returnType,
                                mlir::SmallVector<mlir::Type>& resultTypes,
                                mlir::Value resultObject) -> mlir::Value {
-  if (unit_->typeTraits().is_void(returnType)) return {};
+  if (traits.is_void(returnType)) return {};
 
   const auto abi = classifyClassValueAbi(returnType);
 
@@ -1355,7 +1352,7 @@ auto Codegen::abiPrepareResult(SourceLocation loc, const Type* returnType,
 auto Codegen::abiFinishResult(SourceLocation loc, const Type* returnType,
                               mlir::cxx::CallOp callOp, mlir::Value sretTemp)
     -> ExpressionResult {
-  if (unit_->typeTraits().is_void(returnType)) return {};
+  if (traits.is_void(returnType)) return {};
 
   auto mlirLoc = getLocation(loc);
   const auto abi = classifyClassValueAbi(returnType);
@@ -1517,7 +1514,7 @@ auto Codegen::computeFunctionSignature(const FunctionType* functionType,
                                        FunctionSymbol* functionSymbol)
     -> mlir::cxx::FunctionType {
   const auto returnType = functionType->returnType();
-  const auto needsExitValue = !unit_->typeTraits().is_void(returnType);
+  const auto needsExitValue = !traits.is_void(returnType);
   const auto returnAbi = classifyClassValueAbi(returnType);
 
   std::vector<mlir::Type> inputTypes;
@@ -1800,12 +1797,12 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   if (value.has_value()) {
     auto interp = ASTInterpreter{unit_};
 
-    if (unit_->typeTraits().is_integral_or_unscoped_enum(defVar->type())) {
+    if (traits.is_integral_or_unscoped_enum(defVar->type())) {
       auto constValue = interp.toInt(*value);
       initializer = builder_.getI64IntegerAttr(constValue.value_or(0));
     } else if (auto attr = getFloatAttr(value, defVar->type())) {
       initializer = attr.value();
-    } else if (unit_->typeTraits().is_array(defVar->type())) {
+    } else if (traits.is_array(defVar->type())) {
       if (auto constArrayPtr =
               std::get_if<std::shared_ptr<InitializerList>>(&*value)) {
         auto constArray = *constArrayPtr;
@@ -1861,9 +1858,9 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
           }
         }
       }
-    } else if (unit_->typeTraits().is_class(defVar->type())) {
+    } else if (traits.is_class(defVar->type())) {
       needsRegionInit = true;
-    } else if (unit_->typeTraits().is_pointer(defVar->type())) {
+    } else if (traits.is_pointer(defVar->type())) {
       if (auto attr = constValueToAttr(*value, defVar->type())) {
         initializer = *attr;
       } else {
@@ -1883,8 +1880,8 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     initializer = mlir::LLVM::ZeroAttr::get(context_);
   }
 
-  const auto isConstant = variableSymbol->isConstexpr() ||
-                          unit_->typeTraits().is_const(defVar->type());
+  const auto isConstant =
+      variableSymbol->isConstexpr() || traits.is_const(defVar->type());
 
   mlir::IntegerAttr alignmentAttr;
 
@@ -1926,7 +1923,7 @@ auto Codegen::findOrCreateExternField(FieldSymbol* field)
   auto name = encoder.encode(field);
 
   const auto isConstant =
-      field->isConstexpr() || unit_->typeTraits().is_const(field->type());
+      field->isConstexpr() || traits.is_const(field->type());
 
   mlir::IntegerAttr alignmentAttr;
 
@@ -2059,9 +2056,8 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
     }
   }
 
-  if (unit_->typeTraits().is_class(defVar->type())) {
-    auto classType =
-        type_cast<ClassType>(unit_->typeTraits().remove_cv(defVar->type()));
+  if (traits.is_class(defVar->type())) {
+    auto classType = type_cast<ClassType>(traits.remove_cv(defVar->type()));
     if (classType && classType->symbol()) {
       if (auto dtor = classType->symbol()->destructor()) {
         emitGlobalVarDtorRegistration(defVar, completeObjectDtor(dtor), global,

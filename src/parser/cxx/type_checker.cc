@@ -185,6 +185,9 @@ struct IsPotentiallyThrowing {
 
 struct TypeChecker::Visitor {
   TypeChecker& check;
+  TypeTraits traits;
+
+  explicit Visitor(TypeChecker& check) : check(check), traits(check.unit_) {}
 
   [[nodiscard]] auto arena() const -> Arena* { return check.unit_->arena(); }
 
@@ -226,13 +229,12 @@ struct TypeChecker::Visitor {
                                                  const Type* type) -> bool {
     if (!type) return false;
     if (is_dependent_type(type)) return false;
-    auto stripped = check.unit_->typeTraits().remove_cv(type);
-    while (check.unit_->typeTraits().is_array(stripped)) {
-      stripped = check.unit_->typeTraits().remove_cv(
-          check.unit_->typeTraits().get_element_type(stripped));
+    auto stripped = traits.remove_cv(type);
+    while (traits.is_array(stripped)) {
+      stripped = traits.remove_cv(traits.get_element_type(stripped));
     }
     if (auto classType = type_cast<ClassType>(stripped)) {
-      check.unit_->typeTraits().requireCompleteClass(classType->symbol());
+      traits.requireCompleteClass(classType->symbol());
       if (!classType->definition()->isComplete()) {
         error(loc, std::format("invalid application of 'sizeof' to an "
                                "incomplete type '{}'",
@@ -271,8 +273,7 @@ struct TypeChecker::Visitor {
   }
 
   [[nodiscard]] auto as_array(const Type* type) const -> const Type* {
-    if (check.unit_->typeTraits().is_array(type))
-      return check.unit_->typeTraits().remove_cv(type);
+    if (traits.is_array(type)) return traits.remove_cv(type);
     return nullptr;
   }
 
@@ -678,8 +679,7 @@ void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {
     }
 
     void operator()(TypeGenericAssociationAST* assoc) {
-      if (!self.check.unit_->typeTraits().is_same(selectorType,
-                                                  assoc->typeId->type)) {
+      if (!self.traits.is_same(selectorType, assoc->typeId->type)) {
         return;
       }
 
@@ -703,8 +703,7 @@ void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {
         return;
       }
 
-      selectorType =
-          self.check.unit_->typeTraits().decay(ast->expression->type);
+      selectorType = self.traits.decay(ast->expression->type);
 
       if (!selectorType) {
         self.error(ast->firstSourceLocation(),
@@ -788,8 +787,7 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
       ast->type = overloadSet->type();
       ast->valueCategory = ValueCategory::kLValue;
     } else {
-      ast->type =
-          check.unit_->typeTraits().remove_reference(ast->symbol->type());
+      ast->type = traits.remove_reference(ast->symbol->type());
 
       if (ast->symbol->isEnumerator() || ast->symbol->isNonTypeParameter()) {
         ast->valueCategory = ValueCategory::kPrValue;
@@ -807,15 +805,14 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
             auto funcClass = symbol_cast<ClassSymbol>(
                 funcSym->enclosingNonTemplateParametersScope());
             if (funcClass && fieldClass &&
-                check.unit_->typeTraits().is_base_of(fieldClass->type(),
-                                                     funcClass->type())) {
+                traits.is_base_of(fieldClass->type(), funcClass->type())) {
               if (auto funcType = type_cast<FunctionType>(funcSym->type())) {
                 auto objectCv = funcType->cvQualifiers();
                 if (is_volatile(objectCv)) {
-                  ast->type = check.unit_->typeTraits().add_volatile(ast->type);
+                  ast->type = traits.add_volatile(ast->type);
                 }
                 if (!field->isMutable() && is_const(objectCv)) {
-                  ast->type = check.unit_->typeTraits().add_const(ast->type);
+                  ast->type = traits.add_const(ast->type);
                 }
               }
             }
@@ -991,30 +988,28 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
     return;
   }
 
-  if (check.unit_->typeTraits().is_class(ast->baseExpression->type)) return;
-  if (check.unit_->typeTraits().is_class(ast->indexExpression->type)) return;
+  if (traits.is_class(ast->baseExpression->type)) return;
+  if (traits.is_class(ast->indexExpression->type)) return;
 
   auto array_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
                                 ExpressionAST*& index) {
-    if (!check.unit_->typeTraits().is_array(base->type)) return false;
-    if (!check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(index->type))
-      return false;
+    if (!traits.is_array(base->type)) return false;
+    if (!traits.is_arithmetic_or_unscoped_enum(index->type)) return false;
 
     (void)stdconv_.temporaryMaterialization(base);
     (void)stdconv_.ensurePrvalue(index);
     stdconv_.adjustCv(index);
     (void)stdconv_.integralPromotion(index);
 
-    ast->type = check.unit_->typeTraits().get_element_type(base->type);
+    ast->type = traits.get_element_type(base->type);
     ast->valueCategory = base->valueCategory;
     return true;
   };
 
   auto pointer_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
                                   ExpressionAST*& index) {
-    if (!check.unit_->typeTraits().is_pointer(base->type)) return false;
-    if (!check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(index->type))
-      return false;
+    if (!traits.is_pointer(base->type)) return false;
+    if (!traits.is_arithmetic_or_unscoped_enum(index->type)) return false;
 
     (void)stdconv_.ensurePrvalue(base);
     stdconv_.adjustCv(base);
@@ -1023,7 +1018,7 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
     stdconv_.adjustCv(index);
     (void)stdconv_.integralPromotion(index);
 
-    ast->type = check.unit_->typeTraits().get_element_type(base->type);
+    ast->type = traits.get_element_type(base->type);
     ast->valueCategory = ValueCategory::kLValue;
     return true;
   };
@@ -1349,10 +1344,9 @@ auto TypeChecker::Visitor::resolve_function_type(CallExpressionAST* ast)
     }
   }
 
-  if (!functionType &&
-      check.unit_->typeTraits().is_pointer(ast->baseExpression->type)) {
+  if (!functionType && traits.is_pointer(ast->baseExpression->type)) {
     functionType = type_cast<FunctionType>(
-        check.unit_->typeTraits().get_element_type(ast->baseExpression->type));
+        traits.get_element_type(ast->baseExpression->type));
     if (functionType) (void)stdconv_.ensurePrvalue(ast->baseExpression);
   }
 
@@ -1363,8 +1357,7 @@ auto TypeChecker::Visitor::resolve_function_type(CallExpressionAST* ast)
 
 auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
     -> const FunctionType* {
-  auto baseType =
-      check.unit_->typeTraits().remove_cvref(ast->baseExpression->type);
+  auto baseType = traits.remove_cvref(ast->baseExpression->type);
   auto classType = type_cast<ClassType>(baseType);
   if (!classType) return nullptr;
   auto classSymbol = classType->symbol();
@@ -1517,8 +1510,8 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
 
 auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
     -> FunctionSymbol* {
-  auto classType = type_cast<ClassType>(
-      check.unit_->typeTraits().remove_cv(ast->baseExpression->type));
+  auto classType =
+      type_cast<ClassType>(traits.remove_cv(ast->baseExpression->type));
   if (!classType) return nullptr;
   auto classSymbol = classType->symbol();
   if (!classSymbol) return nullptr;
@@ -1647,7 +1640,7 @@ void TypeChecker::Visitor::check_call_arguments(
       continue;
     }
 
-    if (isCxx() && check.unit_->typeTraits().is_reference(targetType)) {
+    if (isCxx() && traits.is_reference(targetType)) {
       auto seq =
           resolution.computeImplicitConversionSequence(it->value, targetType);
       if (seq.rank == ConversionRank::kNone) {
@@ -1695,8 +1688,6 @@ auto TypeChecker::Visitor::checkBuiltinInvoke(CallExpressionAST* ast) -> bool {
     }
     return result;
   };
-
-  const auto& traits = check.unit_->typeTraits();
 
   auto fExpr = args[0];
   auto decayedF = traits.decay(fExpr->type);
@@ -1808,7 +1799,7 @@ void TypeChecker::Visitor::check_member_pointer_access(
   const auto throughPointer = ast->op == TokenKind::T_MINUS_GREATER_STAR;
   if (throughPointer) (void)stdconv_.ensurePrvalue(object);
 
-  auto objectType = check.unit_->typeTraits().remove_reference(object->type);
+  auto objectType = traits.remove_reference(object->type);
   if (throughPointer) {
     auto pointerType = type_cast<PointerType>(objectType);
     if (!pointerType) {
@@ -1821,18 +1812,16 @@ void TypeChecker::Visitor::check_member_pointer_access(
     objectType = pointerType->elementType();
   }
 
-  const auto objectQualifiers =
-      check.unit_->typeTraits().get_cv_qualifiers(objectType);
+  const auto objectQualifiers = traits.get_cv_qualifiers(objectType);
 
   const auto qualified = [&](const Type* memberType) {
-    const auto memberQualifiers =
-        check.unit_->typeTraits().get_cv_qualifiers(memberType);
+    const auto memberQualifiers = traits.get_cv_qualifiers(memberType);
     const auto combined =
         static_cast<CvQualifiers>(static_cast<int>(objectQualifiers) |
                                   static_cast<int>(memberQualifiers));
     if (combined == memberQualifiers) return memberType;
-    return static_cast<const Type*>(control()->getQualType(
-        check.unit_->typeTraits().remove_cv(memberType), combined));
+    return static_cast<const Type*>(
+        control()->getQualType(traits.remove_cv(memberType), combined));
   };
 
   if (auto dataPointer =
@@ -1957,8 +1946,7 @@ auto TypeChecker::Visitor::checkBuiltinCountZerosGeneric(CallExpressionAST* ast)
   }
 
   if (auto type = first->value->type;
-      !check.unit_->typeTraits().is_integral(type) ||
-      !check.unit_->typeTraits().is_unsigned(type)) {
+      !traits.is_integral(type) || !traits.is_unsigned(type)) {
     error(first->value->firstSourceLocation(),
           std::format("1st argument to '{}' must be a scalar unsigned integer "
                       "type (was '{}')",
@@ -2014,7 +2002,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
       ast->type = classSym->type();
       ast->valueCategory = ValueCategory::kPrValue;
 
-      check.unit_->typeTraits().requireCompleteClass(classSym);
+      traits.requireCompleteClass(classSym);
 
       ExpressionAST* initializer = nullptr;
       ast->constructorSymbol = check.check_class_initializer(
@@ -2279,11 +2267,11 @@ void TypeChecker::Visitor::setResultTypeAndValueCategory(ExpressionAST* ast,
   if (!functionType) return;
   ast->type = functionType->returnType();
 
-  if (check.unit_->typeTraits().is_lvalue_reference(ast->type)) {
-    ast->type = check.unit_->typeTraits().remove_reference(ast->type);
+  if (traits.is_lvalue_reference(ast->type)) {
+    ast->type = traits.remove_reference(ast->type);
     ast->valueCategory = ValueCategory::kLValue;
-  } else if (check.unit_->typeTraits().is_rvalue_reference(ast->type)) {
-    ast->type = check.unit_->typeTraits().remove_reference(ast->type);
+  } else if (traits.is_rvalue_reference(ast->type)) {
+    ast->type = traits.remove_reference(ast->type);
     ast->valueCategory = ValueCategory::kXValue;
   } else {
     ast->valueCategory = ValueCategory::kPrValue;
@@ -2313,9 +2301,8 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
   ast->type = specs.type();
   ast->valueCategory = ValueCategory::kPrValue;
 
-  if (auto classType = type_cast<ClassType>(
-          check.unit_->typeTraits().remove_cv(ast->type))) {
-    check.unit_->typeTraits().requireCompleteClass(classType->symbol());
+  if (auto classType = type_cast<ClassType>(traits.remove_cv(ast->type))) {
+    traits.requireCompleteClass(classType->symbol());
 
     if (!classType->symbol()) return;
 
@@ -2356,9 +2343,8 @@ void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {
   ast->type = specs.type();
   ast->valueCategory = ValueCategory::kPrValue;
 
-  if (auto classType = type_cast<ClassType>(
-          check.unit_->typeTraits().remove_cv(ast->type))) {
-    check.unit_->typeTraits().requireCompleteClass(classType->symbol());
+  if (auto classType = type_cast<ClassType>(traits.remove_cv(ast->type))) {
+    traits.requireCompleteClass(classType->symbol());
 
     auto classSymbol = classType->symbol();
     if (!classSymbol) return;
@@ -2377,10 +2363,8 @@ auto TypeChecker::Visitor::has_initializer_list_constructor(
     if (!functionType) continue;
     const auto& params = functionType->parameterTypes();
     if (params.empty()) continue;
-    auto paramType = check.unit_->typeTraits().remove_cv(
-        check.unit_->typeTraits().remove_reference(params[0]));
-    if (check.unit_->typeTraits().initializer_list_element_type(paramType))
-      return true;
+    auto paramType = traits.remove_cv(traits.remove_reference(params[0]));
+    if (traits.initializer_list_element_type(paramType)) return true;
   }
   return false;
 }
@@ -2397,7 +2381,7 @@ void TypeChecker::Visitor::operator()(SpliceMemberExpressionAST* ast) {
   }
 
   if (ast->symbol) {
-    ast->type = check.unit_->typeTraits().remove_reference(ast->symbol->type());
+    ast->type = traits.remove_reference(ast->symbol->type());
     if (ast->symbol->isEnumerator() || ast->symbol->isNonTypeParameter()) {
       ast->valueCategory = ValueCategory::kPrValue;
     } else {
@@ -2437,7 +2421,7 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
   }
 
   if (ast->accessOp == TokenKind::T_DOT &&
-      check.unit_->typeTraits().is_class(ast->baseExpression->type)) {
+      traits.is_class(ast->baseExpression->type)) {
     (void)stdconv_.temporaryMaterialization(ast->baseExpression);
   }
 
@@ -2463,7 +2447,7 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
     return;
   }
 
-  if (check.unit_->typeTraits().is_class(ast->baseExpression->type)) {
+  if (traits.is_class(ast->baseExpression->type)) {
     if (auto operatorFunc = check.lookupOperator(
             ast->baseExpression->type, ast->op, control()->getIntType())) {
       ast->symbol = operatorFunc;
@@ -2492,18 +2476,16 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   }
 
   auto incr_arithmetic = [&]() {
-    if (check.unit_->typeTraits().is_const(ast->baseExpression->type))
+    if (traits.is_const(ast->baseExpression->type)) return false;
+
+    if (isCxx() && !traits.is_arithmetic(ast->baseExpression->type))
       return false;
 
-    if (isCxx() &&
-        !check.unit_->typeTraits().is_arithmetic(ast->baseExpression->type))
+    if (isC() &&
+        !traits.is_arithmetic_or_unscoped_enum(ast->baseExpression->type))
       return false;
 
-    if (isC() && !check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
-                     ast->baseExpression->type))
-      return false;
-
-    auto ty = check.unit_->typeTraits().remove_cv(ast->baseExpression->type);
+    auto ty = traits.remove_cv(ast->baseExpression->type);
     if (type_cast<BoolType>(ty)) return false;
 
     ast->type = ty;
@@ -2512,9 +2494,8 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   };
 
   auto incr_pointer = [&]() {
-    if (!check.unit_->typeTraits().is_pointer(ast->baseExpression->type))
-      return false;
-    auto ty = check.unit_->typeTraits().remove_cv(ast->baseExpression->type);
+    if (!traits.is_pointer(ast->baseExpression->type)) return false;
+    auto ty = traits.remove_cv(ast->baseExpression->type);
     ast->type = ty;
     ast->valueCategory = ValueCategory::kPrValue;
     return true;
@@ -2595,7 +2576,7 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
                                              ValueCategory targetVC) -> bool {
   if (!expression || !expression->type) return false;
 
-  if (check.unit_->typeTraits().is_void(targetType)) return true;
+  if (traits.is_void(targetType)) return true;
 
   if (targetVC == ValueCategory::kLValue ||
       targetVC == ValueCategory::kXValue) {
@@ -2604,7 +2585,6 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
   }
 
   auto bind_reference = [&] {
-    auto traits = check.unit_->typeTraits();
     auto t1 = traits.remove_cv(targetType);
     auto t2 = traits.remove_cv(expression->type);
     if (!traits.is_same(t1, t2) && traits.is_class(t1) && traits.is_class(t2)) {
@@ -2636,36 +2616,33 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
 
   auto sourceType = source->type;
 
-  if (check.unit_->typeTraits().is_scoped_enum(sourceType) &&
-      (check.unit_->typeTraits().is_integral(targetType) ||
-       check.unit_->typeTraits().is_floating_point(targetType))) {
+  if (traits.is_scoped_enum(sourceType) &&
+      (traits.is_integral(targetType) ||
+       traits.is_floating_point(targetType))) {
     emit_implicit_cast(expression, source, targetType,
-                       check.unit_->typeTraits().is_integral(targetType)
+                       traits.is_integral(targetType)
                            ? ImplicitCastKind::kIntegralConversion
                            : ImplicitCastKind::kFloatingIntegralConversion);
     return true;
   }
 
-  if ((check.unit_->typeTraits().is_integral(sourceType) ||
-       check.unit_->typeTraits().is_enum(sourceType) ||
-       check.unit_->typeTraits().is_scoped_enum(sourceType)) &&
-      (check.unit_->typeTraits().is_enum(targetType) ||
-       check.unit_->typeTraits().is_scoped_enum(targetType))) {
+  if ((traits.is_integral(sourceType) || traits.is_enum(sourceType) ||
+       traits.is_scoped_enum(sourceType)) &&
+      (traits.is_enum(targetType) || traits.is_scoped_enum(targetType))) {
     emit_implicit_cast(expression, source, targetType,
                        ImplicitCastKind::kIntegralConversion);
     return true;
   }
 
-  if (check.unit_->typeTraits().is_floating_point(sourceType) &&
-      (check.unit_->typeTraits().is_enum(targetType) ||
-       check.unit_->typeTraits().is_scoped_enum(targetType))) {
+  if (traits.is_floating_point(sourceType) &&
+      (traits.is_enum(targetType) || traits.is_scoped_enum(targetType))) {
     emit_implicit_cast(expression, source, targetType,
                        ImplicitCastKind::kFloatingIntegralConversion);
     return true;
   }
 
-  if (check.unit_->typeTraits().is_floating_point(sourceType) &&
-      check.unit_->typeTraits().is_floating_point(targetType)) {
+  if (traits.is_floating_point(sourceType) &&
+      traits.is_floating_point(targetType)) {
     emit_implicit_cast(expression, source, targetType,
                        ImplicitCastKind::kFloatingPointConversion);
     return true;
@@ -2673,15 +2650,11 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
 
   if (auto sourcePtr = as_pointer(sourceType)) {
     if (auto targetPtr = as_pointer(targetType)) {
-      auto srcElem =
-          check.unit_->typeTraits().remove_cv(sourcePtr->elementType());
-      auto tgtElem =
-          check.unit_->typeTraits().remove_cv(targetPtr->elementType());
-      auto srcCV =
-          check.unit_->typeTraits().get_cv_qualifiers(sourcePtr->elementType());
-      auto tgtCV =
-          check.unit_->typeTraits().get_cv_qualifiers(targetPtr->elementType());
-      if (check.unit_->typeTraits().is_base_of(srcElem, tgtElem) &&
+      auto srcElem = traits.remove_cv(sourcePtr->elementType());
+      auto tgtElem = traits.remove_cv(targetPtr->elementType());
+      auto srcCV = traits.get_cv_qualifiers(sourcePtr->elementType());
+      auto tgtCV = traits.get_cv_qualifiers(targetPtr->elementType());
+      if (traits.is_base_of(srcElem, tgtElem) &&
           stdconv_.checkCvQualifiers(tgtCV, srcCV)) {
         emit_implicit_cast(expression, source, targetType,
                            ImplicitCastKind::kPointerConversion);
@@ -2691,16 +2664,11 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
   }
 
   if (auto sourcePtr = as_pointer(sourceType)) {
-    if (check.unit_->typeTraits().is_void(
-            check.unit_->typeTraits().remove_cv(sourcePtr->elementType()))) {
+    if (traits.is_void(traits.remove_cv(sourcePtr->elementType()))) {
       if (auto targetPtr = as_pointer(targetType)) {
-        if (check.unit_->typeTraits().is_object(
-                check.unit_->typeTraits().remove_cv(
-                    targetPtr->elementType()))) {
-          auto srcCV = check.unit_->typeTraits().get_cv_qualifiers(
-              sourcePtr->elementType());
-          auto tgtCV = check.unit_->typeTraits().get_cv_qualifiers(
-              targetPtr->elementType());
+        if (traits.is_object(traits.remove_cv(targetPtr->elementType()))) {
+          auto srcCV = traits.get_cv_qualifiers(sourcePtr->elementType());
+          auto tgtCV = traits.get_cv_qualifiers(targetPtr->elementType());
           if (stdconv_.checkCvQualifiers(tgtCV, srcCV)) {
             expression = source;
             return true;
@@ -2710,21 +2678,18 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
     }
   }
 
-  if (auto srcMem = type_cast<MemberObjectPointerType>(
-          check.unit_->typeTraits().remove_cv(sourceType))) {
-    if (auto tgtMem = type_cast<MemberObjectPointerType>(
-            check.unit_->typeTraits().remove_cv(targetType))) {
+  if (auto srcMem =
+          type_cast<MemberObjectPointerType>(traits.remove_cv(sourceType))) {
+    if (auto tgtMem =
+            type_cast<MemberObjectPointerType>(traits.remove_cv(targetType))) {
       auto srcClass = srcMem->classType();
       auto tgtClass = tgtMem->classType();
-      if (check.unit_->typeTraits().is_base_of(tgtClass, srcClass)) {
-        auto srcElemCV =
-            check.unit_->typeTraits().get_cv_qualifiers(srcMem->elementType());
-        auto tgtElemCV =
-            check.unit_->typeTraits().get_cv_qualifiers(tgtMem->elementType());
+      if (traits.is_base_of(tgtClass, srcClass)) {
+        auto srcElemCV = traits.get_cv_qualifiers(srcMem->elementType());
+        auto tgtElemCV = traits.get_cv_qualifiers(tgtMem->elementType());
         if (stdconv_.checkCvQualifiers(tgtElemCV, srcElemCV) &&
-            check.unit_->typeTraits().is_same(
-                check.unit_->typeTraits().remove_cv(srcMem->elementType()),
-                check.unit_->typeTraits().remove_cv(tgtMem->elementType()))) {
+            traits.is_same(traits.remove_cv(srcMem->elementType()),
+                           traits.remove_cv(tgtMem->elementType()))) {
           emit_implicit_cast(expression, source, targetType,
                              ImplicitCastKind::kPointerToMemberConversion);
           return true;
@@ -2745,15 +2710,15 @@ auto TypeChecker::Visitor::check_static_cast_to_derived_ref(
     return false;
 
   auto sourceType = expression->type;
-  auto srcCV = check.unit_->typeTraits().get_cv_qualifiers(sourceType);
-  sourceType = check.unit_->typeTraits().remove_cv(sourceType);
+  auto srcCV = traits.get_cv_qualifiers(sourceType);
+  sourceType = traits.remove_cv(sourceType);
 
-  auto tgtCV = check.unit_->typeTraits().get_cv_qualifiers(targetType);
-  auto tgtBase = check.unit_->typeTraits().remove_cv(targetType);
+  auto tgtCV = traits.get_cv_qualifiers(targetType);
+  auto tgtBase = traits.remove_cv(targetType);
 
   if (!stdconv_.checkCvQualifiers(tgtCV, srcCV)) return false;
 
-  if (!check.unit_->typeTraits().is_base_of(sourceType, tgtBase)) return false;
+  if (!traits.is_base_of(sourceType, tgtBase)) return false;
 
   return true;
 }
@@ -2761,13 +2726,13 @@ auto TypeChecker::Visitor::check_static_cast_to_derived_ref(
 auto TypeChecker::Visitor::is_reference_compatible(const Type* targetType,
                                                    const Type* sourceType)
     -> bool {
-  auto t1 = check.unit_->typeTraits().remove_cv(targetType);
-  auto t2 = check.unit_->typeTraits().remove_cv(sourceType);
-  if (!check.unit_->typeTraits().is_same(t1, t2)) {
-    if (!check.unit_->typeTraits().is_base_of(t1, t2)) return false;
+  auto t1 = traits.remove_cv(targetType);
+  auto t2 = traits.remove_cv(sourceType);
+  if (!traits.is_same(t1, t2)) {
+    if (!traits.is_base_of(t1, t2)) return false;
   }
-  auto cvTarget = check.unit_->typeTraits().get_cv_qualifiers(targetType);
-  auto cvSource = check.unit_->typeTraits().get_cv_qualifiers(sourceType);
+  auto cvTarget = traits.get_cv_qualifiers(targetType);
+  auto cvSource = traits.get_cv_qualifiers(sourceType);
   return stdconv_.checkCvQualifiers(cvTarget, cvSource);
 }
 
@@ -2780,10 +2745,8 @@ auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
   const Type* T1 = nullptr;
   const Type* T2 = nullptr;
 
-  if (auto targetPtr = type_cast<PointerType>(
-          check.unit_->typeTraits().remove_cv(targetType))) {
-    auto sourcePtr =
-        type_cast<PointerType>(check.unit_->typeTraits().remove_cv(sourceType));
+  if (auto targetPtr = type_cast<PointerType>(traits.remove_cv(targetType))) {
+    auto sourcePtr = type_cast<PointerType>(traits.remove_cv(sourceType));
     if (!sourcePtr) return false;
 
     (void)stdconv_.ensurePrvalue(expression);
@@ -2792,13 +2755,12 @@ auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
     T1 = sourcePtr->elementType();
     T2 = targetPtr->elementType();
   } else if (auto targetPtrm = type_cast<MemberObjectPointerType>(
-                 check.unit_->typeTraits().remove_cv(targetType))) {
-    auto sourcePtrm = type_cast<MemberObjectPointerType>(
-        check.unit_->typeTraits().remove_cv(sourceType));
+                 traits.remove_cv(targetType))) {
+    auto sourcePtrm =
+        type_cast<MemberObjectPointerType>(traits.remove_cv(sourceType));
     if (!sourcePtrm) return false;
 
-    if (!check.unit_->typeTraits().is_same(sourcePtrm->classType(),
-                                           targetPtrm->classType()))
+    if (!traits.is_same(sourcePtrm->classType(), targetPtrm->classType()))
       return false;
 
     (void)stdconv_.ensurePrvalue(expression);
@@ -2815,8 +2777,7 @@ auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
       T1 = sourceType;
       T2 = targetType;
     } else if (is_prvalue(expression) &&
-               (check.unit_->typeTraits().is_class(sourceType) ||
-                check.unit_->typeTraits().is_array(sourceType))) {
+               (traits.is_class(sourceType) || traits.is_array(sourceType))) {
       (void)stdconv_.temporaryMaterialization(expression);
       T1 = expression->type;
       T2 = targetType;
@@ -2838,14 +2799,12 @@ auto TypeChecker::Visitor::are_similar_types(const Type* T1, const Type* T2)
   const Type* curr2 = T2;
 
   while (true) {
-    if (check.unit_->typeTraits().is_same(
-            check.unit_->typeTraits().remove_cv(curr1),
-            check.unit_->typeTraits().remove_cv(curr2))) {
+    if (traits.is_same(traits.remove_cv(curr1), traits.remove_cv(curr2))) {
       return true;
     }
 
-    auto u1 = check.unit_->typeTraits().remove_cv(curr1);
-    auto u2 = check.unit_->typeTraits().remove_cv(curr2);
+    auto u1 = traits.remove_cv(curr1);
+    auto u2 = traits.remove_cv(curr2);
 
     if (auto p1 = as_pointer(u1)) {
       if (auto p2 = as_pointer(u2)) {
@@ -2857,9 +2816,7 @@ auto TypeChecker::Visitor::are_similar_types(const Type* T1, const Type* T2)
 
     if (auto m1 = type_cast<MemberObjectPointerType>(u1)) {
       if (auto m2 = type_cast<MemberObjectPointerType>(u2)) {
-        if (!check.unit_->typeTraits().is_same(m1->classType(),
-                                               m2->classType()))
-          return false;
+        if (!traits.is_same(m1->classType(), m2->classType())) return false;
         curr1 = m1->elementType();
         curr2 = m2->elementType();
         continue;
@@ -2881,16 +2838,13 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
   if (targetVC == ValueCategory::kLValue ||
       targetVC == ValueCategory::kXValue) {
     if (!is_glvalue(expression)) return false;
-    auto ptrToSource = check.unit_->typeTraits().add_pointer(sourceType);
-    auto ptrToTarget = check.unit_->typeTraits().add_pointer(targetType);
+    auto ptrToSource = traits.add_pointer(sourceType);
+    auto ptrToTarget = traits.add_pointer(targetType);
     (void)ptrToSource;
     (void)ptrToTarget;
-    if ((check.unit_->typeTraits().is_object(
-             check.unit_->typeTraits().remove_cv(sourceType)) &&
-         check.unit_->typeTraits().is_object(
-             check.unit_->typeTraits().remove_cv(targetType))) ||
-        (check.unit_->typeTraits().is_function(sourceType) &&
-         check.unit_->typeTraits().is_function(targetType))) {
+    if ((traits.is_object(traits.remove_cv(sourceType)) &&
+         traits.is_object(traits.remove_cv(targetType))) ||
+        (traits.is_function(sourceType) && traits.is_function(targetType))) {
       if (casts_away_constness(sourceType, targetType)) return false;
       return true;
     }
@@ -2901,47 +2855,41 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
   stdconv_.adjustCv(expression);
   sourceType = expression->type;
 
-  if (check.unit_->typeTraits().is_same(
-          check.unit_->typeTraits().remove_cv(sourceType),
-          check.unit_->typeTraits().remove_cv(targetType)))
+  if (traits.is_same(traits.remove_cv(sourceType),
+                     traits.remove_cv(targetType)))
     return true;
 
-  if (check.unit_->typeTraits().is_pointer(sourceType) &&
-      check.unit_->typeTraits().is_integral(targetType)) {
+  if (traits.is_pointer(sourceType) && traits.is_integral(targetType)) {
     emit_implicit_cast(expression, expression, targetType,
                        ImplicitCastKind::kIntegralConversion);
     return true;
   }
 
-  if ((check.unit_->typeTraits().is_integral(sourceType) ||
-       check.unit_->typeTraits().is_enum(sourceType) ||
-       check.unit_->typeTraits().is_scoped_enum(sourceType)) &&
-      check.unit_->typeTraits().is_pointer(targetType)) {
+  if ((traits.is_integral(sourceType) || traits.is_enum(sourceType) ||
+       traits.is_scoped_enum(sourceType)) &&
+      traits.is_pointer(targetType)) {
     return true;
   }
 
-  if (check.unit_->typeTraits().is_pointer(sourceType) &&
-      check.unit_->typeTraits().is_pointer(targetType)) {
+  if (traits.is_pointer(sourceType) && traits.is_pointer(targetType)) {
     auto srcPtr = as_pointer(sourceType);
     auto tgtPtr = as_pointer(targetType);
     if (srcPtr && tgtPtr &&
         casts_away_constness(srcPtr->elementType(), tgtPtr->elementType()))
       return false;
-    if (!check.unit_->typeTraits().is_same(
-            check.unit_->typeTraits().remove_cv(sourceType),
-            check.unit_->typeTraits().remove_cv(targetType)))
+    if (!traits.is_same(traits.remove_cv(sourceType),
+                        traits.remove_cv(targetType)))
       emit_implicit_cast(expression, expression, targetType,
                          ImplicitCastKind::kPointerConversion);
     return true;
   }
 
-  if (check.unit_->typeTraits().is_member_pointer(sourceType) &&
-      check.unit_->typeTraits().is_member_pointer(targetType)) {
+  if (traits.is_member_pointer(sourceType) &&
+      traits.is_member_pointer(targetType)) {
     return true;
   }
 
-  if (check.unit_->typeTraits().is_null_pointer(sourceType) &&
-      check.unit_->typeTraits().is_integral(targetType))
+  if (traits.is_null_pointer(sourceType) && traits.is_integral(targetType))
     return true;
 
   return false;
@@ -2950,13 +2898,13 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
 auto TypeChecker::Visitor::casts_away_constness(const Type* sourceType,
                                                 const Type* targetType)
     -> bool {
-  auto srcCV = check.unit_->typeTraits().get_cv_qualifiers(sourceType);
-  auto tgtCV = check.unit_->typeTraits().get_cv_qualifiers(targetType);
+  auto srcCV = traits.get_cv_qualifiers(sourceType);
+  auto tgtCV = traits.get_cv_qualifiers(targetType);
 
   if (!stdconv_.checkCvQualifiers(tgtCV, srcCV)) return true;
 
-  auto srcPtr = as_pointer(check.unit_->typeTraits().remove_cv(sourceType));
-  auto tgtPtr = as_pointer(check.unit_->typeTraits().remove_cv(targetType));
+  auto srcPtr = as_pointer(traits.remove_cv(sourceType));
+  auto tgtPtr = as_pointer(traits.remove_cv(targetType));
   if (srcPtr && tgtPtr) {
     return casts_away_constness(srcPtr->elementType(), tgtPtr->elementType());
   }
@@ -2975,8 +2923,7 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
   ast->type = control()->getSizeType();
 
   auto classType =
-      ast->typeId ? type_cast<ClassType>(
-                        check.unit_->typeTraits().remove_cv(ast->typeId->type))
+      ast->typeId ? type_cast<ClassType>(traits.remove_cv(ast->typeId->type))
                   : nullptr;
 
   if (!classType) {
@@ -2989,7 +2936,7 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
   }
 
   auto symbol = classType->symbol();
-  check.unit_->typeTraits().requireCompleteClass(symbol);
+  traits.requireCompleteClass(symbol);
   symbol = symbol->resolvedDefinition();
   auto member = qualifiedLookup(symbol, ast->identifier);
 
@@ -3003,8 +2950,8 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
   for (auto designator : ListView{ast->designatorList}) {
     if (auto dot = ast_cast<DotDesignatorAST>(designator);
         dot && dot->identifier) {
-      auto currentClass = type_cast<ClassType>(
-          check.unit_->typeTraits().remove_cvref(field->type()));
+      auto currentClass =
+          type_cast<ClassType>(traits.remove_cvref(field->type()));
 
       if (!currentClass) {
         error(designator->firstSourceLocation(),
@@ -3028,8 +2975,8 @@ void TypeChecker::Visitor::operator()(BuiltinOffsetofExpressionAST* ast) {
     }
 
     if (auto subscript = ast_cast<SubscriptDesignatorAST>(designator)) {
-      if (!check.unit_->typeTraits().is_array(field->type()) &&
-          !check.unit_->typeTraits().is_pointer(field->type())) {
+      if (!traits.is_array(field->type()) &&
+          !traits.is_pointer(field->type())) {
         error(subscript->firstSourceLocation(),
               std::format("cannot subscript a member of type '{}'",
                           to_string(field->type())));
@@ -3051,8 +2998,8 @@ void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {
 
   if (!ast->expression || !ast->expression->type) return;
 
-  auto targetType = check.unit_->typeTraits().remove_cv(ast->typeId->type);
-  auto sourceType = check.unit_->typeTraits().remove_cv(ast->expression->type);
+  auto targetType = traits.remove_cv(ast->typeId->type);
+  auto sourceType = traits.remove_cv(ast->expression->type);
 
   if (is_dependent_type(targetType) || is_dependent_type(sourceType)) {
     ast->type = ast->typeId->type;
@@ -3060,8 +3007,7 @@ void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {
     return;
   }
 
-  if (check.unit_->typeTraits().is_reference(targetType) ||
-      check.unit_->typeTraits().is_reference(sourceType)) {
+  if (traits.is_reference(targetType) || traits.is_reference(sourceType)) {
     error(ast->firstSourceLocation(),
           "__builtin_bit_cast does not support reference types");
     return;
@@ -3095,8 +3041,8 @@ auto TypeChecker::Visitor::comparison_category_type(SourceLocation loc,
 
   const Type* categoryType = nullptr;
   if (categorySymbol) {
-    categoryType = type_cast<ClassType>(
-        check.unit_->typeTraits().remove_cv(categorySymbol->type()));
+    categoryType =
+        type_cast<ClassType>(traits.remove_cv(categorySymbol->type()));
   }
 
   if (!categoryType) {
@@ -3110,8 +3056,6 @@ auto TypeChecker::Visitor::comparison_category_type(SourceLocation loc,
 void TypeChecker::Visitor::check_three_way_comparison(
     BinaryExpressionAST* ast) {
   ast->valueCategory = ValueCategory::kPrValue;
-
-  auto traits = check.unit_->typeTraits();
 
   auto leftType = traits.remove_cvref(ast->leftExpression->type);
   auto rightType = traits.remove_cvref(ast->rightExpression->type);
@@ -3152,8 +3096,8 @@ auto TypeChecker::Visitor::type_info_type(SourceLocation loc) -> const Type* {
 
   const Type* typeInfoType = nullptr;
   if (typeInfoSymbol) {
-    typeInfoType = type_cast<ClassType>(
-        check.unit_->typeTraits().remove_cv(typeInfoSymbol->type()));
+    typeInfoType =
+        type_cast<ClassType>(traits.remove_cv(typeInfoSymbol->type()));
   }
 
   if (!typeInfoType) {
@@ -3162,7 +3106,7 @@ auto TypeChecker::Visitor::type_info_type(SourceLocation loc) -> const Type* {
     return nullptr;
   }
 
-  return check.unit_->typeTraits().add_const(typeInfoType);
+  return traits.add_const(typeInfoType);
 }
 
 void TypeChecker::Visitor::operator()(TypeidExpressionAST* ast) {
@@ -3336,17 +3280,14 @@ void TypeChecker::Visitor::check_unary_promote(UnaryExpressionAST* ast) {
   bool valid = false;
   switch (ast->op) {
     case TokenKind::T_PLUS:
-      valid = check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
-                  expr->type) ||
-              check.unit_->typeTraits().is_pointer(expr->type);
+      valid = traits.is_arithmetic_or_unscoped_enum(expr->type) ||
+              traits.is_pointer(expr->type);
       break;
     case TokenKind::T_MINUS:
-      valid =
-          check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(expr->type);
+      valid = traits.is_arithmetic_or_unscoped_enum(expr->type);
       break;
     case TokenKind::T_TILDE:
-      valid =
-          check.unit_->typeTraits().is_integral_or_unscoped_enum(expr->type);
+      valid = traits.is_integral_or_unscoped_enum(expr->type);
       break;
     default:
       return;
@@ -3354,7 +3295,7 @@ void TypeChecker::Visitor::check_unary_promote(UnaryExpressionAST* ast) {
 
   if (!valid) return;
 
-  if (check.unit_->typeTraits().is_integral_or_unscoped_enum(expr->type))
+  if (traits.is_integral_or_unscoped_enum(expr->type))
     (void)stdconv_.integralPromotion(expr);
 
   ast->expression = expr;
@@ -3485,7 +3426,7 @@ void TypeChecker::Visitor::operator()(NoexceptExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(NewExpressionAST* ast) {
-  auto objectType = check.unit_->typeTraits().remove_reference(ast->objectType);
+  auto objectType = traits.remove_reference(ast->objectType);
 
   if (auto arrayType = type_cast<BoundedArrayType>(ast->objectType)) {
     ast->type = control()->getPointerType(arrayType->elementType());
@@ -3505,7 +3446,7 @@ void TypeChecker::Visitor::operator()(NewExpressionAST* ast) {
     auto classSymbol = classType->symbol();
     if (!classSymbol) return;
 
-    check.unit_->typeTraits().requireCompleteClass(classSymbol);
+    traits.requireCompleteClass(classSymbol);
 
     if (auto braced = ast_cast<NewBracedInitializerAST>(ast->newInitalizer);
         braced && braced->bracedInitList) {
@@ -3547,12 +3488,11 @@ void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {
 
   if (!ast->expression) return;
 
-  auto operandType = check.unit_->typeTraits().remove_cv(ast->expression->type);
+  auto operandType = traits.remove_cv(ast->expression->type);
   auto pointerType = type_cast<PointerType>(operandType);
   if (!pointerType) return;
 
-  auto pointeeType =
-      check.unit_->typeTraits().remove_cv(pointerType->elementType());
+  auto pointeeType = traits.remove_cv(pointerType->elementType());
   if (is_dependent_type(pointeeType)) return;
 
   ClassSymbol* classSymbol = nullptr;
@@ -3570,8 +3510,7 @@ auto TypeChecker::Visitor::try_c_style_cast(CastExpressionAST* ast,
                                             ValueCategory targetVC) -> bool {
   if (check_const_cast(expr, targetType, targetVC)) return true;
   if (check_static_cast(expr, targetType, targetVC)) return true;
-  if (check.unit_->typeTraits().is_pointer(targetType) &&
-      check.unit_->typeTraits().is_pointer(expr->type))
+  if (traits.is_pointer(targetType) && traits.is_pointer(expr->type))
     if (check_static_cast(expr, targetType, targetVC)) return true;
   if (check_reinterpret_cast(expr, targetType, targetVC)) return true;
   if (check_reinterpret_cast_permissive(expr, targetType, targetVC))
@@ -3601,12 +3540,9 @@ auto TypeChecker::Visitor::check_reinterpret_cast_permissive(
   if (targetVC == ValueCategory::kLValue ||
       targetVC == ValueCategory::kXValue) {
     if (!is_glvalue(expression)) return false;
-    if ((check.unit_->typeTraits().is_object(
-             check.unit_->typeTraits().remove_cv(sourceType)) &&
-         check.unit_->typeTraits().is_object(
-             check.unit_->typeTraits().remove_cv(targetType))) ||
-        (check.unit_->typeTraits().is_function(sourceType) &&
-         check.unit_->typeTraits().is_function(targetType))) {
+    if ((traits.is_object(traits.remove_cv(sourceType)) &&
+         traits.is_object(traits.remove_cv(targetType))) ||
+        (traits.is_function(sourceType) && traits.is_function(targetType))) {
       return true;
     }
     return false;
@@ -3616,37 +3552,31 @@ auto TypeChecker::Visitor::check_reinterpret_cast_permissive(
   stdconv_.adjustCv(expression);
   sourceType = expression->type;
 
-  if (check.unit_->typeTraits().is_same(
-          check.unit_->typeTraits().remove_cv(sourceType),
-          check.unit_->typeTraits().remove_cv(targetType)))
+  if (traits.is_same(traits.remove_cv(sourceType),
+                     traits.remove_cv(targetType)))
     return true;
 
-  if (check.unit_->typeTraits().is_pointer(sourceType) &&
-      check.unit_->typeTraits().is_integral(targetType))
+  if (traits.is_pointer(sourceType) && traits.is_integral(targetType))
     return true;
 
-  if ((check.unit_->typeTraits().is_integral(sourceType) ||
-       check.unit_->typeTraits().is_enum(sourceType) ||
-       check.unit_->typeTraits().is_scoped_enum(sourceType)) &&
-      check.unit_->typeTraits().is_pointer(targetType))
+  if ((traits.is_integral(sourceType) || traits.is_enum(sourceType) ||
+       traits.is_scoped_enum(sourceType)) &&
+      traits.is_pointer(targetType))
     return true;
 
-  if (check.unit_->typeTraits().is_pointer(sourceType) &&
-      check.unit_->typeTraits().is_pointer(targetType)) {
-    if (!check.unit_->typeTraits().is_same(
-            check.unit_->typeTraits().remove_cv(sourceType),
-            check.unit_->typeTraits().remove_cv(targetType)))
+  if (traits.is_pointer(sourceType) && traits.is_pointer(targetType)) {
+    if (!traits.is_same(traits.remove_cv(sourceType),
+                        traits.remove_cv(targetType)))
       emit_implicit_cast(expression, expression, targetType,
                          ImplicitCastKind::kPointerConversion);
     return true;
   }
 
-  if (check.unit_->typeTraits().is_member_pointer(sourceType) &&
-      check.unit_->typeTraits().is_member_pointer(targetType))
+  if (traits.is_member_pointer(sourceType) &&
+      traits.is_member_pointer(targetType))
     return true;
 
-  if (check.unit_->typeTraits().is_null_pointer(sourceType) &&
-      check.unit_->typeTraits().is_integral(targetType))
+  if (traits.is_null_pointer(sourceType) && traits.is_integral(targetType))
     return true;
 
   return false;
@@ -3659,8 +3589,7 @@ void TypeChecker::Visitor::operator()(ImplicitCastExpressionAST* ast) {
   }
 
   if (ast->castKind == ImplicitCastKind::kLValueToRValueConversion) {
-    ast->type =
-        check.unit_->typeTraits().remove_reference(ast->expression->type);
+    ast->type = traits.remove_reference(ast->expression->type);
     stdconv_.adjustCv(ast);
     stdconv_.foldConstantRead(ast);
   } else if (ast->castKind == ImplicitCastKind::kUserDefinedConversion &&
@@ -3696,8 +3625,8 @@ void TypeChecker::Visitor::prepare_comparison_operands(
 }
 
 void TypeChecker::Visitor::check_shift(BinaryExpressionAST* ast) {
-  if (check.unit_->typeTraits().is_class_or_union(ast->leftExpression->type) ||
-      check.unit_->typeTraits().is_class_or_union(ast->rightExpression->type)) {
+  if (traits.is_class_or_union(ast->leftExpression->type) ||
+      traits.is_class_or_union(ast->rightExpression->type)) {
     if (resolve_binary_overload(ast)) return;
     error(
         ast->opLoc,
@@ -3714,10 +3643,8 @@ void TypeChecker::Visitor::check_shift(BinaryExpressionAST* ast) {
   (void)stdconv_.integralPromotion(ast->leftExpression);
   (void)stdconv_.integralPromotion(ast->rightExpression);
 
-  if (!check.unit_->typeTraits().is_integral_or_unscoped_enum(
-          ast->leftExpression->type) ||
-      !check.unit_->typeTraits().is_integral_or_unscoped_enum(
-          ast->rightExpression->type)) {
+  if (!traits.is_integral_or_unscoped_enum(ast->leftExpression->type) ||
+      !traits.is_integral_or_unscoped_enum(ast->rightExpression->type)) {
     error(ast->firstSourceLocation(),
           std::format("invalid operands to binary expression ('{}' and '{}')",
                       to_string(ast->leftExpression->type),
@@ -3740,9 +3667,9 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
     (void)stdconv_.arrayToPointer(ast->rightExpression);
   }
 
-  if (check.unit_->typeTraits().is_pointer(ast->leftExpression->type))
+  if (traits.is_pointer(ast->leftExpression->type))
     (void)stdconv_.arrayToPointer(ast->rightExpression);
-  else if (check.unit_->typeTraits().is_pointer(ast->rightExpression->type))
+  else if (traits.is_pointer(ast->rightExpression->type))
     (void)stdconv_.arrayToPointer(ast->leftExpression);
 
   if (stdconv_.usualArithmeticConversion(ast->leftExpression,
@@ -3751,16 +3678,15 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
     return;
   }
 
-  if (check.unit_->typeTraits().is_scoped_enum(ast->leftExpression->type)) {
-    if (check.unit_->typeTraits().is_same(
-            check.unit_->typeTraits().remove_cv(ast->leftExpression->type),
-            check.unit_->typeTraits().remove_cv(ast->rightExpression->type))) {
+  if (traits.is_scoped_enum(ast->leftExpression->type)) {
+    if (traits.is_same(traits.remove_cv(ast->leftExpression->type),
+                       traits.remove_cv(ast->rightExpression->type))) {
       return;
     }
   }
 
-  if (check.unit_->typeTraits().is_pointer(ast->leftExpression->type) &&
-      check.unit_->typeTraits().is_pointer(ast->rightExpression->type)) {
+  if (traits.is_pointer(ast->leftExpression->type) &&
+      traits.is_pointer(ast->rightExpression->type)) {
     auto compositeType = stdconv_.compositePointerType(ast->leftExpression,
                                                        ast->rightExpression);
     (void)implicit_conversion(ast->leftExpression, compositeType);
@@ -3826,10 +3752,10 @@ void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
     (void)stdconv_.arrayToPointer(ast->rightExpression);
   }
 
-  if (check.unit_->typeTraits().is_pointer(ast->leftExpression->type) ||
+  if (traits.is_pointer(ast->leftExpression->type) ||
       stdconv_.isNullPointerConstant(ast->leftExpression))
     (void)stdconv_.arrayToPointer(ast->rightExpression);
-  else if (check.unit_->typeTraits().is_pointer(ast->rightExpression->type) ||
+  else if (traits.is_pointer(ast->rightExpression->type) ||
            stdconv_.isNullPointerConstant(ast->rightExpression))
     (void)stdconv_.arrayToPointer(ast->leftExpression);
 
@@ -3840,18 +3766,15 @@ void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
   }
 
   {
-    auto leftBase =
-        check.unit_->typeTraits().remove_cv(ast->leftExpression->type);
-    auto rightBase =
-        check.unit_->typeTraits().remove_cv(ast->rightExpression->type);
-    if (check.unit_->typeTraits().is_scoped_enum(leftBase) &&
-        check.unit_->typeTraits().is_same(leftBase, rightBase))
+    auto leftBase = traits.remove_cv(ast->leftExpression->type);
+    auto rightBase = traits.remove_cv(ast->rightExpression->type);
+    if (traits.is_scoped_enum(leftBase) && traits.is_same(leftBase, rightBase))
       return;
   }
 
-  if ((check.unit_->typeTraits().is_pointer(ast->leftExpression->type) ||
+  if ((traits.is_pointer(ast->leftExpression->type) ||
        stdconv_.isNullPointerConstant(ast->leftExpression)) &&
-      (check.unit_->typeTraits().is_pointer(ast->rightExpression->type) ||
+      (traits.is_pointer(ast->rightExpression->type) ||
        stdconv_.isNullPointerConstant(ast->rightExpression))) {
     auto compositeType = stdconv_.compositePointerType(ast->leftExpression,
                                                        ast->rightExpression);
@@ -3886,8 +3809,8 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
   auto rightType = ast->rightExpression->type;
   if (!leftType || !rightType) return;
 
-  if (type_cast<AutoType>(check.unit_->typeTraits().remove_cvref(leftType)) ||
-      type_cast<AutoType>(check.unit_->typeTraits().remove_cvref(rightType)))
+  if (type_cast<AutoType>(traits.remove_cvref(leftType)) ||
+      type_cast<AutoType>(traits.remove_cvref(rightType)))
     return;
 
   if (is_dependent_type(leftType) || is_dependent_type(rightType)) {
@@ -4030,8 +3953,8 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
   if (!check.check_bool_condition(ast->condition)) return;
 
   auto check_void_type = [&] {
-    if (!check.unit_->typeTraits().is_void(ast->iftrueExpression->type) &&
-        !check.unit_->typeTraits().is_void(ast->iffalseExpression->type))
+    if (!traits.is_void(ast->iftrueExpression->type) &&
+        !traits.is_void(ast->iffalseExpression->type))
       return false;
 
     if (ast_cast<ThrowExpressionAST>(
@@ -4048,8 +3971,8 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
       return true;
     }
 
-    if (!check.unit_->typeTraits().is_same(ast->iftrueExpression->type,
-                                           ast->iffalseExpression->type)) {
+    if (!traits.is_same(ast->iftrueExpression->type,
+                        ast->iffalseExpression->type)) {
       error(ast->questionLoc,
             std::format(
                 "left operand to ? is '{}', but right operand is of type '{}'",
@@ -4069,9 +3992,8 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
       return false;
     }
 
-    if (!check.unit_->typeTraits().is_same(
-            check.unit_->typeTraits().remove_cv(ast->iftrueExpression->type),
-            check.unit_->typeTraits().remove_cv(ast->iffalseExpression->type)))
+    if (!traits.is_same(traits.remove_cv(ast->iftrueExpression->type),
+                        traits.remove_cv(ast->iffalseExpression->type)))
       return false;
 
     ast->type = ast->iftrueExpression->type;
@@ -4082,11 +4004,9 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
   };
 
   auto check_arith_types = [&] {
-    if (!check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
-            ast->iftrueExpression->type))
+    if (!traits.is_arithmetic_or_unscoped_enum(ast->iftrueExpression->type))
       return false;
-    if (!check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
-            ast->iffalseExpression->type))
+    if (!traits.is_arithmetic_or_unscoped_enum(ast->iffalseExpression->type))
       return false;
 
     ast->type = stdconv_.usualArithmeticConversion(ast->iftrueExpression,
@@ -4100,8 +4020,8 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
   };
 
   auto check_same_types = [&] {
-    if (!check.unit_->typeTraits().is_same(ast->iftrueExpression->type,
-                                           ast->iffalseExpression->type))
+    if (!traits.is_same(ast->iftrueExpression->type,
+                        ast->iffalseExpression->type))
       return false;
 
     (void)stdconv_.ensurePrvalue(ast->iftrueExpression);
@@ -4113,8 +4033,8 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
   };
 
   auto check_compatible_pointers = [&] {
-    if (!check.unit_->typeTraits().is_pointer(ast->iftrueExpression->type) &&
-        !check.unit_->typeTraits().is_pointer(ast->iffalseExpression->type))
+    if (!traits.is_pointer(ast->iftrueExpression->type) &&
+        !traits.is_pointer(ast->iffalseExpression->type))
       return false;
 
     (void)stdconv_.ensurePrvalue(ast->iftrueExpression);
@@ -4128,9 +4048,8 @@ void TypeChecker::Visitor::operator()(ConditionalExpressionAST* ast) {
     if (!ast->type) return false;
 
     auto insert_pointer_cast = [&](ExpressionAST*& expr) {
-      if (check.unit_->typeTraits().is_same(expr->type, ast->type)) return;
+      if (traits.is_same(expr->type, ast->type)) return;
 
-      auto traits = check.unit_->typeTraits();
       auto castKind = ImplicitCastKind::kPointerConversion;
       auto srcPtr = type_cast<PointerType>(traits.remove_cv(expr->type));
       auto tgtPtr = type_cast<PointerType>(traits.remove_cv(ast->type));
@@ -4262,8 +4181,7 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   if (!implicit_conversion(ast->rightExpression, ast->type)) {
     if (!ast->rightExpression->type) return;
 
-    if (check.unit_->typeTraits().is_class_or_union(
-            check.unit_->typeTraits().remove_reference(ast->type))) {
+    if (traits.is_class_or_union(traits.remove_reference(ast->type))) {
       return;
     }
 
@@ -4336,9 +4254,8 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
 
   if ((ast->op == TokenKind::T_PLUS_EQUAL ||
        ast->op == TokenKind::T_MINUS_EQUAL) &&
-      check.unit_->typeTraits().is_pointer(ast->targetExpression->type) &&
-      check.unit_->typeTraits().is_integral_or_unscoped_enum(
-          ast->rightExpression->type)) {
+      traits.is_pointer(ast->targetExpression->type) &&
+      traits.is_integral_or_unscoped_enum(ast->rightExpression->type)) {
     (void)stdconv_.ensurePrvalue(ast->leftExpression);
     stdconv_.adjustCv(ast->leftExpression);
 
@@ -5094,10 +5011,9 @@ void TypeChecker::Visitor::check_static_assert(
 
 auto TypeChecker::Visitor::convert_class_operands_for_builtin(
     BinaryExpressionAST* ast) -> bool {
-  const auto leftIsClass =
-      check.unit_->typeTraits().is_class_or_union(ast->leftExpression->type);
+  const auto leftIsClass = traits.is_class_or_union(ast->leftExpression->type);
   const auto rightIsClass =
-      check.unit_->typeTraits().is_class_or_union(ast->rightExpression->type);
+      traits.is_class_or_union(ast->rightExpression->type);
 
   if (!leftIsClass && !rightIsClass) return true;
 
@@ -5139,19 +5055,15 @@ void TypeChecker::Visitor::check_addition(BinaryExpressionAST* ast) {
   (void)stdconv_.ensurePrvalue(ast->rightExpression);
   stdconv_.adjustCv(ast->rightExpression);
 
-  const auto left_is_pointer =
-      check.unit_->typeTraits().is_pointer(ast->leftExpression->type);
+  const auto left_is_pointer = traits.is_pointer(ast->leftExpression->type);
 
-  const auto right_is_pointer =
-      check.unit_->typeTraits().is_pointer(ast->rightExpression->type);
+  const auto right_is_pointer = traits.is_pointer(ast->rightExpression->type);
 
   const auto left_is_integral =
-      check.unit_->typeTraits().is_integral_or_unscoped_enum(
-          ast->leftExpression->type);
+      traits.is_integral_or_unscoped_enum(ast->leftExpression->type);
 
   const auto right_is_integral =
-      check.unit_->typeTraits().is_integral_or_unscoped_enum(
-          ast->rightExpression->type);
+      traits.is_integral_or_unscoped_enum(ast->rightExpression->type);
 
   if (left_is_pointer && right_is_integral) {
     (void)stdconv_.integralPromotion(ast->rightExpression);
@@ -5188,12 +5100,10 @@ void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
   stdconv_.adjustCv(ast->rightExpression);
 
   auto check_operand_types = [&]() {
-    if (!check.unit_->typeTraits().is_pointer(ast->leftExpression->type))
-      return false;
+    if (!traits.is_pointer(ast->leftExpression->type)) return false;
 
-    if (!check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(
-            ast->rightExpression->type) &&
-        !check.unit_->typeTraits().is_pointer(ast->rightExpression->type))
+    if (!traits.is_arithmetic_or_unscoped_enum(ast->rightExpression->type) &&
+        !traits.is_pointer(ast->rightExpression->type))
       return false;
 
     return true;
@@ -5207,16 +5117,14 @@ void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
     return;
   }
 
-  if (check.unit_->typeTraits().is_pointer(ast->rightExpression->type)) {
-    auto leftElementType =
-        check.unit_->typeTraits().get_element_type(ast->leftExpression->type);
+  if (traits.is_pointer(ast->rightExpression->type)) {
+    auto leftElementType = traits.get_element_type(ast->leftExpression->type);
     (void)strip_cv(leftElementType);
 
-    auto rightElementType =
-        check.unit_->typeTraits().get_element_type(ast->rightExpression->type);
+    auto rightElementType = traits.get_element_type(ast->rightExpression->type);
     (void)strip_cv(rightElementType);
 
-    if (check.unit_->typeTraits().is_same(leftElementType, rightElementType)) {
+    if (traits.is_same(leftElementType, rightElementType)) {
       ast->type = control()->getLongIntType();
     } else {
       error(ast->opLoc,
@@ -5246,19 +5154,18 @@ void TypeChecker::Visitor::check_prefix_increment_decrement(
     return;
   }
 
-  if (!check.unit_->typeTraits().is_const(ast->expression->type)) {
+  if (!traits.is_const(ast->expression->type)) {
     auto ty = ast->expression->type;
 
-    if (isCxx()
-            ? check.unit_->typeTraits().is_arithmetic(ty)
-            : check.unit_->typeTraits().is_arithmetic_or_unscoped_enum(ty)) {
+    if (isCxx() ? traits.is_arithmetic(ty)
+                : traits.is_arithmetic_or_unscoped_enum(ty)) {
       ast->type = ty;
       ast->valueCategory = ValueCategory::kLValue;
       return;
     }
 
     if (auto ptrTy = as_pointer(ty)) {
-      if (!check.unit_->typeTraits().is_void(ptrTy->elementType())) {
+      if (!traits.is_void(ptrTy->elementType())) {
         ast->type = ptrTy;
         ast->valueCategory = ValueCategory::kLValue;
         return;
@@ -5344,7 +5251,6 @@ void TypeChecker::Visitor::adjust_member_operator_object_argument(
   auto classSymbol = symbol_cast<ClassSymbol>(operatorFunc->parent());
   if (!classSymbol) return;
 
-  auto traits = check.unit_->typeTraits();
   auto sourceType =
       traits.remove_cv(traits.remove_reference(objectExpression->type));
   if (traits.is_same(sourceType, classSymbol->type())) return;
@@ -5441,8 +5347,7 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
   auto cv1 = strip_cv(objectType);
 
   if (ast->accessOp == TokenKind::T_MINUS_GREATER) {
-    if (check.unit_->typeTraits().is_class_or_union(
-            ast->baseExpression->type)) {
+    if (traits.is_class_or_union(ast->baseExpression->type)) {
       auto operatorFunc = resolve_arrow_operator(ast);
       if (!operatorFunc) return false;
       auto functionType = type_cast<FunctionType>(operatorFunc->type());
@@ -5467,13 +5372,12 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
 
   auto classSymbol = classType->symbol();
 
-  check.unit_->typeTraits().requireCompleteClass(classSymbol);
+  traits.requireCompleteClass(classSymbol);
 
   if (auto dtor = ast_cast<DestructorIdAST>(ast->unqualifiedId)) {
     auto typeSymbol = resolveDestructorIdType(ast, dtor);
     Symbol* symbol = nullptr;
-    if (typeSymbol &&
-        check.unit_->typeTraits().is_same(typeSymbol->type(), objectType)) {
+    if (typeSymbol && traits.is_same(typeSymbol->type(), objectType)) {
       symbol = classSymbol->destructor();
     }
 
@@ -5504,8 +5408,7 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
     lookupScope = ast->nestedNameSpecifier->symbol;
 
     if (lookupScope != classSymbol && !in_template() &&
-        !check.unit_->typeTraits().is_base_of(lookupScope->type(),
-                                              objectType)) {
+        !traits.is_base_of(lookupScope->type(), objectType)) {
       error(ast->firstSourceLocation(),
             std::format("'{}::{}' is not a member of a base class of '{}'",
                         to_string(lookupScope->name()), to_string(memberName),
@@ -5544,8 +5447,8 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
 
     if (symbol->isEnumerator()) {
       ast->valueCategory = ValueCategory::kPrValue;
-    } else if (check.unit_->typeTraits().is_reference(symbol->type())) {
-      ast->type = check.unit_->typeTraits().remove_reference(symbol->type());
+    } else if (traits.is_reference(symbol->type())) {
+      ast->type = traits.remove_reference(symbol->type());
       ast->valueCategory = ValueCategory::kLValue;
     } else {
       if (is_lvalue(ast->baseExpression) ||
@@ -5560,10 +5463,10 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
         auto cv2 = strip_cv(ast->type);
 
         if (is_volatile(cv1) || is_volatile(cv2))
-          ast->type = check.unit_->typeTraits().add_volatile(ast->type);
+          ast->type = traits.add_volatile(ast->type);
 
         if (!field->isMutable() && (is_const(cv1) || is_const(cv2)))
-          ast->type = check.unit_->typeTraits().add_const(ast->type);
+          ast->type = traits.add_const(ast->type);
       }
     }
   }
@@ -5604,7 +5507,7 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
     cv = strip_cv(objectType);
   }
 
-  if (!check.unit_->typeTraits().is_scalar(objectType)) {
+  if (!traits.is_scalar(objectType)) {
     return false;
   }
 
@@ -5614,7 +5517,7 @@ auto TypeChecker::Visitor::check_pseudo_destructor_access(
   auto symbol = resolveDestructorIdType(ast, dtor);
   if (!symbol) return true;
 
-  if (!check.unit_->typeTraits().is_same(symbol->type(), objectType)) {
+  if (!traits.is_same(symbol->type(), objectType)) {
     error(ast->unqualifiedId->firstSourceLocation(),
           "the type of object expression does not match the type "
           "being destroyed");

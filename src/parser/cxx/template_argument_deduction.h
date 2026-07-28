@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
 #include <optional>
@@ -100,6 +101,7 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto nonTypeParameterIndex(ExpressionAST* expr) const -> int;
 
   TranslationUnit* unit_;
+  TypeTraits traits;
   Control* control_;
   Arena* arena_;
 

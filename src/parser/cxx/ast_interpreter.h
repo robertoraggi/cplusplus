@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
 #include <cxx/token_fwd.h>
+#include <cxx/type_traits.h>
 
 #include <cstdint>
 #include <optional>
@@ -340,6 +341,7 @@ class ASTInterpreter {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  TypeTraits traits;
 
   struct Frame {
     std::unordered_map<const Symbol*, ConstValue> locals;

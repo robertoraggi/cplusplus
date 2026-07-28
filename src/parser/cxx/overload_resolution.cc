@@ -481,12 +481,13 @@ auto templateCandidateArityRejects(FunctionSymbol* pattern, int argCount)
 
 OverloadResolution::OverloadResolution(TranslationUnit* unit)
     : unit_(unit),
+      traits(unit),
       control_(unit->control()),
       arena_(unit->arena()),
       stdconv_(unit) {}
 
-auto OverloadResolution::initializerListElementType(
-    const Type* targetType) const -> const Type* {
+auto OverloadResolution::initializerListElementType(const Type* targetType)
+    -> const Type* {
   return stdconv_.initializerListElementType(targetType);
 }
 
@@ -711,7 +712,7 @@ auto OverloadResolution::resolveBinaryOperator(
 
   auto remove_cvref = [&](const Type* type) {
     if (!type) return type;
-    return unit_->typeTraits().remove_cvref(type);
+    return traits.remove_cvref(type);
   };
 
   auto makeExactMatch = [&](const Type* type) -> ImplicitConversionSequence {
@@ -726,8 +727,8 @@ auto OverloadResolution::resolveBinaryOperator(
                                 bool* viable) -> ImplicitConversionSequence {
     *viable = true;
     auto memberCv = memberFn->cvQualifiers();
-    auto objectCv = unit_->typeTraits().get_cv_qualifiers(
-        unit_->typeTraits().remove_reference(objectType));
+    auto objectCv =
+        traits.get_cv_qualifiers(traits.remove_reference(objectType));
     if (!cv_is_subset_of(objectCv, memberCv)) {
       *viable = false;
       return {};
@@ -743,19 +744,18 @@ auto OverloadResolution::resolveBinaryOperator(
     ImplicitConversionSequence seq;
     if (!source || !target) return seq;
 
-    if (unit_->typeTraits().is_rvalue_reference(target) &&
-        !unit_->typeTraits().is_rvalue_reference(source)) {
+    if (traits.is_rvalue_reference(target) &&
+        !traits.is_rvalue_reference(source)) {
       return seq;
     }
 
     auto s = remove_cvref(source);
     auto t = remove_cvref(target);
 
-    if (unit_->typeTraits().is_same(s, t)) return makeExactMatch(target);
+    if (traits.is_same(s, t)) return makeExactMatch(target);
 
-    auto decayedSource = unit_->typeTraits().decay(source);
-    if (unit_->typeTraits().is_same(decayedSource, t))
-      return makeExactMatch(target);
+    auto decayedSource = traits.decay(source);
+    if (traits.is_same(decayedSource, t)) return makeExactMatch(target);
 
     if (stdconv_.isIntegralPromotion(s, t)) {
       seq.rank = ConversionRank::kPromotion;
@@ -769,42 +769,39 @@ auto OverloadResolution::resolveBinaryOperator(
       return seq;
     }
 
-    if (unit_->typeTraits().is_null_pointer(s) &&
-        unit_->typeTraits().is_pointer(t)) {
+    if (traits.is_null_pointer(s) && traits.is_pointer(t)) {
       seq.rank = ConversionRank::kConversion;
       seq.steps.push_back({ImplicitCastKind::kPointerConversion, target});
       return seq;
     }
 
-    if (unit_->typeTraits().is_pointer(s) &&
-        unit_->typeTraits().is_pointer(t)) {
-      auto fromElem = unit_->typeTraits().get_element_type(s);
-      auto toElem = unit_->typeTraits().get_element_type(t);
+    if (traits.is_pointer(s) && traits.is_pointer(t)) {
+      auto fromElem = traits.get_element_type(s);
+      auto toElem = traits.get_element_type(t);
 
       if (fromElem && toElem) {
-        auto fromCv = unit_->typeTraits().get_cv_qualifiers(fromElem);
-        auto toCv = unit_->typeTraits().get_cv_qualifiers(toElem);
+        auto fromCv = traits.get_cv_qualifiers(fromElem);
+        auto toCv = traits.get_cv_qualifiers(toElem);
 
         if (cv_is_subset_of(fromCv, toCv)) {
-          auto fromUnqual = unit_->typeTraits().remove_cv(fromElem);
-          auto toUnqual = unit_->typeTraits().remove_cv(toElem);
+          auto fromUnqual = traits.remove_cv(fromElem);
+          auto toUnqual = traits.remove_cv(toElem);
 
-          if (unit_->typeTraits().is_same(fromUnqual, toUnqual)) {
+          if (traits.is_same(fromUnqual, toUnqual)) {
             seq.rank = ConversionRank::kExactMatch;
             seq.steps.push_back(
                 {ImplicitCastKind::kQualificationConversion, target});
             return seq;
           }
 
-          if (unit_->typeTraits().is_void(toUnqual)) {
+          if (traits.is_void(toUnqual)) {
             seq.rank = ConversionRank::kConversion;
             seq.steps.push_back({ImplicitCastKind::kPointerConversion, target});
             return seq;
           }
 
-          if (unit_->typeTraits().is_class(fromUnqual) &&
-              unit_->typeTraits().is_class(toUnqual) &&
-              unit_->typeTraits().is_base_of(toUnqual, fromUnqual)) {
+          if (traits.is_class(fromUnqual) && traits.is_class(toUnqual) &&
+              traits.is_base_of(toUnqual, fromUnqual)) {
             seq.rank = ConversionRank::kConversion;
             seq.steps.push_back(
                 {ImplicitCastKind::kDerivedToBaseConversion, target});
@@ -814,16 +811,13 @@ auto OverloadResolution::resolveBinaryOperator(
       }
     }
 
-    if ((unit_->typeTraits().is_arithmetic(s) ||
-         (unit_->typeTraits().is_enum(s) &&
-          !unit_->typeTraits().is_scoped_enum(s))) &&
-        unit_->typeTraits().is_arithmetic(t)) {
+    if ((traits.is_arithmetic(s) ||
+         (traits.is_enum(s) && !traits.is_scoped_enum(s))) &&
+        traits.is_arithmetic(t)) {
       seq.rank = ConversionRank::kConversion;
-      if (unit_->typeTraits().is_integral_or_unscoped_enum(s) &&
-          unit_->typeTraits().is_integral(t)) {
+      if (traits.is_integral_or_unscoped_enum(s) && traits.is_integral(t)) {
         seq.steps.push_back({ImplicitCastKind::kIntegralConversion, target});
-      } else if (unit_->typeTraits().is_floating_point(s) &&
-                 unit_->typeTraits().is_floating_point(t)) {
+      } else if (traits.is_floating_point(s) && traits.is_floating_point(t)) {
         seq.steps.push_back(
             {ImplicitCastKind::kFloatingPointConversion, target});
       } else {
@@ -833,10 +827,9 @@ auto OverloadResolution::resolveBinaryOperator(
       return seq;
     }
 
-    if (unit_->typeTraits().is_same(t, control_->getBoolType()) &&
-        (unit_->typeTraits().is_pointer(s) ||
-         unit_->typeTraits().is_null_pointer(s) ||
-         unit_->typeTraits().is_member_pointer(s))) {
+    if (traits.is_same(t, control_->getBoolType()) &&
+        (traits.is_pointer(s) || traits.is_null_pointer(s) ||
+         traits.is_member_pointer(s))) {
       seq.rank = ConversionRank::kConversion;
       seq.steps.push_back({ImplicitCastKind::kBooleanConversion, target});
       return seq;
@@ -927,8 +920,8 @@ auto OverloadResolution::resolveBinaryOperator(
         if (params.size() != 1) continue;
         auto classType =
             type_cast<ClassType>(remove_cvref(candidate->parent()->type()));
-        if (!classType || !unit_->typeTraits().is_base_of(
-                              classType, remove_cvref(leftType))) {
+        if (!classType ||
+            !traits.is_base_of(classType, remove_cvref(leftType))) {
           continue;
         }
         bool objectViable = false;
@@ -951,8 +944,8 @@ auto OverloadResolution::resolveBinaryOperator(
         if (!params.empty()) continue;
         auto classType =
             type_cast<ClassType>(remove_cvref(candidate->parent()->type()));
-        if (!classType || !unit_->typeTraits().is_base_of(
-                              classType, remove_cvref(leftType))) {
+        if (!classType ||
+            !traits.is_base_of(classType, remove_cvref(leftType))) {
           continue;
         }
         bool objectViable = false;
@@ -1043,17 +1036,15 @@ auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
 
   std::vector<FunctionSymbol*> candidates;
 
-  if (auto classType =
-          type_cast<ClassType>(unit_->typeTraits().remove_cvref(type))) {
+  if (auto classType = type_cast<ClassType>(traits.remove_cvref(type))) {
     if (auto classSymbol = classType->symbol()) {
       candidates = findCandidates(classSymbol, name);
     }
   }
 
   auto isClassOrEnum = [&](const Type* t) {
-    auto stripped = unit_->typeTraits().remove_cvref(t);
-    return unit_->typeTraits().is_class(stripped) ||
-           unit_->typeTraits().is_enum(stripped);
+    auto stripped = traits.remove_cvref(t);
+    return traits.is_class(stripped) || traits.is_enum(stripped);
   };
   bool operandNeedsAdl =
       isClassOrEnum(type) || (rightType && isClassOrEnum(rightType));

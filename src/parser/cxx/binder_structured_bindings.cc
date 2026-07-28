@@ -94,7 +94,6 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
   if (count == 0) return;
 
   auto ar = unit_->arena();
-  auto traits = unit_->typeTraits();
 
   const auto refOp = ast->refQualifierLoc
                          ? unit_->tokenKind(ast->refQualifierLoc)

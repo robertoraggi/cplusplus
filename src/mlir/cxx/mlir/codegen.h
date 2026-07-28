@@ -26,7 +26,10 @@
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols.h>
+#include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
+
+// mlir
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -645,6 +648,7 @@ class Codegen {
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp function_;
   TranslationUnit* unit_ = nullptr;
+  TypeTraits traits;
   mlir::Block* entryBlock_ = nullptr;
   mlir::Block* exitBlock_ = nullptr;
   mlir::cxx::AllocaOp exitValue_;

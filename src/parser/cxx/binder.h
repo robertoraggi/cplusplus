@@ -26,6 +26,7 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token_fwd.h>
+#include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
 #include <expected>
@@ -267,6 +268,7 @@ class Binder {
 
  private:
   TranslationUnit* unit_ = nullptr;
+  TypeTraits traits;
   ScopeSymbol* scope_ = nullptr;
   Symbol* instantiatingSymbol_ = nullptr;
   SourceLocation instantiationLoc_{};
