@@ -231,6 +231,7 @@ struct WrappedUnit {
 
     if (format == "cxxir") {
       ir.module->print(os);
+      os.flush();
       return out.str();
     }
 
@@ -242,6 +243,7 @@ struct WrappedUnit {
       mlir::OpPrintingFlags flags;
       flags.enableDebugInfo(true);
       ir.module->print(os, flags);
+      os.flush();
       return out.str();
     }
 
