@@ -321,8 +321,6 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   std::swap(gen.module_, module);
 
-  auto compileUnit = gen.getCompileUnitAttr(gen.unit_->fileName());
-
   visitGlobals(gen.unit_->globalScope());
 
   auto mainFileId = gen.unit_->preprocessor()->mainSourceFileId();
