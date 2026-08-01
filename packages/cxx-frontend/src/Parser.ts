@@ -105,9 +105,13 @@ export class Parser {
     return await this.getASTAsync();
   }
 
-  async emitMLIR(): Promise<string> {
+  async emitCode({
+    format,
+  }: {
+    format: "cxxir" | "mlir" | "llvm" | "asm";
+  }): Promise<string> {
     const _ = await this.getASTAsync();
-    return this.#unit?.emitMLIR() ?? "";
+    return this.#unit?.emitCode(format) ?? "";
   }
 
   async #parseHelper(): Promise<AST> {

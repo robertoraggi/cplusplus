@@ -117,7 +117,7 @@ async function compile() {
 
         let output: string
         try {
-          output = await parser.emitMLIR()
+          output = await parser.emitCode({ format: "asm" })
         } catch (error) {
           output = `// MLIR codegen failed: ${(error as Error).message}`
         }
