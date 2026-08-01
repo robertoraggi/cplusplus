@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select"
-import { ButtonGroup } from "./ui/button-group"
+
+import { OutputFormatSelector } from "./output-format-selector"
 
 function statusLabel({
   isCompiling,
@@ -64,36 +65,10 @@ export function Header() {
         </Select>
       </div>
 
-      <ButtonGroup>
-        <Button
-          variant={state.outputFormat === "cxxir" ? "secondary" : "outline"}
-          size="xs"
-          onClick={() => setOutputFormat("cxxir")}
-        >
-          CXXIR
-        </Button>
-        <Button
-          variant={state.outputFormat === "mlir" ? "secondary" : "outline"}
-          size="xs"
-          onClick={() => setOutputFormat("mlir")}
-        >
-          MLIR
-        </Button>
-        <Button
-          variant={state.outputFormat === "llvm" ? "secondary" : "outline"}
-          size="xs"
-          onClick={() => setOutputFormat("llvm")}
-        >
-          LLVM IR
-        </Button>
-        <Button
-          variant={state.outputFormat === "asm" ? "secondary" : "outline"}
-          size="xs"
-          onClick={() => setOutputFormat("asm")}
-        >
-          ASM
-        </Button>
-      </ButtonGroup>
+      <OutputFormatSelector
+        outputFormat={state.outputFormat}
+        setOutputFormat={setOutputFormat}
+      />
 
       <Button
         variant="ghost"
