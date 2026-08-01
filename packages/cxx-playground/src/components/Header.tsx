@@ -35,7 +35,7 @@ export function Header() {
   return (
     <header className="flex h-12 items-center justify-between border-b border-border/60 bg-background/85 px-4 backdrop-blur-md">
       <h1 className="text-sm font-semibold tracking-tight text-foreground">
-        cxx-frontend Playground
+        cxx-frontend
       </h1>
 
       <div className="flex items-center gap-3">

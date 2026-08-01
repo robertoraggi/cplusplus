@@ -41,11 +41,23 @@
 #include <sstream>
 
 #ifdef CXX_WITH_MLIR
+// cxx
+#include <cxx/memory_layout.h>
 #include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
-#include <llvm/Support/raw_os_ostream.h>
+
+// mlir
 #include <mlir/IR/MLIRContext.h>
+
+// llvm
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/raw_os_ostream.h>
+#include <llvm/Target/TargetMachine.h>
 #endif
 
 using namespace emscripten;
@@ -199,7 +211,7 @@ struct WrappedUnit {
     co_return val{true};
   }
 
-  auto emitMLIR() -> std::string {
+  auto emitCode(const std::string& format) -> std::string {
 #ifdef CXX_WITH_MLIR
     auto errorCount = diagnosticsClient->count;
     if (errorCount > 0) {
@@ -214,24 +226,67 @@ struct WrappedUnit {
 
     auto ir = codegen(unit->ast());
 
-    if (failed(cxx::lowerToMLIR(ir.module))) {
-      return "<error lowering to MLIR>";
-    }
-
-    mlir::OpPrintingFlags flags;
-    flags.enableDebugInfo(true, true);
-
     std::ostringstream out;
     llvm::raw_os_ostream os(out);
-    ir.module->print(os, flags);
-    os.flush();
 
-    auto code = out.str();
+    if (format == "cxxir") {
+      ir.module->print(os);
+      return out.str();
+    }
 
-    return code;
-#else
-    return {};
+    if (failed(cxx::lowerToMLIR(ir.module))) {
+      return std::format("<error lowering to {}>", format);
+    }
+
+    if (format == "mlir") {
+      mlir::OpPrintingFlags flags;
+      flags.enableDebugInfo(true);
+      ir.module->print(os, flags);
+      return out.str();
+    }
+
+    llvm::LLVMContext llvmContext;
+    auto llvmModule = cxx::exportToLLVMIR(ir.module, llvmContext);
+    llvmModule->setSourceFileName(unit->fileName());
+
+    if (format == "llvm") {
+      llvmModule->print(os, nullptr);
+      return out.str();
+    }
+
+    LLVMInitializeWebAssemblyTargetInfo();
+    LLVMInitializeWebAssemblyTarget();
+    LLVMInitializeWebAssemblyTargetMC();
+    LLVMInitializeWebAssemblyAsmPrinter();
+
+    llvm::TargetOptions opt;
+
+    auto RM = std::optional<llvm::Reloc::Model>();
+
+    auto triple = llvm::Triple{codegen.control()->memoryLayout()->triple()};
+
+    std::string error;
+    auto target = llvm::TargetRegistry::lookupTarget(triple, error);
+
+    auto targetMachine = target->createTargetMachine(llvm::Triple{triple},
+                                                     "generic", "", opt, RM);
+
+    llvm::legacy::PassManager pm;
+
+    llvm::SmallString<0> outputBuffer;
+    llvm::raw_svector_ostream outBytes(outputBuffer);
+
+    llvm::CodeGenFileType fileType = llvm::CodeGenFileType::AssemblyFile;
+    if (targetMachine->addPassesToEmitFile(pm, outBytes, nullptr, fileType)) {
+      return {};
+    }
+
+    pm.run(*llvmModule);
+
+    return std::string(outputBuffer.begin(), outputBuffer.size());
 #endif
+
+    return {};
   }
 };
 
@@ -437,7 +492,7 @@ EMSCRIPTEN_BINDINGS(cxx) {
       .function("getHandle", &WrappedUnit::getHandle)
       .function("getUnitHandle", &WrappedUnit::getUnitHandle)
       .function("getDiagnostics", &WrappedUnit::getDiagnostics)
-      .function("emitMLIR", &WrappedUnit::emitMLIR);
+      .function("emitCode", &WrappedUnit::emitCode);
 
   function("createUnit", &createUnit, allow_raw_pointers());
   function("getASTKind", &getASTKind);
