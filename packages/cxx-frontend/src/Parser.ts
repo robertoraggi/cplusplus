@@ -22,6 +22,9 @@ import initCxx, { cxx } from "./cxx.js";
 import { type Unit } from "./Unit.js";
 import { AST } from "./AST.js";
 
+export const OutputCodeFormat = ["cxxir", "mlir", "llvm", "asm"] as const;
+export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
+
 interface ParserParams {
   /**
    * Path to the file to parse.
@@ -105,11 +108,7 @@ export class Parser {
     return await this.getASTAsync();
   }
 
-  async emitCode({
-    format,
-  }: {
-    format: "cxxir" | "mlir" | "llvm" | "asm";
-  }): Promise<string> {
+  async emitCode({ format }: { format: OutputCodeFormat }): Promise<string> {
     const _ = await this.getASTAsync();
     return this.#unit?.emitCode(format) ?? "";
   }
