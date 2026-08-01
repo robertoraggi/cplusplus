@@ -1,8 +1,8 @@
-import { outputModel } from "./playground-store"
+import { outputCodeModel } from "./output-code-model"
 import { useMonacoEditor } from "./lib/use-monaco-editor"
 
 export default function OutputCode() {
-  const containerRef = useMonacoEditor(outputModel, {
+  const containerRef = useMonacoEditor(outputCodeModel, {
     readOnly: true,
     cursorBlinking: "solid",
   })

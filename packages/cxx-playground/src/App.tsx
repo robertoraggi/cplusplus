@@ -1,7 +1,7 @@
 import CodeEditor from "./code-editor"
 import OutputCode from "./output-code"
 import { Header } from "./components/Header"
-import { usePlayground } from "./playground-store"
+import { usePlayground } from "./playground-context"
 
 export function App() {
   const { isReady } = usePlayground()
