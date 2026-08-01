@@ -962,6 +962,49 @@ auto Codegen::loadThisPointer(mlir::Location loc, ClassSymbol* classSymbol)
       thisValue_, getAlignment(pointerType));
 }
 
+auto Codegen::loadEnclosingObject(mlir::Location loc, ClassSymbol* targetClass,
+                                  ClassSymbol*& objectClass) -> mlir::Value {
+  objectClass = targetClass;
+  if (currentFunctionSymbol_) {
+    if (auto enclosing = symbol_cast<ClassSymbol>(
+            currentFunctionSymbol_->enclosingNonTemplateParametersScope())) {
+      objectClass = enclosing;
+    }
+  }
+
+  auto object = loadThisPointer(loc, objectClass);
+  if (!object) return object;
+
+  while (objectClass != targetClass && objectClass->isClosureType()) {
+    auto capturedThis = objectClass->capturedThisField();
+    if (!capturedThis) break;
+
+    auto layout = objectClass->layout();
+    auto fieldInfo = layout ? layout->getFieldInfo(capturedThis) : std::nullopt;
+
+    auto enclosingType = type_cast<ClassType>(traits.remove_cv(
+        traits.get_element_type(traits.remove_cv(capturedThis->type()))));
+
+    if (!fieldInfo || !enclosingType || !enclosingType->symbol()) {
+      cxx_runtime_error(std::format(
+          "closure capturing 'this' has no usable '__this' field for '{}'",
+          to_string(targetClass->type())));
+    }
+
+    auto fieldAddress =
+        memberAddress(loc, object, capturedThis->type(), fieldInfo->index);
+
+    objectClass = enclosingType->symbol()->resolvedDefinition();
+
+    object = mlir::cxx::LoadOp::create(
+        builder_, loc,
+        mlir::cxx::PointerType::get(context_, convertType(enclosingType)),
+        fieldAddress, getAlignment(capturedThis->type()));
+  }
+
+  return object;
+}
+
 auto Codegen::classSubobjectShape(const Type* type) const
     -> std::optional<ClassSubobjectShape> {
   if (!type) return std::nullopt;
@@ -1767,8 +1810,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
   if (!variableSymbol->name()) {
     name = newUniqueSymbolName(".compoundliteral");
-  } else if (variableSymbol->isStatic() ||
-             !is_global_namespace(variableSymbol->parent())) {
+  } else if (unit_->language() != LanguageKind::kCXX &&
+             !symbol->enclosingFunction()) {
+    name = to_string(symbol->name());
+  } else {
     std::string suffix;
     if (variableSymbol->isStatic()) {
       if (auto function = symbol->enclosingFunction()) {
@@ -1782,8 +1827,6 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
 
     ExternalNameEncoder encoder;
     name = encoder.encode(symbol, suffix);
-  } else {
-    name = to_string(symbol->name());
   }
 
   llvm::SmallVector<mlir::Type> resultTypes;

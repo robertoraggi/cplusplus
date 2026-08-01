@@ -722,6 +722,7 @@ table ConceptDefinition /* DeclarationAST */ {
 }
 
 table DeductionGuide /* DeclarationAST */ {
+  attribute_list: [AttributeSpecifier];
   explicit_specifier: Specifier;
   parameter_declaration_clause: ParameterDeclarationClause;
   template_id: SimpleTemplateId;

@@ -524,9 +524,11 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
   auto declaringScopeForFunction() const -> ScopeSymbol*;
   void mergeAsCRedeclaration(FunctionSymbol* otherFunction);
-  auto createOverloadSet(ScopeSymbol* declaringScope,
-                         FunctionSymbol* otherFunction) -> OverloadSetSymbol*;
   auto mergeWithMatchingOverload(OverloadSetSymbol* overloadSet) -> bool;
+  void checkCRedeclaration(ScopeSymbol* declaringScope);
+  [[nodiscard]] auto isLexicallyInsideClass() const -> bool;
+  void reportDifferentKindOfSymbol(ScopeSymbol* declaringScope);
+  void reportMemberRedeclaration(FunctionSymbol* previous);
 
   void applyVirtualFlagsFromDeclarator();
   auto enclosingClass() const -> ClassSymbol*;
@@ -537,6 +539,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
   void checkRedeclaration();
   void checkConstructor();
+
+  void inheritAbiTags(FunctionSymbol* canonical);
   void checkDeclSpecifiers();
   void checkExternalLinkageSpec();
 
@@ -560,7 +564,10 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   auto name = decl.getName();
   auto returnType = decl.getReturnType(scope());
-  auto type = getDeclaratorType(binder.unit_, declarator, returnType);
+  auto type =
+      type_cast<FunctionType>(binder.resolveMemberOfCurrentInstantiation(
+          getDeclaratorType(binder.unit_, declarator, returnType),
+          binder.currentInstantiationOf(binder.declaringScope())));
 
   auto originalScope = binder.declaringScope();
   auto targetScope = !decl.specs.isFriend
@@ -627,20 +634,9 @@ void Binder::DeclareFunction::mergeAsCRedeclaration(
   mergeRedeclaration();
 }
 
-auto Binder::DeclareFunction::createOverloadSet(ScopeSymbol* declaringScope,
-                                                FunctionSymbol* otherFunction)
-    -> OverloadSetSymbol* {
-  auto overloadSet = control()->newOverloadSetSymbol(declaringScope,
-                                                     otherFunction->location());
-  overloadSet->setName(otherFunction->name());
-  overloadSet->addFunction(otherFunction);
-  declaringScope->replaceSymbol(otherFunction, overloadSet);
-  return overloadSet;
-}
-
 auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
-  for (auto existingFunction : overloadSet->functions()) {
+  for (auto existingFunction : overloadSet->declaredFunctions()) {
     if (existingFunction->isSpecialization()) continue;
 
     auto existingTemplateDecl = existingFunction->templateDeclaration();
@@ -673,6 +669,8 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
 
     if (!sigEq) continue;
 
+    reportMemberRedeclaration(existingFunction);
+
     auto canonical = existingFunction->canonical();
     canonical->addRedeclaration(functionSymbol);
     mergeRedeclaration();
@@ -680,6 +678,55 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
   }
 
   return false;
+}
+
+void Binder::DeclareFunction::reportDifferentKindOfSymbol(
+    ScopeSymbol* declaringScope) {
+  if (!isLexicallyInsideClass()) return;
+
+  for (auto candidate : declaringScope->find(functionSymbol->name())) {
+    if (symbol_cast<FunctionSymbol>(candidate)) continue;
+    if (symbol_cast<OverloadSetSymbol>(candidate)) continue;
+    if (symbol_cast<UsingDeclarationSymbol>(candidate)) continue;
+    if (symbol_cast<InjectedClassNameSymbol>(candidate)) continue;
+    if (is_type(candidate)) continue;
+
+    binder.error(functionSymbol->location(),
+                 std::format("redefinition of '{}' as different kind of symbol",
+                             to_string(functionSymbol->name())));
+    binder.note(candidate->location(), "previous definition is here");
+    return;
+  }
+}
+
+auto Binder::DeclareFunction::isLexicallyInsideClass() const -> bool {
+  if (functionSymbol->isFriend()) return false;
+
+  auto enclosingClass = symbol_cast<ClassSymbol>(binder.declaringScope());
+  if (!enclosingClass) return false;
+  if (enclosingClass->isSpecialization()) return false;
+
+  auto id = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
+  return id && !id->nestedNameSpecifier;
+}
+
+void Binder::DeclareFunction::reportMemberRedeclaration(
+    FunctionSymbol* previous) {
+  if (!isLexicallyInsideClass()) return;
+
+  const bool previousIsTemplate = previous->templateDeclaration() != nullptr;
+  const bool redeclarationIsTemplate = decl.specs.templateHead != nullptr;
+  if (previousIsTemplate != redeclarationIsTemplate) return;
+
+  if (isDependent(binder.unit_, previous->type())) return;
+  if (isDependent(binder.unit_, functionSymbol->type())) return;
+
+  binder.error(functionSymbol->location(),
+               functionSymbol->isConstructor()
+                   ? "constructor cannot be redeclared"
+                   : "class member cannot be redeclared");
+  binder.note(previous->canonical()->location(),
+              "previous declaration is here");
 }
 
 void Binder::DeclareFunction::checkRedeclaration() {
@@ -691,66 +738,49 @@ void Binder::DeclareFunction::checkRedeclaration() {
 
   auto declaringScope = declaringScopeForFunction();
 
-  OverloadSetSymbol* overloadSet = nullptr;
-
-  for (Symbol* candidate : declaringScope->find(functionSymbol->name())) {
-    overloadSet = symbol_cast<OverloadSetSymbol>(candidate);
-    if (overloadSet) break;
-
-    if (auto otherFunction = symbol_cast<FunctionSymbol>(candidate)) {
-      if (binder.isC()) {
-        auto canonical = otherFunction->canonical();
-        const bool canMerge =
-            (binder.unit_->config().allowUnprototypedFunctions &&
-             canonical->hasNoPrototype()) ||
-            areFunctionSignaturesEquivalentForRedeclaration(
-                binder.unit_, canonical->type(), functionSymbol->type());
-        if (canMerge) {
-          mergeAsCRedeclaration(otherFunction);
-        } else {
-          binder.error(functionSymbol->location(),
-                       std::format("conflicting types for '{}'",
-                                   to_string(functionSymbol->name())));
-          binder.note(canonical->location(),
-                      std::format("previous declaration of '{}' is here",
-                                  to_string(canonical->name())));
-        }
-        break;
-      }
-
-      overloadSet = createOverloadSet(declaringScope, otherFunction);
-      break;
-    }
-
-    if (auto usingDecl = symbol_cast<UsingDeclarationSymbol>(candidate)) {
-      if (auto targetFunction =
-              symbol_cast<FunctionSymbol>(usingDecl->target())) {
-        overloadSet = control()->newOverloadSetSymbol(
-            declaringScope, targetFunction->location());
-        overloadSet->setName(targetFunction->name());
-        overloadSet->addFunction(targetFunction);
-        declaringScope->replaceSymbol(usingDecl, overloadSet);
-        break;
-      }
-      if (auto targetOverloadSet =
-              symbol_cast<OverloadSetSymbol>(usingDecl->target())) {
-        overloadSet = targetOverloadSet;
-        break;
-      }
-    }
-  }
-
-  if (overloadSet) {
-    if (!mergeWithMatchingOverload(overloadSet)) {
-      overloadSet->addFunction(functionSymbol);
-    }
-
-    binder.mergeDefaultArguments(functionSymbol, declarator);
+  if (binder.isC()) {
+    checkCRedeclaration(declaringScope);
     return;
   }
 
   if (functionSymbol->isFriend() && !declaringScope->isClass()) {
     functionSymbol->setHidden(true);
+  }
+
+  reportDifferentKindOfSymbol(declaringScope);
+
+  auto overloadSet = binder.overloadSetFor(
+      declaringScope, functionSymbol->name(), functionSymbol->location());
+
+  if (!mergeWithMatchingOverload(overloadSet)) {
+    overloadSet->addFunction(functionSymbol);
+  }
+
+  binder.mergeDefaultArguments(functionSymbol, declarator);
+}
+
+void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
+  for (Symbol* candidate : declaringScope->find(functionSymbol->name())) {
+    auto otherFunction = symbol_cast<FunctionSymbol>(candidate);
+    if (!otherFunction) continue;
+
+    auto canonical = otherFunction->canonical();
+    const bool canMerge =
+        (binder.unit_->config().allowUnprototypedFunctions &&
+         canonical->hasNoPrototype()) ||
+        areFunctionSignaturesEquivalentForRedeclaration(
+            binder.unit_, canonical->type(), functionSymbol->type());
+    if (canMerge) {
+      mergeAsCRedeclaration(otherFunction);
+    } else {
+      binder.error(functionSymbol->location(),
+                   std::format("conflicting types for '{}'",
+                               to_string(functionSymbol->name())));
+      binder.note(canonical->location(),
+                  std::format("previous declaration of '{}' is here",
+                              to_string(canonical->name())));
+    }
+    return;
   }
 
   declaringScope->addSymbol(functionSymbol);
@@ -769,22 +799,11 @@ void Binder::DeclareFunction::checkConstructor() {
     cxx_runtime_error("constructor must be declared inside a class");
   }
 
-  for (auto ctor : enclosingClass->constructors()) {
-    if (!areTemplateHeadsEquivalentForRedeclaration(
-            binder.unit_, ctor->templateDeclaration(), decl.specs.templateHead))
-      continue;
-    if (areFunctionSignaturesEquivalentForRedeclaration(
-            binder.unit_, ctor->type(), functionSymbol->type())) {
-      auto canon = ctor->canonical();
-      canon->addRedeclaration(functionSymbol);
-      mergeRedeclaration();
-      break;
-    }
+  if (!mergeWithMatchingOverload(enclosingClass->constructorOverloadSet())) {
+    enclosingClass->addConstructor(functionSymbol);
   }
 
   binder.mergeDefaultArguments(functionSymbol, declarator);
-
-  enclosingClass->addConstructor(functionSymbol);
 }
 
 void Binder::DeclareFunction::checkDeclSpecifiers() {
@@ -891,7 +910,7 @@ auto Binder::DeclareFunction::findOverriddenFunctionImpl(
       if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
         if (auto result = checkMember(func)) return result;
       } else if (auto ovl = symbol_cast<OverloadSetSymbol>(symbol)) {
-        for (auto func : ovl->functions()) {
+        for (auto func : ovl->declaredFunctions()) {
           if (auto result = checkMember(func)) return result;
         }
       }
@@ -941,6 +960,10 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
   checkOverrideAndFinalSpecifiers(overridden);
 }
 
+void Binder::DeclareFunction::inheritAbiTags(FunctionSymbol* canonical) {
+  functionSymbol->setAbiTags(canonical->abiTagList());
+}
+
 void Binder::DeclareFunction::mergeRedeclaration() {
   auto canonical = functionSymbol->canonical();
   if (!canonical || canonical == functionSymbol) return;
@@ -962,6 +985,8 @@ void Binder::DeclareFunction::mergeRedeclaration() {
   if (canonical->isPure()) functionSymbol->setPure(true);
   if (canonical->hasCLinkage())
     functionSymbol->setLanguageLinkage(LanguageKind::kC);
+
+  inheritAbiTags(canonical);
 
   if (functionSymbol->isInline()) canonical->setInline(true);
   if (functionSymbol->isConstexpr()) canonical->setConstexpr(true);

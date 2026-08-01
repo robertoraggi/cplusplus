@@ -657,7 +657,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
       return copy;
     }
 
-    binder()->resolveIdExpression(copy);
+    binder()->resolveIdExpression(copy, /*isCallee=*/false);
 
     if (copy->symbol != ast->symbol && copy->symbol) {
       copy->type = copy->symbol->type();
@@ -824,6 +824,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   copy->statement = rewrite.lambdaBody(ast->statement);
   copy->symbol = ast->symbol;
+  copy->constructorSymbol = ast->constructorSymbol;
 
   return copy;
 }
@@ -1299,7 +1300,12 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
           auto symbol = qualifiedLookup(lookupScope, memberName);
           if (symbol) {
             copy->symbol = symbol;
-            copy->type = symbol->type();
+            if (auto function = designatedFunction(symbol)) {
+              copy->symbol = function;
+              copy->type = function->type();
+            } else {
+              copy->type = symbol->type();
+            }
 
             if (auto field = symbol_cast<FieldSymbol>(symbol);
                 field && !field->isStatic()) {
@@ -2018,6 +2024,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(ThisLambdaCaptureAST* ast)
   auto copy = ThisLambdaCaptureAST::create(arena());
 
   copy->thisLoc = ast->thisLoc;
+  copy->initializer = rewrite.expression(ast->initializer);
 
   return copy;
 }
@@ -2039,6 +2046,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(SimpleLambdaCaptureAST* ast)
   copy->identifierLoc = ast->identifierLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->identifier = ast->identifier;
+  copy->initializer = rewrite.expression(ast->initializer);
 
   return copy;
 }
@@ -2051,6 +2059,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(RefLambdaCaptureAST* ast)
   copy->identifierLoc = ast->identifierLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->identifier = ast->identifier;
+  copy->initializer = rewrite.expression(ast->initializer);
 
   return copy;
 }

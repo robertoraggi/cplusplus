@@ -825,54 +825,59 @@ void ASTSlot::visit(ConceptDefinitionAST* ast) {
 
 void ASTSlot::visit(DeductionGuideAST* ast) {
   switch (slot_) {
-    case 0:  // explicitSpecifier
+    case 0:  // attributeList
+      value_ = reinterpret_cast<std::intptr_t>(ast->attributeList);
+      slotKind_ = ASTSlotKind::kNodeList;
+      slotNameIndex_ = SlotNameIndex{13};
+      break;
+    case 1:  // explicitSpecifier
       value_ = reinterpret_cast<std::intptr_t>(ast->explicitSpecifier);
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{85};
       break;
-    case 1:  // identifierLoc
+    case 2:  // identifierLoc
       value_ = ast->identifierLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{112};
       break;
-    case 2:  // lparenLoc
+    case 3:  // lparenLoc
       value_ = ast->lparenLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{148};
       break;
-    case 3:  // parameterDeclarationClause
+    case 4:  // parameterDeclarationClause
       value_ = reinterpret_cast<std::intptr_t>(ast->parameterDeclarationClause);
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{175};
       break;
-    case 4:  // rparenLoc
+    case 5:  // rparenLoc
       value_ = ast->rparenLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{200};
       break;
-    case 5:  // arrowLoc
+    case 6:  // arrowLoc
       value_ = ast->arrowLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{8};
       break;
-    case 6:  // templateId
+    case 7:  // templateId
       value_ = reinterpret_cast<std::intptr_t>(ast->templateId);
       slotKind_ = ASTSlotKind::kNode;
       slotNameIndex_ = SlotNameIndex{221};
       break;
-    case 7:  // semicolonLoc
+    case 8:  // semicolonLoc
       value_ = ast->semicolonLoc.index();
       slotKind_ = ASTSlotKind::kToken;
       slotNameIndex_ = SlotNameIndex{203};
       break;
-    case 8:  // identifier
+    case 9:  // identifier
       value_ = reinterpret_cast<std::intptr_t>(ast->identifier);
       slotKind_ = ASTSlotKind::kIdentifierAttribute;
       slotNameIndex_ = SlotNameIndex{111};
       break;
   }  // switch
 
-  slotCount_ = 9;
+  slotCount_ = 10;
 }
 
 void ASTSlot::visit(ExplicitInstantiationAST* ast) {

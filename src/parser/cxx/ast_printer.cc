@@ -342,6 +342,15 @@ void ASTPrinter::visit(ConceptDefinitionAST* ast) {
 void ASTPrinter::visit(DeductionGuideAST* ast) {
   out_ << std::format("{}\n", "deduction-guide");
   accept(ast->identifier, "identifier");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->explicitSpecifier, "explicit-specifier");
   accept(ast->parameterDeclarationClause, "parameter-declaration-clause");
   accept(ast->templateId, "template-id");

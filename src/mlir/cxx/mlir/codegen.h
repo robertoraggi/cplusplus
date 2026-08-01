@@ -362,6 +362,11 @@ class Codegen {
   [[nodiscard]] auto loadThisPointer(mlir::Location loc,
                                      ClassSymbol* classSymbol) -> mlir::Value;
 
+  [[nodiscard]] auto loadEnclosingObject(mlir::Location loc,
+                                         ClassSymbol* targetClass,
+                                         ClassSymbol*& objectClass)
+      -> mlir::Value;
+
   struct ClassSubobjectShape {
     ClassSymbol* classSymbol = nullptr;
     const Type* elementType = nullptr;

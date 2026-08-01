@@ -153,7 +153,11 @@ template <typename Predicate>
     TranslationUnit* unit, const Name* name,
     std::span<const Type* const> argumentTypes) -> std::vector<FunctionSymbol*>;
 
+[[nodiscard]] auto isArgumentDependentCallee(Symbol* symbol) -> bool;
+
 [[nodiscard]] auto isPureFriend(FunctionSymbol* func) -> bool;
+
+[[nodiscard]] auto designatedFunction(Symbol* symbol) -> FunctionSymbol*;
 
 [[nodiscard]] auto mergeInlineNamespaceOverloads(Control* control,
                                                  NamespaceSymbol* scope,

@@ -27,6 +27,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/parser.h>
 #include <cxx/symbols.h>
@@ -39,6 +40,15 @@
 #include <format>
 
 namespace cxx {
+namespace {
+[[nodiscard]] auto resolvedFunction(Symbol* symbol) -> FunctionSymbol* {
+  for (auto func : views::each_function(symbol)) {
+    if (func->isConstexpr()) return func;
+  }
+  return designatedFunction(symbol);
+}
+}  // namespace
+
 struct ASTInterpreter::ExpressionVisitor {
   ASTInterpreter& interp;
 
@@ -660,22 +670,14 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
   }
 
   if (auto call = ast_cast<CallExpressionAST>(ast)) {
-    auto calleeFunction = [](Symbol* symbol) -> FunctionSymbol* {
-      if (auto func = symbol_cast<FunctionSymbol>(symbol)) return func;
-      for (auto f : views::each_function(symbol)) {
-        if (f->isConstexpr()) return f;
-      }
-      return nullptr;
-    };
-
     if (auto idExpr = ast_cast<IdExpressionAST>(call->baseExpression)) {
-      auto func = calleeFunction(idExpr->symbol);
+      auto func = resolvedFunction(idExpr->symbol);
       if (!func || !func->isConstexpr()) return nullptr;
       return evaluateCallLValueFromExprs(func, call->expressionList);
     }
 
     if (auto memberExpr = ast_cast<MemberExpressionAST>(call->baseExpression)) {
-      auto func = calleeFunction(memberExpr->symbol);
+      auto func = resolvedFunction(memberExpr->symbol);
       if (!func || !func->isConstexpr()) return nullptr;
       auto baseVal = expression(memberExpr->baseExpression);
       if (!baseVal.has_value()) return nullptr;
@@ -940,7 +942,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   }
 
-  if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
+  if (auto func = resolvedFunction(ast->symbol)) {
     return std::make_shared<ConstAddress>(func);
   }
 
@@ -1136,14 +1138,6 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionResult {
-  auto calleeFunction = [](Symbol* symbol) -> FunctionSymbol* {
-    if (auto func = symbol_cast<FunctionSymbol>(symbol)) return func;
-    for (auto f : views::each_function(symbol)) {
-      if (f->isConstexpr()) return f;
-    }
-    return nullptr;
-  };
-
   if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
     if (auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId)) {
       if (nameId->identifier) {
@@ -1160,7 +1154,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
       }
     }
 
-    auto func = calleeFunction(idExpr->symbol);
+    auto func = resolvedFunction(idExpr->symbol);
     if (func && func->isConstexpr()) {
       return interp.evaluateCallExprs(func, ast->expressionList);
     }
@@ -1191,7 +1185,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     }
   } else if (auto memberExpr =
                  ast_cast<MemberExpressionAST>(ast->baseExpression)) {
-    auto func = calleeFunction(memberExpr->symbol);
+    auto func = resolvedFunction(memberExpr->symbol);
     if (func && func->isConstexpr()) {
       auto baseVal = interp.evaluate(memberExpr->baseExpression);
       if (baseVal.has_value()) {

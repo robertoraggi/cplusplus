@@ -357,6 +357,22 @@ auto mergeInlineNamespaceOverloads(Control* control, NamespaceSymbol* scope,
   return merged;
 }
 
+auto designatedFunction(Symbol* symbol) -> FunctionSymbol* {
+  if (auto function = symbol_cast<FunctionSymbol>(symbol)) return function;
+
+  auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
+  if (!overloadSet) return nullptr;
+
+  const auto functions = overloadSet->functions();
+  if (functions.size() != 1) return nullptr;
+
+  auto function = functions.front();
+  if (function->templateDeclaration() && !function->isSpecialization())
+    return nullptr;
+
+  return function;
+}
+
 auto isPureFriend(FunctionSymbol* func) -> bool {
   if (!func) return false;
   auto canonical = func->canonical();
@@ -402,6 +418,12 @@ auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
   }
 
   return result;
+}
+
+auto isArgumentDependentCallee(Symbol* symbol) -> bool {
+  auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
+  return overloadSet && overloadSet->declaredFunctions().empty() &&
+         overloadSet->usingDeclarations().empty();
 }
 
 auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,

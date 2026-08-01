@@ -760,10 +760,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
         paramType->index() < static_cast<int>(args.size())) {
       if (auto sym = std::get_if<Symbol*>(&args[paramType->index()])) {
         copy->symbol = *sym;
-        if (auto alias = symbol_cast<TypeAliasSymbol>(*sym)) {
-          if (auto classType = type_cast<ClassType>(alias->type())) {
-            copy->symbol = classType->symbol();
-          }
+        if (auto templateName = template_name_symbol(*sym)) {
+          copy->symbol = templateName;
         }
       }
     }

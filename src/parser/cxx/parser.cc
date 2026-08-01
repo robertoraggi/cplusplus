@@ -1011,7 +1011,10 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
     }
   }
 
-  binder_.bind(ast);
+  const auto mayUseArgumentDependentLookup =
+      ctx == IdExpressionContext::kExpression && lookat(TokenKind::T_LPAREN);
+
+  binder_.bind(ast, mayUseArgumentDependentLookup);
 
   if (ctx == IdExpressionContext::kExpression) {
     check(ast);
@@ -4504,7 +4507,8 @@ auto Parser::parse_notypespec_function_definition(
 
   specs.finish();
 
-  if (!parse_notypespec_function_definition(yyast, declSpecifierList, specs))
+  if (!parse_notypespec_function_definition(yyast, declSpecifierList, specs,
+                                            atributes))
     return false;
 
   lookahead.commit();
@@ -4671,7 +4675,7 @@ auto Parser::parse_simple_declaration(
     if (!functionDeclarator) return false;
 
     RequiresClauseAST* requiresClause = nullptr;
-    (void)parse_requires_clause(requiresClause);
+    (void)parse_trailing_requires_clause(functionDeclarator, requiresClause);
 
     if (!lookat_function_body()) return false;
 
@@ -4692,6 +4696,9 @@ auto Parser::parse_simple_declaration(
 
     if (auto scope = decl.getScope()) {
       setScope(scope);
+      functionType =
+          type_cast<FunctionType>(binder_.resolveMemberOfCurrentInstantiation(
+              functionType, binder_.currentInstantiationOf(scope)));
     } else if (q) {
       type_error(q->firstSourceLocation(),
                  std::format("unresolved class or namespace"));
@@ -4711,13 +4718,13 @@ auto Parser::parse_simple_declaration(
 
     auto functionSymbol = binder_.declareFunction(declarator, decl);
 
-    functionSymbol->setDefined(true);
-
-    if (classDepth_) functionSymbol->setInline(true);
-
     if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
       canon->setDefinition(functionSymbol);
     }
+
+    functionSymbol->setDefined(true);
+
+    if (classDepth_) functionSymbol->setInline(true);
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
       auto functionScope = functionSymbol;
@@ -4746,6 +4753,8 @@ auto Parser::parse_simple_declaration(
       functionSymbol->setDefaulted(true);
     if (ast_cast<DeleteFunctionBodyAST>(functionBody))
       functionSymbol->setDeleted(true);
+
+    binder_.applyAbiTags(functionSymbol, attributes);
 
     auto ast = FunctionDefinitionAST::create(pool_);
     yyast = ast;
@@ -4813,12 +4822,14 @@ auto Parser::parse_simple_declaration(
   ast->initDeclaratorList = initDeclaratorList;
   ast->semicolonLoc = semicolonLoc;
 
+  binder_.applyAbiTags(ast);
+
   return true;
 }
 
 auto Parser::parse_notypespec_function_definition(
     DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
-    const DeclSpecs& specs) -> bool {
+    const DeclSpecs& specs, List<AttributeSpecifierAST*>* attributes) -> bool {
   CoreDeclaratorAST* declaratorId = nullptr;
 
   Decl decl{specs};
@@ -4847,7 +4858,8 @@ auto Parser::parse_notypespec_function_definition(
 
   RequiresClauseAST* requiresClause = nullptr;
 
-  const auto has_requires_clause = parse_requires_clause(requiresClause);
+  const auto has_requires_clause =
+      parse_trailing_requires_clause(functionDeclarator, requiresClause);
 
   if (!has_requires_clause) parse_virt_specifier_seq(functionDeclarator);
 
@@ -4871,6 +4883,8 @@ auto Parser::parse_notypespec_function_definition(
 
   auto functionSymbol = binder_.declareFunction(declarator, decl);
 
+  binder_.applyAbiTags(functionSymbol, attributes);
+
   if (auto templateHead = specs.templateHead) {
     functionSymbol->setTemplateDeclaration(templateHead);
     functionSymbol->setTemplateParameters(templateHead->symbol);
@@ -4890,9 +4904,11 @@ auto Parser::parse_notypespec_function_definition(
 
     auto initDeclarator = InitDeclaratorAST::create(pool_);
     initDeclarator->declarator = declarator;
+    initDeclarator->symbol = functionSymbol;
 
     auto ast = SimpleDeclarationAST::create(pool_);
     yyast = ast;
+    ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
     ast->initDeclaratorList = make_list_node(pool_, initDeclarator);
     ast->requiresClause = requiresClause;
@@ -7305,6 +7321,9 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   binder_.bind(ast, underlyingTypeSpecs);
 
+  if (auto enumScope = ast->symbol ? ast->symbol->asScopeSymbol() : nullptr)
+    pushScope(enumScope);
+
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     parse_enumerator_list(ast->enumeratorList, ast->symbol->type());
 
@@ -8865,7 +8884,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     LookaheadParser lookahead{this};
 
     if (!parse_notypespec_function_definition(yyast, declSpecifierList,
-                                              declSpecs))
+                                              declSpecs, attributes))
       return false;
 
     lookahead.commit();
@@ -8917,7 +8936,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     if (!functionDeclarator) return false;
 
     RequiresClauseAST* requiresClause = nullptr;
-    if (!parse_requires_clause(requiresClause)) {
+    if (!parse_trailing_requires_clause(functionDeclarator, requiresClause)) {
       parse_virt_specifier_seq(functionDeclarator);
     }
 
@@ -8966,6 +8985,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
       functionSymbol->setDefaulted(true);
     if (ast_cast<DeleteFunctionBodyAST>(functionBody))
       functionSymbol->setDeleted(true);
+
+    binder_.applyAbiTags(functionSymbol, attributes);
 
     auto ast = FunctionDefinitionAST::create(pool_);
     yyast = ast;
@@ -9022,6 +9043,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
+
+  binder_.applyAbiTags(ast);
 
   return true;
 }
@@ -9127,7 +9150,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     if (auto functionDeclarator = getFunctionPrototype(declarator)) {
       RequiresClauseAST* requiresClause = nullptr;
 
-      if (parse_requires_clause(requiresClause)) {
+      if (parse_trailing_requires_clause(functionDeclarator, requiresClause)) {
         ast->requiresClause = requiresClause;
       } else {
         parse_virt_specifier_seq(functionDeclarator);
@@ -9737,6 +9760,22 @@ void Parser::parse_template_parameter_list(
   std::swap(templateParameterCount_, templateParameterCount);
 }
 
+auto Parser::parse_trailing_requires_clause(
+    FunctionDeclaratorChunkAST* functionDeclarator, RequiresClauseAST*& yyast)
+    -> bool {
+  if (!lookat(TokenKind::T_REQUIRES)) return false;
+
+  auto parametersSymbol =
+      functionDeclarator && functionDeclarator->parameterDeclarationClause
+          ? functionDeclarator->parameterDeclarationClause
+                ->functionParametersSymbol
+          : nullptr;
+
+  auto _ = CombinedScopeGuard{this, parametersSymbol};
+
+  return parse_requires_clause(yyast);
+}
+
 auto Parser::parse_requires_clause(RequiresClauseAST*& yyast) -> bool {
   SourceLocation requiresLoc;
 
@@ -10310,12 +10349,15 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
     -> bool {
   if (!isCxx()) return false;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SpecifierAST* explicitSpecifier = nullptr;
   SourceLocation identifierLoc;
   SourceLocation lparenLoc;
 
   auto lookat_deduction_guide = [&] {
     LookaheadParser lookahead{this};
+
+    parse_optional_attribute_specifier_seq(attributeList);
 
     DeclSpecs specs{unit_};
     (void)parse_explicit_specifier(explicitSpecifier, specs);
@@ -10342,6 +10384,7 @@ auto Parser::parse_deduction_guide(DeclarationAST*& yyast,
   auto ast = DeductionGuideAST::create(pool_);
   yyast = ast;
 
+  ast->attributeList = attributeList;
   ast->explicitSpecifier = explicitSpecifier;
   ast->identifierLoc = identifierLoc;
   ast->identifier = unit_->identifier(identifierLoc);

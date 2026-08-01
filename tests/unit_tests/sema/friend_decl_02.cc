@@ -1,8 +1,6 @@
 // clang-format off
 // RUN: %cxx -verify -fcheck %s
 
-// Test: friend function redeclared at namespace scope becomes visible
-
 struct X {
   friend void foo(X*);
   int priv;

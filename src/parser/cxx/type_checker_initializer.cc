@@ -315,6 +315,8 @@ struct ElementInitChecker {
 
   void check(ExpressionAST*& expr, const Type* targetType,
              std::string errorMessage) {
+    if (isUntypedAfterError(expr)) return;
+
     if (ctx.traits.is_array(targetType)) {
       checkArrayElementInit(expr, targetType, std::move(errorMessage));
       return;
@@ -993,6 +995,7 @@ void ClassInitChecker::checkClassInit(Target& target) {
       auto resolution = overloadRes.resolveConstructor(classSymbol, {});
       if (resolution.best && !resolution.ambiguous) {
         target.constructor = resolution.best->symbol;
+        ctx.checker.reportDeletedFunction(target.constructor, target.location);
         appendDefaultArguments(target, target.constructor);
       }
       return;

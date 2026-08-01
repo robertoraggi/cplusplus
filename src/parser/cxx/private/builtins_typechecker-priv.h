@@ -247,6 +247,18 @@ auto cxx::isBuiltinLibcall(cxx::BuiltinFunctionKind kind) -> bool {
 auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) -> bool {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_VA_START:
+      return checkBuiltinVaListAccess(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_VA_END:
+      return checkBuiltinVaListAccess(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_VA_COPY:
+      return checkBuiltinVaListAccess(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_C23_VA_START:
+      return checkBuiltinVaListAccess(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       return checkBuiltinAssumeAligned(ast);
 

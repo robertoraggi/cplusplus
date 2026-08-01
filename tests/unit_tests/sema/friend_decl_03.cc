@@ -1,8 +1,6 @@
 // clang-format off
 // RUN: %cxx -verify -fcheck %s
 
-// Test: friend class previously declared at namespace scope
-
 class K;
 
 struct X {

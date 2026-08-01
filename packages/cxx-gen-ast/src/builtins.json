@@ -66,22 +66,26 @@
   {
     "name": "__builtin_va_start",
     "prototype": "void __builtin_va_start(__builtin_va_list, ...)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinVaListAccess"
   },
   {
     "name": "__builtin_va_end",
     "prototype": "void __builtin_va_end(__builtin_va_list)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinVaListAccess"
   },
   {
     "name": "__builtin_va_copy",
     "prototype": "void __builtin_va_copy(__builtin_va_list, __builtin_va_list)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinVaListAccess"
   },
   {
     "name": "__builtin_c23_va_start",
     "prototype": "void __builtin_c23_va_start(__builtin_va_list, ...)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinVaListAccess"
   },
   {
     "name": "__builtin_acosf",
@@ -2771,7 +2775,7 @@
   },
   {
     "name": "__c11_atomic_is_lock_free",
-    "prototype": "int __c11_atomic_is_lock_free(long long, volatile void*)",
+    "prototype": "int __c11_atomic_is_lock_free(__SIZE_TYPE__)",
     "constexpr": false
   },
   {

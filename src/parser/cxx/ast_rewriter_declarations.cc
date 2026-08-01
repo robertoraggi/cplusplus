@@ -674,6 +674,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
 
+  if (ast_cast<DefaultFunctionBodyAST>(ast->functionBody))
+    functionSymbol->setDefaulted(true);
+  if (ast_cast<DeleteFunctionBodyAST>(ast->functionBody))
+    functionSymbol->setDeleted(true);
+
+  if (ast->symbol) functionSymbol->setAbiTags(ast->symbol->abiTagList());
+
   if (ast->symbol && ast->symbol->templateDeclaration() &&
       (!isOutOfClassMemberDef || isFunctionTemplateSpecialization)) {
     auto instSym =

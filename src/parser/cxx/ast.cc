@@ -292,6 +292,7 @@ auto ConceptDefinitionAST::lastSourceLocation() -> SourceLocation {
 }
 
 auto DeductionGuideAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(explicitSpecifier)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -314,6 +315,7 @@ auto DeductionGuideAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(identifierLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(explicitSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   return {};
 }
 
@@ -4771,6 +4773,14 @@ auto ConceptDefinitionAST::create(Arena* arena, ExpressionAST* expression,
 auto DeductionGuideAST::clone(Arena* arena) -> DeductionGuideAST* {
   auto node = create(arena);
 
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   if (explicitSpecifier)
     node->explicitSpecifier = explicitSpecifier->clone(arena);
 
@@ -4798,7 +4808,8 @@ auto DeductionGuideAST::create(Arena* arena) -> DeductionGuideAST* {
 }
 
 auto DeductionGuideAST::create(
-    Arena* arena, SpecifierAST* explicitSpecifier, SourceLocation identifierLoc,
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SpecifierAST* explicitSpecifier, SourceLocation identifierLoc,
     SourceLocation lparenLoc,
     ParameterDeclarationClauseAST* parameterDeclarationClause,
     SourceLocation rparenLoc, SourceLocation arrowLoc,
@@ -4806,6 +4817,7 @@ auto DeductionGuideAST::create(
     const Identifier* identifier, DeductionGuideSymbol* symbol)
     -> DeductionGuideAST* {
   auto node = new (arena) DeductionGuideAST();
+  node->attributeList = attributeList;
   node->explicitSpecifier = explicitSpecifier;
   node->identifierLoc = identifierLoc;
   node->lparenLoc = lparenLoc;
@@ -4820,11 +4832,13 @@ auto DeductionGuideAST::create(
 }
 
 auto DeductionGuideAST::create(
-    Arena* arena, SpecifierAST* explicitSpecifier,
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    SpecifierAST* explicitSpecifier,
     ParameterDeclarationClauseAST* parameterDeclarationClause,
     SimpleTemplateIdAST* templateId, const Identifier* identifier,
     DeductionGuideSymbol* symbol) -> DeductionGuideAST* {
   auto node = new (arena) DeductionGuideAST();
+  node->attributeList = attributeList;
   node->explicitSpecifier = explicitSpecifier;
   node->parameterDeclarationClause = parameterDeclarationClause;
   node->templateId = templateId;

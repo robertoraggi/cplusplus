@@ -1458,11 +1458,37 @@ export class DeductionGuideAST extends DeclarationAST {
   }
 
   /**
+   * Returns the attributeList of this node
+   */
+  getAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
+    let it = cxx.getASTSlot(this.getHandle(), 0);
+    let value: AttributeSpecifierAST | undefined;
+    let done = false;
+    const p = this.parser;
+    function advance() {
+      done = it === 0;
+      if (done) return;
+      const ast = cxx.getListValue(it);
+      value = AST.from<AttributeSpecifierAST>(ast, p);
+      it = cxx.getListNext(it);
+    }
+    function next() {
+      advance();
+      return { done, value };
+    }
+    return {
+      [Symbol.iterator]() {
+        return { next };
+      },
+    };
+  }
+
+  /**
    * Returns the explicitSpecifier of this node
    */
   getExplicitSpecifier(): SpecifierAST | undefined {
     return AST.from<SpecifierAST>(
-      cxx.getASTSlot(this.getHandle(), 0),
+      cxx.getASTSlot(this.getHandle(), 1),
       this.parser,
     );
   }
@@ -1471,14 +1497,14 @@ export class DeductionGuideAST extends DeclarationAST {
    * Returns the location of the identifier token in this node
    */
   getIdentifierToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 1), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
   }
 
   /**
    * Returns the location of the lparen token in this node
    */
   getLparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 3), this.parser);
   }
 
   /**
@@ -1486,7 +1512,7 @@ export class DeductionGuideAST extends DeclarationAST {
    */
   getParameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
     return AST.from<ParameterDeclarationClauseAST>(
-      cxx.getASTSlot(this.getHandle(), 3),
+      cxx.getASTSlot(this.getHandle(), 4),
       this.parser,
     );
   }
@@ -1495,14 +1521,14 @@ export class DeductionGuideAST extends DeclarationAST {
    * Returns the location of the rparen token in this node
    */
   getRparenToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 4), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
   }
 
   /**
    * Returns the location of the arrow token in this node
    */
   getArrowToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 5), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 6), this.parser);
   }
 
   /**
@@ -1510,7 +1536,7 @@ export class DeductionGuideAST extends DeclarationAST {
    */
   getTemplateId(): SimpleTemplateIdAST | undefined {
     return AST.from<SimpleTemplateIdAST>(
-      cxx.getASTSlot(this.getHandle(), 6),
+      cxx.getASTSlot(this.getHandle(), 7),
       this.parser,
     );
   }
@@ -1519,14 +1545,14 @@ export class DeductionGuideAST extends DeclarationAST {
    * Returns the location of the semicolon token in this node
    */
   getSemicolonToken(): Token | undefined {
-    return Token.from(cxx.getASTSlot(this.getHandle(), 7), this.parser);
+    return Token.from(cxx.getASTSlot(this.getHandle(), 8), this.parser);
   }
 
   /**
    * Returns the identifier attribute of this node
    */
   getIdentifier(): string | undefined {
-    const slot = cxx.getASTSlot(this.getHandle(), 8);
+    const slot = cxx.getASTSlot(this.getHandle(), 9);
     return cxx.getIdentifierValue(slot);
   }
 }

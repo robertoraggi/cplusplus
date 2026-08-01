@@ -66,6 +66,9 @@ class Control {
 
   [[nodiscard]] auto newAnonymousId(std::string_view base) -> const Identifier*;
   [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier*;
+
+  [[nodiscard]] auto getAbiTags(std::vector<const Identifier*> tags)
+      -> const std::vector<const Identifier*>*;
   [[nodiscard]] auto getOperatorId(TokenKind op) -> const OperatorId*;
   [[nodiscard]] auto getDestructorId(const Name*) -> const DestructorId*;
   [[nodiscard]] auto getLiteralOperatorId(std::string_view name)

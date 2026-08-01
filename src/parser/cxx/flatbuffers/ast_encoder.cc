@@ -927,6 +927,20 @@ void ASTEncoder::visit(ConceptDefinitionAST* ast) {
 }
 
 void ASTEncoder::visit(DeductionGuideAST* ast) {
+  std::vector<flatbuffers::Offset<>> attributeListOffsets;
+  std::vector<std::underlying_type_t<io::AttributeSpecifier>>
+      attributeListTypes;
+
+  for (auto node : ListView{ast->attributeList}) {
+    if (!node) continue;
+    const auto [offset, type] = acceptAttributeSpecifier(node);
+    attributeListOffsets.push_back(offset);
+    attributeListTypes.push_back(type);
+  }
+
+  auto attributeListOffsetsVector = fbb_.CreateVector(attributeListOffsets);
+  auto attributeListTypesVector = fbb_.CreateVector(attributeListTypes);
+
   const auto [explicitSpecifier, explicitSpecifierType] =
       acceptSpecifier(ast->explicitSpecifier);
 
@@ -946,6 +960,8 @@ void ASTEncoder::visit(DeductionGuideAST* ast) {
   }
 
   io::DeductionGuide::Builder builder{fbb_};
+  builder.add_attribute_list(attributeListOffsetsVector);
+  builder.add_attribute_list_type(attributeListTypesVector);
   builder.add_explicit_specifier(explicitSpecifier);
   builder.add_explicit_specifier_type(
       static_cast<io::Specifier>(explicitSpecifierType));

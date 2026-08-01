@@ -83,14 +83,49 @@ constexpr auto non_static_fields =
 constexpr auto static_fields =
     fields | std::views::filter(&FieldSymbol::isStatic);
 
+class each_function : public std::ranges::view_interface<each_function> {
+ public:
+  each_function() = default;
+
+  explicit each_function(Symbol* symbol) {
+    auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
+    if (!overloadSet) {
+      function_ = symbol_cast<FunctionSymbol>(symbol);
+      return;
+    }
+
+    if (overloadSet->usingDeclarations().empty()) {
+      declaredFunctions_ = &overloadSet->declaredFunctions();
+      return;
+    }
+
+    composedFunctions_ = overloadSet->functions();
+  }
+
+  [[nodiscard]] auto begin() const -> FunctionSymbol* const* {
+    if (declaredFunctions_) return declaredFunctions_->data();
+    if (function_) return &function_;
+    return composedFunctions_.data();
+  }
+
+  [[nodiscard]] auto end() const -> FunctionSymbol* const* {
+    if (declaredFunctions_)
+      return declaredFunctions_->data() + declaredFunctions_->size();
+    if (function_) return &function_ + 1;
+    return composedFunctions_.data() + composedFunctions_.size();
+  }
+
+ private:
+  const std::vector<FunctionSymbol*>* declaredFunctions_ = nullptr;
+  FunctionSymbol* function_ = nullptr;
+  std::vector<FunctionSymbol*> composedFunctions_;
+};
+
 constexpr auto member_functions =
-    std::views::filter([](Symbol* s) {
-      if (auto func = symbol_cast<FunctionSymbol>(s)) {
-        return func->parent() && func->parent()->isClass();
-      }
-      return false;
-    }) |
-    std::views::transform(symbol_cast<FunctionSymbol>);
+    std::views::transform([](Symbol* s) { return each_function{s}; }) |
+    std::views::join | std::views::filter([](FunctionSymbol* f) {
+      return f->parent() && f->parent()->isClass();
+    });
 
 constexpr auto non_static_member_functions =
     member_functions |
@@ -112,35 +147,6 @@ constexpr auto converting_constructors =
       if (!funcType) return false;
       return !funcType->parameterTypes().empty();
     });
-
-class each_function : public std::ranges::view_interface<each_function> {
- public:
-  each_function() = default;
-
-  explicit each_function(Symbol* symbol) {
-    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
-      functions_ = &overloadSet->functions();
-    } else if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-      function_ = function;
-    }
-  }
-
-  [[nodiscard]] auto begin() const -> FunctionSymbol* const* {
-    if (functions_) return functions_->data();
-    if (function_) return &function_;
-    return nullptr;
-  }
-
-  [[nodiscard]] auto end() const -> FunctionSymbol* const* {
-    if (functions_) return functions_->data() + functions_->size();
-    if (function_) return &function_ + 1;
-    return nullptr;
-  }
-
- private:
-  const std::vector<FunctionSymbol*>* functions_ = nullptr;
-  FunctionSymbol* function_ = nullptr;
-};
 
 template <std::ranges::input_range R, typename Pred>
   requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&

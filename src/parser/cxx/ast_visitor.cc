@@ -156,6 +156,9 @@ void ASTVisitor::visit(TemplateDeclarationAST* ast) {
 void ASTVisitor::visit(ConceptDefinitionAST* ast) { accept(ast->expression); }
 
 void ASTVisitor::visit(DeductionGuideAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->explicitSpecifier);
   accept(ast->parameterDeclarationClause);
   accept(ast->templateId);

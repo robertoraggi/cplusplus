@@ -5,8 +5,8 @@ struct Pair {
   int second;
 
   constexpr Pair(int a, int b) : first(a), second(b) {}
-  constexpr int sum() { return first + second; }
-  constexpr int product() { return first * second; }
+  constexpr int sum() const { return first + second; }
+  constexpr int product() const { return first * second; }
 };
 
 constexpr Pair p(3, 7);
@@ -28,7 +28,7 @@ struct Point {
   int y;
 
   constexpr Point(int ax, int ay) : x(ax), y(ay) {}
-  constexpr int manhattan() { return x + y; }
+  constexpr int manhattan() const { return x + y; }
 };
 
 constexpr Point pt(4, 5);

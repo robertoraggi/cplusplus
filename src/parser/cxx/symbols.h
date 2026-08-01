@@ -62,6 +62,8 @@ struct PendingBodyInstantiation {
 [[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
+
+[[nodiscard]] auto template_name_symbol(Symbol* symbol) -> Symbol*;
 template <typename S>
 class MaybeRedecl {
  public:
@@ -310,6 +312,15 @@ class Symbol {
   [[nodiscard]] auto isHidden() const -> bool { return isHidden_; }
   void setHidden(bool isHidden) { isHidden_ = isHidden; }
 
+  [[nodiscard]] auto abiTags() const -> std::span<const Identifier* const>;
+
+  [[nodiscard]] auto abiTagList() const
+      -> const std::vector<const Identifier*>* {
+    return abiTags_;
+  }
+
+  void setAbiTags(const std::vector<const Identifier*>* abiTags);
+
   [[nodiscard]] auto canonical() const -> Symbol*;
 
   [[nodiscard]] auto definition() const -> Symbol*;
@@ -335,6 +346,7 @@ class Symbol {
   const Type* type_ = nullptr;
   ScopeSymbol* parent_ = nullptr;
   Symbol* link_ = nullptr;
+  const std::vector<const Identifier*>* abiTags_ = nullptr;
   SourceLocation location_;
   bool isHidden_ = false;
 };
@@ -617,15 +629,21 @@ class ClassSymbol final : public ScopeSymbol,
 
   void addConstructor(FunctionSymbol* constructor);
 
+  [[nodiscard]] auto constructorOverloadSet() const -> OverloadSetSymbol* {
+    return constructorOverloadSet_;
+  }
+
+  void setConstructorOverloadSet(OverloadSetSymbol* overloadSet) {
+    constructorOverloadSet_ = overloadSet;
+  }
+
   [[nodiscard]] auto deductionGuides() const
       -> const std::vector<DeductionGuideSymbol*>&;
 
   void addDeductionGuide(DeductionGuideSymbol* guide);
 
   [[nodiscard]] auto conversionFunctions() const
-      -> const std::vector<FunctionSymbol*>&;
-
-  void addConversionFunction(FunctionSymbol* conversionFunction);
+      -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto destructor() const -> FunctionSymbol*;
   [[nodiscard]] auto defaultConstructor() const -> FunctionSymbol*;
@@ -693,9 +711,8 @@ class ClassSymbol final : public ScopeSymbol,
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
-  std::vector<FunctionSymbol*> constructors_;
+  OverloadSetSymbol* constructorOverloadSet_ = nullptr;
   std::vector<DeductionGuideSymbol*> deductionGuides_;
-  std::vector<FunctionSymbol*> conversionFunctions_;
   std::unique_ptr<ClassLayout> layout_;
   std::unique_ptr<VTableLayout> vtableLayout_;
   FieldSymbol* capturedThisField_ = nullptr;
@@ -910,13 +927,22 @@ class OverloadSetSymbol final : public Symbol {
   explicit OverloadSetSymbol(ScopeSymbol* enclosingScope);
   ~OverloadSetSymbol() override;
 
-  [[nodiscard]] auto functions() const -> const std::vector<FunctionSymbol*>&;
+  [[nodiscard]] auto functions() const -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto declaredFunctions() const
+      -> const std::vector<FunctionSymbol*>&;
 
   void setFunctions(std::vector<FunctionSymbol*> functions);
   void addFunction(FunctionSymbol* function);
 
+  [[nodiscard]] auto usingDeclarations() const
+      -> const std::vector<UsingDeclarationSymbol*>&;
+
+  void addUsingDeclaration(UsingDeclarationSymbol* usingDeclaration);
+
  private:
-  std::vector<FunctionSymbol*> functions_;
+  std::vector<FunctionSymbol*> declaredFunctions_;
+  std::vector<UsingDeclarationSymbol*> usingDeclarations_;
 };
 
 class LambdaSymbol final : public ScopeSymbol {
@@ -1271,9 +1297,13 @@ class UsingDeclarationSymbol final : public Symbol {
   [[nodiscard]] auto target() const -> Symbol*;
   void setTarget(Symbol* symbol);
 
+  [[nodiscard]] auto introducedFunctions() const
+      -> const std::vector<FunctionSymbol*>&;
+
  private:
   Symbol* target_ = nullptr;
   UsingDeclaratorAST* declarator_ = nullptr;
+  std::vector<FunctionSymbol*> introducedFunctions_;
 };
 
 bool is_type(Symbol* symbol);

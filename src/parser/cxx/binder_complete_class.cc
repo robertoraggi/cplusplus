@@ -71,6 +71,7 @@ struct [[nodiscard]] Binder::CompleteClass {
   void addFunctionToClassScope(FunctionSymbol* symbol);
   auto hasUserDeclaredAssignmentOperator(bool moveForm) const -> bool;
   void addDefaultConstructor();
+  [[nodiscard]] auto defaultConstructorIsDeleted() const -> bool;
   void addCopyConstructor();
   void addMoveConstructor();
   void addCopyAssignmentOperator();
@@ -288,22 +289,49 @@ auto Binder::CompleteClass::makeCtorNameId() -> NameIdAST* {
 }
 
 void Binder::CompleteClass::addFunctionToClassScope(FunctionSymbol* symbol) {
-  auto name = symbol->name();
-  for (auto existing : classSymbol->find(name)) {
-    if (auto os = symbol_cast<OverloadSetSymbol>(existing)) {
-      os->addFunction(symbol);
-      return;
-    }
-    if (auto func = symbol_cast<FunctionSymbol>(existing)) {
-      auto os = control()->newOverloadSetSymbol(classSymbol, func->location());
-      os->setName(name);
-      os->addFunction(func);
-      os->addFunction(symbol);
-      classSymbol->replaceSymbol(func, os);
-      return;
-    }
+  binder.overloadSetFor(classSymbol, symbol->name(), symbol->location())
+      ->addFunction(symbol);
+}
+
+auto Binder::CompleteClass::defaultConstructorIsDeleted() const -> bool {
+  auto traits = binder.traits;
+
+  auto subobjectIsNotDefaultConstructible = [&](const Type* type) {
+    auto classType = type_cast<ClassType>(traits.remove_cv(type));
+    if (!classType || !classType->symbol()) return false;
+    auto subobject = classType->symbol()->resolvedDefinition();
+    if (!subobject->isComplete()) return false;
+
+    if (auto destructor = subobject->destructor();
+        destructor && destructor->isDeleted())
+      return true;
+
+    if (subobject->constructors().empty()) return false;
+
+    auto defaultConstructor = subobject->defaultConstructor();
+    return !defaultConstructor || defaultConstructor->isDeleted();
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass && subobjectIsNotDefaultConstructible(baseClass->type()))
+      return true;
   }
-  classSymbol->addSymbol(symbol);
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    if (field->initializer()) continue;
+
+    auto type = field->type();
+    if (traits.is_reference(type)) return true;
+
+    auto element = traits.remove_all_extents(type);
+    if (traits.is_const(element) && !traits.is_class(traits.remove_cv(element)))
+      return true;
+
+    if (subobjectIsNotDefaultConstructible(element)) return true;
+  }
+
+  return false;
 }
 
 void Binder::CompleteClass::addDefaultConstructor() {
@@ -312,6 +340,7 @@ void Binder::CompleteClass::addDefaultConstructor() {
   auto symbol = newDefaultedFunction(
       classSymbol->name(),
       control()->getFunctionType(control()->getVoidType(), {}));
+  if (defaultConstructorIsDeleted()) symbol->setDeleted(true);
   classSymbol->addConstructor(symbol);
   attachDeclaration(symbol, makeCtorNameId());
 }

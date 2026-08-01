@@ -281,6 +281,9 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
    * @param context The context.
    */
   visitDeductionGuide(node: ast.DeductionGuideAST, context: Context): void {
+    for (const element of node.getAttributeList()) {
+      this.accept(element, context);
+    }
     this.accept(node.getExplicitSpecifier(), context);
     this.accept(node.getParameterDeclarationClause(), context);
     this.accept(node.getTemplateId(), context);

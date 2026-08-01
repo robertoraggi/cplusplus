@@ -2,6 +2,7 @@
 
 // clang-format off
 
+// expected-note@+1 {{candidate function not viable: no known conversion from 'decltype(nullptr)' to 'bool' for argument 1}}
 void takes_bool(bool);
 
 void test_int_to_bool() {
@@ -64,6 +65,6 @@ void test_member_data_ptr_to_bool() {
 }
 
 void test_nullptr_to_bool() {
-  // expected-error@+1 {{invalid argument of type 'decltype(nullptr)' for parameter of type 'bool'}}
+  // expected-error@+1 {{no matching function for call to 'takes_bool'}}
   takes_bool(nullptr);
 }

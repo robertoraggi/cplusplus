@@ -320,20 +320,11 @@ void ASTRewriter::UnqualifiedIdVisitor::substituteTemplateTemplateParameter(
     if (!rewrite.elementIndex_.has_value()) return;
     auto elemIdx = *rewrite.elementIndex_;
     if (elemIdx >= static_cast<int>(pack->elements().size())) return;
-    auto elemSym = pack->elements()[elemIdx];
-    if (auto alias = symbol_cast<TypeAliasSymbol>(elemSym)) {
-      if (alias->templateParameters()) {
-        copy->symbol = alias;
-      } else if (auto classType = type_cast<ClassType>(alias->type())) {
-        copy->symbol = classType->symbol();
-      }
+    if (auto templateName = template_name_symbol(pack->elements()[elemIdx])) {
+      copy->symbol = templateName;
     }
-  } else if (auto alias = symbol_cast<TypeAliasSymbol>(*sym)) {
-    if (alias->templateParameters()) {
-      copy->symbol = alias;
-    } else if (auto classType = type_cast<ClassType>(alias->type())) {
-      copy->symbol = classType->symbol();
-    }
+  } else if (auto templateName = template_name_symbol(*sym)) {
+    copy->symbol = templateName;
   }
 }
 
@@ -536,6 +527,19 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   return copy;
 }
 
+namespace {
+[[nodiscard]] auto templateNameOfTypeId(TypeIdAST* typeId) -> Symbol* {
+  if (!typeId) return nullptr;
+  for (auto spec : ListView{typeId->typeSpecifierList}) {
+    auto named = ast_cast<NamedTypeSpecifierAST>(spec);
+    if (!named) continue;
+    if (!ast_cast<NameIdAST>(named->unqualifiedId)) return nullptr;
+    return template_name_symbol(named->symbol);
+  }
+  return nullptr;
+}
+}  // namespace
+
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     TemplateNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
   auto copy = TemplateNestedNameSpecifierAST::create(arena());
@@ -553,6 +557,11 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   if (copy->templateId) {
     for (auto arg : ListView{copy->templateId->templateArgumentList}) {
       if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+        if (auto templateName = templateNameOfTypeId(typeArg->typeId)) {
+          if (!symbol_cast<TemplateTypeParameterSymbol>(templateName)) continue;
+          hasDependentArgs = true;
+          break;
+        }
         if (isDependent(rewrite.unit_, typeArg->typeId)) {
           hasDependentArgs = true;
           break;
