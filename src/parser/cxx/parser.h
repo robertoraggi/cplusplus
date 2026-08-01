@@ -448,7 +448,7 @@ class Parser final {
 
   [[nodiscard]] auto parse_notypespec_function_definition(
       DeclarationAST*& yyast, List<SpecifierAST*>* declSpecifierList,
-      const DeclSpecs& specs) -> bool;
+      const DeclSpecs& specs, List<AttributeSpecifierAST*>* attributes) -> bool;
 
   [[nodiscard]] auto parse_type_or_forward_declaration(
       DeclarationAST*& yyast, List<AttributeSpecifierAST*>* attributes,
@@ -756,6 +756,10 @@ class Parser final {
       std::vector<TemplateDeclarationAST*>& chain) -> bool;
   void parse_template_parameter_list(List<TemplateParameterAST*>*& yyast);
   [[nodiscard]] auto parse_requires_clause(RequiresClauseAST*& yyast) -> bool;
+
+  [[nodiscard]] auto parse_trailing_requires_clause(
+      FunctionDeclaratorChunkAST* functionDeclarator, RequiresClauseAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_constraint_logical_or_expression(
       ExpressionAST*& yyast, const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_constraint_logical_and_expression(

@@ -31,6 +31,8 @@
 namespace cxx {
 class TranslationUnit;
 
+[[nodiscard]] auto isUntypedAfterError(ExpressionAST* expr) -> bool;
+
 class TypeChecker {
  public:
   explicit TypeChecker(TranslationUnit* unit);
@@ -121,6 +123,7 @@ class TypeChecker {
 
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
+  void note(SourceLocation loc, std::string message);
   void reportDeletedFunction(FunctionSymbol* function, SourceLocation loc);
 
   void reportDeletedConversion(ExpressionAST* expr);

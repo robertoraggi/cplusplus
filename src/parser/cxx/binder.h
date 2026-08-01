@@ -194,9 +194,9 @@ class Binder {
 
   void bind(TypeIdAST* ast, const Decl& decl);
 
-  void bind(IdExpressionAST* ast);
+  void bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup);
 
-  void resolveIdExpression(IdExpressionAST* ast);
+  void resolveIdExpression(IdExpressionAST* ast, bool isCallee);
 
   void qualifiedLookupIdExpression(IdExpressionAST* ast);
 
@@ -253,7 +253,20 @@ class Binder {
   [[nodiscard]] auto lookupCaptureName(ScopeSymbol* scope, const Name* name)
       -> Symbol*;
 
+  [[nodiscard]] auto isCapturableLocalEntity(Symbol* symbol) -> bool;
+
+  [[nodiscard]] auto checkCapturedEntity(Symbol* symbol,
+                                         const Identifier* identifier,
+                                         SourceLocation loc) -> bool;
+
   [[nodiscard]] auto enclosingThisType(ScopeSymbol* scope) -> const Type*;
+
+  [[nodiscard]] auto abiTags(List<AttributeSpecifierAST*>* attributes)
+      -> std::vector<const Identifier*>;
+
+  void applyAbiTags(Symbol* symbol, List<AttributeSpecifierAST*>* attributes);
+
+  void applyAbiTags(SimpleDeclarationAST* ast);
 
   [[nodiscard]] auto usesImplicitThis(StatementAST* stmt) -> bool;
 
@@ -262,12 +275,33 @@ class Binder {
                                             SourceLocation loc)
       -> ThisLambdaCaptureAST*;
 
+  void addImplicitCaptures(LambdaExpressionAST* ast, ClassSymbol* classSymbol);
+
+  [[nodiscard]] auto namesOwnTemplateParameters(SimpleTemplateIdAST* templateId,
+                                                ClassSymbol* classSymbol)
+      -> bool;
+
+  [[nodiscard]] auto denotesCurrentInstantiation(
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      ClassSymbol* currentInstantiation) -> bool;
+
+  [[nodiscard]] auto currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol*;
+
+  [[nodiscard]] auto resolveMemberOfCurrentInstantiation(
+      const Type* type, ClassSymbol* currentInstantiation) -> const Type*;
+
  private:
   struct BindClass;
   struct BuildRecordLayout;
   struct CompleteClass;
   struct DeclareFunction;
   struct ResolveUnqualifiedId;
+
+  void declareArgumentDependentCallee(IdExpressionAST* ast);
+
+  [[nodiscard]] auto overloadSetFor(ScopeSymbol* scope, const Name* name,
+                                    SourceLocation location)
+      -> OverloadSetSymbol*;
 
  private:
   TranslationUnit* unit_ = nullptr;

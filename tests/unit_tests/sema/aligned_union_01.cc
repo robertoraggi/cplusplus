@@ -1,9 +1,6 @@
 // clang-format off
 // RUN: %cxx -verify -fcheck %s
 
-// Test: static const members with dependent initializers used as NTTP args
-// in a nested template NNS should not trigger premature instantiation.
-
 using size_t = decltype(sizeof(0));
 
 template <size_t _I0, size_t... _In>

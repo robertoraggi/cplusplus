@@ -138,6 +138,7 @@ struct Control::Private {
   std::set<UnsignedBitIntType> unsignedBitIntTypes;
   std::set<UnresolvedBitIntType> unresolvedBitIntTypes;
 
+  std::set<std::vector<const Identifier*>> abiTags;
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
   std::forward_list<DeductionGuideSymbol> deductionGuideSymbols;
@@ -637,6 +638,7 @@ auto Control::newClassSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
   auto symbol = &d->classSymbols.emplace_front(enclosingScope);
   symbol->setType(getClassType(symbol));
   symbol->setLocation(loc);
+  symbol->setConstructorOverloadSet(newOverloadSetSymbol(symbol, loc));
   return symbol;
 }
 
@@ -713,6 +715,12 @@ auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
   auto symbol = &d->variableSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
+}
+
+auto Control::getAbiTags(std::vector<const Identifier*> tags)
+    -> const std::vector<const Identifier*>* {
+  if (tags.empty()) return nullptr;
+  return &*d->abiTags.insert(std::move(tags)).first;
 }
 
 auto Control::newFieldSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)

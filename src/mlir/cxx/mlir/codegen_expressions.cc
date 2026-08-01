@@ -504,20 +504,15 @@ auto Codegen::ExpressionVisitor::operator()(ThisExpressionAST* ast)
     -> ExpressionResult {
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(
-          gen.currentFunctionSymbol_ ? gen.currentFunctionSymbol_->parent()
-                                     : nullptr)) {
-    if (auto capturedThisField = classSymbol->capturedThisField()) {
-      auto access =
-          emitThisFieldAddress(capturedThisField, ast->firstSourceLocation());
-      if (access) {
-        auto [fieldAddr, info] = *access;
-        auto ptrType = gen.convertType(ast->type);
-        auto loadOp = mlir::cxx::LoadOp::create(
-            gen.builder_, loc, ptrType, fieldAddr,
-            gen.getAlignment(capturedThisField->type()));
-        return {loadOp};
-      }
+  if (auto thisClassType = type_cast<ClassType>(gen.traits.remove_cv(
+          gen.traits.get_element_type(gen.traits.remove_cv(ast->type))));
+      thisClassType && thisClassType->symbol()) {
+    auto thisClass = thisClassType->symbol()->resolvedDefinition();
+
+    ClassSymbol* objectClass = nullptr;
+    if (auto object = gen.loadEnclosingObject(loc, thisClass, objectClass);
+        object) {
+      return {gen.navigateToClass(loc, object, objectClass, thisClass)};
     }
   }
 
@@ -1069,16 +1064,9 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
         auto classSymbol = symbol_cast<ClassSymbol>(
             functionSymbol->enclosingNonTemplateParametersScope());
 
-        auto currentClass = classSymbol;
-        if (gen.currentFunctionSymbol_) {
-          if (auto enclosing = symbol_cast<ClassSymbol>(
-                  gen.currentFunctionSymbol_
-                      ->enclosingNonTemplateParametersScope())) {
-            currentClass = enclosing;
-          }
-        }
-
-        auto loadedThis = gen.loadThisPointer(loc, currentClass);
+        ClassSymbol* currentClass = nullptr;
+        auto loadedThis =
+            gen.loadEnclosingObject(loc, classSymbol, currentClass);
 
         auto adjustedThis = gen.emitBaseClassAddress(loc, loadedThis,
                                                      currentClass, classSymbol);
@@ -1377,16 +1365,8 @@ auto Codegen::ExpressionVisitor::emitThisFieldAddress(FieldSymbol* field,
 
   auto loc = gen.getLocation(srcLoc);
 
-  auto currentClass = classSymbol;
-  if (gen.currentFunctionSymbol_) {
-    if (auto enclosing = symbol_cast<ClassSymbol>(
-            gen.currentFunctionSymbol_
-                ->enclosingNonTemplateParametersScope())) {
-      currentClass = enclosing;
-    }
-  }
-
-  auto thisPtr = gen.loadThisPointer(loc, currentClass);
+  ClassSymbol* currentClass = nullptr;
+  auto thisPtr = gen.loadEnclosingObject(loc, classSymbol, currentClass);
 
   auto adjustedThis =
       gen.navigateToClass(loc, thisPtr, currentClass, classSymbol);

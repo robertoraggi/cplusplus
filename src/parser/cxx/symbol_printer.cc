@@ -311,7 +311,10 @@ struct DumpSymbols {
   }
 
   void operator()(OverloadSetSymbol* symbol) {
-    for (auto function : symbol->functions()) {
+    for (auto usingDeclaration : symbol->usingDeclarations())
+      visit(*this, usingDeclaration);
+
+    for (auto function : symbol->declaredFunctions()) {
       if (function->canonical() != function) continue;
       visit(*this, function);
     }
@@ -345,6 +348,7 @@ struct DumpSymbols {
     if (symbol->isDeleted()) out << " deleted";
     if (symbol->isDefaulted()) out << " defaulted";
     if (symbol->hasCLinkage()) out << " extern \"C\"";
+    dumpAbiTags(symbol);
 
     out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
 
@@ -403,6 +407,12 @@ struct DumpSymbols {
     dumpRedeclarations(symbol);
   }
 
+  void dumpAbiTags(Symbol* symbol) {
+    for (auto tag : symbol->abiTags()) {
+      out << std::format(" [abi:{}]", tag->name());
+    }
+  }
+
   void operator()(VariableSymbol* symbol) {
     indent();
 
@@ -416,6 +426,7 @@ struct DumpSymbols {
     if (symbol->isConstexpr()) out << " constexpr";
     if (symbol->isConstinit()) out << " constinit";
     if (symbol->isInline()) out << " inline";
+    dumpAbiTags(symbol);
 
     out << std::format(" {}", to_string(symbol->type(), symbol->name()));
 
@@ -519,14 +530,24 @@ struct DumpSymbols {
   }
 
   void operator()(UsingDeclarationSymbol* symbol) {
-    indent();
+    auto target = symbol->target();
 
-    if (auto target = symbol->target()) {
-      out << std::format("using {}\n",
-                         to_string(target->type(), target->name()));
-    } else {
+    if (!target) {
+      indent();
       out << std::format("using unresolved {}\n", to_string(symbol->name()));
+      return;
     }
+
+    for (auto introduced : symbol->introducedFunctions()) {
+      indent();
+      out << std::format("using {}\n",
+                         to_string(introduced->type(), introduced->name()));
+    }
+
+    if (!symbol->introducedFunctions().empty()) return;
+
+    indent();
+    out << std::format("using {}\n", to_string(target->type(), target->name()));
   }
 };
 }  // namespace

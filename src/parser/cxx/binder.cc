@@ -27,6 +27,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
@@ -344,10 +345,17 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
 }
 
 void Binder::bind(DecltypeSpecifierAST* ast) {
-  if (auto id = ast_cast<IdExpressionAST>(ast->expression)) {
-    if (id->symbol) ast->type = id->symbol->type();
-  } else if (auto member = ast_cast<MemberExpressionAST>(ast->expression)) {
-    if (member->symbol) ast->type = member->symbol->type();
+  auto namedSymbol = [&]() -> Symbol* {
+    if (auto id = ast_cast<IdExpressionAST>(ast->expression)) return id->symbol;
+    if (auto member = ast_cast<MemberExpressionAST>(ast->expression))
+      return member->symbol;
+    return nullptr;
+  }();
+
+  if (symbol_cast<OverloadSetSymbol>(namedSymbol)) {
+    ast->type = ast->expression->type;
+  } else if (namedSymbol) {
+    ast->type = namedSymbol->type();
   } else if (ast->expression && ast->expression->type) {
     if (isCxx() && is_lvalue(ast->expression)) {
       ast->type = traits.add_lvalue_reference(ast->expression->type);
@@ -547,7 +555,20 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   symbol->setDeclarator(ast);
   symbol->setTarget(target);
 
-  scope()->addSymbol(symbol);
+  const auto joinsAnOverloadSet =
+      !symbol->introducedFunctions().empty() &&
+      std::ranges::any_of(scope()->find(name), [](Symbol* candidate) {
+        return symbol_cast<FunctionSymbol>(candidate) ||
+               symbol_cast<OverloadSetSymbol>(candidate);
+      });
+
+  if (!joinsAnOverloadSet) {
+    scope()->addSymbol(symbol);
+    return;
+  }
+
+  overloadSetFor(scope(), name, symbol->location())
+      ->addUsingDeclaration(symbol);
 }
 
 void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
@@ -802,6 +823,36 @@ auto Binder::lookupCaptureName(ScopeSymbol* scope, const Name* name)
   return nullptr;
 }
 
+auto Binder::isCapturableLocalEntity(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (symbol_cast<ParameterSymbol>(symbol)) return true;
+  if (symbol_cast<ParameterPackSymbol>(symbol)) return true;
+  auto var = symbol_cast<VariableSymbol>(symbol);
+  if (!var) return false;
+  if (var->isStatic() || var->isExtern() || var->isThreadLocal()) return false;
+  return var->enclosingFunction() != nullptr;
+}
+
+auto Binder::checkCapturedEntity(Symbol* symbol, const Identifier* identifier,
+                                 SourceLocation loc) -> bool {
+  if (isCapturableLocalEntity(symbol)) return true;
+
+  if (symbol_cast<FieldSymbol>(symbol)) {
+    error(loc, std::format("class member '{}' cannot appear in capture list "
+                           "as it is not a variable",
+                           identifier->name()));
+  } else if (symbol_cast<VariableSymbol>(symbol)) {
+    error(loc, std::format("'{}' cannot be captured because it does not have "
+                           "automatic storage duration",
+                           identifier->name()));
+  } else {
+    error(loc, std::format("'{}' in capture list does not name a variable",
+                           identifier->name()));
+  }
+
+  return false;
+}
+
 auto Binder::enclosingThisType(ScopeSymbol* scope) -> const Type* {
   for (auto current = scope; current; current = current->parent()) {
     if (auto classSymbol = symbol_cast<ClassSymbol>(current)) {
@@ -839,13 +890,162 @@ auto Binder::enclosingThisType(ScopeSymbol* scope) -> const Type* {
 }
 
 namespace {
+[[nodiscard]] auto namesNonStaticMember(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+
+  if (auto field = symbol_cast<FieldSymbol>(symbol)) return !field->isStatic();
+
+  return std::ranges::any_of(
+      views::each_function(symbol), [](FunctionSymbol* function) {
+        return function->isImplicitObjectMemberFunction();
+      });
+}
+
+[[nodiscard]] auto formsPointerToMember(UnaryExpressionAST* ast) -> bool {
+  if (ast->op != TokenKind::T_AMP) return false;
+  auto id = ast_cast<IdExpressionAST>(ast->expression);
+  return id && id->nestedNameSpecifier && namesNonStaticMember(id->symbol);
+}
+
 struct ThisUseFinder : ASTVisitor {
   bool found = false;
 
   void visit(ThisExpressionAST*) override { found = true; }
-  void visit(LambdaExpressionAST*) override {}
+  void visit(DerefThisLambdaCaptureAST*) override { found = true; }
+
+  void visit(IdExpressionAST* ast) override {
+    if (namesNonStaticMember(ast->symbol)) found = true;
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(UnaryExpressionAST* ast) override {
+    if (formsPointerToMember(ast)) return;
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(LambdaExpressionAST* ast) override {
+    for (auto capture : ListView{ast->captureList}) accept(capture);
+  }
+};
+
+[[nodiscard]] auto isUsableInConstantExpressions(Symbol* symbol) -> bool {
+  auto var = symbol_cast<VariableSymbol>(symbol);
+  if (!var || !var->constValue().has_value()) return false;
+  if (var->isConstexpr()) return true;
+  auto qualType = type_cast<QualType>(var->type());
+  return qualType && qualType->isConst();
+}
+
+struct OdrUsedLocalFinder : ASTVisitor {
+  std::vector<IdExpressionAST*> uses;
+
+  void visit(IdExpressionAST* ast) override {
+    if (ast->nestedNameSpecifier) return;
+    if (ast->symbol) uses.push_back(ast);
+  }
+
+  void visit(ImplicitCastExpressionAST* ast) override {
+    if (ast->castKind == ImplicitCastKind::kLValueToRValueConversion) {
+      auto id = ast_cast<IdExpressionAST>(ast->expression);
+      if (id && isUsableInConstantExpressions(id->symbol)) return;
+    }
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SizeofExpressionAST*) override {}
+  void visit(SizeofPackExpressionAST*) override {}
+  void visit(AlignofExpressionAST*) override {}
+  void visit(NoexceptExpressionAST*) override {}
+  void visit(DecltypeSpecifierAST*) override {}
+  void visit(RequiresExpressionAST*) override {}
 };
 }  // namespace
+
+auto Binder::abiTags(List<AttributeSpecifierAST*>* attributes)
+    -> std::vector<const Identifier*> {
+  std::vector<const Identifier*> tags;
+
+  auto namesAbiTag = [&](SourceLocation loc) {
+    auto id = unit_->identifier(loc);
+    return id && (id->name() == "abi_tag" || id->name() == "__abi_tag__");
+  };
+
+  bool foundAbiTag = false;
+
+  auto collectTags = [&](SourceLocation begin, SourceLocation end) {
+    bool inAbiTagArguments = false;
+
+    for (auto loc = begin; loc && loc < end; loc = loc.next()) {
+      if (foundAbiTag) return;
+
+      const auto tokenKind = unit_->tokenKind(loc);
+
+      if (tokenKind == TokenKind::T_IDENTIFIER) {
+        inAbiTagArguments = namesAbiTag(loc);
+        continue;
+      }
+
+      if (!inAbiTagArguments) continue;
+
+      if (tokenKind == TokenKind::T_RPAREN) {
+        foundAbiTag = true;
+        return;
+      }
+
+      if (tokenKind != TokenKind::T_STRING_LITERAL) continue;
+
+      auto literal = unit_->literal(loc);
+      if (!literal) continue;
+
+      auto components = StringLiteral::Components::from(
+          literal->value(), StringLiteralEncoding::kNone);
+
+      tags.push_back(control()->getIdentifier(components.value));
+    }
+  };
+
+  for (auto attribute : ListView{attributes}) {
+    if (foundAbiTag) break;
+
+    if (auto gccAttribute = ast_cast<GccAttributeAST>(attribute)) {
+      collectTags(gccAttribute->lparen2Loc, gccAttribute->rparenLoc);
+    } else if (auto cxxAttribute = ast_cast<CxxAttributeAST>(attribute)) {
+      collectTags(cxxAttribute->lbracketLoc, cxxAttribute->rbracketLoc);
+    }
+  }
+
+  std::ranges::sort(tags, {}, [](const Identifier* id) { return id->name(); });
+  tags.erase(std::ranges::unique(tags).begin(), tags.end());
+
+  return tags;
+}
+
+void Binder::applyAbiTags(Symbol* symbol,
+                          List<AttributeSpecifierAST*>* attributes) {
+  if (!symbol || !attributes) return;
+
+  auto tags = abiTags(attributes);
+  if (tags.empty()) return;
+
+  if (auto function = symbol_cast<FunctionSymbol>(symbol);
+      function && function->canonical() != function) {
+    auto canonicalTags = function->canonical()->abiTags();
+    if (!canonicalTags.empty()) return;
+  }
+
+  symbol->setAbiTags(control()->getAbiTags(std::move(tags)));
+}
+
+void Binder::applyAbiTags(SimpleDeclarationAST* ast) {
+  if (!ast || !ast->attributeList) return;
+
+  auto interned = control()->getAbiTags(abiTags(ast->attributeList));
+  if (!interned) return;
+
+  for (auto initDeclarator : ListView{ast->initDeclaratorList}) {
+    if (initDeclarator->symbol) initDeclarator->symbol->setAbiTags(interned);
+  }
+}
 
 auto Binder::usesImplicitThis(StatementAST* stmt) -> bool {
   if (!stmt) return false;
@@ -884,6 +1084,140 @@ auto Binder::addImplicitThisCapture(ClassSymbol* classSymbol,
   thisExpr->valueCategory = ValueCategory::kPrValue;
 
   return ThisLambdaCaptureAST::create(ar, loc, thisExpr);
+}
+
+void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
+                                 ClassSymbol* classSymbol) {
+  auto ar = unit_->arena();
+  auto loc = ast->lbracketLoc;
+  const auto hasCaptureDefault = ast->captureDefault != TokenKind::T_EOF_SYMBOL;
+  const auto byCopy = ast->captureDefault == TokenKind::T_EQUAL;
+
+  OdrUsedLocalFinder finder;
+  finder.accept(ast->statement);
+
+  auto isDeclaredInsideClosure = [&](Symbol* symbol) {
+    for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
+      if (scope == classSymbol || scope == ast->symbol) return true;
+    }
+    return false;
+  };
+
+  std::unordered_set<const Identifier*> explicitlyCaptured;
+  for (auto captureNode : ListView{ast->captureList}) {
+    if (auto simple = ast_cast<SimpleLambdaCaptureAST>(captureNode)) {
+      explicitlyCaptured.insert(simple->identifier);
+    } else if (auto ref = ast_cast<RefLambdaCaptureAST>(captureNode)) {
+      explicitlyCaptured.insert(ref->identifier);
+    } else if (auto init = ast_cast<InitLambdaCaptureAST>(captureNode)) {
+      explicitlyCaptured.insert(init->identifier);
+    } else if (auto refInit = ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
+      explicitlyCaptured.insert(refInit->identifier);
+    }
+  }
+
+  auto tail = &ast->captureList;
+  while (*tail) tail = &(*tail)->next;
+
+  std::unordered_map<Symbol*, FieldSymbol*> captured;
+  std::unordered_set<Symbol*> reportedUncapturable;
+  std::vector<const Type*> capturedTypes;
+
+  for (auto use : finder.uses) {
+    auto outerSymbol = use->symbol;
+
+    if (auto known = captured.find(outerSymbol); known != captured.end()) {
+      use->symbol = known->second;
+      continue;
+    }
+
+    if (!isCapturableLocalEntity(outerSymbol)) continue;
+    if (isDeclaredInsideClosure(outerSymbol)) continue;
+
+    auto elementType = traits.remove_reference(outerSymbol->type());
+    if (!elementType) continue;
+
+    auto fieldType =
+        byCopy ? elementType : control()->getLvalueReferenceType(elementType);
+
+    auto identifier = name_cast<Identifier>(outerSymbol->name());
+    if (!identifier) continue;
+    if (explicitlyCaptured.contains(identifier)) continue;
+
+    if (!hasCaptureDefault) {
+      if (!reportedUncapturable.insert(outerSymbol).second) continue;
+      error(use->firstSourceLocation(),
+            std::format("variable '{}' cannot be implicitly captured in a "
+                        "lambda with no capture-default specified",
+                        identifier->name()));
+      continue;
+    }
+
+    if (byCopy && type_cast<ClassType>(fieldType) &&
+        !traits.is_trivially_copyable(fieldType)) {
+      error(use->firstSourceLocation(),
+            std::format("capturing '{}' by value is not yet supported for "
+                        "non-trivially-copyable class types",
+                        identifier->name()));
+      continue;
+    }
+
+    auto idExpr = IdExpressionAST::create(ar);
+    idExpr->unqualifiedId = NameIdAST::create(ar, identifier);
+    idExpr->symbol = outerSymbol;
+    idExpr->type = elementType;
+    idExpr->valueCategory = ValueCategory::kLValue;
+
+    ExpressionAST* initializer = idExpr;
+    if (byCopy) (void)StandardConversion{unit_}.lvalueToRvalue(initializer);
+
+    auto field = control()->newFieldSymbol(classSymbol, loc);
+    field->setName(identifier);
+    field->setType(fieldType);
+    if (auto alignment = control()->memoryLayout()->alignmentOf(fieldType)) {
+      field->setAlignment(alignment.value());
+    }
+    classSymbol->addSymbol(field);
+    capturedTypes.push_back(fieldType);
+    captured.emplace(outerSymbol, field);
+
+    LambdaCaptureAST* capture = nullptr;
+    if (byCopy) {
+      auto simple = SimpleLambdaCaptureAST::create(ar);
+      simple->identifierLoc = loc;
+      simple->identifier = identifier;
+      simple->initializer = initializer;
+      capture = simple;
+    } else {
+      auto ref = RefLambdaCaptureAST::create(ar);
+      ref->ampLoc = loc;
+      ref->identifierLoc = loc;
+      ref->identifier = identifier;
+      ref->initializer = initializer;
+      capture = ref;
+    }
+
+    *tail = make_list_node<LambdaCaptureAST>(ar, capture);
+    tail = &(*tail)->next;
+
+    use->symbol = field;
+  }
+
+  if (capturedTypes.empty()) return;
+
+  const auto& ctors = classSymbol->constructors();
+  if (!ctors.empty()) {
+    auto ctorSymbol = ctors.front();
+    auto ctorType = type_cast<FunctionType>(ctorSymbol->type());
+    auto paramTypes = ctorType->parameterTypes();
+    paramTypes.insert(paramTypes.end(), capturedTypes.begin(),
+                      capturedTypes.end());
+    ctorSymbol->setType(
+        control()->getFunctionType(control()->getVoidType(), paramTypes));
+  }
+
+  auto status = buildRecordLayout(classSymbol);
+  if (!status.has_value()) error(loc, status.error());
 }
 
 void Binder::bind(LambdaExpressionAST* ast) {
@@ -1017,8 +1351,13 @@ void Binder::complete(LambdaExpressionAST* ast) {
       if (auto simple = ast_cast<SimpleLambdaCaptureAST>(captureNode)) {
         auto outerSymbol = lookupCaptureName(parentScope, simple->identifier);
         if (!outerSymbol) {
-          error(captureLoc, std::format("use of undeclared identifier '{}'",
-                                        simple->identifier->name()));
+          error(simple->identifierLoc,
+                std::format("use of undeclared identifier '{}'",
+                            simple->identifier->name()));
+          continue;
+        }
+        if (!checkCapturedEntity(outerSymbol, simple->identifier,
+                                 simple->identifierLoc)) {
           continue;
         }
         auto fieldType = traits.remove_reference(outerSymbol->type());
@@ -1045,8 +1384,13 @@ void Binder::complete(LambdaExpressionAST* ast) {
       } else if (auto ref = ast_cast<RefLambdaCaptureAST>(captureNode)) {
         auto outerSymbol = lookupCaptureName(parentScope, ref->identifier);
         if (!outerSymbol) {
-          error(captureLoc, std::format("use of undeclared identifier '{}'",
-                                        ref->identifier->name()));
+          error(ref->identifierLoc,
+                std::format("use of undeclared identifier '{}'",
+                            ref->identifier->name()));
+          continue;
+        }
+        if (!checkCapturedEntity(outerSymbol, ref->identifier,
+                                 ref->identifierLoc)) {
           continue;
         }
         auto elementType = traits.remove_reference(outerSymbol->type());
@@ -1063,7 +1407,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
       } else if (auto th = ast_cast<ThisLambdaCaptureAST>(captureNode)) {
         auto thisType = enclosingThisType(parentScope);
         if (!thisType) {
-          error(captureLoc, "'this' capture outside of a member function");
+          error(captureLoc, "'this' cannot be captured in this context");
           continue;
         }
 
@@ -1079,8 +1423,8 @@ void Binder::complete(LambdaExpressionAST* ast) {
                      ast_cast<DerefThisLambdaCaptureAST>(captureNode)) {
         error(captureLoc, "capture of '*this' is not yet supported");
       } else if (auto initCap = ast_cast<InitLambdaCaptureAST>(captureNode)) {
-        if (!initCap->initializer) continue;
-        auto fieldType = traits.remove_reference(initCap->initializer->type);
+        if (!initCap->initializer || !initCap->initializer->type) continue;
+        auto fieldType = traits.decay(initCap->initializer->type);
         if (type_cast<ClassType>(fieldType) &&
             !traits.is_trivially_copyable(fieldType)) {
           error(captureLoc,
@@ -1092,7 +1436,9 @@ void Binder::complete(LambdaExpressionAST* ast) {
         addField(initCap->identifier, fieldType);
       } else if (auto refInitCap =
                      ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
-        if (!refInitCap->initializer) continue;
+        if (!refInitCap->initializer || !refInitCap->initializer->type) {
+          continue;
+        }
         auto elementType =
             traits.remove_reference(refInitCap->initializer->type);
         auto fieldType = control()->getLvalueReferenceType(elementType);
@@ -1123,7 +1469,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
       convFunc->setType(convFuncType);
       convFunc->setDefined(true);
       convFunc->setLanguageLinkage(LanguageKind::kCXX);
-      classSymbol->addConversionFunction(convFunc);
+      classSymbol->addSymbol(convFunc);
     }
 
     classSymbol->setComplete(true);
@@ -1162,6 +1508,8 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
       }
     }
   }
+
+  addImplicitCaptures(ast, classSymbol);
 
   FunctionSymbol* operatorFunc = nullptr;
   for (auto member : classSymbol->members()) {
@@ -1676,11 +2024,18 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
 
   if (name) {
     for (auto candidate : scope()->find(name)) {
-      if (auto existingField = symbol_cast<FieldSymbol>(candidate)) {
-        error(decl.location(),
-              std::format("duplicate member '{}'", to_string(name)));
-        return existingField;
-      }
+      auto existingField = symbol_cast<FieldSymbol>(candidate);
+      const bool collides = existingField ||
+                            symbol_cast<FunctionSymbol>(candidate) ||
+                            symbol_cast<OverloadSetSymbol>(candidate) ||
+                            symbol_cast<EnumeratorSymbol>(candidate);
+      if (!collides) continue;
+
+      error(decl.location(),
+            std::format("duplicate member '{}'", to_string(name)));
+
+      if (existingField) return existingField;
+      break;
     }
   }
 
@@ -2111,11 +2466,53 @@ auto isTemplateArgumentKindMatch(
 }
 }  // namespace
 
-void Binder::bind(IdExpressionAST* ast) {
+auto Binder::overloadSetFor(ScopeSymbol* scope, const Name* name,
+                            SourceLocation location) -> OverloadSetSymbol* {
+  for (auto candidate : scope->find(name)) {
+    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(candidate))
+      return overloadSet;
+
+    auto function = symbol_cast<FunctionSymbol>(candidate);
+    auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(candidate);
+    if (usingDeclaration && usingDeclaration->introducedFunctions().empty())
+      continue;
+    if (!function && !usingDeclaration) continue;
+
+    auto overloadSet = control()->newOverloadSetSymbol(scope, location);
+    overloadSet->setName(name);
+    if (function) overloadSet->addFunction(function);
+    if (usingDeclaration) overloadSet->addUsingDeclaration(usingDeclaration);
+    scope->replaceSymbol(candidate, overloadSet);
+    return overloadSet;
+  }
+
+  auto overloadSet = control()->newOverloadSetSymbol(scope, location);
+  overloadSet->setName(name);
+  scope->addSymbol(overloadSet);
+  return overloadSet;
+}
+
+void Binder::declareArgumentDependentCallee(IdExpressionAST* ast) {
+  auto name = get_name(control(), ast->unqualifiedId);
+  if (auto templateId = name_cast<TemplateId>(name)) name = templateId->name();
+  if (!name_cast<Identifier>(name) && !name_cast<OperatorId>(name)) return;
+
+  auto callee = control()->newOverloadSetSymbol(declaringScope(),
+                                                ast->firstSourceLocation());
+  callee->setName(name);
+  ast->symbol = callee;
+}
+
+void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
   if (!ast->unqualifiedId) {
     error(ast->firstSourceLocation(),
           "expected an unqualified identifier in id expression");
     return;
+  }
+
+  if (!ast->symbol && !ast->nestedNameSpecifier &&
+      mayUseArgumentDependentLookup) {
+    declareArgumentDependentCallee(ast);
   }
 
   if (ast->nestedNameSpecifier) {
@@ -2142,7 +2539,7 @@ void Binder::bind(IdExpressionAST* ast) {
     }
   }
 
-  resolveIdExpression(ast);
+  resolveIdExpression(ast, mayUseArgumentDependentLookup);
 }
 
 void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
@@ -2168,10 +2565,12 @@ void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
                                                 ast->symbol);
   }
 
-  resolveIdExpression(ast);
+  resolveIdExpression(ast, /*isCallee=*/false);
 }
 
-void Binder::resolveIdExpression(IdExpressionAST* ast) {
+void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
+  if (isArgumentDependentCallee(ast->symbol)) return;
+
   if (unit_->config().checkTypes) {
     if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
       auto templateIdName = get_name(control(), templateId);
@@ -2266,6 +2665,7 @@ void Binder::resolveIdExpression(IdExpressionAST* ast) {
         if (hasDeferredFunctionTemplate) return;
 
         if (templateSymbol && !inTemplate()) {
+          if (isCallee) return;
           if (reportErrors_) {
             error(templateId->firstSourceLocation(),
                   std::format("invalid template-id '{}'",
@@ -2280,6 +2680,7 @@ void Binder::resolveIdExpression(IdExpressionAST* ast) {
       if (!templateSymbol) {
         if (!inTemplate()) {
           if (hasTemplateCandidate) {
+            if (isCallee) return;
             error(templateId->firstSourceLocation(),
                   std::format("invalid template-id '{}'",
                               to_string(templateIdName)));
@@ -2309,6 +2710,139 @@ void Binder::resolveIdExpression(IdExpressionAST* ast) {
       }
     }
   }
+}
+
+auto Binder::namesOwnTemplateParameters(SimpleTemplateIdAST* templateId,
+                                        ClassSymbol* classSymbol) -> bool {
+  auto templateParameters = classSymbol->templateParameters();
+  if (!templateParameters) return false;
+
+  auto parameters = templateParameters->members();
+  auto parameter = parameters.begin();
+
+  for (auto argument : ListView{templateId->templateArgumentList}) {
+    if (parameter == parameters.end()) return false;
+    auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
+    if (!typeArgument || !typeArgument->typeId) return false;
+    if (typeArgument->typeId->type != (*parameter)->type()) return false;
+    ++parameter;
+  }
+
+  return parameter == parameters.end();
+}
+
+auto Binder::denotesCurrentInstantiation(NestedNameSpecifierAST* nns,
+                                         ClassSymbol* currentInstantiation)
+    -> bool {
+  if (!nns || !currentInstantiation) return false;
+  auto qualifier = symbol_cast<ClassSymbol>(nns->symbol);
+  if (!qualifier) return false;
+
+  auto enclosesCurrentInstantiation = false;
+  for (auto cls = currentInstantiation; cls;
+       cls = symbol_cast<ClassSymbol>(cls->parent())) {
+    if (cls == qualifier) {
+      enclosesCurrentInstantiation = true;
+      break;
+    }
+  }
+  if (!enclosesCurrentInstantiation) return false;
+
+  auto templateNns = ast_cast<TemplateNestedNameSpecifierAST>(nns);
+  if (!templateNns) return true;
+
+  return namesOwnTemplateParameters(templateNns->templateId, qualifier);
+}
+
+auto Binder::currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol* {
+  for (auto current = scope; current; current = current->parent()) {
+    if (auto classSymbol = symbol_cast<ClassSymbol>(current))
+      return classSymbol;
+  }
+  return nullptr;
+}
+
+auto Binder::resolveMemberOfCurrentInstantiation(
+    const Type* type, ClassSymbol* currentInstantiation) -> const Type* {
+  if (!type || !currentInstantiation) return type;
+
+  auto resolve = [&](const Type* nested) {
+    return resolveMemberOfCurrentInstantiation(nested, currentInstantiation);
+  };
+
+  if (auto unresolved = type_cast<UnresolvedNameType>(type)) {
+    if (!denotesCurrentInstantiation(unresolved->nestedNameSpecifier(),
+                                     currentInstantiation)) {
+      return type;
+    }
+    auto nameId = ast_cast<NameIdAST>(unresolved->unqualifiedId());
+    if (!nameId) return type;
+    auto qualifier =
+        symbol_cast<ClassSymbol>(unresolved->nestedNameSpecifier()->symbol);
+    auto member = qualifiedLookup(qualifier, nameId->identifier,
+                                  [](Symbol* s) { return is_type(s); });
+    if (!member || !member->type()) return type;
+    return member->type();
+  }
+
+  if (auto qual = type_cast<QualType>(type)) {
+    auto elementType = resolve(qual->elementType());
+    if (elementType == qual->elementType()) return type;
+    if (qual->isConst()) elementType = control()->getConstType(elementType);
+    if (qual->isVolatile()) {
+      elementType = control()->getVolatileType(elementType);
+    }
+    return elementType;
+  }
+
+  if (auto ptr = type_cast<PointerType>(type)) {
+    auto elementType = resolve(ptr->elementType());
+    if (elementType == ptr->elementType()) return type;
+    return control()->getPointerType(elementType);
+  }
+
+  if (auto ref = type_cast<LvalueReferenceType>(type)) {
+    auto elementType = resolve(ref->elementType());
+    if (elementType == ref->elementType()) return type;
+    return control()->getLvalueReferenceType(elementType);
+  }
+
+  if (auto ref = type_cast<RvalueReferenceType>(type)) {
+    auto elementType = resolve(ref->elementType());
+    if (elementType == ref->elementType()) return type;
+    return control()->getRvalueReferenceType(elementType);
+  }
+
+  if (auto array = type_cast<BoundedArrayType>(type)) {
+    auto elementType = resolve(array->elementType());
+    if (elementType == array->elementType()) return type;
+    return control()->getBoundedArrayType(elementType, array->size());
+  }
+
+  if (auto array = type_cast<UnboundedArrayType>(type)) {
+    auto elementType = resolve(array->elementType());
+    if (elementType == array->elementType()) return type;
+    return control()->getUnboundedArrayType(elementType);
+  }
+
+  if (auto function = type_cast<FunctionType>(type)) {
+    auto returnType = resolve(function->returnType());
+    auto changed = returnType != function->returnType();
+    std::vector<const Type*> parameterTypes;
+    parameterTypes.reserve(function->parameterTypes().size());
+    for (auto param : function->parameterTypes()) {
+      auto resolved = resolve(param);
+      changed = changed || resolved != param;
+      parameterTypes.push_back(resolved);
+    }
+    if (!changed) return type;
+    return control()->getFunctionType(
+        returnType, std::move(parameterTypes), function->isVariadic(),
+        function->cvQualifiers(), function->refQualifier(),
+        function->isNoexcept());
+  }
+
+  return type;
 }
 
 auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,

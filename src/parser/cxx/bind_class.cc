@@ -102,8 +102,12 @@ struct [[nodiscard]] Binder::BindClass {
       -> int;
   auto hasPackTemplateParameter(TemplateDeclarationAST* templateDecl) const
       -> bool;
-  auto isTrueRedefinition(ClassSymbol* specialization,
-                          SimpleTemplateIdAST* newTemplateId) const -> bool;
+  [[nodiscard]] auto isTrueRedefinition(
+      ClassSymbol* specialization, SimpleTemplateIdAST* newTemplateId) const
+      -> bool;
+  [[nodiscard]] auto templateParameterConstraintsEquivalent(
+      TemplateDeclarationAST* existingTemplateDecl,
+      TemplateDeclarationAST* newTemplateDecl) const -> bool;
 
   void bind();
   void check_optional_nested_name_specifier();
@@ -153,6 +157,8 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   ast->symbol = classSymbol;
   ast->symbol->setDeclaration(ast);
   ast->symbol->setFinal(ast->isFinal);
+
+  binder.applyAbiTags(ast->symbol, ast->attributeList);
 
   if (declSpecs.templateHead) {
     if (auto oldDecl = ast->symbol->templateDeclaration()) {
@@ -250,6 +256,38 @@ auto Binder::BindClass::hasPackTemplateParameter(
   return false;
 }
 
+auto Binder::BindClass::templateParameterConstraintsEquivalent(
+    TemplateDeclarationAST* existingTemplateDecl,
+    TemplateDeclarationAST* newTemplateDecl) const -> bool {
+  auto constraintOf =
+      [](TemplateParameterAST* parameter) -> TypeConstraintAST* {
+    auto constrained = ast_cast<ConstraintTypeParameterAST>(parameter);
+    return constrained ? constrained->typeConstraint : nullptr;
+  };
+
+  auto existingIt = ListView{existingTemplateDecl->templateParameterList};
+  auto newIt = ListView{newTemplateDecl->templateParameterList};
+
+  auto existingCursor = existingIt.begin();
+  auto newCursor = newIt.begin();
+
+  for (; existingCursor != existingIt.end() && newCursor != newIt.end();
+       ++existingCursor, ++newCursor) {
+    auto existingConstraint = constraintOf(*existingCursor);
+    auto newConstraint = constraintOf(*newCursor);
+
+    if (!existingConstraint && !newConstraint) continue;
+    if (!existingConstraint || !newConstraint) return false;
+    if (existingConstraint->identifier != newConstraint->identifier)
+      return false;
+    if (!templateArgListsEquivalent(existingConstraint->templateArgumentList,
+                                    newConstraint->templateArgumentList))
+      return false;
+  }
+
+  return true;
+}
+
 auto Binder::BindClass::isTrueRedefinition(
     ClassSymbol* specialization, SimpleTemplateIdAST* newTemplateId) const
     -> bool {
@@ -276,6 +314,11 @@ auto Binder::BindClass::isTrueRedefinition(
 
   if (existingTemplateDecl->requiresClause ||
       declSpecs.templateHead->requiresClause) {
+    return false;
+  }
+
+  if (!templateParameterConstraintsEquivalent(existingTemplateDecl,
+                                              declSpecs.templateHead)) {
     return false;
   }
 

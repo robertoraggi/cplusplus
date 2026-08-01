@@ -37,12 +37,13 @@ struct Explicit {
   explicit Explicit(int x) {}
 };
 
+// expected-note@+1 {{candidate function not viable: no known conversion from 'int' to '::Explicit' for argument 1}}
 void take_explicit(Explicit e) {}
 
 void test_explicit() {
   Explicit e(42);
   // clang-format off
-  // expected-error@+1 {{invalid argument of type 'int' for parameter of type '::Explicit'}}
+  // expected-error@+1 {{no matching function for call to 'take_explicit'}}
   take_explicit(42);
   // clang-format on
 }

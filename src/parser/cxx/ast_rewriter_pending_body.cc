@@ -102,6 +102,12 @@ void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
         if (chosen) addSymbolRemap(oldFn, chosen);
       }
     }
+    if (auto oldUsing = symbol_cast<UsingDeclarationSymbol>(oldMember)) {
+      if (auto newUsing = symbol_cast<UsingDeclarationSymbol>(newMember);
+          newUsing && oldUsing->target() && newUsing->target()) {
+        addSymbolRemap(oldUsing->target(), newUsing->target());
+      }
+    }
     if (auto oldNested = symbol_cast<ClassSymbol>(oldMember)) {
       if (auto newNested = symbol_cast<ClassSymbol>(newMember)) {
         remapScopeMembers(oldNested, newNested);

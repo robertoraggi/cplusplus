@@ -1236,6 +1236,15 @@ auto ASTDecoder::decodeDeductionGuide(const io::DeductionGuide* node)
   if (!node) return nullptr;
 
   auto ast = new (pool_) DeductionGuideAST();
+  if (node->attribute_list()) {
+    auto inserter = &ast->attributeList;
+    for (std::uint32_t i = 0; i < node->attribute_list()->size(); ++i) {
+      *inserter = new (pool_) List(decodeAttributeSpecifier(
+          node->attribute_list()->Get(i),
+          io::AttributeSpecifier(node->attribute_list_type()->Get(i))));
+      inserter = &(*inserter)->next;
+    }
+  }
   ast->explicitSpecifier = decodeSpecifier(node->explicit_specifier(),
                                            node->explicit_specifier_type());
   ast->identifierLoc = SourceLocation(node->identifier_loc());

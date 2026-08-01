@@ -830,6 +830,7 @@ class DeductionGuideAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::DeductionGuide;
 
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SpecifierAST* explicitSpecifier = nullptr;
   SourceLocation identifierLoc;
   SourceLocation lparenLoc;
@@ -851,8 +852,9 @@ class DeductionGuideAST final : public DeclarationAST {
   [[nodiscard]] static auto create(Arena* arena) -> DeductionGuideAST*;
 
   [[nodiscard]] static auto create(
-      Arena* arena, SpecifierAST* explicitSpecifier,
-      SourceLocation identifierLoc, SourceLocation lparenLoc,
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SpecifierAST* explicitSpecifier, SourceLocation identifierLoc,
+      SourceLocation lparenLoc,
       ParameterDeclarationClauseAST* parameterDeclarationClause,
       SourceLocation rparenLoc, SourceLocation arrowLoc,
       SimpleTemplateIdAST* templateId, SourceLocation semicolonLoc,
@@ -860,7 +862,8 @@ class DeductionGuideAST final : public DeclarationAST {
       -> DeductionGuideAST*;
 
   [[nodiscard]] static auto create(
-      Arena* arena, SpecifierAST* explicitSpecifier,
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      SpecifierAST* explicitSpecifier,
       ParameterDeclarationClauseAST* parameterDeclarationClause,
       SimpleTemplateIdAST* templateId, const Identifier* identifier,
       DeductionGuideSymbol* symbol) -> DeductionGuideAST*;

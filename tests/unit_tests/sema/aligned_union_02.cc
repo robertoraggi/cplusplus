@@ -1,9 +1,6 @@
 // clang-format off
 // RUN: %cxx -verify -fcheck %s
 
-// Test: NNS with dependent static const member used as NTTP works
-// when the template is actually instantiated with concrete values.
-
 using size_t = decltype(sizeof(0));
 
 template <size_t _I0, size_t... _In>

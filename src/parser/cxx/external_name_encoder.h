@@ -28,6 +28,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace cxx {
 class ExternalNameEncoder {
@@ -44,6 +45,9 @@ class ExternalNameEncoder {
   [[nodiscard]] auto encode(Symbol* symbol, std::string_view suffix = "")
       -> std::string;
   [[nodiscard]] auto encode(const Type* type) -> std::string;
+
+  [[nodiscard]] auto mangledAbiTags(Symbol* symbol)
+      -> std::vector<const Identifier*>;
   [[nodiscard]] auto encodeVTable(ClassSymbol* classSymbol) -> std::string;
 
  private:
@@ -55,6 +59,8 @@ class ExternalNameEncoder {
   void encodeUnqualifiedName(Symbol* symbol);
 
   void encodeName(Symbol* symbol);
+  void encodeTemplateName(Symbol* symbol);
+  [[nodiscard]] auto encodeTemplateTemplateArgument(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeLocalName(Symbol* symbol) -> bool;
   void encodeClosureSourceName(ClassSymbol* classSymbol);
   [[nodiscard]] auto encodeNestedName(Symbol* symbol) -> bool;
@@ -71,6 +77,8 @@ class ExternalNameEncoder {
   void encodeBareFunctionType(const FunctionType* functionType,
                               bool includeReturnType = false);
 
+  void encodeAbiTags(Symbol* symbol);
+
   [[nodiscard]] auto encodeTemplateNameSubstitution(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeSubstitution(const void* key) -> bool;
   void enterSubstitution(const void* key);
@@ -85,6 +93,7 @@ class ExternalNameEncoder {
   std::string out_;
   int substCount_ = 0;
   StructorVariant structorVariant_ = StructorVariant::Complete;
+  Symbol* templateNameOnly_ = nullptr;
   bool hasExplicitStructorVariant_ = false;
 };
 }  // namespace cxx

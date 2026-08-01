@@ -1689,6 +1689,10 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
 }
 
 void ASTPrettyPrinter::DeclarationVisitor::operator()(DeductionGuideAST* ast) {
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   accept(ast->explicitSpecifier);
   if (ast->identifierLoc) {
     accept.writeToken(ast->identifierLoc);

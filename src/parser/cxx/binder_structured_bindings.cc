@@ -260,7 +260,7 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
     calleeIdExpr->unqualifiedId = templateId;
     calleeIdExpr->symbol = getCandidate;
 
-    bind(calleeIdExpr);
+    bind(calleeIdExpr, /*mayUseArgumentDependentLookup=*/true);
 
     TypeChecker check{unit_};
     check.setScope(scope());

@@ -31,6 +31,18 @@
 
 namespace cxx {
 namespace {
+[[nodiscard]] auto hasEquivalentParameterTypeList(FunctionSymbol* lhs,
+                                                  FunctionSymbol* rhs) -> bool {
+  auto lhsType = type_cast<FunctionType>(lhs->type());
+  auto rhsType = type_cast<FunctionType>(rhs->type());
+  if (!lhsType || !rhsType) return false;
+
+  return lhsType->parameterTypes() == rhsType->parameterTypes() &&
+         lhsType->isVariadic() == rhsType->isVariadic() &&
+         lhsType->cvQualifiers() == rhsType->cvQualifiers() &&
+         lhsType->refQualifier() == rhsType->refQualifier();
+}
+
 auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
   if (lhs == rhs) return true;
   if (!lhs || !rhs) return false;
@@ -48,11 +60,11 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
     return true;
   }
 
-  auto lhsAlias = symbol_cast<TypeAliasSymbol>(lhs);
-  auto rhsAlias = symbol_cast<TypeAliasSymbol>(rhs);
-  const bool lhsBindsAliasTemplate = lhsAlias && lhsAlias->templateParameters();
-  const bool rhsBindsAliasTemplate = rhsAlias && rhsAlias->templateParameters();
-  if (lhsBindsAliasTemplate || rhsBindsAliasTemplate) return lhs == rhs;
+  auto lhsTemplateName = template_name_symbol(lhs);
+  auto rhsTemplateName = template_name_symbol(rhs);
+  if (lhsTemplateName || rhsTemplateName) {
+    return lhsTemplateName == rhsTemplateName;
+  }
 
   auto lhsVar = symbol_cast<VariableSymbol>(lhs);
   auto rhsVar = symbol_cast<VariableSymbol>(rhs);
@@ -68,10 +80,7 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
 
 auto compare_symbol_and_type(Symbol* symbol, const Type* type) -> bool {
   if (!symbol || !type) return false;
-  if (auto alias = symbol_cast<TypeAliasSymbol>(symbol);
-      alias && alias->templateParameters()) {
-    return false;
-  }
+  if (template_name_symbol(symbol)) return false;
   return symbol->type() == type;
 }
 
@@ -138,6 +147,27 @@ auto compare_args(const std::vector<TemplateArgument>& args1,
   return true;
 };
 
+auto template_name_symbol(Symbol* symbol) -> Symbol* {
+  if (!symbol) return nullptr;
+
+  if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
+    if (alias->templateParameters() && !alias->isSpecialization()) return alias;
+    if (auto classType = type_cast<ClassType>(alias->type())) {
+      return template_name_symbol(classType->symbol());
+    }
+    return nullptr;
+  }
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    if (classSymbol->isSpecialization()) return nullptr;
+    return classSymbol->templateParameters() ? classSymbol : nullptr;
+  }
+
+  if (symbol_cast<TemplateTypeParameterSymbol>(symbol)) return symbol;
+
+  return nullptr;
+}
+
 auto Symbol::EnclosingSymbolIterator::operator++() -> EnclosingSymbolIterator& {
   symbol_ = symbol_->parent();
   return *this;
@@ -172,6 +202,15 @@ auto Symbol::location() const -> SourceLocation { return location_; }
 void Symbol::setLocation(SourceLocation location) { location_ = location; }
 
 auto Symbol::parent() const -> ScopeSymbol* { return parent_; }
+
+auto Symbol::abiTags() const -> std::span<const Identifier* const> {
+  if (!abiTags_) return {};
+  return *abiTags_;
+}
+
+void Symbol::setAbiTags(const std::vector<const Identifier*>* abiTags) {
+  abiTags_ = abiTags;
+}
 
 void Symbol::setParent(ScopeSymbol* enclosingScope) {
   if (enclosingScope && enclosingScope->isTemplateParameters()) {
@@ -311,14 +350,6 @@ void ScopeSymbol::addSymbol(Symbol* symbol) {
   }
 
   members_.push_back(symbol);
-
-  if (name_cast<ConversionFunctionId>(symbol->name())) {
-    if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
-      if (auto classSymbol = symbol_cast<ClassSymbol>(this)) {
-        classSymbol->addConversionFunction(functionSymbol);
-      }
-    }
-  }
 
   if (3 * members_.size() >= 2 * buckets_.size()) {
     rehash();
@@ -543,11 +574,11 @@ void ClassSymbol::addBaseClass(BaseClassSymbol* baseClass) {
 }
 
 auto ClassSymbol::constructors() const -> const std::vector<FunctionSymbol*>& {
-  return constructors_;
+  return constructorOverloadSet_->declaredFunctions();
 }
 
 void ClassSymbol::addConstructor(FunctionSymbol* constructor) {
-  constructors_.push_back(constructor);
+  constructorOverloadSet_->addFunction(constructor);
 }
 
 auto ClassSymbol::deductionGuides() const
@@ -617,13 +648,13 @@ auto ClassSymbol::hasBaseClass(
   return false;
 }
 
-auto ClassSymbol::conversionFunctions() const
-    -> const std::vector<FunctionSymbol*>& {
-  return conversionFunctions_;
-}
-
-void ClassSymbol::addConversionFunction(FunctionSymbol* conversionFunction) {
-  conversionFunctions_.push_back(conversionFunction);
+auto ClassSymbol::conversionFunctions() const -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> result;
+  for (auto func : views::members(const_cast<ClassSymbol*>(this)) |
+                       views::member_functions) {
+    if (name_cast<ConversionFunctionId>(func->name())) result.push_back(func);
+  }
+  return result;
 }
 
 auto ClassSymbol::destructor() const -> FunctionSymbol* {
@@ -633,7 +664,7 @@ auto ClassSymbol::destructor() const -> FunctionSymbol* {
 }
 
 auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
-  for (auto ctor : constructors_) {
+  for (auto ctor : constructors()) {
     if (ctor->canonical() != ctor) continue;
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
@@ -660,7 +691,7 @@ auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
 }
 
 auto ClassSymbol::copyConstructor() const -> FunctionSymbol* {
-  for (auto ctor : constructors_) {
+  for (auto ctor : constructors()) {
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
     auto& params = funcType->parameterTypes();
@@ -684,7 +715,7 @@ auto ClassSymbol::copyConstructor() const -> FunctionSymbol* {
 }
 
 auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
-  for (auto ctor : constructors_) {
+  for (auto ctor : constructors()) {
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
     auto& params = funcType->parameterTypes();
@@ -734,7 +765,7 @@ auto ClassSymbol::moveAssignmentOperator() const -> FunctionSymbol* {
 }
 
 auto ClassSymbol::hasUserDeclaredConstructors() const -> bool {
-  for (auto ctor : constructors_) {
+  for (auto ctor : constructors()) {
     if (!ctor->isDefaulted()) return true;
   }
   return false;
@@ -755,7 +786,7 @@ auto ClassSymbol::hasVirtualBaseClasses() const -> bool {
 auto ClassSymbol::convertingConstructors() const
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> result;
-  for (auto ctor : constructors_) {
+  for (auto ctor : constructors()) {
     if (ctor->isExplicit()) continue;
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
@@ -1007,13 +1038,13 @@ OverloadSetSymbol::OverloadSetSymbol(ScopeSymbol* enclosingScope)
 
 OverloadSetSymbol::~OverloadSetSymbol() {}
 
-auto OverloadSetSymbol::functions() const
+auto OverloadSetSymbol::declaredFunctions() const
     -> const std::vector<FunctionSymbol*>& {
-  return functions_;
+  return declaredFunctions_;
 }
 
 void OverloadSetSymbol::setFunctions(std::vector<FunctionSymbol*> functions) {
-  functions_ = std::move(functions);
+  declaredFunctions_ = std::move(functions);
 }
 
 void OverloadSetSymbol::addFunction(FunctionSymbol* function) {
@@ -1021,12 +1052,46 @@ void OverloadSetSymbol::addFunction(FunctionSymbol* function) {
 
   auto canonical = function->canonical();
 
-  for (auto existing : functions_) {
+  for (auto existing : declaredFunctions_) {
     if (!existing) continue;
     if (existing->canonical() == canonical) return;
   }
 
-  functions_.push_back(function);
+  declaredFunctions_.push_back(function);
+}
+
+auto OverloadSetSymbol::usingDeclarations() const
+    -> const std::vector<UsingDeclarationSymbol*>& {
+  return usingDeclarations_;
+}
+
+void OverloadSetSymbol::addUsingDeclaration(
+    UsingDeclarationSymbol* usingDeclaration) {
+  if (!usingDeclaration) return;
+  if (std::ranges::contains(usingDeclarations_, usingDeclaration)) return;
+  usingDeclarations_.push_back(usingDeclaration);
+}
+
+auto OverloadSetSymbol::functions() const -> std::vector<FunctionSymbol*> {
+  if (usingDeclarations_.empty()) return declaredFunctions_;
+
+  auto result = declaredFunctions_;
+
+  for (auto usingDeclaration : usingDeclarations_) {
+    for (auto introduced : usingDeclaration->introducedFunctions()) {
+      auto canonical = introduced->canonical();
+
+      const auto isHidden =
+          std::ranges::any_of(result, [&](FunctionSymbol* declared) {
+            return declared->canonical() == canonical ||
+                   hasEquivalentParameterTypeList(declared, introduced);
+          });
+
+      if (!isHidden) result.push_back(introduced);
+    }
+  }
+
+  return result;
 }
 
 LambdaSymbol::LambdaSymbol(ScopeSymbol* enclosingScope)
@@ -1340,7 +1405,21 @@ UsingDeclarationSymbol::~UsingDeclarationSymbol() {}
 
 auto UsingDeclarationSymbol::target() const -> Symbol* { return target_; }
 
-void UsingDeclarationSymbol::setTarget(Symbol* symbol) { target_ = symbol; }
+void UsingDeclarationSymbol::setTarget(Symbol* symbol) {
+  target_ = symbol;
+
+  introducedFunctions_.clear();
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+    introducedFunctions_ = overloadSet->functions();
+  } else if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+    introducedFunctions_.push_back(function);
+  }
+}
+
+auto UsingDeclarationSymbol::introducedFunctions() const
+    -> const std::vector<FunctionSymbol*>& {
+  return introducedFunctions_;
+}
 
 auto UsingDeclarationSymbol::declarator() const -> UsingDeclaratorAST* {
   return declarator_;

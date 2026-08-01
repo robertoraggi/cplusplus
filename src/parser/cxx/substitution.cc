@@ -105,9 +105,7 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     subst.maybeReportMissingTemplateArgument(parameter->firstSourceLocation());
     return std::nullopt;
   }
-  auto argument = control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(parameter->idExpression->symbol->type());
-  return argument;
+  return parameter->idExpression->symbol;
 }
 
 auto Substitution::MakeDefaultTemplateArgument::operator()(
@@ -323,6 +321,13 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     if (!ast_cast<NameIdAST>(named->unqualifiedId)) break;
     if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
       if (alias->templateParameters()) return alias;
+    }
+    if (auto classSymbol = symbol_cast<ClassSymbol>(named->symbol)) {
+      if (classSymbol->templateParameters()) return classSymbol;
+    }
+    if (auto templateParameter =
+            symbol_cast<TemplateTypeParameterSymbol>(named->symbol)) {
+      return templateParameter;
     }
     break;
   }

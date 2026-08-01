@@ -59,7 +59,7 @@ Wrapper<double> w1;
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Wrapper<double, ::Base>
 // CHECK-NEXT:        base class Base
-// CHECK-NEXT:        constructor inline void Wrapper()
+// CHECK-NEXT:        constructor inline defaulted void Wrapper()
 // CHECK-NEXT:        constructor inline explicit void Wrapper(double)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter double v

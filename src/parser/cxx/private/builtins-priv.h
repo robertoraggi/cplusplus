@@ -293,7 +293,7 @@ long long __c11_atomic_fetch_xor(volatile void*, long long, int);
 long long __c11_atomic_fetch_nand(volatile void*, long long, int);
 void __c11_atomic_thread_fence(int);
 void __c11_atomic_signal_fence(int);
-int __c11_atomic_is_lock_free(long long, volatile void*);
+int __c11_atomic_is_lock_free(__SIZE_TYPE__);
 long long __atomic_load_n(const volatile void*, int);
 void __atomic_load(const volatile void*, void*, int);
 void __atomic_store_n(volatile void*, long long, int);
