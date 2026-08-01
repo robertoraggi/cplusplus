@@ -2,8 +2,10 @@
 
 cxx-frontend is a work-in-progress compiler frontend for C++26 and C23
 
-The compiler frontend is designed to be a powerful tool for developers, enabling them to parse, analyze, and modify C++ source code. This project aims to provide a robust foundation for building a complete C++ frontend, staying
-up-to-date with the latest language features and standards.
+The compiler frontend is designed to be a powerful tool for developers, enabling them to parse, analyze, and modify C++ source code.
+This project aims to provide a robust foundation for building a complete C++ frontend, staying up-to-date with the latest language features and standards.
+
+Playground showing the cxx compiler frontend in action at https://robertoraggi.github.io/cplusplus/
 
 The API Reference is available at https://robertoraggi.github.io/cplusplus/docs/
 
@@ -18,6 +20,8 @@ For updates, improvements, and recent features in cxx-frontend, please consult t
 - **Multi-Language Support**: In addition to C++, the library provides APIs for TypeScript and JavaScript.
 
 - **C++-26 and C23 Support**: Latest language enhancements, syntax, and features (WIP).
+
+- **MLIR**: MLIR code generation and optimization.
 
 ## Playground
 
@@ -35,10 +39,10 @@ install the python packages required to run the unit tests (optional)
 uv sync && source .venv/bin/activate
 ```
 
-configure the source code
+configure with MLIR support enabled
 
 ```sh
-cmake --preset default
+cmake --preset default-mlir
 ```
 
 build
@@ -100,19 +104,6 @@ npm install cxx-frontend
 ```
 
 Once installed, you can use the bindings in your Node.js or web projects as needed.
-
-## Getting Started Using Example Projects
-
-These projects are pre-configured and serve as starting points for various [use cases](https://github.com/robertoraggi/cplusplus/tree/main/templates).
-
-For Node.js
-
-```sh
-npx degit robertoraggi/cplusplus/templates/cxx-parse cxx-parse
-cd cxx-parse
-npm install
-node .
-```
 
 ## License
 
