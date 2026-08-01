@@ -335,8 +335,10 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
   }
 
   if (!inTemplateParameters) {
-    auto parameterSymbol =
-        control()->newParameterSymbol(scope_, decl.location());
+    auto parameterLoc = decl.location();
+    if (!parameterLoc) parameterLoc = ast->firstSourceLocation();
+
+    auto parameterSymbol = control()->newParameterSymbol(scope_, parameterLoc);
     parameterSymbol->setName(ast->identifier);
     parameterSymbol->setType(ast->type);
     parameterSymbol->setDefaultArgument(ast->expression);
@@ -787,7 +789,8 @@ void Binder::bind(DeductionGuideAST* ast) {
       } else {
         auto parentScope =
             primaryTemplate->enclosingNonTemplateParametersScope();
-        auto spec = control()->newClassSymbol(parentScope, {});
+        auto spec =
+            control()->newClassSymbol(parentScope, primaryTemplate->location());
         spec->setName(primaryTemplate->name());
         spec->setType(control()->getClassType(spec));
         primaryTemplate->addSpecialization(std::move(templateArgs), spec);

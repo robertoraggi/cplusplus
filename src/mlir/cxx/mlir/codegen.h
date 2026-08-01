@@ -265,13 +265,18 @@ class Codegen {
                           DesignatedInitializerClauseAST* ast);
 
  private:
-  [[nodiscard]] auto getCompileUnitAttr(std::string_view filename)
-      -> mlir::LLVM::DICompileUnitAttr;
+  [[nodiscard]] auto getCompileUnitAttr() -> mlir::LLVM::DICompileUnitAttr;
+
+  [[nodiscard]] auto getOrCreateFileAttr(const std::string& filename)
+      -> mlir::LLVM::DIFileAttr;
 
   [[nodiscard]] auto getFileAttr(const std::string& filename)
       -> mlir::LLVM::DIFileAttr;
 
   [[nodiscard]] auto getFileAttr(std::string_view filename)
+      -> mlir::LLVM::DIFileAttr;
+
+  [[nodiscard]] auto getFileAttrAt(SourceLocation location)
       -> mlir::LLVM::DIFileAttr;
 
   [[nodiscard]] auto getLocation(SourceLocation loc) -> mlir::Location;
@@ -674,8 +679,7 @@ class Codegen {
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, mlir::StringAttr> stringLiterals_;
   std::unordered_map<std::string, mlir::LLVM::DIFileAttr> fileAttrs_;
-  std::unordered_map<std::string_view, mlir::LLVM::DICompileUnitAttr>
-      compileUnitAttrs_;
+  mlir::LLVM::DICompileUnitAttr compileUnitAttr_;
   Loop loop_;
   Switch switch_;
   std::vector<CleanupScope> cleanupStack_;

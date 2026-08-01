@@ -214,7 +214,7 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
   }
 
   auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
-  auto spec = control()->newClassSymbol(parentScope, {});
+  auto spec = control()->newClassSymbol(parentScope, classSymbol->location());
   spec->setName(classSymbol->name());
   spec->setType(control()->getClassType(spec));
   classSymbol->addSpecialization(std::move(templateArgs), spec);

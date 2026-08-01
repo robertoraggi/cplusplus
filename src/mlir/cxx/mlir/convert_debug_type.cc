@@ -113,6 +113,13 @@ struct Codegen::ConvertDebugType {
                      llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements,
                      const Type* type = nullptr) -> mlir::LLVM::DITypeAttr;
 
+  struct DeclFileLine {
+    mlir::LLVM::DIFileAttr file;
+    uint32_t line = 0;
+  };
+
+  [[nodiscard]] auto declFileLine(Symbol* symbol) -> DeclFileLine;
+
   [[nodiscard]] auto context() const -> mlir::MLIRContext* {
     return gen.context_;
   }
@@ -130,6 +137,15 @@ auto Codegen::convertDebugType(const Type* type) -> mlir::LLVM::DITypeAttr {
   auto result = visit(ConvertDebugType{*this}, type);
   debugTypeCache_.insert({type, result});
   return result;
+}
+
+auto Codegen::ConvertDebugType::declFileLine(Symbol* symbol) -> DeclFileLine {
+  if (!symbol || !symbol->location()) return {};
+
+  auto [filename, line, column] =
+      gen.unit_->tokenStartPosition(symbol->location());
+
+  return {gen.getFileAttr(filename), line};
 }
 
 auto Codegen::ConvertDebugType::basicType(const llvm::Twine& name,
@@ -178,8 +194,7 @@ auto Codegen::ConvertDebugType::compositeType(
     unsigned tag, const llvm::Twine& name, mlir::LLVM::DITypeAttr baseType,
     llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements, const Type* type)
     -> mlir::LLVM::DITypeAttr {
-  mlir::LLVM::DIFileAttr file{};
-  uint32_t line{};
+  DeclFileLine declLoc;
   mlir::LLVM::DIScopeAttr scope{};
   mlir::LLVM::DIFlags flags{};
   uint64_t sizeInBits{};
@@ -189,13 +204,8 @@ auto Codegen::ConvertDebugType::compositeType(
     alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
 
     if (auto classType = type_cast<ClassType>(type)) {
-      if (auto symbol = classType->symbol()) {
-        auto loc = symbol->location();
-        auto [filename, l, c] = gen.unit_->tokenStartPosition(loc);
-        file = gen.getFileAttr(filename);
-        line = l;
-        scope = gen.getCompileUnitAttr(filename);
-      }
+      declLoc = declFileLine(classType->symbol());
+      scope = gen.getCompileUnitAttr();
     }
   }
   mlir::LLVM::DIExpressionAttr dataLocation{};
@@ -204,8 +214,9 @@ auto Codegen::ConvertDebugType::compositeType(
   mlir::LLVM::DIExpressionAttr associated{};
 
   return mlir::LLVM::DICompositeTypeAttr::get(
-      context(), tag, mlir::StringAttr::get(context(), name.str()), file, line,
-      scope, baseType, flags, sizeInBits, alignInBits,
+      context(), tag, mlir::StringAttr::get(context(), name.str()),
+      declLoc.file, declLoc.line, scope, baseType, flags, sizeInBits,
+      alignInBits,
 #if LLVM_VERSION_MAJOR < 22
       elements, dataLocation, rank, allocated, associated
 #else
@@ -507,15 +518,8 @@ auto Codegen::ConvertDebugType::operator()(const EnumType* type)
   auto sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
   auto alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
 
-  mlir::LLVM::DIFileAttr file{};
-  uint32_t line{};
-  mlir::LLVM::DIScopeAttr scope{};
-  if (symbol->location()) {
-    auto [filename, l, c] = gen.unit_->tokenStartPosition(symbol->location());
-    file = gen.getFileAttr(filename);
-    line = l;
-    scope = gen.getCompileUnitAttr(filename);
-  }
+  auto [file, line] = declFileLine(symbol);
+  auto scope = gen.getCompileUnitAttr();
 
   return mlir::LLVM::DICompositeTypeAttr::get(
       context(), llvm::dwarf::DW_TAG_enumeration_type,
@@ -542,15 +546,8 @@ auto Codegen::ConvertDebugType::operator()(const ScopedEnumType* type)
   auto sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
   auto alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
 
-  mlir::LLVM::DIFileAttr file{};
-  uint32_t line{};
-  mlir::LLVM::DIScopeAttr scope{};
-  if (symbol->location()) {
-    auto [filename, l, c] = gen.unit_->tokenStartPosition(symbol->location());
-    file = gen.getFileAttr(filename);
-    line = l;
-    scope = gen.getCompileUnitAttr(filename);
-  }
+  auto [file, line] = declFileLine(symbol);
+  auto scope = gen.getCompileUnitAttr();
 
   return mlir::LLVM::DICompositeTypeAttr::get(
       context(), llvm::dwarf::DW_TAG_enumeration_type,

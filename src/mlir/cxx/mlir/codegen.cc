@@ -665,9 +665,7 @@ auto Codegen::getOrCreateDIScope(Symbol* symbol) -> mlir::LLVM::DIScopeAttr {
     }
   }
 
-  auto fileAttr =
-      getFileAttr(unit_->tokenStartPosition(symbol->location()).fileName);
-  return fileAttr;
+  return getFileAttrAt(symbol->location());
 }
 
 void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
@@ -681,8 +679,7 @@ void Codegen::attachDebugInfo(mlir::cxx::AllocaOp allocaOp, Symbol* symbol,
   auto ctx = context_;
   auto nameAttr = mlir::StringAttr::get(
       ctx, name.empty() ? to_string(symbol->name()) : name);
-  auto file =
-      getFileAttr(unit_->tokenStartPosition(symbol->location()).fileName);
+  auto file = getFileAttrAt(symbol->location());
   unsigned line = unit_->tokenStartPosition(symbol->location()).line;
   auto typeAttr = convertDebugType(symbol->type());
 
@@ -759,17 +756,17 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
 
   auto declaratorId = getDeclaratorId(ast->declarator);
 
+  auto compileUnitAttr = getCompileUnitAttr();
+
   mlir::LLVM::DIFileAttr fileAttr;
   unsigned line = 0;
   unsigned scopeLine = 0;
-  std::string_view fileName;
 
   if (declaratorId && declaratorId->firstSourceLocation()) {
     auto funcLoc =
         unit_->tokenStartPosition(declaratorId->firstSourceLocation());
     fileAttr = getFileAttr(funcLoc.fileName);
     line = funcLoc.line;
-    fileName = funcLoc.fileName;
   }
 
   if (ast->functionBody) {
@@ -780,16 +777,11 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
   }
 
   if (!fileAttr) {
-    auto classLoc = functionSymbol->location();
-    if (classLoc) {
-      auto pos = unit_->tokenStartPosition(classLoc);
-      fileAttr = getFileAttr(pos.fileName);
-      line = pos.line;
-      scopeLine = pos.line;
-      fileName = pos.fileName;
-    } else {
-      fileAttr = getFileAttr(std::string_view{""});
-      fileName = "";
+    auto symbolLoc = functionSymbol->location();
+    fileAttr = getFileAttrAt(symbolLoc);
+    if (symbolLoc) {
+      line = unit_->tokenStartPosition(symbolLoc).line;
+      scopeLine = line;
     }
   }
 
@@ -802,12 +794,9 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
   mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
   mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
 
-  auto compileUnitAttr = getCompileUnitAttr(fileName);
-
   auto subprogram = mlir::LLVM::DISubprogramAttr::get(
-      ctx, id, compileUnitAttr, scope, name, linkageName,
-      compileUnitAttr.getFile(), line, scopeLine, subprogramFlags, type,
-      retainedNodes, annotations);
+      ctx, id, compileUnitAttr, scope, name, linkageName, fileAttr, line,
+      scopeLine, subprogramFlags, type, retainedNodes, annotations);
 
   func->setLoc(mlir::FusedLoc::get({loc}, subprogram, ctx));
 
@@ -2127,12 +2116,8 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
   std::swap(thisValue_, thisValue);
 }
 
-auto Codegen::getCompileUnitAttr(std::string_view filename)
-    -> mlir::LLVM::DICompileUnitAttr {
-  if (auto it = compileUnitAttrs_.find(filename);
-      it != compileUnitAttrs_.end()) {
-    return it->second;
-  }
+auto Codegen::getCompileUnitAttr() -> mlir::LLVM::DICompileUnitAttr {
+  if (compileUnitAttr_) return compileUnitAttr_;
 
   auto ctx = context_;
 
@@ -2142,7 +2127,7 @@ auto Codegen::getCompileUnitAttr(std::string_view filename)
                             ? llvm::dwarf::DW_LANG_C_plus_plus_20
                             : llvm::dwarf::DW_LANG_C;
 
-  auto fileAttr = getFileAttr(filename);
+  auto fileAttr = getOrCreateFileAttr(unit_->fileName());
   auto producer = mlir::StringAttr::get(ctx, "cxx");
   auto isOptimized = false;
   auto emissionKind = mlir::LLVM::DIEmissionKind::Full;
@@ -2158,12 +2143,12 @@ auto Codegen::getCompileUnitAttr(std::string_view filename)
       distinct, sourceLanguage, fileAttr, producer, isOptimized, emissionKind,
       nameTableKind);
 
-  compileUnitAttrs_.insert_or_assign(filename, compileUnit);
+  compileUnitAttr_ = compileUnit;
 
   return compileUnit;
 }
 
-auto Codegen::getFileAttr(const std::string& filename)
+auto Codegen::getOrCreateFileAttr(const std::string& filename)
     -> mlir::LLVM::DIFileAttr {
   if (auto it = fileAttrs_.find(filename); it != fileAttrs_.end()) {
     return it->second;
@@ -2179,8 +2164,22 @@ auto Codegen::getFileAttr(const std::string& filename)
   return attr;
 }
 
+auto Codegen::getFileAttr(const std::string& filename)
+    -> mlir::LLVM::DIFileAttr {
+  if (filename.empty()) return getCompileUnitAttr().getFile();
+
+  return getOrCreateFileAttr(filename);
+}
+
 auto Codegen::getFileAttr(std::string_view filename) -> mlir::LLVM::DIFileAttr {
   return getFileAttr(std::string{filename});
+}
+
+auto Codegen::getFileAttrAt(SourceLocation location)
+    -> mlir::LLVM::DIFileAttr {
+  if (!location) return getCompileUnitAttr().getFile();
+
+  return getFileAttr(unit_->tokenStartPosition(location).fileName);
 }
 
 auto Codegen::getLocation(SourceLocation location) -> mlir::Location {
