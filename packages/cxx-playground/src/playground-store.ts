@@ -23,7 +23,7 @@ export const samples: SampleCode[] = Object.entries(semaFiles)
   .sort((a, b) => a.name.localeCompare(b.name))
 
 const defaultSample =
-  samples.find((s) => s.id === "aligned_union_01.cc") ?? samples[0]
+  samples.find((s) => s.id === "auto_template.cc") ?? samples[0]
 
 registerMlirLanguage()
 
@@ -39,12 +39,15 @@ export const outputModel = monaco.editor.createModel(
   monaco.Uri.parse("file:///main.mlir")
 )
 
+export type OutputFormat = "cxxir" | "mlir" | "llvm" | "asm"
+
 interface Snapshot {
   isReady: boolean
   isCompiling: boolean
   diagnosticCount: number
   compileTimeMs: number | null
   currentSampleId: string
+  outputFormat: OutputFormat
 }
 
 let snapshot: Snapshot = {
@@ -53,6 +56,7 @@ let snapshot: Snapshot = {
   diagnosticCount: 0,
   compileTimeMs: null,
   currentSampleId: defaultSample?.id ?? "",
+  outputFormat: "cxxir",
 }
 
 const listeners = new Set<() => void>()
@@ -73,6 +77,21 @@ function getSnapshot() {
 
 export function usePlayground() {
   return useSyncExternalStore(subscribe, getSnapshot)
+}
+
+export function setOutputFormat(format: OutputFormat) {
+  if (snapshot.outputFormat === format) return
+  publish({ outputFormat: format })
+  const languageMap: Record<OutputFormat, string> = {
+    cxxir: "mlir",
+    mlir: "mlir",
+    llvm: "llvm",
+    asm: "asm",
+  }
+  monaco.editor.setModelLanguage(outputModel, languageMap[format])
+  if (snapshot.isReady) {
+    compile()
+  }
 }
 
 function applyDiagnostics(diagnostics: Diagnostic[]) {
@@ -117,9 +136,9 @@ async function compile() {
 
         let output: string
         try {
-          output = await parser.emitCode({ format: "asm" })
+          output = await parser.emitCode({ format: snapshot.outputFormat })
         } catch (error) {
-          output = `// MLIR codegen failed: ${(error as Error).message}`
+          output = `// ${snapshot.outputFormat.toUpperCase()} codegen failed: ${(error as Error).message}`
         }
 
         outputModel.setValue(output)

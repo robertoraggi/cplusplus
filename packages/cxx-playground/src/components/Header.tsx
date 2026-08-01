@@ -1,5 +1,10 @@
 import * as React from "react"
-import { usePlayground, samples, loadSample } from "../playground-store"
+import {
+  usePlayground,
+  samples,
+  loadSample,
+  setOutputFormat,
+} from "../playground-store"
 import { Button } from "./ui/button"
 import {
   Select,
@@ -8,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select"
+import { ButtonGroup } from "./ui/button-group"
 
 function statusLabel({
   isCompiling,
@@ -17,7 +23,7 @@ function statusLabel({
   if (isCompiling) return "compiling…"
   if (diagnosticCount > 0)
     return `${diagnosticCount} diagnostic${diagnosticCount === 1 ? "" : "s"}`
-  if (compileTimeMs !== null) return `ok · ${compileTimeMs}ms`
+  if (compileTimeMs !== null) return `${compileTimeMs}ms`
   return ""
 }
 
@@ -34,10 +40,6 @@ export function Header() {
 
   return (
     <header className="flex h-12 items-center justify-between border-b border-border/60 bg-background/85 px-4 backdrop-blur-md">
-      <h1 className="text-sm font-semibold tracking-tight text-foreground">
-        cxx-frontend
-      </h1>
-
       <div className="flex items-center gap-3">
         <span className="font-mono text-xs text-muted-foreground">
           {statusLabel(state)}
@@ -61,6 +63,37 @@ export function Header() {
           </SelectContent>
         </Select>
       </div>
+
+      <ButtonGroup>
+        <Button
+          variant={state.outputFormat === "cxxir" ? "secondary" : "outline"}
+          size="xs"
+          onClick={() => setOutputFormat("cxxir")}
+        >
+          CXXIR
+        </Button>
+        <Button
+          variant={state.outputFormat === "mlir" ? "secondary" : "outline"}
+          size="xs"
+          onClick={() => setOutputFormat("mlir")}
+        >
+          MLIR
+        </Button>
+        <Button
+          variant={state.outputFormat === "llvm" ? "secondary" : "outline"}
+          size="xs"
+          onClick={() => setOutputFormat("llvm")}
+        >
+          LLVM IR
+        </Button>
+        <Button
+          variant={state.outputFormat === "asm" ? "secondary" : "outline"}
+          size="xs"
+          onClick={() => setOutputFormat("asm")}
+        >
+          ASM
+        </Button>
+      </ButtonGroup>
 
       <Button
         variant="ghost"
