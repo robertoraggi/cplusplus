@@ -79,7 +79,7 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
-        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "NO",
         "CXX_ENABLE_FLATBUFFERS": "NO",
         "CXX_INSTALL_WASI_SYSROOT": "YES",
         "CXX_ENABLE_MLIR": "YES",
