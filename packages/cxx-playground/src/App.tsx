@@ -1,90 +1,30 @@
-// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+import CodeEditor from "./code-editor"
+import OutputCode from "./output-code"
+import { Header } from "./components/Header"
+import { usePlayground } from "./playground-store"
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import ASTProvider from "./ast-provider";
-import CxxProvider from "./cxx-provider";
-import Editor from "./editor";
-import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import ModelProvider from "./editor-model-provider";
-import EditorProvider from "./editor-provider";
-import AbstractSyntaxTree from "./abstract-syntax-tree";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import AppSidebar from "./app-sidebar";
+export function App() {
+  const { isReady } = usePlayground()
 
-import * as monaco from "monaco-editor";
-
-window.MonacoEnvironment = {
-  getWorker() {
-    return new EditorWorker();
-  },
-};
-
-const queryClient = new QueryClient();
-
-const DEFAULT_VALUE = `#include <iostream>
-
-auto main() -> int {
-  std::cout << "Hello, World!" << std::endl;
-  return 0;
-}`;
-
-function App() {
-  const interval = 250;
-
-  const model = monaco.editor.createModel(DEFAULT_VALUE, "cpp");
+  if (!isReady) {
+    return (
+      <div className="flex h-dvh w-dvw items-center justify-center bg-background text-foreground">
+        <p className="animate-pulse font-mono text-xs text-muted-foreground">
+          Loading C++ WASM Compiler…
+        </p>
+      </div>
+    )
+  }
 
   return (
-    <div className="w-svw h-svh flex">
-      <SidebarProvider>
-        <QueryClientProvider client={queryClient}>
-          <CxxProvider fallback={<div />}>
-            <ModelProvider model={model}>
-              <EditorProvider model={model}>
-                <ASTProvider model={model} interval={interval}>
-                  <AppSidebar />
-                  <ResizablePanelGroup
-                    direction="horizontal"
-                    className="w-full h-full"
-                  >
-                    <ResizablePanel className="min-w-1/5">
-                      <Editor />
-                    </ResizablePanel>
-                    <ResizableHandle className="cursor-col-resize" />
-                    <ResizablePanel className="min-w-1/5" defaultSize={35}>
-                      <AbstractSyntaxTree />
-                    </ResizablePanel>
-                  </ResizablePanelGroup>
-                </ASTProvider>
-              </EditorProvider>
-            </ModelProvider>
-          </CxxProvider>
-        </QueryClientProvider>
-      </SidebarProvider>
+    <div className="flex h-dvh w-dvw flex-col overflow-hidden bg-background font-sans text-foreground antialiased">
+      <Header />
+      <main className="grid min-h-0 flex-1 grid-cols-1 divide-y divide-border/60 md:grid-cols-2 md:divide-x md:divide-y-0">
+        <CodeEditor />
+        <OutputCode />
+      </main>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
