@@ -40,7 +40,7 @@ export class Token {
   }
 
   getKind(): TokenKind {
-    return cxx.getTokenKind(this.#handle, this.#unit);
+    return cxx.getTokenKind(this.#handle, this.#unit) as TokenKind;
   }
 
   is(kind: TokenKind) {

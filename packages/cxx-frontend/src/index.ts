@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+export * from "./loadCxx.js";
 export * from "./AST.js";
 export * from "./ASTCursor.js";
 export * from "./ASTKind.js";

@@ -44,6 +44,7 @@ target_link_options(cxx-js PUBLIC
     "SHELL:-s WASM_BIGINT=1"
     "SHELL:-s INCOMING_MODULE_JS_API=[]"
     "SHELL:-s POLYFILL=0"
+    "SHELL:--emit-tsd cxx-js.d.ts"
 )
 
 if(CXX_INTERPROCEDURAL_OPTIMIZATION)

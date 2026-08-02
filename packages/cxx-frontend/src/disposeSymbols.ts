@@ -18,19 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import makeCxx, { type MainModule } from "./cxx-js.js";
-import type { WasmSource } from "./loadCxx.js";
+/**
+ * The key of the `Symbol.dispose` method.
+ *
+ * Runtimes without explicit resource management get the registered symbol used
+ * by the `using` transforms of the bundlers.
+ */
+export const disposeSymbol: typeof Symbol.dispose =
+  Symbol.dispose ?? (Symbol.for("Symbol.dispose") as typeof Symbol.dispose);
 
-export type CXX = MainModule;
-
-export type ControlHandle = InstanceType<CXX["Control"]>;
-export type DiagnosticsClientHandle = InstanceType<CXX["DiagnosticsClient"]>;
-export type LexerHandle = InstanceType<CXX["Lexer"]>;
-export type PreprocessorHandle = InstanceType<CXX["Preprocessor"]>;
-export type TranslationUnitHandle = InstanceType<CXX["TranslationUnit"]>;
-
-export let cxx!: CXX;
-
-export async function instantiateCxx(wasm: WasmSource): Promise<void> {
-  cxx = await makeCxx({ wasm });
-}
+/**
+ * The key of the `Symbol.asyncDispose` method.
+ *
+ * Runtimes without explicit resource management get the registered symbol used
+ * by the `await using` transforms of the bundlers.
+ */
+export const asyncDisposeSymbol: typeof Symbol.asyncDispose =
+  Symbol.asyncDispose ??
+  (Symbol.for("Symbol.asyncDispose") as typeof Symbol.asyncDispose);

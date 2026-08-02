@@ -18,19 +18,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import makeCxx, { type MainModule } from "./cxx-js.js";
-import type { WasmSource } from "./loadCxx.js";
+type ReadableStreamWithFrom = typeof ReadableStream & {
+  from?<T>(iterable: Iterable<T>): ReadableStream<T>;
+};
 
-export type CXX = MainModule;
+/**
+ * Adapts an iterable to a `ReadableStream`.
+ *
+ * Uses the standard `ReadableStream.from` when the runtime provides it and
+ * falls back to a pull based stream otherwise.
+ *
+ * @param iterable the iterable to adapt.
+ * @returns a readable stream of the values of the iterable.
+ */
+export function toReadableStream<T>(iterable: Iterable<T>): ReadableStream<T> {
+  const readableStream = ReadableStream as ReadableStreamWithFrom;
 
-export type ControlHandle = InstanceType<CXX["Control"]>;
-export type DiagnosticsClientHandle = InstanceType<CXX["DiagnosticsClient"]>;
-export type LexerHandle = InstanceType<CXX["Lexer"]>;
-export type PreprocessorHandle = InstanceType<CXX["Preprocessor"]>;
-export type TranslationUnitHandle = InstanceType<CXX["TranslationUnit"]>;
+  if (typeof readableStream.from === "function") {
+    return readableStream.from(iterable);
+  }
 
-export let cxx!: CXX;
+  const iterator = iterable[Symbol.iterator]();
 
-export async function instantiateCxx(wasm: WasmSource): Promise<void> {
-  cxx = await makeCxx({ wasm });
+  return new ReadableStream<T>({
+    pull(controller) {
+      const { done, value } = iterator.next();
+
+      if (done) {
+        controller.close();
+        return;
+      }
+
+      controller.enqueue(value);
+    },
+
+    cancel(reason) {
+      iterator.return?.(reason);
+    },
+  });
 }

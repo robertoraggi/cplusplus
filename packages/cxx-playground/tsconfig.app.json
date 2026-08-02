@@ -2,7 +2,7 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["ES2023", "ESNext.Disposable", "DOM"],
     "module": "esnext",
     "types": ["vite/client"],
     "skipLibCheck": true,

@@ -19,24 +19,25 @@
 // SOFTWARE.
 
 import { AST } from "./AST.js";
-import { cxx } from "./cxx.js";
+import {
+  cxx,
+  type DiagnosticsClientHandle,
+  type TranslationUnitHandle,
+} from "./cxx.js";
+import { disposeSymbol } from "./disposeSymbols.js";
 import { Token } from "./Token.js";
+import { toReadableStream } from "./toReadableStream.js";
 
-export class TranslationUnit {
-  #control: typeof cxx.Control;
-  #diagnosticsClient: typeof cxx.DiagnosticsClient;
-  #handle: typeof cxx.TranslationUnit;
+export class TranslationUnit implements Disposable {
+  #diagnosticsClient: DiagnosticsClientHandle;
+  #handle: TranslationUnitHandle;
 
   /**
    * Creates a new translation unit.
    */
   constructor() {
-    this.#control = new cxx.Control();
     this.#diagnosticsClient = new cxx.DiagnosticsClient();
-    this.#handle = new cxx.TranslationUnit(
-      this.#control,
-      this.#diagnosticsClient,
-    );
+    this.#handle = new cxx.TranslationUnit(this.#diagnosticsClient);
   }
 
   /**
@@ -45,7 +46,10 @@ export class TranslationUnit {
   dispose() {
     this.#handle.delete();
     this.#diagnosticsClient.delete();
-    this.#control.delete();
+  }
+
+  [disposeSymbol](): void {
+    this.dispose();
   }
 
   /**
@@ -68,7 +72,7 @@ export class TranslationUnit {
       return undefined;
     }
 
-    return this.getAST();
+    return this.ast;
   }
 
   /**
@@ -76,7 +80,7 @@ export class TranslationUnit {
    *
    * @returns the AST or undefined
    */
-  getAST(): AST | undefined {
+  get ast(): AST | undefined {
     return AST.from(this.#handle.getAST(), this.#handle);
   }
 
@@ -102,6 +106,16 @@ export class TranslationUnit {
         };
       },
     };
+  }
+
+  /**
+   * Returns the preprocessed tokens as a readable stream.
+   *
+   * The stream must be consumed, or cancelled, before this translation unit is
+   * disposed.
+   */
+  tokenStream(): ReadableStream<Token> {
+    return toReadableStream(this.tokens());
   }
 
   /**

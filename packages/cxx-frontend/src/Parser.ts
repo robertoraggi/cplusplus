@@ -18,14 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import initCxx, { cxx } from "./cxx.js";
+import { cxx } from "./cxx.js";
+import { isCxxLoaded } from "./loadCxx.js";
+import { type Diagnostic } from "./Diagnostic.js";
 import { type Unit } from "./Unit.js";
 import { AST } from "./AST.js";
+import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 
 export const OutputCodeFormat = ["cxxir", "mlir", "llvm", "asm"] as const;
 export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
 
-interface ParserParams {
+export interface ParseOptions {
   /**
    * Path to the file to parse.
    */
@@ -51,43 +54,38 @@ interface ParserParams {
   readFile?: (path: string) => Promise<string | undefined>;
 }
 
-export class Parser {
+/**
+ * A parsed translation unit.
+ *
+ * Instances are created by {@link Parser.parse}, so a `Parser` is always fully
+ * parsed and every accessor is synchronous.
+ *
+ * The AST and the tokens are owned by the parser, they must not be used after
+ * the parser has been disposed.
+ */
+export class Parser implements Disposable, AsyncDisposable {
   #unit: Unit | undefined;
-  #ast: AST | undefined;
-  #pendingAST: Promise<AST> | undefined;
+  readonly #ast: AST;
 
-  static async init({
-    wasm,
-  }: {
-    wasm: Uint8Array | ArrayBuffer | WebAssembly.Module;
-  }) {
-    return await initCxx({ wasm });
-  }
+  private constructor(unit: Unit) {
+    this.#unit = unit;
 
-  static async initFromURL(
-    url: URL,
-    { signal = null }: { signal?: AbortSignal | null } = {},
-  ) {
-    const response = await fetch(url, { signal });
+    const ast = AST.from(unit.getHandle(), this);
 
-    if (!response.ok) {
-      throw new Error(`failed to fetch '${url}'`);
+    if (!ast) {
+      throw new Error("failed to create the AST");
     }
 
-    if (signal?.aborted) {
-      throw new Error(`fetch '${url}' aborted`);
-    }
-
-    const wasm = await response.arrayBuffer();
-
-    return await Parser.init({ wasm });
+    this.#ast = ast;
   }
 
-  static isInitialized(): boolean {
-    return cxx !== undefined && cxx !== null;
-  }
-
-  constructor(options: ParserParams) {
+  /**
+   * Parses the given source code.
+   *
+   * @param options the source code to parse and the include resolvers.
+   * @returns the parsed translation unit.
+   */
+  static async parse(options: ParseOptions): Promise<Parser> {
     const { path, source, resolve, readFile } = options;
 
     if (typeof path !== "string") {
@@ -98,65 +96,90 @@ export class Parser {
       throw new TypeError("expected parameter 'source' of type 'string'");
     }
 
-    this.#unit = cxx.createUnit(source, path, {
-      resolve: resolve!,
-      readFile: readFile!,
-    });
-  }
-
-  async parse(): Promise<AST> {
-    return await this.getASTAsync();
-  }
-
-  async emitCode({ format }: { format: OutputCodeFormat }): Promise<string> {
-    const _ = await this.getASTAsync();
-    return this.#unit?.emitCode(format) ?? "";
-  }
-
-  async #parseHelper(): Promise<AST> {
-    if (this.#pendingAST) {
-      return await this.#pendingAST;
+    if (!isCxxLoaded()) {
+      throw new Error(
+        "the cxx wasm module is not loaded, call loadCxx() first",
+      );
     }
 
+    const unit = cxx.createUnit(source, path, { resolve, readFile });
+
+    if (!unit) {
+      throw new Error("failed to create the translation unit");
+    }
+
+    try {
+      await unit.parse();
+      return new Parser(unit);
+    } catch (error) {
+      unit.delete();
+      throw error;
+    }
+  }
+
+  /**
+   * Returns the root of the AST.
+   */
+  get ast(): AST {
     if (!this.#unit) {
-      throw new Error("Parser has been disposed");
+      throw disposedError();
     }
 
-    await this.#unit.parse();
-
-    const ast = AST.from(this.#unit.getHandle(), this);
-
-    if (!ast) {
-      throw new Error("Failed to create AST");
-    }
-
-    this.#ast = ast;
-
-    return ast;
-  }
-
-  dispose() {
-    this.#unit?.delete();
-    this.#unit = undefined;
-    this.#ast = undefined;
-    this.#pendingAST = undefined;
-  }
-
-  getUnitHandle(): number {
-    return this.#unit?.getUnitHandle() ?? 0;
-  }
-
-  async getASTAsync(): Promise<AST> {
-    this.#pendingAST ??= this.#parseHelper();
-    return await this.#pendingAST;
-  }
-
-  // internal
-  getAST(): AST | undefined {
     return this.#ast;
   }
 
-  getDiagnostics() {
-    return this.#unit?.getDiagnostics() ?? [];
+  /**
+   * Returns the diagnostics collected while preprocessing and parsing.
+   */
+  get diagnostics(): Diagnostic[] {
+    return this.#nativeUnit().getDiagnostics();
   }
+
+  /**
+   * Generates code in the given format.
+   *
+   * @param options the output format.
+   * @returns the generated code.
+   */
+  emitCode({ format }: { format: OutputCodeFormat }): string {
+    return this.#nativeUnit().emitCode(format);
+  }
+
+  /**
+   * Returns the handle of the translation unit.
+   */
+  getUnitHandle(): number {
+    return this.#nativeUnit().getUnitHandle();
+  }
+
+  /**
+   * Releases the native resources owned by the parser.
+   *
+   * Calling `dispose` more than once is allowed, the AST and the tokens of a
+   * disposed parser must not be used.
+   */
+  dispose(): void {
+    this.#unit?.delete();
+    this.#unit = undefined;
+  }
+
+  [disposeSymbol](): void {
+    this.dispose();
+  }
+
+  async [asyncDisposeSymbol](): Promise<void> {
+    this.dispose();
+  }
+
+  #nativeUnit(): Unit {
+    if (!this.#unit) {
+      throw disposedError();
+    }
+
+    return this.#unit;
+  }
+}
+
+function disposedError(): Error {
+  return new Error("Parser has been disposed");
 }

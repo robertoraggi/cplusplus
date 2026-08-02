@@ -1,17 +1,13 @@
 import wasmBinaryUrl from "cxx-frontend/wasm?url"
-import { Parser, type Diagnostic, type OutputCodeFormat } from "cxx-frontend"
-
-let ready: Promise<void> | null = null
+import {
+  loadCxx,
+  Parser,
+  type Diagnostic,
+  type OutputCodeFormat,
+} from "cxx-frontend"
 
 export function loadCompiler(): Promise<void> {
-  if (!ready) {
-    ready = (async () => {
-      const response = await fetch(wasmBinaryUrl)
-      const wasm = await response.arrayBuffer()
-      await Parser.init({ wasm })
-    })()
-  }
-  return ready
+  return loadCxx({ wasmURL: wasmBinaryUrl })
 }
 
 export interface CompileResult {
@@ -28,20 +24,14 @@ export async function compile({
   path: string
   format: OutputCodeFormat
 }): Promise<CompileResult> {
-  const parser = new Parser({ source, path })
+  await using parser = await Parser.parse({ source, path })
+
+  let output: string
   try {
-    await parser.parse()
-    const diagnostics = parser.getDiagnostics()
-
-    let output: string
-    try {
-      output = await parser.emitCode({ format })
-    } catch (error) {
-      output = `// ${format.toUpperCase()} codegen failed: ${(error as Error).message}`
-    }
-
-    return { diagnostics, output }
-  } finally {
-    parser.dispose()
+    output = parser.emitCode({ format })
+  } catch (error) {
+    output = `// ${format.toUpperCase()} codegen failed: ${(error as Error).message}`
   }
+
+  return { diagnostics: parser.diagnostics, output }
 }

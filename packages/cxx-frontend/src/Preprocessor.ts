@@ -18,16 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cxx } from "./cxx.js";
+import {
+  cxx,
+  type ControlHandle,
+  type DiagnosticsClientHandle,
+  type PreprocessorHandle,
+} from "./cxx.js";
+import { disposeSymbol } from "./disposeSymbols.js";
 
 interface PreprocessorOptions {
   systemIncludePaths?: string[];
 }
 
-export class Preprocessor {
-  #control: typeof cxx.Control;
-  #diagnosticClient: typeof cxx.DiagnosticsClient;
-  #handle: typeof cxx.Preprocessor;
+export class Preprocessor implements Disposable {
+  #control: ControlHandle;
+  #diagnosticClient: DiagnosticsClientHandle;
+  #handle: PreprocessorHandle;
 
   /**
    * Creates an instance of Preprocessor.
@@ -52,6 +58,10 @@ export class Preprocessor {
     this.#handle.delete();
     this.#diagnosticClient.delete();
     this.#control.delete();
+  }
+
+  [disposeSymbol](): void {
+    this.dispose();
   }
 
   /**

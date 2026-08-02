@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Parser, AST, ASTKind, ASTSlot } from "cxx-frontend";
+import { loadCxx, Parser, AST, ASTKind, ASTSlot } from "cxx-frontend";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "node:url";
 
@@ -45,28 +45,22 @@ async function main() {
   const wasmBinaryFile = fileURLToPath(wasmBinaryUrl);
   const wasmBinary = await readFile(wasmBinaryFile);
 
-  // initialize the parser
-  await Parser.init({ wasm: wasmBinary });
+  // load the cxx wasm module
+  await loadCxx({ wasm: wasmBinary });
 
-  const parser = new Parser({ source, path: "source.cc" });
+  await using parser = await Parser.parse({ source, path: "source.cc" });
 
-  const ast = await parser.parse();
-
-  const diagnostics = parser.getDiagnostics();
-
-  if (diagnostics.length > 0) {
-    console.log("diagnostics", diagnostics);
+  if (parser.diagnostics.length > 0) {
+    console.log("diagnostics", parser.diagnostics);
   }
 
-  for (const { node, slot, depth } of ast?.walk().preVisit() ?? []) {
+  for (const { node, slot, depth } of parser.ast.walk().preVisit()) {
     if (!(node instanceof AST)) continue;
     const ind = " ".repeat(depth * 2);
     const kind = ASTKind[node.getKind()];
     const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
     console.log(`${ind}- ${member}${kind}`);
   }
-
-  parser.dispose();
 }
 
 main().catch(console.error);

@@ -23,9 +23,30 @@ import { Token } from "./Token.js";
 import { cxx } from "./cxx.js";
 import { ASTSlotKind } from "./ASTSlotKind.js";
 import { ASTSlot } from "./ASTSlot.js";
+import { toReadableStream } from "./toReadableStream.js";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;
+}
+
+/**
+ * A node visited while traversing the AST.
+ */
+export interface ASTVisit {
+  /**
+   * The AST node or token being visited.
+   */
+  node: AST | Token | undefined;
+
+  /**
+   * The slot of the parent node holding this node.
+   */
+  slot: ASTSlot | undefined;
+
+  /**
+   * The depth of this node relative to the root of the traversal.
+   */
+  depth: number;
 }
 
 interface StackNode {
@@ -58,7 +79,7 @@ class StackEntry {
 
     for (let i = 0; i < slotCount; ++i) {
       const slotKind = cxx.getASTSlotKind(handle, i);
-      const name = cxx.getASTSlotName(handle, i);
+      const name = cxx.getASTSlotName(handle, i) as ASTSlot;
 
       if (slotKind === ASTSlotKind.Node) {
         const node = AST.from(cxx.getASTSlot(handle, i), this.#parser);
@@ -154,7 +175,7 @@ export class ASTCursor {
    *
    * @returns A generator that yields the nodes in pre-order.
    */
-  *preVisit() {
+  *preVisit(): Generator<ASTVisit> {
     let done = false;
     let depth = 0;
 
@@ -175,6 +196,21 @@ export class ASTCursor {
         --depth;
       }
     }
+  }
+
+  /**
+   * Pre-order traversal of the AST as a readable stream.
+   *
+   * Yields the same visits as {@link preVisit}, for use with `pipeThrough`,
+   * `pipeTo`, and `for await...of`.
+   *
+   * The stream must be consumed, or cancelled, before the parser that owns the
+   * AST is disposed.
+   *
+   * @returns a stream of the nodes in pre-order.
+   */
+  stream(): ReadableStream<ASTVisit> {
+    return toReadableStream(this.preVisit());
   }
 
   get #current() {
