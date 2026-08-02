@@ -21,7 +21,7 @@
 
 import { cxx } from "./cxx.js";
 import { type SourceLocation } from "./SourceLocation.js";
-import { ASTCursor } from "./ASTCursor.js";
+import { ASTCursor, type ASTVisit } from "./ASTCursor.js";
 import { ASTVisitor } from "./ASTVisitor.js";
 import { ASTKind } from "./ASTKind.js";
 import { Token } from "./Token.js";
@@ -62,6 +62,18 @@ export abstract class AST {
    */
   walk(): ASTCursor {
     return new ASTCursor(this, this.parser);
+  }
+
+  /**
+   * Returns a readable stream of the AST nodes in pre-order.
+   *
+   * The stream must be consumed, or cancelled, before the parser that owns
+   * the AST is disposed.
+   *
+   * @returns a stream of the nodes of this subtree in pre-order.
+   */
+  stream(): ReadableStream<ASTVisit> {
+    return this.walk().stream();
   }
 
   /**

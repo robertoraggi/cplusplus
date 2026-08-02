@@ -416,6 +416,11 @@ auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
   return out.str();
 }
 
+auto translationUnitParse(cxx::TranslationUnit& unit, bool checkTypes) -> bool {
+  unit.parse(cxx::ParserConfiguration{.checkTypes = checkTypes});
+  return unit.ast() != nullptr;
+}
+
 auto translationUnitGetAST(cxx::TranslationUnit& unit) -> std::intptr_t {
   return reinterpret_cast<std::intptr_t>(unit.ast());
 }
@@ -474,7 +479,7 @@ auto register_translation_unit(const char* name = "TranslationUnit")
   return class_<cxx::TranslationUnit>(name)
       .constructor<cxx::DiagnosticsClient*>()
       .function("setSource", &cxx::TranslationUnit::setSource)
-      .function("parse", &cxx::TranslationUnit::parse)
+      .function("parse", &translationUnitParse)
       .function("tokenCount", &cxx::TranslationUnit::tokenCount)
       .function("getAST", &translationUnitGetAST)
       .function("getUnitHandle", &translationUnitGetUnitHandle);

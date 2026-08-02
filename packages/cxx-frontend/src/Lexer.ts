@@ -19,10 +19,11 @@
 // SOFTWARE.
 
 import { TokenKind } from "./TokenKind.js";
-import { cxx } from "./cxx.js";
+import { cxx, type LexerHandle } from "./cxx.js";
+import { disposeSymbol } from "./disposeSymbols.js";
 
-export class Lexer {
-  #handle: typeof cxx.Lexer;
+export class Lexer implements Disposable {
+  #handle: LexerHandle;
 
   /**
    * Creates a new lexer.
@@ -40,12 +41,16 @@ export class Lexer {
     this.#handle.delete();
   }
 
+  [disposeSymbol](): void {
+    this.dispose();
+  }
+
   /**
    * Returns the next token.
    * @returns The next token.
    */
   next(): TokenKind {
-    return this.#handle.next();
+    return this.#handle.next() as TokenKind;
   }
 
   /**
@@ -80,7 +85,7 @@ export class Lexer {
    * Returns the current token kind.
    */
   get tokenKind(): TokenKind {
-    return this.#handle.tokenKind();
+    return this.#handle.tokenKind() as TokenKind;
   }
 
   /**
