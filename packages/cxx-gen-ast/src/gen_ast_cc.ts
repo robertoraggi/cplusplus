@@ -226,6 +226,7 @@ auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view {
   case ImplicitCastKind::kPointerConversion: return "pointer-conversion";
   case ImplicitCastKind::kPointerToMemberConversion: return "pointer-to-member-conversion";
   case ImplicitCastKind::kDerivedToBaseConversion: return "derived-to-base-conversion";
+  case ImplicitCastKind::kBaseToDerivedConversion: return "base-to-derived-conversion";
   case ImplicitCastKind::kBooleanConversion: return "boolean-conversion";
   case ImplicitCastKind::kFunctionPointerConversion: return "function-pointer-conversion";
   case ImplicitCastKind::kQualificationConversion: return "qualification-conversion";

@@ -2293,6 +2293,14 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
   ast->type = specs.type();
   ast->valueCategory = ValueCategory::kPrValue;
 
+  if (traits.is_void(traits.remove_cv(ast->type))) {
+    if (ast->expressionList && ast->expressionList->next) {
+      error(ast->expressionList->next->value->firstSourceLocation(),
+            "excess elements in 'void' initializer");
+    }
+    return;
+  }
+
   if (auto classType = type_cast<ClassType>(traits.remove_cv(ast->type))) {
     traits.requireCompleteClass(classType->symbol());
 
@@ -2334,6 +2342,14 @@ void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {
 
   ast->type = specs.type();
   ast->valueCategory = ValueCategory::kPrValue;
+
+  if (traits.is_void(traits.remove_cv(ast->type))) {
+    if (auto elements = ast->bracedInitList->expressionList) {
+      error(elements->value->firstSourceLocation(),
+            "excess elements in 'void' initializer");
+    }
+    return;
+  }
 
   if (auto classType = type_cast<ClassType>(traits.remove_cv(ast->type))) {
     traits.requireCompleteClass(classType->symbol());
@@ -2647,9 +2663,10 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
       auto srcCV = traits.get_cv_qualifiers(sourcePtr->elementType());
       auto tgtCV = traits.get_cv_qualifiers(targetPtr->elementType());
       if (traits.is_base_of(srcElem, tgtElem) &&
+          !traits.is_virtual_base_of(srcElem, tgtElem) &&
           stdconv_.checkCvQualifiers(tgtCV, srcCV)) {
         emit_implicit_cast(expression, source, targetType,
-                           ImplicitCastKind::kPointerConversion);
+                           ImplicitCastKind::kBaseToDerivedConversion);
         return true;
       }
     }
@@ -2710,7 +2727,12 @@ auto TypeChecker::Visitor::check_static_cast_to_derived_ref(
 
   if (!stdconv_.checkCvQualifiers(tgtCV, srcCV)) return false;
 
+  if (traits.is_same(sourceType, tgtBase)) return false;
   if (!traits.is_base_of(sourceType, tgtBase)) return false;
+  if (traits.is_virtual_base_of(sourceType, tgtBase)) return false;
+
+  check.wrapWithImplicitCast(ImplicitCastKind::kBaseToDerivedConversion,
+                             targetType, expression);
 
   return true;
 }
@@ -4428,6 +4450,65 @@ void TypeChecker::check(DeclarationAST* ast) {
   }
 }
 
+namespace {
+[[nodiscard]] auto lookupBaseClassType(ClassSymbol* classSymbol,
+                                       const Identifier* name,
+                                       const TypeTraits& traits)
+    -> const ClassType* {
+  for (auto scope = static_cast<ScopeSymbol*>(classSymbol); scope;
+       scope = scope->parent()) {
+    auto found = qualifiedLookupType(scope, name);
+    if (!found || !found->type()) continue;
+    if (auto classType = type_cast<ClassType>(traits.remove_cv(found->type())))
+      return classType;
+  }
+  return nullptr;
+}
+
+[[nodiscard]] auto isElementwiseArrayCopy(
+    const std::vector<ExpressionAST**>& args, const Type* arrayType,
+    const TypeTraits& traits) -> bool {
+  if (args.size() != 1) return false;
+  auto cast = ast_cast<ImplicitCastExpressionAST>(*args[0]);
+  if (!cast) return false;
+  if (cast->castKind != ImplicitCastKind::kLValueToRValueConversion)
+    return false;
+  return traits.remove_cv(cast->type) == traits.remove_cv(arrayType);
+}
+}  // namespace
+
+void TypeChecker::bind_template_parameter_base_initializers(
+    CompoundStatementFunctionBodyAST* ast) {
+  auto functionSymbol = symbol_cast<FunctionSymbol>(scope_);
+  if (!functionSymbol || !functionSymbol->isConstructor()) return;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(
+      functionSymbol->enclosingNonTemplateParametersScope());
+  if (!classSymbol) return;
+
+  auto control = unit_->control();
+
+  for (auto memInit : ListView{ast->memInitializerList}) {
+    if (memInit->symbol) continue;
+
+    UnqualifiedIdAST* unqualifiedId = nullptr;
+    if (auto paren = ast_cast<ParenMemInitializerAST>(memInit))
+      unqualifiedId = paren->unqualifiedId;
+    else if (auto braced = ast_cast<BracedMemInitializerAST>(memInit))
+      unqualifiedId = braced->unqualifiedId;
+
+    auto name = get_name(control, ast_cast<NameIdAST>(unqualifiedId));
+    if (!name) continue;
+
+    for (auto base : classSymbol->baseClasses()) {
+      if (base->name() != name) continue;
+      if (!symbol_cast<TypeParameterSymbol>(base->symbol())) continue;
+      memInit->symbol = base;
+      break;
+    }
+  }
+}
+
 void TypeChecker::check_mem_initializers(
     CompoundStatementFunctionBodyAST* ast) {
   if (!unit_->config().checkTypes) return;
@@ -4479,6 +4560,11 @@ void TypeChecker::check_mem_initializers(
     else if (auto braced = ast_cast<BracedMemInitializerAST>(memInit))
       unqualifiedId = braced->unqualifiedId;
 
+    if (!unqualifiedId) {
+      if (memInit->symbol) explicitlyInitialized.insert(memInit->symbol);
+      continue;
+    }
+
     auto name = get_name(control, unqualifiedId);
 
     if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId);
@@ -4491,7 +4577,7 @@ void TypeChecker::check_mem_initializers(
       continue;
     }
 
-    if (name == classSymbol->name()) {
+    if (!memInit->symbol && name == classSymbol->name()) {
       auto args = collectArgs(memInit);
 
       std::vector<ExpressionAST*> argValues;
@@ -4529,11 +4615,14 @@ void TypeChecker::check_mem_initializers(
       continue;
     }
 
-    Symbol* member = nullptr;
-    for (auto s : classSymbol->find(name)) {
-      if (s->isField() || s->kind() == SymbolKind::kBaseClass) {
-        member = s;
-        break;
+    Symbol* member = memInit->symbol;
+
+    if (!member) {
+      for (auto s : classSymbol->find(name)) {
+        if (s->isField() || s->kind() == SymbolKind::kBaseClass) {
+          member = s;
+          break;
+        }
       }
     }
 
@@ -4556,17 +4645,20 @@ void TypeChecker::check_mem_initializers(
     }
 
     if (!member) {
+      auto traits = unit_->typeTraits();
+      auto denoted =
+          lookupBaseClassType(classSymbol, name_cast<Identifier>(name), traits);
+
       for (auto base : classSymbol->baseClasses()) {
         if (!base->symbol()) continue;
         auto baseType = base->symbol()->type();
         if (!baseType) continue;
-        baseType = unit_->typeTraits().remove_cv(baseType);
-        if (auto classType = type_cast<ClassType>(baseType)) {
-          if (classType->symbol() && classType->symbol()->name() == name) {
-            member = base;
-            break;
-          }
-        }
+        auto classType = type_cast<ClassType>(traits.remove_cv(baseType));
+        if (!classType || !classType->symbol()) continue;
+        if (classType->symbol()->name() != name && classType != denoted)
+          continue;
+        member = base;
+        break;
       }
     }
 
@@ -4629,7 +4721,9 @@ void TypeChecker::check_mem_initializers(
 
       if (braced && braced->bracedInitList) {
         check_braced_init_list(targetType, braced->bracedInitList);
-      } else if (!valueInitialized) {
+      } else if (!valueInitialized &&
+                 !isElementwiseArrayCopy(args, targetType,
+                                         unit_->typeTraits())) {
         error(memInit->firstSourceLocation(),
               "an array member must be initialized with a braced "
               "initializer list");
@@ -4660,6 +4754,15 @@ void TypeChecker::check_mem_initializers(
     List<ExpressionAST*>* list = nullptr;
     append_default_arguments(ctor, &list);
     return list;
+  };
+
+  auto resolveDefaultConstructor = [&](ClassSymbol* cls) -> FunctionSymbol* {
+    if (!cls) return nullptr;
+    cls = cls->resolvedDefinition();
+    OverloadResolution overloadRes(unit_);
+    auto resolution = overloadRes.resolveConstructor(cls, {});
+    if (resolution.ambiguous) return nullptr;
+    return resolution.best ? resolution.best->symbol : nullptr;
   };
 
   auto makeClassNsdmiInit =
@@ -4803,8 +4906,7 @@ void TypeChecker::check_mem_initializers(
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
 
-    auto defaultCtor =
-        baseClassSymbol->resolvedDefinition()->defaultConstructor();
+    auto defaultCtor = resolveDefaultConstructor(baseClassSymbol);
     if (!defaultCtor) continue;
 
     append(ParenMemInitializerAST::create(
@@ -4861,8 +4963,7 @@ void TypeChecker::check_mem_initializers(
       auto fieldClassSymbol = classType->symbol();
       if (!fieldClassSymbol || !fieldClassSymbol->name()) continue;
 
-      auto defaultCtor =
-          fieldClassSymbol->resolvedDefinition()->defaultConstructor();
+      auto defaultCtor = resolveDefaultConstructor(fieldClassSymbol);
       if (!defaultCtor) continue;
 
       syntheticInit = ParenMemInitializerAST::create(

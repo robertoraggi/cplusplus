@@ -81,6 +81,7 @@ class ExternalNameEncoder {
 
   [[nodiscard]] auto encodeTemplateNameSubstitution(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeSubstitution(const void* key) -> bool;
+  [[nodiscard]] static auto encodeSeqId(int id) -> std::string;
   void enterSubstitution(const void* key);
 
   void out(std::string_view str) { out_.append(str); }

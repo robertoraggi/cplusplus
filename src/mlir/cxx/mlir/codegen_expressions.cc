@@ -187,6 +187,8 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
       -> ExpressionResult;
   auto emitPointerConversion(ImplicitCastExpressionAST* ast)
       -> ExpressionResult;
+  auto emitBaseToDerivedConversion(ImplicitCastExpressionAST* ast)
+      -> ExpressionResult;
   auto emitDerivedToBaseConversion(ImplicitCastExpressionAST* ast)
       -> ExpressionResult;
   auto emitUserDefinedConversion(ImplicitCastExpressionAST* ast)
@@ -1147,6 +1149,13 @@ auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
 
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
+  if (gen.traits.is_void(targetType)) {
+    for (auto node : ListView{ast->expressionList}) {
+      (void)gen.expression(node);
+    }
+    return {};
+  }
+
   if (gen.traits.is_class(targetType)) {
     return emitClassConstruction(ast, ast->firstSourceLocation(), targetType,
                                  ast->expressionList, ast->constructorSymbol);
@@ -1220,6 +1229,15 @@ auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
   if (!targetType) {
     return {
         gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
+  }
+
+  if (gen.traits.is_void(targetType)) {
+    if (ast->bracedInitList) {
+      for (auto node : ListView{ast->bracedInitList->expressionList}) {
+        (void)gen.expression(node);
+      }
+    }
+    return {};
   }
 
   if (gen.traits.is_class(targetType)) {
@@ -2684,6 +2702,25 @@ auto Codegen::ExpressionVisitor::emitDerivedToBaseConversion(
   return {value};
 }
 
+auto Codegen::ExpressionVisitor::emitBaseToDerivedConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto expressionResult = gen.expression(ast->expression);
+  if (!expressionResult.value) return expressionResult;
+
+  auto traits = gen.traits;
+  auto sourceClass = type_cast<ClassType>(traits.remove_cv(
+      traits.remove_pointer(traits.remove_reference(ast->expression->type))));
+  auto targetClass = type_cast<ClassType>(traits.remove_cv(
+      traits.remove_pointer(traits.remove_reference(ast->type))));
+
+  if (!sourceClass || !targetClass) return expressionResult;
+
+  return {gen.emitDerivedClassAddress(loc, expressionResult.value,
+                                      sourceClass->symbol(),
+                                      targetClass->symbol())};
+}
+
 auto Codegen::ExpressionVisitor::emitUserDefinedConversion(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   auto loc = gen.getLocation(ast->firstSourceLocation());
@@ -2760,13 +2797,17 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     case ImplicitCastKind::kDerivedToBaseConversion:
       return emitDerivedToBaseConversion(ast);
 
+    case ImplicitCastKind::kBaseToDerivedConversion:
+      return emitBaseToDerivedConversion(ast);
+
     case ImplicitCastKind::kUserDefinedConversion:
       return emitUserDefinedConversion(ast);
 
     case ImplicitCastKind::kTemporaryMaterializationConversion: {
       auto inner = gen.expression(ast->expression);
       if (!inner.value) break;
-      if (mlir::isa<mlir::cxx::PointerType>(inner.value.getType())) {
+      if (mlir::isa<mlir::cxx::PointerType>(inner.value.getType()) &&
+          !gen.traits.is_scalar(ast->type)) {
         return inner;
       }
       auto loc = gen.getLocation(ast->firstSourceLocation());

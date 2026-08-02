@@ -23,6 +23,7 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -36,13 +37,7 @@ struct FindReferencedParameterPack final : ASTVisitor {
   auto preVisit(AST*) -> bool override { return !exprPack; }
 
   auto packAt(int depth, int index, bool isPack) -> ParameterPackSymbol* {
-    if (!isPack) return nullptr;
-    if (depth != rewriter.depth_) return nullptr;
-    if (index >= static_cast<int>(rewriter.templateArguments_.size()))
-      return nullptr;
-    auto sym = std::get_if<Symbol*>(&rewriter.templateArguments_[index]);
-    if (!sym) return nullptr;
-    return symbol_cast<ParameterPackSymbol>(*sym);
+    return rewriter.parameterPackAt(depth, index, isPack);
   }
 
   void visit(IdExpressionAST* ast) override {
@@ -117,20 +112,73 @@ struct FindReferencedParameterPack final : ASTVisitor {
   }
 };
 
+auto ASTRewriter::parameterPackAt(int depth, int index, bool isPack)
+    -> ParameterPackSymbol* {
+  if (!isPack) return nullptr;
+  if (depth != depth_) return nullptr;
+  if (index < 0 || index >= static_cast<int>(templateArguments_.size()))
+    return nullptr;
+  auto sym = std::get_if<Symbol*>(&templateArguments_[index]);
+  if (!sym) return nullptr;
+  return symbol_cast<ParameterPackSymbol>(*sym);
+}
+
+auto ASTRewriter::parameterPackFor(Symbol* symbol) -> ParameterPackSymbol* {
+  auto info = template_parameter_info(symbol);
+  if (!info) return nullptr;
+  return parameterPackAt(info->depth, info->index, info->isPack);
+}
+
+auto ASTRewriter::packElementAt(ParameterPackSymbol* pack) const -> Symbol* {
+  if (!pack || !elementIndex_.has_value()) return nullptr;
+  if (*elementIndex_ >= static_cast<int>(pack->elements().size()))
+    return nullptr;
+  return pack->elements()[*elementIndex_];
+}
+
+auto ASTRewriter::packElementCount(ParameterPackSymbol* pack) const -> int {
+  return static_cast<int>(pack->elements().size());
+}
+
+auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) -> Symbol* {
+  auto typeParam = symbol_cast<TypeParameterSymbol>(symbol);
+  if (!typeParam) return nullptr;
+
+  auto paramType = type_cast<TypeParameterType>(typeParam->type());
+  if (!paramType) return nullptr;
+  if (paramType->depth() != depth_) return nullptr;
+  if (paramType->index() >= static_cast<int>(templateArguments_.size()))
+    return nullptr;
+
+  auto argument = std::get_if<Symbol*>(&templateArguments_[paramType->index()]);
+  if (!argument) return nullptr;
+
+  Symbol* resolved = *argument;
+
+  if (auto pack = symbol_cast<ParameterPackSymbol>(resolved)) {
+    if (!elementIndex_.has_value()) return nullptr;
+    if (*elementIndex_ >= static_cast<int>(pack->elements().size()))
+      return nullptr;
+    resolved = pack->elements()[*elementIndex_];
+  }
+
+  if (auto alias = symbol_cast<TypeAliasSymbol>(resolved)) {
+    if (auto classType = type_cast<ClassType>(
+            translationUnit()->typeTraits().remove_cv(alias->type()))) {
+      resolved = classType->symbol();
+    }
+  }
+
+  if (resolved && resolved->isClass()) return resolved;
+
+  return nullptr;
+}
+
 auto ASTRewriter::findReferencedParameterPack(AST* ast)
     -> ParameterPackSymbol* {
   FindReferencedParameterPack finder{*this};
   finder.accept(ast);
   return finder.exprPack ? finder.exprPack : finder.typePack;
-}
-
-auto ASTRewriter::getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol* {
-  return findReferencedParameterPack(ast);
-}
-
-auto ASTRewriter::getTypeParameterPack(SpecifierAST* ast)
-    -> ParameterPackSymbol* {
-  return findReferencedParameterPack(ast);
 }
 
 auto ASTRewriter::emptyFoldIdentity(TokenKind op) -> ExpressionAST* {

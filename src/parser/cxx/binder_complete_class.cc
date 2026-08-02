@@ -96,6 +96,8 @@ struct [[nodiscard]] Binder::CompleteClass {
   void synthesizeMemberwiseBodies();
   void typeFieldInitializers();
   [[nodiscard]] auto hasNonAssignableSubobject(bool moveForm) const -> bool;
+  [[nodiscard]] auto hasNonCopyConstructibleSubobject(bool moveForm) const
+      -> bool;
   auto ensureSourceParameter(FunctionSymbol* fn) -> ParameterSymbol*;
   auto makeSourceSubobjectRef(ExpressionAST* expr, const Type* type,
                               bool isMove) -> ExpressionAST*;
@@ -179,12 +181,15 @@ void Binder::CompleteClass::synthesizeSpecialMembers() {
   addDefaultConstructor();
 
   addCopyConstructor();
-  if (deleteCopyMembers && !userDeclaredCopyConstructor) {
-    if (auto copyConstructor = classSymbol->copyConstructor())
-      copyConstructor->setDeleted(true);
+  if (!userDeclaredCopyConstructor) {
+    if (auto copyConstructor = classSymbol->copyConstructor()) {
+      if (deleteCopyMembers || hasNonCopyConstructibleSubobject(false))
+        copyConstructor->setDeleted(true);
+    }
   }
 
-  if (!suppressMoveMembers) addMoveConstructor();
+  if (!suppressMoveMembers && !hasNonCopyConstructibleSubobject(true))
+    addMoveConstructor();
 
   addCopyAssignmentOperator();
   if (!userDeclaredCopyAssignment) {
@@ -194,13 +199,8 @@ void Binder::CompleteClass::synthesizeSpecialMembers() {
     }
   }
 
-  if (!suppressMoveMembers) {
+  if (!suppressMoveMembers && !hasNonAssignableSubobject(/*moveForm=*/true))
     addMoveAssignmentOperator();
-    if (auto moveAssignment = classSymbol->moveAssignmentOperator()) {
-      if (hasNonAssignableSubobject(/*moveForm=*/true))
-        moveAssignment->setDeleted(true);
-    }
-  }
 
   addDestructor();
 }
@@ -423,6 +423,42 @@ void Binder::CompleteClass::addMoveAssignmentOperator() {
   addFunctionToClassScope(symbol);
   attachDeclaration(symbol,
                     OperatorFunctionIdAST::create(pool, TokenKind::T_EQUAL));
+}
+
+auto Binder::CompleteClass::hasNonCopyConstructibleSubobject(
+    bool moveForm) const -> bool {
+  auto traits = binder.traits;
+
+  auto subobjectIsNotCopyConstructible = [&](const Type* type) {
+    auto classType = type_cast<ClassType>(traits.remove_cv(type));
+    if (!classType || !classType->symbol()) return false;
+    auto subobject = classType->symbol()->resolvedDefinition();
+    if (!subobject->isComplete()) return false;
+
+    if (auto destructor = subobject->destructor();
+        destructor && destructor->isDeleted())
+      return true;
+
+    auto constructor = moveForm ? subobject->moveConstructor() : nullptr;
+    if (!constructor) constructor = subobject->copyConstructor();
+    return constructor && constructor->isDeleted();
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (baseClass && subobjectIsNotCopyConstructible(baseClass->type()))
+      return true;
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    auto type = field->type();
+    if (!moveForm && type_cast<RvalueReferenceType>(type)) return true;
+
+    if (subobjectIsNotCopyConstructible(traits.remove_all_extents(type)))
+      return true;
+  }
+
+  return false;
 }
 
 auto Binder::CompleteClass::hasNonAssignableSubobject(bool moveForm) const
@@ -931,9 +967,9 @@ void Binder::CompleteClass::synthesizeCopyMoveCtorBody(FunctionSymbol* fn,
     access->valueCategory = ValueCategory::kLValue;
 
     ExpressionAST* arg = access;
-    const bool bitwiseCopy =
+    const bool elementwiseCopy =
         !id || traits.is_array(traits.remove_cv(field->type()));
-    if (bitwiseCopy) {
+    if (elementwiseCopy) {
       auto load = ImplicitCastExpressionAST::create(pool);
       load->castKind = ImplicitCastKind::kLValueToRValueConversion;
       load->expression = access;
@@ -954,6 +990,7 @@ void Binder::CompleteClass::synthesizeCopyMoveCtorBody(FunctionSymbol* fn,
 
   TypeChecker check{binder.unit_};
   check.setScope(fn);
+  check.setReportErrors(binder.reportErrors());
   check.check_mem_initializers(body);
 }
 

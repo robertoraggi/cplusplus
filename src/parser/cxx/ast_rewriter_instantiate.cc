@@ -37,26 +37,6 @@
 
 namespace cxx {
 namespace {
-struct GetTemplateDeclaration {
-  auto operator()(ClassSymbol* symbol) -> TemplateDeclarationAST* {
-    return symbol->templateDeclaration();
-  }
-
-  auto operator()(VariableSymbol* symbol) -> TemplateDeclarationAST* {
-    return symbol->templateDeclaration();
-  }
-
-  auto operator()(TypeAliasSymbol* symbol) -> TemplateDeclarationAST* {
-    return symbol->templateDeclaration();
-  }
-
-  auto operator()(FunctionSymbol* symbol) -> TemplateDeclarationAST* {
-    return symbol->templateDeclaration();
-  }
-
-  auto operator()(Symbol*) -> TemplateDeclarationAST* { return nullptr; }
-};
-
 struct GetDeclaration {
   auto operator()(ClassSymbol* symbol) -> AST* { return symbol->declaration(); }
 
@@ -378,7 +358,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     sfinaeContext = true;
   }
 
-  auto templateDecl = visit(GetTemplateDeclaration{}, symbol);
+  auto templateDecl = template_declaration_of(symbol);
   if (!templateDecl) return nullptr;
 
   auto declaration = visit(GetDeclaration{}, symbol);
@@ -559,7 +539,7 @@ void ASTRewriter::markExplicitInstantiationDeclared(
   auto classSymbol = symbol_cast<ClassSymbol>(symbol);
   if (!classSymbol) return;
 
-  auto templateDecl = visit(GetTemplateDeclaration{}, symbol);
+  auto templateDecl = template_declaration_of(symbol);
   if (!templateDecl) return;
 
   auto subst = Substitution::make(unit, templateDecl, templateArgumentList,
@@ -643,7 +623,10 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
     }
   }
 
-  if (instanceClass) unit_->addPendingMemberInstantiation(instanceClass);
+  if (instanceClass) {
+    unit_->addPendingMemberInstantiation(instanceClass);
+    remapScopeMembers(pattern, instanceClass);
+  }
 
   auto attachPendingBody = [&](FunctionSymbol* target, FunctionSymbol* def,
                                FunctionDefinitionAST* defAst, int depth) {
@@ -670,22 +653,10 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
     auto classTemplateDecl = pattern->templateDeclaration();
     if (!classTemplateDecl) return;
 
-    FunctionSymbol* instanceMember = nullptr;
-    for (auto cand : instanceClass->find(member->name())) {
-      for (auto fn : views::each_function(cand)) {
-        if (!fn->templateDeclaration()) continue;
-        if (fn->declaration()) continue;
-        if (!areTemplateHeadsEquivalentForRedeclaration(
-                unit_, fn->templateDeclaration(),
-                member->templateDeclaration())) {
-          continue;
-        }
-        instanceMember = fn;
-        break;
-      }
-      if (instanceMember) break;
-    }
-    if (!instanceMember) return;
+    auto instanceMember = symbol_cast<FunctionSymbol>(remapSymbol(member));
+    if (!instanceMember || instanceMember == member) return;
+    if (!instanceMember->templateDeclaration()) return;
+    if (instanceMember->declaration()) return;
     if (instanceMember->hasPendingBody()) return;
 
     attachPendingBody(instanceMember, def, defAst, classTemplateDecl->depth);
@@ -882,15 +853,16 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
   for (int round = 0; round < 32; ++round) {
     bool any = false;
 
-    SilentDiagnosticsClient silent;
     auto pendingBodies = unit->takePendingBodyCompletions();
     for (auto function : pendingBodies) {
       if (!function || !function->hasPendingBody()) continue;
       any = true;
-      auto saved = unit->changeDiagnosticsClient(&silent);
+      CapturingDiagnosticsClient capture;
+      auto saved = unit->changeDiagnosticsClient(&capture);
       auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
       rewriter.completePendingBody(function);
       (void)unit->changeDiagnosticsClient(saved);
+      unit->deferBodyDiagnostics(function, std::move(capture.diagnostics));
     }
 
     auto pending = unit->takePendingMemberInstantiations();

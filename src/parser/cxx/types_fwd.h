@@ -136,6 +136,12 @@ enum class RefQualifier {
   kRvalue,
 };
 
+struct TypeParamInfo {
+  int index = 0;
+  int depth = 0;
+  bool isPack = false;
+};
+
 auto to_string(const Type* type, const std::string& id = "") -> std::string;
 auto to_string(const Type* type, const Name* name) -> std::string;
 }  // namespace cxx

@@ -28,6 +28,7 @@
 #include <cxx/token_fwd.h>
 
 #include <functional>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -156,6 +157,10 @@ class [[nodiscard]] ASTRewriter {
   auto restrictedToDeclarations() const -> bool;
   void setRestrictedToDeclarations(bool restrictedToDeclarations);
 
+  void setClassInstanceToComplete(ClassSymbol* classSymbol) {
+    classInstanceToComplete_ = classSymbol;
+  }
+
   [[nodiscard]] auto substitutionFailed() const -> bool {
     return substitutionFailed_;
   }
@@ -169,6 +174,8 @@ class [[nodiscard]] ASTRewriter {
 
   auto rewriteExpressionList(List<ExpressionAST*>* source)
       -> List<ExpressionAST*>*;
+  [[nodiscard]] auto rewriteMemInitializerList(List<MemInitializerAST*>* source)
+      -> List<MemInitializerAST*>*;
   auto genericAssociation(GenericAssociationAST* ast) -> GenericAssociationAST*;
   auto designator(DesignatorAST* ast) -> DesignatorAST*;
   auto templateParameter(TemplateParameterAST* ast) -> TemplateParameterAST*;
@@ -260,11 +267,43 @@ class [[nodiscard]] ASTRewriter {
   auto shouldCaptureBodyErrors() const -> bool;
   void typeCheckAndCapture(std::function<void()> checkFn);
 
-  auto getParameterPack(ExpressionAST* ast) -> ParameterPackSymbol*;
-
-  auto getTypeParameterPack(SpecifierAST* ast) -> ParameterPackSymbol*;
-
   auto findReferencedParameterPack(AST* ast) -> ParameterPackSymbol*;
+
+  auto parameterPackAt(int depth, int index, bool isPack)
+      -> ParameterPackSymbol*;
+
+  auto parameterPackFor(Symbol* symbol) -> ParameterPackSymbol*;
+
+  [[nodiscard]] auto substitutedTemplateParameterClass(Symbol* symbol)
+      -> Symbol*;
+
+  [[nodiscard]] auto packElementCount(ParameterPackSymbol* pack) const -> int;
+
+  [[nodiscard]] auto packElementAt(ParameterPackSymbol* pack) const -> Symbol*;
+
+  template <typename Expand>
+  void forEachPackElement(ParameterPackSymbol* pack, Expand expand) {
+    const int elementCount = packElementCount(pack);
+    std::swap(parameterPack_, pack);
+    for (int i = 0; i < elementCount; ++i) expandPackElement(i, expand);
+    std::swap(parameterPack_, pack);
+  }
+
+  template <typename Expand>
+  void forEachPackElementReversed(ParameterPackSymbol* pack, Expand expand) {
+    const int elementCount = packElementCount(pack);
+    std::swap(parameterPack_, pack);
+    for (int i = elementCount - 1; i >= 0; --i) expandPackElement(i, expand);
+    std::swap(parameterPack_, pack);
+  }
+
+  template <typename Expand>
+  void expandPackElement(int i, Expand&& expand) {
+    std::optional<int> index{i};
+    std::swap(elementIndex_, index);
+    expand();
+    std::swap(elementIndex_, index);
+  }
 
   friend struct FindReferencedParameterPack;
 
@@ -273,6 +312,14 @@ class [[nodiscard]] ASTRewriter {
   void addSymbolRemap(Symbol* oldSym, Symbol* newSym);
 
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
+
+  void checkMemInitializers(FunctionSymbol* function,
+                            CompoundStatementFunctionBodyAST* body);
+
+  void remapFunctionParameters(FunctionDeclaratorChunkAST* patternPrototype,
+                               FunctionDeclaratorChunkAST* instancePrototype,
+                               FunctionParametersSymbol* patternParameters,
+                               FunctionParametersSymbol* instanceParameters);
 
   [[nodiscard]] auto remapSymbol(Symbol* sym) const -> Symbol*;
 
@@ -293,6 +340,7 @@ class [[nodiscard]] ASTRewriter {
   std::vector<std::unordered_map<Symbol*, FieldSymbol*>> lambdaCaptureFields_;
   TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
+  ClassSymbol* classInstanceToComplete_ = nullptr;
   bool restrictedToDeclarations_ = false;
   bool substitutionFailed_ = false;
 

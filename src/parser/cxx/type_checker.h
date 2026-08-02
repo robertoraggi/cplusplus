@@ -67,6 +67,8 @@ class TypeChecker {
   void check_condition_declaration(ConditionExpressionAST* ast);
   void check_field_initializer(FieldSymbol* field);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
+  void bind_template_parameter_base_initializers(
+      CompoundStatementFunctionBodyAST* ast);
   void check_braced_init_list(const Type* type, BracedInitListAST* ast);
   void append_default_arguments(FunctionSymbol* function,
                                 List<ExpressionAST*>** list);

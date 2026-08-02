@@ -733,9 +733,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
     if (auto compoundBody =
             ast_cast<CompoundStatementFunctionBodyAST>(copy->functionBody)) {
-      TypeChecker check{translationUnit()};
-      check.setScope(functionSymbol);
-      check.check_mem_initializers(compoundBody);
+      rewrite.checkMemInitializers(functionSymbol, compoundBody);
     }
 
     binder()->synthesizeDefaultedMemberBody(functionSymbol);
@@ -1174,12 +1172,8 @@ auto ASTRewriter::FunctionBodyVisitor::operator()(
 
   copy->colonLoc = ast->colonLoc;
 
-  for (auto memInitializerList = &copy->memInitializerList;
-       auto node : ListView{ast->memInitializerList}) {
-    auto value = rewrite.memInitializer(node);
-    *memInitializerList = make_list_node(arena(), value);
-    memInitializerList = &(*memInitializerList)->next;
-  }
+  copy->memInitializerList =
+      rewrite.rewriteMemInitializerList(ast->memInitializerList);
 
   copy->statement =
       ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));
@@ -1194,12 +1188,8 @@ auto ASTRewriter::FunctionBodyVisitor::operator()(
   copy->tryLoc = ast->tryLoc;
   copy->colonLoc = ast->colonLoc;
 
-  for (auto memInitializerList = &copy->memInitializerList;
-       auto node : ListView{ast->memInitializerList}) {
-    auto value = rewrite.memInitializer(node);
-    *memInitializerList = make_list_node(arena(), value);
-    memInitializerList = &(*memInitializerList)->next;
-  }
+  copy->memInitializerList =
+      rewrite.rewriteMemInitializerList(ast->memInitializerList);
 
   copy->statement =
       ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));

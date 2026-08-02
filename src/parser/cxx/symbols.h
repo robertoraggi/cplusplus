@@ -64,6 +64,15 @@ struct PendingBodyInstantiation {
     -> bool;
 
 [[nodiscard]] auto template_name_symbol(Symbol* symbol) -> Symbol*;
+
+[[nodiscard]] auto template_declaration_of(Symbol* symbol)
+    -> TemplateDeclarationAST*;
+
+[[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto template_parameter_info(Symbol* symbol)
+    -> std::optional<TypeParamInfo>;
+
 template <typename S>
 class MaybeRedecl {
  public:
@@ -162,6 +171,17 @@ class MaybeTemplate {
   void addSpecialization(std::vector<TemplateArgument> arguments,
                          S* specialization) {
     ensure_template();
+
+    for (std::size_t i = 0; i < template_->specializations_.size(); ++i) {
+      const auto& existing = template_->specializations_[i];
+      if (existing.symbol != specialization) continue;
+      if (existing.arguments.size() != arguments.size()) continue;
+      if (existing.arguments != arguments &&
+          !compare_args(existing.arguments, arguments))
+        continue;
+      specialization->setSpecializationInfo(static_cast<S*>(this), i);
+      return;
+    }
 
     auto index = int(template_->specializations_.size());
 
@@ -684,6 +704,8 @@ class ClassSymbol final : public ScopeSymbol,
 
   [[nodiscard]] auto hasBaseClass(Symbol* symbol) const -> bool;
 
+  [[nodiscard]] auto hasVirtualBasePath(Symbol* symbol) const -> bool;
+
   [[nodiscard]] auto flags() const -> std::uint32_t;
   void setFlags(std::uint32_t flags);
 
@@ -708,6 +730,9 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto hasBaseClass(Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
       -> bool;
+
+  [[nodiscard]] auto hasVirtualBasePath(
+      Symbol* symbol, std::unordered_set<const ClassSymbol*>&) const -> bool;
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;

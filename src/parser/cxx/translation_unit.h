@@ -36,6 +36,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace cxx {
@@ -68,6 +69,11 @@ class TranslationUnit {
   void addPendingBodyCompletion(FunctionSymbol* function);
   [[nodiscard]] auto takePendingBodyCompletions()
       -> std::vector<FunctionSymbol*>;
+
+  void deferBodyDiagnostics(FunctionSymbol* function,
+                            std::vector<Diagnostic> diagnostics);
+  [[nodiscard]] auto takeDeferredBodyDiagnostics(FunctionSymbol* function)
+      -> std::vector<Diagnostic>;
 
   [[nodiscard]] auto fileName() const -> const std::string&;
 
@@ -156,5 +162,7 @@ class TranslationUnit {
   ParserConfiguration config_;
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
+  std::unordered_map<FunctionSymbol*, std::vector<Diagnostic>>
+      deferredBodyDiagnostics_;
 };
 }  // namespace cxx

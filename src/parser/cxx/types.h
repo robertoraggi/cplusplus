@@ -474,12 +474,6 @@ class TemplateTypeParameterType final
   }
 };
 
-struct TypeParamInfo {
-  int index = 0;
-  int depth = 0;
-  bool isPack = false;
-};
-
 class UnresolvedNameType final
     : public Type,
       public std::tuple<TranslationUnit*, NestedNameSpecifierAST*,

@@ -181,7 +181,7 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
     if (paramDecl && paramDecl->isPack) {
       ParameterPackSymbol* pack = nullptr;
       for (auto specNode : ListView{paramDecl->typeSpecifierList}) {
-        pack = getTypeParameterPack(specNode);
+        pack = findReferencedParameterPack(specNode);
         if (pack) break;
       }
 
@@ -198,17 +198,10 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
           }
         }
 
-        auto savedParameterPack = parameterPack_;
-        std::swap(parameterPack_, pack);
-
         auto funcParamPack = control()->newParameterPackSymbol(
             binder().scope(), SourceLocation{});
 
-        int n = static_cast<int>(parameterPack_->elements().size());
-        for (int i = 0; i < n; ++i) {
-          std::optional<int> index{i};
-          std::swap(elementIndex_, index);
-
+        forEachPackElement(pack, [&] {
           auto membersBefore = binder().scope()->members().size();
 
           auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
@@ -220,15 +213,12 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
           if (members.size() > membersBefore) {
             funcParamPack->addElement(members.back());
           }
-
-          std::swap(elementIndex_, index);
-        }
+        });
 
         if (originalParam) {
           functionParamPacks_[originalParam] = funcParamPack;
         }
 
-        std::swap(parameterPack_, pack);
         continue;
       }
     }
