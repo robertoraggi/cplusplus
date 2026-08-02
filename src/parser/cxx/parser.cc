@@ -11041,11 +11041,14 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
     }
   }
 
-  if (!binder_.inTemplate()) {
+  {
     TypeChecker check{unit_};
     check.setScope(ast->symbol);
     check.setReportErrors(config().checkTypes);
-    check.check_mem_initializers(functionBody);
+    if (binder_.inTemplate())
+      check.bind_template_parameter_base_initializers(functionBody);
+    else
+      check.check_mem_initializers(functionBody);
   }
 
   rewind(functionBody->statement->lbraceLoc.next());
@@ -11067,7 +11070,6 @@ void Parser::check(ExpressionAST* ast) {
 
 void Parser::check_mem_initializers(FunctionDefinitionAST* ast) {
   if (classDepth_) return;
-  if (binder_.inTemplate()) return;
 
   auto functionBody =
       ast_cast<CompoundStatementFunctionBodyAST>(ast->functionBody);
@@ -11076,6 +11078,12 @@ void Parser::check_mem_initializers(FunctionDefinitionAST* ast) {
   TypeChecker check{unit_};
   check.setScope(ast->symbol);
   check.setReportErrors(config().checkTypes);
+
+  if (binder_.inTemplate()) {
+    check.bind_template_parameter_base_initializers(functionBody);
+    return;
+  }
+
   check.check_mem_initializers(functionBody);
 }
 

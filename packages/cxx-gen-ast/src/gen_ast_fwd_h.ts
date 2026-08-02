@@ -81,6 +81,7 @@ enum class ImplicitCastKind {
   kPointerConversion,
   kPointerToMemberConversion,
   kDerivedToBaseConversion,
+  kBaseToDerivedConversion,
   kBooleanConversion,
   kFunctionPointerConversion,
   kQualificationConversion,

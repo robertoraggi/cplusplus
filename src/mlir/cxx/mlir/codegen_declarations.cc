@@ -523,6 +523,8 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto functionSymbol = ast->symbol;
   if (functionSymbol && functionSymbol->templateDeclaration()) return {};
 
+  gen.reportDeferredBodyDiagnostics(functionSymbol);
+
   auto ctx = gen.context_;
 
   const auto functionType = type_cast<FunctionType>(functionSymbol->type());

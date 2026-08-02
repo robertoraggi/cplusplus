@@ -87,6 +87,18 @@ struct NestedTemplatePattern {
   }
 };
 
+auto findTemplateIdInTypeId(TypeIdAST* typeId) -> SimpleTemplateIdAST* {
+  if (!typeId) return nullptr;
+  for (auto sp : ListView{typeId->typeSpecifierList}) {
+    auto named = ast_cast<NamedTypeSpecifierAST>(sp);
+    if (!named) continue;
+    if (auto templId = ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) {
+      return templId;
+    }
+  }
+  return nullptr;
+}
+
 auto extractDirectNestedTemplateIds(SimpleTemplateIdAST* templId)
     -> std::vector<SimpleTemplateIdAST*> {
   std::vector<SimpleTemplateIdAST*> nested;
@@ -97,16 +109,7 @@ auto extractDirectNestedTemplateIds(SimpleTemplateIdAST* templId)
       continue;
     }
 
-    SimpleTemplateIdAST* innerTemplId = nullptr;
-    for (auto sp : ListView{typeArg->typeId->typeSpecifierList}) {
-      auto named = ast_cast<NamedTypeSpecifierAST>(sp);
-      if (!named) continue;
-
-      innerTemplId = ast_cast<SimpleTemplateIdAST>(named->unqualifiedId);
-      if (innerTemplId) break;
-    }
-
-    nested.push_back(innerTemplId);
+    nested.push_back(findTemplateIdInTypeId(typeArg->typeId));
   }
   return nested;
 }
@@ -155,118 +158,102 @@ struct PartialSpecMatcher {
 
   [[nodiscard]] auto control() const -> Control* { return unit->control(); }
 
-  auto deduceOrCheck(int pos, Symbol* newSymbol) -> bool {
+  auto sameArgument(Symbol* lhs, Symbol* rhs) const -> bool {
+    if (lhs == rhs) return true;
+    if (!lhs || !rhs) return false;
+
+    auto lhsPack = symbol_cast<ParameterPackSymbol>(lhs);
+    auto rhsPack = symbol_cast<ParameterPackSymbol>(rhs);
+    if (lhsPack && rhsPack) {
+      const auto& lhsElements = lhsPack->elements();
+      const auto& rhsElements = rhsPack->elements();
+      if (lhsElements.size() != rhsElements.size()) return false;
+      for (size_t i = 0; i < lhsElements.size(); ++i) {
+        if (!sameArgument(lhsElements[i], rhsElements[i])) return false;
+      }
+      return true;
+    }
+
+    auto lhsVar = symbol_cast<VariableSymbol>(lhs);
+    auto rhsVar = symbol_cast<VariableSymbol>(rhs);
+    if (lhsVar && rhsVar && lhsVar->constValue().has_value() &&
+        rhsVar->constValue().has_value()) {
+      return lhsVar->constValue().value() == rhsVar->constValue().value();
+    }
+
+    auto lhsType = lhs->type();
+    auto rhsType = rhs->type();
+    if (lhsType && rhsType && unit->typeTraits().is_same(lhsType, rhsType)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  auto deduceOrCheck(int pos, Symbol* newSymbol, bool countAsParamMatch)
+      -> bool {
     if (pos < 0) return true;
     if (!newSymbol) return false;
 
     auto existingSymbol = deducedArgs.get(pos);
     if (!existingSymbol) {
       deducedArgs.set(pos, newSymbol);
-      ++deducedParamMatches;
+      if (countAsParamMatch) ++deducedParamMatches;
       return true;
     }
 
-    if (existingSymbol == newSymbol) return true;
-
-    auto leftType = existingSymbol->type();
-    auto rightType = newSymbol->type();
-    if (leftType && rightType &&
-        unit->typeTraits().is_same(leftType, rightType)) {
-      return true;
-    }
-
-    auto leftVar = symbol_cast<VariableSymbol>(existingSymbol);
-    auto rightVar = symbol_cast<VariableSymbol>(newSymbol);
-    if (!leftVar || !rightVar) return false;
-
-    if (!leftVar->constValue().has_value() ||
-        !rightVar->constValue().has_value()) {
-      return false;
-    }
-
-    return leftVar->constValue().value() == rightVar->constValue().value();
+    return sameArgument(existingSymbol, newSymbol);
   }
 
-  auto deducePackElements(const std::vector<Symbol*>& patElems,
-                          const std::vector<Symbol*>& concElems,
-                          const SimpleTemplateIdAST* parentTemplId,
+  auto deduceArgumentList(const std::vector<Symbol*>& patArgs,
+                          const std::vector<Symbol*>& concArgs,
+                          const SimpleTemplateIdAST* patTemplId,
                           size_t writtenBase) -> bool {
-    size_t patIdx = 0;
-    size_t concIdx = 0;
+    for (size_t patIdx = 0; patIdx < patArgs.size(); ++patIdx) {
+      auto patArg = patArgs[patIdx];
+      if (!patArg) return false;
 
-    while (patIdx < patElems.size() && concIdx < concElems.size()) {
-      auto patElem = patElems[patIdx];
-      auto concElem = concElems[concIdx];
-      if (!patElem || !concElem) return false;
+      auto patInfo = template_parameter_info(patArg);
 
-      auto patElemType = patElem->type();
-      auto concElemType = concElem->type();
-      if (!patElemType || !concElemType) {
-        if (patElemType != concElemType) return false;
-        ++patIdx;
-        ++concIdx;
-        continue;
-      }
+      if (patInfo && patInfo->isPack) {
+        if (patIdx + 1 != patArgs.size()) return false;
 
-      auto patElemInfo = getTypeParamInfo(patElemType);
-
-      if (patElemInfo && patElemInfo->isPack) {
         auto deducedPack = control()->newParameterPackSymbol(nullptr, {});
-        while (concIdx < concElems.size()) {
-          deducedPack->addElement(concElems[concIdx]);
-          ++concIdx;
+        for (size_t concIdx = patIdx; concIdx < concArgs.size(); ++concIdx) {
+          if (!concArgs[concIdx]) return false;
+          deducedPack->addElement(concArgs[concIdx]);
         }
-        deducedArgs.set(paramPosition(patElemInfo->depth, patElemInfo->index),
-                        deducedPack);
-        ++patIdx;
-        continue;
+
+        return deduceOrCheck(paramPosition(patInfo->depth, patInfo->index),
+                             deducedPack, /*countAsParamMatch=*/false);
       }
 
-      if (patElemInfo) {
-        deducedArgs.set(paramPosition(patElemInfo->depth, patElemInfo->index),
-                        concElems[concIdx]);
-        ++patIdx;
-        ++concIdx;
-        continue;
-      }
+      if (patIdx >= concArgs.size()) return false;
 
-      if (!deduceType(patElemType, concElemType,
-                      pattern
-                          ? pattern->child(parentTemplId, writtenBase + patIdx)
-                          : nullptr)) {
+      if (!deduceArgument(patArg, concArgs[patIdx], patTemplId,
+                          writtenBase + patIdx)) {
         return false;
       }
-      ++patIdx;
-      ++concIdx;
     }
 
-    while (patIdx < patElems.size()) {
-      auto patElem = patElems[patIdx];
-      if (!patElem) return false;
-
-      auto patElemInfo = getTypeParamInfo(patElem->type());
-      if (!patElemInfo || !patElemInfo->isPack) return false;
-
-      auto deducedPack = control()->newParameterPackSymbol(nullptr, {});
-      deducedArgs.set(paramPosition(patElemInfo->depth, patElemInfo->index),
-                      deducedPack);
-      ++patIdx;
-    }
-
-    return concIdx == concElems.size();
+    return patArgs.size() == concArgs.size();
   }
 
-  auto matchArg(const TemplateArgument& pat, const TemplateArgument& conc,
-                size_t argPos) -> bool {
-    auto patSym = asSymbolArgument(pat);
-    auto concSym = asSymbolArgument(conc);
+  auto deduceArgument(Symbol* patSym, Symbol* concSym,
+                      const SimpleTemplateIdAST* patTemplId, size_t argPos)
+      -> bool {
     if (!patSym || !concSym) return false;
+
+    if (auto patInfo = template_parameter_info(patSym)) {
+      return deduceOrCheck(paramPosition(patInfo->depth, patInfo->index),
+                           concSym, /*countAsParamMatch=*/true);
+    }
 
     auto patPack = symbol_cast<ParameterPackSymbol>(patSym);
     auto concPack = symbol_cast<ParameterPackSymbol>(concSym);
     if (patPack && concPack) {
-      if (!deducePackElements(patPack->elements(), concPack->elements(),
-                              pattern ? pattern->root : nullptr, argPos)) {
+      if (!deduceArgumentList(patPack->elements(), concPack->elements(),
+                              patTemplId, argPos)) {
         return false;
       }
       ++packMatches;
@@ -280,11 +267,6 @@ struct PartialSpecMatcher {
       ++score;
       ++exactTypeMatches;
       return true;
-    }
-
-    if (auto patParamInfo = getTypeParamInfo(patType)) {
-      auto pos = paramPosition(patParamInfo->depth, patParamInfo->index);
-      return deduceOrCheck(pos, concSym);
     }
 
     if (type_cast<UnresolvedNameType>(patType)) return true;
@@ -304,9 +286,14 @@ struct PartialSpecMatcher {
       return true;
     }
 
-    return deduceType(
-        patType, concType,
-        pattern ? pattern->child(pattern->root, argPos) : nullptr);
+    return deduceType(patType, concType,
+                      pattern ? pattern->child(patTemplId, argPos) : nullptr);
+  }
+
+  auto matchArg(const TemplateArgument& pat, const TemplateArgument& conc,
+                size_t argPos) -> bool {
+    return deduceArgument(asSymbolArgument(pat), asSymbolArgument(conc),
+                          pattern ? pattern->root : nullptr, argPos);
   }
 
   auto deduceType(const Type* patType, const Type* concType,
@@ -317,7 +304,7 @@ struct PartialSpecMatcher {
       auto pos = paramPosition(patParamInfo->depth, patParamInfo->index);
       auto argument = control()->newTypeAliasSymbol(nullptr, {});
       argument->setType(concType);
-      return deduceOrCheck(pos, argument);
+      return deduceOrCheck(pos, argument, /*countAsParamMatch=*/true);
     }
 
     if (auto patQual = type_cast<QualType>(patType)) {
@@ -401,7 +388,7 @@ struct PartialSpecMatcher {
       value->setConstValue(
           ConstValue(static_cast<std::intmax_t>(concArray->size())));
 
-      if (!deduceOrCheck(pos, value)) return false;
+      if (!deduceOrCheck(pos, value, /*countAsParamMatch=*/true)) return false;
 
       ++score;
       return deduceType(patArray->elementType(), concArray->elementType(),
@@ -501,55 +488,92 @@ struct PartialSpecMatcher {
     return classType->symbol();
   }
 
+  auto remapAliasParameter(Symbol* symbol, int aliasDepth,
+                           const std::vector<TemplateArgument>& aliasArguments)
+      -> Symbol* {
+    if (!symbol) return symbol;
+
+    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
+      auto remapped = control()->newParameterPackSymbol(nullptr, {});
+      for (auto element : pack->elements()) {
+        auto mapped = remapAliasParameter(element, aliasDepth, aliasArguments);
+        if (auto mappedPack = symbol_cast<ParameterPackSymbol>(mapped)) {
+          for (auto mappedElement : mappedPack->elements())
+            remapped->addElement(mappedElement);
+        } else if (mapped) {
+          remapped->addElement(mapped);
+        }
+      }
+      return remapped;
+    }
+
+    auto info = template_parameter_info(symbol);
+    if (!info || info->depth != aliasDepth) return symbol;
+    if (info->index < 0 ||
+        info->index >= static_cast<int>(aliasArguments.size())) {
+      return symbol;
+    }
+    return asSymbolArgument(aliasArguments[info->index]);
+  }
+
+  auto aliasExpandedArguments(SimpleTemplateIdAST* patTemplId,
+                              ClassSymbol* primarySym)
+      -> std::optional<std::vector<Symbol*>> {
+    auto alias = symbol_cast<TypeAliasSymbol>(patTemplId->symbol);
+    if (!alias) return std::nullopt;
+
+    auto aliasTemplateDecl = alias->templateDeclaration();
+    if (!aliasTemplateDecl) return std::nullopt;
+
+    auto aliasDeclaration =
+        ast_cast<AliasDeclarationAST>(aliasTemplateDecl->declaration);
+    if (!aliasDeclaration) return std::nullopt;
+
+    auto underlying = findTemplateIdInTypeId(aliasDeclaration->typeId);
+    if (!underlying) return std::nullopt;
+
+    auto aliasArguments =
+        Substitution(unit, aliasTemplateDecl, patTemplId->templateArgumentList)
+            .templateArguments();
+
+    auto underlyingArgs = Substitution(unit, primarySym->templateDeclaration(),
+                                       underlying->templateArgumentList)
+                              .templateArguments();
+
+    std::vector<Symbol*> result;
+    result.reserve(underlyingArgs.size());
+    for (const auto& arg : underlyingArgs) {
+      result.push_back(remapAliasParameter(
+          asSymbolArgument(arg), aliasTemplateDecl->depth, aliasArguments));
+    }
+    return result;
+  }
+
   auto matchNestedWithPattern(SimpleTemplateIdAST* patTemplId,
                               ClassSymbol* primarySym,
                               std::span<const TemplateArgument> concArgs)
       -> bool {
-    auto patInnerArgs = Substitution(unit, primarySym->templateDeclaration(),
-                                     patTemplId->templateArgumentList)
-                            .templateArguments();
+    std::vector<Symbol*> patSymbols;
 
-    if (patInnerArgs.size() != concArgs.size()) return false;
-
-    std::vector<TemplateArgument> concVec(concArgs.begin(), concArgs.end());
-
-    for (size_t j = 0; j < patInnerArgs.size(); ++j) {
-      auto ipSym = asSymbolArgument(patInnerArgs[j]);
-      auto icSym = asSymbolArgument(concVec[j]);
-      if (!ipSym || !icSym) return false;
-
-      auto ipPack = symbol_cast<ParameterPackSymbol>(ipSym);
-      auto icPack = symbol_cast<ParameterPackSymbol>(icSym);
-      if (ipPack && icPack) {
-        if (!deducePackElements(ipPack->elements(), icPack->elements(),
-                                patTemplId, j)) {
-          return false;
-        }
-
-        ++packMatches;
-        continue;
+    if (auto expanded = aliasExpandedArguments(patTemplId, primarySym)) {
+      patSymbols = std::move(*expanded);
+    } else {
+      auto patInnerArgs = Substitution(unit, primarySym->templateDeclaration(),
+                                       patTemplId->templateArgumentList)
+                              .templateArguments();
+      patSymbols.reserve(patInnerArgs.size());
+      for (const auto& arg : patInnerArgs) {
+        patSymbols.push_back(asSymbolArgument(arg));
       }
-
-      auto ipType = ipSym->type();
-      auto icType = icSym->type();
-      if (!ipType || !icType) {
-        if (ipType != icType) return false;
-        ++score;
-        ++exactTypeMatches;
-        continue;
-      }
-
-      if (auto info = getTypeParamInfo(ipType)) {
-        auto pos = paramPosition(info->depth, info->index);
-        if (!deduceOrCheck(pos, icSym)) return false;
-        continue;
-      }
-
-      auto nestedTemplId = pattern ? pattern->child(patTemplId, j) : nullptr;
-      if (!deduceType(ipType, icType, nestedTemplId)) return false;
     }
 
-    return true;
+    std::vector<Symbol*> concSymbols;
+    concSymbols.reserve(concArgs.size());
+    for (const auto& arg : concArgs) {
+      concSymbols.push_back(asSymbolArgument(arg));
+    }
+
+    return deduceArgumentList(patSymbols, concSymbols, patTemplId, 0);
   }
 };
 
@@ -962,6 +986,12 @@ auto ASTRewriter::tryPartialSpecialization(
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
   specRewriter.binder().setInstantiatingSymbol(selected.specClass);
+
+  auto pendingInstance = symbol_cast<ClassSymbol>(
+      classSymbol->findSpecialization(templateArguments));
+  if (pendingInstance && !pendingInstance->isComplete()) {
+    specRewriter.setClassInstanceToComplete(pendingInstance);
+  }
 
   auto instance =
       ast_cast<ClassSpecifierAST>(specRewriter.specifier(selected.specBody));

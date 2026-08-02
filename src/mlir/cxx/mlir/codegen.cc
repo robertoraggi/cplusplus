@@ -1535,6 +1535,59 @@ auto Codegen::emitBaseClassAddress(mlir::Location loc, mlir::Value objectPtr,
   return current;
 }
 
+auto Codegen::emitDerivedClassAddress(mlir::Location loc, mlir::Value objectPtr,
+                                      ClassSymbol* fromClass,
+                                      ClassSymbol* targetClass) -> mlir::Value {
+  if (!objectPtr || !fromClass || !targetClass) return objectPtr;
+  if (!mlir::isa<mlir::cxx::PointerType>(objectPtr.getType())) return objectPtr;
+
+  fromClass = classDefinition(fromClass);
+  targetClass = classDefinition(targetClass);
+  if (fromClass == targetClass) return objectPtr;
+
+  std::vector<BaseClassSymbol*> path;
+  if (!findBaseClassPath(targetClass, fromClass, path)) return objectPtr;
+
+  std::int64_t byteOffset = 0;
+  auto currentClass = targetClass;
+
+  for (auto step : path) {
+    auto baseClass = classDefinition(symbol_cast<ClassSymbol>(step->symbol()));
+    if (step->isVirtual())
+      cxx_runtime_error("base-to-derived conversion through a virtual base");
+
+    if (auto layout = currentClass->layout()) {
+      if (auto baseInfo = layout->getBaseInfo(baseClass))
+        byteOffset += static_cast<std::int64_t>(baseInfo->offset);
+    }
+
+    currentClass = baseClass;
+  }
+
+  auto derivedPtrType =
+      mlir::cxx::PointerType::get(context_, convertType(targetClass->type()));
+
+  if (byteOffset == 0) {
+    return mlir::cxx::BitcastOp::create(builder_, loc, derivedPtrType,
+                                        objectPtr);
+  }
+
+  auto i8PtrType = mlir::cxx::PointerType::get(context_, builder_.getI8Type());
+  const auto wordSize =
+      static_cast<std::int64_t>(control()->memoryLayout()->sizeOfPointer());
+  auto wordType =
+      mlir::IntegerType::get(context_, static_cast<unsigned>(wordSize * 8));
+
+  auto objectI8 =
+      mlir::cxx::BitcastOp::create(builder_, loc, i8PtrType, objectPtr);
+  auto offsetOp = mlir::arith::ConstantOp::create(
+      builder_, loc, wordType, builder_.getIntegerAttr(wordType, -byteOffset));
+  auto adjusted =
+      mlir::cxx::PtrAddOp::create(builder_, loc, i8PtrType, objectI8, offsetOp);
+
+  return mlir::cxx::BitcastOp::create(builder_, loc, derivedPtrType, adjusted);
+}
+
 auto Codegen::computeFunctionSignature(FunctionSymbol* functionSymbol)
     -> mlir::cxx::FunctionType {
   const auto functionType = type_cast<FunctionType>(functionSymbol->type());
@@ -1600,6 +1653,14 @@ auto Codegen::computeFunctionSignature(const FunctionType* functionType,
 
   return mlir::cxx::FunctionType::get(context_, inputTypes, resultTypes,
                                       functionType->isVariadic());
+}
+
+void Codegen::reportDeferredBodyDiagnostics(FunctionSymbol* functionSymbol) {
+  if (!functionSymbol) return;
+
+  for (const auto& diagnostic :
+       unit_->takeDeferredBodyDiagnostics(functionSymbol))
+    unit_->diagnosticsClient()->report(diagnostic);
 }
 
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
@@ -2175,8 +2236,7 @@ auto Codegen::getFileAttr(std::string_view filename) -> mlir::LLVM::DIFileAttr {
   return getFileAttr(std::string{filename});
 }
 
-auto Codegen::getFileAttrAt(SourceLocation location)
-    -> mlir::LLVM::DIFileAttr {
+auto Codegen::getFileAttrAt(SourceLocation location) -> mlir::LLVM::DIFileAttr {
   if (!location) return getCompileUnitAttr().getFile();
 
   return getFileAttr(unit_->tokenStartPosition(location).fileName);

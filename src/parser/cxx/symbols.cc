@@ -285,6 +285,77 @@ auto Symbol::canonical() const -> Symbol* {
   }
 }
 
+namespace {
+template <typename S, typename D>
+void acceptsMaybeTemplate(const MaybeTemplate<S, D>&);
+
+template <typename S>
+concept Templatable = requires(const S& s) { acceptsMaybeTemplate(s); };
+
+struct GetTemplateDeclaration {
+  template <Templatable S>
+  auto operator()(S* symbol) const -> TemplateDeclarationAST* {
+    return symbol->templateDeclaration();
+  }
+
+  auto operator()(Symbol*) const -> TemplateDeclarationAST* { return nullptr; }
+};
+
+struct GetTemplateParameterInfo {
+  auto operator()(TypeParameterSymbol* symbol) const
+      -> std::optional<TypeParamInfo> {
+    return getTypeParamInfo(symbol->type());
+  }
+
+  auto operator()(TemplateTypeParameterSymbol* symbol) const
+      -> std::optional<TypeParamInfo> {
+    return getTypeParamInfo(symbol->type());
+  }
+
+  auto operator()(NonTypeParameterSymbol* symbol) const
+      -> std::optional<TypeParamInfo> {
+    return TypeParamInfo{symbol->index(), symbol->depth(),
+                         symbol->isParameterPack()};
+  }
+
+  auto operator()(ConstraintTypeParameterSymbol* symbol) const
+      -> std::optional<TypeParamInfo> {
+    return TypeParamInfo{symbol->index(), symbol->depth(),
+                         symbol->isParameterPack()};
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) const
+      -> std::optional<TypeParamInfo> {
+    return getTypeParamInfo(symbol->type());
+  }
+
+  auto operator()(VariableSymbol* symbol) const
+      -> std::optional<TypeParamInfo> {
+    return getTypeParamInfo(symbol->type());
+  }
+
+  auto operator()(Symbol*) const -> std::optional<TypeParamInfo> {
+    return std::nullopt;
+  }
+};
+}  // namespace
+
+auto template_declaration_of(Symbol* symbol) -> TemplateDeclarationAST* {
+  if (!symbol) return nullptr;
+  return visit(GetTemplateDeclaration{}, symbol);
+}
+
+auto template_parameter_info(Symbol* symbol) -> std::optional<TypeParamInfo> {
+  if (!symbol) return std::nullopt;
+  return visit(GetTemplateParameterInfo{}, symbol);
+}
+
+auto is_member_template(Symbol* symbol) -> bool {
+  if (!template_declaration_of(symbol)) return false;
+  return symbol_cast<ClassSymbol>(
+             symbol->enclosingNonTemplateParametersScope()) != nullptr;
+}
+
 auto Symbol::definition() const -> Symbol* {
   switch (kind()) {
     case SymbolKind::kClass:
@@ -643,6 +714,36 @@ auto ClassSymbol::hasBaseClass(
     if (baseClassSymbol == symbol) return true;
     if (auto baseClassType = type_cast<ClassType>(baseClassSymbol->type())) {
       if (baseClassType->symbol()->hasBaseClass(symbol, processed)) return true;
+    }
+  }
+  return false;
+}
+
+auto ClassSymbol::hasVirtualBasePath(Symbol* symbol) const -> bool {
+  std::unordered_set<const ClassSymbol*> processed;
+  return hasVirtualBasePath(symbol, processed);
+}
+
+auto ClassSymbol::hasVirtualBasePath(
+    Symbol* symbol, std::unordered_set<const ClassSymbol*>& processed) const
+    -> bool {
+  if (!processed.insert(this).second) return false;
+
+  for (auto baseClass : baseClasses_) {
+    auto baseClassSymbol = baseClass->symbol();
+    auto baseClassType = type_cast<ClassType>(baseClassSymbol->type());
+    auto baseClassDefinition =
+        baseClassType ? baseClassType->symbol() : nullptr;
+
+    if (baseClass->isVirtual()) {
+      if (baseClassSymbol == symbol) return true;
+      if (baseClassDefinition && baseClassDefinition->hasBaseClass(symbol))
+        return true;
+    }
+
+    if (baseClassDefinition &&
+        baseClassDefinition->hasVirtualBasePath(symbol, processed)) {
+      return true;
     }
   }
   return false;

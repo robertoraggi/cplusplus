@@ -261,7 +261,13 @@ auto Substitution::CollectRawTemplateArgument::operator()(
 
   if (!value.has_value()) {
     if (isDependentTemplateArgument(subst.unit_, ast)) {
-      if (auto idExpr = ast_cast<IdExpressionAST>(expression)) {
+      auto expandedPattern = expression;
+      if (auto packExpansion =
+              ast_cast<PackExpansionExpressionAST>(expandedPattern)) {
+        expandedPattern = packExpansion->expression;
+      }
+
+      if (auto idExpr = ast_cast<IdExpressionAST>(expandedPattern)) {
         if (auto nttp = symbol_cast<NonTypeParameterSymbol>(idExpr->symbol)) {
           auto templateArgument = control->newVariableSymbol(nullptr, {});
           auto paramType = control->getTypeParameterType(
@@ -328,6 +334,12 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     if (auto templateParameter =
             symbol_cast<TemplateTypeParameterSymbol>(named->symbol)) {
       return templateParameter;
+    }
+    if (auto nttp = symbol_cast<NonTypeParameterSymbol>(named->symbol)) {
+      auto templateArgument = control->newVariableSymbol(nullptr, {});
+      templateArgument->setType(control->getTypeParameterType(
+          nttp->index(), nttp->depth(), nttp->isParameterPack()));
+      return templateArgument;
     }
     break;
   }

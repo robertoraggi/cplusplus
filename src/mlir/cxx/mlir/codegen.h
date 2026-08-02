@@ -307,6 +307,8 @@ class Codegen {
 
   [[nodiscard]] auto getAlignment(const Type* type) -> uint64_t;
 
+  void reportDeferredBodyDiagnostics(FunctionSymbol* functionSymbol);
+
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;
 
@@ -351,6 +353,12 @@ class Codegen {
                                           mlir::Value objectPtr,
                                           ClassSymbol* fromClass,
                                           ClassSymbol* targetClass)
+      -> mlir::Value;
+
+  [[nodiscard]] auto emitDerivedClassAddress(mlir::Location loc,
+                                             mlir::Value objectPtr,
+                                             ClassSymbol* fromClass,
+                                             ClassSymbol* targetClass)
       -> mlir::Value;
 
   [[nodiscard]] auto navigateToClass(mlir::Location loc, mlir::Value value,

@@ -545,59 +545,58 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
     for (const auto& arg : args) {
       if (auto sym = std::get_if<Symbol*>(&arg)) {
-        auto type = (*sym)->type();
-
-        if (encoder.encodeTemplateTemplateArgument(*sym)) continue;
-
-        if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
-          encoder.out("J");
-          for (auto element : pack->elements()) {
-            if (auto elementType = element->type()) {
-              encoder.encodeType(elementType);
-            }
-          }
-          encoder.out("E");
-          continue;
-        }
-
-        if (auto var = symbol_cast<VariableSymbol>(*sym)) {
-          if (var->constValue().has_value() && type) {
-            encoder.encodeConstValue(type, var->constValue().value());
-            continue;
-          }
-          if (!var->constValue().has_value() && var->initializer()) {
-            const auto mark = encoder.out_.size();
-            encoder.out("X");
-            if (encoder.encodeExpression(var->initializer())) {
-              encoder.out("E");
-              continue;
-            }
-            encoder.out_.resize(mark);
-            encoder.out("u10__dep_expr");
-            continue;
-          }
-        }
-
-        if (!type) continue;
-        encoder.encodeType(type);
+        encodeTemplateArgumentSymbol(*sym);
       } else if (auto type = std::get_if<const Type*>(&arg)) {
         if (!*type) continue;
         encoder.encodeType(*type);
       } else if (auto val = std::get_if<ConstValue>(&arg)) {
         encoder.out(std::format("Li{}E", std::get<std::intmax_t>(*val)));
       } else if (auto exprArg = std::get_if<ExpressionAST*>(&arg)) {
-        const auto mark = encoder.out_.size();
-        encoder.out("X");
-        if (*exprArg && encoder.encodeExpression(*exprArg)) {
-          encoder.out("E");
-        } else {
-          encoder.out_.resize(mark);
-          encoder.out("u10__dep_expr");
-        }
+        encodeDependentExpressionArgument(*exprArg);
       }
     }
 
     encoder.out("E");
+  }
+
+  void encodeTemplateArgumentSymbol(Symbol* sym) {
+    if (!sym) return;
+
+    if (encoder.encodeTemplateTemplateArgument(sym)) return;
+
+    if (auto pack = symbol_cast<ParameterPackSymbol>(sym)) {
+      encoder.out("J");
+      for (auto element : pack->elements()) {
+        encodeTemplateArgumentSymbol(element);
+      }
+      encoder.out("E");
+      return;
+    }
+
+    auto type = sym->type();
+
+    if (auto var = symbol_cast<VariableSymbol>(sym)) {
+      if (var->constValue().has_value() && type) {
+        encoder.encodeConstValue(type, var->constValue().value());
+        return;
+      }
+      if (!var->constValue().has_value() && var->initializer()) {
+        encodeDependentExpressionArgument(var->initializer());
+        return;
+      }
+    }
+
+    if (!type) return;
+    encoder.encodeType(type);
+  }
+
+  void encodeDependentExpressionArgument(ExpressionAST* expression) {
+    encoder.out("X");
+    if (expression && encoder.encodeExpression(expression)) {
+      encoder.out("E");
+      return;
+    }
+    cxx_runtime_error("cannot mangle dependent template argument expression");
   }
 
   void encodeTemplateParameters(ClassSymbol* classSymbol) {
@@ -1370,8 +1369,18 @@ auto ExternalNameEncoder::encodeSubstitution(const void* key) -> bool {
     return true;
   }
 
-  out(std::format("S{}_", index - 1));
+  out(std::format("S{}_", encodeSeqId(index - 1)));
   return true;
+}
+
+auto ExternalNameEncoder::encodeSeqId(int id) -> std::string {
+  static constexpr char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  std::string result;
+  do {
+    result.insert(result.begin(), digits[id % 36]);
+    id /= 36;
+  } while (id != 0);
+  return result;
 }
 
 void ExternalNameEncoder::enterSubstitution(const void* key) {

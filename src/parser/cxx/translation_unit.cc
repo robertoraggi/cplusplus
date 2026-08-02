@@ -220,6 +220,21 @@ auto TranslationUnit::takePendingBodyCompletions()
   return std::move(pendingBodyCompletions_);
 }
 
+void TranslationUnit::deferBodyDiagnostics(
+    FunctionSymbol* function, std::vector<Diagnostic> diagnostics) {
+  if (!function || diagnostics.empty()) return;
+  deferredBodyDiagnostics_[function] = std::move(diagnostics);
+}
+
+auto TranslationUnit::takeDeferredBodyDiagnostics(FunctionSymbol* function)
+    -> std::vector<Diagnostic> {
+  auto it = deferredBodyDiagnostics_.find(function);
+  if (it == deferredBodyDiagnostics_.end()) return {};
+  auto diagnostics = std::move(it->second);
+  deferredBodyDiagnostics_.erase(it);
+  return diagnostics;
+}
+
 auto TranslationUnit::fileName() const -> const std::string& {
   return fileName_;
 }

@@ -125,6 +125,9 @@ class TypeTraits {
   [[nodiscard]] auto remove_noexcept(const Type* type) const -> const Type*;
   [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) const
       -> bool;
+
+  [[nodiscard]] auto is_virtual_base_of(const Type* base,
+                                        const Type* derived) const -> bool;
   [[nodiscard]] auto is_convertible(const Type* from, const Type* to) const
       -> bool;
 

@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -47,6 +48,33 @@ auto memberFunctionKey(FunctionSymbol* fn) -> std::pair<bool, std::size_t> {
 void collectFunctions(Symbol* member, std::vector<FunctionSymbol*>& out) {
   std::ranges::copy(views::each_function(member), std::back_inserter(out));
 }
+
+[[nodiscard]] auto packParameterFlags(FunctionDeclaratorChunkAST* prototype,
+                                      std::size_t parameterCount)
+    -> std::vector<bool> {
+  std::vector<bool> flags(parameterCount, false);
+  if (!prototype || !prototype->parameterDeclarationClause) return flags;
+
+  std::size_t i = 0;
+  for (auto node : ListView{
+           prototype->parameterDeclarationClause->parameterDeclarationList}) {
+    if (i == parameterCount) break;
+    auto paramDecl = ast_cast<ParameterDeclarationAST>(node);
+    flags[i++] = paramDecl && paramDecl->isPack;
+  }
+  return flags;
+}
+
+[[nodiscard]] auto parametersOf(FunctionParametersSymbol* parameters)
+    -> std::vector<ParameterSymbol*> {
+  std::vector<ParameterSymbol*> result;
+  for (auto member : parameters->members()) {
+    if (auto parameter = symbol_cast<ParameterSymbol>(member))
+      result.push_back(parameter);
+  }
+  return result;
+}
+
 }  // namespace
 
 void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
@@ -124,6 +152,67 @@ void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
   }
 }
 
+void ASTRewriter::remapFunctionParameters(
+    FunctionDeclaratorChunkAST* patternPrototype,
+    FunctionDeclaratorChunkAST* instancePrototype,
+    FunctionParametersSymbol* patternParameters,
+    FunctionParametersSymbol* instanceParameters) {
+  const auto patternMembers = parametersOf(patternParameters);
+  const auto instanceMembers = parametersOf(instanceParameters);
+
+  const auto patternIsPack =
+      packParameterFlags(patternPrototype, patternMembers.size());
+  const auto instanceIsPack =
+      packParameterFlags(instancePrototype, instanceMembers.size());
+
+  std::size_t instanceIndex = 0;
+
+  for (std::size_t i = 0; i < patternMembers.size(); ++i) {
+    const auto reservedForTrailingParameters = patternMembers.size() - i - 1;
+    const auto available = instanceMembers.size() - instanceIndex;
+
+    const auto stillPacked =
+        instanceIndex < instanceMembers.size() && instanceIsPack[instanceIndex];
+
+    if (!patternIsPack[i] || stillPacked) {
+      if (available <= reservedForTrailingParameters) break;
+      addSymbolRemap(patternMembers[i], instanceMembers[instanceIndex++]);
+      continue;
+    }
+
+    auto pack =
+        control()->newParameterPackSymbol(instanceParameters, SourceLocation{});
+
+    for (auto last = instanceIndex + available - reservedForTrailingParameters;
+         instanceIndex < last; ++instanceIndex) {
+      pack->addElement(instanceMembers[instanceIndex]);
+    }
+
+    functionParamPacks_[patternMembers[i]] = pack;
+  }
+}
+
+void ASTRewriter::checkMemInitializers(FunctionSymbol* function,
+                                       CompoundStatementFunctionBodyAST* body) {
+  auto client = unit_->diagnosticsClient();
+
+  std::optional<CapturingDiagnosticsClient> capture;
+  if (client->isSfinae()) {
+    capture.emplace();
+    (void)unit_->changeDiagnosticsClient(&*capture);
+  }
+
+  TypeChecker check{unit_};
+  check.setScope(function);
+  check.setReportErrors(unit_->config().checkTypes);
+  check.check_mem_initializers(body);
+
+  if (!capture) return;
+
+  (void)unit_->changeDiagnosticsClient(client);
+  unit_->deferBodyDiagnostics(function, std::move(capture->diagnostics));
+}
+
 auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
                                          FunctionSymbol* function,
                                          bool captureBodyErrors)
@@ -140,19 +229,28 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
   auto pending = func->pendingBody();
 
+  const bool deferDiagnostics =
+      !captureBodyErrors && unit_->diagnosticsClient()->isSfinae();
+
   std::optional<CapturingDiagnosticsClient> capture;
   DiagnosticsClient* savedClient = nullptr;
-  if (captureBodyErrors) {
+  if (captureBodyErrors || deferDiagnostics) {
     capture.emplace();
     savedClient = unit_->changeDiagnosticsClient(&*capture);
   }
   auto finish = [&](std::vector<Diagnostic> extra = {}) {
-    if (captureBodyErrors) {
-      (void)unit_->changeDiagnosticsClient(savedClient);
-      extra.insert(extra.end(),
-                   std::make_move_iterator(capture->diagnostics.begin()),
-                   std::make_move_iterator(capture->diagnostics.end()));
+    if (!capture) return extra;
+
+    (void)unit_->changeDiagnosticsClient(savedClient);
+
+    if (deferDiagnostics) {
+      unit_->deferBodyDiagnostics(func, std::move(capture->diagnostics));
+      return extra;
     }
+
+    extra.insert(extra.end(),
+                 std::make_move_iterator(capture->diagnostics.begin()),
+                 std::make_move_iterator(capture->diagnostics.end()));
     return extra;
   };
 
@@ -228,12 +326,9 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
     if (auto oldParams = oldFunc->functionParameters()) {
       if (auto newParams = func->functionParameters()) {
-        auto& oldPMembers = oldParams->members();
-        auto& newPMembers = newParams->members();
-        auto n = std::min(oldPMembers.size(), newPMembers.size());
-        for (std::size_t i = 0; i < n; ++i) {
-          rewriter.addSymbolRemap(oldPMembers[i], newPMembers[i]);
-        }
+        rewriter.remapFunctionParameters(
+            getFunctionPrototype(originalDef->declarator),
+            getFunctionPrototype(newAst->declarator), oldParams, newParams);
       }
     }
   }
@@ -264,9 +359,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
     return finish(std::move(bodyErrors));
   }
 
-  TypeChecker check{unit_};
-  check.setScope(func);
-  check.check_mem_initializers(compoundBody);
+  rewriter.checkMemInitializers(func, compoundBody);
 
   return finish(std::move(bodyErrors));
 }

@@ -1321,6 +1321,14 @@ void StandardConversion::applyConversionSequence(
     return;
   }
 
+  if (traits.is_reference(sequence.destinationType)) {
+    if (is_prvalue(expr) && !traits.is_class(expr->type) &&
+        !traits.is_array(expr->type)) {
+      (void)temporaryMaterialization(expr);
+    }
+    return;
+  }
+
   if (sequence.bindsToReference || sequence.bindsToRvalueRef) return;
 
   (void)copyInitializeClassPrvalue(expr, sequence.destinationType);

@@ -1384,6 +1384,17 @@ auto TypeTraits::is_base_of(const Type* base, const Type* derived) const
   return derivedClassType->symbol()->hasBaseClass(baseClassType->symbol());
 }
 
+auto TypeTraits::is_virtual_base_of(const Type* base, const Type* derived) const
+    -> bool {
+  auto baseClassType = type_cast<ClassType>(remove_cv(base));
+  if (!baseClassType) return false;
+  auto derivedClassType = type_cast<ClassType>(remove_cv(derived));
+  if (!derivedClassType) return false;
+  if (derivedClassType->symbol() == baseClassType->symbol()) return false;
+  return derivedClassType->symbol()->hasVirtualBasePath(
+      baseClassType->symbol());
+}
+
 auto TypeTraits::is_convertible(const Type* from, const Type* to) const
     -> bool {
   if (!from || !to) return false;

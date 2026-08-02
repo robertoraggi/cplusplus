@@ -102,6 +102,10 @@ struct ASTRewriter::MemInitializerVisitor {
 
   [[nodiscard]] auto operator()(BracedMemInitializerAST* ast)
       -> MemInitializerAST*;
+
+  void resolveBase(MemInitializerAST* ast, MemInitializerAST* copy,
+                   NestedNameSpecifierAST* nestedNameSpecifier,
+                   UnqualifiedIdAST* unqualifiedId);
 };
 
 struct ASTRewriter::ExceptionDeclarationVisitor {
@@ -130,6 +134,102 @@ auto ASTRewriter::statement(StatementAST* ast) -> StatementAST* {
 auto ASTRewriter::memInitializer(MemInitializerAST* ast) -> MemInitializerAST* {
   if (!ast) return {};
   return visit(MemInitializerVisitor{*this}, ast);
+}
+
+namespace {
+[[nodiscard]] auto memInitializerId(MemInitializerAST* ast)
+    -> UnqualifiedIdAST* {
+  if (auto paren = ast_cast<ParenMemInitializerAST>(ast))
+    return paren->unqualifiedId;
+  if (auto braced = ast_cast<BracedMemInitializerAST>(ast))
+    return braced->unqualifiedId;
+  return nullptr;
+}
+
+[[nodiscard]] auto isPackExpansion(MemInitializerAST* ast) -> bool {
+  if (auto paren = ast_cast<ParenMemInitializerAST>(ast))
+    return bool(paren->ellipsisLoc);
+  if (auto braced = ast_cast<BracedMemInitializerAST>(ast))
+    return bool(braced->ellipsisLoc);
+  return false;
+}
+
+void clearPackExpansion(MemInitializerAST* ast) {
+  if (auto paren = ast_cast<ParenMemInitializerAST>(ast))
+    paren->ellipsisLoc = {};
+  else if (auto braced = ast_cast<BracedMemInitializerAST>(ast))
+    braced->ellipsisLoc = {};
+}
+}  // namespace
+
+auto ASTRewriter::rewriteMemInitializerList(List<MemInitializerAST*>* source)
+    -> List<MemInitializerAST*>* {
+  List<MemInitializerAST*>* result = nullptr;
+  auto out = &result;
+
+  auto append = [&](MemInitializerAST* value) {
+    *out = make_list_node(arena(), value);
+    out = &(*out)->next;
+  };
+
+  for (auto node : ListView{source}) {
+    if (isPackExpansion(node) && !elementIndex_.has_value()) {
+      auto pack = findReferencedParameterPack(memInitializerId(node));
+      if (auto base = symbol_cast<BaseClassSymbol>(node->symbol); !pack && base)
+        pack = parameterPackFor(base->symbol());
+
+      if (pack) {
+        forEachPackElement(pack, [&] {
+          auto value = memInitializer(node);
+          clearPackExpansion(value);
+          append(value);
+        });
+        continue;
+      }
+    }
+
+    append(memInitializer(node));
+  }
+
+  return result;
+}
+
+void ASTRewriter::MemInitializerVisitor::resolveBase(
+    MemInitializerAST* ast, MemInitializerAST* copy,
+    NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId) {
+  Symbol* baseClass = nullptr;
+
+  if (auto base = symbol_cast<BaseClassSymbol>(ast->symbol)) {
+    baseClass = rewrite.substitutedTemplateParameterClass(base->symbol());
+    if (!baseClass && symbol_cast<TypeParameterSymbol>(base->symbol()))
+      copy->symbol = ast->symbol;
+  }
+
+  if (!baseClass && ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    auto resolved = binder()->resolve(nestedNameSpecifier, unqualifiedId,
+                                      translationUnit()->config().checkTypes);
+    if (resolved && resolved->isClass()) baseClass = resolved;
+  }
+
+  if (!baseClass) return;
+
+  ClassSymbol* enclosingClass = nullptr;
+  for (auto scope = binder()->scope(); scope; scope = scope->parent()) {
+    enclosingClass = symbol_cast<ClassSymbol>(scope);
+    if (enclosingClass) break;
+  }
+  if (!enclosingClass) return;
+
+  auto target = symbol_cast<ClassSymbol>(baseClass)->resolvedDefinition();
+
+  for (auto base : enclosingClass->resolvedDefinition()->baseClasses()) {
+    auto candidate = symbol_cast<ClassSymbol>(base->symbol());
+    if (candidate && candidate->resolvedDefinition() == target) {
+      copy->symbol = base;
+      return;
+    }
+  }
 }
 
 auto ASTRewriter::exceptionDeclaration(ExceptionDeclarationAST* ast)
@@ -635,15 +735,12 @@ auto ASTRewriter::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->lparenLoc = ast->lparenLoc;
 
-  for (auto expressionList = &copy->expressionList;
-       auto node : ListView{ast->expressionList}) {
-    auto value = rewrite.expression(node);
-    *expressionList = make_list_node(arena(), value);
-    expressionList = &(*expressionList)->next;
-  }
+  copy->expressionList = rewrite.rewriteExpressionList(ast->expressionList);
 
   copy->rparenLoc = ast->rparenLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
+
+  resolveBase(ast, copy, copy->nestedNameSpecifier, copy->unqualifiedId);
 
   return copy;
 }
@@ -658,6 +755,8 @@ auto ASTRewriter::MemInitializerVisitor::operator()(
   copy->bracedInitList =
       ast_cast<BracedInitListAST>(rewrite.expression(ast->bracedInitList));
   copy->ellipsisLoc = ast->ellipsisLoc;
+
+  resolveBase(ast, copy, copy->nestedNameSpecifier, copy->unqualifiedId);
 
   return copy;
 }
