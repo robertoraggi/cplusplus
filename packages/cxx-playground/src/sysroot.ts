@@ -7,7 +7,9 @@ export const appdir = "/sysroot/bin"
 let mounted: Promise<void> | undefined
 
 export function loadSysroot(): Promise<void> {
-  mounted ??= mountSysroot()
+  mounted ??= mountSysroot().catch((error: unknown) => {
+    console.warn("Failed to load sysroot; continuing without system headers", error)
+  })
   return mounted
 }
 

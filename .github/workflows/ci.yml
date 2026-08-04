@@ -161,6 +161,7 @@ jobs:
           source "/opt/emsdk/emsdk_env.sh"
           export EMSCRIPTEN_ROOT="/opt/emsdk/upstream/emscripten"
           npm run build:cxx-frontend
+          npm run build:playground-sysroot
           npm -w cxx-frontend pack
 
       - name: Build Docs
@@ -175,6 +176,13 @@ jobs:
           path: |
             packages/cxx-frontend/dist/
             packages/cxx-frontend/docs/
+          retention-days: 1
+
+      - name: Upload playground sysroot
+        uses: actions/upload-artifact@v4
+        with:
+          name: cxx-playground-sysroot
+          path: packages/cxx-playground/public/sysroot.zip
           retention-days: 1
 
   build-macos:
@@ -292,6 +300,11 @@ jobs:
         with:
           name: cxx-frontend-dist
           path: packages/cxx-frontend
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: cxx-playground-sysroot
+          path: packages/cxx-playground/public
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
