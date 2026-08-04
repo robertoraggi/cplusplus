@@ -34,7 +34,8 @@
   ],
   "scripts": {
     "build:cxx-frontend": "npm run build:emscripten && npm run build -w cxx-frontend",
-    "build:playground": "npm run build -w @robertoraggi/cxx-playground",
+    "build:playground": "npm run build:playground-sysroot && npm run build -w @robertoraggi/cxx-playground",
+    "build:playground-sysroot": "node scripts/build-playground-sysroot.js",
     "build:emscripten": "node scripts/build-emscripten.js",
     "build:wasi": "node scripts/build-wasi.js",
     "build:mlir": "node scripts/build-mlir.js",

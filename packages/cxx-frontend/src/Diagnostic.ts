@@ -18,11 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export interface Diagnostic {
+export const DiagnosticSeverity = [
+  "message",
+  "note",
+  "warning",
+  "error",
+  "fatal",
+] as const;
+
+export type DiagnosticSeverity = (typeof DiagnosticSeverity)[number];
+
+export interface DiagnosticNote {
   fileName: string;
   startLine: number;
   startColumn: number;
   endLine: number;
   endColumn: number;
   message: string;
+}
+
+export interface Diagnostic extends DiagnosticNote {
+  severity: DiagnosticSeverity;
+  notes: DiagnosticNote[];
 }

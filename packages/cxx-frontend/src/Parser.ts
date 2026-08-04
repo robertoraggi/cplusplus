@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 import { cxx } from "./cxx.js";
+import { type UnitOptions } from "./cxx-js.js";
 import { isCxxLoaded } from "./loadCxx.js";
 import { type Diagnostic } from "./Diagnostic.js";
 import { type Unit } from "./Unit.js";
@@ -28,7 +29,7 @@ import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 export const OutputCodeFormat = ["cxxir", "mlir", "llvm", "asm"] as const;
 export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
 
-export interface ParseOptions {
+export interface ParseOptions extends UnitOptions {
   /**
    * Path to the file to parse.
    */
@@ -38,20 +39,6 @@ export interface ParseOptions {
    * Source code to parse.
    */
   source: string;
-
-  /**
-   * Function to resolve include directives.
-   */
-  resolve?: (
-    name: string,
-    kind: "quoted" | "angled",
-    next: boolean,
-  ) => Promise<string | undefined>;
-
-  /**
-   * Function to read files.
-   */
-  readFile?: (path: string) => Promise<string | undefined>;
 }
 
 /**
@@ -86,7 +73,7 @@ export class Parser implements Disposable, AsyncDisposable {
    * @returns the parsed translation unit.
    */
   static async parse(options: ParseOptions): Promise<Parser> {
-    const { path, source, resolve, readFile } = options;
+    const { path, source, ...unitOptions } = options;
 
     if (typeof path !== "string") {
       throw new TypeError("expected parameter 'path' of type 'string'");
@@ -102,7 +89,7 @@ export class Parser implements Disposable, AsyncDisposable {
       );
     }
 
-    const unit = cxx.createUnit(source, path, { resolve, readFile });
+    const unit = cxx.createUnit(source, path, unitOptions);
 
     if (!unit) {
       throw new Error("failed to create the translation unit");

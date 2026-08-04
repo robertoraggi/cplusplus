@@ -47,8 +47,7 @@ let loading: Promise<void> | undefined;
 /**
  * Loads and instantiates the cxx wasm module.
  *
- * Must be called, and its promise awaited, before `Parser`, `Lexer`,
- * `Preprocessor`, or `TranslationUnit` are used.
+ * Must be called, and its promise awaited, before `Parser` is used.
  *
  * Safe to call multiple times: subsequent calls return the same in-flight or
  * settled promise. The module is a process-wide singleton, a second, different

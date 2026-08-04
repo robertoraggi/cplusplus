@@ -55,6 +55,10 @@ export function PlaygroundProvider({
 
   const isCompilingRef = React.useRef(false)
   const pendingCompileRef = React.useRef(false)
+  const compileRevisionRef = React.useRef(0)
+  const currentSampleIdRef = React.useRef(currentSampleId)
+  const outputFormatRef = React.useRef(outputFormat)
+  const compileTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(null)
 
   const runCompile = React.useCallback(async () => {
     if (isCompilingRef.current) {
@@ -68,24 +72,48 @@ export function PlaygroundProvider({
     try {
       do {
         pendingCompileRef.current = false
+        const compileRevision = compileRevisionRef.current
         const startTime = performance.now()
 
         const { diagnostics, output } = await compile({
           source: inputCodeModel.getValue(),
-          path: currentSampleId || "main.cc",
-          format: outputFormat,
+          path: currentSampleIdRef.current || "main.cc",
+          format: outputFormatRef.current,
         })
 
-        applyDiagnostics(inputCodeModel, diagnostics)
-        outputCodeModel.setValue(output)
-        setDiagnosticCount(diagnostics.length)
-        setCompileTimeMs(Math.round((performance.now() - startTime) * 10) / 10)
+        if (compileRevision === compileRevisionRef.current) {
+          applyDiagnostics(inputCodeModel, diagnostics)
+          outputCodeModel.setValue(output)
+          setDiagnosticCount(diagnostics.length)
+          setCompileTimeMs(
+            Math.round((performance.now() - startTime) * 10) / 10
+          )
+        }
       } while (pendingCompileRef.current)
     } finally {
       isCompilingRef.current = false
       setIsCompiling(false)
     }
-  }, [currentSampleId, outputFormat])
+  }, [])
+
+  const scheduleCompile = React.useCallback(
+    (debounce: boolean) => {
+      compileRevisionRef.current += 1
+      if (compileTimeoutRef.current) clearTimeout(compileTimeoutRef.current)
+
+      if (debounce) {
+        pendingCompileRef.current = false
+        compileTimeoutRef.current = setTimeout(() => {
+          compileTimeoutRef.current = null
+          runCompile()
+        }, 250)
+      } else {
+        compileTimeoutRef.current = null
+        runCompile()
+      }
+    },
+    [runCompile]
+  )
 
   React.useEffect(() => {
     let cancelled = false
@@ -101,38 +129,45 @@ export function PlaygroundProvider({
 
   React.useEffect(() => {
     if (!isReady) return
-
-    runCompile()
-
-    let timeoutId: ReturnType<typeof setTimeout>
     const disposable = inputCodeModel.onDidChangeContent(() => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(runCompile, 250)
+      scheduleCompile(true)
     })
 
     return () => {
-      clearTimeout(timeoutId)
+      if (compileTimeoutRef.current) clearTimeout(compileTimeoutRef.current)
       disposable.dispose()
     }
-  }, [isReady, runCompile])
+  }, [isReady, scheduleCompile])
 
-  const loadSample = React.useCallback((id: string) => {
-    const sample = samples.find((s) => s.id === id)
-    if (!sample) return
-    setCurrentSampleId(id)
-    inputCodeModel.setValue(sample.code)
-  }, [])
+  React.useEffect(() => {
+    if (isReady) scheduleCompile(false)
+  }, [isReady, scheduleCompile])
 
-  const setOutputFormat = React.useCallback((format: OutputCodeFormat) => {
-    setOutputFormatState((current) => {
-      if (current === format) return current
+  const loadSample = React.useCallback(
+    (id: string) => {
+      const sample = samples.find((s) => s.id === id)
+      if (!sample) return
+      currentSampleIdRef.current = id
+      setCurrentSampleId(id)
+      inputCodeModel.setValue(sample.code)
+      scheduleCompile(false)
+    },
+    [scheduleCompile]
+  )
+
+  const setOutputFormat = React.useCallback(
+    (format: OutputCodeFormat) => {
+      if (outputFormatRef.current === format) return
+      outputFormatRef.current = format
+      setOutputFormatState(format)
       monaco.editor.setModelLanguage(
         outputCodeModel,
         outputLanguageByFormat[format]
       )
-      return format
-    })
-  }, [])
+      scheduleCompile(false)
+    },
+    [scheduleCompile]
+  )
 
   const value = React.useMemo<PlaygroundContextValue>(
     () => ({

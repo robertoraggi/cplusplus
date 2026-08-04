@@ -21,7 +21,6 @@
 #include <cxx/ast.h>
 #include <cxx/ast_slot.h>
 #include <cxx/control.h>
-#include <cxx/lexer.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
@@ -34,9 +33,7 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
-#include <cstdlib>
 #include <format>
-#include <iostream>
 #include <optional>
 #include <sstream>
 
@@ -66,12 +63,35 @@ namespace {
 
 cxx::ASTSlot getSlot;
 
+EMSCRIPTEN_DECLARE_VAL_TYPE(UnitOptions);
+EMSCRIPTEN_DECLARE_VAL_TYPE(DiagnosticList);
+
+auto severityName(cxx::Severity severity) -> std::string_view {
+  switch (severity) {
+    case cxx::Severity::Message:
+      return "message";
+    case cxx::Severity::Note:
+      return "note";
+    case cxx::Severity::Warning:
+      return "warning";
+    case cxx::Severity::Error:
+      return "error";
+    case cxx::Severity::Fatal:
+      return "fatal";
+  }
+}
+
 struct DiagnosticsClient final : cxx::DiagnosticsClient {
   val messages = val::array();
-  int count = 0;
+  val currentDiagnostic = val::undefined();
+  bool hasErrors = false;
 
   void report(const cxx::Diagnostic& diag) override {
-    ++count;
+    if (diag.severity() == cxx::Severity::Error ||
+        diag.severity() == cxx::Severity::Fatal) {
+      hasErrors = true;
+    }
+
     const auto start = preprocessor()->tokenStartPosition(diag.token());
     const auto end = preprocessor()->tokenEndPosition(diag.token());
 
@@ -82,7 +102,24 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
     d.set("endLine", val(end.line));
     d.set("endColumn", val(end.column));
     d.set("message", val(diag.message()));
+
+    if (diag.severity() == cxx::Severity::Note &&
+        !currentDiagnostic.isUndefined()) {
+      currentDiagnostic["notes"].call<void>("push", d);
+      return;
+    }
+
+    d.set("severity", val(std::string(severityName(diag.severity()))));
+    d.set("notes", val::array());
     messages.call<void>("push", d);
+
+    if (diag.severity() == cxx::Severity::Warning ||
+        diag.severity() == cxx::Severity::Error ||
+        diag.severity() == cxx::Severity::Fatal) {
+      currentDiagnostic = d;
+    } else {
+      currentDiagnostic = val::undefined();
+    }
   }
 };
 
@@ -90,9 +127,10 @@ struct WrappedUnit {
   std::unique_ptr<DiagnosticsClient> diagnosticsClient;
   std::unique_ptr<cxx::TranslationUnit> unit;
   std::unique_ptr<cxx::Wasm32WasiToolchain> toolchain;
-  val api;
+  UnitOptions api;
+  bool debugInfo = true;
 
-  WrappedUnit(std::string source, std::string filename, val api = {})
+  WrappedUnit(std::string source, std::string filename, UnitOptions api)
       : api(api) {
     diagnosticsClient = std::make_unique<DiagnosticsClient>();
 
@@ -101,8 +139,50 @@ struct WrappedUnit {
     if (auto preprocessor = unit->preprocessor()) {
       toolchain = std::make_unique<cxx::Wasm32WasiToolchain>(preprocessor);
 
+      if (!api.isUndefined()) {
+        if (val appdir = api["appdir"]; appdir.isString()) {
+          toolchain->setAppdir(appdir.as<std::string>());
+        }
+
+        if (val sysroot = api["sysroot"]; sysroot.isString()) {
+          toolchain->setSysroot(sysroot.as<std::string>());
+        }
+
+        if (val value = api["debugInfo"]; value.isTrue() || value.isFalse()) {
+          debugInfo = value.as<bool>();
+        }
+      }
+
       toolchain->initMemoryLayout();
+      toolchain->addSystemCppIncludePaths();
+      toolchain->addSystemIncludePaths();
       toolchain->addPredefinedMacros();
+
+      addIncludePaths("quoteIncludePaths", [&](std::string path) {
+        preprocessor->addQuoteIncludePath(std::move(path));
+      });
+
+      addIncludePaths("includePaths", [&](std::string path) {
+        preprocessor->addUserIncludePath(std::move(path));
+      });
+
+      addIncludePaths("systemIncludePaths", [&](std::string path) {
+        preprocessor->addSystemIncludePath(std::move(path));
+      });
+
+      for (const auto& macro : stringArray("undefines")) {
+        preprocessor->undefMacro(macro);
+      }
+
+      for (const auto& macro : stringArray("defines")) {
+        auto sep = macro.find_first_of('=');
+        if (sep == std::string::npos) {
+          preprocessor->defineMacro(macro, "1");
+        } else {
+          preprocessor->defineMacro(macro.substr(0, sep),
+                                    macro.substr(sep + 1));
+        }
+      }
 
       preprocessor->setCanResolveFiles(true);
     }
@@ -116,37 +196,41 @@ struct WrappedUnit {
 
   auto getHandle() const -> std::intptr_t { return (std::intptr_t)unit->ast(); }
 
-  auto getDiagnostics() const -> val { return diagnosticsClient->messages; }
+  auto getDiagnostics() const -> DiagnosticList {
+    return DiagnosticList(diagnosticsClient->messages);
+  }
+
+  auto stringArray(const char* name) const -> std::vector<std::string> {
+    val value = api[name];
+    if (!value.isArray()) return {};
+    return vecFromJSArray<std::string>(value);
+  }
+
+  template <typename F>
+  void addIncludePaths(const char* name, F&& add) {
+    for (auto& path : stringArray(name)) add(std::move(path));
+  }
 
   auto parse() -> val {
-    val resolve = val::undefined();
+    val exists = val::undefined();
     val readFile = val::undefined();
 
     if (!api.isUndefined()) {
-      resolve = api["resolve"];
+      exists = api["exists"];
       readFile = api["readFile"];
     }
 
-    struct {
-      auto operator()(const cxx::SystemInclude& include) -> val {
-        return val(include.fileName);
-      }
-      auto operator()(const cxx::QuoteInclude& include) -> val {
-        return val(include.fileName);
-      }
-    } getHeaderName;
+    auto findCandidate =
+        [&exists](const std::vector<cxx::IncludeCandidate>& candidates)
+        -> const cxx::IncludeCandidate* {
+      if (exists.isUndefined()) return nullptr;
 
-    struct {
-      val quoted{"quoted"};
-      val angled{"angled"};
+      for (auto& candidate : candidates) {
+        if (exists(candidate.fileName).as<bool>()) return &candidate;
+      }
 
-      auto operator()(const cxx::SystemInclude& include) -> val {
-        return angled;
-      }
-      auto operator()(const cxx::QuoteInclude& include) -> val {
-        return quoted;
-      }
-    } getIncludeType;
+      return nullptr;
+    };
 
     while (true) {
       auto state = unit->continuePreprocessing();
@@ -154,19 +238,10 @@ struct WrappedUnit {
       if (std::holds_alternative<cxx::ProcessingComplete>(state)) break;
 
       if (auto pendingInclude = std::get_if<cxx::PendingInclude>(&state)) {
-        if (resolve.isUndefined()) {
-          pendingInclude->resolveWith(std::nullopt);
-          continue;
-        }
+        auto candidates = pendingInclude->candidates();
 
-        auto header = std::visit(getHeaderName, pendingInclude->include);
-        auto includeType = std::visit(getIncludeType, pendingInclude->include);
-
-        val resolved = co_await resolve(header, includeType,
-                                        pendingInclude->isIncludeNext);
-
-        if (resolved.isString()) {
-          pendingInclude->resolveWith(resolved.as<std::string>());
+        if (auto found = findCandidate(candidates)) {
+          pendingInclude->resolveWith(found->fileName, found->isSystemHeader);
         } else {
           pendingInclude->resolveWith(std::nullopt);
         }
@@ -174,18 +249,8 @@ struct WrappedUnit {
       } else if (auto pendingHasIncludes =
                      std::get_if<cxx::PendingHasIncludes>(&state)) {
         for (auto& request : pendingHasIncludes->requests) {
-          if (resolve.isUndefined()) {
-            request.setExists(false);
-            continue;
-          }
-
-          auto header = std::visit(getHeaderName, request.include);
-          auto includeType = std::visit(getIncludeType, request.include);
-
-          val resolved =
-              co_await resolve(header, includeType, request.isIncludeNext);
-
-          request.setExists(resolved.isString());
+          auto candidates = request.candidates();
+          request.setExists(findCandidate(candidates) != nullptr);
         }
       } else if (auto pendingFileContent =
                      std::get_if<cxx::PendingFileContent>(&state)) {
@@ -206,15 +271,17 @@ struct WrappedUnit {
 
     unit->endPreprocessing();
 
-    unit->parse(cxx::ParserConfiguration{.checkTypes = true});
+    unit->parse(cxx::ParserConfiguration{
+        .checkTypes = true,
+        .fuzzyTemplateResolution = true,
+    });
 
     co_return val{true};
   }
 
   auto emitCode(const std::string& format) -> std::string {
 #ifdef CXX_WITH_MLIR
-    auto errorCount = diagnosticsClient->count;
-    if (errorCount > 0) {
+    if (diagnosticsClient->hasErrors) {
       return {};
     }
 
@@ -222,7 +289,7 @@ struct WrappedUnit {
 
     context.loadDialect<mlir::cxx::CxxDialect>();
 
-    cxx::Codegen codegen(context, unit.get());
+    cxx::Codegen codegen(context, unit.get(), debugInfo);
 
     auto ir = codegen(unit->ast());
 
@@ -241,7 +308,7 @@ struct WrappedUnit {
 
     if (format == "mlir") {
       mlir::OpPrintingFlags flags;
-      flags.enableDebugInfo(true);
+      if (debugInfo) flags.enableDebugInfo(true);
       ir.module->print(os, flags);
       os.flush();
       return out.str();
@@ -388,111 +455,23 @@ auto getASTSlotCount(std::intptr_t handle, int slot) -> int {
   return static_cast<int>(slotCount);
 }
 
-auto createUnit(std::string source, std::string filename, val api)
+auto createUnit(std::string source, std::string filename, UnitOptions api)
     -> WrappedUnit* {
   auto wrapped = new WrappedUnit(std::move(source), std::move(filename), api);
 
   return wrapped;
 }
 
-auto lexerTokenKind(cxx::Lexer& lexer) -> int {
-  return static_cast<int>(lexer.tokenKind());
-}
-
-auto lexerTokenText(cxx::Lexer& lexer) -> std::string {
-  return std::string(lexer.tokenText());
-}
-
-auto lexerNext(cxx::Lexer& lexer) -> int {
-  return static_cast<int>(lexer.next());
-}
-
-auto preprocesorPreprocess(cxx::Preprocessor& preprocessor, std::string source,
-                           std::string filename) -> std::string {
-  std::vector<cxx::Token> tokens;
-  preprocessor.preprocess(std::move(source), std::move(filename), tokens);
-  std::ostringstream out;
-  preprocessor.getPreprocessedText(tokens, out);
-  return out.str();
-}
-
-auto translationUnitParse(cxx::TranslationUnit& unit, bool checkTypes) -> bool {
-  unit.parse(cxx::ParserConfiguration{.checkTypes = checkTypes});
-  return unit.ast() != nullptr;
-}
-
-auto translationUnitGetAST(cxx::TranslationUnit& unit) -> std::intptr_t {
-  return reinterpret_cast<std::intptr_t>(unit.ast());
-}
-
-auto translationUnitGetUnitHandle(cxx::TranslationUnit& unit) -> std::intptr_t {
-  return reinterpret_cast<std::intptr_t>(&unit);
-}
-
-auto register_control(const char* name = "Control") -> class_<cxx::Control> {
-  return class_<cxx::Control>(name).constructor();
-}
-
-auto register_diagnostics_client(const char* name = "DiagnosticsClient")
-    -> class_<cxx::DiagnosticsClient> {
-  return class_<cxx::DiagnosticsClient>(name)
-      .constructor()  // ctor
-      .function("setPreprocessor", &cxx::DiagnosticsClient::setPreprocessor,
-                allow_raw_pointers());
-}
-
-auto register_preprocessor(const char* name = "Preprocessor")
-    -> class_<cxx::Preprocessor> {
-  return class_<cxx::Preprocessor>(name)
-      .constructor<cxx::Control*, cxx::DiagnosticsClient*>()
-      .function("preprocess", &preprocesorPreprocess)
-      .function("addIncludePath", &cxx::Preprocessor::addSystemIncludePath)
-      .function("defineMacro", &cxx::Preprocessor::defineMacro)
-      .function("undefineMacro", &cxx::Preprocessor::undefMacro)
-      .function("canResolveFiles", &cxx::Preprocessor::canResolveFiles)
-      .function("setCanResolveFiles", &cxx::Preprocessor::setCanResolveFiles)
-      .function("currentPath", &cxx::Preprocessor::currentPath)
-      .function("setCurrentPath", &cxx::Preprocessor::setCurrentPath);
-}
-
-auto register_lexer(const char* name = "Lexer") -> class_<cxx::Lexer> {
-  return class_<cxx::Lexer>(name)
-      .constructor<std::string>()
-
-      .property("preprocessing", &cxx::Lexer::preprocessing,
-                &cxx::Lexer::setPreprocessing)
-
-      .property("keepComments", &cxx::Lexer::keepComments,
-                &cxx::Lexer::setKeepComments)
-
-      .function("tokenKind", &lexerTokenKind)
-      .function("tokenAtStartOfLine", &cxx::Lexer::tokenStartOfLine)
-      .function("tokenHasLeadingSpace", &cxx::Lexer::tokenLeadingSpace)
-      .function("tokenOffset", &cxx::Lexer::tokenPos)
-      .function("tokenLength", &cxx::Lexer::tokenLength)
-      .function("tokenText", &lexerTokenText)
-      .function("next", &lexerNext);
-}
-
-auto register_translation_unit(const char* name = "TranslationUnit")
-    -> class_<cxx::TranslationUnit> {
-  return class_<cxx::TranslationUnit>(name)
-      .constructor<cxx::DiagnosticsClient*>()
-      .function("setSource", &cxx::TranslationUnit::setSource)
-      .function("parse", &translationUnitParse)
-      .function("tokenCount", &cxx::TranslationUnit::tokenCount)
-      .function("getAST", &translationUnitGetAST)
-      .function("getUnitHandle", &translationUnitGetUnitHandle);
-}
-
 }  // namespace
 
 EMSCRIPTEN_BINDINGS(cxx) {
-  register_control();
-  register_diagnostics_client();
-  register_preprocessor();
-  register_lexer();
-  register_translation_unit();
+  register_type<UnitOptions>(
+      "UnitOptions",
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined })");
+
+  register_type<DiagnosticList>(
+      "DiagnosticList",
+      R"(Array<{ fileName: string; startLine: number; startColumn: number; endLine: number; endColumn: number; message: string; severity: "message" | "note" | "warning" | "error" | "fatal"; notes: Array<{ fileName: string; startLine: number; startColumn: number; endLine: number; endColumn: number; message: string }> }>)");
 
   class_<WrappedUnit>("Unit")
       .function("parse", &WrappedUnit::parse)

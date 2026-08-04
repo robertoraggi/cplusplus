@@ -52,12 +52,17 @@ struct QuoteInclude {
 
 using Include = std::variant<SystemInclude, QuoteInclude>;
 
+struct IncludeCandidate {
+  std::string fileName;
+  bool isSystemHeader = false;
+};
+
 struct PendingInclude {
   Preprocessor& preprocessor;
   Include include;
   bool isIncludeNext = false;
   void* loc = nullptr;
-  std::function<auto()->std::vector<std::string>> candidates;
+  std::function<auto()->std::vector<IncludeCandidate>> candidates;
 
   void resolveWith(std::optional<std::string> fileName,
                    bool isSystemHeader = false) const;
@@ -68,6 +73,7 @@ struct PendingHasIncludes {
     Include include;
     bool isIncludeNext = false;
     bool& exists;
+    std::function<auto()->std::vector<IncludeCandidate>> candidates;
 
     void setExists(bool value) const { exists = value; }
   };
