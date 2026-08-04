@@ -12,7 +12,11 @@ export function loadSysroot(): Promise<void> {
 }
 
 async function mountSysroot(): Promise<void> {
-  const response = await fetch(`${import.meta.env.BASE_URL}sysroot.zip`)
+  const baseUrl = import.meta.env.BASE_URL.replace(/\/?$/, "/")
+  const response = await fetch(`${baseUrl}sysroot.zip`)
+  if (!response.ok) {
+    throw new Error(`Failed to load sysroot: ${response.status} ${response.statusText}`)
+  }
   const data = await response.arrayBuffer()
 
   await configure({
