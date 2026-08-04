@@ -95,6 +95,19 @@ class [[nodiscard]] ASTRewriter {
     return templateArguments_;
   }
 
+  [[nodiscard]] auto templateArgumentAt(int depth, int index) const
+      -> const TemplateArgument*;
+
+  [[nodiscard]] auto templateArgumentFor(Symbol* templateParameter) const
+      -> const TemplateArgument*;
+
+  [[nodiscard]] auto substitutedSymbol(Symbol* templateParameter) const
+      -> Symbol*;
+
+  [[nodiscard]] auto hasUnresolvedParameterPack(AST* ast) const -> bool;
+
+  void inheritEnclosingTemplateArguments(Symbol* symbol);
+
   auto declaration(DeclarationAST* ast,
                    TemplateDeclarationAST* templateHead = nullptr)
       -> DeclarationAST*;
@@ -114,6 +127,8 @@ class [[nodiscard]] ASTRewriter {
                                      FunctionSymbol* function,
                                      bool captureBodyErrors = false)
       -> std::vector<Diagnostic>;
+
+  static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
 
   void setInstantiatingFunctionTemplateSpecialization(bool value) {
     instantiatingFunctionTemplateSpecialization_ = value;
@@ -267,14 +282,22 @@ class [[nodiscard]] ASTRewriter {
   auto shouldCaptureBodyErrors() const -> bool;
   void typeCheckAndCapture(std::function<void()> checkFn);
 
-  auto findReferencedParameterPack(AST* ast) -> ParameterPackSymbol*;
+  void addEnclosingTemplateArguments(int depth,
+                                     std::vector<TemplateArgument> arguments);
 
-  auto parameterPackAt(int depth, int index, bool isPack)
+  [[nodiscard]] auto findReferencedParameterPack(AST* ast) const
       -> ParameterPackSymbol*;
 
-  auto parameterPackFor(Symbol* symbol) -> ParameterPackSymbol*;
+  [[nodiscard]] auto parameterPackAt(int depth, int index, bool isPack) const
+      -> ParameterPackSymbol*;
 
-  [[nodiscard]] auto substitutedTemplateParameterClass(Symbol* symbol)
+  [[nodiscard]] auto parameterPackFor(Symbol* symbol) const
+      -> ParameterPackSymbol*;
+
+  [[nodiscard]] auto functionParameterPackFor(Symbol* symbol) const
+      -> ParameterPackSymbol*;
+
+  [[nodiscard]] auto substitutedTemplateParameterClass(Symbol* symbol) const
       -> Symbol*;
 
   [[nodiscard]] auto packElementCount(ParameterPackSymbol* pack) const -> int;
@@ -306,6 +329,7 @@ class [[nodiscard]] ASTRewriter {
   }
 
   friend struct FindReferencedParameterPack;
+  friend struct FindUnresolvedParameterPack;
 
   auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
@@ -330,6 +354,8 @@ class [[nodiscard]] ASTRewriter {
 
   TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
+  std::unordered_map<int, std::vector<TemplateArgument>>
+      enclosingTemplateArguments_;
   std::vector<Diagnostic> bodyErrors_;
   bool rewritingFunctionBody_ = false;
   ParameterPackSymbol* parameterPack_ = nullptr;

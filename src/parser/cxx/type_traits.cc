@@ -18,10 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/standard_conversion.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
@@ -1003,6 +1005,28 @@ auto TypeTraits::add_rvalue_reference(const Type* type) const -> const Type* {
   return visit(AddRvalueReference{*this}, type);
 }
 
+auto TypeTraits::decltype_of(ExpressionAST* expr) const -> const Type* {
+  if (!expr) return nullptr;
+
+  auto namedSymbol = [&]() -> Symbol* {
+    if (auto id = ast_cast<IdExpressionAST>(expr)) return id->symbol;
+    if (auto member = ast_cast<MemberExpressionAST>(expr))
+      return member->symbol;
+    return nullptr;
+  }();
+
+  if (symbol_cast<OverloadSetSymbol>(namedSymbol)) return expr->type;
+  if (namedSymbol) return namedSymbol->type();
+
+  if (!expr->type) return nullptr;
+
+  if (unit_->language() != LanguageKind::kCXX) return expr->type;
+
+  if (is_lvalue(expr)) return add_lvalue_reference(expr->type);
+  if (is_xvalue(expr)) return add_rvalue_reference(expr->type);
+  return expr->type;
+}
+
 auto TypeTraits::remove_extent(const Type* type) const -> const Type* {
   if (!type) return type;
   return visit(RemoveExtent{}, type);
@@ -1399,38 +1423,19 @@ auto TypeTraits::is_convertible(const Type* from, const Type* to) const
     -> bool {
   if (!from || !to) return false;
 
-  auto fromUnqual = remove_cv(remove_reference(from));
-  auto toUnqual = remove_cv(to);
+  const auto fromIsVoid = is_void(from);
+  const auto toIsVoid = is_void(to);
+  if (fromIsVoid || toIsVoid) return fromIsVoid && toIsVoid;
 
-  if (is_void(fromUnqual) && is_void(toUnqual)) return true;
-  if (is_void(fromUnqual) || is_void(toUnqual)) return false;
-  if (is_same(fromUnqual, toUnqual)) return true;
-  if (is_arithmetic(fromUnqual) && is_arithmetic(toUnqual)) return true;
-  if (is_null_pointer(fromUnqual) && is_pointer(toUnqual)) return true;
-  if (is_enum(fromUnqual) && is_integral(toUnqual)) return true;
+  const auto valueCategory = is_lvalue_reference(from) ? ValueCategory::kLValue
+                                                       : ValueCategory::kXValue;
 
-  if (is_pointer(fromUnqual) && is_pointer(toUnqual)) {
-    auto fromPointee = remove_pointer(fromUnqual);
-    auto toPointee = remove_pointer(toUnqual);
-    if (is_void(remove_cv(toPointee))) return true;
-    if (is_base_of(remove_cv(toPointee), remove_cv(fromPointee))) return true;
-  }
+  auto declvalFrom = ThisExpressionAST::create(unit_->arena(), valueCategory,
+                                               remove_reference(from));
 
-  if (auto fromClass = type_cast<ClassType>(fromUnqual)) {
-    if (auto toClass = type_cast<ClassType>(toUnqual)) {
-      (void)fromClass;
-      (void)toClass;
-      if (is_base_of(toUnqual, fromUnqual)) return true;
-    }
-  }
-
-  if (type_cast<BoolType>(toUnqual)) {
-    if (is_arithmetic(fromUnqual) || is_pointer(fromUnqual) ||
-        is_enum(fromUnqual) || is_null_pointer(fromUnqual))
-      return true;
-  }
-
-  return false;
+  StandardConversion conversions{unit_};
+  return static_cast<bool>(
+      conversions.computeConversionSequence(declvalFrom, to));
 }
 
 auto TypeTraits::is_pod(const Type* type) -> bool {

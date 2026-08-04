@@ -35,6 +35,10 @@
 #include <format>
 
 namespace cxx {
+[[nodiscard]] auto areTemplateArgumentListsEquivalent(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* a,
+    List<TemplateArgumentAST*>* b) -> bool;
+
 namespace {
 auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
   if (auto bounded = type_cast<BoundedArrayType>(type)) {
@@ -57,6 +61,15 @@ namespace {
 [[nodiscard]] auto expressionsStructurallyEquivalent(TranslationUnit* unit,
                                                      ExpressionAST* a,
                                                      ExpressionAST* b) -> bool;
+
+[[nodiscard]] auto unqualifiedIdsStructurallyEquivalent(TranslationUnit* unit,
+                                                        UnqualifiedIdAST* a,
+                                                        UnqualifiedIdAST* b)
+    -> bool;
+
+[[nodiscard]] auto typeIdsStructurallyEquivalent(TranslationUnit* unit,
+                                                 TypeIdAST* a, TypeIdAST* b)
+    -> bool;
 
 [[nodiscard]] auto typesStructurallyEquivalent(TranslationUnit* unit,
                                                const Type* a, const Type* b)
@@ -86,36 +99,6 @@ namespace {
   return found;
 }
 
-[[nodiscard]] auto templateArgumentListsStructurallyEquivalent(
-    TranslationUnit* unit, List<TemplateArgumentAST*>* aArgs,
-    List<TemplateArgumentAST*>* bArgs) -> bool {
-  for (; aArgs && bArgs; aArgs = aArgs->next, bArgs = bArgs->next) {
-    auto aType = ast_cast<TypeTemplateArgumentAST>(aArgs->value);
-    auto bType = ast_cast<TypeTemplateArgumentAST>(bArgs->value);
-    if (aType && bType) {
-      if (!typesStructurallyEquivalent(
-              unit, aType->typeId ? aType->typeId->type : nullptr,
-              bType->typeId ? bType->typeId->type : nullptr)) {
-        return false;
-      }
-      continue;
-    }
-
-    auto aExpr = ast_cast<ExpressionTemplateArgumentAST>(aArgs->value);
-    auto bExpr = ast_cast<ExpressionTemplateArgumentAST>(bArgs->value);
-    if (aExpr && bExpr) {
-      if (!expressionsStructurallyEquivalent(unit, aExpr->expression,
-                                             bExpr->expression)) {
-        return false;
-      }
-      continue;
-    }
-
-    return false;
-  }
-  return !aArgs && !bArgs;
-}
-
 [[nodiscard]] auto templateQualifiedNameStructurallyEquivalent(
     TranslationUnit* unit, NestedNameSpecifierAST* aNns,
     UnqualifiedIdAST* aName, NestedNameSpecifierAST* bNns,
@@ -130,7 +113,7 @@ namespace {
   if (!aTemplateId || !bTemplateId) return false;
   if (!aTemplateId->symbol || aTemplateId->symbol != bTemplateId->symbol)
     return false;
-  if (!templateArgumentListsStructurallyEquivalent(
+  if (!areTemplateArgumentListsSyntacticallyEquivalent(
           unit, aTemplateId->templateArgumentList,
           bTemplateId->templateArgumentList))
     return false;
@@ -158,8 +141,60 @@ namespace {
   if (!aTid || !bTid) return false;
   if (!aTid->symbol || aTid->symbol != bTid->symbol) return false;
 
-  return templateArgumentListsStructurallyEquivalent(
-      unit, aTid->templateArgumentList, bTid->templateArgumentList);
+  return areTemplateArgumentListsEquivalent(unit, aTid->templateArgumentList,
+                                            bTid->templateArgumentList);
+}
+
+[[nodiscard]] auto namedTypeSpecifiersSyntacticallyEquivalent(
+    TranslationUnit* unit, NamedTypeSpecifierAST* a, NamedTypeSpecifierAST* b)
+    -> bool {
+  if (!a || !b) return false;
+  auto aScope =
+      a->nestedNameSpecifier ? a->nestedNameSpecifier->symbol : nullptr;
+  auto bScope =
+      b->nestedNameSpecifier ? b->nestedNameSpecifier->symbol : nullptr;
+  if (aScope != bScope) return false;
+
+  auto aName = ast_cast<NameIdAST>(a->unqualifiedId);
+  auto bName = ast_cast<NameIdAST>(b->unqualifiedId);
+  if (aName || bName) {
+    if (!aName || !bName || aName->identifier != bName->identifier)
+      return false;
+    return typesStructurallyEquivalent(unit,
+                                       a->symbol ? a->symbol->type() : nullptr,
+                                       b->symbol ? b->symbol->type() : nullptr);
+  }
+
+  auto aTemplateId = ast_cast<SimpleTemplateIdAST>(a->unqualifiedId);
+  auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b->unqualifiedId);
+  if (!aTemplateId || !bTemplateId ||
+      aTemplateId->identifier != bTemplateId->identifier)
+    return false;
+  return areTemplateArgumentListsSyntacticallyEquivalent(
+      unit, aTemplateId->templateArgumentList,
+      bTemplateId->templateArgumentList);
+}
+
+auto unqualifiedIdsStructurallyEquivalent(TranslationUnit* unit,
+                                          UnqualifiedIdAST* a,
+                                          UnqualifiedIdAST* b) -> bool {
+  if (a == b) return true;
+  auto aName = ast_cast<NameIdAST>(a);
+  auto bName = ast_cast<NameIdAST>(b);
+  if (aName || bName)
+    return aName && bName && aName->identifier == bName->identifier;
+
+  auto aTemplateId = ast_cast<SimpleTemplateIdAST>(a);
+  auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b);
+  if (!aTemplateId || !bTemplateId ||
+      aTemplateId->identifier != bTemplateId->identifier)
+    return false;
+  if (aTemplateId->symbol && bTemplateId->symbol &&
+      aTemplateId->symbol != bTemplateId->symbol)
+    return false;
+  return areTemplateArgumentListsEquivalent(unit,
+                                            aTemplateId->templateArgumentList,
+                                            bTemplateId->templateArgumentList);
 }
 
 [[nodiscard]] auto typenameSpecifiersStructurallyEquivalent(
@@ -169,6 +204,42 @@ namespace {
   return templateQualifiedNameStructurallyEquivalent(
       unit, a->nestedNameSpecifier, a->unqualifiedId, b->nestedNameSpecifier,
       b->unqualifiedId);
+}
+
+auto typeIdsStructurallyEquivalent(TranslationUnit* unit, TypeIdAST* a,
+                                   TypeIdAST* b) -> bool {
+  if (!a || !b) return false;
+  auto aSpec = a->typeSpecifierList;
+  auto bSpec = b->typeSpecifierList;
+  for (; aSpec && bSpec; aSpec = aSpec->next, bSpec = bSpec->next) {
+    if (aSpec->value->kind() != bSpec->value->kind()) return false;
+    if (auto aNamed = ast_cast<NamedTypeSpecifierAST>(aSpec->value)) {
+      if (!namedTypeSpecifiersSyntacticallyEquivalent(
+              unit, aNamed, ast_cast<NamedTypeSpecifierAST>(bSpec->value)))
+        return false;
+      continue;
+    }
+    if (auto aTypename = ast_cast<TypenameSpecifierAST>(aSpec->value)) {
+      if (!typenameSpecifiersStructurallyEquivalent(
+              unit, aTypename, ast_cast<TypenameSpecifierAST>(bSpec->value)))
+        return false;
+      continue;
+    }
+    if (auto aIntegral = ast_cast<IntegralTypeSpecifierAST>(aSpec->value)) {
+      auto bIntegral = ast_cast<IntegralTypeSpecifierAST>(bSpec->value);
+      if (!bIntegral || aIntegral->specifier != bIntegral->specifier)
+        return false;
+      continue;
+    }
+    if (auto aDecltype = ast_cast<DecltypeSpecifierAST>(aSpec->value)) {
+      auto bDecltype = ast_cast<DecltypeSpecifierAST>(bSpec->value);
+      if (!bDecltype || !expressionsStructurallyEquivalent(
+                            unit, aDecltype->expression, bDecltype->expression))
+        return false;
+    }
+  }
+  if (aSpec || bSpec) return false;
+  return typesStructurallyEquivalent(unit, a->type, b->type);
 }
 
 auto expressionsStructurallyEquivalent(TranslationUnit* unit, ExpressionAST* a,
@@ -252,7 +323,7 @@ auto expressionsStructurallyEquivalent(TranslationUnit* unit, ExpressionAST* a,
     if (!aTid || !bTid) return false;
     if (!aTid->symbol || aTid->symbol != bTid->symbol) return false;
 
-    return templateArgumentListsStructurallyEquivalent(
+    return areTemplateArgumentListsSyntacticallyEquivalent(
         unit, aTid->templateArgumentList, bTid->templateArgumentList);
   }
 
@@ -476,31 +547,137 @@ auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
 }
 }  // namespace
 
+using TypeIdEquivalence = auto (*)(TranslationUnit*, TypeIdAST*, TypeIdAST*)
+    -> bool;
+
+auto walkTemplateArgumentLists(TranslationUnit* unit,
+                               List<TemplateArgumentAST*>* a,
+                               List<TemplateArgumentAST*>* b,
+                               TypeIdEquivalence equivalentTypeIds) -> bool {
+  for (; a && b; a = a->next, b = b->next) {
+    auto typeA = ast_cast<TypeTemplateArgumentAST>(a->value);
+    auto typeB = ast_cast<TypeTemplateArgumentAST>(b->value);
+    if (typeA || typeB) {
+      if (!typeA || !typeB ||
+          !equivalentTypeIds(unit, typeA->typeId, typeB->typeId))
+        return false;
+      continue;
+    }
+
+    auto expressionA = ast_cast<ExpressionTemplateArgumentAST>(a->value);
+    auto expressionB = ast_cast<ExpressionTemplateArgumentAST>(b->value);
+    if (!expressionA || !expressionB ||
+        !expressionsStructurallyEquivalent(unit, expressionA->expression,
+                                           expressionB->expression))
+      return false;
+  }
+
+  return !a && !b;
+}
+
+auto areTemplateArgumentListsEquivalent(TranslationUnit* unit,
+                                        List<TemplateArgumentAST*>* a,
+                                        List<TemplateArgumentAST*>* b) -> bool {
+  auto equivalentTypeIds = [](TranslationUnit* unit, TypeIdAST* a,
+                              TypeIdAST* b) {
+    return a && b && typesStructurallyEquivalent(unit, a->type, b->type);
+  };
+  return walkTemplateArgumentLists(unit, a, b, equivalentTypeIds);
+}
+
+auto areTemplateArgumentListsSyntacticallyEquivalent(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* a,
+    List<TemplateArgumentAST*>* b) -> bool {
+  return walkTemplateArgumentLists(unit, a, b, typeIdsStructurallyEquivalent);
+}
+
+[[nodiscard]] auto templateParameterListsEquivalent(
+    TranslationUnit* unit, List<TemplateParameterAST*>* aIt,
+    List<TemplateParameterAST*>* bIt) -> bool {
+  for (; aIt && bIt; aIt = aIt->next, bIt = bIt->next) {
+    auto aParam = aIt->value;
+    auto bParam = bIt->value;
+    if (aParam->kind() != bParam->kind()) return false;
+
+    auto aTypename = ast_cast<TypenameTypeParameterAST>(aParam);
+    auto bTypename = ast_cast<TypenameTypeParameterAST>(bParam);
+    if (aTypename && bTypename && aTypename->isPack != bTypename->isPack)
+      return false;
+
+    auto aConstraint = ast_cast<ConstraintTypeParameterAST>(aParam);
+    auto bConstraint = ast_cast<ConstraintTypeParameterAST>(bParam);
+    if (aConstraint || bConstraint) {
+      if (!aConstraint || !bConstraint) return false;
+      auto aTypeConstraint = aConstraint->typeConstraint;
+      auto bTypeConstraint = bConstraint->typeConstraint;
+      if (!aTypeConstraint || !bTypeConstraint) return false;
+      auto aSymbol = symbol_cast<TypeParameterSymbol>(aConstraint->symbol);
+      auto bSymbol = symbol_cast<TypeParameterSymbol>(bConstraint->symbol);
+      if ((aSymbol && aSymbol->isParameterPack()) !=
+          (bSymbol && bSymbol->isParameterPack()))
+        return false;
+      if (aTypeConstraint->identifier != bTypeConstraint->identifier)
+        return false;
+      auto aScope = aTypeConstraint->nestedNameSpecifier
+                        ? aTypeConstraint->nestedNameSpecifier->symbol
+                        : nullptr;
+      auto bScope = bTypeConstraint->nestedNameSpecifier
+                        ? bTypeConstraint->nestedNameSpecifier->symbol
+                        : nullptr;
+      if (aScope != bScope) return false;
+      if (!areTemplateArgumentListsSyntacticallyEquivalent(
+              unit, aTypeConstraint->templateArgumentList,
+              bTypeConstraint->templateArgumentList))
+        return false;
+    }
+
+    auto aNonType = ast_cast<NonTypeTemplateParameterAST>(aParam);
+    auto bNonType = ast_cast<NonTypeTemplateParameterAST>(bParam);
+    if (aNonType && bNonType) {
+      auto aSymbol = symbol_cast<NonTypeParameterSymbol>(aNonType->symbol);
+      auto bSymbol = symbol_cast<NonTypeParameterSymbol>(bNonType->symbol);
+      if ((aSymbol && aSymbol->isParameterPack()) !=
+          (bSymbol && bSymbol->isParameterPack()))
+        return false;
+      if (!nonTypeParameterTypesEquivalent(unit, aNonType, bNonType))
+        return false;
+    }
+
+    auto aTemplate = ast_cast<TemplateTypeParameterAST>(aParam);
+    auto bTemplate = ast_cast<TemplateTypeParameterAST>(bParam);
+    if (aTemplate && bTemplate) {
+      if (aTemplate->isPack != bTemplate->isPack) return false;
+      if (!templateParameterListsEquivalent(unit,
+                                            aTemplate->templateParameterList,
+                                            bTemplate->templateParameterList))
+        return false;
+      if (!aTemplate->requiresClause || !bTemplate->requiresClause) {
+        if (aTemplate->requiresClause != bTemplate->requiresClause)
+          return false;
+      } else if (!expressionsStructurallyEquivalent(
+                     unit, aTemplate->requiresClause->expression,
+                     bTemplate->requiresClause->expression)) {
+        return false;
+      }
+    }
+  }
+
+  return !aIt && !bIt;
+}
+
 auto areTemplateHeadsEquivalentForRedeclaration(TranslationUnit* unit,
                                                 TemplateDeclarationAST* a,
                                                 TemplateDeclarationAST* b)
     -> bool {
   if (a == b) return true;
-  if (!a || !b) return true;
-  if (a->symbol && a->symbol->isExplicitTemplateSpecialization()) return true;
-  if (b->symbol && b->symbol->isExplicitTemplateSpecialization()) return true;
-
-  auto aIt = a->templateParameterList;
-  auto bIt = b->templateParameterList;
-
-  for (; aIt && bIt; aIt = aIt->next, bIt = bIt->next) {
-    auto aParam = aIt->value;
-    auto bParam = bIt->value;
-    if (aParam->kind() != bParam->kind()) return false;
-    auto aNonType = ast_cast<NonTypeTemplateParameterAST>(aParam);
-    auto bNonType = ast_cast<NonTypeTemplateParameterAST>(bParam);
-    if (aNonType && bNonType &&
-        !nonTypeParameterTypesEquivalent(unit, aNonType, bNonType)) {
-      return false;
-    }
-  }
-
-  return !aIt && !bIt;
+  if (!a || !b) return false;
+  if (!templateParameterListsEquivalent(unit, a->templateParameterList,
+                                        b->templateParameterList))
+    return false;
+  if (!a->requiresClause || !b->requiresClause)
+    return a->requiresClause == b->requiresClause;
+  return expressionsStructurallyEquivalent(unit, a->requiresClause->expression,
+                                           b->requiresClause->expression);
 }
 
 struct [[nodiscard]] Binder::DeclareFunction {
@@ -641,14 +818,18 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
 
     auto existingTemplateDecl = existingFunction->templateDeclaration();
     auto newTemplateHead = decl.specs.templateHead;
-    auto existingRequires =
-        existingTemplateDecl ? existingTemplateDecl->requiresClause : nullptr;
-    auto newRequires =
-        newTemplateHead ? newTemplateHead->requiresClause : nullptr;
-    if (existingRequires != newRequires) continue;
-
-    if (!areTemplateHeadsEquivalentForRedeclaration(
-            binder.unit_, existingTemplateDecl, newTemplateHead)) {
+    auto headsEquivalent = areFunctionTemplateHeadsEquivalentForRedeclaration(
+        binder.unit_, symbol_cast<ClassSymbol>(declaringScopeForFunction()),
+        existingTemplateDecl, newTemplateHead);
+    if (!headsEquivalent) {
+      auto instantiatingFunction =
+          symbol_cast<FunctionSymbol>(binder.instantiatingSymbol());
+      headsEquivalent =
+          instantiatingFunction &&
+          instantiatingFunction->canonical() == existingFunction->canonical() &&
+          (existingTemplateDecl != nullptr) != (newTemplateHead != nullptr);
+    }
+    if (!headsEquivalent) {
       continue;
     }
 

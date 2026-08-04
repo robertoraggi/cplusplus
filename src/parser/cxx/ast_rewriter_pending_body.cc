@@ -22,6 +22,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
+#include <cxx/dependent_types.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -205,7 +206,25 @@ void ASTRewriter::checkMemInitializers(FunctionSymbol* function,
   TypeChecker check{unit_};
   check.setScope(function);
   check.setReportErrors(unit_->config().checkTypes);
-  check.check_mem_initializers(body);
+  auto hasDependentInitializer = [&] {
+    for (auto memInit : ListView{body->memInitializerList}) {
+      if (auto paren = ast_cast<ParenMemInitializerAST>(memInit)) {
+        for (auto expression : ListView{paren->expressionList})
+          if (isDependent(unit_, expression)) return true;
+      } else if (auto braced = ast_cast<BracedMemInitializerAST>(memInit)) {
+        if (braced->bracedInitList &&
+            isDependent(unit_, braced->bracedInitList))
+          return true;
+      }
+    }
+    return false;
+  };
+  if (isEnclosedInDependentTemplate(unit_, function, true) ||
+      hasDependentInitializer()) {
+    check.bind_template_parameter_base_initializers(body);
+  } else {
+    check.check_mem_initializers(body);
+  }
 
   if (!capture) return;
 
@@ -220,6 +239,18 @@ auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
   if (!unit || !function || !function->hasPendingBody()) return {};
   auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
   return rewriter.completePendingBody(function, captureBodyErrors);
+}
+
+void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
+                                            Symbol* symbol) {
+  auto function = symbol_cast<FunctionSymbol>(symbol);
+  if (!function || !function->hasPendingBody()) return;
+
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return;
+  if (!containsPlaceholderType(functionType->returnType())) return;
+
+  (void)completePendingBodyFor(unit, function);
 }
 
 auto ASTRewriter::completePendingBody(FunctionSymbol* func,
@@ -266,6 +297,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
     auto rewriter = ASTRewriter{unit_, parentScope, std::move(classArguments)};
     rewriter.depth_ = depth;
+    rewriter.inheritEnclosingTemplateArguments(parentScope);
     rewriter.binder_.setInstantiatingSymbol(originalDef->symbol);
 
     auto patternClass = symbol_cast<ClassSymbol>(
@@ -302,6 +334,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
   auto rewriter = ASTRewriter{unit_, parentScope, templateArguments};
   rewriter.depth_ = depth;
+  rewriter.inheritEnclosingTemplateArguments(parentScope);
   rewriter.binder_.setInstantiatingSymbol(func);
 
   if (auto oldFunc = symbol_cast<FunctionSymbol>(originalDef->symbol)) {

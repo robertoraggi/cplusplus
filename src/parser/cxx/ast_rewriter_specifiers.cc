@@ -719,33 +719,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
 
   copy->symbol = ast->symbol;
 
-  if (auto typeParameter = symbol_cast<TypeParameterSymbol>(ast->symbol)) {
-    auto paramType = type_cast<TypeParameterType>(ast->symbol->type());
-    const auto& args = rewrite.templateArguments_;
-    if (paramType && paramType->depth() == rewrite.depth_ &&
-        paramType->index() < args.size()) {
-      auto index = paramType->index();
-
-      if (auto sym = std::get_if<Symbol*>(&args[index])) {
-        if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
-          if (rewrite.elementIndex_.has_value()) {
-            auto elemIdx = *rewrite.elementIndex_;
-            if (elemIdx < static_cast<int>(pack->elements().size())) {
-              copy->symbol = pack->elements()[elemIdx];
-            }
-          }
-        } else {
-          copy->symbol = *sym;
-        }
-      }
+  if (symbol_cast<TypeParameterSymbol>(ast->symbol)) {
+    if (auto substituted = rewrite.substitutedSymbol(ast->symbol)) {
+      copy->symbol = substituted;
     }
   } else if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol) &&
              !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
-    auto paramType = type_cast<TemplateTypeParameterType>(ast->symbol->type());
-    const auto& args = rewrite.templateArguments_;
-    if (paramType && paramType->depth() == rewrite.depth_ &&
-        paramType->index() < static_cast<int>(args.size())) {
-      if (auto sym = std::get_if<Symbol*>(&args[paramType->index()])) {
+    auto argument = rewrite.templateArgumentFor(ast->symbol);
+    if (argument) {
+      if (auto sym = std::get_if<Symbol*>(argument)) {
         copy->symbol = *sym;
         if (auto templateName = template_name_symbol(*sym)) {
           copy->symbol = templateName;
@@ -1052,6 +1034,9 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   }
 
   copy->symbol = classSymbol;
+
+  classSymbol->setInstantiationSubstitution(rewrite.depth_,
+                                            rewrite.templateArguments());
 
   classSymbol->setName(className);
   classSymbol->setIsUnion(ast->symbol->isUnion());

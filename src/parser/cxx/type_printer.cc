@@ -319,10 +319,9 @@ class TypePrinter {
     if (type->symbol()->isSpecialization()) {
       out += '<';
       std::string_view sep = "";
-      for (auto arg : type->symbol()->templateArguments()) {
-        auto sym = std::get_if<Symbol*>(&arg);
-        if (!sym) continue;
-        out += std::format("{}{}", sep, to_string((*sym)->type()));
+      for (const auto& arg :
+           expand_template_arguments(type->symbol()->templateArguments())) {
+        out += std::format("{}{}", sep, to_string(arg));
         sep = ", ";
       }
       out += '>';

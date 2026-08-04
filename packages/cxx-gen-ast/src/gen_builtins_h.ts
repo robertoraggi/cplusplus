@@ -36,6 +36,25 @@ export function gen_builtins_h({ output }: { output: string }) {
     lines.push(`${b.prototype};`);
   }
 
+  lines.push(``);
+  lines.push(`#ifdef __cplusplus`);
+  lines.push(``);
+  lines.push(
+    `template <template <class IntSeqT, IntSeqT... Ints> class IntSeq, class T, T N>`,
+  );
+  lines.push(`using __make_integer_seq = void;`);
+  lines.push(``);
+  lines.push(`template <__SIZE_TYPE__ Index, class... Ts>`);
+  lines.push(`using __type_pack_element = void;`);
+  lines.push(``);
+  lines.push(`template <template <class... Args> class BaseTemplate,`);
+  lines.push(`          template <class TypeMember> class HasTypeMember,`);
+  lines.push(`          class HasNoTypeMember,`);
+  lines.push(`          class... Ts>`);
+  lines.push(`using __builtin_common_type = void;`);
+  lines.push(``);
+  lines.push(`#endif`);
+
   lines.push(`)";`);
   lines.push(`// clang-format on`);
   lines.push(``);

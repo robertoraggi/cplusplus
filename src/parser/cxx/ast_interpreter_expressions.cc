@@ -518,6 +518,9 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto evaluateConstructorConversion(
       ImplicitCastExpressionAST* ast) -> ExpressionResult;
 
+  [[nodiscard]] auto evaluateMemberObjectPointerConversion(
+      ImplicitCastExpressionAST* ast) -> ExpressionResult;
+
   [[nodiscard]] auto operator()(BinaryExpressionAST* ast) -> ExpressionResult;
 
   [[nodiscard]] auto operator()(ConditionalExpressionAST* ast)
@@ -1598,6 +1601,16 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       while (auto nested = ast_cast<NestedExpressionAST>(innerExpr))
         innerExpr = nested->expression;
 
+      if (type_cast<MemberObjectPointerType>(ast->type)) {
+        auto idExpr = ast_cast<IdExpressionAST>(innerExpr);
+        if (!idExpr) break;
+        auto field = symbol_cast<FieldSymbol>(idExpr->symbol);
+        if (!field) break;
+        auto offset = field->offsetInClass();
+        if (!offset) break;
+        return static_cast<std::intmax_t>(*offset);
+      }
+
       if (auto idExpr = ast_cast<IdExpressionAST>(innerExpr)) {
         if (idExpr->symbol) {
           if (symbol_cast<FieldSymbol>(idExpr->symbol)) {
@@ -1768,6 +1781,34 @@ auto ASTInterpreter::ExpressionVisitor::evaluateConstructorConversion(
       std::make_shared<ConstObject>(ast->type, (*source)->fields())};
 }
 
+auto ASTInterpreter::ExpressionVisitor::evaluateMemberObjectPointerConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto targetType = type_cast<MemberObjectPointerType>(ast->type);
+  if (!targetType) return std::nullopt;
+
+  const auto nullValue = static_cast<std::intmax_t>(
+      control()->memoryLayout()->nullMemberObjectPointer());
+
+  auto sourceType =
+      ast->expression
+          ? type_cast<MemberObjectPointerType>(ast->expression->type)
+          : nullptr;
+
+  if (!sourceType) return nullValue;
+
+  auto value = evaluate(ast->expression);
+  if (!value.has_value()) return std::nullopt;
+
+  auto offset = interp.toInt(*value);
+  if (!offset.has_value()) return std::nullopt;
+  if (*offset == nullValue) return nullValue;
+
+  auto adjustment = memberPointerBaseAdjustment(sourceType, targetType);
+  if (!adjustment.has_value()) return std::nullopt;
+
+  return *offset + *adjustment;
+}
+
 auto ASTInterpreter::ExpressionVisitor::operator()(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   if (!ast->type) return std::nullopt;
@@ -1775,6 +1816,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   if (ast->castKind == ImplicitCastKind::kUserDefinedConversion &&
       ast->conversionFunction && ast->conversionFunction->isConstructor()) {
     return evaluateConstructorConversion(ast);
+  }
+
+  if (ast->castKind == ImplicitCastKind::kPointerToMemberConversion) {
+    return evaluateMemberObjectPointerConversion(ast);
   }
 
   if (ast->castKind == ImplicitCastKind::kArrayToPointerConversion) {

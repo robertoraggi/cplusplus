@@ -23,6 +23,7 @@
 #include <cxx/types_fwd.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 
 namespace cxx {
@@ -52,6 +53,8 @@ class MemoryLayout {
   [[nodiscard]] auto triple() const -> const std::string&;
   [[nodiscard]] auto arch() const -> std::string_view;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
+
+  [[nodiscard]] auto nullMemberObjectPointer() const -> std::int64_t;
   [[nodiscard]] auto usesSingleScalarClassAbi() const -> bool;
   void setTriple(std::string triple);
 

@@ -145,7 +145,7 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast) {
   TypeChecker check{unit_};
   check.setScope(scope());
 
-  const bool needsDeduction = var && check.hasAutoPlaceholder(var->type());
+  const bool needsDeduction = var && containsPlaceholderType(var->type());
 
   if (!rangeInitializer || !rangeInitializer->type ||
       isDependent(unit_, rangeInitializer->type)) {

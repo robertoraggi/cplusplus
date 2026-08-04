@@ -390,6 +390,10 @@ auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
          arch.starts_with("thumb") || arch.starts_with("wasm");
 }
 
+auto MemoryLayout::nullMemberObjectPointer() const -> std::int64_t {
+  return -1;
+}
+
 auto MemoryLayout::usesSingleScalarClassAbi() const -> bool {
   return arch().starts_with("wasm");
 }

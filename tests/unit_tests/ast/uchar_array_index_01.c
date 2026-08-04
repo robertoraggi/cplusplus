@@ -36,9 +36,9 @@ int main() {
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: c
-// CHECK-NEXT:                    initializer: implicit-cast-expression [prvalue unsigned char]
-// CHECK-NEXT:                      cast-kind: integral-conversion
-// CHECK-NEXT:                      expression: equal-initializer [prvalue int]
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue unsigned char]
+// CHECK-NEXT:                      expression: implicit-cast-expression [prvalue unsigned char]
+// CHECK-NEXT:                        cast-kind: integral-conversion
 // CHECK-NEXT:                        expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                          literal: 200
 // CHECK-NEXT:            declaration-statement

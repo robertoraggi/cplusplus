@@ -28,38 +28,25 @@
 
 namespace cxx {
 struct FindReferencedParameterPack final : ASTVisitor {
-  ASTRewriter& rewriter;
+  const ASTRewriter& rewriter;
   ParameterPackSymbol* exprPack = nullptr;
   ParameterPackSymbol* typePack = nullptr;
 
-  explicit FindReferencedParameterPack(ASTRewriter& r) : rewriter(r) {}
+  explicit FindReferencedParameterPack(const ASTRewriter& r) : rewriter(r) {}
 
   auto preVisit(AST*) -> bool override { return !exprPack; }
-
-  auto packAt(int depth, int index, bool isPack) -> ParameterPackSymbol* {
-    return rewriter.parameterPackAt(depth, index, isPack);
-  }
 
   void visit(IdExpressionAST* ast) override {
     if (exprPack) return;
 
-    if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol)) {
-      if (param->depth() == 0) {
-        auto arg = rewriter.templateArguments_[param->index()];
-        if (auto pack =
-                symbol_cast<ParameterPackSymbol>(std::get<Symbol*>(arg))) {
-          exprPack = pack;
-          return;
-        }
-      }
+    if (auto pack = rewriter.functionParameterPackFor(ast->symbol)) {
+      exprPack = pack;
+      return;
     }
 
-    if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
-      auto it = rewriter.functionParamPacks_.find(param);
-      if (it != rewriter.functionParamPacks_.end()) {
-        exprPack = it->second;
-        return;
-      }
+    if (auto pack = rewriter.parameterPackFor(ast->symbol)) {
+      exprPack = pack;
+      return;
     }
 
     if (ast->unqualifiedId) accept(ast->unqualifiedId);
@@ -69,17 +56,9 @@ struct FindReferencedParameterPack final : ASTVisitor {
   void visit(NamedTypeSpecifierAST* ast) override {
     if (typePack) return;
 
-    Symbol* paramSym = symbol_cast<TypeParameterSymbol>(ast->symbol);
-    if (!paramSym)
-      paramSym = symbol_cast<TemplateTypeParameterSymbol>(ast->symbol);
-    if (paramSym) {
-      if (auto paramInfo = getTypeParamInfo(paramSym->type())) {
-        if (auto pack =
-                packAt(paramInfo->depth, paramInfo->index, paramInfo->isPack)) {
-          typePack = pack;
-          return;
-        }
-      }
+    if (auto pack = rewriter.parameterPackFor(ast->symbol)) {
+      typePack = pack;
+      return;
     }
 
     if (ast->nestedNameSpecifier) accept(ast->nestedNameSpecifier);
@@ -89,17 +68,9 @@ struct FindReferencedParameterPack final : ASTVisitor {
   void visit(SimpleNestedNameSpecifierAST* ast) override {
     if (typePack) return;
 
-    Symbol* paramSym = symbol_cast<TypeParameterSymbol>(ast->symbol);
-    if (!paramSym)
-      paramSym = symbol_cast<TemplateTypeParameterSymbol>(ast->symbol);
-    if (paramSym) {
-      if (auto paramInfo = getTypeParamInfo(paramSym->type())) {
-        if (auto pack =
-                packAt(paramInfo->depth, paramInfo->index, paramInfo->isPack)) {
-          typePack = pack;
-          return;
-        }
-      }
+    if (auto pack = rewriter.parameterPackFor(ast->symbol)) {
+      typePack = pack;
+      return;
     }
 
     if (ast->nestedNameSpecifier) accept(ast->nestedNameSpecifier);
@@ -112,21 +83,123 @@ struct FindReferencedParameterPack final : ASTVisitor {
   }
 };
 
-auto ASTRewriter::parameterPackAt(int depth, int index, bool isPack)
+struct FindUnresolvedParameterPack final : ASTVisitor {
+  const ASTRewriter& rewriter;
+  bool found = false;
+
+  explicit FindUnresolvedParameterPack(const ASTRewriter& r) : rewriter(r) {}
+
+  auto preVisit(AST*) -> bool override { return !found; }
+
+  void checkParameter(Symbol* symbol) {
+    if (!symbol || found) return;
+    if (rewriter.functionParameterPackFor(symbol)) return;
+    auto info = template_parameter_info(symbol);
+    if (!info || !info->isPack) return;
+    if (!rewriter.templateArgumentAt(info->depth, info->index)) found = true;
+  }
+
+  void visit(NamedTypeSpecifierAST* ast) override {
+    checkParameter(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SimpleNestedNameSpecifierAST* ast) override {
+    checkParameter(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(IdExpressionAST* ast) override {
+    checkParameter(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+};
+
+auto ASTRewriter::hasUnresolvedParameterPack(AST* ast) const -> bool {
+  if (!ast) return false;
+  FindUnresolvedParameterPack scan{*this};
+  scan.accept(ast);
+  return scan.found;
+}
+
+auto ASTRewriter::templateArgumentAt(int depth, int index) const
+    -> const TemplateArgument* {
+  auto arguments = &templateArguments_;
+
+  if (depth != depth_) {
+    auto it = enclosingTemplateArguments_.find(depth);
+    if (it == enclosingTemplateArguments_.end()) return nullptr;
+    arguments = &it->second;
+  }
+
+  if (index < 0 || index >= static_cast<int>(arguments->size())) return nullptr;
+  return &(*arguments)[index];
+}
+
+void ASTRewriter::addEnclosingTemplateArguments(
+    int depth, std::vector<TemplateArgument> arguments) {
+  if (depth == depth_ || arguments.empty()) return;
+  enclosingTemplateArguments_.insert_or_assign(depth, std::move(arguments));
+}
+
+void ASTRewriter::inheritEnclosingTemplateArguments(Symbol* symbol) {
+  for (auto scope = symbol; scope; scope = scope->parent()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(scope);
+    if (!classSymbol) continue;
+
+    const auto depth = classSymbol->instantiationSubstitutionDepth();
+    if (depth < 0) continue;
+
+    addEnclosingTemplateArguments(
+        depth, classSymbol->instantiationSubstitutionArguments());
+  }
+}
+
+auto ASTRewriter::templateArgumentFor(Symbol* templateParameter) const
+    -> const TemplateArgument* {
+  auto info = template_parameter_info(templateParameter);
+  if (!info) return nullptr;
+  return templateArgumentAt(info->depth, info->index);
+}
+
+auto ASTRewriter::substitutedSymbol(Symbol* templateParameter) const
+    -> Symbol* {
+  auto argument = templateArgumentFor(templateParameter);
+  if (!argument) return nullptr;
+
+  auto symbol = std::get_if<Symbol*>(argument);
+  if (!symbol) return nullptr;
+
+  if (auto pack = symbol_cast<ParameterPackSymbol>(*symbol))
+    return packElementAt(pack);
+
+  return *symbol;
+}
+
+auto ASTRewriter::parameterPackAt(int depth, int index, bool isPack) const
     -> ParameterPackSymbol* {
   if (!isPack) return nullptr;
-  if (depth != depth_) return nullptr;
-  if (index < 0 || index >= static_cast<int>(templateArguments_.size()))
-    return nullptr;
-  auto sym = std::get_if<Symbol*>(&templateArguments_[index]);
+  auto argument = templateArgumentAt(depth, index);
+  if (!argument) return nullptr;
+  auto sym = std::get_if<Symbol*>(argument);
   if (!sym) return nullptr;
   return symbol_cast<ParameterPackSymbol>(*sym);
 }
 
-auto ASTRewriter::parameterPackFor(Symbol* symbol) -> ParameterPackSymbol* {
+auto ASTRewriter::parameterPackFor(Symbol* symbol) const
+    -> ParameterPackSymbol* {
   auto info = template_parameter_info(symbol);
   if (!info) return nullptr;
   return parameterPackAt(info->depth, info->index, info->isPack);
+}
+
+auto ASTRewriter::functionParameterPackFor(Symbol* symbol) const
+    -> ParameterPackSymbol* {
+  auto param = symbol_cast<ParameterSymbol>(symbol);
+  if (!param) return nullptr;
+  auto it = functionParamPacks_.find(param);
+  if (it == functionParamPacks_.end()) return nullptr;
+  return it->second;
 }
 
 auto ASTRewriter::packElementAt(ParameterPackSymbol* pack) const -> Symbol* {
@@ -140,27 +213,13 @@ auto ASTRewriter::packElementCount(ParameterPackSymbol* pack) const -> int {
   return static_cast<int>(pack->elements().size());
 }
 
-auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) -> Symbol* {
+auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) const
+    -> Symbol* {
   auto typeParam = symbol_cast<TypeParameterSymbol>(symbol);
   if (!typeParam) return nullptr;
 
-  auto paramType = type_cast<TypeParameterType>(typeParam->type());
-  if (!paramType) return nullptr;
-  if (paramType->depth() != depth_) return nullptr;
-  if (paramType->index() >= static_cast<int>(templateArguments_.size()))
-    return nullptr;
-
-  auto argument = std::get_if<Symbol*>(&templateArguments_[paramType->index()]);
-  if (!argument) return nullptr;
-
-  Symbol* resolved = *argument;
-
-  if (auto pack = symbol_cast<ParameterPackSymbol>(resolved)) {
-    if (!elementIndex_.has_value()) return nullptr;
-    if (*elementIndex_ >= static_cast<int>(pack->elements().size()))
-      return nullptr;
-    resolved = pack->elements()[*elementIndex_];
-  }
+  auto resolved = substitutedSymbol(typeParam);
+  if (!resolved) return nullptr;
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(resolved)) {
     if (auto classType = type_cast<ClassType>(
@@ -169,12 +228,12 @@ auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) -> Symbol* {
     }
   }
 
-  if (resolved && resolved->isClass()) return resolved;
+  if (resolved->isClass()) return resolved;
 
   return nullptr;
 }
 
-auto ASTRewriter::findReferencedParameterPack(AST* ast)
+auto ASTRewriter::findReferencedParameterPack(AST* ast) const
     -> ParameterPackSymbol* {
   FindReferencedParameterPack finder{*this};
   finder.accept(ast);

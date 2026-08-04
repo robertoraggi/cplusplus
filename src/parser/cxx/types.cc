@@ -22,6 +22,41 @@
 #include <cxx/types.h>
 
 namespace cxx {
+namespace {
+
+struct ContainsPlaceholderType {
+  auto operator()(const AutoType*) const -> bool { return true; }
+  auto operator()(const DecltypeAutoType*) const -> bool { return true; }
+
+  auto operator()(const QualType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const PointerType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const LvalueReferenceType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const RvalueReferenceType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  template <typename T>
+  auto operator()(const T*) const -> bool {
+    return false;
+  }
+};
+
+}  // namespace
+
+auto containsPlaceholderType(const Type* type) -> bool {
+  if (!type) return false;
+  return visit(ContainsPlaceholderType{}, type);
+}
+
 auto EnumType::underlyingType() const -> const Type* {
   return symbol()->underlyingType();
 }
@@ -39,4 +74,19 @@ auto ClassType::isComplete() const -> bool {
 }
 
 auto ClassType::isUnion() const -> bool { return definition()->isUnion(); }
+
+auto memberPointerBaseAdjustment(const MemberObjectPointerType* sourceType,
+                                 const MemberObjectPointerType* targetType)
+    -> std::optional<std::int64_t> {
+  if (!sourceType || !targetType) return std::nullopt;
+
+  auto baseClass = sourceType->classType()->symbol();
+  auto derivedClass = targetType->classType()->symbol();
+  if (!baseClass || !derivedClass) return std::nullopt;
+
+  auto offset = derivedClass->resolvedDefinition()->baseClassOffset(baseClass);
+  if (!offset.has_value()) return std::nullopt;
+
+  return static_cast<std::int64_t>(*offset);
+}
 }  // namespace cxx

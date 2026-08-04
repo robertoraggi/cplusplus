@@ -72,7 +72,7 @@ auto make(void* where, T init) {
 // CHECK-NEXT:                              unqualified-id: name-id
 // CHECK-NEXT:                                identifier: T
 // CHECK-NEXT:                          new-initalizer: new-braced-initializer
-// CHECK-NEXT:                            braced-init-list: braced-init-list
+// CHECK-NEXT:                            braced-init-list: braced-init-list [prvalue type-param<0, 0>]
 // CHECK-NEXT:                              expression-list
 // CHECK-NEXT:                                id-expression [lvalue type-param<0, 0>]
 // CHECK-NEXT:                                  unqualified-id: name-id

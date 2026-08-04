@@ -63,6 +63,16 @@ struct PendingBodyInstantiation {
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
 
+[[nodiscard]] auto expand_template_arguments(
+    std::span<const TemplateArgument> arguments)
+    -> std::vector<TemplateArgument>;
+
+[[nodiscard]] auto template_argument_type(const TemplateArgument& argument)
+    -> const Type*;
+
+[[nodiscard]] auto template_argument_value(const TemplateArgument& argument)
+    -> std::optional<ConstValue>;
+
 [[nodiscard]] auto template_name_symbol(Symbol* symbol) -> Symbol*;
 
 [[nodiscard]] auto template_declaration_of(Symbol* symbol)
@@ -633,6 +643,21 @@ class ClassSymbol final : public ScopeSymbol,
   using MaybeRedecl<ClassSymbol>::redeclarations;
   using MaybeRedecl<ClassSymbol>::addRedeclaration;
 
+  void setInstantiationSubstitution(int depth,
+                                    std::vector<TemplateArgument> arguments) {
+    instantiationSubstitutionDepth_ = depth;
+    instantiationSubstitutionArguments_ = std::move(arguments);
+  }
+
+  [[nodiscard]] auto instantiationSubstitutionDepth() const -> int {
+    return instantiationSubstitutionDepth_;
+  }
+
+  [[nodiscard]] auto instantiationSubstitutionArguments() const
+      -> const std::vector<TemplateArgument>& {
+    return instantiationSubstitutionArguments_;
+  }
+
   explicit ClassSymbol(ScopeSymbol* enclosingScope);
   ~ClassSymbol() override;
 
@@ -663,6 +688,9 @@ class ClassSymbol final : public ScopeSymbol,
   void addDeductionGuide(DeductionGuideSymbol* guide);
 
   [[nodiscard]] auto conversionFunctions() const
+      -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto implicitConversionFunctions() const
       -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto destructor() const -> FunctionSymbol*;
@@ -704,6 +732,9 @@ class ClassSymbol final : public ScopeSymbol,
 
   [[nodiscard]] auto hasBaseClass(Symbol* symbol) const -> bool;
 
+  [[nodiscard]] auto baseClassOffset(ClassSymbol* base) const
+      -> std::optional<std::uint64_t>;
+
   [[nodiscard]] auto hasVirtualBasePath(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto flags() const -> std::uint32_t;
@@ -736,6 +767,8 @@ class ClassSymbol final : public ScopeSymbol,
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
+  std::vector<TemplateArgument> instantiationSubstitutionArguments_;
+  int instantiationSubstitutionDepth_ = -1;
   OverloadSetSymbol* constructorOverloadSet_ = nullptr;
   std::vector<DeductionGuideSymbol*> deductionGuides_;
   std::unique_ptr<ClassLayout> layout_;
@@ -769,12 +802,16 @@ class EnumSymbol final : public ScopeSymbol {
   [[nodiscard]] bool hasFixedUnderlyingType() const;
   void setHasFixedUnderlyingType(bool hasFixedUnderlyingType);
 
+  [[nodiscard]] auto isDefined() const -> bool;
+  void setDefined(bool isDefined);
+
   [[nodiscard]] auto underlyingType() const -> const Type*;
   void setUnderlyingType(const Type* underlyingType);
 
  private:
   const Type* underlyingType_ = nullptr;
   bool hasFixedUnderlyingType_ = false;
+  bool isDefined_ = false;
 };
 
 class ScopedEnumSymbol final : public ScopeSymbol {
@@ -787,8 +824,12 @@ class ScopedEnumSymbol final : public ScopeSymbol {
   [[nodiscard]] auto underlyingType() const -> const Type*;
   void setUnderlyingType(const Type* underlyingType);
 
+  [[nodiscard]] auto isDefined() const -> bool;
+  void setDefined(bool isDefined);
+
  private:
   const Type* underlyingType_ = nullptr;
+  bool isDefined_ = false;
 };
 
 class FunctionSymbol final
@@ -1041,7 +1082,7 @@ class BlockSymbol final : public ScopeSymbol {
 
 class TypeAliasSymbol final
     : public Symbol,
-      public MaybeTemplate<TypeAliasSymbol, SimpleDeclarationAST>,
+      public MaybeTemplate<TypeAliasSymbol, AliasDeclarationAST>,
       public MaybeRedecl<TypeAliasSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kTypeAlias;
@@ -1162,6 +1203,8 @@ class FieldSymbol final : public Symbol {
 
   [[nodiscard]] auto isNoUniqueAddress() const -> bool;
   void setNoUniqueAddress(bool isNoUniqueAddress);
+
+  [[nodiscard]] auto offsetInClass() const -> std::optional<std::uint64_t>;
 
   [[nodiscard]] auto localOffset() const -> int;
   void setLocalOffset(int offset);

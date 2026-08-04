@@ -535,6 +535,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   }
 
   copy->symbol = symbol;
+  symbol->setDeclaration(copy);
 
   rewrite.addSymbolRemap(ast->symbol, symbol);
 
@@ -572,6 +573,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
   typeSpecifierListCtx.finish();
 
   copy->emicolonLoc = ast->emicolonLoc;
+  copy->symbol = rewrite.remapSymbol(ast->symbol);
 
   return copy;
 }

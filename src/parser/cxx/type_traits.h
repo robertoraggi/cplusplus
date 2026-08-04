@@ -28,6 +28,7 @@
 namespace cxx {
 class ClassSymbol;
 class Control;
+class ExpressionAST;
 class TranslationUnit;
 class Type;
 
@@ -82,6 +83,8 @@ class TypeTraits {
       -> const Type*;
   [[nodiscard]] auto add_rvalue_reference(const Type* type) const
       -> const Type*;
+
+  [[nodiscard]] auto decltype_of(ExpressionAST* expr) const -> const Type*;
 
   [[nodiscard]] auto remove_extent(const Type* type) const -> const Type*;
   [[nodiscard]] auto get_element_type(const Type* type) const -> const Type*;

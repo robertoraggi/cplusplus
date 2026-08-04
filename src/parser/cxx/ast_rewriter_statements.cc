@@ -174,6 +174,11 @@ auto ASTRewriter::rewriteMemInitializerList(List<MemInitializerAST*>* source)
 
   for (auto node : ListView{source}) {
     if (isPackExpansion(node) && !elementIndex_.has_value()) {
+      if (hasUnresolvedParameterPack(node)) {
+        append(memInitializer(node));
+        continue;
+      }
+
       auto pack = findReferencedParameterPack(memInitializerId(node));
       if (auto base = symbol_cast<BaseClassSymbol>(node->symbol); !pack && base)
         pack = parameterPackFor(base->symbol());

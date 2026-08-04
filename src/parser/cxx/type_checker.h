@@ -24,6 +24,7 @@
 #include <cxx/implicit_conversion_sequence.h>
 #include <cxx/overload_resolution.h>
 #include <cxx/source_location.h>
+#include <cxx/standard_conversion.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token.h>
 #include <cxx/types_fwd.h>
@@ -69,7 +70,8 @@ class TypeChecker {
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
   void bind_template_parameter_base_initializers(
       CompoundStatementFunctionBodyAST* ast);
-  void check_braced_init_list(const Type* type, BracedInitListAST* ast);
+  void check_braced_init_list(const Type* type, BracedInitListAST* ast,
+                              InitializationKind initializationKind);
   void append_default_arguments(FunctionSymbol* function,
                                 List<ExpressionAST*>** list);
 
@@ -78,16 +80,20 @@ class TypeChecker {
       SourceLocation location, List<ExpressionAST*>** argumentList = nullptr)
       -> FunctionSymbol*;
 
-  [[nodiscard]] auto hasAutoPlaceholder(const Type* type) const -> bool;
-
   [[nodiscard]] auto deduceAutoType(const Type* declaredType,
                                     const Type* initializerType) -> const Type*;
+
+  [[nodiscard]] auto deducePlaceholderType(const Type* declaredType,
+                                           ExpressionAST* initializer)
+      -> const Type*;
 
   auto getInitDeclaratorLocation(InitDeclaratorAST* ast,
                                  VariableSymbol* var) const -> SourceLocation;
 
-  [[nodiscard]] auto implicit_conversion(ExpressionAST*& expr,
-                                         const Type* targetType) -> bool;
+  [[nodiscard]] auto implicit_conversion(
+      ExpressionAST*& expr, const Type* targetType,
+      InitializationKind initializationKind =
+          InitializationKind::kCopyInitialization) -> bool;
 
   [[nodiscard]] auto checkImplicitConversion(ExpressionAST* expr,
                                              const Type* targetType)

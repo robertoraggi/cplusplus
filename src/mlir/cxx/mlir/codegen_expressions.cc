@@ -194,6 +194,9 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto emitUserDefinedConversion(ImplicitCastExpressionAST* ast)
       -> ExpressionResult;
 
+  auto emitPointerToMemberConversion(ImplicitCastExpressionAST* ast)
+      -> ExpressionResult;
+
   auto emitBuiltinCall(CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
       -> ExpressionResult;
 
@@ -2721,6 +2724,47 @@ auto Codegen::ExpressionVisitor::emitBaseToDerivedConversion(
                                       targetClass->symbol())};
 }
 
+auto Codegen::ExpressionVisitor::emitPointerToMemberConversion(
+    ImplicitCastExpressionAST* ast) -> ExpressionResult {
+  auto loc = gen.getLocation(ast->firstSourceLocation());
+  auto resultType = gen.convertType(ast->type);
+
+  auto nullValue = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, resultType,
+      gen.builder_.getIntegerAttr(resultType, gen.nullMemberObjectPointer()));
+
+  auto sourceType =
+      ast->expression
+          ? type_cast<MemberObjectPointerType>(ast->expression->type)
+          : nullptr;
+
+  if (!sourceType) {
+    (void)gen.expression(ast->expression, ExpressionFormat::kSideEffect);
+    return {nullValue};
+  }
+
+  auto operand = gen.expression(ast->expression);
+  if (!operand.value) return operand;
+
+  auto adjustment = memberPointerBaseAdjustment(
+      sourceType, type_cast<MemberObjectPointerType>(ast->type));
+  if (!adjustment.has_value() || *adjustment == 0) return operand;
+
+  auto adjustmentValue = mlir::arith::ConstantOp::create(
+      gen.builder_, loc, resultType,
+      gen.builder_.getIntegerAttr(resultType, *adjustment));
+
+  auto adjusted = mlir::arith::AddIOp::create(gen.builder_, loc, resultType,
+                                              operand.value, adjustmentValue);
+
+  auto isNull = mlir::arith::CmpIOp::create(gen.builder_, loc,
+                                            mlir::arith::CmpIPredicate::eq,
+                                            operand.value, nullValue);
+
+  return {mlir::arith::SelectOp::create(gen.builder_, loc, isNull, nullValue,
+                                        adjusted)};
+}
+
 auto Codegen::ExpressionVisitor::emitUserDefinedConversion(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   auto loc = gen.getLocation(ast->firstSourceLocation());
@@ -2793,6 +2837,9 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     case ImplicitCastKind::kPointerConversion:
     case ImplicitCastKind::kBooleanConversion:
       return emitPointerConversion(ast);
+
+    case ImplicitCastKind::kPointerToMemberConversion:
+      return emitPointerToMemberConversion(ast);
 
     case ImplicitCastKind::kDerivedToBaseConversion:
       return emitDerivedToBaseConversion(ast);
@@ -4683,24 +4730,18 @@ auto Codegen::ExpressionVisitor::emitMemberPointerFormation(
   if (!id) return std::nullopt;
 
   auto field = symbol_cast<FieldSymbol>(id->symbol);
-  if (!field || field->isStatic()) return std::nullopt;
+  if (!field) return std::nullopt;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(field->parent());
-  if (!classSymbol) return std::nullopt;
-
-  auto layout = classSymbol->layout();
-  if (!layout) return std::nullopt;
-
-  auto fieldInfo = layout->getFieldInfo(field);
-  if (!fieldInfo) return std::nullopt;
+  auto offset = field->offsetInClass();
+  if (!offset) return std::nullopt;
 
   auto loc = gen.getLocation(ast->firstSourceLocation());
   auto resultType = gen.convertType(ast->type);
 
   return ExpressionResult{mlir::arith::ConstantOp::create(
       gen.builder_, loc, resultType,
-      gen.builder_.getIntegerAttr(
-          resultType, static_cast<std::int64_t>(fieldInfo->offset)))};
+      gen.builder_.getIntegerAttr(resultType,
+                                  static_cast<std::int64_t>(*offset)))};
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinAddressof(CallExpressionAST* ast)

@@ -58,6 +58,8 @@ class Codegen {
 
   [[nodiscard]] auto control() const -> Control*;
 
+  [[nodiscard]] auto nullMemberObjectPointer() const -> std::int64_t;
+
   struct UnitResult {
     mlir::ModuleOp module;
   };
