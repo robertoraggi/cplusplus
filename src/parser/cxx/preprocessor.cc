@@ -723,6 +723,10 @@ struct Preprocessor::Private {
   [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
       -> std::optional<ResolveResult>;
 
+  [[nodiscard]] auto buildCandidates(const Include& include,
+                                     bool isIncludeNext) const
+      -> std::vector<IncludeCandidate>;
+
   [[nodiscard]] auto resolveUncached(const Include& include, bool isIncludeNext,
                                      const std::string& headerName,
                                      bool isQuoted) const
@@ -2224,6 +2228,10 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
             .include = pi->header,
             .isIncludeNext = pi->includeNext,
             .loc = const_cast<void*>(static_cast<const void*>(pi->loc)),
+            .candidates =
+                [this, include = pi->header, isIncludeNext = pi->includeNext] {
+                  return buildCandidates(include, isIncludeNext);
+                },
         };
 
         cursors_.push_back(std::move(cursor));
@@ -2240,6 +2248,11 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
               .include = dep.include,
               .isIncludeNext = dep.isIncludeNext,
               .exists = dep.exists,
+              .candidates =
+                  [this, include = dep.include,
+                   isIncludeNext = dep.isIncludeNext] {
+                    return buildCandidates(include, isIncludeNext);
+                  },
           });
         }
 
@@ -2790,6 +2803,40 @@ auto Preprocessor::Private::buildSearchDirs(const std::string& curDir,
        ++it)
     dirs.push_back({&*it, true});
   return dirs;
+}
+
+auto Preprocessor::Private::buildCandidates(const Include& include,
+                                            bool isIncludeNext) const
+    -> std::vector<IncludeCandidate> {
+  const auto headerName = getHeaderName(include);
+  const bool isQuoted = std::holds_alternative<QuoteInclude>(include);
+  const auto curDir = currentPath_.string();
+  auto dirs = buildSearchDirs(curDir, isQuoted);
+
+  std::size_t startIndex = 0;
+
+  if (isIncludeNext) {
+    for (std::size_t i = 0; i < dirs.size(); ++i) {
+      if (*dirs[i].first == curDir) {
+        startIndex = i + 1;
+        break;
+      }
+    }
+  }
+
+  std::vector<IncludeCandidate> candidates;
+  if (startIndex >= dirs.size()) return candidates;
+
+  candidates.reserve(dirs.size() - startIndex);
+
+  for (std::size_t i = startIndex; i < dirs.size(); ++i) {
+    candidates.push_back({
+        .fileName = (fs::path(*dirs[i].first) / headerName).string(),
+        .isSystemHeader = dirs[i].second,
+    });
+  }
+
+  return candidates;
 }
 
 template <typename TryCandidate>

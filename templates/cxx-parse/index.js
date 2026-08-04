@@ -19,48 +19,38 @@
 // SOFTWARE.
 
 import { loadCxx, Parser, AST, ASTKind, ASTSlot } from "cxx-frontend";
-import { readFile } from "fs/promises";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
-const source = `
-template <typename T>
-concept CanAdd = requires(T n) {
-  n + n;
-};
-
-auto twice(CanAdd auto n) {
-  return n + n;
-}
-
-const char* str = "hello";
-
-int main() {
-  return twice(2);
-}
-`;
+const sourcePath = fileURLToPath(new URL("source.cc", import.meta.url));
 
 async function main() {
-  const wasmBinaryUrl = import.meta
-    .resolve("cxx-frontend/wasm");
+  const { positionals } = parseArgs({
+    allowPositionals: true,
+  });
+
+  const wasmBinaryUrl = import.meta.resolve("cxx-frontend/wasm");
   const wasmBinaryFile = fileURLToPath(wasmBinaryUrl);
   const wasmBinary = await readFile(wasmBinaryFile);
 
-  // load the cxx wasm module
   await loadCxx({ wasm: wasmBinary });
 
-  await using parser = await Parser.parse({ source, path: "source.cc" });
+  for (const path of positionals) {
+    const source = await readFile(path, "utf8");
 
-  if (parser.diagnostics.length > 0) {
-    console.log("diagnostics", parser.diagnostics);
-  }
+    await using parser = await Parser.parse({
+      source,
+      path,
+      exists: (fn) => existsSync(fn),
+      readFile: async (fn) => await readFile(fn, "utf8"),
+    });
 
-  for (const { node, slot, depth } of parser.ast.walk().preVisit()) {
-    if (!(node instanceof AST)) continue;
-    const ind = " ".repeat(depth * 2);
-    const kind = ASTKind[node.getKind()];
-    const member = slot !== undefined ? `${ASTSlot[slot]}: ` : "";
-    console.log(`${ind}- ${member}${kind}`);
+    if (parser.diagnostics.length > 0) {
+      console.log("diagnostics", parser.diagnostics);
+    }
   }
 }
 
-main().catch(console.error);
+await main();

@@ -23,12 +23,6 @@ import type { WasmSource } from "./loadCxx.js";
 
 export type CXX = MainModule;
 
-export type ControlHandle = InstanceType<CXX["Control"]>;
-export type DiagnosticsClientHandle = InstanceType<CXX["DiagnosticsClient"]>;
-export type LexerHandle = InstanceType<CXX["Lexer"]>;
-export type PreprocessorHandle = InstanceType<CXX["Preprocessor"]>;
-export type TranslationUnitHandle = InstanceType<CXX["TranslationUnit"]>;
-
 export let cxx!: CXX;
 
 export async function instantiateCxx(wasm: WasmSource): Promise<void> {

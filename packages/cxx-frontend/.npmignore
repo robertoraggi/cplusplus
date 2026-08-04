@@ -3,5 +3,6 @@
 src
 scripts
 examples
+test
 .prettierignore
 docs
