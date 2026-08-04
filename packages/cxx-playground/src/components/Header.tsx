@@ -4,11 +4,9 @@ import { SampleSelector } from "./sample-selector"
 import { OutputFormatSelector } from "./output-format-selector"
 
 function statusLabel({
-  isCompiling,
   diagnosticCount,
   compileTimeMs,
 }: ReturnType<typeof usePlayground>) {
-  if (isCompiling) return "compiling…"
   if (diagnosticCount > 0)
     return `${diagnosticCount} diagnostic${diagnosticCount === 1 ? "" : "s"}`
   if (compileTimeMs !== null) return `${compileTimeMs}ms`
@@ -33,15 +31,15 @@ export function Header() {
   const state = usePlayground()
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-border/60 bg-background/85 px-4 backdrop-blur-md">
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-xs text-muted-foreground">
-          {statusLabel(state)}
-        </span>
+    <header className="grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-border/60 bg-background/85 px-4 backdrop-blur-md">
+      <div className="flex min-w-0 items-center gap-3">
         <SampleSelector
           sampleId={state.currentSampleId}
           onSelect={state.loadSample}
         />
+        <span className="hidden w-32 flex-none font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums md:block">
+          {statusLabel(state)}
+        </span>
       </div>
 
       <OutputFormatSelector
@@ -50,6 +48,7 @@ export function Header() {
       />
 
       <Button
+        className="justify-self-end"
         variant="ghost"
         size="icon-xs"
         nativeButton={false}

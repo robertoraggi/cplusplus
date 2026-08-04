@@ -1,3 +1,4 @@
+import { BracesIcon } from "lucide-react"
 import { samples } from "../samples"
 import {
   Select,
@@ -19,12 +20,14 @@ export function SampleSelector({
       <SelectTrigger className="h-8 w-56 border-border/80 bg-muted/40 text-xs font-medium">
         <SelectValue placeholder="Select example..." />
       </SelectTrigger>
-      <SelectContent
-        align="center"
-        className="max-h-80 min-w-56 overflow-y-auto"
-      >
+      <SelectContent align="center" className="max-h-64 w-80">
         {samples.map((sample) => (
-          <SelectItem key={sample.id} value={sample.id} className="text-xs">
+          <SelectItem
+            key={sample.id}
+            value={sample.id}
+            className="py-2 pr-9 pl-3 text-xs"
+          >
+            <BracesIcon className="size-4 text-muted-foreground" />
             {sample.name}
           </SelectItem>
         ))}
