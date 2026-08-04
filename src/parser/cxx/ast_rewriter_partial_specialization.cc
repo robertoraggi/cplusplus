@@ -273,7 +273,9 @@ struct PartialSpecMatcher {
 
     auto patVar = symbol_cast<VariableSymbol>(patSym);
     auto concVar = symbol_cast<VariableSymbol>(concSym);
-    if (patVar && concVar) {
+    if (patVar && concVar &&
+        (patVar->constValue().has_value() ||
+         concVar->constValue().has_value())) {
       if (!concVar->constValue().has_value()) return false;
       if (!patVar->constValue().has_value()) return true;
 
@@ -740,6 +742,7 @@ auto collectCandidate(TranslationUnit* unit, const SpecEntry& spec,
                       int declarationOrder) -> std::optional<Candidate> {
   auto specClass = symbol_cast<ClassSymbol>(spec.symbol);
   if (!specClass) return std::nullopt;
+  specClass = specClass->resolvedDefinition();
 
   auto specTemplateDecl = specClass->templateDeclaration();
   if (!specTemplateDecl) return std::nullopt;
@@ -886,92 +889,95 @@ auto bestCandidate(std::vector<Candidate>& candidates)
 
   return std::max_element(candidates.begin(), candidates.end(), isLessSpecific);
 }
+
+template <typename Specializations, typename Collect>
+auto selectCandidate(TranslationUnit* unit,
+                     const Specializations& specializations,
+                     const std::vector<TemplateArgument>& templateArguments,
+                     SourceLocation fallbackLocation, Collect collect)
+    -> std::optional<Candidate> {
+  std::vector<Candidate> candidates;
+  int declarationOrder = 0;
+  for (const auto& specialization : specializations) {
+    auto candidate =
+        collect(specialization, templateArguments, declarationOrder);
+    ++declarationOrder;
+    if (candidate) candidates.push_back(std::move(*candidate));
+  }
+
+  auto best = bestCandidate(candidates);
+  if (best == candidates.end()) return std::nullopt;
+  for (auto it = candidates.begin(); it != candidates.end(); ++it) {
+    if (it == best || !hasEqualSpecificity(*best, *it)) continue;
+    auto location = best->specBody ? best->specBody->firstSourceLocation()
+                                   : fallbackLocation;
+    unit->error(location, "partial specialization is ambiguous");
+    return std::nullopt;
+  }
+  return std::move(*best);
+}
 }  // namespace
 
 auto ASTRewriter::findPartialSpecializationPattern(
     TranslationUnit* unit, ClassSymbol* primary,
     List<TemplateArgumentAST*>* templateArgumentList) -> ClassSymbol* {
-  std::vector<const Type*> argTypes;
-  for (auto arg : ListView{templateArgumentList}) {
-    auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg);
-    if (!typeArg || !typeArg->typeId || !typeArg->typeId->type) return nullptr;
-    argTypes.push_back(typeArg->typeId->type);
-  }
-
-  for (const auto& spec : primary->specializations()) {
-    auto specClass = symbol_cast<ClassSymbol>(spec.symbol);
-    if (!specClass) continue;
-    if (!specClass->templateDeclaration()) continue;
-    const auto& patternArgs = spec.arguments;
-    if (patternArgs.size() != argTypes.size()) continue;
-
-    bool matched = true;
-    for (size_t i = 0; i < argTypes.size(); ++i) {
-      const Type* patType = nullptr;
-      if (auto sym = std::get_if<Symbol*>(&patternArgs[i])) {
-        if (*sym) patType = (*sym)->type();
-      } else if (auto t = std::get_if<const Type*>(&patternArgs[i])) {
-        patType = *t;
-      }
-      if (!patType) {
-        matched = false;
-        break;
-      }
-
-      auto patParam = type_cast<TypeParameterType>(patType);
-      auto argParam = type_cast<TypeParameterType>(argTypes[i]);
-      if (patParam && argParam) {
-        if (patParam->index() != argParam->index()) {
-          matched = false;
-          break;
-        }
-        continue;
-      }
-      if (patParam || argParam) {
-        matched = false;
-        break;
-      }
-      if (!unit->typeTraits().is_same(patType, argTypes[i])) {
-        matched = false;
-        break;
-      }
+  if (primary && primary->isSpecialization())
+    primary = primary->primaryTemplateSymbol();
+  auto primaryDeclaration = primary ? primary->templateDeclaration() : nullptr;
+  if (!primaryDeclaration) return nullptr;
+  auto templateArguments =
+      Substitution(unit, primaryDeclaration, templateArgumentList)
+          .templateArguments();
+  for (auto& argument : templateArguments) {
+    if (auto type = std::get_if<const Type*>(&argument)) {
+      auto symbol = unit->control()->newTypeAliasSymbol(nullptr, {});
+      symbol->setType(*type);
+      Symbol* value = symbol;
+      argument = value;
+      continue;
     }
-
-    if (matched) {
-      return specClass->resolvedDefinition();
+    if (auto value = std::get_if<ConstValue>(&argument)) {
+      auto symbol = unit->control()->newVariableSymbol(nullptr, {});
+      symbol->setConstexpr(true);
+      symbol->setConstValue(*value);
+      Symbol* materialized = symbol;
+      argument = materialized;
+      continue;
+    }
+    auto expression = std::get_if<ExpressionAST*>(&argument);
+    if (!expression || !*expression) continue;
+    if (auto id = ast_cast<IdExpressionAST>(*expression); id && id->symbol) {
+      argument = id->symbol;
+      continue;
+    }
+    if (auto value = ASTInterpreter{unit}.evaluate(*expression)) {
+      auto symbol = unit->control()->newVariableSymbol(nullptr, {});
+      symbol->setType((*expression)->type);
+      symbol->setConstexpr(true);
+      symbol->setConstValue(*value);
+      Symbol* materialized = symbol;
+      argument = materialized;
     }
   }
-
-  return nullptr;
+  auto selected = selectCandidate(
+      unit, primary->specializations(), templateArguments, primary->location(),
+      [unit](const auto& specialization, const auto& arguments, int order) {
+        return collectCandidate(unit, specialization, arguments, order);
+      });
+  return selected ? selected->specClass->resolvedDefinition() : nullptr;
 }
 
 auto ASTRewriter::tryPartialSpecialization(
     TranslationUnit* unit, ClassSymbol* classSymbol,
     const std::vector<TemplateArgument>& templateArguments) -> Symbol* {
-  std::vector<Candidate> candidates;
-  int declarationOrder = 0;
-  for (const auto& spec : classSymbol->specializations()) {
-    auto candidate =
-        collectCandidate(unit, spec, templateArguments, declarationOrder);
-    ++declarationOrder;
-    if (!candidate) continue;
-    candidates.push_back(std::move(*candidate));
-  }
-
-  auto best = bestCandidate(candidates);
-  if (best == candidates.end()) return nullptr;
-
-  for (auto it = candidates.begin(); it != candidates.end(); ++it) {
-    if (it == best) continue;
-    if (!hasEqualSpecificity(*best, *it)) continue;
-
-    auto loc = classSymbol ? classSymbol->location() : SourceLocation{};
-    if (best->specBody) loc = best->specBody->firstSourceLocation();
-    unit->error(loc, "partial specialization is ambiguous");
-    return nullptr;
-  }
-
-  auto& selected = *best;
+  auto candidate = selectCandidate(
+      unit, classSymbol->specializations(), templateArguments,
+      classSymbol->location(),
+      [unit](const auto& specialization, const auto& arguments, int order) {
+        return collectCandidate(unit, specialization, arguments, order);
+      });
+  if (!candidate) return nullptr;
+  auto& selected = *candidate;
 
   if (auto cached =
           selected.specClass->findSpecialization(selected.deducedArgs)) {
@@ -1007,29 +1013,14 @@ auto ASTRewriter::tryPartialSpecialization(
 auto ASTRewriter::tryPartialSpecialization(
     TranslationUnit* unit, VariableSymbol* variableSymbol,
     const std::vector<TemplateArgument>& templateArguments) -> Symbol* {
-  std::vector<Candidate> candidates;
-  int declarationOrder = 0;
-  for (const auto& spec : variableSymbol->specializations()) {
-    auto candidate = collectVariableCandidate(unit, spec, templateArguments,
-                                              declarationOrder);
-    ++declarationOrder;
-    if (!candidate) continue;
-    candidates.push_back(std::move(*candidate));
-  }
-
-  auto best = bestCandidate(candidates);
-  if (best == candidates.end()) return nullptr;
-
-  for (auto it = candidates.begin(); it != candidates.end(); ++it) {
-    if (it == best) continue;
-    if (!hasEqualSpecificity(*best, *it)) continue;
-
-    auto loc = variableSymbol ? variableSymbol->location() : SourceLocation{};
-    unit->error(loc, "partial specialization is ambiguous");
-    return nullptr;
-  }
-
-  auto& selected = *best;
+  auto candidate = selectCandidate(
+      unit, variableSymbol->specializations(), templateArguments,
+      variableSymbol->location(),
+      [unit](const auto& specialization, const auto& arguments, int order) {
+        return collectVariableCandidate(unit, specialization, arguments, order);
+      });
+  if (!candidate) return nullptr;
+  auto& selected = *candidate;
 
   if (auto cached =
           selected.specVar->findSpecialization(selected.deducedArgs)) {

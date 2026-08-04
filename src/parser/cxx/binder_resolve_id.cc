@@ -156,12 +156,6 @@ struct [[nodiscard]] Binder::ResolveUnqualifiedId {
                               ClassSymbol* classSymbol) -> Symbol*;
   auto resolveTypeAliasTemplateId(SimpleTemplateIdAST* templateId,
                                   TypeAliasSymbol* typeAliasSymbol) -> Symbol*;
-  auto resolveBuiltinTemplate(SimpleTemplateIdAST* templateId,
-                              BuiltinTemplateKind kind) -> Symbol*;
-  auto resolveBuiltinMakeIntegerSeq(SimpleTemplateIdAST* templateId) -> Symbol*;
-  auto resolveBuiltinTypePackElement(SimpleTemplateIdAST* templateId)
-      -> Symbol*;
-  auto resolveBuiltinCommonType(SimpleTemplateIdAST* templateId) -> Symbol*;
 
   auto operator()(SimpleTemplateIdAST* templateId) -> Symbol*;
 
@@ -244,184 +238,17 @@ auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
                                   typeAliasSymbol, templateId->identifierLoc);
 }
 
-auto Binder::ResolveUnqualifiedId::resolveBuiltinMakeIntegerSeq(
-    SimpleTemplateIdAST* templateId) -> Symbol* {
-  auto ar = binder.unit_->arena();
-
-  std::vector<TemplateArgumentAST*> args;
-  for (auto arg : ListView{templateId->templateArgumentList}) {
-    args.push_back(arg);
-  }
-  if (args.size() != 3) return nullptr;
-
-  auto seqArg = ast_cast<TypeTemplateArgumentAST>(args[0]);
-  if (!seqArg || !seqArg->typeId) return nullptr;
-  auto seqType = type_cast<ClassType>(seqArg->typeId->type);
-  if (!seqType) return nullptr;
-  auto seqClass = seqType->symbol();
-  if (!seqClass || !seqClass->templateDeclaration()) return nullptr;
-
-  auto typeArg = ast_cast<TypeTemplateArgumentAST>(args[1]);
-  if (!typeArg || !typeArg->typeId || !typeArg->typeId->type) return nullptr;
-  auto elementType = typeArg->typeId->type;
-
-  auto countArg = ast_cast<ExpressionTemplateArgumentAST>(args[2]);
-  if (!countArg || !countArg->expression) return nullptr;
-
-  auto interp = ASTInterpreter{binder.unit_};
-  auto value = interp.evaluate(countArg->expression);
-  if (!value.has_value()) return nullptr;
-  auto intVal = interp.toInt(*value);
-  if (!intVal.has_value()) return nullptr;
-  auto N = *intVal;
-  if (N < 0) return nullptr;
-
-  auto expanded = SimpleTemplateIdAST::create(ar);
-  expanded->identifier = templateId->identifier;
-  expanded->symbol = seqClass;
-
-  List<TemplateArgumentAST*>** it = &expanded->templateArgumentList;
-
-  auto expandedTypeArg = TypeTemplateArgumentAST::create(ar);
-  expandedTypeArg->typeId = typeArg->typeId;
-  *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(expandedTypeArg));
-  it = &(*it)->next;
-
-  for (std::intmax_t i = 0; i < N; ++i) {
-    std::string spelling = std::format("{}", i);
-    auto literal = control()->integerLiteral(spelling);
-    auto intExpr = IntLiteralExpressionAST::create(
-        ar, literal, ValueCategory::kPrValue, elementType);
-    auto exprArg = ExpressionTemplateArgumentAST::create(ar, intExpr);
-    *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(exprArg));
-    it = &(*it)->next;
-  }
-
-  return resolveClassTemplateId(expanded, seqClass);
-}
-
-auto Binder::ResolveUnqualifiedId::resolveBuiltinTypePackElement(
-    SimpleTemplateIdAST* templateId) -> Symbol* {
-  auto ar = binder.unit_->arena();
-
-  std::vector<TemplateArgumentAST*> args;
-  for (auto arg : ListView{templateId->templateArgumentList}) {
-    args.push_back(arg);
-  }
-  if (args.size() < 2) return nullptr;
-
-  auto indexArg = ast_cast<ExpressionTemplateArgumentAST>(args[0]);
-  if (!indexArg || !indexArg->expression) return nullptr;
-
-  auto interp = ASTInterpreter{binder.unit_};
-  auto value = interp.evaluate(indexArg->expression);
-  if (!value.has_value()) return nullptr;
-  auto intVal = interp.toInt(*value);
-  if (!intVal.has_value()) return nullptr;
-  auto N = *intVal;
-
-  auto packSize = static_cast<std::intmax_t>(args.size() - 1);
-  if (N < 0 || N >= packSize) return nullptr;
-
-  auto typeArg = ast_cast<TypeTemplateArgumentAST>(args[1 + N]);
-  if (!typeArg || !typeArg->typeId) return nullptr;
-
-  auto alias = control()->newTypeAliasSymbol(nullptr, {});
-  alias->setName(templateId->identifier);
-  alias->setType(typeArg->typeId->type);
-  return alias;
-}
-
-auto Binder::ResolveUnqualifiedId::resolveBuiltinCommonType(
-    SimpleTemplateIdAST* templateId) -> Symbol* {
-  auto traits = binder.traits;
-
-  std::vector<TemplateArgumentAST*> args;
-  for (auto arg : ListView{templateId->templateArgumentList})
-    args.push_back(arg);
-
-  if (args.size() < 3) return nullptr;
-
-  auto identityArg = ast_cast<TypeTemplateArgumentAST>(args[1]);
-  auto emptyArg = ast_cast<TypeTemplateArgumentAST>(args[2]);
-  if (!identityArg || !identityArg->typeId) return nullptr;
-  if (!emptyArg || !emptyArg->typeId) return nullptr;
-
-  auto identityType = type_cast<ClassType>(identityArg->typeId->type);
-  if (!identityType) return nullptr;
-  auto identityClass = symbol_cast<ClassSymbol>(identityType->symbol());
-  if (!identityClass || !identityClass->templateDeclaration()) return nullptr;
-
-  std::vector<const Type*> operands;
-  for (std::size_t i = 3; i < args.size(); ++i) {
-    auto typeArg = ast_cast<TypeTemplateArgumentAST>(args[i]);
-    if (!typeArg || !typeArg->typeId || !typeArg->typeId->type) return nullptr;
-    operands.push_back(typeArg->typeId->type);
-  }
-
-  auto resolveToEmpty = [&]() -> Symbol* {
-    if (auto emptyClass = type_cast<ClassType>(emptyArg->typeId->type))
-      return emptyClass->symbol();
-    return nullptr;
-  };
-
-  if (operands.empty()) return resolveToEmpty();
-
-  const Type* result = traits.remove_cvref(operands[0]);
-  for (std::size_t i = 1; i < operands.size(); ++i) {
-    auto next = traits.remove_cvref(operands[i]);
-    if (traits.is_same(result, next)) continue;
-    auto combined =
-        StandardConversion{binder.unit_}.commonArithmeticType(result, next);
-    if (!combined) return resolveToEmpty();
-    result = combined;
-  }
-
-  auto ar = binder.unit_->arena();
-  auto identityId = SimpleTemplateIdAST::create(ar);
-  identityId->identifier = identityClass->name()
-                               ? name_cast<Identifier>(identityClass->name())
-                               : nullptr;
-  identityId->symbol = identityClass;
-
-  auto typeId = TypeIdAST::create(ar);
-  typeId->type = result;
-  auto typeArg = TypeTemplateArgumentAST::create(ar);
-  typeArg->typeId = typeId;
-  identityId->templateArgumentList =
-      make_list_node<TemplateArgumentAST>(ar, typeArg);
-
-  return resolveClassTemplateId(identityId, identityClass);
-}
-
-auto Binder::ResolveUnqualifiedId::resolveBuiltinTemplate(
-    SimpleTemplateIdAST* templateId, BuiltinTemplateKind kind) -> Symbol* {
-  switch (kind) {
-    case BuiltinTemplateKind::T___MAKE_INTEGER_SEQ:
-      return resolveBuiltinMakeIntegerSeq(templateId);
-    case BuiltinTemplateKind::T___TYPE_PACK_ELEMENT:
-      return resolveBuiltinTypePackElement(templateId);
-    case BuiltinTemplateKind::T___BUILTIN_COMMON_TYPE:
-      return resolveBuiltinCommonType(templateId);
-    default:
-      return nullptr;
-  }
-}
-
 auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
     -> Symbol* {
   if (!checkTemplates) return templateId->symbol;
 
-  if (!templateId->symbol && templateId->identifier) {
-    auto builtinKind = templateId->identifier->builtinTemplate();
-    if (builtinKind != BuiltinTemplateKind::T_NONE) {
-      if (inTemplate() &&
-          hasDependentTemplateArguments(binder.unit_, templateId)) {
-        auto placeholder = control()->newTypeAliasSymbol(nullptr, {});
-        placeholder->setName(templateId->identifier);
-        return placeholder;
-      }
-      return resolveBuiltinTemplate(templateId, builtinKind);
+  if (templateId->identifier && templateId->identifier->builtinTemplate() !=
+                                    BuiltinTemplateKind::T_NONE) {
+    if (inTemplate() &&
+        hasDependentTemplateArguments(binder.unit_, templateId)) {
+      auto placeholder = control()->newTypeAliasSymbol(nullptr, {});
+      placeholder->setName(templateId->identifier);
+      return placeholder;
     }
   }
 

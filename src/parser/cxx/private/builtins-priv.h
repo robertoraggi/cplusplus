@@ -339,5 +339,21 @@ bool __builtin_signbit(double);
 int __builtin_fpclassify(int, int, int, int, int, ...);
 int __builtin_ctzg(...);
 int __builtin_clzg(...);
+
+#ifdef __cplusplus
+
+template <template <class IntSeqT, IntSeqT... Ints> class IntSeq, class T, T N>
+using __make_integer_seq = void;
+
+template <__SIZE_TYPE__ Index, class... Ts>
+using __type_pack_element = void;
+
+template <template <class... Args> class BaseTemplate,
+          template <class TypeMember> class HasTypeMember,
+          class HasNoTypeMember,
+          class... Ts>
+using __builtin_common_type = void;
+
+#endif
 )";
 // clang-format on

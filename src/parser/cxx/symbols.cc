@@ -147,6 +147,45 @@ auto compare_args(const std::vector<TemplateArgument>& args1,
   return true;
 };
 
+auto expand_template_arguments(std::span<const TemplateArgument> arguments)
+    -> std::vector<TemplateArgument> {
+  std::vector<TemplateArgument> expanded;
+
+  auto expandInto = [&](const TemplateArgument& argument, auto&& self) -> void {
+    if (auto symbol = std::get_if<Symbol*>(&argument)) {
+      if (auto pack = symbol_cast<ParameterPackSymbol>(*symbol)) {
+        for (auto element : pack->elements())
+          self(TemplateArgument{element}, self);
+        return;
+      }
+    }
+    expanded.push_back(argument);
+  };
+
+  for (const auto& argument : arguments) expandInto(argument, expandInto);
+
+  return expanded;
+}
+
+auto template_argument_type(const TemplateArgument& argument) -> const Type* {
+  if (auto type = std::get_if<const Type*>(&argument)) return *type;
+  if (auto symbol = std::get_if<Symbol*>(&argument)) return (*symbol)->type();
+  return nullptr;
+}
+
+auto template_argument_value(const TemplateArgument& argument)
+    -> std::optional<ConstValue> {
+  if (auto value = std::get_if<ConstValue>(&argument)) return *value;
+
+  if (auto symbol = std::get_if<Symbol*>(&argument)) {
+    if (auto variable = symbol_cast<VariableSymbol>(*symbol)) {
+      if (auto value = variable->constValue()) return *value;
+    }
+  }
+
+  return std::nullopt;
+}
+
 auto template_name_symbol(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
 
@@ -719,6 +758,64 @@ auto ClassSymbol::hasBaseClass(
   return false;
 }
 
+namespace {
+
+struct BaseSubobjectSearch {
+  ClassSymbol* base = nullptr;
+  int nonVirtualCount = 0;
+  std::uint64_t nonVirtualOffset = 0;
+  bool reachableVirtually = false;
+
+  void collect(const ClassSymbol* derived, std::uint64_t offset,
+               bool reachedVirtually) {
+    if (derived == base) {
+      if (reachedVirtually) {
+        reachableVirtually = true;
+      } else {
+        ++nonVirtualCount;
+        nonVirtualOffset = offset;
+      }
+      return;
+    }
+
+    auto layout = derived->layout();
+    if (!layout) return;
+
+    for (auto baseClass : derived->baseClasses()) {
+      auto baseSymbol = symbol_cast<ClassSymbol>(baseClass->symbol());
+      if (!baseSymbol) continue;
+
+      auto baseDefinition = baseSymbol->resolvedDefinition();
+
+      if (baseClass->isVirtual()) {
+        collect(baseDefinition, 0, true);
+        continue;
+      }
+
+      auto info = layout->getBaseInfo(baseDefinition);
+      if (!info) continue;
+
+      collect(baseDefinition, offset + info->offset, reachedVirtually);
+    }
+  }
+
+  [[nodiscard]] auto uniqueNonVirtualOffset() const
+      -> std::optional<std::uint64_t> {
+    if (reachableVirtually) return std::nullopt;
+    if (nonVirtualCount != 1) return std::nullopt;
+    return nonVirtualOffset;
+  }
+};
+
+}  // namespace
+
+auto ClassSymbol::baseClassOffset(ClassSymbol* base) const
+    -> std::optional<std::uint64_t> {
+  BaseSubobjectSearch search{.base = base->resolvedDefinition()};
+  search.collect(resolvedDefinition(), 0, false);
+  return search.uniqueNonVirtualOffset();
+}
+
 auto ClassSymbol::hasVirtualBasePath(Symbol* symbol) const -> bool {
   std::unordered_set<const ClassSymbol*> processed;
   return hasVirtualBasePath(symbol, processed);
@@ -755,6 +852,14 @@ auto ClassSymbol::conversionFunctions() const -> std::vector<FunctionSymbol*> {
                        views::member_functions) {
     if (name_cast<ConversionFunctionId>(func->name())) result.push_back(func);
   }
+  return result;
+}
+
+auto ClassSymbol::implicitConversionFunctions() const
+    -> std::vector<FunctionSymbol*> {
+  auto result = conversionFunctions();
+  std::erase_if(result,
+                [](FunctionSymbol* func) { return func->isExplicit(); });
   return result;
 }
 
@@ -946,6 +1051,10 @@ void EnumSymbol::setHasFixedUnderlyingType(bool hasFixedUnderlyingType) {
   hasFixedUnderlyingType_ = hasFixedUnderlyingType;
 }
 
+auto EnumSymbol::isDefined() const -> bool { return isDefined_; }
+
+void EnumSymbol::setDefined(bool isDefined) { isDefined_ = isDefined; }
+
 auto EnumSymbol::underlyingType() const -> const Type* {
   return underlyingType_;
 }
@@ -966,6 +1075,10 @@ auto ScopedEnumSymbol::underlyingType() const -> const Type* {
 void ScopedEnumSymbol::setUnderlyingType(const Type* underlyingType) {
   underlyingType_ = underlyingType;
 }
+
+auto ScopedEnumSymbol::isDefined() const -> bool { return isDefined_; }
+
+void ScopedEnumSymbol::setDefined(bool isDefined) { isDefined_ = isDefined; }
 
 FunctionSymbol::FunctionSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
@@ -1374,6 +1487,17 @@ auto FieldSymbol::isNoUniqueAddress() const -> bool {
 
 void FieldSymbol::setNoUniqueAddress(bool isNoUniqueAddress) {
   isNoUniqueAddress_ = isNoUniqueAddress;
+}
+
+auto FieldSymbol::offsetInClass() const -> std::optional<std::uint64_t> {
+  if (isStatic()) return std::nullopt;
+  auto classSymbol = symbol_cast<ClassSymbol>(parent());
+  if (!classSymbol) return std::nullopt;
+  auto layout = classSymbol->layout();
+  if (!layout) return std::nullopt;
+  auto info = layout->getFieldInfo(const_cast<FieldSymbol*>(this));
+  if (!info) return std::nullopt;
+  return info->offset;
 }
 
 auto FieldSymbol::localOffset() const -> int { return localOffset_; }

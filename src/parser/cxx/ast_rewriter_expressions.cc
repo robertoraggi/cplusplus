@@ -57,6 +57,19 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
   [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
 
+  [[nodiscard]] auto spelledIntegerLiteral(VariableSymbol* var,
+                                           const Type* type) const
+      -> ExpressionAST* {
+    if (!var->constValue()) return nullptr;
+
+    auto value = std::get_if<std::intmax_t>(&*var->constValue());
+    if (!value || *value < 0) return nullptr;
+
+    auto literal = control()->integerLiteral(std::to_string(*value));
+    return IntLiteralExpressionAST::create(arena(), literal,
+                                           ValueCategory::kPrValue, type);
+  }
+
   [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -534,40 +547,18 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
-  if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
-      param && param->depth() == rewrite.depth_ &&
-      param->index() < rewrite.templateArguments_.size()) {
-    auto symbolPtr =
-        std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
-
-    if (!symbolPtr) {
-      cxx_runtime_error("expected initializer for non-type template parameter");
-    }
-
-    auto parameterPack = symbol_cast<ParameterPackSymbol>(*symbolPtr);
-
-    if (auto element = rewrite.packElementAt(parameterPack)) {
-      if (auto var = symbol_cast<VariableSymbol>(element)) {
-        return rewrite.expression(var->initializer());
-      }
-    }
-  }
-
-  if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
-    auto it = rewrite.functionParamPacks_.find(param);
-    if (it != rewrite.functionParamPacks_.end()) {
-      if (auto expandedParam = rewrite.packElementAt(it->second)) {
-        auto copy = IdExpressionAST::create(arena());
-        copy->valueCategory = ValueCategory::kLValue;
-        copy->type = expandedParam->type();
-        copy->nestedNameSpecifier =
-            rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
-        copy->templateLoc = ast->templateLoc;
-        copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
-        copy->isTemplateIntroduced = ast->isTemplateIntroduced;
-        copy->symbol = expandedParam;
-        return copy;
-      }
+  if (auto pack = rewrite.functionParameterPackFor(ast->symbol)) {
+    if (auto expandedParam = rewrite.packElementAt(pack)) {
+      auto copy = IdExpressionAST::create(arena());
+      copy->valueCategory = ValueCategory::kLValue;
+      copy->type = expandedParam->type();
+      copy->nestedNameSpecifier =
+          rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
+      copy->templateLoc = ast->templateLoc;
+      copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
+      copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+      copy->symbol = expandedParam;
+      return copy;
     }
   }
 
@@ -582,31 +573,21 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
   if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
-      param && param->depth() == rewrite.depth_ &&
-      param->index() < rewrite.templateArguments_.size()) {
-    auto symbolPtr =
-        std::get_if<Symbol*>(&rewrite.templateArguments_[param->index()]);
+      param && rewrite.templateArgumentFor(param)) {
+    copy->symbol = param;
 
-    if (!symbolPtr) {
-      cxx_runtime_error("expected initializer for non-type template parameter");
-    }
+    if (auto substituted = rewrite.substitutedSymbol(param)) {
+      copy->symbol = substituted;
 
-    copy->symbol = *symbolPtr;
-    if (auto var = symbol_cast<VariableSymbol>(*symbolPtr)) {
-      if (var->type()) copy->type = var->type();
+      if (auto var = symbol_cast<VariableSymbol>(substituted)) {
+        if (var->type()) copy->type = var->type();
 
-      if (var->constValue()) {
-        if (auto iv = std::get_if<std::intmax_t>(&*var->constValue());
-            iv && *iv >= 0) {
-          auto literal = control()->integerLiteral(std::to_string(*iv));
-          return IntLiteralExpressionAST::create(
-              arena(), literal, ValueCategory::kPrValue, copy->type);
-        }
+        if (auto literal = spelledIntegerLiteral(var, copy->type))
+          return literal;
+
+        if (var->initializer()) return rewrite.expression(var->initializer());
       }
-
-      if (var->initializer()) return rewrite.expression(var->initializer());
     }
-
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
     binder()->qualifiedLookupIdExpression(copy);
   } else if (ast->symbol) {
@@ -1084,29 +1065,21 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
     -> ExpressionAST* {
   if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
     if (auto typeParam = symbol_cast<TypeParameterSymbol>(idExpr->symbol)) {
-      auto paramType = type_cast<TypeParameterType>(typeParam->type());
-      const auto& args = rewrite.templateArguments_;
-      if (paramType && paramType->depth() == rewrite.depth_ &&
-          paramType->index() < static_cast<int>(args.size())) {
-        auto index = paramType->index();
-        if (auto sym = std::get_if<Symbol*>(&args[index])) {
-          auto typeSpec = NamedTypeSpecifierAST::create(arena());
-          typeSpec->unqualifiedId =
-              rewrite.unqualifiedId(idExpr->unqualifiedId);
-          typeSpec->symbol = *sym;
+      if (auto substituted = rewrite.substitutedSymbol(typeParam)) {
+        auto typeSpec = NamedTypeSpecifierAST::create(arena());
+        typeSpec->unqualifiedId = rewrite.unqualifiedId(idExpr->unqualifiedId);
+        typeSpec->symbol = substituted;
 
-          auto tc = TypeConstructionAST::create(arena());
-          tc->typeSpecifier = typeSpec;
-          tc->lparenLoc = ast->lparenLoc;
-          tc->rparenLoc = ast->rparenLoc;
-          tc->valueCategory = ValueCategory::kPrValue;
-          tc->type = (*sym)->type();
+        auto tc = TypeConstructionAST::create(arena());
+        tc->typeSpecifier = typeSpec;
+        tc->lparenLoc = ast->lparenLoc;
+        tc->rparenLoc = ast->rparenLoc;
+        tc->valueCategory = ValueCategory::kPrValue;
+        tc->type = substituted->type();
 
-          tc->expressionList =
-              rewrite.rewriteExpressionList(ast->expressionList);
+        tc->expressionList = rewrite.rewriteExpressionList(ast->expressionList);
 
-          return tc;
-        }
+        return tc;
       }
     }
   }
@@ -1659,6 +1632,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
   copy->type = ast->type;
   copy->expression = expression;
   copy->castKind = ast->castKind;
+  copy->conversionFunction = ast->conversionFunction;
+  copy->isVirtualDispatch = ast->isVirtualDispatch;
 
   return copy;
 }

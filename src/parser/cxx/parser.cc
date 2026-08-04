@@ -249,10 +249,12 @@ Parser::Parser(TranslationUnit* unit)
 
   setScope(globalScope_);
 
+#if false
   mark_maybe_template_name(control_->getIdentifier("__remove_reference_t"));
   template_names_.insert(control_->getIdentifier("_S_invoke"));
   template_names_.insert(control_->getIdentifier("_S_nothrow_construct"));
   template_names_.insert(control_->getIdentifier("_S_nothrow_destroy"));
+#endif
 }
 
 Parser::~Parser() = default;
@@ -4405,6 +4407,7 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast,
   ast->typeId = typeId;
   ast->semicolonLoc = semicolonLoc;
   ast->symbol = symbol;
+  symbol->setDeclaration(ast);
 
   return true;
 }
@@ -7413,6 +7416,8 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast,
   ast->colonLoc = colonLoc;
   ast->typeSpecifierList = typeSpecifierList;
   ast->emicolonLoc = semicolonLoc;
+
+  binder_.bind(ast, underlyingTypeSpecs);
 
   return true;
 }

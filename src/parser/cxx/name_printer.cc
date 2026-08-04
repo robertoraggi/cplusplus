@@ -29,50 +29,48 @@ namespace cxx {
 
 namespace {
 
+struct TemplateArgumentPrinter {
+  auto const_value_to_string(const ConstValue& value) const -> std::string {
+    if (auto v = std::get_if<std::intmax_t>(&value)) return std::to_string(*v);
+    if (auto v = std::get_if<float>(&value)) return std::format("{}", *v);
+    if (auto v = std::get_if<double>(&value)) return std::format("{}", *v);
+    if (auto v = std::get_if<long double>(&value)) {
+      return std::format("{}", *v);
+    }
+    if (std::holds_alternative<const StringLiteral*>(value)) return "\"...\"";
+    if (std::holds_alternative<std::shared_ptr<Meta>>(value)) return "<meta>";
+    if (std::holds_alternative<std::shared_ptr<InitializerList>>(value)) {
+      return "<init-list>";
+    }
+    if (std::holds_alternative<std::shared_ptr<ConstObject>>(value)) {
+      return "<const-object>";
+    }
+    return "<const>";
+  }
+
+  auto operator()(const Type* type) const -> std::string {
+    return to_string(type);
+  }
+
+  auto operator()(const ConstValue& value) const -> std::string {
+    return const_value_to_string(value);
+  }
+
+  auto operator()(const Symbol* symbol) const -> std::string {
+    if (!symbol) return "<null-symbol>";
+    if (symbol->isTypeAlias()) return to_string(symbol->type());
+    if (symbol->isVariable()) {
+      auto var = static_cast<const VariableSymbol*>(symbol);
+      if (auto cst = var->constValue()) return const_value_to_string(*cst);
+    }
+    if (auto type = symbol->type()) return to_string(type);
+    return to_string(symbol->name());
+  }
+
+  auto operator()(ExpressionAST* value) const -> std::string { return ""; }
+};
+
 struct NamePrinter {
-  struct {
-    auto const_value_to_string(const ConstValue& value) const -> std::string {
-      if (auto v = std::get_if<std::intmax_t>(&value))
-        return std::to_string(*v);
-      if (auto v = std::get_if<float>(&value)) return std::format("{}", *v);
-      if (auto v = std::get_if<double>(&value)) return std::format("{}", *v);
-      if (auto v = std::get_if<long double>(&value)) {
-        return std::format("{}", *v);
-      }
-      if (std::holds_alternative<const StringLiteral*>(value)) return "\"...\"";
-      if (std::holds_alternative<std::shared_ptr<Meta>>(value)) return "<meta>";
-      if (std::holds_alternative<std::shared_ptr<InitializerList>>(value)) {
-        return "<init-list>";
-      }
-      if (std::holds_alternative<std::shared_ptr<ConstObject>>(value)) {
-        return "<const-object>";
-      }
-      return "<const>";
-    }
-
-    auto operator()(const Type* type) const -> std::string {
-      return to_string(type);
-    }
-
-    auto operator()(const ConstValue& value) const -> std::string {
-      return const_value_to_string(value);
-    }
-
-    auto operator()(const Symbol* symbol) const -> std::string {
-      if (!symbol) return "<null-symbol>";
-      if (symbol->isTypeAlias()) return to_string(symbol->type());
-      if (symbol->isVariable()) {
-        auto var = static_cast<const VariableSymbol*>(symbol);
-        if (auto cst = var->constValue()) return const_value_to_string(*cst);
-      }
-      if (auto type = symbol->type()) return to_string(type);
-      return to_string(symbol->name());
-    }
-
-    auto operator()(ExpressionAST* value) const -> std::string { return ""; }
-
-  } template_argument_to_string;
-
   auto operator()(const Identifier* name) const -> std::string {
     return name->value();
   }
@@ -107,11 +105,11 @@ struct NamePrinter {
   auto operator()(const TemplateId* name) const -> std::string {
     std::string s = visit(*this, name->name());
     s += " <";
-    for (auto&& arg : name->arguments()) {
-      if (&arg != &name->arguments().front()) s += ", ";
-      auto arg_str = std::visit(template_argument_to_string, arg);
-      if (arg_str.empty()) arg_str = "?";
-      s += arg_str;
+    std::string_view sep = "";
+    for (const auto& arg : expand_template_arguments(name->arguments())) {
+      s += sep;
+      s += to_string(arg);
+      sep = ", ";
     }
     s += '>';
     return s;
@@ -123,6 +121,12 @@ struct NamePrinter {
 auto to_string(const Name* name) -> std::string {
   if (!name) return {};
   return visit(NamePrinter{}, name);
+}
+
+auto to_string(const TemplateArgument& argument) -> std::string {
+  auto text = std::visit(TemplateArgumentPrinter{}, argument);
+  if (text.empty()) return "?";
+  return text;
 }
 
 }  // namespace cxx

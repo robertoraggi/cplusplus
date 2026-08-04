@@ -324,6 +324,8 @@ auto Substitution::CollectRawTemplateArgument::operator()(
   for (auto spec : ListView{ast->typeId->typeSpecifierList}) {
     auto named = ast_cast<NamedTypeSpecifierAST>(spec);
     if (!named) continue;
+    if (auto pack = symbol_cast<ParameterPackSymbol>(named->symbol))
+      return pack;
     if (!ast_cast<NameIdAST>(named->unqualifiedId)) break;
     if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
       if (alias->templateParameters()) return alias;
@@ -429,8 +431,21 @@ void Substitution::doMake() {
 
   int argumentIndex = 0;
 
+  auto deducedPackAt = [&](int index) -> ParameterPackSymbol* {
+    if (index >= argCount) return nullptr;
+    return symbol_cast<ParameterPackSymbol>(collectedArguments[index]);
+  };
+
   for (int i = 0; i < paramCount; ++i) {
     auto parameter = parameters[i];
+
+    if (isPackParameter(parameter)) {
+      if (auto deducedPack = deducedPackAt(argumentIndex)) {
+        ++argumentIndex;
+        templateArguments_.push_back(deducedPack);
+        continue;
+      }
+    }
 
     if (i == packIndex) {
       auto pack = control->newParameterPackSymbol(nullptr, {});

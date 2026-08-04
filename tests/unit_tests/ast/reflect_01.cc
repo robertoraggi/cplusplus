@@ -80,9 +80,9 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ptr
-// CHECK-NEXT:          initializer: implicit-cast-expression [prvalue const void*]
-// CHECK-NEXT:            cast-kind: pointer-conversion
-// CHECK-NEXT:            expression: equal-initializer [prvalue decltype(nullptr)]
+// CHECK-NEXT:          initializer: equal-initializer [prvalue const void*]
+// CHECK-NEXT:            expression: implicit-cast-expression [prvalue const void*]
+// CHECK-NEXT:              cast-kind: pointer-conversion
 // CHECK-NEXT:              expression: nullptr-literal-expression [prvalue decltype(nullptr)]
 // CHECK-NEXT:                literal: nullptr
 // CHECK-NEXT:    simple-declaration
@@ -109,8 +109,8 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: x
-// CHECK-NEXT:          initializer: equal-initializer [prvalue __builtin_meta_info]
-// CHECK-NEXT:            expression: splice-expression [prvalue const __builtin_meta_info]
+// CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: splice-expression [prvalue int]
 // CHECK-NEXT:              splicer: splicer
 // CHECK-NEXT:                expression: id-expression [lvalue const __builtin_meta_info]
 // CHECK-NEXT:                  unqualified-id: name-id

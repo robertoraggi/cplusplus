@@ -44,6 +44,15 @@ class TranslationUnit;
     TranslationUnit* unit, TemplateDeclarationAST* a, TemplateDeclarationAST* b)
     -> bool;
 
+[[nodiscard]] auto areFunctionTemplateHeadsEquivalentForRedeclaration(
+    TranslationUnit* unit, ClassSymbol* enclosingClass,
+    TemplateDeclarationAST* existingHead, TemplateDeclarationAST* newHead)
+    -> bool;
+
+[[nodiscard]] auto areTemplateArgumentListsSyntacticallyEquivalent(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* a,
+    List<TemplateArgumentAST*>* b) -> bool;
+
 class Binder {
  public:
   struct DefaultArgumentInfo {
@@ -145,6 +154,8 @@ class Binder {
   void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
 
   void bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpec);
+
+  void bind(OpaqueEnumDeclarationAST* ast, const DeclSpecs& underlyingTypeSpec);
 
   void bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
             bool isDeclaration, Symbol* unqualifiedCandidate = nullptr);
@@ -296,6 +307,12 @@ class Binder {
   struct CompleteClass;
   struct DeclareFunction;
   struct ResolveUnqualifiedId;
+
+  [[nodiscard]] auto declareEnum(const Name* name, SourceLocation location,
+                                 const Type* underlyingType, bool scoped,
+                                 bool fixedUnderlyingType, bool isDefinition,
+                                 bool isValidDeclaration = true)
+      -> ScopeSymbol*;
 
   void declareArgumentDependentCallee(IdExpressionAST* ast);
 

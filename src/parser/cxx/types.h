@@ -619,6 +619,16 @@ template <typename T>
                                          : nullptr;
 }
 
+[[nodiscard]] inline auto isPlaceholderType(const Type* type) -> bool {
+  return type_cast<AutoType>(type) || type_cast<DecltypeAutoType>(type);
+}
+
+[[nodiscard]] auto containsPlaceholderType(const Type* type) -> bool;
+
+[[nodiscard]] auto memberPointerBaseAdjustment(
+    const MemberObjectPointerType* sourceType,
+    const MemberObjectPointerType* targetType) -> std::optional<std::int64_t>;
+
 [[nodiscard]] inline auto getTypeParamInfo(const Type* type)
     -> std::optional<TypeParamInfo> {
   if (auto t = type_cast<TypeParameterType>(type))

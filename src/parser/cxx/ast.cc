@@ -4570,6 +4570,7 @@ auto OpaqueEnumDeclarationAST::clone(Arena* arena)
   }
 
   node->emicolonLoc = emicolonLoc;
+  node->symbol = symbol;
 
   return node;
 }
@@ -4585,7 +4586,7 @@ auto OpaqueEnumDeclarationAST::create(
     List<AttributeSpecifierAST*>* attributeList,
     NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
     SourceLocation colonLoc, List<SpecifierAST*>* typeSpecifierList,
-    SourceLocation emicolonLoc) -> OpaqueEnumDeclarationAST* {
+    SourceLocation emicolonLoc, Symbol* symbol) -> OpaqueEnumDeclarationAST* {
   auto node = new (arena) OpaqueEnumDeclarationAST();
   node->enumLoc = enumLoc;
   node->classLoc = classLoc;
@@ -4595,18 +4596,21 @@ auto OpaqueEnumDeclarationAST::create(
   node->colonLoc = colonLoc;
   node->typeSpecifierList = typeSpecifierList;
   node->emicolonLoc = emicolonLoc;
+  node->symbol = symbol;
   return node;
 }
 
 auto OpaqueEnumDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
-    List<SpecifierAST*>* typeSpecifierList) -> OpaqueEnumDeclarationAST* {
+    List<SpecifierAST*>* typeSpecifierList, Symbol* symbol)
+    -> OpaqueEnumDeclarationAST* {
   auto node = new (arena) OpaqueEnumDeclarationAST();
   node->attributeList = attributeList;
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->typeSpecifierList = typeSpecifierList;
+  node->symbol = symbol;
   return node;
 }
 

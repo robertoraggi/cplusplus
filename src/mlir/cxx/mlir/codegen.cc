@@ -152,6 +152,10 @@ auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
   return {};
 }
 
+auto Codegen::nullMemberObjectPointer() const -> std::int64_t {
+  return control()->memoryLayout()->nullMemberObjectPointer();
+}
+
 auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
     -> std::optional<mlir::Attribute> {
   auto interp = ASTInterpreter{unit_};
@@ -159,6 +163,12 @@ auto Codegen::constValueToAttr(const ConstValue& value, const Type* type)
   if (traits.is_integral_or_unscoped_enum(type)) {
     auto constValue = interp.toInt(value);
     return builder_.getI64IntegerAttr(constValue.value_or(0));
+  }
+
+  if (type_cast<MemberObjectPointerType>(type)) {
+    auto constValue = interp.toInt(value);
+    return builder_.getI64IntegerAttr(
+        constValue.value_or(nullMemberObjectPointer()));
   }
 
   if (auto attr = getFloatAttr(value, type)) {
@@ -204,6 +214,15 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
     return mlir::arith::ConstantOp::create(
         builder, loc, mlirType,
         builder.getIntegerAttr(mlirType, constValue.value_or(0)));
+  }
+
+  if (type_cast<MemberObjectPointerType>(type)) {
+    auto mlirType = convertType(type);
+    auto constValue = interp.toInt(value);
+    return mlir::arith::ConstantOp::create(
+        builder, loc, mlirType,
+        builder.getIntegerAttr(mlirType,
+                               constValue.value_or(nullMemberObjectPointer())));
   }
 
   if (traits.is_floating_point(type)) {
@@ -1893,6 +1912,9 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     if (traits.is_integral_or_unscoped_enum(defVar->type())) {
       auto constValue = interp.toInt(*value);
       initializer = builder_.getI64IntegerAttr(constValue.value_or(0));
+    } else if (type_cast<MemberObjectPointerType>(defVar->type())) {
+      if (auto attr = constValueToAttr(*value, defVar->type()))
+        initializer = *attr;
     } else if (auto attr = getFloatAttr(value, defVar->type())) {
       initializer = attr.value();
     } else if (traits.is_array(defVar->type())) {
@@ -1970,7 +1992,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   }
 
   if (!initializer && !isExternalOnly) {
-    initializer = mlir::LLVM::ZeroAttr::get(context_);
+    if (type_cast<MemberObjectPointerType>(defVar->type()))
+      initializer = builder_.getI64IntegerAttr(nullMemberObjectPointer());
+    else
+      initializer = mlir::LLVM::ZeroAttr::get(context_);
   }
 
   const auto isConstant =

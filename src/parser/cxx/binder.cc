@@ -96,7 +96,7 @@ void Binder::finishAutoReturnType(FunctionSymbol* functionSymbol) {
   if (!functionSymbol) return;
   auto funcType = type_cast<FunctionType>(functionSymbol->type());
   if (!funcType) return;
-  if (!type_cast<AutoType>(funcType->returnType())) return;
+  if (!isPlaceholderType(funcType->returnType())) return;
 
   auto newFuncType = control()->getFunctionType(
       control()->getVoidType(),
@@ -180,47 +180,146 @@ auto Binder::enterBlock(SourceLocation loc) -> BlockSymbol* {
   return blockSymbol;
 }
 
+auto Binder::declareEnum(const Name* name, SourceLocation location,
+                         const Type* underlyingType, bool scoped,
+                         bool fixedUnderlyingType, bool isDefinition,
+                         bool isValidDeclaration) -> ScopeSymbol* {
+  auto effectiveUnderlyingType = unit_->typeTraits().remove_cv(underlyingType);
+  const auto invalidUnderlyingType =
+      (scoped || fixedUnderlyingType) &&
+      !unit_->typeTraits().is_integral(effectiveUnderlyingType) &&
+      !isDependent(unit_, effectiveUnderlyingType);
+  if (invalidUnderlyingType) {
+    error(location, "enumeration underlying type must be integral");
+    effectiveUnderlyingType = control()->getIntType();
+  }
+
+  auto createEnum = [&](bool addToScope) -> ScopeSymbol* {
+    auto enclosingScope = declaringScope();
+    if (!addToScope)
+      enclosingScope = control()->newBlockSymbol(enclosingScope, location);
+    if (scoped) {
+      auto symbol = control()->newScopedEnumSymbol(enclosingScope, location);
+      symbol->setName(name);
+      symbol->setUnderlyingType(effectiveUnderlyingType);
+      symbol->setDefined(isDefinition);
+      if (addToScope) scope()->addSymbol(symbol);
+      return symbol;
+    }
+
+    auto symbol = control()->newEnumSymbol(enclosingScope, location);
+    symbol->setName(name);
+    symbol->setUnderlyingType(effectiveUnderlyingType);
+    symbol->setHasFixedUnderlyingType(fixedUnderlyingType);
+    symbol->setDefined(isDefinition);
+    if (addToScope) scope()->addSymbol(symbol);
+    return symbol;
+  };
+
+  if (invalidUnderlyingType || !isValidDeclaration) return createEnum(false);
+
+  if (!name) return createEnum(true);
+
+  for (auto candidate : declaringScope()->find(name)) {
+    auto existingEnum = symbol_cast<EnumSymbol>(candidate);
+    auto existingScopedEnum = symbol_cast<ScopedEnumSymbol>(candidate);
+    if (!existingEnum && !existingScopedEnum) {
+      if (symbol_cast<ClassSymbol>(candidate) ||
+          symbol_cast<TypeAliasSymbol>(candidate)) {
+        error(location,
+              std::format("conflicting declaration of '{}'", to_string(name)));
+        return createEnum(false);
+      }
+      continue;
+    }
+    if (scoped != (existingScopedEnum != nullptr)) {
+      error(location,
+            std::format("enumeration '{}' redeclared with different scopedness",
+                        to_string(name)));
+      return createEnum(false);
+    }
+
+    const auto existingType = existingEnum
+                                  ? existingEnum->underlyingType()
+                                  : existingScopedEnum->underlyingType();
+    const auto existingFixed =
+        existingEnum ? existingEnum->hasFixedUnderlyingType() : true;
+    const auto newFixed = scoped || fixedUnderlyingType;
+    if (existingFixed != newFixed) {
+      error(location,
+            std::format(
+                "enumeration '{}' redeclared with incompatible underlying type",
+                to_string(name)));
+      return createEnum(false);
+    }
+    if (existingFixed && !unit_->typeTraits().is_same(
+                             unit_->typeTraits().remove_cv(existingType),
+                             effectiveUnderlyingType)) {
+      error(location,
+            std::format(
+                "enumeration '{}' redeclared with different underlying type",
+                to_string(name)));
+      return createEnum(false);
+    }
+
+    const auto defined = existingEnum ? existingEnum->isDefined()
+                                      : existingScopedEnum->isDefined();
+    if (isDefinition && defined) {
+      error(location,
+            std::format("redefinition of enumeration '{}'", to_string(name)));
+      return createEnum(false);
+    }
+    if (isDefinition) {
+      if (existingEnum)
+        existingEnum->setDefined(true);
+      else
+        existingScopedEnum->setDefined(true);
+    }
+    if (existingEnum) return existingEnum;
+    return existingScopedEnum;
+  }
+
+  return createEnum(true);
+}
+
 void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
-  const Type* underlyingType = control()->getIntType();
-
-  if (underlyingTypeSpecs.hasTypeOrSizeSpecifier())
-    underlyingType = underlyingTypeSpecs.type();
-
+  const auto underlyingType = underlyingTypeSpecs.hasTypeOrSizeSpecifier()
+                                  ? underlyingTypeSpecs.type()
+                                  : control()->getIntType();
   const auto location = ast->unqualifiedId
                             ? ast->unqualifiedId->firstSourceLocation()
                             : ast->lbraceLoc;
+  if (isC() && ast->classLoc)
+    error(ast->classLoc, "scoped enums are not allowed in C");
+  ast->symbol = declareEnum(get_name(control(), ast->unqualifiedId), location,
+                            underlyingType, ast->classLoc && isCxx(),
+                            ast->typeSpecifierList != nullptr, true);
+  setScope(ast->symbol->asScopeSymbol());
+}
 
-  auto enumName = get_name(control(), ast->unqualifiedId);
-
-  if (ast->classLoc && isCxx()) {
-    auto enumSymbol =
-        control()->newScopedEnumSymbol(declaringScope(), location);
-    ast->symbol = enumSymbol;
-
-    enumSymbol->setName(enumName);
-    enumSymbol->setUnderlyingType(underlyingType);
-    scope()->addSymbol(enumSymbol);
-
-    setScope(enumSymbol);
-  } else {
-    if (isC() && ast->classLoc) {
-      error(ast->classLoc, "scoped enums are not allowed in C");
-    }
-
-    auto enumSymbol = control()->newEnumSymbol(declaringScope(), location);
-
-    if (ast->typeSpecifierList) {
-      enumSymbol->setHasFixedUnderlyingType(true);
-    }
-
-    ast->symbol = enumSymbol;
-
-    enumSymbol->setName(enumName);
-    enumSymbol->setUnderlyingType(underlyingType);
-    scope()->addSymbol(enumSymbol);
-
-    setScope(enumSymbol);
-  }
+void Binder::bind(OpaqueEnumDeclarationAST* ast,
+                  const DeclSpecs& underlyingTypeSpecs) {
+  const auto underlyingType = underlyingTypeSpecs.hasTypeOrSizeSpecifier()
+                                  ? underlyingTypeSpecs.type()
+                                  : control()->getIntType();
+  const auto location = ast->unqualifiedId
+                            ? ast->unqualifiedId->firstSourceLocation()
+                            : ast->enumLoc;
+  if (isC() && ast->classLoc)
+    error(ast->classLoc, "scoped enums are not allowed in C");
+  const auto missingUnscopedBase =
+      isCxx() && !ast->classLoc && !ast->typeSpecifierList;
+  if (missingUnscopedBase)
+    error(location,
+          "opaque declaration of an unscoped enumeration requires an "
+          "underlying type");
+  if (ast->nestedNameSpecifier)
+    error(location,
+          "opaque enumeration declaration cannot have a qualified name");
+  ast->symbol =
+      declareEnum(get_name(control(), ast->unqualifiedId), location,
+                  underlyingType, ast->classLoc && isCxx(), true, false,
+                  !missingUnscopedBase && !ast->nestedNameSpecifier);
 }
 
 void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
@@ -347,26 +446,7 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
 }
 
 void Binder::bind(DecltypeSpecifierAST* ast) {
-  auto namedSymbol = [&]() -> Symbol* {
-    if (auto id = ast_cast<IdExpressionAST>(ast->expression)) return id->symbol;
-    if (auto member = ast_cast<MemberExpressionAST>(ast->expression))
-      return member->symbol;
-    return nullptr;
-  }();
-
-  if (symbol_cast<OverloadSetSymbol>(namedSymbol)) {
-    ast->type = ast->expression->type;
-  } else if (namedSymbol) {
-    ast->type = namedSymbol->type();
-  } else if (ast->expression && ast->expression->type) {
-    if (isCxx() && is_lvalue(ast->expression)) {
-      ast->type = traits.add_lvalue_reference(ast->expression->type);
-    } else if (isCxx() && is_xvalue(ast->expression)) {
-      ast->type = traits.add_rvalue_reference(ast->expression->type);
-    } else {
-      ast->type = ast->expression->type;
-    }
-  }
+  if (auto type = traits.decltype_of(ast->expression)) ast->type = type;
 }
 
 void Binder::bind(EnumeratorAST* ast, const Type* type,
@@ -2862,8 +2942,9 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
             unit_, function->type(), type)) {
       return false;
     }
-    return areTemplateHeadsEquivalentForRedeclaration(
-        unit_, function->templateDeclaration(), templateHead);
+    return areFunctionTemplateHeadsEquivalentForRedeclaration(
+        unit_, symbol_cast<ClassSymbol>(parentScope),
+        function->templateDeclaration(), templateHead);
   };
 
   if (auto parentClass = symbol_cast<ClassSymbol>(parentScope);
@@ -2874,5 +2955,26 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
   }
 
   return views::find_function(scope->find(name), matches);
+}
+
+auto areFunctionTemplateHeadsEquivalentForRedeclaration(
+    TranslationUnit* unit, ClassSymbol* enclosingClass,
+    TemplateDeclarationAST* existingHead, TemplateDeclarationAST* newHead)
+    -> bool {
+  auto enclosingHead =
+      enclosingClass ? enclosingClass->templateDeclaration() : nullptr;
+  if (!enclosingHead && enclosingClass && enclosingClass->isSpecialization()) {
+    auto primaryClass = enclosingClass->primaryTemplateSymbol();
+    enclosingHead =
+        primaryClass ? primaryClass->templateDeclaration() : nullptr;
+  }
+  auto ownHead = [&](TemplateDeclarationAST* head) -> TemplateDeclarationAST* {
+    if (head && enclosingHead && head->depth == enclosingHead->depth &&
+        areTemplateHeadsEquivalentForRedeclaration(unit, enclosingHead, head))
+      return nullptr;
+    return head;
+  };
+  return areTemplateHeadsEquivalentForRedeclaration(unit, ownHead(existingHead),
+                                                    ownHead(newHead));
 }
 }  // namespace cxx

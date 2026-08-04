@@ -284,24 +284,10 @@ void ASTRewriter::UnqualifiedIdVisitor::substituteTemplateTemplateParameter(
   auto ttpSymbol = symbol_cast<TemplateTypeParameterSymbol>(copy->symbol);
   if (!ttpSymbol) return;
 
-  auto paramType = type_cast<TemplateTypeParameterType>(ttpSymbol->type());
-  const auto& args = rewrite.templateArguments_;
-  if (!paramType || paramType->depth() != rewrite.depth_ ||
-      paramType->index() >= static_cast<int>(args.size()))
-    return;
+  auto substituted = rewrite.substitutedSymbol(ttpSymbol);
+  if (!substituted) return;
 
-  auto index = paramType->index();
-  auto sym = std::get_if<Symbol*>(&args[index]);
-  if (!sym) return;
-
-  if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
-    if (!rewrite.elementIndex_.has_value()) return;
-    auto elemIdx = *rewrite.elementIndex_;
-    if (elemIdx >= static_cast<int>(pack->elements().size())) return;
-    if (auto templateName = template_name_symbol(pack->elements()[elemIdx])) {
-      copy->symbol = templateName;
-    }
-  } else if (auto templateName = template_name_symbol(*sym)) {
+  if (auto templateName = template_name_symbol(substituted)) {
     copy->symbol = templateName;
   }
 }
@@ -423,29 +409,9 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     TypeParameterSymbol* tps = symbol_cast<TypeParameterSymbol>(copy->symbol);
 
     if (tps) {
-      auto paramType = type_cast<TypeParameterType>(tps->type());
-      if (paramType && paramType->depth() == rewrite.depth_ &&
-          paramType->index() <
-              static_cast<int>(rewrite.templateArguments_.size())) {
-        auto index = paramType->index();
-        if (auto sym =
-                std::get_if<Symbol*>(&rewrite.templateArguments_[index])) {
-          if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
-            if (rewrite.elementIndex_.has_value()) {
-              auto elemIdx = *rewrite.elementIndex_;
-              if (elemIdx < static_cast<int>(pack->elements().size())) {
-                copy->symbol = binder()->resolveNestedNameSpecifier(
-                    pack->elements()[elemIdx]);
-                if (!copy->symbol)
-                  emitNonScopeError(ast->identifierLoc,
-                                    pack->elements()[elemIdx]);
-              }
-            }
-          } else {
-            copy->symbol = binder()->resolveNestedNameSpecifier(*sym);
-            if (!copy->symbol) emitNonScopeError(ast->identifierLoc, *sym);
-          }
-        }
+      if (auto substituted = rewrite.substitutedSymbol(tps)) {
+        copy->symbol = binder()->resolveNestedNameSpecifier(substituted);
+        if (!copy->symbol) emitNonScopeError(ast->identifierLoc, substituted);
       }
     } else if (!copy->symbol) {
       resolveDependentQualifier(copy);

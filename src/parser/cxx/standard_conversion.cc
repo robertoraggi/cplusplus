@@ -71,6 +71,33 @@ namespace {
 
   return match;
 }
+
+struct MemberPointerParts {
+  const ClassType* classType = nullptr;
+  const Type* pointeeType = nullptr;
+
+  [[nodiscard]] explicit operator bool() const { return classType; }
+};
+
+struct DecomposeMemberPointer {
+  auto operator()(const MemberObjectPointerType* type) const
+      -> MemberPointerParts {
+    return {type->classType(), type->elementType()};
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) const
+      -> MemberPointerParts {
+    return {type->classType(), type->functionType()};
+  }
+
+  auto operator()(const Type*) const -> MemberPointerParts { return {}; }
+};
+
+[[nodiscard]] auto decomposeMemberPointer(const Type* type)
+    -> MemberPointerParts {
+  if (!type) return {};
+  return visit(DecomposeMemberPointer{}, type);
+}
 }  // namespace
 
 StandardConversion::StandardConversion(TranslationUnit* unit, bool isC)
@@ -83,6 +110,123 @@ StandardConversion::StandardConversion(TranslationUnit* unit, bool isC)
 auto StandardConversion::checkCvQualifiers(CvQualifiers target,
                                            CvQualifiers source) const -> bool {
   return cv_is_subset_of(source, target);
+}
+
+auto StandardConversion::instantiateConversionFunctionTemplate(
+    FunctionSymbol* convFunc, const Type* targetType, ExpressionAST* expr)
+    -> FunctionSymbol* {
+  TemplateArgumentDeduction deduction(unit_);
+  auto deducedArgs = deduction.deduceFromConversionTarget(convFunc, targetType);
+  if (!deducedArgs.has_value()) return nullptr;
+
+  return ASTRewriter::instantiateForArgs(unit_, *deducedArgs, convFunc,
+                                         expr->firstSourceLocation(),
+                                         /*argsComplete=*/true);
+}
+
+auto StandardConversion::hasUniqueNonVirtualBase(const ClassType* derived,
+                                                 const ClassType* base)
+    -> bool {
+  if (!derived || !base) return false;
+
+  auto derivedClass = derived->symbol();
+  auto baseClass = base->symbol();
+  if (!derivedClass || !baseClass) return false;
+
+  auto derivedDefinition = derivedClass->resolvedDefinition();
+  traits.requireCompleteClass(derivedDefinition);
+
+  return derivedDefinition->baseClassOffset(baseClass).has_value();
+}
+
+auto StandardConversion::decompositionCvQualifiers(const Type* type) const
+    -> CvQualifiers {
+  if (traits.is_array(type))
+    return traits.get_cv_qualifiers(traits.get_element_type(type));
+  return traits.get_cv_qualifiers(type);
+}
+
+auto StandardConversion::hasSimilarArrayBound(const Type* source,
+                                              const Type* target) const
+    -> bool {
+  if (!traits.is_array(source) || !traits.is_array(target)) return false;
+
+  auto targetBounded = type_cast<BoundedArrayType>(target);
+  if (!targetBounded) return true;
+
+  auto sourceBounded = type_cast<BoundedArrayType>(source);
+  if (!sourceBounded) return false;
+
+  return sourceBounded->size() == targetBounded->size();
+}
+
+auto StandardConversion::isQualificationConversion(const Type* source,
+                                                   const Type* target,
+                                                   int level) const -> bool {
+  std::vector<CvQualifiers> targetQualifiers;
+  int deepestDifference = -1;
+
+  while (true) {
+    auto sourceCv = decompositionCvQualifiers(source);
+    auto targetCv = decompositionCvQualifiers(target);
+
+    if (!cv_is_subset_of(sourceCv, targetCv)) return false;
+    if (sourceCv != targetCv)
+      deepestDifference = level + static_cast<int>(targetQualifiers.size());
+    targetQualifiers.push_back(targetCv);
+
+    auto sourceUnqual = traits.remove_cv(source);
+    auto targetUnqual = traits.remove_cv(target);
+    if (traits.is_same(sourceUnqual, targetUnqual)) break;
+
+    auto sourcePointer = type_cast<PointerType>(sourceUnqual);
+    auto targetPointer = type_cast<PointerType>(targetUnqual);
+    if (sourcePointer && targetPointer) {
+      source = sourcePointer->elementType();
+      target = targetPointer->elementType();
+      continue;
+    }
+
+    auto sourceMember = decomposeMemberPointer(sourceUnqual);
+    auto targetMember = decomposeMemberPointer(targetUnqual);
+    if (sourceMember && targetMember &&
+        traits.is_same(sourceMember.classType, targetMember.classType)) {
+      source = sourceMember.pointeeType;
+      target = targetMember.pointeeType;
+      continue;
+    }
+
+    if (hasSimilarArrayBound(sourceUnqual, targetUnqual)) {
+      source = traits.get_element_type(sourceUnqual);
+      target = traits.get_element_type(targetUnqual);
+      continue;
+    }
+
+    return false;
+  }
+
+  for (int k = level < 1 ? 1 : level; k < deepestDifference; ++k) {
+    if (!cv_is_subset_of(CvQualifiers::kConst, targetQualifiers[k - level]))
+      return false;
+  }
+
+  return true;
+}
+
+auto StandardConversion::isMemberPointeeConvertible(const Type* source,
+                                                    const Type* target) const
+    -> bool {
+  if (auto sourceFunction = type_cast<FunctionType>(source)) {
+    auto targetFunction = type_cast<FunctionType>(target);
+    if (!targetFunction) return false;
+    if (traits.is_same(sourceFunction, targetFunction)) return true;
+    if (!sourceFunction->isNoexcept() || targetFunction->isNoexcept())
+      return false;
+    return traits.is_same(traits.remove_noexcept(sourceFunction),
+                          targetFunction);
+  }
+
+  return isQualificationConversion(source, target, /*level=*/1);
 }
 
 auto StandardConversion::stripCv(const Type*& type) -> CvQualifiers {
@@ -173,17 +317,8 @@ void StandardConversion::foldConstantRead(ImplicitCastExpressionAST* cast) {
   if (cast->constValue) return;
 
   auto operand = cast->expression;
-  while (true) {
-    if (auto nested = ast_cast<NestedExpressionAST>(operand)) {
-      operand = nested->expression;
-      continue;
-    }
-    if (auto equalInit = ast_cast<EqualInitializerAST>(operand)) {
-      operand = equalInit->expression;
-      continue;
-    }
-    break;
-  }
+  while (auto nested = ast_cast<NestedExpressionAST>(operand))
+    operand = nested->expression;
 
   FieldSymbol* field = nullptr;
   bool throughObject = false;
@@ -406,13 +541,14 @@ auto StandardConversion::temporaryMaterialization(ExpressionAST*& expr)
   return true;
 }
 
-auto StandardConversion::convertImplicitly(ExpressionAST*& expr,
-                                           const Type* destinationType)
-    -> bool {
+auto StandardConversion::convertImplicitly(
+    ExpressionAST*& expr, const Type* destinationType,
+    InitializationKind initializationKind) -> bool {
   if (!expr || !expr->type) return false;
   if (!destinationType) return false;
 
-  auto seq = computeConversionSequence(expr, destinationType);
+  auto seq =
+      computeConversionSequence(expr, destinationType, initializationKind);
   if (!seq) return false;
 
   applyConversionSequence(seq, expr);
@@ -448,7 +584,7 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
         pending.push_back(baseClass->resolvedDefinition());
     }
 
-    for (auto convFunc : currentClass->conversionFunctions()) {
+    for (auto convFunc : currentClass->implicitConversionFunctions()) {
       auto convFuncType = type_cast<FunctionType>(convFunc->type());
       if (!convFuncType) continue;
 
@@ -794,9 +930,9 @@ auto StandardConversion::isFloatingPointPromotion(const Type* sourceType,
   return src->kind() == TypeKind::kFloat && dst->kind() == TypeKind::kDouble;
 }
 
-auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
-                                                   const Type* targetType)
-    -> ImplicitConversionSequence {
+auto StandardConversion::computeConversionSequence(
+    ExpressionAST* expr, const Type* targetType,
+    InitializationKind initializationKind) -> ImplicitConversionSequence {
   ImplicitConversionSequence seq;
   if (!expr || !targetType) return seq;
 
@@ -1013,7 +1149,7 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
         auto fromUnqual = traits.remove_cv(fromPointee);
         auto toUnqual = traits.remove_cv(toPointee);
 
-        if (traits.is_same(fromUnqual, toUnqual)) {
+        if (isQualificationConversion(fromPointee, toPointee, /*level=*/1)) {
           seq.rank = ConversionRank::kExactMatch;
           seq.hasQualificationConversion = true;
           seq.pointeeUnqual = toUnqual;
@@ -1106,18 +1242,24 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     return seq;
   }
 
-  if (traits.is_member_pointer(unqualFrom) &&
-      traits.is_member_pointer(unqualTo)) {
-    if (auto srcMop = type_cast<MemberObjectPointerType>(unqualFrom)) {
-      if (auto dstMop = type_cast<MemberObjectPointerType>(unqualTo)) {
-        if (traits.is_same(traits.remove_cv(srcMop->elementType()),
-                           traits.remove_cv(dstMop->elementType())) &&
-            traits.is_base_of(dstMop->classType(), srcMop->classType())) {
-          seq.rank = ConversionRank::kConversion;
-          addStep(ImplicitCastKind::kPointerToMemberConversion,
-                  comparisonTargetType);
-          return seq;
-        }
+  {
+    auto source = decomposeMemberPointer(unqualFrom);
+    auto target = decomposeMemberPointer(unqualTo);
+
+    if (source && target &&
+        isMemberPointeeConvertible(source.pointeeType, target.pointeeType)) {
+      if (traits.is_same(source.classType, target.classType)) {
+        seq.rank = ConversionRank::kExactMatch;
+        addStep(ImplicitCastKind::kQualificationConversion,
+                comparisonTargetType);
+        return seq;
+      }
+
+      if (hasUniqueNonVirtualBase(target.classType, source.classType)) {
+        seq.rank = ConversionRank::kConversion;
+        addStep(ImplicitCastKind::kPointerToMemberConversion,
+                comparisonTargetType);
+        return seq;
       }
     }
   }
@@ -1160,6 +1302,13 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
     addStep(ImplicitCastKind::kIntegralConversion, comparisonTargetType);
     return seq;
   }
+
+  auto candidateConversionFunctions =
+      [&](ClassSymbol* classSymbol) -> std::vector<FunctionSymbol*> {
+    if (isDirectInitialization(initializationKind))
+      return classSymbol->conversionFunctions();
+    return classSymbol->implicitConversionFunctions();
+  };
 
   auto conversionResultType = [&](FunctionSymbol* func) -> const Type* {
     auto funcType = type_cast<FunctionType>(func->type());
@@ -1257,7 +1406,14 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
             pending.push_back(baseClass->resolvedDefinition());
         }
 
-        for (auto convFunc : currentClass->conversionFunctions()) {
+        for (auto convFunc : candidateConversionFunctions(currentClass)) {
+          if (convFunc->templateDeclaration() &&
+              !convFunc->isSpecialization()) {
+            convFunc =
+                instantiateConversionFunctionTemplate(convFunc, unqualTo, expr);
+            if (!convFunc) continue;
+          }
+
           auto convFuncType = type_cast<FunctionType>(convFunc->type());
           if (!convFuncType) continue;
 
@@ -1265,6 +1421,12 @@ auto StandardConversion::computeConversionSequence(ExpressionAST* expr,
           if (!returnType) continue;
 
           auto retUnqual = traits.remove_cv(returnType);
+
+          if (convFunc->isExplicit()) {
+            if (isQualificationConversion(retUnqual, unqualTo, /*level=*/0))
+              updateBest(convFunc, ConversionRank::kExactMatch);
+            continue;
+          }
 
           auto [viable, s2Rank] = checkViability(retUnqual, unqualTo);
           if (!viable && traits.is_same(unqualTo, control_->getBoolType())) {

@@ -33,55 +33,6 @@
 #include <format>
 
 namespace cxx {
-namespace {
-auto getInnerTemplateId(TypeTemplateArgumentAST* typeArg)
-    -> SimpleTemplateIdAST* {
-  if (!typeArg || !typeArg->typeId) return nullptr;
-  for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
-    if (auto named = ast_cast<NamedTypeSpecifierAST>(spec))
-      return ast_cast<SimpleTemplateIdAST>(named->unqualifiedId);
-  }
-  return nullptr;
-}
-
-auto templateArgListsEquivalent(List<TemplateArgumentAST*>* a,
-                                List<TemplateArgumentAST*>* b) -> bool {
-  auto itA = a;
-  auto itB = b;
-  for (; itA && itB; itA = itA->next, itB = itB->next) {
-    auto typeA = ast_cast<TypeTemplateArgumentAST>(itA->value);
-    auto typeB = ast_cast<TypeTemplateArgumentAST>(itB->value);
-    if (typeA && typeB) {
-      auto tA = typeA->typeId ? typeA->typeId->type : nullptr;
-      auto tB = typeB->typeId ? typeB->typeId->type : nullptr;
-      if (tA != tB) return false;
-
-      auto innerA = getInnerTemplateId(typeA);
-      auto innerB = getInnerTemplateId(typeB);
-      if (innerA && innerB) {
-        if (!templateArgListsEquivalent(innerA->templateArgumentList,
-                                        innerB->templateArgumentList))
-          return false;
-      } else if (innerA || innerB) {
-        return false;
-      }
-      continue;
-    }
-
-    auto exprA = ast_cast<ExpressionTemplateArgumentAST>(itA->value);
-    auto exprB = ast_cast<ExpressionTemplateArgumentAST>(itB->value);
-    if (exprA && exprB) {
-      if (exprA->expression == exprB->expression) continue;
-      return false;
-    }
-
-    return false;
-  }
-
-  return !itA && !itB;
-}
-}  // namespace
-
 struct [[nodiscard]] Binder::BindClass {
   Binder& binder;
   ClassSpecifierAST* ast;
@@ -98,16 +49,9 @@ struct [[nodiscard]] Binder::BindClass {
 
   auto findPrimaryTemplateSymbol(SimpleTemplateIdAST* templateId) const
       -> ClassSymbol*;
-  auto templateParameterCount(TemplateDeclarationAST* templateDecl) const
-      -> int;
-  auto hasPackTemplateParameter(TemplateDeclarationAST* templateDecl) const
-      -> bool;
   [[nodiscard]] auto isTrueRedefinition(
       ClassSymbol* specialization, SimpleTemplateIdAST* newTemplateId) const
       -> bool;
-  [[nodiscard]] auto templateParameterConstraintsEquivalent(
-      TemplateDeclarationAST* existingTemplateDecl,
-      TemplateDeclarationAST* newTemplateDecl) const -> bool;
 
   void bind();
   void check_optional_nested_name_specifier();
@@ -232,62 +176,6 @@ auto Binder::BindClass::findPrimaryTemplateSymbol(
   return nullptr;
 }
 
-auto Binder::BindClass::templateParameterCount(
-    TemplateDeclarationAST* templateDecl) const -> int {
-  if (!templateDecl) return 0;
-
-  int count = 0;
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    (void)parameter;
-    ++count;
-  }
-  return count;
-}
-
-auto Binder::BindClass::hasPackTemplateParameter(
-    TemplateDeclarationAST* templateDecl) const -> bool {
-  if (!templateDecl) return false;
-
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter);
-    if (typeParameter && typeParameter->isPack) return true;
-  }
-
-  return false;
-}
-
-auto Binder::BindClass::templateParameterConstraintsEquivalent(
-    TemplateDeclarationAST* existingTemplateDecl,
-    TemplateDeclarationAST* newTemplateDecl) const -> bool {
-  auto constraintOf =
-      [](TemplateParameterAST* parameter) -> TypeConstraintAST* {
-    auto constrained = ast_cast<ConstraintTypeParameterAST>(parameter);
-    return constrained ? constrained->typeConstraint : nullptr;
-  };
-
-  auto existingIt = ListView{existingTemplateDecl->templateParameterList};
-  auto newIt = ListView{newTemplateDecl->templateParameterList};
-
-  auto existingCursor = existingIt.begin();
-  auto newCursor = newIt.begin();
-
-  for (; existingCursor != existingIt.end() && newCursor != newIt.end();
-       ++existingCursor, ++newCursor) {
-    auto existingConstraint = constraintOf(*existingCursor);
-    auto newConstraint = constraintOf(*newCursor);
-
-    if (!existingConstraint && !newConstraint) continue;
-    if (!existingConstraint || !newConstraint) return false;
-    if (existingConstraint->identifier != newConstraint->identifier)
-      return false;
-    if (!templateArgListsEquivalent(existingConstraint->templateArgumentList,
-                                    newConstraint->templateArgumentList))
-      return false;
-  }
-
-  return true;
-}
-
 auto Binder::BindClass::isTrueRedefinition(
     ClassSymbol* specialization, SimpleTemplateIdAST* newTemplateId) const
     -> bool {
@@ -302,23 +190,8 @@ auto Binder::BindClass::isTrueRedefinition(
 
   if (!existingTemplateDecl) return false;
 
-  if (templateParameterCount(existingTemplateDecl) !=
-      templateParameterCount(declSpecs.templateHead)) {
-    return false;
-  }
-
-  if (hasPackTemplateParameter(existingTemplateDecl) !=
-      hasPackTemplateParameter(declSpecs.templateHead)) {
-    return false;
-  }
-
-  if (existingTemplateDecl->requiresClause ||
-      declSpecs.templateHead->requiresClause) {
-    return false;
-  }
-
-  if (!templateParameterConstraintsEquivalent(existingTemplateDecl,
-                                              declSpecs.templateHead)) {
+  if (!areTemplateHeadsEquivalentForRedeclaration(
+          binder.unit_, existingTemplateDecl, declSpecs.templateHead)) {
     return false;
   }
 
@@ -329,8 +202,8 @@ auto Binder::BindClass::isTrueRedefinition(
       auto existingTemplateId =
           ast_cast<SimpleTemplateIdAST>(existingClassSpec->unqualifiedId);
       if (existingTemplateId) {
-        if (!templateArgListsEquivalent(
-                existingTemplateId->templateArgumentList,
+        if (!areTemplateArgumentListsSyntacticallyEquivalent(
+                binder.unit_, existingTemplateId->templateArgumentList,
                 newTemplateId->templateArgumentList)) {
           return false;
         }

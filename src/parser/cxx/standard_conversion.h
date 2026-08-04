@@ -32,6 +32,25 @@ class Arena;
 class Control;
 class TranslationUnit;
 
+enum class InitializationKind {
+  kCopyInitialization,
+  kDirectInitialization,
+  kCopyListInitialization,
+  kDirectListInitialization,
+};
+
+[[nodiscard]] constexpr auto isDirectInitialization(InitializationKind kind)
+    -> bool {
+  return kind == InitializationKind::kDirectInitialization ||
+         kind == InitializationKind::kDirectListInitialization;
+}
+
+[[nodiscard]] constexpr auto isListInitialization(InitializationKind kind)
+    -> bool {
+  return kind == InitializationKind::kCopyListInitialization ||
+         kind == InitializationKind::kDirectListInitialization;
+}
+
 class StandardConversion {
  public:
   explicit StandardConversion(TranslationUnit* unit, bool isC = false);
@@ -39,8 +58,10 @@ class StandardConversion {
   [[nodiscard]] auto initializerListElementType(const Type* targetType)
       -> const Type*;
 
-  [[nodiscard]] auto computeConversionSequence(ExpressionAST* expr,
-                                               const Type* targetType)
+  [[nodiscard]] auto computeConversionSequence(
+      ExpressionAST* expr, const Type* targetType,
+      InitializationKind initializationKind =
+          InitializationKind::kCopyInitialization)
       -> ImplicitConversionSequence;
 
   void applyConversionSequence(const ImplicitConversionSequence& sequence,
@@ -66,8 +87,10 @@ class StandardConversion {
   [[nodiscard]] auto commonArithmeticType(const Type* a, const Type* b)
       -> const Type*;
 
-  [[nodiscard]] auto convertImplicitly(ExpressionAST*& expr,
-                                       const Type* destinationType) -> bool;
+  [[nodiscard]] auto convertImplicitly(
+      ExpressionAST*& expr, const Type* destinationType,
+      InitializationKind initializationKind =
+          InitializationKind::kCopyInitialization) -> bool;
 
   [[nodiscard]] auto convertClassOperandForBuiltinOperator(ExpressionAST*& expr)
       -> bool;
@@ -163,6 +186,27 @@ class StandardConversion {
   [[nodiscard]] auto getQualificationCombinedType(
       const Type* left, const Type* right, bool& didChangeTypeOrQualifiers)
       -> const Type*;
+
+  [[nodiscard]] auto instantiateConversionFunctionTemplate(
+      FunctionSymbol* convFunc, const Type* targetType, ExpressionAST* expr)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto hasUniqueNonVirtualBase(const ClassType* derived,
+                                             const ClassType* base) -> bool;
+
+  [[nodiscard]] auto decompositionCvQualifiers(const Type* type) const
+      -> CvQualifiers;
+
+  [[nodiscard]] auto hasSimilarArrayBound(const Type* source,
+                                          const Type* target) const -> bool;
+
+  [[nodiscard]] auto isQualificationConversion(const Type* source,
+                                               const Type* target,
+                                               int level) const -> bool;
+
+  [[nodiscard]] auto isMemberPointeeConvertible(const Type* source,
+                                                const Type* target) const
+      -> bool;
 
   [[nodiscard]] auto stripCv(const Type*& type) -> CvQualifiers;
 

@@ -19,15 +19,18 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/names.h>
+#include <cxx/standard_conversion.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbol_chain.h>
 #include <cxx/views/symbols.h>
@@ -283,6 +286,184 @@ struct Instantiate {
   if (auto fs = symbol_cast<FunctionSymbol>(primary)) return search(fs);
   return nullptr;
 }
+
+[[nodiscard]] auto instantiateBuiltinMakeIntegerSeq(
+    TranslationUnit* unit,
+    const std::vector<TemplateArgument>& templateArguments,
+    SourceLocation instantiationLoc, bool sfinaeContext, bool argsComplete,
+    bool declarationOnly) -> Symbol* {
+  if (templateArguments.size() != 3) return nullptr;
+
+  Symbol* seqClass = nullptr;
+  if (auto symArg = std::get_if<Symbol*>(&templateArguments[0])) {
+    seqClass = template_name_symbol(*symArg);
+  } else if (auto typeArg = std::get_if<const Type*>(&templateArguments[0])) {
+    if (auto classType = type_cast<ClassType>(*typeArg)) {
+      seqClass = template_name_symbol(classType->symbol());
+    }
+  }
+  if (!seqClass || !template_declaration_of(seqClass)) return nullptr;
+
+  auto elementType = template_argument_type(templateArguments[1]);
+  if (!elementType) return nullptr;
+
+  std::optional<std::intmax_t> N;
+  if (auto val = template_argument_value(templateArguments[2])) {
+    auto interp = ASTInterpreter{unit};
+    if (auto intVal = interp.toInt(*val)) {
+      N = *intVal;
+    }
+  } else if (auto expr = std::get_if<ExpressionAST*>(&templateArguments[2])) {
+    auto interp = ASTInterpreter{unit};
+    if (auto val = interp.evaluate(*expr)) {
+      if (auto intVal = interp.toInt(*val)) {
+        N = *intVal;
+      }
+    }
+  }
+  if (!N.has_value() || *N < 0) return nullptr;
+
+  auto ar = unit->arena();
+  List<TemplateArgumentAST*>* expandedArgs = nullptr;
+  List<TemplateArgumentAST*>** it = &expandedArgs;
+
+  auto typeId = TypeIdAST::create(ar);
+  typeId->type = elementType;
+  auto expandedTypeArg = TypeTemplateArgumentAST::create(ar, typeId);
+  *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(expandedTypeArg));
+  it = &(*it)->next;
+
+  for (std::intmax_t i = 0; i < *N; ++i) {
+    std::string spelling = std::format("{}", i);
+    auto literal = unit->control()->integerLiteral(spelling);
+    auto intExpr = IntLiteralExpressionAST::create(
+        ar, literal, ValueCategory::kPrValue, elementType);
+    auto exprArg = ExpressionTemplateArgumentAST::create(ar, intExpr);
+    *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(exprArg));
+    it = &(*it)->next;
+  }
+
+  return ASTRewriter::instantiate(unit, expandedArgs, seqClass,
+                                  instantiationLoc, sfinaeContext, argsComplete,
+                                  declarationOnly);
+}
+
+[[nodiscard]] auto instantiateBuiltinTypePackElement(
+    TranslationUnit* unit, Symbol* symbol,
+    const std::vector<TemplateArgument>& templateArguments) -> Symbol* {
+  if (templateArguments.size() < 2) return nullptr;
+
+  std::optional<std::intmax_t> N;
+  if (auto val = template_argument_value(templateArguments[0])) {
+    auto interp = ASTInterpreter{unit};
+    if (auto intVal = interp.toInt(*val)) {
+      N = *intVal;
+    }
+  } else if (auto expr = std::get_if<ExpressionAST*>(&templateArguments[0])) {
+    auto interp = ASTInterpreter{unit};
+    if (auto val = interp.evaluate(*expr)) {
+      if (auto intVal = interp.toInt(*val)) {
+        N = *intVal;
+      }
+    }
+  }
+
+  auto packSize = static_cast<std::intmax_t>(templateArguments.size() - 1);
+  if (!N.has_value() || *N < 0 || *N >= packSize) return nullptr;
+
+  auto elementType = template_argument_type(templateArguments[1 + *N]);
+  if (!elementType) return nullptr;
+
+  auto alias = unit->control()->newTypeAliasSymbol(nullptr, {});
+  alias->setName(symbol->name());
+  alias->setType(elementType);
+  return alias;
+}
+
+[[nodiscard]] auto instantiateBuiltinCommonType(
+    TranslationUnit* unit,
+    const std::vector<TemplateArgument>& templateArguments,
+    SourceLocation instantiationLoc, bool sfinaeContext, bool argsComplete,
+    bool declarationOnly) -> Symbol* {
+  auto traits = TypeTraits{unit};
+
+  if (templateArguments.size() < 3) return nullptr;
+
+  ClassSymbol* identityClass = nullptr;
+  if (auto identityArgType = template_argument_type(templateArguments[1])) {
+    if (auto identityType = type_cast<ClassType>(identityArgType)) {
+      identityClass = symbol_cast<ClassSymbol>(identityType->symbol());
+    }
+  } else if (auto sym = std::get_if<Symbol*>(&templateArguments[1])) {
+    identityClass = symbol_cast<ClassSymbol>(*sym);
+  }
+  if (!identityClass || !template_declaration_of(identityClass)) return nullptr;
+
+  ClassSymbol* emptyClass = nullptr;
+  if (auto emptyArgType = template_argument_type(templateArguments[2])) {
+    if (auto ctype = type_cast<ClassType>(emptyArgType)) {
+      emptyClass = symbol_cast<ClassSymbol>(ctype->symbol());
+    }
+  } else if (auto sym = std::get_if<Symbol*>(&templateArguments[2])) {
+    emptyClass = symbol_cast<ClassSymbol>(*sym);
+  }
+  if (!emptyClass) return nullptr;
+
+  std::vector<const Type*> operands;
+  for (std::size_t i = 3; i < templateArguments.size(); ++i) {
+    auto type = template_argument_type(templateArguments[i]);
+    if (!type) return nullptr;
+    operands.push_back(type);
+  }
+
+  if (operands.empty()) return emptyClass;
+
+  const Type* result = traits.remove_cvref(operands[0]);
+  for (std::size_t i = 1; i < operands.size(); ++i) {
+    auto next = traits.remove_cvref(operands[i]);
+    if (traits.is_same(result, next)) continue;
+    auto combined = StandardConversion{unit}.commonArithmeticType(result, next);
+    if (!combined) return emptyClass;
+    result = combined;
+  }
+
+  auto ar = unit->arena();
+  List<TemplateArgumentAST*>* expandedArgs = nullptr;
+  List<TemplateArgumentAST*>** it = &expandedArgs;
+
+  auto typeId = TypeIdAST::create(ar);
+  typeId->type = result;
+  auto typeArg = TypeTemplateArgumentAST::create(ar, typeId);
+  *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(typeArg));
+
+  return ASTRewriter::instantiate(unit, expandedArgs, identityClass,
+                                  instantiationLoc, sfinaeContext, argsComplete,
+                                  declarationOnly);
+}
+
+[[nodiscard]] auto instantiateBuiltinTemplate(
+    TranslationUnit* unit, Symbol* symbol, BuiltinTemplateKind builtinKind,
+    const std::vector<TemplateArgument>& templateArguments,
+    SourceLocation instantiationLoc, bool sfinaeContext, bool argsComplete,
+    bool declarationOnly) -> Symbol* {
+  auto expandedArguments = expand_template_arguments(templateArguments);
+
+  switch (builtinKind) {
+    case BuiltinTemplateKind::T___MAKE_INTEGER_SEQ:
+      return instantiateBuiltinMakeIntegerSeq(unit, expandedArguments,
+                                              instantiationLoc, sfinaeContext,
+                                              argsComplete, declarationOnly);
+    case BuiltinTemplateKind::T___TYPE_PACK_ELEMENT:
+      return instantiateBuiltinTypePackElement(unit, symbol, expandedArguments);
+    case BuiltinTemplateKind::T___BUILTIN_COMMON_TYPE:
+      return instantiateBuiltinCommonType(unit, expandedArguments,
+                                          instantiationLoc, sfinaeContext,
+                                          argsComplete, declarationOnly);
+    default:
+      return nullptr;
+  }
+}
+
 }  // namespace
 
 auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
@@ -383,6 +564,17 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
 
   auto templateArguments = std::move(*subst).templateArguments();
 
+  auto identifier = name_cast<Identifier>(symbol->name());
+  if (identifier &&
+      identifier->builtinTemplate() != BuiltinTemplateKind::T_NONE) {
+    auto builtinKind = identifier->builtinTemplate();
+    auto result = instantiateBuiltinTemplate(
+        unit, symbol, builtinKind, templateArguments, instantiationLoc,
+        sfinaeContext, argsComplete, declarationOnly);
+    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
+    return result;
+  }
+
   if (symbol_cast<FunctionSymbol>(symbol) &&
       static_cast<int>(templateArguments.size()) <
           templateParameterCount(templateDecl)) {
@@ -460,6 +652,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   auto parentScope = symbol->enclosingNonTemplateParametersScope();
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
   rewriter.depth_ = templateDecl->depth;
+  rewriter.inheritEnclosingTemplateArguments(parentScope);
   rewriter.binder().setInstantiatingSymbol(symbol);
   rewriter.binder().setInstantiationLoc(instantiationLoc);
   if (declarationOnly) rewriter.setRestrictedToDeclarations(true);
@@ -692,8 +885,8 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
         for (auto candidate : pattern->constructors()) {
           if (!candidate->templateDeclaration()) continue;
           if (candidate->isFriend()) continue;
-          if (!areTemplateHeadsEquivalentForRedeclaration(
-                  unit_, instanceCtor->templateDeclaration(),
+          if (!areFunctionTemplateHeadsEquivalentForRedeclaration(
+                  unit_, pattern, instanceCtor->templateDeclaration(),
                   candidate->templateDeclaration())) {
             continue;
           }
@@ -818,8 +1011,8 @@ void ASTRewriter::retryPendingMemberTemplateAttachment(FunctionSymbol* member) {
       if (!def || def == function) continue;
       auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
       if (!defAst) continue;
-      if (!areTemplateHeadsEquivalentForRedeclaration(
-              unit_, member->templateDeclaration(),
+      if (!areFunctionTemplateHeadsEquivalentForRedeclaration(
+              unit_, pattern, member->templateDeclaration(),
               function->templateDeclaration())) {
         continue;
       }
