@@ -130,6 +130,10 @@ auto main(int argc, char* argv[]) -> int {
 
   const auto& inputFiles = cli.positionals();
 
+  if (cli.opt_fsyntax_only) {
+    cli.opt_fcheck = true;
+  }
+
   if (cli.opt_lsp_test) {
     cli.opt_lsp = true;
   }
