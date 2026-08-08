@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 // Base class member lookup: names inherited from base classes
 // should be found by unqualified lookup in derived classes.

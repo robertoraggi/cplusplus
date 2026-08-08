@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain wasm32 -fcheck %s
+// RUN: %cxx -toolchain wasm32 -fsyntax-only %s
 
 #undef __cplusplus
 #define __cplusplus 201402L

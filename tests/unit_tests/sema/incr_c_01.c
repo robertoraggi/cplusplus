@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -xc %s
+// RUN: %cxx -verify -fsyntax-only -xc %s
 
 enum E { a, b, c };
 

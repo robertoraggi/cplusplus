@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 template <long N, long D>
 struct ratio {

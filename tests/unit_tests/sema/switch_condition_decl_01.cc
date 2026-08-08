@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 // expected-no-diagnostics
 
 int compute() { return 2; }

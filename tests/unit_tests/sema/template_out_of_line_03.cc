@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 template <typename K, typename V>
 struct Map {

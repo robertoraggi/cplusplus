@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 static_assert(__is_same(decltype("hello"), const char (&)[6]));
 static_assert(__is_same(decltype(""), const char (&)[1]));

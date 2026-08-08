@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain wasm32 -verify -fcheck %s
+// RUN: %cxx -toolchain wasm32 -verify -fsyntax-only %s
 
 #include <assert.h>
 #include <complex.h>

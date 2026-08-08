@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -dump-symbols -xc %s | %filecheck %s
+// RUN: %cxx -verify -fsyntax-only -dump-symbols -xc %s | %filecheck %s
 
 enum X {
   A,

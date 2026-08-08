@@ -1,4 +1,4 @@
-// RUN: %cxx -toolchain wasm32 -fcheck %s
+// RUN: %cxx -toolchain wasm32 -fsyntax-only %s
 
 #include <bit>
 #include <cassert>
