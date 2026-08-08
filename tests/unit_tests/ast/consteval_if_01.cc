@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fsyntax-only -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 auto main() -> int {
   if consteval {

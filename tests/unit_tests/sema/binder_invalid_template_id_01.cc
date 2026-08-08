@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 template <typename T>
 // expected-note@+1 {{candidate function not viable: template argument deduction failed}}

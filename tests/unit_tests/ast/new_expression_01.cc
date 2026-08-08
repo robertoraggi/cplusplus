@@ -1,4 +1,4 @@
-// RUN: %cxx -fcheck -verify -ast-dump %s | %filecheck %s --match-full-lines
+// RUN: %cxx -fsyntax-only -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 template <typename T>
 auto make(void* where, T init) {

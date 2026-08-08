@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 struct BothDefaulted {
   BothDefaulted& operator=(const BothDefaulted&) = default;

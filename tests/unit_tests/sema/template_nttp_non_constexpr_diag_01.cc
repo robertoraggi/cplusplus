@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -fstrict-templates %s
+// RUN: %cxx -verify -fsyntax-only -fstrict-templates %s
 
 template <int N>
 struct Box {};

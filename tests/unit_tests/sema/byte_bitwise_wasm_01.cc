@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -toolchain wasm32 %s
+// RUN: %cxx -verify -fsyntax-only -toolchain wasm32 %s
 // expected-no-diagnostics
 
 #include <cstddef>

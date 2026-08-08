@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 // Variable template partial specialization: base case and recursive evaluation
 template <long _Xp, long _Yp>

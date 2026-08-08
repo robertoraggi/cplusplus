@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck %s
+// RUN: %cxx -verify -fsyntax-only %s
 
 auto main() -> int {
   static_assert(__is_same(decltype(-'a'), int));

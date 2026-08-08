@@ -1,4 +1,4 @@
-// RUN: %cxx -verify -fcheck -freport-missing-types  %s
+// RUN: %cxx -verify -fsyntax-only -freport-missing-types  %s
 
 // clang-format off
 
