@@ -585,7 +585,11 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
         if (auto literal = spelledIntegerLiteral(var, copy->type))
           return literal;
 
-        if (var->initializer()) return rewrite.expression(var->initializer());
+        if (auto initializer = var->initializer()) {
+          if (rewrite.retainsEnclosingTemplateLevels())
+            return initializer->clone(arena());
+          return rewrite.expression(initializer);
+        }
       }
     }
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
@@ -606,8 +610,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
         (fn->templateDeclaration() || fn->isSpecialization())) {
       auto templateId = ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId);
       if (templateId && templateId->identifier) {
-        if (auto cls = symbol_cast<ClassSymbol>(
-                fn->enclosingNonTemplateParametersScope())) {
+        if (auto cls = symbol_cast<ClassSymbol>(fn->parent())) {
           if (auto instCls = symbol_cast<ClassSymbol>(rewrite.remapSymbol(cls));
               instCls && instCls != cls) {
             auto cf = views::find_function(

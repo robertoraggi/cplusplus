@@ -348,7 +348,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
     auto typeChecker = TypeChecker{unit_};
     typeChecker.setScope(binder_.scope());
-    typeChecker.check_init_declarator(copy);
+    typeChecker.check_init_declarator(copy, declSpecs.typeSpecifier());
   }
 
   return copy;

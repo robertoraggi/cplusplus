@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
@@ -61,6 +62,17 @@ constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
   if (name.empty()) return "the unnamed namespace";
 
   return std::format("namespace '{}'", name);
+}
+
+[[nodiscard]] auto delegationReaches(FunctionSymbol* target,
+                                     FunctionSymbol* origin) -> bool {
+  std::unordered_set<FunctionSymbol*> visited;
+  for (auto current = target; current;
+       current = current->delegatingConstructor()) {
+    if (current == origin) return true;
+    if (!visited.insert(current).second) return false;
+  }
+  return false;
 }
 
 [[nodiscard]] auto is_unresolved_id(ExpressionAST* expr) -> bool {
@@ -193,10 +205,11 @@ struct IsPotentiallyThrowing {
   }
 };
 
-[[nodiscard]] auto isPotentiallyThrowing(ExpressionAST* expr) -> bool {
+}  // namespace
+
+auto TypeChecker::isPotentiallyThrowing(ExpressionAST* expr) -> bool {
   return IsPotentiallyThrowing{}.apply(expr);
 }
-}  // namespace
 
 struct TypeChecker::Visitor {
   TypeChecker& check;
@@ -823,8 +836,7 @@ auto TypeChecker::Visitor::add_implicit_object_cv(const Type* fieldType,
   auto func = enclosing_function();
   if (!func) return fieldType;
 
-  auto funcClass =
-      symbol_cast<ClassSymbol>(func->enclosingNonTemplateParametersScope());
+  auto funcClass = symbol_cast<ClassSymbol>(func->parent());
 
   if (!funcClass) return fieldType;
   if (!traits.is_base_of(fieldClass->type(), funcClass->type()))
@@ -1300,36 +1312,32 @@ auto TypeChecker::Visitor::resolve_call_overload(
       }
     }
 
+    auto constraintsSatisfied =
+        ASTRewriter::evaluateAssociatedConstraints(check.unit_, func);
+    if (!constraintsSatisfied.has_value()) {
+      hasDependentTemplateCandidate = true;
+      continue;
+    }
+    if (!*constraintsSatisfied) {
+      reject(func, "constraints not satisfied");
+      continue;
+    }
+
     Candidate cand{func};
     cand.viable = true;
     cand.fromTemplate = templateCandidate;
     cand.deducedTemplateArgs = deducedArgsForCandidate;
 
-    if (isMemberCall && func->isImplicitObjectMemberFunction()) {
-      auto funcCv = type->cvQualifiers();
-      auto funcRef = type->refQualifier();
-
-      if (!cv_is_subset_of(objectCv, funcCv)) {
-        reject(func,
-               std::format("'this' argument has type '{}', but function is "
-                           "not marked {}",
-                           to_string(objectType),
-                           is_const(objectCv) ? "const" : "volatile"));
+    if (isMemberCall) {
+      auto objectConversion = resolution.implicitObjectArgumentConversion(
+          func, {.type = objectType,
+                 .cv = objectCv,
+                 .valueCategory = objectValueCategory});
+      if (!objectConversion) {
+        reject(func, objectConversion.error());
         continue;
       }
-
-      if (funcRef == RefQualifier::kLvalue &&
-          objectValueCategory == ValueCategory::kPrValue) {
-        reject(func, "expects an lvalue for the implicit object argument");
-        continue;
-      }
-      if (funcRef == RefQualifier::kRvalue &&
-          objectValueCategory == ValueCategory::kLValue) {
-        reject(func, "expects an rvalue for the implicit object argument");
-        continue;
-      }
-
-      cand.exactCvMatch = (objectCv == funcCv);
+      cand.objectConversion = *objectConversion;
     }
 
     auto paramIt = type->parameterTypes().begin();
@@ -1369,7 +1377,7 @@ auto TypeChecker::Visitor::resolve_call_overload(
   }
 
   auto [bestPtr, ambiguous] =
-      resolution.selectBestViableFunction(candidates, isMemberCall, true);
+      resolution.selectBestViableFunction(candidates, true);
 
   if (!bestPtr) {
     if (hasDependentTemplateCandidate) {
@@ -1487,20 +1495,12 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
     Candidate cand{func};
     cand.viable = true;
 
-    if (!func->isStatic()) {
-      auto funcCv = type->cvQualifiers();
-      auto funcRef = type->refQualifier();
-
-      if (!cv_is_subset_of(objectCv, funcCv)) continue;
-      if (funcRef == RefQualifier::kLvalue &&
-          objectValueCategory == ValueCategory::kPrValue)
-        continue;
-      if (funcRef == RefQualifier::kRvalue &&
-          objectValueCategory == ValueCategory::kLValue)
-        continue;
-
-      cand.exactCvMatch = (objectCv == funcCv);
-    }
+    auto objectConversion = resolution.implicitObjectArgumentConversion(
+        func, {.type = baseType,
+               .cv = objectCv,
+               .valueCategory = objectValueCategory});
+    if (!objectConversion) continue;
+    cand.objectConversion = *objectConversion;
 
     auto paramIt = type->parameterTypes().begin();
     auto paramEnd = type->parameterTypes().end();
@@ -1564,7 +1564,7 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
   }
 
   auto [bestPtr, ambiguous] =
-      resolution.selectBestViableFunction(viableCandidates, true, false);
+      resolution.selectBestViableFunction(viableCandidates);
 
   if (!bestPtr) return nullptr;
   if (ambiguous) {
@@ -1631,17 +1631,16 @@ auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
     Candidate cand{func};
     cand.viable = true;
 
-    if (!func->isStatic()) {
-      auto funcCv = type->cvQualifiers();
-      if (!cv_is_subset_of(objectCv, funcCv)) continue;
-      cand.exactCvMatch = (objectCv == funcCv);
-    }
+    auto objectConversion = resolution.implicitObjectArgumentConversion(
+        func, {.type = objectType, .cv = objectCv, .valueCategory = objectVC});
+    if (!objectConversion) continue;
+    cand.objectConversion = *objectConversion;
 
     viableCandidates.push_back(std::move(cand));
   }
 
   auto [bestPtr, ambiguous] =
-      resolution.selectBestViableFunction(viableCandidates, true, false);
+      resolution.selectBestViableFunction(viableCandidates);
   if (!bestPtr || ambiguous) return nullptr;
 
   auto operatorFunc = bestPtr->symbol;
@@ -2324,6 +2323,20 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
     return;
   }
 
+  if (ClassTemplateArgumentDeduction::placeholderClassTemplate(
+          ast->typeSpecifier, check.scope())) {
+    std::vector<ExpressionAST*> arguments;
+    for (auto argument : ListView{ast->expressionList})
+      arguments.push_back(argument);
+
+    auto deduced = check.deduceClassTemplateSpecialization(
+        ast->typeSpecifier, arguments, /*isListInitialization=*/false,
+        /*isCopyInitialization=*/false, ast->lparenLoc);
+
+    if (!deduced) return;
+    ast->type = deduced;
+  }
+
   if (auto classType = type_cast<ClassType>(traits.remove_cv(ast->type))) {
     traits.requireCompleteClass(classType->symbol());
 
@@ -2372,6 +2385,20 @@ void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {
             "excess elements in 'void' initializer");
     }
     return;
+  }
+
+  if (ClassTemplateArgumentDeduction::placeholderClassTemplate(
+          ast->typeSpecifier, check.scope())) {
+    std::vector<ExpressionAST*> arguments;
+    for (auto argument : ListView{ast->bracedInitList->expressionList})
+      arguments.push_back(argument);
+
+    auto deduced = check.deduceClassTemplateSpecialization(
+        ast->typeSpecifier, arguments, /*isListInitialization=*/true,
+        /*isCopyInitialization=*/false, ast->bracedInitList->lbraceLoc);
+
+    if (!deduced) return;
+    ast->type = deduced;
   }
 
   if (auto classType = type_cast<ClassType>(traits.remove_cv(ast->type))) {
@@ -3468,6 +3495,31 @@ void TypeChecker::Visitor::operator()(NoexceptExpressionAST* ast) {
 }
 
 void TypeChecker::Visitor::operator()(NewExpressionAST* ast) {
+  if (ClassTemplateArgumentDeduction::placeholderClassTemplate(
+          ast->typeSpecifierList ? ast->typeSpecifierList->value : nullptr,
+          check.scope())) {
+    std::vector<ExpressionAST*> arguments;
+    bool isListInitialization = false;
+
+    if (auto paren = ast_cast<NewParenInitializerAST>(ast->newInitalizer)) {
+      for (auto argument : ListView{paren->expressionList})
+        arguments.push_back(argument);
+    } else if (auto braced =
+                   ast_cast<NewBracedInitializerAST>(ast->newInitalizer);
+               braced && braced->bracedInitList) {
+      isListInitialization = true;
+      for (auto argument : ListView{braced->bracedInitList->expressionList})
+        arguments.push_back(argument);
+    }
+
+    auto deduced = check.deduceClassTemplateSpecialization(
+        ast->typeSpecifierList->value, arguments, isListInitialization,
+        /*isCopyInitialization=*/false, ast->newLoc);
+
+    if (!deduced) return;
+    ast->objectType = deduced;
+  }
+
   auto objectType = traits.remove_reference(ast->objectType);
 
   if (auto arrayType = type_cast<BoundedArrayType>(ast->objectType)) {
@@ -4540,8 +4592,7 @@ void TypeChecker::bind_template_parameter_base_initializers(
   auto functionSymbol = symbol_cast<FunctionSymbol>(scope_);
   if (!functionSymbol || !functionSymbol->isConstructor()) return;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(
-      functionSymbol->enclosingNonTemplateParametersScope());
+  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
   if (!classSymbol) return;
 
   auto control = unit_->control();
@@ -4576,8 +4627,7 @@ void TypeChecker::check_mem_initializers(
 
   if (!functionSymbol->isConstructor()) return;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(
-      functionSymbol->enclosingNonTemplateParametersScope());
+  auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
   if (!classSymbol) return;
 
   auto control = unit_->control();
@@ -4611,6 +4661,27 @@ void TypeChecker::check_mem_initializers(
                                        ValueCategory::kPrValue, nullptr);
   };
 
+  auto completeResolvedConstructorCall = [&](MemInitializerAST* memInit) {
+    auto parameters = StandardConversion::parameters(memInit->constructor);
+    auto args = collectArgs(memInit);
+
+    for (size_t i = 0; i < args.size() && i < parameters.size(); ++i)
+      (void)implicit_conversion(*args[i], parameters[i]->type());
+
+    if (args.size() >= parameters.size()) return;
+
+    List<ExpressionAST*>** tail = nullptr;
+    if (auto paren = ast_cast<ParenMemInitializerAST>(memInit))
+      tail = &paren->expressionList;
+    else if (auto braced = ast_cast<BracedMemInitializerAST>(memInit);
+             braced && braced->bracedInitList)
+      tail = &braced->bracedInitList->expressionList;
+    if (!tail) return;
+
+    while (*tail) tail = &(*tail)->next;
+    append_default_arguments(memInit->constructor, tail);
+  };
+
   for (auto memInit : ListView{ast->memInitializerList}) {
     UnqualifiedIdAST* unqualifiedId = nullptr;
     if (auto paren = ast_cast<ParenMemInitializerAST>(memInit))
@@ -4620,6 +4691,7 @@ void TypeChecker::check_mem_initializers(
 
     if (!unqualifiedId) {
       if (memInit->symbol) explicitlyInitialized.insert(memInit->symbol);
+      if (memInit->constructor) completeResolvedConstructorCall(memInit);
       continue;
     }
 
@@ -4657,11 +4729,13 @@ void TypeChecker::check_mem_initializers(
         continue;
       }
 
-      if (resolution.best->symbol == functionSymbol) {
+      if (delegationReaches(resolution.best->symbol, functionSymbol)) {
         error(memInit->firstSourceLocation(),
               "constructor delegates to itself");
         continue;
       }
+
+      functionSymbol->setDelegatingConstructor(resolution.best->symbol);
 
       memInit->symbol = classSymbol;
       memInit->constructor = resolution.best->symbol;
@@ -4767,10 +4841,14 @@ void TypeChecker::check_mem_initializers(
                braced && braced->bracedInitList)
         memInitArguments = &braced->bracedInitList->expressionList;
 
-      ExpressionAST* initializer = memInitializerClause(memInit);
-      memInit->constructor = check_class_initializer(
-          targetType, initializer, memInit->firstSourceLocation(),
-          memInitArguments);
+      if (memInit->constructor) {
+        completeResolvedConstructorCall(memInit);
+      } else {
+        ExpressionAST* initializer = memInitializerClause(memInit);
+        memInit->constructor = check_class_initializer(
+            targetType, initializer, memInit->firstSourceLocation(),
+            memInitArguments);
+      }
     } else if (unit_->typeTraits().is_array(targetType)) {
       auto braced = ast_cast<BracedMemInitializerAST>(memInit);
       auto paren = ast_cast<ParenMemInitializerAST>(memInit);

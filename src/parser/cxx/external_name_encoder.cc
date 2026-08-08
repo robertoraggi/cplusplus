@@ -36,7 +36,7 @@ namespace cxx {
 namespace {
 [[nodiscard]] auto enclosing_class_or_namespace(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
-  auto parent = symbol->enclosingNonTemplateParametersScope();
+  auto parent = symbol->parent();
   if (!parent || !parent->isClassOrNamespace()) return nullptr;
   return parent;
 }

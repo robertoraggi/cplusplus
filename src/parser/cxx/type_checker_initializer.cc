@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
@@ -294,19 +295,15 @@ struct NarrowingChecker {
                                                  const Type* targetType)
       -> bool {
     if (!ctx.traits.is_floating_point(targetType)) return false;
-    if (!std::isfinite(value)) return false;
 
-    if (type_cast<FloatType>(targetType)) {
-      auto conv = static_cast<float>(value);
-      return std::isfinite(conv) && static_cast<double>(conv) == value;
-    }
-    if (type_cast<DoubleType>(targetType)) return true;
-    if (type_cast<LongDoubleType>(targetType)) {
-      auto conv = static_cast<long double>(value);
-      return std::isfinite(static_cast<double>(conv)) &&
-             static_cast<double>(conv) == value;
-    }
-    return false;
+    const bool convertedIsFinite =
+        type_cast<FloatType>(targetType)
+            ? std::isfinite(static_cast<float>(value))
+            : std::isfinite(static_cast<long double>(value));
+
+    if (!std::isfinite(value)) return !convertedIsFinite;
+
+    return convertedIsFinite;
   }
 };
 
@@ -1013,6 +1010,8 @@ struct ClassInitChecker {
   void checkConstructorInit(Target& target, ClassSymbol* classSymbol,
                             bool diagnoseUnresolved);
 
+  void reportRejectedConstructors(const ConstructorResult& resolution);
+
   void appendDefaultArguments(Target& target, FunctionSymbol* constructor);
 
   [[nodiscard]] auto arguments(Target& target) -> std::vector<ExpressionAST*>;
@@ -1129,6 +1128,11 @@ void ClassInitChecker::checkConstructorInit(Target& target,
   OverloadResolution overloadRes(ctx.unit);
   auto resolution = overloadRes.resolveConstructor(classSymbol, args);
 
+  auto location = target.location;
+  if (!location && target.initializer)
+    location = target.initializer->firstSourceLocation();
+  if (!location) location = classSymbol->location();
+
   auto bracedInitList = InitUnwrapper::getBracedInitList(target.initializer);
   if (bracedInitList &&
       tryInitializerListConstructor(target, bracedInitList, classSymbol,
@@ -1136,13 +1140,23 @@ void ClassInitChecker::checkConstructorInit(Target& target,
     return;
 
   if (!resolution.best) {
-    if (diagnoseUnresolved)
-      ctx.error(target.location, "no matching constructor");
+    if (diagnoseUnresolved) {
+      ctx.error(
+          location,
+          std::format("no matching constructor for initialization of '{}'",
+                      to_string(classSymbol->type())));
+      reportRejectedConstructors(resolution);
+    }
     return;
   }
 
   if (resolution.ambiguous) {
-    ctx.error(target.location, "constructor call is ambiguous");
+    ctx.error(location, std::format("call to constructor of '{}' is ambiguous",
+                                    to_string(classSymbol->type())));
+    for (const auto& candidate : resolution.candidates) {
+      if (!candidate.viable || !candidate.symbol) continue;
+      ctx.checker.note(candidate.symbol->location(), "candidate constructor");
+    }
     return;
   }
 
@@ -1150,6 +1164,23 @@ void ClassInitChecker::checkConstructorInit(Target& target,
   ctx.checker.reportDeletedFunction(target.constructor, target.location);
   applyArgumentConversions(target, resolution.best->conversions);
   appendDefaultArguments(target, target.constructor);
+}
+
+void ClassInitChecker::reportRejectedConstructors(
+    const ConstructorResult& resolution) {
+  std::vector<std::pair<SourceLocation, std::string>> reported;
+
+  for (const auto& [symbol, reason] : resolution.rejected) {
+    if (!symbol) continue;
+
+    std::pair entry{symbol->location(), reason};
+    if (std::ranges::contains(reported, entry)) continue;
+    reported.push_back(entry);
+
+    ctx.checker.note(
+        symbol->location(),
+        std::format("candidate constructor not viable: {}", reason));
+  }
 }
 
 auto ClassInitChecker::arguments(Target& target)
@@ -1370,6 +1401,8 @@ struct TypeDeducer {
 
   void deduceArraySize(VariableSymbol* var);
   void deduceAutoType(VariableSymbol* var);
+  void deduceClassTemplateArguments(VariableSymbol* var,
+                                    SpecifierAST* typeSpecifier);
 
  private:
   void deduceArraySizeFromBraced(VariableSymbol* var,
@@ -1488,6 +1521,32 @@ static auto deduceCompoundAuto(InitContext& ctx, const Type* P, const Type* A)
   return nullptr;
 }
 
+void TypeDeducer::deduceClassTemplateArguments(VariableSymbol* var,
+                                               SpecifierAST* typeSpecifier) {
+  if (!ClassTemplateArgumentDeduction::placeholderClassTemplate(
+          typeSpecifier, ctx.checker.scope()))
+    return;
+
+  auto initializer = var->initializer();
+
+  const auto initializationKind =
+      InitUnwrapper::initializationKind(initializer);
+
+  auto deduced = ctx.checker.deduceClassTemplateSpecialization(
+      typeSpecifier, InitUnwrapper::collectArgs(initializer),
+      InitUnwrapper::getBracedInitList(initializer) != nullptr,
+      initializationKind == InitializationKind::kCopyInitialization ||
+          initializationKind == InitializationKind::kCopyListInitialization,
+      var->location());
+
+  if (!deduced) return;
+
+  const auto cvQualifiers = ctx.traits.get_cv_qualifiers(var->type());
+  var->setType(cvQualifiers != CvQualifiers::kNone
+                   ? ctx.control->getQualType(deduced, cvQualifiers)
+                   : deduced);
+}
+
 void TypeDeducer::deduceAutoType(VariableSymbol* var) {
   auto declType = var->type();
   if (!containsPlaceholderType(declType)) return;
@@ -1594,9 +1653,10 @@ struct InitDeclaratorChecker {
         typeDeducer{ctx},
         constexprEval{ctx} {}
 
-  void checkInitDeclarator(InitDeclaratorAST* ast);
+  void checkInitDeclarator(InitDeclaratorAST* ast, SpecifierAST* typeSpecifier);
   void checkVariable(VariableSymbol* var, ExpressionAST*& initializer,
-                     SourceLocation location);
+                     SourceLocation location,
+                     SpecifierAST* typeSpecifier = nullptr);
   void checkBracedInitList(const Type* type, BracedInitListAST* ast,
                            InitializationKind initializationKind);
   void checkFieldInitializer(FieldSymbol* field);
@@ -1612,20 +1672,23 @@ struct InitDeclaratorChecker {
   void evaluateConstValue(VariableSymbol* var);
 };
 
-void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast) {
+void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast,
+                                                SpecifierAST* typeSpecifier) {
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
 
   checkVariable(var, ast->initializer,
-                ctx.checker.getInitDeclaratorLocation(ast, var));
+                ctx.checker.getInitDeclaratorLocation(ast, var), typeSpecifier);
 }
 
 void InitDeclaratorChecker::checkVariable(VariableSymbol* var,
                                           ExpressionAST*& initializer,
-                                          SourceLocation location) {
+                                          SourceLocation location,
+                                          SpecifierAST* typeSpecifier) {
   var->setInitializer(initializer);
 
   typeDeducer.deduceArraySize(var);
+  typeDeducer.deduceClassTemplateArguments(var, typeSpecifier);
   typeDeducer.deduceAutoType(var);
 
   if (var->isConstexpr()) var->setType(ctx.traits.add_const(var->type()));
@@ -1744,7 +1807,8 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var) {
   }
 
   if (var->isConstexpr() && !var->constValue().has_value()) {
-    auto dep = isDependent(ctx.unit, var->type());
+    auto dep = var->templateParameters() != nullptr;
+    if (!dep) dep = isDependent(ctx.unit, var->type());
     if (!dep && var->initializer())
       dep = isDependent(ctx.unit, var->initializer());
     if (!dep)
@@ -1753,8 +1817,9 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var) {
 }
 }  // namespace
 
-void TypeChecker::check_init_declarator(InitDeclaratorAST* ast) {
-  InitDeclaratorChecker{*this}.checkInitDeclarator(ast);
+void TypeChecker::check_init_declarator(InitDeclaratorAST* ast,
+                                        SpecifierAST* typeSpecifier) {
+  InitDeclaratorChecker{*this}.checkInitDeclarator(ast, typeSpecifier);
 }
 
 void TypeChecker::check_condition_declaration(ConditionExpressionAST* ast) {
@@ -1807,5 +1872,47 @@ auto TypeChecker::check_class_initializer(const Type* targetType,
     -> FunctionSymbol* {
   return InitDeclaratorChecker{*this}.checkClassInitializer(
       targetType, initializer, location, argumentList);
+}
+
+auto TypeChecker::deduceClassTemplateSpecialization(
+    SpecifierAST* typeSpecifier, const std::vector<ExpressionAST*>& arguments,
+    bool isListInitialization, bool isCopyInitialization,
+    SourceLocation location) -> const Type* {
+  auto primaryTemplate =
+      ClassTemplateArgumentDeduction::placeholderClassTemplate(typeSpecifier,
+                                                               scope_);
+  if (!primaryTemplate) return nullptr;
+
+  for (auto argument : arguments) {
+    if (!argument || !argument->type) return nullptr;
+    if (isDependent(unit_, argument->type)) return nullptr;
+  }
+
+  ClassTemplateArgumentDeduction::Initializer initializer{
+      .arguments = arguments,
+      .isListInitialization = isListInitialization,
+      .isCopyInitialization = isCopyInitialization};
+
+  ClassTemplateArgumentDeduction deduction{unit_};
+  auto deduced =
+      deduction.deduce(primaryTemplate, initializer, location, scope_);
+
+  if (!deduced) {
+    if (deduction.selectedExplicitOnly()) {
+      error(
+          location,
+          std::format("class template argument deduction for '{}' selected an "
+                      "explicit deduction guide for copy-list-initialization",
+                      to_string(primaryTemplate->name())));
+    } else {
+      error(location,
+            std::format("no viable constructor or deduction guide for "
+                        "deduction of template arguments of '{}'",
+                        to_string(primaryTemplate->name())));
+    }
+    return nullptr;
+  }
+
+  return deduced->type();
 }
 }  // namespace cxx

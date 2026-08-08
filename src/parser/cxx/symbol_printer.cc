@@ -186,9 +186,9 @@ struct DumpSymbols {
       visit(*this, baseClass);
       --depth;
     }
-    if (!symbol->constructors().empty()) {
+    if (!symbol->declaredConstructors().empty()) {
       ++depth;
-      for (auto constructor : symbol->constructors()) {
+      for (auto constructor : symbol->declaredConstructors()) {
         if (constructor->canonical() != constructor) continue;
         visit(*this, constructor);
       }

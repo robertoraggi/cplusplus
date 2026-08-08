@@ -719,9 +719,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
 
   copy->symbol = ast->symbol;
 
-  if (symbol_cast<TypeParameterSymbol>(ast->symbol)) {
+  if (symbol_cast<TypeParameterSymbol>(ast->symbol) ||
+      symbol_cast<ConstraintTypeParameterSymbol>(ast->symbol)) {
     if (auto substituted = rewrite.substitutedSymbol(ast->symbol)) {
       copy->symbol = substituted;
+    }
+    if (auto written = rewrite.writtenTypeArgumentSpecifierFor(ast->symbol)) {
+      copy->nestedNameSpecifier = written->nestedNameSpecifier;
+      copy->unqualifiedId = written->unqualifiedId;
+      copy->isTemplateIntroduced = written->isTemplateIntroduced;
     }
   } else if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol) &&
              !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {

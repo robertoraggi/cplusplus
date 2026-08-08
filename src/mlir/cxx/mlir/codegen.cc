@@ -764,8 +764,7 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
   mlir::LLVM::DIScopeAttr scope;
 
   if (functionSymbol->isImplicitObjectMemberFunction()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(
-        functionSymbol->enclosingNonTemplateParametersScope());
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
     scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
         convertDebugType(classSymbol->type()));
   }
@@ -974,8 +973,8 @@ auto Codegen::loadEnclosingObject(mlir::Location loc, ClassSymbol* targetClass,
                                   ClassSymbol*& objectClass) -> mlir::Value {
   objectClass = targetClass;
   if (currentFunctionSymbol_) {
-    if (auto enclosing = symbol_cast<ClassSymbol>(
-            currentFunctionSymbol_->enclosingNonTemplateParametersScope())) {
+    if (auto enclosing =
+            symbol_cast<ClassSymbol>(currentFunctionSymbol_->parent())) {
       objectClass = enclosing;
     }
   }
@@ -1630,8 +1629,7 @@ auto Codegen::computeFunctionSignature(const FunctionType* functionType,
   }
 
   if (functionSymbol && functionSymbol->isImplicitObjectMemberFunction()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(
-        functionSymbol->enclosingNonTemplateParametersScope());
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
     inputTypes.push_back(mlir::cxx::PointerType::get(
         context_, convertType(classSymbol->type())));
   }
@@ -2167,9 +2165,7 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
       }
 
       if (initExpr) {
-        auto result = expression(initExpr);
-        mlir::cxx::StoreOp::create(builder_, getLocation(initLoc), result.value,
-                                   addr, getAlignment(defVar->type()));
+        (void)emitPrvalueInto(addr, defVar->type(), initExpr, initLoc);
       }
     }
   }

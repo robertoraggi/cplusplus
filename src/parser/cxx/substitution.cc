@@ -257,10 +257,12 @@ auto Substitution::CollectRawTemplateArgument::operator()(
 
   auto interp = ASTInterpreter{unit};
 
-  auto value = interp.evaluate(expression);
+  const auto isDependent = isDependentTemplateArgument(subst.unit_, ast);
+
+  auto value = isDependent ? std::nullopt : interp.evaluate(expression);
 
   if (!value.has_value()) {
-    if (isDependentTemplateArgument(subst.unit_, ast)) {
+    if (isDependent) {
       auto expandedPattern = expression;
       if (auto packExpansion =
               ast_cast<PackExpansionExpressionAST>(expandedPattern)) {

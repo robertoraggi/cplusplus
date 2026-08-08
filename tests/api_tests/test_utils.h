@@ -54,7 +54,6 @@ struct Source {
 
     unit.parse({
         .checkTypes = true,
-        .fuzzyTemplateResolution = false,
         .templateInstantiation = templateInstantiation,
         .reflect = true,
     });

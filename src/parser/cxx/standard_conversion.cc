@@ -1362,6 +1362,10 @@ auto StandardConversion::computeConversionSequence(
       traits.requireCompleteClass(destClass);
 
       for (auto ctor : destClass->convertingConstructors()) {
+        if (isExcludedInheritedConstructor(traits, ctor, destClass,
+                                           /*argCount=*/1))
+          continue;
+
         if (ctor->templateDeclaration() && !ctor->isSpecialization()) {
           auto args = make_list_node<ExpressionAST>(unit_->arena(), expr);
 

@@ -76,7 +76,7 @@ struct IsDependent {
             tp && !tp->isExplicitTemplateSpecialization())
           return true;
       } else if (auto lambda = symbol_cast<LambdaSymbol>(scope)) {
-        if (lambda->isTemplate()) return true;
+        if (lambda->isTemplate() || lambda->isInTemplate()) return true;
       }
     }
     return false;
@@ -205,6 +205,10 @@ struct IsDependent {
 
   auto operator()(const ClassType* type) -> bool {
     auto sym = type->symbol();
+
+    if (auto ownParameters = sym->templateParameters();
+        ownParameters && !ownParameters->members().empty())
+      return true;
 
     if (sym->templateDeclaration() && !sym->primaryTemplateSymbol())
       return true;
@@ -1009,6 +1013,11 @@ auto isEnclosedInDependentTemplate(TranslationUnit* unit, ScopeSymbol* scope,
                                    bool stopAtConcreteSpecialization) -> bool {
   return IsDependent{unit}.enclosedInDependentTemplate(
       scope, stopAtConcreteSpecialization);
+}
+
+auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool {
+  return IsDependent{nullptr}.enclosedInDependentTemplate(
+      scope, /*stopAtConcreteSpecialization=*/false);
 }
 
 auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool {

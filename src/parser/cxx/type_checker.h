@@ -64,7 +64,8 @@ class TypeChecker {
 
   auto check_bool_condition(ExpressionAST*& ast) -> bool;
   void check_integral_condition(ExpressionAST*& ast);
-  void check_init_declarator(InitDeclaratorAST* initDecl);
+  void check_init_declarator(InitDeclaratorAST* initDecl,
+                             SpecifierAST* typeSpecifier);
   void check_condition_declaration(ConditionExpressionAST* ast);
   void check_field_initializer(FieldSymbol* field);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
@@ -83,9 +84,16 @@ class TypeChecker {
   [[nodiscard]] auto deduceAutoType(const Type* declaredType,
                                     const Type* initializerType) -> const Type*;
 
+  [[nodiscard]] static auto isPotentiallyThrowing(ExpressionAST* expr) -> bool;
+
   [[nodiscard]] auto deducePlaceholderType(const Type* declaredType,
                                            ExpressionAST* initializer)
       -> const Type*;
+
+  [[nodiscard]] auto deduceClassTemplateSpecialization(
+      SpecifierAST* typeSpecifier, const std::vector<ExpressionAST*>& arguments,
+      bool isListInitialization, bool isCopyInitialization,
+      SourceLocation location) -> const Type*;
 
   auto getInitDeclaratorLocation(InitDeclaratorAST* ast,
                                  VariableSymbol* var) const -> SourceLocation;

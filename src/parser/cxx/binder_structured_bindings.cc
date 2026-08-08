@@ -80,7 +80,7 @@ auto Binder::declareStructuredBindingEntity(
   TypeChecker check{unit_};
   check.setScope(scope());
   check.setReportErrors(unit_->config().checkTypes);
-  check.check_init_declarator(initDeclarator);
+  check.check_init_declarator(initDeclarator, /*typeSpecifier=*/nullptr);
 
   return initDeclarator;
 }

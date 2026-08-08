@@ -52,7 +52,9 @@ class [[nodiscard]] ASTRewriter {
                           List<TemplateArgumentAST*>* templateArgumentList,
                           Symbol* symbol, SourceLocation instantiationLoc = {},
                           bool sfinaeContext = false, bool argsComplete = false,
-                          bool declarationOnly = false) -> Symbol*;
+                          bool declarationOnly = false,
+                          bool retainEnclosingTemplateLevels = false)
+      -> Symbol*;
 
   static auto instantiateForArgs(
       TranslationUnit* unit, List<TemplateArgumentAST*>* deducedArguments,
@@ -85,6 +87,16 @@ class [[nodiscard]] ASTRewriter {
       const std::vector<TemplateArgument>& templateArguments, int depth,
       ScopeSymbol* scope) -> ExpressionAST*;
 
+  static auto substituteParameterClause(
+      TranslationUnit* unit, ParameterDeclarationClauseAST* parameters,
+      const std::vector<TemplateArgument>& templateArguments, int depth,
+      ScopeSymbol* scope) -> ParameterDeclarationClauseAST*;
+
+  static auto substituteParameterTypes(
+      TranslationUnit* unit, ParameterDeclarationClauseAST* parameters,
+      const std::vector<TemplateArgument>& templateArguments, int depth,
+      ScopeSymbol* scope) -> std::optional<std::vector<const Type*>>;
+
   static auto findPartialSpecializationPattern(
       TranslationUnit* unit, ClassSymbol* primary,
       List<TemplateArgumentAST*>* templateArgumentList) -> ClassSymbol*;
@@ -100,6 +112,21 @@ class [[nodiscard]] ASTRewriter {
 
   [[nodiscard]] auto templateArgumentFor(Symbol* templateParameter) const
       -> const TemplateArgument*;
+
+  [[nodiscard]] auto writtenArgumentForAliasedParameter(
+      TypeIdAST* patternTypeId) const -> TypeIdAST*;
+
+  [[nodiscard]] auto writtenTypeArgumentSpecifierFor(
+      Symbol* templateParameter) const -> NamedTypeSpecifierAST*;
+
+  [[nodiscard]] auto retainsEnclosingTemplateLevels() const -> bool {
+    return retainsEnclosingTemplateLevels_;
+  }
+
+  void setRetainsEnclosingTemplateLevels(bool value) {
+    retainsEnclosingTemplateLevels_ = value;
+    binder_.setRetainsEnclosingTemplateLevels(value);
+  }
 
   [[nodiscard]] auto substitutedSymbol(Symbol* templateParameter) const
       -> Symbol*;
@@ -141,6 +168,23 @@ class [[nodiscard]] ASTRewriter {
 
   void retryPendingMemberTemplateAttachment(FunctionSymbol* member);
 
+  [[nodiscard]] static auto associatedConstraints(TranslationUnit* unit,
+                                                  Symbol* symbol)
+      -> std::vector<ExpressionAST*>;
+
+  [[nodiscard]] static auto evaluateAssociatedConstraints(TranslationUnit* unit,
+                                                          Symbol* symbol)
+      -> std::optional<bool>;
+
+  [[nodiscard]] static auto checkAssociatedConstraints(
+      TranslationUnit* unit, Symbol* symbol,
+      const std::vector<TemplateArgument>& templateArguments, int depth)
+      -> bool;
+
+  [[nodiscard]] static auto typeConstraintExpression(
+      TranslationUnit* unit, ConstraintTypeParameterSymbol* parameter)
+      -> ExpressionAST*;
+
  private:
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
@@ -156,8 +200,8 @@ class [[nodiscard]] ASTRewriter {
       TranslationUnit* unit, VariableSymbol* variableSymbol,
       const std::vector<TemplateArgument>& templateArguments) -> Symbol*;
 
-  static auto checkRequiresClause(
-      TranslationUnit* unit, Symbol* symbol, RequiresClauseAST* clause,
+  static auto checkConstraintExpression(
+      TranslationUnit* unit, Symbol* symbol, ExpressionAST* constraint,
       const std::vector<TemplateArgument>& templateArguments, int depth)
       -> bool;
 
@@ -354,6 +398,7 @@ class [[nodiscard]] ASTRewriter {
 
   TranslationUnit* unit_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
+  List<TemplateArgumentAST*>* writtenTemplateArgumentList_ = nullptr;
   std::unordered_map<int, std::vector<TemplateArgument>>
       enclosingTemplateArguments_;
   std::vector<Diagnostic> bodyErrors_;
@@ -368,6 +413,7 @@ class [[nodiscard]] ASTRewriter {
   int depth_ = 0;
   ClassSymbol* classInstanceToComplete_ = nullptr;
   bool restrictedToDeclarations_ = false;
+  bool retainsEnclosingTemplateLevels_ = false;
   bool substitutionFailed_ = false;
 
   bool instantiatingFunctionTemplateSpecialization_ = false;

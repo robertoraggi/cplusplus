@@ -207,7 +207,7 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
     return cached;
   }
 
-  auto parentScope = classSymbol->enclosingNonTemplateParametersScope();
+  auto parentScope = classSymbol->parent();
   auto spec = control()->newClassSymbol(parentScope, classSymbol->location());
   spec->setName(classSymbol->name());
   spec->setType(control()->getClassType(spec));
@@ -233,9 +233,14 @@ auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
     return nullptr;
   }
 
-  return ASTRewriter::instantiate(binder.unit_,
-                                  templateId->templateArgumentList,
-                                  typeAliasSymbol, templateId->identifierLoc);
+  const auto retainEnclosingTemplateLevels =
+      inTemplate() && hasDependentTemplateArguments(binder.unit_, templateId);
+
+  return ASTRewriter::instantiate(
+      binder.unit_, templateId->templateArgumentList, typeAliasSymbol,
+      templateId->identifierLoc, /*sfinaeContext=*/false,
+      /*argsComplete=*/false, /*declarationOnly=*/false,
+      retainEnclosingTemplateLevels);
 }
 
 auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
@@ -252,19 +257,19 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
     }
   }
 
-  if (shouldKeepTemplateIdAsDependent(templateId)) return templateId->symbol;
-
   auto resolvedSymbol = templateId->symbol;
   if (auto injected = symbol_cast<InjectedClassNameSymbol>(resolvedSymbol)) {
     resolvedSymbol = injected->classSymbol();
   }
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(resolvedSymbol)) {
-    return resolveClassTemplateId(templateId, classSymbol);
-  }
-
   if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(resolvedSymbol)) {
     return resolveTypeAliasTemplateId(templateId, typeAliasSymbol);
+  }
+
+  if (shouldKeepTemplateIdAsDependent(templateId)) return templateId->symbol;
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(resolvedSymbol)) {
+    return resolveClassTemplateId(templateId, classSymbol);
   }
 
   return templateId->symbol;

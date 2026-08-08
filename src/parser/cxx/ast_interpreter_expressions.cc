@@ -25,6 +25,7 @@
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/lambda_captures.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
@@ -783,6 +784,49 @@ auto ASTInterpreter::fieldOwner(ExpressionAST* ast)
   return nullptr;
 }
 
+auto ASTInterpreter::addressOfLvalue(ExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  while (auto nested = ast_cast<NestedExpressionAST>(ast))
+    ast = nested->expression;
+
+  if (auto idExpr = ast_cast<IdExpressionAST>(ast)) {
+    if (!idExpr->symbol) return std::nullopt;
+    if (symbol_cast<FieldSymbol>(idExpr->symbol)) {
+      if (auto owner = fieldOwner(ast))
+        return std::make_shared<ConstAddress>(owner, idExpr->symbol);
+      return std::nullopt;
+    }
+    return std::make_shared<ConstAddress>(idExpr->symbol);
+  }
+
+  if (auto member = ast_cast<MemberExpressionAST>(ast)) {
+    if (!symbol_cast<FieldSymbol>(member->symbol)) return std::nullopt;
+    if (auto owner = fieldOwner(ast))
+      return std::make_shared<ConstAddress>(owner, member->symbol);
+    return std::nullopt;
+  }
+
+  if (auto objLit = ast_cast<ObjectLiteralExpressionAST>(ast)) {
+    if (!objLit->symbol) return std::nullopt;
+    return std::make_shared<ConstAddress>(objLit->symbol);
+  }
+
+  if (auto subExpr = ast_cast<SubscriptExpressionAST>(ast)) {
+    auto idExpr = ast_cast<IdExpressionAST>(subExpr->baseExpression);
+    if (!idExpr || !idExpr->symbol) return std::nullopt;
+
+    auto indexVal = evaluate(subExpr->indexExpression);
+    if (!indexVal) return std::nullopt;
+
+    auto index = toInt(*indexVal);
+    if (!index) return std::nullopt;
+
+    return std::make_shared<ConstAddress>(idExpr->symbol, *index);
+  }
+
+  return std::nullopt;
+}
+
 auto ASTInterpreter::newPlacement(NewPlacementAST* ast) -> NewPlacementResult {
   if (!ast) return {};
 
@@ -954,41 +998,37 @@ auto ASTInterpreter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     -> ExpressionResult {
-  for (auto node : ListView{ast->captureList}) {
-    auto value = interp.lambdaCapture(node);
+  auto classType = type_cast<ClassType>(ast->type);
+  if (!classType || !classType->symbol()) return ExpressionResult{std::nullopt};
+
+  auto closure = std::make_shared<ConstObject>(classType);
+
+  auto captureFields =
+      views::members(classType->symbol()) | views::non_static_fields;
+  auto fieldIt = captureFields.begin();
+  const auto fieldEnd = captureFields.end();
+
+  for (auto captureNode : ListView{ast->captureList}) {
+    if (fieldIt == fieldEnd) return ExpressionResult{std::nullopt};
+    if (is_pack_capture(captureNode)) return ExpressionResult{std::nullopt};
+
+    auto captureField = *fieldIt;
+    ++fieldIt;
+
+    auto initializer = capture_initializer(captureNode);
+    if (!initializer) return ExpressionResult{std::nullopt};
+
+    auto value = interp.traits.is_reference(captureField->type())
+                     ? interp.addressOfLvalue(initializer)
+                     : interp.evaluate(initializer);
+    if (!value) return ExpressionResult{std::nullopt};
+
+    closure->addField(captureField, std::move(*value));
   }
 
-  for (auto node : ListView{ast->templateParameterList}) {
-    auto value = interp.templateParameter(node);
-  }
+  if (fieldIt != fieldEnd) return ExpressionResult{std::nullopt};
 
-  auto templateRequiresClauseResult =
-      interp.requiresClause(ast->templateRequiresClause);
-
-  auto parameterDeclarationClauseResult =
-      interp.parameterDeclarationClause(ast->parameterDeclarationClause);
-
-  for (auto node : ListView{ast->gnuAtributeList}) {
-    auto value = interp.attributeSpecifier(node);
-  }
-
-  for (auto node : ListView{ast->lambdaSpecifierList}) {
-    auto value = interp.lambdaSpecifier(node);
-  }
-
-  auto exceptionSpecifierResult =
-      interp.exceptionSpecifier(ast->exceptionSpecifier);
-
-  for (auto node : ListView{ast->attributeList}) {
-    auto value = interp.attributeSpecifier(node);
-  }
-
-  auto trailingReturnTypeResult =
-      interp.trailingReturnType(ast->trailingReturnType);
-  auto requiresClauseResult = interp.requiresClause(ast->requiresClause);
-  auto statementResult = interp.statement(ast->statement);
-
-  return ExpressionResult{std::nullopt};
+  return ExpressionResult{ConstValue{std::move(closure)}};
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
@@ -1028,6 +1068,34 @@ auto ASTInterpreter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
   return ConstValue{true};
 }
 
+auto ASTInterpreter::isReturnTypeRequirementSatisfied(
+    TypeConstraintAST* typeConstraint, ExpressionAST* expression)
+    -> std::optional<bool> {
+  if (!typeConstraint->symbol) return std::nullopt;
+
+  auto arena = unit_->arena();
+
+  auto deducedTypeId = TypeIdAST::create(arena);
+  deducedTypeId->type = unit_->typeTraits().decltype_of(expression);
+  if (!deducedTypeId->type) return std::nullopt;
+
+  auto deducedArgument = TypeTemplateArgumentAST::create(arena);
+  deducedArgument->typeId = deducedTypeId;
+
+  List<TemplateArgumentAST*>* templateArgumentList = nullptr;
+  auto out = &templateArgumentList;
+  *out = make_list_node<TemplateArgumentAST>(arena, deducedArgument);
+  out = &(*out)->next;
+
+  for (auto argument : ListView{typeConstraint->templateArgumentList}) {
+    *out = make_list_node(arena, argument);
+    out = &(*out)->next;
+  }
+
+  return ASTRewriter::evaluateConcept(unit_, typeConstraint->symbol,
+                                      templateArgumentList);
+}
+
 auto ASTInterpreter::isRequirementSatisfied(RequirementAST* ast,
                                             ScopeSymbol* scope)
     -> std::optional<bool> {
@@ -1057,8 +1125,15 @@ auto ASTInterpreter::isRequirementSatisfied(RequirementAST* ast,
   if (auto compound = ast_cast<CompoundRequirementAST>(ast)) {
     auto valid = isValidExpression(compound->expression);
     if (!valid.has_value() || !*valid) return valid;
-    if (compound->typeConstraint || compound->noexceptLoc) return std::nullopt;
-    return true;
+
+    if (compound->noexceptLoc &&
+        TypeChecker::isPotentiallyThrowing(compound->expression))
+      return false;
+
+    if (!compound->typeConstraint) return true;
+
+    return isReturnTypeRequirementSatisfied(compound->typeConstraint,
+                                            compound->expression);
   }
 
   if (auto typeRequirement = ast_cast<TypeRequirementAST>(ast)) {
@@ -1611,42 +1686,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
         return static_cast<std::intmax_t>(*offset);
       }
 
-      if (auto idExpr = ast_cast<IdExpressionAST>(innerExpr)) {
-        if (idExpr->symbol) {
-          if (symbol_cast<FieldSymbol>(idExpr->symbol)) {
-            if (auto owner = interp.fieldOwner(innerExpr))
-              return std::make_shared<ConstAddress>(owner, idExpr->symbol);
-            break;
-          }
-          return std::make_shared<ConstAddress>(idExpr->symbol);
-        }
-      }
-
-      if (auto member = ast_cast<MemberExpressionAST>(innerExpr)) {
-        if (symbol_cast<FieldSymbol>(member->symbol)) {
-          if (auto owner = interp.fieldOwner(innerExpr))
-            return std::make_shared<ConstAddress>(owner, member->symbol);
-        }
-        break;
-      }
-
-      if (auto objLit = ast_cast<ObjectLiteralExpressionAST>(innerExpr)) {
-        if (objLit->symbol) {
-          return std::make_shared<ConstAddress>(objLit->symbol);
-        }
-      }
-
-      auto subExpr = ast_cast<SubscriptExpressionAST>(innerExpr);
-      if (!subExpr) break;
-
-      auto idExpr = ast_cast<IdExpressionAST>(subExpr->baseExpression);
-      if (!idExpr || !idExpr->symbol) break;
-
-      auto indexVal = interp.evaluate(subExpr->indexExpression);
-      if (!indexVal) break;
-
-      if (auto idx = interp.toInt(*indexVal))
-        return std::make_shared<ConstAddress>(idExpr->symbol, *idx);
+      if (auto address = interp.addressOfLvalue(innerExpr))
+        return ExpressionResult{std::move(address)};
 
       break;
     }

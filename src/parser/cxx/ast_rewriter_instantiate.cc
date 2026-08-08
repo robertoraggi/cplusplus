@@ -40,33 +40,6 @@
 
 namespace cxx {
 namespace {
-struct GetDeclaration {
-  auto operator()(ClassSymbol* symbol) -> AST* { return symbol->declaration(); }
-
-  auto operator()(VariableSymbol* symbol) -> AST* {
-    auto templateDecl = symbol->templateDeclaration();
-    if (!templateDecl) return nullptr;
-    return templateDecl->declaration;
-  }
-
-  auto operator()(TypeAliasSymbol* symbol) -> AST* {
-    auto templateDecl = symbol->templateDeclaration();
-    if (!templateDecl) return nullptr;
-    return templateDecl->declaration;
-  }
-
-  auto operator()(FunctionSymbol* symbol) -> AST* {
-    if (auto declaration = symbol->declaration()) return declaration;
-
-    auto templateDecl = symbol->templateDeclaration();
-    if (!templateDecl) return nullptr;
-
-    return templateDecl->declaration;
-  }
-
-  auto operator()(Symbol*) -> AST* { return nullptr; }
-};
-
 struct GetSpecialization {
   const std::vector<TemplateArgument>& templateArguments;
 
@@ -148,6 +121,12 @@ struct Instantiate {
     auto instance =
         ast_cast<AliasDeclarationAST>(rewriter.declaration(declaration));
     if (!instance) return nullptr;
+
+    if (auto written =
+            rewriter.writtenArgumentForAliasedParameter(declaration->typeId)) {
+      if (auto alias = symbol_cast<TypeAliasSymbol>(instance->symbol))
+        alias->setExpansionTypeId(written);
+    }
 
     return instance->symbol;
   }
@@ -495,6 +474,38 @@ auto ASTRewriter::substituteDefaultExpression(
   return rewriter.expression(expression);
 }
 
+auto ASTRewriter::substituteParameterClause(
+    TranslationUnit* unit, ParameterDeclarationClauseAST* parameters,
+    const std::vector<TemplateArgument>& templateArguments, int depth,
+    ScopeSymbol* scope) -> ParameterDeclarationClauseAST* {
+  if (!parameters) return nullptr;
+
+  auto rewriter = ASTRewriter{unit, scope,
+                              std::vector<TemplateArgument>(templateArguments)};
+  rewriter.depth_ = depth;
+
+  return rewriter.parameterDeclarationClause(parameters);
+}
+
+auto ASTRewriter::substituteParameterTypes(
+    TranslationUnit* unit, ParameterDeclarationClauseAST* parameters,
+    const std::vector<TemplateArgument>& templateArguments, int depth,
+    ScopeSymbol* scope) -> std::optional<std::vector<const Type*>> {
+  if (!parameters) return std::vector<const Type*>{};
+
+  auto rewritten = substituteParameterClause(unit, parameters,
+                                             templateArguments, depth, scope);
+  if (!rewritten) return std::nullopt;
+
+  std::vector<const Type*> parameterTypes;
+  for (auto parameter : ListView{rewritten->parameterDeclarationList}) {
+    if (!parameter->type) return std::nullopt;
+    parameterTypes.push_back(parameter->type);
+  }
+
+  return parameterTypes;
+}
+
 void ASTRewriter::reportPendingInstantiationErrors(
     TranslationUnit* unit, Symbol* primaryTemplate, Symbol* instantiated,
     SourceLocation instantiationLoc) {
@@ -527,7 +538,8 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
                               List<TemplateArgumentAST*>* templateArgumentList,
                               Symbol* symbol, SourceLocation instantiationLoc,
                               bool sfinaeContext, bool argsComplete,
-                              bool declarationOnly) -> Symbol* {
+                              bool declarationOnly,
+                              bool retainEnclosingTemplateLevels) -> Symbol* {
   if (!symbol) return nullptr;
 
   if (!unit->config().checkTypes) return nullptr;
@@ -542,7 +554,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   auto templateDecl = template_declaration_of(symbol);
   if (!templateDecl) return nullptr;
 
-  auto declaration = visit(GetDeclaration{}, symbol);
+  auto declaration = template_declaration_ast(symbol);
   if (!declaration) return nullptr;
 
   const bool ownsSfinaeClient = sfinaeContext && !activeClientIsSfinae;
@@ -587,7 +599,11 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     return symbol;
   }
 
-  if (auto cached = visit(GetSpecialization{templateArguments}, symbol)) {
+  auto cached = retainEnclosingTemplateLevels
+                    ? nullptr
+                    : visit(GetSpecialization{templateArguments}, symbol);
+
+  if (cached) {
     auto cachedClass = symbol_cast<ClassSymbol>(cached);
     if (!cachedClass) {
       if (!declarationOnly) {
@@ -617,18 +633,10 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     }
   }
 
-  if (!checkRequiresClause(unit, symbol, templateDecl->requiresClause,
-                           templateArguments, templateDecl->depth)) {
+  if (!checkAssociatedConstraints(unit, symbol, templateArguments,
+                                  templateDecl->depth)) {
     if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return nullptr;
-  }
-
-  if (auto functionDef = ast_cast<FunctionDefinitionAST>(declaration)) {
-    if (!checkRequiresClause(unit, symbol, functionDef->requiresClause,
-                             templateArguments, templateDecl->depth)) {
-      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
-      return nullptr;
-    }
   }
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
@@ -653,6 +661,8 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
   rewriter.depth_ = templateDecl->depth;
   rewriter.inheritEnclosingTemplateArguments(parentScope);
+  rewriter.writtenTemplateArgumentList_ = templateArgumentList;
+  rewriter.setRetainsEnclosingTemplateLevels(retainEnclosingTemplateLevels);
   rewriter.binder().setInstantiatingSymbol(symbol);
   rewriter.binder().setInstantiationLoc(instantiationLoc);
   if (declarationOnly) rewriter.setRestrictedToDeclarations(true);
@@ -876,13 +886,13 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
   if (instanceClass) {
     auto classTemplateDecl = pattern->templateDeclaration();
     if (classTemplateDecl) {
-      for (auto instanceCtor : instanceClass->constructors()) {
+      for (auto instanceCtor : instanceClass->declaredConstructors()) {
         if (!instanceCtor->templateDeclaration()) continue;
         if (instanceCtor->declaration()) continue;
         if (instanceCtor->hasPendingBody()) continue;
 
         FunctionSymbol* patternCtor = nullptr;
-        for (auto candidate : pattern->constructors()) {
+        for (auto candidate : pattern->declaredConstructors()) {
           if (!candidate->templateDeclaration()) continue;
           if (candidate->isFriend()) continue;
           if (!areFunctionTemplateHeadsEquivalentForRedeclaration(
@@ -947,12 +957,12 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
 
   if (instanceClass) {
     std::vector<FunctionSymbol*> patternCtors;
-    for (auto ctor : pattern->constructors()) {
+    for (auto ctor : pattern->declaredConstructors()) {
       if (ctor->canonical() == ctor && !ctor->isDefaulted())
         patternCtors.push_back(ctor);
     }
     std::vector<FunctionSymbol*> instanceCtors;
-    for (auto ctor : instanceClass->constructors()) {
+    for (auto ctor : instanceClass->declaredConstructors()) {
       if (ctor->canonical() == ctor && !ctor->isDefaulted())
         instanceCtors.push_back(ctor);
     }

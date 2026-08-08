@@ -630,8 +630,7 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
   auto savedThis = thisObject_;
   thisObject_ = obj;
   auto savedConstructorClass = std::exchange(
-      currentConstructorClass_,
-      symbol_cast<ClassSymbol>(ctor->enclosingNonTemplateParametersScope()));
+      currentConstructorClass_, symbol_cast<ClassSymbol>(ctor->parent()));
 
   if (!bindParameters(ctor, args)) {
     thisObject_ = savedThis;

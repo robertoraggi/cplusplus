@@ -230,6 +230,7 @@ auto ASTRewriter::typeConstraint(TypeConstraintAST* ast) -> TypeConstraintAST* {
 
   copy->greaterLoc = ast->greaterLoc;
   copy->identifier = ast->identifier;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -525,7 +526,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   auto symbol = binder()->declareTypeAlias(copy->identifierLoc, copy->typeId,
                                            addSymbolToParentScope);
-  if (!addSymbolToParentScope && !rewrite.substitutionFailed()) {
+  if (!addSymbolToParentScope && !rewrite.substitutionFailed() &&
+      !rewrite.retainsEnclosingTemplateLevels()) {
     ast->symbol->addSpecialization(rewrite.templateArguments(), symbol);
   }
 
@@ -536,6 +538,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   copy->symbol = symbol;
   symbol->setDeclaration(copy);
+  symbol->setExpansionTypeId(copy->typeId);
 
   rewrite.addSymbolRemap(ast->symbol, symbol);
 
@@ -709,10 +712,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (!rewrite.restrictedToDeclarations()) {
     if (auto oldFunc = symbol_cast<FunctionSymbol>(ast->symbol)) {
-      auto oldClass = symbol_cast<ClassSymbol>(
-          oldFunc->enclosingNonTemplateParametersScope());
-      auto newClass = symbol_cast<ClassSymbol>(
-          functionSymbol->enclosingNonTemplateParametersScope());
+      auto oldClass = symbol_cast<ClassSymbol>(oldFunc->parent());
+      auto newClass = symbol_cast<ClassSymbol>(functionSymbol->parent());
       if (oldClass && newClass && oldClass != newClass) {
         rewrite.remapScopeMembers(oldClass, newClass);
       }

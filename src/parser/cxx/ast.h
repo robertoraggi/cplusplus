@@ -1996,6 +1996,7 @@ class TypeConstraintAST final : public AST {
   List<TemplateArgumentAST*>* templateArgumentList = nullptr;
   SourceLocation greaterLoc;
   const Identifier* identifier = nullptr;
+  ConceptSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2010,13 +2011,14 @@ class TypeConstraintAST final : public AST {
       Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
       SourceLocation identifierLoc, SourceLocation lessLoc,
       List<TemplateArgumentAST*>* templateArgumentList,
-      SourceLocation greaterLoc, const Identifier* identifier)
-      -> TypeConstraintAST*;
+      SourceLocation greaterLoc, const Identifier* identifier,
+      ConceptSymbol* symbol) -> TypeConstraintAST*;
 
   [[nodiscard]] static auto create(
       Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
       List<TemplateArgumentAST*>* templateArgumentList,
-      const Identifier* identifier) -> TypeConstraintAST*;
+      const Identifier* identifier, ConceptSymbol* symbol)
+      -> TypeConstraintAST*;
 
  protected:
   TypeConstraintAST() : AST(Kind) {}

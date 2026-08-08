@@ -77,6 +77,10 @@ struct [[nodiscard]] Binder::CompleteClass {
   void addCopyAssignmentOperator();
   void addMoveAssignmentOperator();
   void addDestructor();
+  void addInheritedConstructors();
+  auto declareInheritedConstructor(FunctionSymbol* inherited)
+      -> FunctionSymbol*;
+  void synthesizeInheritedConstructorBody(FunctionSymbol* fn);
 
   void synthesizeStructorVariants();
   auto newStructorVariant(FunctionSymbol* principal) -> FunctionSymbol*;
@@ -109,13 +113,27 @@ void Binder::complete(ClassSpecifierAST* ast) {
   CompleteClass{*this, ast}.complete();
 }
 
+auto Binder::inheritedConstructorFor(ClassSymbol* classSymbol,
+                                     FunctionSymbol* baseConstructor)
+    -> FunctionSymbol* {
+  if (!classSymbol || !baseConstructor) return nullptr;
+  classSymbol = classSymbol->resolvedDefinition();
+
+  CompleteClass completeClass{*this, classSymbol};
+  auto symbol = completeClass.declareInheritedConstructor(baseConstructor);
+  if (!symbol) return nullptr;
+
+  completeClass.synthesizeInheritedConstructorBody(symbol);
+  synthesizeCompleteObjectCtor(symbol);
+  return symbol;
+}
+
 void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   if (!ctor->isConstructor()) return;
   if (ctor->isDeleted() || ctor->completeObjectVariant()) return;
   if (!type_cast<FunctionType>(ctor->type())) return;
 
-  auto classSymbol =
-      symbol_cast<ClassSymbol>(ctor->enclosingNonTemplateParametersScope());
+  auto classSymbol = symbol_cast<ClassSymbol>(ctor->parent());
   if (!classSymbol) return;
   classSymbol = classSymbol->resolvedDefinition();
 
@@ -131,8 +149,7 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
   auto def = fn->declaration();
   if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
 
-  auto classSymbol =
-      symbol_cast<ClassSymbol>(fn->enclosingNonTemplateParametersScope());
+  auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
   if (!classSymbol) return;
   classSymbol = classSymbol->resolvedDefinition();
   if (classSymbol->isUnion() || classSymbol->isClosureType()) return;
@@ -203,6 +220,118 @@ void Binder::CompleteClass::synthesizeSpecialMembers() {
     addMoveAssignmentOperator();
 
   addDestructor();
+
+  addInheritedConstructors();
+}
+
+void Binder::CompleteClass::addInheritedConstructors() {
+  auto overloadSet = classSymbol->constructorOverloadSet();
+  if (overloadSet->usingDeclarations().empty()) return;
+
+  for (auto inherited : overloadSet->functions()) {
+    if (inherited->templateDeclaration() && !inherited->isSpecialization())
+      continue;
+    (void)declareInheritedConstructor(inherited);
+  }
+}
+
+auto Binder::CompleteClass::declareInheritedConstructor(
+    FunctionSymbol* inherited) -> FunctionSymbol* {
+  auto base = symbol_cast<ClassSymbol>(inherited->parent());
+  if (!base || base->resolvedDefinition() == classSymbol) return nullptr;
+
+  auto inheritedType = type_cast<FunctionType>(inherited->type());
+  if (!inheritedType) return nullptr;
+
+  auto canonical = inherited->canonical();
+  for (auto existing : classSymbol->declaredConstructors()) {
+    if (auto from = existing->inheritedConstructor();
+        from && from->canonical() == canonical)
+      return existing;
+  }
+
+  auto symbol = newDefaultedFunction(classSymbol->name(), inherited->type());
+  symbol->setInheritedConstructor(inherited);
+  symbol->setExplicit(inherited->isExplicit());
+  symbol->setConstexpr(inherited->isConstexpr());
+
+  auto params = control()->newFunctionParametersSymbol(symbol, {});
+  symbol->addSymbol(params);
+
+  std::vector<ParameterSymbol*> sourceParameters;
+  if (auto sourceScope = inherited->functionParameters()) {
+    for (auto source : views::members(sourceScope) | views::parameters)
+      sourceParameters.push_back(source);
+  }
+
+  std::size_t position = 0;
+  for (auto parameterType : inheritedType->parameterTypes()) {
+    auto param = control()->newParameterSymbol(params, symbol->location());
+    param->setType(parameterType);
+    if (position < sourceParameters.size()) {
+      param->setName(sourceParameters[position]->name());
+      param->setDefaultArgument(sourceParameters[position]->defaultArgument());
+    }
+    params->addSymbol(param);
+    ++position;
+  }
+
+  classSymbol->addConstructor(symbol);
+  attachDeclaration(symbol, makeCtorNameId());
+  return symbol;
+}
+
+void Binder::CompleteClass::synthesizeInheritedConstructorBody(
+    FunctionSymbol* fn) {
+  auto def = fn->declaration();
+  if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
+
+  auto inherited = fn->inheritedConstructor();
+  auto base = symbol_cast<ClassSymbol>(inherited->parent());
+  if (!base) return;
+  base = base->resolvedDefinition();
+
+  BaseClassSymbol* baseClass = nullptr;
+  for (auto candidate : classSymbol->baseClasses()) {
+    auto candidateClass = symbol_cast<ClassSymbol>(candidate->symbol());
+    if (candidateClass && candidateClass->resolvedDefinition() == base)
+      baseClass = candidate;
+  }
+  if (!baseClass) return;
+
+  auto init = ParenMemInitializerAST::create(pool);
+  if (auto id = name_cast<Identifier>(base->name()))
+    init->unqualifiedId = NameIdAST::create(pool, id);
+  init->symbol = baseClass;
+  init->constructor = inherited;
+
+  List<ExpressionAST*>* args = nullptr;
+  auto argsTail = &args;
+  for (auto param :
+       views::members(fn->functionParameters()) | views::parameters) {
+    auto argExpr = makeParamRef(param);
+    if (!binder.traits.is_reference(param->type())) {
+      auto load = ImplicitCastExpressionAST::create(pool);
+      load->castKind = ImplicitCastKind::kLValueToRValueConversion;
+      load->expression = argExpr;
+      load->type = binder.traits.remove_cv(argExpr->type);
+      load->valueCategory = ValueCategory::kPrValue;
+      argExpr = load;
+    }
+    *argsTail = make_list_node<ExpressionAST>(pool, argExpr);
+    argsTail = &(*argsTail)->next;
+  }
+  init->expressionList = args;
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->memInitializerList = make_list_node<MemInitializerAST>(pool, init);
+  body->statement = CompoundStatementAST::create(pool);
+  def->functionBody = body;
+
+  TypeChecker check{binder.unit_};
+  check.setScope(fn);
+  check.setReportErrors(binder.reportErrors());
+  check.check_mem_initializers(body);
 }
 
 auto Binder::CompleteClass::hasVirtualBaseDestructor() const -> bool {
@@ -335,7 +464,7 @@ auto Binder::CompleteClass::defaultConstructorIsDeleted() const -> bool {
 }
 
 void Binder::CompleteClass::addDefaultConstructor() {
-  if (!classSymbol->constructors().empty()) return;
+  if (!classSymbol->declaredConstructors().empty()) return;
 
   auto symbol = newDefaultedFunction(
       classSymbol->name(),
@@ -520,7 +649,7 @@ void Binder::CompleteClass::synthesizeStructorVariants() {
   const bool hasVirtualBases = !layout->virtualBases().empty();
 
   if (hasVirtualBases) {
-    for (auto ctor : classSymbol->constructors()) {
+    for (auto ctor : classSymbol->declaredConstructors()) {
       if (ctor->completeObjectVariant()) continue;
       if (ctor->isDeleted()) continue;
       if (ctor->templateDeclaration()) continue;
@@ -646,11 +775,7 @@ auto Binder::CompleteClass::pickVBaseConstructor(ClassSymbol* vbase,
     -> FunctionSymbol* {
   if (isCopy) return vbase->copyConstructor();
   if (isMove) return vbase->moveConstructor();
-  for (auto candidate : vbase->constructors()) {
-    auto funcType = type_cast<FunctionType>(candidate->type());
-    if (funcType && funcType->parameterTypes().empty()) return candidate;
-  }
-  return nullptr;
+  return vbase->defaultConstructor();
 }
 
 void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
@@ -663,14 +788,10 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
 
   auto variant = newStructorVariant(ctor);
 
-  std::vector<ParameterSymbol*> params;
-  for (auto member : views::members(variant)) {
-    auto paramsSym = symbol_cast<FunctionParametersSymbol>(member);
-    if (!paramsSym) continue;
-    for (auto param : views::members(paramsSym)) {
-      if (auto p = symbol_cast<ParameterSymbol>(param)) params.push_back(p);
-    }
-  }
+  auto range =
+      views::members(variant->functionParameters()) | views::parameters;
+
+  std::vector params(begin(range), end(range));
 
   if (params.size() == 1) {
     auto paramType = params[0]->type();
@@ -707,6 +828,10 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
           isCopy ? control()->getConstType(vbase->type()) : vbase->type();
       cast->valueCategory = ValueCategory::kLValue;
       init->expressionList = make_list_node<ExpressionAST>(pool, cast);
+    } else if (vbaseCtor) {
+      TypeChecker check{binder.unit_};
+      check.setScope(ctor);
+      check.append_default_arguments(vbaseCtor, &init->expressionList);
     }
 
     *memInitsTail = make_list_node<MemInitializerAST>(pool, init);
@@ -854,6 +979,11 @@ void Binder::CompleteClass::synthesizeMemberwiseBodies() {
     auto def = fn->declaration();
     return def && ast_cast<DefaultFunctionBodyAST>(def->functionBody);
   };
+
+  for (auto fn : classSymbol->declaredConstructors()) {
+    if (fn->inheritedConstructor() && needsBody(fn))
+      synthesizeInheritedConstructorBody(fn);
+  }
 
   if (auto fn = classSymbol->copyConstructor(); needsBody(fn))
     synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);

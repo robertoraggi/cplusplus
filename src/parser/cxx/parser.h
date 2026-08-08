@@ -34,7 +34,6 @@
 #include <functional>
 #include <optional>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace cxx {
 class Decl;
@@ -69,6 +68,10 @@ class Parser final {
   struct UncheckedInitializerContext;
   struct CombinedScopeGuard;
   struct ExplicitTemplateHeadGuard;
+
+  enum class TypeNameContext { kGeneral, kTypeOnly };
+
+  enum class MemberAccessKind { kNone, kObject, kDependentObject };
 
   struct ScopeRAII {
     ScopeRAII(const ScopeRAII&) = delete;
@@ -191,9 +194,12 @@ class Parser final {
 
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          IdExpressionContext ctx) -> bool;
+  [[nodiscard]] auto objectAccessKind(ExpressionAST* objectExpression)
+      -> MemberAccessKind;
   [[nodiscard]] auto parse_unqualified_id(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced, bool inRequiresClause) -> bool;
+      bool isTemplateIntroduced, bool inRequiresClause,
+      MemberAccessKind memberAccess = MemberAccessKind::kNone) -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast,
                                             NestedNameSpecifierContext ctx);
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
@@ -473,10 +479,12 @@ class Parser final {
   [[nodiscard]] auto parse_empty_declaration(DeclarationAST*& yyast) -> bool;
   [[nodiscard]] auto parse_attribute_declaration(DeclarationAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_decl_specifier(SpecifierAST*& yyast,
-                                          DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_decl_specifier_seq(List<SpecifierAST*>*& yyast,
-                                              DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_decl_specifier(
+      SpecifierAST*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
+  [[nodiscard]] auto parse_decl_specifier_seq(
+      List<SpecifierAST*>*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
       List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_decl_specifier_seq_no_typespecs(
@@ -487,20 +495,25 @@ class Parser final {
                                               DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_explicit_specifier(SpecifierAST*& yyast,
                                               DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_type_specifier(SpecifierAST*& yyast,
-                                          DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
-                                              DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_type_specifier(
+      SpecifierAST*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
+  [[nodiscard]] auto parse_type_specifier_seq(
+      List<SpecifierAST*>*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   void parse_optional_type_qualifier_seq(List<SpecifierAST*>*& yyast,
                                          DeclSpecs& specs);
-  [[nodiscard]] auto parse_defining_type_specifier(SpecifierAST*& yyast,
-                                                   DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_defining_type_specifier(
+      SpecifierAST*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_defining_type_specifier_seq(
       List<SpecifierAST*>*& yyast, DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_simple_type_specifier(SpecifierAST*& yyast,
-                                                 DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_named_type_specifier(SpecifierAST*& yyast,
-                                                DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_simple_type_specifier(
+      SpecifierAST*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
+  [[nodiscard]] auto parse_named_type_specifier(
+      SpecifierAST*& yyast, DeclSpecs& specs,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_decltype_specifier_type_specifier(
       SpecifierAST*& yyast, DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_underlying_type_specifier(SpecifierAST*& yyast,
@@ -525,7 +538,7 @@ class Parser final {
 
   [[nodiscard]] auto parse_type_name(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced) -> bool;
+      bool isTemplateIntroduced, TypeNameContext context) -> bool;
   [[nodiscard]] auto parse_elaborated_type_specifier(SpecifierAST*& yyast,
                                                      DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_elaborated_enum_specifier(SpecifierAST*& yyast,
@@ -585,14 +598,18 @@ class Parser final {
   [[nodiscard]] auto parse_cv_qualifier(SpecifierAST*& yyast,
                                         DeclSpecs& declSpecs) -> bool;
   [[nodiscard]] auto parse_ref_qualifier(SourceLocation& refLoc) -> bool;
-  [[nodiscard]] auto parse_type_id(TypeIdAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_type_id(
+      TypeIdAST*& yyast, TypeNameContext context = TypeNameContext::kGeneral)
+      -> bool;
   [[nodiscard]] auto parse_defining_type_id(TypeIdAST*& yyast) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_clause(
-      ParameterDeclarationClauseAST*& yyast) -> bool;
+      ParameterDeclarationClauseAST*& yyast,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_list(
-      ParameterDeclarationClauseAST* ast) -> bool;
+      ParameterDeclarationClauseAST* ast, TypeNameContext context) -> bool;
   [[nodiscard]] auto parse_parameter_declaration(
-      ParameterDeclarationAST*& yyast, bool templParam) -> bool;
+      ParameterDeclarationAST*& yyast, bool templParam,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast,
                                        const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_brace_or_equal_initializer(ExpressionAST*& yyast)
@@ -626,6 +643,8 @@ class Parser final {
   [[nodiscard]] auto parse_enum_base(SourceLocation& colonLoc,
                                      List<SpecifierAST*>*& typeSpecifierList,
                                      DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto enumeratorTypeInEnumSpecifier(Symbol* enumSymbol)
+      -> const Type*;
   void parse_enumerator_list(List<EnumeratorAST*>*& yyast, const Type* type);
   void parse_enumerator(EnumeratorAST*& yyast, const Type* type);
   [[nodiscard]] auto parse_using_enum_declaration(DeclarationAST*& yyast)
@@ -780,7 +799,9 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_simple_template_id(
       SimpleTemplateIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced = false) -> bool;
+      bool isTemplateIntroduced = false,
+      MemberAccessKind memberAccess = MemberAccessKind::kNone,
+      TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_literal_operator_template_id(
       LiteralOperatorTemplateIdAST*& yyast,
       NestedNameSpecifierAST* nestedNameSpecifier) -> bool;
@@ -789,7 +810,8 @@ class Parser final {
       NestedNameSpecifierAST* nestedNameSpecifier) -> bool;
   [[nodiscard]] auto parse_template_id(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced) -> bool;
+      bool isTemplateIntroduced,
+      MemberAccessKind memberAccess = MemberAccessKind::kNone) -> bool;
   [[nodiscard]] auto parse_template_argument_list(
       List<TemplateArgumentAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument(TemplateArgumentAST*& yyast)
@@ -882,7 +904,8 @@ class Parser final {
 
   void check_bool_condition(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
-  void check_init_declarator(InitDeclaratorAST* initDecl);
+  void check_init_declarator(InitDeclaratorAST* initDecl,
+                             SpecifierAST* typeSpecifier);
   void check_mem_initializers(FunctionDefinitionAST* ast);
 
   [[nodiscard]] auto enterOrCreateNamespace(const Identifier* identifier,
@@ -893,16 +916,8 @@ class Parser final {
 
   void check_type_traits();
 
-  [[nodiscard]] auto is_template(Symbol* symbol) const -> bool;
-
   [[nodiscard]] auto evaluate_constant_expression(ExpressionAST* expr)
       -> std::optional<ConstValue>;
-
-  [[nodiscard]] auto maybe_template_name(const Identifier* id) -> bool;
-
-  void mark_maybe_template_name(const Identifier* id);
-  void mark_maybe_template_name(UnqualifiedIdAST* name);
-  void mark_maybe_template_name(DeclaratorAST* declarator);
 
   void synthesizeAbbreviatedTemplateParams(
       ParameterDeclarationClauseAST* params);
@@ -1012,8 +1027,5 @@ class Parser final {
 
   CachedAST<ParameterDeclarationClauseAST> parameter_declaration_clauses_;
   CachedAST<TemplateArgumentAST> template_arguments_;
-
-  std::unordered_set<const Identifier*> concept_names_;
-  std::unordered_set<const Identifier*> template_names_;
 };
 }  // namespace cxx
