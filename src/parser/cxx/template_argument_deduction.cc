@@ -83,6 +83,25 @@ auto TemplateArgumentDeduction::deduce(
   return buildTemplateArgumentList();
 }
 
+auto TemplateArgumentDeduction::deduceForGuide(
+    TemplateDeclarationAST* templateDecl, const FunctionType* functionType,
+    ParameterDeclarationClauseAST* parameters, List<ExpressionAST*>* args)
+    -> std::optional<List<TemplateArgumentAST*>*> {
+  if (!templateDecl || !functionType) return std::nullopt;
+
+  templateDecl_ = templateDecl;
+
+  collectTemplateParameters(templateDecl);
+
+  parameterDeclarations_ =
+      parameters ? parameters->parameterDeclarationList : nullptr;
+
+  if (!deduceFromCall(functionType, args)) return std::nullopt;
+  if (!checkDeducedArguments()) return std::nullopt;
+
+  return buildTemplateArgumentList();
+}
+
 auto TemplateArgumentDeduction::deduceFromConversionTarget(
     FunctionSymbol* func, const Type* targetType)
     -> std::optional<List<TemplateArgumentAST*>*> {
@@ -162,10 +181,19 @@ void TemplateArgumentDeduction::collectTemplateParameters(
     TemplateDeclarationAST* templateDecl) {
   templateParams_.clear();
 
+  int position = 0;
+
   for (auto p : ListView{templateDecl->templateParameterList}) {
     TemplateParameterInfo info;
+    info.depth = templateDecl->depth;
+    info.index = position++;
 
     if (auto sym = p->symbol) {
+      if (auto paramInfo = template_parameter_info(sym)) {
+        info.depth = paramInfo->depth;
+        info.index = paramInfo->index;
+      }
+
       info.typeParameterType = type_cast<TypeParameterType>(sym->type());
 
       if (auto typeParam = symbol_cast<TypeParameterSymbol>(sym)) {
@@ -210,6 +238,21 @@ void TemplateArgumentDeduction::collectTemplateParameters(
   deducedValues_.assign(n, std::nullopt);
   deducedPacks_.assign(n, {});
   deducedValuePacks_.assign(n, {});
+}
+
+auto TemplateArgumentDeduction::parameterSlot(int depth, int index) const
+    -> int {
+  for (std::size_t slot = 0; slot < templateParams_.size(); ++slot) {
+    const auto& info = templateParams_[slot];
+    if (info.depth == depth && info.index == index) return int(slot);
+  }
+  return -1;
+}
+
+auto TemplateArgumentDeduction::parameterSlot(
+    const TypeParameterType* type) const -> int {
+  if (!type) return -1;
+  return parameterSlot(type->depth(), type->index());
 }
 
 auto TemplateArgumentDeduction::substituteExplicitTemplateArguments(
@@ -313,8 +356,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
                                      ? control_->getQualType(argElemBase, cvT)
                                      : argElemBase;
 
-          auto idx = elemTpt->index();
-          if (idx >= 0 && idx < static_cast<int>(templateParams_.size())) {
+          auto idx = parameterSlot(elemTpt);
+          if (idx >= 0) {
             if (!deducedTypes_[idx]) {
               deducedTypes_[idx] = deducedT;
             } else if (!traits.is_same(deducedTypes_[idx], deducedT)) {
@@ -353,8 +396,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
     return true;
   }
 
-  auto idx = tpt->index();
-  if (idx < 0 || idx >= static_cast<int>(templateParams_.size())) return false;
+  auto idx = parameterSlot(tpt);
+  if (idx < 0) return false;
 
   const Type* deducedArg = A;
 
@@ -598,8 +641,8 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
       return false;
 
     auto bareParam = traits.remove_cvref(P);
-    auto tpt = type_cast<TypeParameterType>(bareParam);
-    if (!tpt || !templateParams_[tpt->index()].isPack) {
+    auto packSlot = parameterSlot(type_cast<TypeParameterType>(bareParam));
+    if (packSlot < 0 || !templateParams_[packSlot].isPack) {
       ++paramIt;
       if (paramDeclIt) paramDeclIt = paramDeclIt->next;
     }
@@ -616,13 +659,11 @@ auto TemplateArgumentDeduction::nonTypeParameterIndex(ExpressionAST* expr) const
   auto parameter = symbol_cast<NonTypeParameterSymbol>(idExpression->symbol);
   if (!parameter) return -1;
 
-  auto index = parameter->index();
-  if (index < 0 || index >= static_cast<int>(templateParams_.size())) return -1;
-
   auto info = template_parameter_info(parameter);
-  if (info && templateDecl_ && info->depth != templateDecl_->depth) return -1;
+  const int depth =
+      info ? info->depth : (templateDecl_ ? templateDecl_->depth : 0);
 
-  return index;
+  return parameterSlot(depth, parameter->index());
 }
 
 auto TemplateArgumentDeduction::deduceArrayBound(const Type* P, const Type* A)

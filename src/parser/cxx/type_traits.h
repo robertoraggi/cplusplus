@@ -29,6 +29,7 @@ namespace cxx {
 class ClassSymbol;
 class Control;
 class ExpressionAST;
+class FunctionSymbol;
 class TranslationUnit;
 class Type;
 
@@ -129,6 +130,9 @@ class TypeTraits {
   [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) const
       -> bool;
 
+  [[nodiscard]] auto is_reference_related(const Type* lhs,
+                                          const Type* rhs) const -> bool;
+
   [[nodiscard]] auto is_virtual_base_of(const Type* base,
                                         const Type* derived) const -> bool;
   [[nodiscard]] auto is_convertible(const Type* from, const Type* to) const
@@ -142,6 +146,9 @@ class TypeTraits {
   auto is_empty(const Type* type) -> bool;
   auto is_polymorphic(const Type* type) -> bool;
   auto is_final(const Type* type) -> bool;
+  auto selectConstructor(ClassSymbol* classSymbol,
+                         std::span<const Type* const> argTypes)
+      -> FunctionSymbol*;
   auto is_constructible(const Type* type, std::span<const Type* const> argTypes)
       -> bool;
   auto is_nothrow_constructible(const Type* type,

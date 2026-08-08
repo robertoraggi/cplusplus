@@ -278,7 +278,6 @@ void CxxDocument::parse(std::string source) {
 
   unit.parse(ParserConfiguration{
       .checkTypes = cli.opt_fcheck,
-      .fuzzyTemplateResolution = true,
       .stopParsingPredicate = stopParsingPredicate,
       .complete = complete,
   });

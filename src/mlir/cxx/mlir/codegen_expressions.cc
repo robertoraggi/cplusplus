@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
+#include <cxx/lambda_captures.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/mlir/codegen.h>
@@ -766,39 +767,24 @@ auto Codegen::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
       gen.builder_.restoreInsertionPoint(savedIP);
     }
 
-    auto loc = gen.getLocation(ast->firstSourceLocation());
-    auto mlirType = gen.convertType(classType);
-    auto ptrType = mlir::cxx::PointerType::get(gen.context_, mlirType);
-    auto closureAlloca = mlir::cxx::AllocaOp::create(
-        gen.builder_, loc, ptrType, gen.getAlignment(classType));
+    auto closure = gen.takeResultObject(ast);
+    if (!closure)
+      closure = gen.newTemp(classType, ast->firstSourceLocation()).getResult();
 
     std::vector<ExpressionResult> captureArgs;
     for (auto captureNode : ListView{ast->captureList}) {
-      ExpressionAST* initExpr = nullptr;
-      if (auto simple = ast_cast<SimpleLambdaCaptureAST>(captureNode)) {
-        initExpr = simple->initializer;
-      } else if (auto ref = ast_cast<RefLambdaCaptureAST>(captureNode)) {
-        initExpr = ref->initializer;
-      } else if (auto th = ast_cast<ThisLambdaCaptureAST>(captureNode)) {
-        initExpr = th->initializer;
-      } else if (auto initCap = ast_cast<InitLambdaCaptureAST>(captureNode)) {
-        initExpr = initCap->initializer;
-      } else if (auto refInitCap =
-                     ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
-        initExpr = refInitCap->initializer;
-      }
-
+      auto initExpr = capture_initializer(captureNode);
       if (!initExpr) continue;
       captureArgs.push_back(gen.expression(initExpr));
     }
 
     if (ast->constructorSymbol) {
       (void)gen.emitCtorCall(ast->firstSourceLocation(), ast->constructorSymbol,
-                             closureAlloca, captureArgs,
+                             closure, captureArgs,
                              /*completeObject=*/true);
     }
 
-    return {closureAlloca};
+    return {closure};
   }
 
   auto op =
@@ -1066,8 +1052,7 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
     if (functionSymbol = symbol_cast<FunctionSymbol>(id->symbol)) {
       if (functionSymbol->isImplicitObjectMemberFunction()) {
         auto loc = gen.getLocation(ast->firstSourceLocation());
-        auto classSymbol = symbol_cast<ClassSymbol>(
-            functionSymbol->enclosingNonTemplateParametersScope());
+        auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
         ClassSymbol* currentClass = nullptr;
         auto loadedThis =

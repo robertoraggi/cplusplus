@@ -29,6 +29,15 @@ import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 export const OutputCodeFormat = ["cxxir", "mlir", "llvm", "asm"] as const;
 export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
 
+export const CxxStandard = [
+  "c++14",
+  "c++17",
+  "c++20",
+  "c++23",
+  "c++26",
+] as const;
+export type CxxStandard = (typeof CxxStandard)[number];
+
 export interface ParseOptions extends UnitOptions {
   /**
    * Path to the file to parse.
@@ -39,6 +48,8 @@ export interface ParseOptions extends UnitOptions {
    * Source code to parse.
    */
   source: string;
+
+  std?: CxxStandard;
 }
 
 /**

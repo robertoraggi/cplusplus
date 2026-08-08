@@ -775,10 +775,15 @@ auto Control::newNonTypeParameterSymbol(ScopeSymbol* enclosingScope,
 }
 
 auto Control::newConstraintTypeParameterSymbol(ScopeSymbol* enclosingScope,
-                                               SourceLocation loc)
+                                               SourceLocation loc, int index,
+                                               int depth, bool isParameterPack)
     -> ConstraintTypeParameterSymbol* {
   auto symbol =
       &d->constraintTypeParameterSymbols.emplace_front(enclosingScope);
+  symbol->setIndex(index);
+  symbol->setDepth(depth);
+  symbol->setParameterPack(isParameterPack);
+  symbol->setType(getTypeParameterType(index, depth, isParameterPack));
   symbol->setLocation(loc);
   return symbol;
 }

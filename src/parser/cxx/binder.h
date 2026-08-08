@@ -53,6 +53,11 @@ class TranslationUnit;
     TranslationUnit* unit, List<TemplateArgumentAST*>* a,
     List<TemplateArgumentAST*>* b) -> bool;
 
+[[nodiscard]] auto areRedeclarationTypesCompatible(TranslationUnit* unit,
+                                                   const Type* existingType,
+                                                   const Type* incomingType)
+    -> bool;
+
 class Binder {
  public:
   struct DefaultArgumentInfo {
@@ -112,6 +117,8 @@ class Binder {
   void enterExplicitTemplateHead();
   void leaveExplicitTemplateHead();
 
+  void setRetainsEnclosingTemplateLevels(bool value);
+
   void finishAutoReturnType(FunctionSymbol* functionSymbol);
 
   [[nodiscard]] auto enterBlock(SourceLocation loc) -> BlockSymbol*;
@@ -166,6 +173,10 @@ class Binder {
 
   void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
 
+  [[nodiscard]] auto inheritedConstructorFor(ClassSymbol* classSymbol,
+                                             FunctionSymbol* baseConstructor)
+      -> FunctionSymbol*;
+
   void synthesizeDefaultedMemberBody(FunctionSymbol* fn);
 
   void bind(DecltypeSpecifierAST* ast);
@@ -177,6 +188,11 @@ class Binder {
             bool inTemplateParameters);
 
   void bind(UsingDeclaratorAST* ast, Symbol* target);
+
+  [[nodiscard]] static auto usingDeclaratorNamesConstructor(
+      UsingDeclaratorAST* ast) -> bool;
+
+  [[nodiscard]] auto bindInheritedConstructors(UsingDeclaratorAST* ast) -> bool;
 
   void bind(BaseSpecifierAST* ast, Symbol* resolvedType = nullptr);
 
@@ -190,7 +206,7 @@ class Binder {
 
   void bind(ConceptDefinitionAST* ast);
 
-  void bind(DeductionGuideAST* ast);
+  void bind(DeductionGuideAST* ast, TemplateDeclarationAST* templateHead);
 
   void bind(LambdaExpressionAST* ast);
 
@@ -330,6 +346,7 @@ class Binder {
   int lambdaCount_ = 0;
   int explicitTemplateHeadDepth_ = 0;
   bool inTemplate_ = false;
+  bool retainsEnclosingTemplateLevels_ = false;
   bool reportErrors_ = true;
   std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators_;
   std::unordered_map<FunctionSymbol*, std::vector<DefaultArgumentInfo>>

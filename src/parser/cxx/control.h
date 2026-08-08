@@ -248,8 +248,8 @@ class Control {
       int depth, bool isPack, std::vector<const Type*> parameters)
       -> TemplateTypeParameterSymbol*;
   [[nodiscard]] auto newConstraintTypeParameterSymbol(
-      ScopeSymbol* enclosingScope, SourceLocation sourceLocation)
-      -> ConstraintTypeParameterSymbol*;
+      ScopeSymbol* enclosingScope, SourceLocation sourceLocation, int index,
+      int depth, bool isParameterPack) -> ConstraintTypeParameterSymbol*;
   [[nodiscard]] auto newEnumeratorSymbol(ScopeSymbol* enclosingScope,
                                          SourceLocation sourceLocation)
       -> EnumeratorSymbol*;

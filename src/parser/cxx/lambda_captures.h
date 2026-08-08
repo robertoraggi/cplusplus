@@ -1,4 +1,3 @@
-
 // Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,34 +20,35 @@
 
 #pragma once
 
-#include <cxx/symbols_fwd.h>
-#include <cxx/token_fwd.h>
-#include <cxx/types_fwd.h>
-
-#include <functional>
-#include <variant>
+#include <cxx/ast.h>
 
 namespace cxx {
 
-class Parser;
+[[nodiscard]] inline auto capture_initializer(LambdaCaptureAST* capture)
+    -> ExpressionAST* {
+  if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
+    return simple->initializer;
+  if (auto ref = ast_cast<RefLambdaCaptureAST>(capture))
+    return ref->initializer;
+  if (auto self = ast_cast<ThisLambdaCaptureAST>(capture))
+    return self->initializer;
+  if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
+    return initCapture->initializer;
+  if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
+    return refInitCapture->initializer;
+  return nullptr;
+}
 
-struct UnqualifiedCompletionContext {
-  ScopeSymbol* scope = nullptr;
-};
-
-struct MemberCompletionContext {
-  const Type* objectType = nullptr;
-  TokenKind accessOp = TokenKind::T_DOT;
-};
-
-using CodeCompletionContext =
-    std::variant<UnqualifiedCompletionContext, MemberCompletionContext>;
-
-struct ParserConfiguration {
-  bool checkTypes = false;
-  bool allowUnprototypedFunctions = false;
-  std::function<bool()> stopParsingPredicate;
-  std::function<void(const CodeCompletionContext&)> complete;
-};
+[[nodiscard]] inline auto is_pack_capture(LambdaCaptureAST* capture) -> bool {
+  if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
+    return bool(simple->ellipsisLoc);
+  if (auto ref = ast_cast<RefLambdaCaptureAST>(capture))
+    return bool(ref->ellipsisLoc);
+  if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
+    return bool(initCapture->ellipsisLoc);
+  if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
+    return bool(refInitCapture->ellipsisLoc);
+  return false;
+}
 
 }  // namespace cxx

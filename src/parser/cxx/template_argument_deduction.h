@@ -47,6 +47,8 @@ struct TemplateParameterInfo {
 
   const TypeParameterType* typeParameterType = nullptr;
   TemplateParameterAST* parameterAST = nullptr;
+  int depth = 0;
+  int index = 0;
   bool isPack = false;
   bool hasDefault = false;
   Kind kind = Kind::kUnknown;
@@ -58,6 +60,12 @@ class TemplateArgumentDeduction {
 
   [[nodiscard]] auto deduce(FunctionSymbol* func, List<ExpressionAST*>* args,
                             List<TemplateArgumentAST*>* explicitTemplateArgs)
+      -> std::optional<List<TemplateArgumentAST*>*>;
+
+  [[nodiscard]] auto deduceForGuide(TemplateDeclarationAST* templateDecl,
+                                    const FunctionType* functionType,
+                                    ParameterDeclarationClauseAST* parameters,
+                                    List<ExpressionAST*>* args)
       -> std::optional<List<TemplateArgumentAST*>*>;
 
   [[nodiscard]] auto deduceFromTargetType(FunctionSymbol* func,
@@ -129,6 +137,10 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto deduceArrayBound(const Type* P, const Type* A) -> bool;
 
   [[nodiscard]] auto nonTypeParameterIndex(ExpressionAST* expr) const -> int;
+
+  [[nodiscard]] auto parameterSlot(int depth, int index) const -> int;
+
+  [[nodiscard]] auto parameterSlot(const TypeParameterType* type) const -> int;
 
   TranslationUnit* unit_;
   TypeTraits traits;

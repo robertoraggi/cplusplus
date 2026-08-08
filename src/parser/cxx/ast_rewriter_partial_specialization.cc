@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <ranges>
 #include <span>
 
 namespace cxx {
@@ -87,16 +88,38 @@ struct NestedTemplatePattern {
   }
 };
 
-auto findTemplateIdInTypeId(TypeIdAST* typeId) -> SimpleTemplateIdAST* {
+auto expansionTypeIdOfAlias(NamedTypeSpecifierAST* named) -> TypeIdAST* {
+  auto alias = symbol_cast<TypeAliasSymbol>(named->symbol);
+  if (!alias || alias->templateDeclaration()) return nullptr;
+  return alias->expansionTypeId();
+}
+
+auto findTemplateIdInTypeId(TypeIdAST* typeId,
+                            std::vector<TypeIdAST*>& expandedAliases)
+    -> SimpleTemplateIdAST* {
   if (!typeId) return nullptr;
+  if (std::ranges::contains(expandedAliases, typeId)) return nullptr;
+  expandedAliases.push_back(typeId);
+
   for (auto sp : ListView{typeId->typeSpecifierList}) {
     auto named = ast_cast<NamedTypeSpecifierAST>(sp);
     if (!named) continue;
+
+    if (auto expansion = expansionTypeIdOfAlias(named)) {
+      if (auto templId = findTemplateIdInTypeId(expansion, expandedAliases))
+        return templId;
+    }
+
     if (auto templId = ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) {
       return templId;
     }
   }
   return nullptr;
+}
+
+auto findTemplateIdInTypeId(TypeIdAST* typeId) -> SimpleTemplateIdAST* {
+  std::vector<TypeIdAST*> expandedAliases;
+  return findTemplateIdInTypeId(typeId, expandedAliases);
 }
 
 auto extractDirectNestedTemplateIds(SimpleTemplateIdAST* templId)
@@ -138,6 +161,34 @@ auto extractNestedTemplatePattern(ClassSpecifierAST* specBody)
   return pattern;
 }
 
+struct HasDefaultTemplateArgument {
+  auto operator()(TypenameTypeParameterAST* p) const -> bool {
+    return p->typeId != nullptr;
+  }
+  auto operator()(TemplateTypeParameterAST* p) const -> bool {
+    return p->idExpression != nullptr;
+  }
+  auto operator()(ConstraintTypeParameterAST* p) const -> bool {
+    return p->typeId != nullptr;
+  }
+  auto operator()(NonTypeTemplateParameterAST* p) const -> bool {
+    return p->declaration && p->declaration->expression != nullptr;
+  }
+};
+
+auto hasDefaultsFromPosition(TemplateDeclarationAST* templateDecl,
+                             size_t fromPosition) -> bool {
+  size_t position = 0;
+  for (auto parameter : ListView{templateDecl->templateParameterList}) {
+    if (position >= fromPosition &&
+        !visit(HasDefaultTemplateArgument{}, parameter)) {
+      return false;
+    }
+    ++position;
+  }
+  return true;
+}
+
 auto asSymbolArgument(const TemplateArgument& argument) -> Symbol* {
   auto symbol = std::get_if<Symbol*>(&argument);
   if (!symbol) return nullptr;
@@ -155,8 +206,54 @@ struct PartialSpecMatcher {
   int nestedMatches = 0;
   int nonTypeMatches = 0;
   int deducedParamMatches = 0;
+  int templateTemplateBindings = 0;
 
   [[nodiscard]] auto control() const -> Control* { return unit->control(); }
+
+  static auto toSymbolVector(std::span<const TemplateArgument> args)
+      -> std::vector<Symbol*> {
+    std::vector<Symbol*> result;
+    result.reserve(args.size());
+
+    for (const auto& arg : args) result.push_back(asSymbolArgument(arg));
+
+    return result;
+  }
+
+  auto collectWrittenTemplateArgumentSymbols(List<TemplateArgumentAST*>* args)
+      -> std::optional<std::vector<Symbol*>> {
+    std::vector<Symbol*> symbols;
+    for (auto arg : ListView{args}) {
+      if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+        if (!typeArg->typeId || !typeArg->typeId->type) return std::nullopt;
+        auto wrapper = control()->newTypeAliasSymbol(nullptr, {});
+        wrapper->setType(typeArg->typeId->type);
+        symbols.push_back(wrapper);
+        continue;
+      }
+
+      if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
+        auto idExpr = ast_cast<IdExpressionAST>(exprArg->expression);
+        if (!idExpr || !idExpr->symbol) return std::nullopt;
+        symbols.push_back(idExpr->symbol);
+        continue;
+      }
+
+      return std::nullopt;
+    }
+    return symbols;
+  }
+
+  auto finishNestedMatch(const std::vector<Symbol*>& patSymbols,
+                         const std::vector<Symbol*>& concSymbols,
+                         SimpleTemplateIdAST* patTemplId) -> bool {
+    if (!deduceArgumentList(patSymbols, concSymbols, patTemplId, 0)) {
+      return false;
+    }
+    ++score;
+    ++nestedMatches;
+    return true;
+  }
 
   auto sameArgument(Symbol* lhs, Symbol* rhs) const -> bool {
     if (lhs == rhs) return true;
@@ -244,6 +341,15 @@ struct PartialSpecMatcher {
       -> bool {
     if (!patSym || !concSym) return false;
 
+    auto childTemplateId =
+        pattern ? pattern->child(patTemplId, argPos) : nullptr;
+
+    if (auto patTTP = type_cast<TemplateTypeParameterType>(patSym->type());
+        patTTP && childTemplateId && childTemplateId->templateArgumentList) {
+      return deduceTemplateTemplateParameter(patTTP, concSym->type(),
+                                             childTemplateId);
+    }
+
     if (auto patInfo = template_parameter_info(patSym)) {
       return deduceOrCheck(paramPosition(patInfo->depth, patInfo->index),
                            concSym, /*countAsParamMatch=*/true);
@@ -288,8 +394,7 @@ struct PartialSpecMatcher {
       return true;
     }
 
-    return deduceType(patType, concType,
-                      pattern ? pattern->child(patTemplId, argPos) : nullptr);
+    return deduceType(patType, concType, childTemplateId);
   }
 
   auto matchArg(const TemplateArgument& pat, const TemplateArgument& conc,
@@ -298,9 +403,53 @@ struct PartialSpecMatcher {
                           pattern ? pattern->root : nullptr, argPos);
   }
 
+  auto deduceTemplateTemplateParameter(const TemplateTypeParameterType* patTTP,
+                                       const Type* concType,
+                                       SimpleTemplateIdAST* patTemplId)
+      -> bool {
+    auto concClassType = type_cast<ClassType>(concType);
+    if (!concClassType) return false;
+
+    auto concClassSym = concClassType->symbol();
+    if (!concClassSym || !concClassSym->isSpecialization()) return false;
+
+    auto primary = concClassSym->primaryTemplateSymbol();
+    if (!primary || !primary->templateDeclaration()) return false;
+
+    auto pos = paramPosition(patTTP->depth(), patTTP->index());
+    if (!deduceOrCheck(pos, primary, /*countAsParamMatch=*/true)) return false;
+
+    ++templateTemplateBindings;
+
+    auto patSymbols =
+        collectWrittenTemplateArgumentSymbols(patTemplId->templateArgumentList);
+    if (!patSymbols) return false;
+
+    auto concSymbols = toSymbolVector(concClassSym->templateArguments());
+
+    auto patInfo = patSymbols->empty()
+                       ? std::nullopt
+                       : template_parameter_info(patSymbols->back());
+    auto patHasTrailingPack = patInfo && patInfo->isPack;
+    if (!patHasTrailingPack && patSymbols->size() < concSymbols.size()) {
+      if (!hasDefaultsFromPosition(primary->templateDeclaration(),
+                                   patSymbols->size())) {
+        return false;
+      }
+      concSymbols.resize(patSymbols->size());
+    }
+
+    return finishNestedMatch(*patSymbols, concSymbols, patTemplId);
+  }
+
   auto deduceType(const Type* patType, const Type* concType,
                   SimpleTemplateIdAST* patTemplId) -> bool {
     if (!patType || !concType) return false;
+
+    if (auto patTTP = type_cast<TemplateTypeParameterType>(patType);
+        patTTP && patTemplId && patTemplId->templateArgumentList) {
+      return deduceTemplateTemplateParameter(patTTP, concType, patTemplId);
+    }
 
     if (auto patParamInfo = getTypeParamInfo(patType)) {
       auto pos = paramPosition(patParamInfo->depth, patParamInfo->index);
@@ -433,14 +582,8 @@ struct PartialSpecMatcher {
             patClassSym->templateDeclaration()) {
           if (!patTemplId) return false;
 
-          if (!matchNestedWithPattern(patTemplId, patClassSym,
-                                      concClassSym->templateArguments())) {
-            return false;
-          }
-
-          ++score;
-          ++nestedMatches;
-          return true;
+          return matchNestedWithPattern(patTemplId, patClassSym,
+                                        concClassSym->templateArguments());
         }
 
         if (patClassSym->isSpecialization() &&
@@ -451,14 +594,8 @@ struct PartialSpecMatcher {
           if (!primary->templateDeclaration()) return false;
           if (!patTemplId) return false;
 
-          if (!matchNestedWithPattern(patTemplId, primary,
-                                      concClassSym->templateArguments())) {
-            return false;
-          }
-
-          ++score;
-          ++nestedMatches;
-          return true;
+          return matchNestedWithPattern(patTemplId, primary,
+                                        concClassSym->templateArguments());
         }
       }
     }
@@ -563,19 +700,10 @@ struct PartialSpecMatcher {
       auto patInnerArgs = Substitution(unit, primarySym->templateDeclaration(),
                                        patTemplId->templateArgumentList)
                               .templateArguments();
-      patSymbols.reserve(patInnerArgs.size());
-      for (const auto& arg : patInnerArgs) {
-        patSymbols.push_back(asSymbolArgument(arg));
-      }
+      patSymbols = toSymbolVector(patInnerArgs);
     }
 
-    std::vector<Symbol*> concSymbols;
-    concSymbols.reserve(concArgs.size());
-    for (const auto& arg : concArgs) {
-      concSymbols.push_back(asSymbolArgument(arg));
-    }
-
-    return deduceArgumentList(patSymbols, concSymbols, patTemplId, 0);
+    return finishNestedMatch(patSymbols, toSymbolVector(concArgs), patTemplId);
   }
 };
 
@@ -593,6 +721,7 @@ struct Candidate {
   int nestedMatches = 0;
   int nonTypeMatches = 0;
   int deducedParamMatches = 0;
+  int templateTemplateBindings = 0;
 };
 
 auto makeParamPosition(TemplateDeclarationAST* templateDecl)
@@ -772,7 +901,13 @@ auto collectCandidate(TranslationUnit* unit, const SpecEntry& spec,
   if (!checkCollapsedSpecArguments(
           unit, ast_cast<SimpleTemplateIdAST>(specBody->unqualifiedId),
           patternArgs, templateArguments, deducedArgs.toTemplateArguments(),
-          specTemplateDecl, specClass->enclosingNonTemplateParametersScope())) {
+          specTemplateDecl, specClass->parent())) {
+    return std::nullopt;
+  }
+
+  if (!ASTRewriter::checkAssociatedConstraints(
+          unit, specClass, deducedArgs.toTemplateArguments(),
+          specTemplateDecl->depth)) {
     return std::nullopt;
   }
 
@@ -788,7 +923,8 @@ auto collectCandidate(TranslationUnit* unit, const SpecEntry& spec,
       .exactTypeMatches = matcher.exactTypeMatches,
       .nestedMatches = matcher.nestedMatches,
       .nonTypeMatches = matcher.nonTypeMatches,
-      .deducedParamMatches = matcher.deducedParamMatches};
+      .deducedParamMatches = matcher.deducedParamMatches,
+      .templateTemplateBindings = matcher.templateTemplateBindings};
 }
 
 template <typename SpecEntry>
@@ -838,7 +974,13 @@ auto collectVariableCandidate(
   if (pattern && !checkCollapsedSpecArguments(
                      unit, pattern->root, patternArgs, templateArguments,
                      deducedArgs.toTemplateArguments(), specTemplateDecl,
-                     specVar->enclosingNonTemplateParametersScope())) {
+                     specVar->parent())) {
+    return std::nullopt;
+  }
+
+  if (!ASTRewriter::checkAssociatedConstraints(
+          unit, specVar, deducedArgs.toTemplateArguments(),
+          specTemplateDecl->depth)) {
     return std::nullopt;
   }
 
@@ -853,11 +995,14 @@ auto collectVariableCandidate(
       .exactTypeMatches = matcher.exactTypeMatches,
       .nestedMatches = matcher.nestedMatches,
       .nonTypeMatches = matcher.nonTypeMatches,
-      .deducedParamMatches = matcher.deducedParamMatches};
+      .deducedParamMatches = matcher.deducedParamMatches,
+      .templateTemplateBindings = matcher.templateTemplateBindings};
 }
 
 auto isLessSpecific(const Candidate& lhs, const Candidate& rhs) -> bool {
   if (lhs.score != rhs.score) return lhs.score < rhs.score;
+  if (lhs.templateTemplateBindings != rhs.templateTemplateBindings)
+    return lhs.templateTemplateBindings > rhs.templateTemplateBindings;
   if (lhs.exactTypeMatches != rhs.exactTypeMatches)
     return lhs.exactTypeMatches < rhs.exactTypeMatches;
   if (lhs.nestedMatches != rhs.nestedMatches)
@@ -875,6 +1020,7 @@ auto isLessSpecific(const Candidate& lhs, const Candidate& rhs) -> bool {
 
 auto hasEqualSpecificity(const Candidate& lhs, const Candidate& rhs) -> bool {
   return lhs.score == rhs.score &&
+         lhs.templateTemplateBindings == rhs.templateTemplateBindings &&
          lhs.exactTypeMatches == rhs.exactTypeMatches &&
          lhs.nestedMatches == rhs.nestedMatches &&
          lhs.nonTypeMatches == rhs.nonTypeMatches &&
@@ -987,8 +1133,7 @@ auto ASTRewriter::tryPartialSpecialization(
     return cached;
   }
 
-  auto specParentScope =
-      selected.specClass->enclosingNonTemplateParametersScope();
+  auto specParentScope = selected.specClass->parent();
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
   specRewriter.binder().setInstantiatingSymbol(selected.specClass);
@@ -1037,8 +1182,7 @@ auto ASTRewriter::tryPartialSpecialization(
       ast_cast<SimpleDeclarationAST>(specTemplateDecl->declaration);
   if (!simpleDecl) return nullptr;
 
-  auto specParentScope =
-      selected.specVar->enclosingNonTemplateParametersScope();
+  auto specParentScope = selected.specVar->parent();
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
   specRewriter.binder().setInstantiatingSymbol(selected.specVar);

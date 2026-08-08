@@ -72,6 +72,9 @@ inline auto members(ScopeSymbol* symbol) {
   return std::views::all(symbol->members());
 }
 
+constexpr auto parameters = std::views::filter(&Symbol::isParameter) |
+                            std::views::transform(symbol_cast<ParameterSymbol>);
+
 constexpr auto named_symbol = std::views::filter(&Symbol::name);
 
 constexpr auto fields = std::views::filter(&Symbol::isField) |

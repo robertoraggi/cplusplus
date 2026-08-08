@@ -302,8 +302,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
     auto patternClass = symbol_cast<ClassSymbol>(
         originalDef->symbol->enclosingNonTemplateParametersScope());
-    auto instanceClass =
-        symbol_cast<ClassSymbol>(func->enclosingNonTemplateParametersScope());
+    auto instanceClass = symbol_cast<ClassSymbol>(func->parent());
     if (patternClass && instanceClass) {
       rewriter.remapScopeMembers(patternClass, instanceClass);
     }
@@ -338,16 +337,12 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   rewriter.binder_.setInstantiatingSymbol(func);
 
   if (auto oldFunc = symbol_cast<FunctionSymbol>(originalDef->symbol)) {
-    auto oldClass = symbol_cast<ClassSymbol>(
-        oldFunc->enclosingNonTemplateParametersScope());
-    auto newClass =
-        symbol_cast<ClassSymbol>(func->enclosingNonTemplateParametersScope());
+    auto oldClass = symbol_cast<ClassSymbol>(oldFunc->parent());
+    auto newClass = symbol_cast<ClassSymbol>(func->parent());
 
     while (oldClass && newClass) {
-      auto oldUp = symbol_cast<ClassSymbol>(
-          oldClass->enclosingNonTemplateParametersScope());
-      auto newUp = symbol_cast<ClassSymbol>(
-          newClass->enclosingNonTemplateParametersScope());
+      auto oldUp = symbol_cast<ClassSymbol>(oldClass->parent());
+      auto newUp = symbol_cast<ClassSymbol>(newClass->parent());
       if (!oldUp || !newUp) break;
       oldClass = oldUp;
       newClass = newUp;

@@ -162,6 +162,68 @@ auto ASTRewriter::templateArgumentFor(Symbol* templateParameter) const
   return templateArgumentAt(info->depth, info->index);
 }
 
+auto ASTRewriter::writtenArgumentForAliasedParameter(
+    TypeIdAST* patternTypeId) const -> TypeIdAST* {
+  if (!writtenTemplateArgumentList_) return nullptr;
+  if (!patternTypeId) return nullptr;
+  if (!patternTypeId->typeSpecifierList ||
+      patternTypeId->typeSpecifierList->next) {
+    return nullptr;
+  }
+
+  auto named =
+      ast_cast<NamedTypeSpecifierAST>(patternTypeId->typeSpecifierList->value);
+  if (!named || !symbol_cast<TypeParameterSymbol>(named->symbol)) {
+    return nullptr;
+  }
+
+  auto info = template_parameter_info(named->symbol);
+  if (!info || info->isPack || info->depth != depth_ || info->index < 0) {
+    return nullptr;
+  }
+
+  int index = 0;
+  for (auto argument : ListView{writtenTemplateArgumentList_}) {
+    if (index++ != info->index) continue;
+    auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
+    if (!typeArgument || !typeArgument->typeId) return nullptr;
+    return typeArgument->typeId->clone(arena());
+  }
+
+  return nullptr;
+}
+
+auto ASTRewriter::writtenTypeArgumentSpecifierFor(
+    Symbol* templateParameter) const -> NamedTypeSpecifierAST* {
+  if (!retainsEnclosingTemplateLevels()) return nullptr;
+
+  auto info = template_parameter_info(templateParameter);
+  if (!info || info->isPack || info->depth != depth_ || info->index < 0) {
+    return nullptr;
+  }
+
+  int index = 0;
+  for (auto argument : ListView{writtenTemplateArgumentList_}) {
+    if (index++ != info->index) continue;
+
+    auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
+    if (!typeArgument || !typeArgument->typeId) return nullptr;
+
+    auto typeId = typeArgument->typeId;
+    if (typeId->declarator) return nullptr;
+    if (!typeId->typeSpecifierList || typeId->typeSpecifierList->next)
+      return nullptr;
+
+    auto named =
+        ast_cast<NamedTypeSpecifierAST>(typeId->typeSpecifierList->value);
+    if (!named || !ast_cast<SimpleTemplateIdAST>(named->unqualifiedId))
+      return nullptr;
+    return named->clone(arena());
+  }
+
+  return nullptr;
+}
+
 auto ASTRewriter::substitutedSymbol(Symbol* templateParameter) const
     -> Symbol* {
   auto argument = templateArgumentFor(templateParameter);

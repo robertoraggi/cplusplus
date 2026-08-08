@@ -85,12 +85,17 @@ void Binder::note(SourceLocation loc, std::string message) {
 }
 
 auto Binder::inTemplate() const -> bool {
-  return inTemplate_ || explicitTemplateHeadDepth_ > 0;
+  return inTemplate_ || explicitTemplateHeadDepth_ > 0 ||
+         retainsEnclosingTemplateLevels_;
 }
 
 void Binder::enterExplicitTemplateHead() { ++explicitTemplateHeadDepth_; }
 
 void Binder::leaveExplicitTemplateHead() { --explicitTemplateHeadDepth_; }
+
+void Binder::setRetainsEnclosingTemplateLevels(bool value) {
+  retainsEnclosingTemplateLevels_ = value;
+}
 
 void Binder::finishAutoReturnType(FunctionSymbol* functionSymbol) {
   if (!functionSymbol) return;
@@ -591,6 +596,73 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
   return symbol;
 }
 
+namespace {
+
+struct TerminalNestedNameSpecifierName {
+  auto operator()(GlobalNestedNameSpecifierAST*) const -> const Identifier* {
+    return nullptr;
+  }
+
+  auto operator()(SimpleNestedNameSpecifierAST* ast) const
+      -> const Identifier* {
+    return ast->identifier;
+  }
+
+  auto operator()(DecltypeNestedNameSpecifierAST*) const -> const Identifier* {
+    return nullptr;
+  }
+
+  auto operator()(TemplateNestedNameSpecifierAST* ast) const
+      -> const Identifier* {
+    return ast->templateId ? ast->templateId->identifier : nullptr;
+  }
+};
+
+}  // namespace
+
+auto Binder::usingDeclaratorNamesConstructor(UsingDeclaratorAST* ast) -> bool {
+  if (!ast->nestedNameSpecifier || ast->typenameLoc) return false;
+  auto terminal =
+      visit(TerminalNestedNameSpecifierName{}, ast->nestedNameSpecifier);
+  if (!terminal) return false;
+  auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId);
+  return nameId && nameId->identifier == terminal;
+}
+
+auto Binder::bindInheritedConstructors(UsingDeclaratorAST* ast) -> bool {
+  auto derived = symbol_cast<ClassSymbol>(scope());
+  if (!derived) return false;
+
+  auto lookupContext =
+      ast->nestedNameSpecifier ? ast->nestedNameSpecifier->symbol : nullptr;
+  auto base = symbol_cast<ClassSymbol>(lookupContext);
+  if (!base) return isDependent(unit_, ast->nestedNameSpecifier);
+  base = base->resolvedDefinition();
+
+  const auto isDirectBase =
+      std::ranges::any_of(derived->baseClasses(), [&](BaseClassSymbol* b) {
+        auto candidate = symbol_cast<ClassSymbol>(b->symbol());
+        return candidate && candidate->resolvedDefinition() == base;
+      });
+
+  if (!isDirectBase) {
+    error(ast->unqualifiedId->firstSourceLocation(),
+          std::format("'{}' is not a direct base class of '{}'",
+                      to_string(base->name()), to_string(derived->name())));
+    return true;
+  }
+
+  auto symbol = control()->newUsingDeclarationSymbol(
+      derived, ast->unqualifiedId->firstSourceLocation());
+  ast->symbol = symbol;
+  symbol->setName(derived->name());
+  symbol->setDeclarator(ast);
+  symbol->setTarget(base->constructorOverloadSet());
+
+  derived->constructorOverloadSet()->addUsingDeclaration(symbol);
+  return true;
+}
+
 void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   auto makeDependentTypeTarget = [&]() -> Symbol* {
     if (!ast->typenameLoc) return nullptr;
@@ -601,6 +673,10 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
         unit_, ast->nestedNameSpecifier, ast->unqualifiedId));
     return alias;
   };
+
+  if (usingDeclaratorNamesConstructor(ast)) {
+    if (bindInheritedConstructors(ast)) return;
+  }
 
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
     if (reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
@@ -782,11 +858,12 @@ void Binder::bind(TypenameTypeParameterAST* ast, int index, int depth) {
 }
 
 void Binder::bind(ConstraintTypeParameterAST* ast, int index, int depth) {
-  auto symbol =
-      control()->newConstraintTypeParameterSymbol(scope(), ast->identifierLoc);
-  symbol->setIndex(index);
-  symbol->setDepth(depth);
+  const auto isParameterPack = static_cast<bool>(ast->ellipsisLoc);
+  auto symbol = control()->newConstraintTypeParameterSymbol(
+      scope(), ast->identifierLoc, index, depth, isParameterPack);
   symbol->setName(ast->identifier);
+  symbol->setTypeConstraint(ast->typeConstraint);
+  ast->symbol = symbol;
   scope()->addSymbol(symbol);
 }
 
@@ -824,7 +901,8 @@ void Binder::bind(ConceptDefinitionAST* ast) {
   declaringScope()->addSymbol(symbol);
 }
 
-void Binder::bind(DeductionGuideAST* ast) {
+void Binder::bind(DeductionGuideAST* ast,
+                  TemplateDeclarationAST* templateHead) {
   auto templateParameters = currentTemplateParameters();
 
   auto symbol =
@@ -836,6 +914,8 @@ void Binder::bind(DeductionGuideAST* ast) {
   if (ast->explicitSpecifier) {
     symbol->setExplicit(true);
   }
+  symbol->setDeclaration(ast);
+  if (templateHead) symbol->setTemplateDeclaration(templateHead);
   ast->symbol = symbol;
 
   std::vector<const Type*> parameterTypes;
@@ -1151,7 +1231,7 @@ auto Binder::addImplicitThisCapture(ClassSymbol* classSymbol,
   classSymbol->addSymbol(field);
   classSymbol->setCapturedThisField(field);
 
-  const auto& ctors = classSymbol->constructors();
+  const auto& ctors = classSymbol->declaredConstructors();
   if (!ctors.empty()) {
     auto ctorSymbol = ctors.front();
     auto ctorType = type_cast<FunctionType>(ctorSymbol->type());
@@ -1288,7 +1368,7 @@ void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
 
   if (capturedTypes.empty()) return;
 
-  const auto& ctors = classSymbol->constructors();
+  const auto& ctors = classSymbol->declaredConstructors();
   if (!ctors.empty()) {
     auto ctorSymbol = ctors.front();
     auto ctorType = type_cast<FunctionType>(ctorSymbol->type());
@@ -1654,7 +1734,7 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
     templateDecl->declaration = funcDef;
 
   auto closureName = name_cast<Identifier>(classSymbol->name());
-  for (auto ctor : classSymbol->constructors()) {
+  for (auto ctor : classSymbol->declaredConstructors()) {
     if (ctor->declaration()) continue;
 
     auto ctorNameId = NameIdAST::create(ar, closureName);
@@ -1819,6 +1899,93 @@ auto isEffectivelyUnboundedArray(TranslationUnit* unit, const Type* type)
   return !arrayBoundToString(type).has_value();
 }
 
+auto unqualifiedIdsStructurallyEquivalentForRedeclaration(TranslationUnit* unit,
+                                                          UnqualifiedIdAST* a,
+                                                          UnqualifiedIdAST* b)
+    -> bool {
+  if (a == b) return true;
+  if (!a || !b) return false;
+
+  if (auto aName = ast_cast<NameIdAST>(a)) {
+    auto bName = ast_cast<NameIdAST>(b);
+    return bName && aName->identifier == bName->identifier;
+  }
+
+  auto aTemplateId = ast_cast<SimpleTemplateIdAST>(a);
+  auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b);
+  if (!aTemplateId || !bTemplateId) return false;
+  if (aTemplateId->identifier != bTemplateId->identifier) return false;
+  return areTemplateArgumentListsSyntacticallyEquivalent(
+      unit, aTemplateId->templateArgumentList,
+      bTemplateId->templateArgumentList);
+}
+
+auto nestedNameSpecifiersStructurallyEquivalent(TranslationUnit* unit,
+                                                NestedNameSpecifierAST* a,
+                                                NestedNameSpecifierAST* b)
+    -> bool {
+  if (a == b) return true;
+  if (!a || !b) return false;
+  if (a->symbol && b->symbol) {
+    if (a->symbol == b->symbol) return true;
+    auto aInfo = template_parameter_info(a->symbol);
+    auto bInfo = template_parameter_info(b->symbol);
+    return aInfo && bInfo && aInfo->index == bInfo->index &&
+           aInfo->depth == bInfo->depth && aInfo->isPack == bInfo->isPack;
+  }
+
+  if (ast_cast<GlobalNestedNameSpecifierAST>(a)) {
+    return ast_cast<GlobalNestedNameSpecifierAST>(b) != nullptr;
+  }
+
+  if (auto sa = ast_cast<SimpleNestedNameSpecifierAST>(a)) {
+    auto sb = ast_cast<SimpleNestedNameSpecifierAST>(b);
+    if (!sb || sa->identifier != sb->identifier) return false;
+    return nestedNameSpecifiersStructurallyEquivalent(
+        unit, sa->nestedNameSpecifier, sb->nestedNameSpecifier);
+  }
+
+  if (auto ta = ast_cast<TemplateNestedNameSpecifierAST>(a)) {
+    auto tb = ast_cast<TemplateNestedNameSpecifierAST>(b);
+    if (!tb || !ta->templateId || !tb->templateId) return false;
+    if (ta->templateId->identifier != tb->templateId->identifier) return false;
+    if (!areTemplateArgumentListsSyntacticallyEquivalent(
+            unit, ta->templateId->templateArgumentList,
+            tb->templateId->templateArgumentList)) {
+      return false;
+    }
+    return nestedNameSpecifiersStructurallyEquivalent(
+        unit, ta->nestedNameSpecifier, tb->nestedNameSpecifier);
+  }
+
+  if (auto da = ast_cast<DecltypeNestedNameSpecifierAST>(a)) {
+    auto db = ast_cast<DecltypeNestedNameSpecifierAST>(b);
+    if (!db || !da->decltypeSpecifier || !db->decltypeSpecifier) return false;
+    auto aType = da->decltypeSpecifier->type;
+    auto bType = db->decltypeSpecifier->type;
+    if (!aType || !bType) return false;
+    return unit->typeTraits().is_same(aType, bType);
+  }
+
+  return false;
+}
+
+auto unresolvedNameTypesStructurallyEquivalent(TranslationUnit* unit,
+                                               const UnresolvedNameType* a,
+                                               const UnresolvedNameType* b)
+    -> bool {
+  if (a == b) return true;
+  if (!a || !b) return false;
+  if (!unqualifiedIdsStructurallyEquivalentForRedeclaration(
+          unit, a->unqualifiedId(), b->unqualifiedId())) {
+    return false;
+  }
+  return nestedNameSpecifiersStructurallyEquivalent(
+      unit, a->nestedNameSpecifier(), b->nestedNameSpecifier());
+}
+
+}  // namespace
+
 auto areRedeclarationTypesCompatible(TranslationUnit* unit,
                                      const Type* existingType,
                                      const Type* incomingType) -> bool {
@@ -1832,6 +1999,14 @@ auto areRedeclarationTypesCompatible(TranslationUnit* unit,
   }
 
   if (unit->typeTraits().is_same(existingType, incomingType)) return true;
+
+  auto existingUnresolved = type_cast<UnresolvedNameType>(existingType);
+  auto incomingUnresolved = type_cast<UnresolvedNameType>(incomingType);
+  if (existingUnresolved || incomingUnresolved) {
+    return existingUnresolved && incomingUnresolved &&
+           unresolvedNameTypesStructurallyEquivalent(unit, existingUnresolved,
+                                                     incomingUnresolved);
+  }
 
   if (!unit->typeTraits().is_array(existingType) ||
       !unit->typeTraits().is_array(incomingType)) {
@@ -1856,6 +2031,7 @@ auto areRedeclarationTypesCompatible(TranslationUnit* unit,
   return *existingBound == *incomingBound;
 }
 
+namespace {
 auto preferredRedeclarationType(TranslationUnit* unit, const Type* existingType,
                                 const Type* incomingType) -> const Type* {
   if (!unit || !existingType || !incomingType) return existingType;
@@ -2192,8 +2368,31 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
                              bool addSymbolToParentScope) -> VariableSymbol* {
   auto name = decl.getName();
   auto currentScope = declaringScope();
-  auto targetScope =
-      decl.specs.isExtern ? scopeForBlockDecl(currentScope) : currentScope;
+  auto qualifiedScope = decl.getScope();
+  auto qualifiedClass = symbol_cast<ClassSymbol>(qualifiedScope);
+  auto qualifiedNamespace = symbol_cast<NamespaceSymbol>(qualifiedScope);
+
+  ClassSymbol* outOfClassMemberClass = nullptr;
+  FieldSymbol* outOfClassMemberField = nullptr;
+  if (qualifiedClass) {
+    for (auto candidate : qualifiedClass->find(name)) {
+      auto field = symbol_cast<FieldSymbol>(candidate);
+      if (!field || !field->isStatic()) continue;
+      outOfClassMemberClass = qualifiedClass;
+      outOfClassMemberField = field;
+      break;
+    }
+  }
+
+  const bool isOutOfClassStaticMemberDef = outOfClassMemberField != nullptr;
+  const bool isOutOfNamespaceMemberDef = qualifiedNamespace != nullptr;
+
+  auto targetScope = isOutOfClassStaticMemberDef
+                         ? static_cast<ScopeSymbol*>(outOfClassMemberClass)
+                     : isOutOfNamespaceMemberDef
+                         ? static_cast<ScopeSymbol*>(qualifiedNamespace)
+                     : decl.specs.isExtern ? scopeForBlockDecl(currentScope)
+                                           : currentScope;
 
   auto symbol = control()->newVariableSymbol(targetScope, decl.location());
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
@@ -2201,64 +2400,41 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   symbol->setName(name);
   symbol->setType(type);
 
-  bool isOutOfClassStaticMemberDef = false;
-  if (auto declId = decl.declaratorId) {
-    if (auto nns = declId->nestedNameSpecifier; nns && nns->symbol) {
-      auto classSymbol = symbol_cast<ClassSymbol>(nns->symbol);
-      if (!classSymbol) {
-        if (auto classType =
-                type_cast<ClassType>(traits.remove_cv(nns->symbol->type()))) {
-          classSymbol = classType->symbol();
-        }
-      }
-      if (classSymbol) {
-        for (auto candidate : classSymbol->find(name)) {
-          auto field = symbol_cast<FieldSymbol>(candidate);
-          if (!field || !field->isStatic()) continue;
-          field->setDefinition(symbol);
-          symbol->setStatic(true);
-          symbol->setParent(classSymbol);
-          isOutOfClassStaticMemberDef = true;
-          break;
-        }
-      }
-    }
+  if (isOutOfClassStaticMemberDef) {
+    outOfClassMemberField->setDefinition(symbol);
+    symbol->setStatic(true);
   }
+
   if (auto classType = type_cast<ClassType>(traits.remove_cv(type))) {
     traits.requireCompleteClass(classType->symbol());
   }
-  if (addSymbolToParentScope) {
-    for (auto candidate : targetScope->find(name)) {
-      if (auto existing = symbol_cast<VariableSymbol>(candidate)) {
-        if (isOutOfClassStaticMemberDef &&
-            (existing->isStatic() ||
-             symbol_cast<ClassSymbol>(existing->parent()))) {
-          break;
-        }
-        if (!areRedeclarationTypesCompatible(unit_, existing->type(),
-                                             symbol->type())) {
-          error(
-              symbol->location(),
+
+  if (!addSymbolToParentScope || isOutOfClassStaticMemberDef) return symbol;
+
+  for (auto candidate : targetScope->find(name)) {
+    if (auto existing = symbol_cast<VariableSymbol>(candidate)) {
+      if (!areRedeclarationTypesCompatible(unit_, existing->type(),
+                                           symbol->type())) {
+        error(symbol->location(),
               std::format("conflicting declaration of '{}'", to_string(name)));
-          continue;
-        }
-
-        auto canon = existing->canonical();
-        auto mergedType =
-            preferredRedeclarationType(unit_, canon->type(), symbol->type());
-        canon->setType(mergedType);
-        symbol->setType(mergedType);
-        canon->addRedeclaration(symbol);
-        break;
+        continue;
       }
-    }
 
-    targetScope->addSymbol(symbol);
-
-    if (targetScope != currentScope) {
-      if (symbol->canonical() == symbol) symbol->setHidden(true);
-      injectUsing(currentScope, name, symbol->canonical(), decl.location());
+      auto canon = existing->canonical();
+      auto mergedType =
+          preferredRedeclarationType(unit_, canon->type(), symbol->type());
+      canon->setType(mergedType);
+      symbol->setType(mergedType);
+      canon->addRedeclaration(symbol);
+      break;
     }
+  }
+
+  targetScope->addSymbol(symbol);
+
+  if (targetScope != currentScope && !isOutOfNamespaceMemberDef) {
+    if (symbol->canonical() == symbol) symbol->setHidden(true);
+    injectUsing(currentScope, name, symbol->canonical(), decl.location());
   }
   return symbol;
 }

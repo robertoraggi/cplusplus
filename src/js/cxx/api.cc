@@ -66,6 +66,15 @@ cxx::ASTSlot getSlot;
 EMSCRIPTEN_DECLARE_VAL_TYPE(UnitOptions);
 EMSCRIPTEN_DECLARE_VAL_TYPE(DiagnosticList);
 
+auto cplusplusMacroValue(std::string_view standard) -> std::string_view {
+  if (standard == "c++14") return "201402L";
+  if (standard == "c++17") return "201703L";
+  if (standard == "c++20") return "202002L";
+  if (standard == "c++23") return "202302L";
+  if (standard == "c++26") return "202400L";
+  return {};
+}
+
 auto severityName(cxx::Severity severity) -> std::string_view {
   switch (severity) {
     case cxx::Severity::Message:
@@ -157,6 +166,16 @@ struct WrappedUnit {
       toolchain->addSystemCppIncludePaths();
       toolchain->addSystemIncludePaths();
       toolchain->addPredefinedMacros();
+
+      if (!api.isUndefined()) {
+        if (val standard = api["std"]; standard.isString()) {
+          auto value = cplusplusMacroValue(standard.as<std::string>());
+          if (!value.empty()) {
+            preprocessor->undefMacro("__cplusplus");
+            preprocessor->defineMacro("__cplusplus", std::string(value));
+          }
+        }
+      }
 
       addIncludePaths("quoteIncludePaths", [&](std::string path) {
         preprocessor->addQuoteIncludePath(std::move(path));
@@ -273,7 +292,6 @@ struct WrappedUnit {
 
     unit->parse(cxx::ParserConfiguration{
         .checkTypes = true,
-        .fuzzyTemplateResolution = true,
     });
 
     co_return val{true};
@@ -297,7 +315,9 @@ struct WrappedUnit {
     llvm::raw_os_ostream os(out);
 
     if (format == "cxxir") {
-      ir.module->print(os);
+      mlir::OpPrintingFlags flags;
+      if (debugInfo) flags.enableDebugInfo(true);
+      ir.module->print(os, flags);
       os.flush();
       return out.str();
     }
@@ -467,7 +487,7 @@ auto createUnit(std::string source, std::string filename, UnitOptions api)
 EMSCRIPTEN_BINDINGS(cxx) {
   register_type<UnitOptions>(
       "UnitOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined })");
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined })");
 
   register_type<DiagnosticList>(
       "DiagnosticList",

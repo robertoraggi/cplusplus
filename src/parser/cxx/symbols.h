@@ -75,8 +75,15 @@ struct PendingBodyInstantiation {
 
 [[nodiscard]] auto template_name_symbol(Symbol* symbol) -> Symbol*;
 
+[[nodiscard]] auto templated_symbol(Symbol* symbol) -> Symbol*;
+
 [[nodiscard]] auto template_declaration_of(Symbol* symbol)
     -> TemplateDeclarationAST*;
+
+[[nodiscard]] auto template_parameters_of(Symbol* symbol)
+    -> TemplateParametersSymbol*;
+
+[[nodiscard]] auto template_declaration_ast(Symbol* symbol) -> AST*;
 
 [[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
 
@@ -669,7 +676,9 @@ class ClassSymbol final : public ScopeSymbol,
 
   void addBaseClass(BaseClassSymbol* baseClass);
 
-  [[nodiscard]] auto constructors() const
+  [[nodiscard]] auto constructors() const -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto declaredConstructors() const
       -> const std::vector<FunctionSymbol*>&;
 
   void addConstructor(FunctionSymbol* constructor);
@@ -700,6 +709,8 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto copyAssignmentOperator() const -> FunctionSymbol*;
   [[nodiscard]] auto moveAssignmentOperator() const -> FunctionSymbol*;
   [[nodiscard]] auto hasUserDeclaredConstructors() const -> bool;
+
+  [[nodiscard]] auto hasInheritedConstructors() const -> bool;
   [[nodiscard]] auto hasVirtualFunctions() const -> bool;
   [[nodiscard]] auto hasVirtualBaseClasses() const -> bool;
 
@@ -924,6 +935,13 @@ class FunctionSymbol final
   [[nodiscard]] auto vtableSlotIndex() const -> int { return vtableSlotIndex_; }
   void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
 
+  [[nodiscard]] auto delegatingConstructor() const -> FunctionSymbol* {
+    return delegatingConstructor_;
+  }
+  void setDelegatingConstructor(FunctionSymbol* target) {
+    delegatingConstructor_ = target;
+  }
+
   [[nodiscard]] auto completeObjectVariant() const -> FunctionSymbol* {
     return completeObjectVariant_;
   }
@@ -949,6 +967,19 @@ class FunctionSymbol final
     return structorPrincipal_ != nullptr;
   }
 
+  [[nodiscard]] auto inheritedConstructor() const -> FunctionSymbol* {
+    return inheritedConstructor_;
+  }
+  [[nodiscard]] auto inheritedConstructorOrigin() const -> FunctionSymbol* {
+    auto origin = inheritedConstructor_;
+    while (origin && origin->inheritedConstructor_)
+      origin = origin->inheritedConstructor_;
+    return origin;
+  }
+  void setInheritedConstructor(FunctionSymbol* constructor) {
+    inheritedConstructor_ = constructor;
+  }
+
   [[nodiscard]] auto isDeletingDtorVariant() const -> bool {
     return structorPrincipal_ &&
            structorPrincipal_->deletingDtorVariant() == this;
@@ -957,8 +988,10 @@ class FunctionSymbol final
  private:
   std::unique_ptr<PendingBodyInstantiation> pendingBody_;
   FunctionSymbol* completeObjectVariant_ = nullptr;
+  FunctionSymbol* delegatingConstructor_ = nullptr;
   FunctionSymbol* deletingDtorVariant_ = nullptr;
   FunctionSymbol* structorPrincipal_ = nullptr;
+  FunctionSymbol* inheritedConstructor_ = nullptr;
   int vtableSlotIndex_ = -1;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;
@@ -1098,8 +1131,15 @@ class TypeAliasSymbol final
   explicit TypeAliasSymbol(ScopeSymbol* enclosingScope);
   ~TypeAliasSymbol() override;
 
+  [[nodiscard]] auto expansionTypeId() const -> TypeIdAST* {
+    return expansionTypeId_;
+  }
+
+  void setExpansionTypeId(TypeIdAST* typeId) { expansionTypeId_ = typeId; }
+
  private:
   TemplateDeclarationAST* templateDeclaration_ = nullptr;
+  TypeIdAST* expansionTypeId_ = nullptr;
 };
 
 class VariableSymbol final
@@ -1332,10 +1372,28 @@ class ConstraintTypeParameterSymbol final : public Symbol {
   [[nodiscard]] auto isParameterPack() const -> bool;
   void setParameterPack(bool isParameterPack);
 
+  [[nodiscard]] auto typeConstraint() const -> TypeConstraintAST* {
+    return typeConstraint_;
+  }
+
+  void setTypeConstraint(TypeConstraintAST* typeConstraint) {
+    typeConstraint_ = typeConstraint;
+  }
+
+  [[nodiscard]] auto constraintExpression() const -> ExpressionAST* {
+    return constraintExpression_;
+  }
+
+  void setConstraintExpression(ExpressionAST* constraintExpression) {
+    constraintExpression_ = constraintExpression;
+  }
+
  private:
   int index_ = 0;
   int depth_ = 0;
   bool isParameterPack_ = false;
+  TypeConstraintAST* typeConstraint_ = nullptr;
+  ExpressionAST* constraintExpression_ = nullptr;
 };
 
 class EnumeratorSymbol final : public Symbol {
@@ -1366,12 +1424,11 @@ class UsingDeclarationSymbol final : public Symbol {
   void setTarget(Symbol* symbol);
 
   [[nodiscard]] auto introducedFunctions() const
-      -> const std::vector<FunctionSymbol*>&;
+      -> std::vector<FunctionSymbol*>;
 
  private:
   Symbol* target_ = nullptr;
   UsingDeclaratorAST* declarator_ = nullptr;
-  std::vector<FunctionSymbol*> introducedFunctions_;
 };
 
 bool is_type(Symbol* symbol);
@@ -1419,17 +1476,5 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   return true;
 }
 
-[[nodiscard]] inline auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool {
-  for (; scope; scope = scope->parent()) {
-    if (scope->isTemplateParameters()) return true;
-    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
-      if (cls->templateParameters()) return true;
-    } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
-      if (func->templateParameters()) return true;
-    } else if (auto lambda = symbol_cast<LambdaSymbol>(scope)) {
-      if (lambda->isTemplate()) return true;
-    }
-  }
-  return false;
-}
+[[nodiscard]] auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool;
 }  // namespace cxx

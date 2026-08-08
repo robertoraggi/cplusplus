@@ -122,3 +122,63 @@ void test() { select("wrong"); }
     parserWithError.dispose();
   }
 });
+
+test("the std option selects the value of __cplusplus", async () => {
+  const expected = new Map([
+    ["c++14", "201402L"],
+    ["c++17", "201703L"],
+    ["c++20", "202002L"],
+    ["c++23", "202302L"],
+    ["c++26", "202400L"],
+  ]);
+
+  for (const [std, value] of expected) {
+    const parser = await Parser.parse({
+      source: `
+#if __cplusplus != ${value}
+#error __cplusplus does not match the requested standard
+#endif
+int answer() { return 42; }
+`,
+      path: `/source/${std}.cc`,
+      std,
+    });
+
+    try {
+      assert.deepEqual(
+        parser.diagnostics,
+        [],
+        `unexpected diagnostics for ${std}`,
+      );
+    } finally {
+      parser.dispose();
+    }
+  }
+});
+
+test("the std option composes with user defines and undefines", async () => {
+  const parser = await Parser.parse({
+    source: `
+#ifndef FLAG
+#error FLAG is not defined
+#endif
+#ifdef __wasm__
+#error __wasm__ was not undefined
+#endif
+#if __cplusplus != 202302L
+#error __cplusplus does not match the requested standard
+#endif
+int answer() { return 42; }
+`,
+    path: "/source/compose.cc",
+    std: "c++23",
+    defines: ["FLAG"],
+    undefines: ["__wasm__"],
+  });
+
+  try {
+    assert.deepEqual(parser.diagnostics, []);
+  } finally {
+    parser.dispose();
+  }
+});

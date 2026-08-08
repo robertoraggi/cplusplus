@@ -68,9 +68,12 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
 
   auto lhsVar = symbol_cast<VariableSymbol>(lhs);
   auto rhsVar = symbol_cast<VariableSymbol>(rhs);
-  if (lhsVar && rhsVar && lhsVar->constValue().has_value() &&
-      rhsVar->constValue().has_value()) {
-    if (lhsVar->constValue().value() != rhsVar->constValue().value()) {
+  if (lhsVar && rhsVar) {
+    if (lhsVar->constValue().has_value() != rhsVar->constValue().has_value())
+      return false;
+
+    if (lhsVar->constValue().has_value() &&
+        lhsVar->constValue().value() != rhsVar->constValue().value()) {
       return false;
     }
   }
@@ -207,6 +210,43 @@ auto template_name_symbol(Symbol* symbol) -> Symbol* {
   return nullptr;
 }
 
+auto templated_symbol(Symbol* symbol) -> Symbol* {
+  if (!symbol) return nullptr;
+
+  if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol))
+    return templated_symbol(usingDeclaration->target());
+
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+    for (auto function : overloadSet->functions()) {
+      if (auto result = templated_symbol(function)) return result;
+    }
+    return nullptr;
+  }
+
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol)) {
+    auto classSymbol = injected->classSymbol();
+    if (!classSymbol) return nullptr;
+    if (auto primary = classSymbol->primaryTemplateSymbol())
+      classSymbol = primary;
+    return templated_symbol(classSymbol);
+  }
+
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    if (classSymbol->isSpecialization())
+      return templated_symbol(classSymbol->primaryTemplateSymbol());
+  }
+
+  if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
+    if (alias->isSpecialization())
+      return templated_symbol(alias->primaryTemplateSymbol());
+  }
+
+  if (symbol_cast<TemplateTypeParameterSymbol>(symbol)) return symbol;
+  if (template_parameters_of(symbol) || template_declaration_of(symbol))
+    return symbol;
+  return nullptr;
+}
+
 auto Symbol::EnclosingSymbolIterator::operator++() -> EnclosingSymbolIterator& {
   symbol_ = symbol_->parent();
   return *this;
@@ -340,6 +380,42 @@ struct GetTemplateDeclaration {
   auto operator()(Symbol*) const -> TemplateDeclarationAST* { return nullptr; }
 };
 
+struct GetTemplateParameters {
+  template <Templatable S>
+  auto operator()(S* symbol) const -> TemplateParametersSymbol* {
+    return symbol->templateParameters();
+  }
+
+  auto operator()(Symbol*) const -> TemplateParametersSymbol* {
+    return nullptr;
+  }
+};
+
+struct GetTemplateDeclarationAST {
+  auto operator()(ClassSymbol* symbol) const -> AST* {
+    return symbol->declaration();
+  }
+
+  auto operator()(VariableSymbol* symbol) const -> AST* {
+    auto templateDeclaration = symbol->templateDeclaration();
+    return templateDeclaration ? templateDeclaration->declaration : nullptr;
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) const -> AST* {
+    auto templateDeclaration = symbol->templateDeclaration();
+    return templateDeclaration ? templateDeclaration->declaration : nullptr;
+  }
+
+  auto operator()(FunctionSymbol* symbol) const -> AST* {
+    if (auto declaration = symbol->declaration()) return declaration;
+    if (auto templateDeclaration = symbol->templateDeclaration())
+      return templateDeclaration->declaration;
+    return nullptr;
+  }
+
+  auto operator()(Symbol*) const -> AST* { return nullptr; }
+};
+
 struct GetTemplateParameterInfo {
   auto operator()(TypeParameterSymbol* symbol) const
       -> std::optional<TypeParamInfo> {
@@ -382,6 +458,16 @@ struct GetTemplateParameterInfo {
 auto template_declaration_of(Symbol* symbol) -> TemplateDeclarationAST* {
   if (!symbol) return nullptr;
   return visit(GetTemplateDeclaration{}, symbol);
+}
+
+auto template_parameters_of(Symbol* symbol) -> TemplateParametersSymbol* {
+  if (!symbol) return nullptr;
+  return visit(GetTemplateParameters{}, symbol);
+}
+
+auto template_declaration_ast(Symbol* symbol) -> AST* {
+  if (!symbol) return nullptr;
+  return visit(GetTemplateDeclarationAST{}, symbol);
 }
 
 auto template_parameter_info(Symbol* symbol) -> std::optional<TypeParamInfo> {
@@ -683,7 +769,12 @@ void ClassSymbol::addBaseClass(BaseClassSymbol* baseClass) {
   baseClasses_.push_back(baseClass);
 }
 
-auto ClassSymbol::constructors() const -> const std::vector<FunctionSymbol*>& {
+auto ClassSymbol::constructors() const -> std::vector<FunctionSymbol*> {
+  return constructorOverloadSet_->functions();
+}
+
+auto ClassSymbol::declaredConstructors() const
+    -> const std::vector<FunctionSymbol*>& {
   return constructorOverloadSet_->declaredFunctions();
 }
 
@@ -975,6 +1066,10 @@ auto ClassSymbol::hasUserDeclaredConstructors() const -> bool {
     if (!ctor->isDefaulted()) return true;
   }
   return false;
+}
+
+auto ClassSymbol::hasInheritedConstructors() const -> bool {
+  return !constructorOverloadSet_->usingDeclarations().empty();
 }
 
 auto ClassSymbol::hasVirtualFunctions() const -> bool {
@@ -1630,20 +1725,14 @@ UsingDeclarationSymbol::~UsingDeclarationSymbol() {}
 
 auto UsingDeclarationSymbol::target() const -> Symbol* { return target_; }
 
-void UsingDeclarationSymbol::setTarget(Symbol* symbol) {
-  target_ = symbol;
-
-  introducedFunctions_.clear();
-  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
-    introducedFunctions_ = overloadSet->functions();
-  } else if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    introducedFunctions_.push_back(function);
-  }
-}
+void UsingDeclarationSymbol::setTarget(Symbol* symbol) { target_ = symbol; }
 
 auto UsingDeclarationSymbol::introducedFunctions() const
-    -> const std::vector<FunctionSymbol*>& {
-  return introducedFunctions_;
+    -> std::vector<FunctionSymbol*> {
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(target_))
+    return overloadSet->functions();
+  if (auto function = symbol_cast<FunctionSymbol>(target_)) return {function};
+  return {};
 }
 
 auto UsingDeclarationSymbol::declarator() const -> UsingDeclaratorAST* {

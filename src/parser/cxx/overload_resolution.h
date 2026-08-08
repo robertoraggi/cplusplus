@@ -28,7 +28,9 @@
 #include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
+#include <expected>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace cxx {
@@ -36,13 +38,27 @@ class Arena;
 class Control;
 class TranslationUnit;
 
+struct ImplicitObjectArgument {
+  const Type* type = nullptr;
+  CvQualifiers cv = CvQualifiers::kNone;
+  ValueCategory valueCategory = ValueCategory::kPrValue;
+};
+
+struct DeductionCandidateInfo {
+  bool fromDeductionGuide = false;
+  bool isCopyDeductionCandidate = false;
+  bool fromConstructorTemplate = false;
+  bool fromInheritedConstructor = false;
+};
+
 struct Candidate {
   FunctionSymbol* symbol = nullptr;
+  std::optional<ImplicitConversionSequence> objectConversion;
   std::vector<ImplicitConversionSequence> conversions;
   bool viable = false;
-  bool exactCvMatch = true;
   bool fromTemplate = false;
   List<TemplateArgumentAST*>* deducedTemplateArgs = nullptr;
+  DeductionCandidateInfo deduction;
 };
 
 struct OverloadResult {
@@ -50,11 +66,29 @@ struct OverloadResult {
   bool ambiguous = false;
 };
 
+[[nodiscard]] auto isExcludedInheritedConstructor(const TypeTraits& traits,
+                                                  FunctionSymbol* constructor,
+                                                  ClassSymbol* classSymbol,
+                                                  int argCount) -> bool;
+
+struct RejectedCandidate {
+  FunctionSymbol* symbol = nullptr;
+  std::string reason;
+};
+
 struct ConstructorResult {
   std::vector<Candidate> candidates;
+  std::vector<RejectedCandidate> rejected;
   Candidate* best = nullptr;
   bool ambiguous = false;
 };
+
+[[nodiscard]] auto haveSameParameterTypes(FunctionSymbol* lhs,
+                                          FunctionSymbol* rhs) -> bool;
+
+[[nodiscard]] auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
+                                              const DeductionCandidateInfo& rhs,
+                                              bool parameterTypesMatch) -> int;
 
 [[nodiscard]] auto templateCandidateArityRejects(FunctionSymbol* pattern,
                                                  int argCount) -> bool;
@@ -76,9 +110,13 @@ class OverloadResolution {
   void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
                             ExpressionAST*& expr);
 
+  [[nodiscard]] auto implicitObjectArgumentConversion(
+      FunctionSymbol* function, const ImplicitObjectArgument& object)
+      -> std::expected<ImplicitConversionSequence, std::string>;
+
   [[nodiscard]] auto selectBestViableFunction(
-      std::vector<Candidate>& candidates, bool useCvTiebreaker = false,
-      bool preferNonTemplate = false) -> OverloadResult;
+      std::vector<Candidate>& candidates, bool preferNonTemplate = false)
+      -> OverloadResult;
 
   [[nodiscard]] auto resolveConstructor(ClassSymbol* classSymbol,
                                         const std::vector<ExpressionAST*>& args)

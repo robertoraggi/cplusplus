@@ -61,6 +61,7 @@ struct ImplicitConversionSequence {
   bool fromSingleElementList = false;
   bool bindsToRvalueRef = false;
   bool bindsToReference = false;
+  bool bindsUnqualifiedImplicitObjectParameter = false;
   bool hasQualificationConversion = false;
   CvQualifiers referenceCv = CvQualifiers::kNone;
 
@@ -78,7 +79,9 @@ struct ImplicitConversionSequence {
         return rank > other.rank;
       }
 
-      if (bindsToRvalueRef != other.bindsToRvalueRef) {
+      if (bindsToRvalueRef != other.bindsToRvalueRef &&
+          !bindsUnqualifiedImplicitObjectParameter &&
+          !other.bindsUnqualifiedImplicitObjectParameter) {
         return bindsToRvalueRef;
       }
 

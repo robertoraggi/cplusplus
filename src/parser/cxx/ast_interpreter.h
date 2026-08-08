@@ -200,6 +200,9 @@ class ASTInterpreter {
   [[nodiscard]] auto isRequirementSatisfied(RequirementAST* ast,
                                             ScopeSymbol* scope)
       -> std::optional<bool>;
+  [[nodiscard]] auto isReturnTypeRequirementSatisfied(
+      TypeConstraintAST* typeConstraint, ExpressionAST* expression)
+      -> std::optional<bool>;
   [[nodiscard]] auto newInitializer(NewInitializerAST* ast)
       -> NewInitializerResult;
   [[nodiscard]] auto memInitializer(MemInitializerAST* ast)
@@ -302,6 +305,9 @@ class ASTInterpreter {
 
   [[nodiscard]] auto fieldOwner(ExpressionAST* ast)
       -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto addressOfLvalue(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
 
   void pushFrame();
   void popFrame();

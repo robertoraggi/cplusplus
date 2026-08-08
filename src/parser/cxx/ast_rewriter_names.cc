@@ -526,6 +526,17 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
       copy->templateId->symbol = resolved;
   }
 
+  if (!copy->templateId->symbol && copy->templateId->identifier &&
+      !isDependentNestedNameSpecifier(copy->nestedNameSpecifier)) {
+    auto scopeSymbol =
+        copy->nestedNameSpecifier ? copy->nestedNameSpecifier->symbol : nullptr;
+    rewrite.error(copy->templateId->identifierLoc,
+                  std::format("no member named '{}' in '{}'",
+                              copy->templateId->identifier->value(),
+                              scopeSymbol ? to_string(scopeSymbol->type())
+                                          : std::string{"<error-type>"}));
+  }
+
   if (auto primaryClass = symbol_cast<ClassSymbol>(copy->templateId->symbol)) {
     auto instance = ASTRewriter::instantiate(
         rewrite.unit_, copy->templateId->templateArgumentList, primaryClass,

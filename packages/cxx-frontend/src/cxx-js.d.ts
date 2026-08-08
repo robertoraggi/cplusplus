@@ -15,6 +15,7 @@ export interface ClassHandle {
 export type UnitOptions = {
   appdir?: string | undefined;
   sysroot?: string | undefined;
+  std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined;
   defines?: string[] | undefined;
   undefines?: string[] | undefined;
   quoteIncludePaths?: string[] | undefined;

@@ -40,23 +40,6 @@ namespace cxx {
     List<TemplateArgumentAST*>* b) -> bool;
 
 namespace {
-auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
-  if (auto bounded = type_cast<BoundedArrayType>(type)) {
-    return std::to_string(bounded->size());
-  }
-  return std::nullopt;
-}
-
-auto isEffectivelyUnboundedArray(TranslationUnit* unit, const Type* type)
-    -> bool {
-  if (!unit || !type) return false;
-  if (unit->typeTraits().is_unbounded_array(type)) return true;
-
-  auto unresolved = type_cast<UnresolvedBoundedArrayType>(type);
-  if (!unresolved) return false;
-  return !arrayBoundToString(type).has_value();
-}
-
 namespace {
 [[nodiscard]] auto expressionsStructurallyEquivalent(TranslationUnit* unit,
                                                      ExpressionAST* a,
@@ -477,39 +460,6 @@ auto typesEquivalentModuloOwnHeadDepth(TranslationUnit* unit, const Type* lhs,
   return unit->typeTraits().is_same(lhs, rhs);
 }
 }  // namespace
-
-auto areRedeclarationTypesCompatible(TranslationUnit* unit, const Type* lhs,
-                                     const Type* rhs) -> bool {
-  if (!unit || !lhs || !rhs) return false;
-
-  while (auto qual = type_cast<QualType>(lhs)) {
-    lhs = qual->elementType();
-  }
-  while (auto qual = type_cast<QualType>(rhs)) {
-    rhs = qual->elementType();
-  }
-
-  if (unit->typeTraits().is_same(lhs, rhs)) return true;
-
-  if (!unit->typeTraits().is_array(lhs) || !unit->typeTraits().is_array(rhs))
-    return false;
-
-  auto lhsElement = unit->typeTraits().get_element_type(lhs);
-  auto rhsElement = unit->typeTraits().get_element_type(rhs);
-  if (!areRedeclarationTypesCompatible(unit, lhsElement, rhsElement)) {
-    return false;
-  }
-
-  if (isEffectivelyUnboundedArray(unit, lhs) ||
-      isEffectivelyUnboundedArray(unit, rhs)) {
-    return true;
-  }
-
-  auto lhsBound = arrayBoundToString(lhs);
-  auto rhsBound = arrayBoundToString(rhs);
-  if (!lhsBound || !rhsBound) return true;
-  return *lhsBound == *rhsBound;
-}
 
 auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
                                                      const Type* lhs,

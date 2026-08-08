@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/name_lookup.h>
@@ -33,6 +34,7 @@
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
+#include <format>
 
 namespace cxx {
 namespace {
@@ -491,9 +493,80 @@ auto OverloadResolution::initializerListElementType(const Type* targetType)
   return stdconv_.initializerListElementType(targetType);
 }
 
+auto OverloadResolution::implicitObjectArgumentConversion(
+    FunctionSymbol* function, const ImplicitObjectArgument& object)
+    -> std::expected<ImplicitConversionSequence, std::string> {
+  ImplicitConversionSequence conversion;
+  conversion.rank = ConversionRank::kExactMatch;
+  conversion.steps.push_back({ImplicitCastKind::kIdentity, object.type});
+
+  if (!function->isImplicitObjectMemberFunction()) return conversion;
+
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return conversion;
+
+  const auto functionCv = functionType->cvQualifiers();
+  const auto functionRef = functionType->refQualifier();
+  if (!cv_is_subset_of(object.cv, functionCv)) {
+    return std::unexpected(std::format(
+        "'this' argument has type '{}', but function is not "
+        "marked {}",
+        to_string(object.type), is_const(object.cv) ? "const" : "volatile"));
+  }
+
+  const bool objectIsLvalue = object.valueCategory == ValueCategory::kLValue;
+
+  if (functionRef == RefQualifier::kRvalue && objectIsLvalue) {
+    return std::unexpected(
+        "expects an rvalue for the implicit object argument");
+  }
+
+  if (functionRef == RefQualifier::kLvalue && !objectIsLvalue &&
+      !(is_const(functionCv) && !is_volatile(functionCv))) {
+    return std::unexpected(
+        "expects an lvalue for the implicit object argument");
+  }
+
+  conversion.bindsToReference = true;
+  conversion.referenceCv = functionCv;
+  conversion.bindsToRvalueRef = functionRef == RefQualifier::kRvalue;
+  conversion.bindsUnqualifiedImplicitObjectParameter =
+      functionRef == RefQualifier::kNone;
+
+  return conversion;
+}
+
+auto haveSameParameterTypes(FunctionSymbol* lhs, FunctionSymbol* rhs) -> bool {
+  auto lhsType = type_cast<FunctionType>(lhs->type());
+  auto rhsType = type_cast<FunctionType>(rhs->type());
+  if (!lhsType || !rhsType) return false;
+  if (lhsType->isVariadic() != rhsType->isVariadic()) return false;
+  return std::ranges::equal(lhsType->parameterTypes(),
+                            rhsType->parameterTypes());
+}
+
+auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
+                                const DeductionCandidateInfo& rhs,
+                                bool parameterTypesMatch) -> int {
+  if (parameterTypesMatch &&
+      lhs.fromInheritedConstructor != rhs.fromInheritedConstructor)
+    return lhs.fromInheritedConstructor ? -1 : 1;
+
+  if (lhs.fromDeductionGuide != rhs.fromDeductionGuide)
+    return lhs.fromDeductionGuide ? 1 : -1;
+
+  if (lhs.isCopyDeductionCandidate != rhs.isCopyDeductionCandidate)
+    return lhs.isCopyDeductionCandidate ? 1 : -1;
+
+  if (lhs.fromConstructorTemplate != rhs.fromConstructorTemplate)
+    return lhs.fromConstructorTemplate ? -1 : 1;
+
+  return 0;
+}
+
 auto OverloadResolution::selectBestViableFunction(
-    std::vector<Candidate>& candidates, bool useCvTiebreaker,
-    bool preferNonTemplate) -> OverloadResult {
+    std::vector<Candidate>& candidates, bool preferNonTemplate)
+    -> OverloadResult {
   if (candidates.empty()) return {};
 
   std::vector<Candidate*> best;
@@ -505,6 +578,13 @@ auto OverloadResolution::selectBestViableFunction(
 
     bool currBetter = false;
     bool refBetter = false;
+
+    if (curr.objectConversion && ref.objectConversion) {
+      if (curr.objectConversion->isBetterThan(*ref.objectConversion))
+        currBetter = true;
+      if (ref.objectConversion->isBetterThan(*curr.objectConversion))
+        refBetter = true;
+    }
 
     auto n = std::min(curr.conversions.size(), ref.conversions.size());
     for (size_t j = 0; j < n; ++j) {
@@ -532,8 +612,11 @@ auto OverloadResolution::selectBestViableFunction(
         best.clear();
         best.push_back(&curr);
       }
-    } else if (useCvTiebreaker && curr.exactCvMatch != ref.exactCvMatch) {
-      if (curr.exactCvMatch) {
+    } else if (int order = compareDeductionCandidates(
+                   curr.deduction, ref.deduction,
+                   haveSameParameterTypes(curr.symbol, ref.symbol));
+               order != 0) {
+      if (order > 0) {
         best.clear();
         best.push_back(&curr);
       }
@@ -560,6 +643,30 @@ void OverloadResolution::completeDeferredWinnerBody(
                                   /*argsComplete=*/true);
 }
 
+auto isExcludedInheritedConstructor(const TypeTraits& traits,
+                                    FunctionSymbol* constructor,
+                                    ClassSymbol* classSymbol, int argCount)
+    -> bool {
+  if (argCount != 1) return false;
+
+  auto inherited = constructor->inheritedConstructorOrigin();
+  if (!inherited) return false;
+
+  auto base = symbol_cast<ClassSymbol>(inherited->parent());
+  if (!base) return false;
+
+  auto type = type_cast<FunctionType>(constructor->type());
+  if (!type || type->parameterTypes().empty()) return false;
+
+  auto firstParameter = type->parameterTypes().front();
+  if (!traits.is_reference(firstParameter)) return false;
+
+  auto referenced = traits.remove_reference(firstParameter);
+
+  return traits.is_reference_related(base->type(), referenced) &&
+         traits.is_reference_related(referenced, classSymbol->type());
+}
+
 auto OverloadResolution::resolveConstructor(
     ClassSymbol* classSymbol, const std::vector<ExpressionAST*>& args)
     -> ConstructorResult {
@@ -569,6 +676,16 @@ auto OverloadResolution::resolveConstructor(
 
   const auto constructors = classSymbol->constructors();
 
+  auto reject = [&](FunctionSymbol* ctor, std::string reason) {
+    result.rejected.push_back({ctor, std::move(reason)});
+  };
+
+  auto rejectArity = [&](FunctionSymbol* ctor, int paramCount) {
+    reject(ctor, std::format("requires {} argument{}, but {} {} provided",
+                             paramCount, paramCount == 1 ? "" : "s", argCount,
+                             argCount == 1 ? "was" : "were"));
+  };
+
   for (auto ctor : constructors) {
     if (ctor->canonical() != ctor) continue;
 
@@ -577,7 +694,14 @@ auto OverloadResolution::resolveConstructor(
     List<TemplateArgumentAST*>* deducedArgsForCandidate = nullptr;
 
     if (templateCandidate) {
-      if (templateCandidateArityRejects(ctor, argCount)) continue;
+      if (templateCandidateArityRejects(ctor, argCount)) {
+        auto templateType = type_cast<FunctionType>(ctor->type());
+        rejectArity(
+            ctor, templateType
+                      ? static_cast<int>(templateType->parameterTypes().size())
+                      : argCount);
+        continue;
+      }
 
       List<ExpressionAST*>* expressionList = nullptr;
       auto tail = &expressionList;
@@ -589,7 +713,10 @@ auto OverloadResolution::resolveConstructor(
       TemplateArgumentDeduction deduction(unit_);
       auto deducedArgs = deduction.deduce(ctor, expressionList,
                                           /*explicitTemplateArguments=*/{});
-      if (!deducedArgs.has_value()) continue;
+      if (!deducedArgs.has_value()) {
+        reject(ctor, "template argument deduction failed");
+        continue;
+      }
 
       const auto loc = args.empty() ? classSymbol->location()
                                     : args.front()->firstSourceLocation();
@@ -597,7 +724,10 @@ auto OverloadResolution::resolveConstructor(
       auto instCtor = ASTRewriter::instantiateForArgs(
           unit_, *deducedArgs, ctor, loc, /*argsComplete=*/true,
           /*declarationOnly=*/!functionTemplateHasPackParameter(ctor));
-      if (!instCtor) continue;
+      if (!instCtor) {
+        reject(ctor, "substitution failed for the deduced arguments");
+        continue;
+      }
 
       ctor = instCtor;
       deducedArgsForCandidate = *deducedArgs;
@@ -607,9 +737,36 @@ auto OverloadResolution::resolveConstructor(
     if (!type) continue;
 
     auto paramCount = static_cast<int>(type->parameterTypes().size());
-    if (argCount > paramCount && !type->isVariadic()) continue;
+    if (argCount > paramCount && !type->isVariadic()) {
+      rejectArity(ctor, paramCount);
+      continue;
+    }
     if (argCount < paramCount) {
-      if (argCount < getMinRequiredArgs(ctor, paramCount)) continue;
+      if (argCount < getMinRequiredArgs(ctor, paramCount)) {
+        rejectArity(ctor, paramCount);
+        continue;
+      }
+    }
+
+    if (ASTRewriter::evaluateAssociatedConstraints(unit_, ctor) == false) {
+      reject(ctor, "constraints not satisfied");
+      continue;
+    }
+
+    if (auto owner = symbol_cast<ClassSymbol>(ctor->parent());
+        owner && owner->resolvedDefinition() != classSymbol) {
+      Binder binder{unit_};
+      binder.setReportErrors(!unit_->diagnosticsClient()->isSfinae());
+      auto thunk = binder.inheritedConstructorFor(classSymbol, ctor);
+      if (!thunk) continue;
+      ctor = thunk;
+      type = type_cast<FunctionType>(ctor->type());
+      if (!type) continue;
+    }
+
+    if (isExcludedInheritedConstructor(traits, ctor, classSymbol, argCount)) {
+      reject(ctor, "inherited constructor is excluded by a derived signature");
+      continue;
     }
 
     Candidate cand{ctor};
@@ -623,6 +780,10 @@ auto OverloadResolution::resolveConstructor(
       auto conv = computeImplicitConversionSequence(args[i], *paramIt);
       if (conv.rank == ConversionRank::kNone) {
         cand.viable = false;
+        reject(ctor, std::format(
+                         "no known conversion from '{}' to '{}' for argument "
+                         "{}",
+                         to_string(args[i]->type), to_string(*paramIt), i + 1));
         break;
       }
       cand.conversions.push_back(conv);
@@ -640,8 +801,8 @@ auto OverloadResolution::resolveConstructor(
     if (cand.viable) result.candidates.push_back(std::move(cand));
   }
 
-  auto [bestPtr, ambiguous] = selectBestViableFunction(
-      result.candidates, /*useCvTiebreaker=*/false, /*preferNonTemplate=*/true);
+  auto [bestPtr, ambiguous] =
+      selectBestViableFunction(result.candidates, /*preferNonTemplate=*/true);
   result.best = bestPtr;
   result.ambiguous = ambiguous;
   return result;
@@ -719,23 +880,6 @@ auto OverloadResolution::resolveBinaryOperator(
     ImplicitConversionSequence seq;
     seq.rank = ConversionRank::kExactMatch;
     seq.steps.push_back({ImplicitCastKind::kIdentity, type});
-    return seq;
-  };
-
-  auto rankImplicitObject = [&](const Type* objectType,
-                                const FunctionType* memberFn,
-                                bool* viable) -> ImplicitConversionSequence {
-    *viable = true;
-    auto memberCv = memberFn->cvQualifiers();
-    auto objectCv =
-        traits.get_cv_qualifiers(traits.remove_reference(objectType));
-    if (!cv_is_subset_of(objectCv, memberCv)) {
-      *viable = false;
-      return {};
-    }
-    auto seq = makeExactMatch(objectType);
-    seq.bindsToReference = true;
-    seq.referenceCv = memberCv;
     return seq;
   };
 
@@ -924,9 +1068,14 @@ auto OverloadResolution::resolveBinaryOperator(
             !traits.is_base_of(classType, remove_cvref(leftType))) {
           continue;
         }
-        bool objectViable = false;
-        left = rankImplicitObject(leftType, funcType, &objectViable);
-        if (!objectViable) continue;
+        auto objectConversion = implicitObjectArgumentConversion(
+            candidate,
+            {.type = leftType,
+             .cv = traits.get_cv_qualifiers(traits.remove_reference(leftType)),
+             .valueCategory =
+                 leftExpr ? leftExpr->valueCategory : ValueCategory::kLValue});
+        if (!objectConversion) continue;
+        left = *objectConversion;
         right = rankConversion(rightType, params[0]);
         if (!*right && rightExpr)
           right = stdconv_.computeConversionSequence(rightExpr, params[0]);
@@ -948,9 +1097,14 @@ auto OverloadResolution::resolveBinaryOperator(
             !traits.is_base_of(classType, remove_cvref(leftType))) {
           continue;
         }
-        bool objectViable = false;
-        left = rankImplicitObject(leftType, funcType, &objectViable);
-        if (!objectViable) continue;
+        auto objectConversion = implicitObjectArgumentConversion(
+            candidate,
+            {.type = leftType,
+             .cv = traits.get_cv_qualifiers(traits.remove_reference(leftType)),
+             .valueCategory =
+                 leftExpr ? leftExpr->valueCategory : ValueCategory::kLValue});
+        if (!objectConversion) continue;
+        left = *objectConversion;
       } else {
         if (params.size() != 1) continue;
         left = rankConversion(leftType, params[0]);

@@ -6397,6 +6397,7 @@ auto TypeConstraintAST::clone(Arena* arena) -> TypeConstraintAST* {
 
   node->greaterLoc = greaterLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
 
   return node;
 }
@@ -6410,7 +6411,7 @@ auto TypeConstraintAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     SourceLocation identifierLoc, SourceLocation lessLoc,
     List<TemplateArgumentAST*>* templateArgumentList, SourceLocation greaterLoc,
-    const Identifier* identifier) -> TypeConstraintAST* {
+    const Identifier* identifier, ConceptSymbol* symbol) -> TypeConstraintAST* {
   auto node = new (arena) TypeConstraintAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->identifierLoc = identifierLoc;
@@ -6418,18 +6419,20 @@ auto TypeConstraintAST::create(
   node->templateArgumentList = templateArgumentList;
   node->greaterLoc = greaterLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
 auto TypeConstraintAST::create(Arena* arena,
                                NestedNameSpecifierAST* nestedNameSpecifier,
                                List<TemplateArgumentAST*>* templateArgumentList,
-                               const Identifier* identifier)
-    -> TypeConstraintAST* {
+                               const Identifier* identifier,
+                               ConceptSymbol* symbol) -> TypeConstraintAST* {
   auto node = new (arena) TypeConstraintAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->templateArgumentList = templateArgumentList;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 

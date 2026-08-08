@@ -21,11 +21,14 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/names.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
+#include <cxx/types.h>
 
 namespace cxx {
 auto ASTRewriter::shouldReportCheckErrors() const -> bool {
@@ -51,25 +54,159 @@ void ASTRewriter::typeCheckAndCapture(std::function<void()> checkFn) {
   }
 }
 
-auto ASTRewriter::checkRequiresClause(
-    TranslationUnit* unit, Symbol* symbol, RequiresClauseAST* clause,
+auto ASTRewriter::typeConstraintExpression(
+    TranslationUnit* unit, ConstraintTypeParameterSymbol* parameter)
+    -> ExpressionAST* {
+  if (!parameter) return nullptr;
+  if (auto cached = parameter->constraintExpression()) return cached;
+
+  auto typeConstraint = parameter->typeConstraint();
+  if (!typeConstraint || !typeConstraint->symbol) return nullptr;
+
+  auto arena = unit->arena();
+
+  auto constrainedSpecifier = NamedTypeSpecifierAST::create(arena);
+  constrainedSpecifier->unqualifiedId =
+      NameIdAST::create(arena, name_cast<Identifier>(parameter->name()));
+  constrainedSpecifier->symbol = parameter;
+
+  auto constrainedTypeId = TypeIdAST::create(arena);
+  constrainedTypeId->typeSpecifierList =
+      make_list_node<SpecifierAST>(arena, constrainedSpecifier);
+  constrainedTypeId->type = parameter->type();
+
+  auto constrainedArgument = TypeTemplateArgumentAST::create(arena);
+  constrainedArgument->typeId = constrainedTypeId;
+
+  auto templateId = SimpleTemplateIdAST::create(arena);
+  templateId->identifierLoc = typeConstraint->identifierLoc;
+  templateId->lessLoc = typeConstraint->lessLoc;
+  templateId->greaterLoc = typeConstraint->greaterLoc;
+  templateId->identifier = typeConstraint->identifier;
+  templateId->symbol = typeConstraint->symbol;
+
+  auto out = &templateId->templateArgumentList;
+  *out = make_list_node<TemplateArgumentAST>(arena, constrainedArgument);
+  out = &(*out)->next;
+
+  for (auto argument : ListView{typeConstraint->templateArgumentList}) {
+    *out = make_list_node(arena, argument);
+    out = &(*out)->next;
+  }
+
+  auto idExpression = IdExpressionAST::create(arena);
+  idExpression->nestedNameSpecifier = typeConstraint->nestedNameSpecifier;
+  idExpression->unqualifiedId = templateId;
+  idExpression->symbol = typeConstraint->symbol;
+  idExpression->type = unit->control()->getBoolType();
+  idExpression->valueCategory = ValueCategory::kPrValue;
+
+  parameter->setConstraintExpression(idExpression);
+
+  return idExpression;
+}
+
+auto ASTRewriter::associatedConstraints(TranslationUnit* unit, Symbol* symbol)
+    -> std::vector<ExpressionAST*> {
+  std::vector<ExpressionAST*> constraints;
+
+  auto templateDeclaration = template_declaration_of(symbol);
+
+  for (auto parameter :
+       ListView{templateDeclaration ? templateDeclaration->templateParameterList
+                                    : nullptr}) {
+    auto constrained =
+        symbol_cast<ConstraintTypeParameterSymbol>(parameter->symbol);
+    if (!constrained) continue;
+    if (auto constraint = typeConstraintExpression(unit, constrained))
+      constraints.push_back(constraint);
+  }
+
+  auto append = [&](RequiresClauseAST* clause) {
+    if (clause && clause->expression) constraints.push_back(clause->expression);
+  };
+
+  if (templateDeclaration) append(templateDeclaration->requiresClause);
+
+  if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+    if (auto declaration = function->declaration())
+      append(declaration->requiresClause);
+  }
+
+  return constraints;
+}
+
+auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
+                                                Symbol* symbol)
+    -> std::optional<bool> {
+  auto constraints = associatedConstraints(unit, symbol);
+  if (constraints.empty()) return true;
+  if (isDependent(unit, symbol->type())) return std::nullopt;
+
+  SilentDiagnosticsClient silent;
+  auto saved = unit->changeDiagnosticsClient(&silent);
+
+  auto interp = ASTInterpreter{unit};
+  std::optional<bool> conjunction = true;
+
+  for (auto constraint : constraints) {
+    if (!constraint->type) {
+      auto typeChecker = TypeChecker{unit};
+      typeChecker.setScope(symbol->enclosingNonTemplateParametersScope());
+      typeChecker.setReportErrors(false);
+      typeChecker.check(constraint);
+    }
+
+    auto value = interp.evaluate(constraint);
+    auto satisfied = value.has_value() ? interp.toBool(*value) : std::nullopt;
+
+    if (!satisfied.has_value()) {
+      conjunction = std::nullopt;
+      continue;
+    }
+
+    if (!*satisfied) {
+      (void)unit->changeDiagnosticsClient(saved);
+      return false;
+    }
+  }
+
+  (void)unit->changeDiagnosticsClient(saved);
+
+  return conjunction;
+}
+
+auto ASTRewriter::checkConstraintExpression(
+    TranslationUnit* unit, Symbol* symbol, ExpressionAST* constraint,
     const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
-  if (!clause) return true;
+  if (!constraint) return true;
 
   auto parentScope = symbol->enclosingNonTemplateParametersScope();
   auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
   reqRewriter.depth_ = depth;
-  auto rewrittenClause = reqRewriter.requiresClause(clause);
-  if (!rewrittenClause || !rewrittenClause->expression) return true;
+  auto rewritten = reqRewriter.expression(constraint);
+  if (!rewritten) return true;
 
-  reqRewriter.check(rewrittenClause->expression);
+  reqRewriter.check(rewritten);
+
+  if (isDependent(unit, rewritten)) return true;
+
   auto interp = ASTInterpreter{unit};
-  auto val = interp.evaluate(rewrittenClause->expression);
-  if (!val.has_value()) return true;
+  auto val = interp.evaluate(rewritten);
+  if (!val.has_value()) return false;
 
   auto boolVal = interp.toBool(*val);
-  if (boolVal.has_value() && !*boolVal) return false;
+  return boolVal.value_or(false);
+}
 
+auto ASTRewriter::checkAssociatedConstraints(
+    TranslationUnit* unit, Symbol* symbol,
+    const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
+  for (auto constraint : associatedConstraints(unit, symbol)) {
+    if (!checkConstraintExpression(unit, symbol, constraint, templateArguments,
+                                   depth))
+      return false;
+  }
   return true;
 }
 
@@ -89,7 +226,7 @@ auto ASTRewriter::evaluateConcept(
 
   auto templateArguments = std::move(*subst).templateArguments();
 
-  auto parentScope = conceptSymbol->enclosingNonTemplateParametersScope();
+  auto parentScope = conceptSymbol->parent();
 
   SilentDiagnosticsClient silent;
   auto saved = unit->changeDiagnosticsClient(&silent);

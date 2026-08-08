@@ -23,6 +23,7 @@
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/overload_resolution.h>
 #include <cxx/standard_conversion.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -1408,6 +1409,12 @@ auto TypeTraits::is_base_of(const Type* base, const Type* derived) const
   return derivedClassType->symbol()->hasBaseClass(baseClassType->symbol());
 }
 
+auto TypeTraits::is_reference_related(const Type* lhs, const Type* rhs) const
+    -> bool {
+  if (is_same(remove_cv(lhs), remove_cv(rhs))) return true;
+  return is_base_of(lhs, rhs);
+}
+
 auto TypeTraits::is_virtual_base_of(const Type* base, const Type* derived) const
     -> bool {
   auto baseClassType = type_cast<ClassType>(remove_cv(base));
@@ -1513,6 +1520,7 @@ auto TypeTraits::is_aggregate(const Type* type) -> bool {
   requireCompleteClass(cls);
   if (!cls || !cls->isComplete()) return false;
   if (cls->hasUserDeclaredConstructors()) return false;
+  if (cls->hasInheritedConstructors()) return false;
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
   return true;
@@ -1553,6 +1561,26 @@ auto TypeTraits::is_final(const Type* type) -> bool {
   auto cls = classType->definition();
   if (!cls) return false;
   return cls->isFinal();
+}
+
+auto TypeTraits::selectConstructor(ClassSymbol* classSymbol,
+                                   std::span<const Type* const> argTypes)
+    -> FunctionSymbol* {
+  std::vector<ExpressionAST*> args;
+  args.reserve(argTypes.size());
+
+  for (auto argType : argTypes) {
+    if (!argType) return nullptr;
+    const auto valueCategory = is_lvalue_reference(argType)
+                                   ? ValueCategory::kLValue
+                                   : ValueCategory::kXValue;
+    args.push_back(ThisExpressionAST::create(unit_->arena(), valueCategory,
+                                             remove_reference(argType)));
+  }
+
+  auto result = OverloadResolution{unit_}.resolveConstructor(classSymbol, args);
+  if (result.ambiguous || !result.best) return nullptr;
+  return result.best->symbol;
 }
 
 auto TypeTraits::is_constructible(const Type* type,
@@ -1602,17 +1630,8 @@ auto TypeTraits::is_constructible(const Type* type,
       }
     }
 
-    for (auto ctor : cls->constructors()) {
-      if (ctor->isDeleted()) continue;
-      auto ctorType = type_cast<FunctionType>(ctor->type());
-      if (!ctorType) continue;
-      auto params = ctorType->parameterTypes();
-      if (params.size() == argTypes.size()) return true;
-      if (ctorType->isVariadic() && params.size() <= argTypes.size())
-        return true;
-    }
-
-    return false;
+    auto selected = selectConstructor(cls, argTypes);
+    return selected && !selected->isDeleted();
   }
 
   if (is_void(unqual)) return false;
@@ -1679,17 +1698,10 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
       }
     }
 
-    for (auto ctor : cls->constructors()) {
-      if (ctor->isDeleted()) continue;
-      auto ctorType = type_cast<FunctionType>(ctor->type());
-      if (!ctorType) continue;
-      auto params = ctorType->parameterTypes();
-      if (params.size() == argTypes.size()) return ctorType->isNoexcept();
-      if (ctorType->isVariadic() && params.size() <= argTypes.size())
-        return ctorType->isNoexcept();
-    }
-
-    return false;
+    auto selected = selectConstructor(cls, argTypes);
+    if (!selected || selected->isDeleted()) return false;
+    auto ctorType = type_cast<FunctionType>(selected->type());
+    return ctorType && ctorType->isNoexcept();
   }
 
   return false;

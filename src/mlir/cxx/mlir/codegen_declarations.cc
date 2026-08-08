@@ -598,8 +598,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   mlir::Value thisValue;
 
   if (functionSymbol->isImplicitObjectMemberFunction()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(
-        functionSymbol->enclosingNonTemplateParametersScope());
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
     auto thisType = gen.convertType(classSymbol->type());
     auto ptrType = mlir::cxx::PointerType::get(gen.context_, thisType);
 
@@ -772,8 +771,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       mlir::cxx::ReturnOp::create(gen.builder_, endLoc, value->getResults());
     }
   } else if (gen.structorReturnsThis(functionSymbol) && gen.thisValue_) {
-    auto classSymbol = symbol_cast<ClassSymbol>(
-        functionSymbol->enclosingNonTemplateParametersScope());
+    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
 
     auto thisPtr = gen.loadThisPointer(endLoc, classSymbol);
 
