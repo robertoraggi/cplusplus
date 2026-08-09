@@ -158,8 +158,7 @@ void Codegen::resolveLabels() {
 
       if (flagIndex < 0) {
         mlir::cxx::CallOp::create(rewriter, loc, resultTypes, dtorRef,
-                                  mlir::ValueRange{addresses[i]},
-                                  mlir::TypeAttr{});
+                                  mlir::ValueRange{addresses[i]});
         continue;
       }
 
@@ -170,8 +169,7 @@ void Codegen::resolveLabels() {
 
       rewriter.setInsertionPointToEnd(destroyBlock);
       mlir::cxx::CallOp::create(rewriter, loc, resultTypes, dtorRef,
-                                mlir::ValueRange{addresses[i]},
-                                mlir::TypeAttr{});
+                                mlir::ValueRange{addresses[i]});
       mlir::cf::BranchOp::create(rewriter, loc, continueBlock);
 
       rewriter.setInsertionPointToEnd(currentBlock);

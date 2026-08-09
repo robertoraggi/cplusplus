@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
@@ -35,6 +36,7 @@
 
 #include <cmath>
 #include <format>
+#include <unordered_set>
 
 namespace cxx {
 namespace {
@@ -581,6 +583,10 @@ struct AggregateInitChecker {
 
   [[nodiscard]] auto countScalarInitSlots(const Type* type) const -> size_t;
 
+  [[nodiscard]] auto countScalarInitSlots(
+      const Type* type,
+      std::unordered_set<const ClassSymbol*>& enclosingClasses) const -> size_t;
+
   [[nodiscard]] auto buildSyntheticBracedList(List<ExpressionAST*>*& it,
                                               size_t maxCount)
       -> BracedInitListAST*;
@@ -666,24 +672,34 @@ auto AggregateInitChecker::isSubAggregate(const Type* type) const -> bool {
 
 auto AggregateInitChecker::countScalarInitSlots(const Type* type) const
     -> size_t {
+  std::unordered_set<const ClassSymbol*> enclosingClasses;
+  return countScalarInitSlots(type, enclosingClasses);
+}
+
+auto AggregateInitChecker::countScalarInitSlots(
+    const Type* type,
+    std::unordered_set<const ClassSymbol*>& enclosingClasses) const -> size_t {
   type = ctx.traits.remove_cv(type);
 
   if (auto bt = type_cast<BoundedArrayType>(type))
-    return bt->size() * countScalarInitSlots(bt->elementType());
+    return bt->size() *
+           countScalarInitSlots(bt->elementType(), enclosingClasses);
 
   if (auto ct = type_cast<ClassType>(type)) {
     auto cls = ct->symbol();
     if (!cls) return 1;
-    if (cls->isUnion()) {
-      for (auto m : cls->members())
-        if (auto f = symbol_cast<FieldSymbol>(m))
-          if (!f->isStatic()) return countScalarInitSlots(f->type());
-      return 1;
-    }
+    if (!enclosingClasses.insert(cls).second) return 1;
     size_t total = 0;
-    for (auto m : cls->members())
-      if (auto f = symbol_cast<FieldSymbol>(m))
-        if (!f->isStatic()) total += countScalarInitSlots(f->type());
+    for (auto m : cls->members()) {
+      auto f = symbol_cast<FieldSymbol>(m);
+      if (!f || f->isStatic()) continue;
+      if (cls->isUnion()) {
+        total = countScalarInitSlots(f->type(), enclosingClasses);
+        break;
+      }
+      total += countScalarInitSlots(f->type(), enclosingClasses);
+    }
+    enclosingClasses.erase(cls);
     return total > 0 ? total : 1;
   }
 
@@ -747,6 +763,9 @@ auto AggregateInitChecker::tryBraceElision(List<ExpressionAST*>*& it,
 
 void AggregateInitChecker::checkUnion(ClassSymbol* classSymbol,
                                       BracedInitListAST* ast) {
+  TypeChecker::AggregateInitGuard guard{ctx.checker, classSymbol};
+  if (!guard) return;
+
   auto it = ast->expressionList;
   if (!it) return;
 
@@ -786,6 +805,9 @@ void AggregateInitChecker::checkUnion(ClassSymbol* classSymbol,
 
 void AggregateInitChecker::checkStruct(ClassSymbol* classSymbol,
                                        BracedInitListAST* ast) {
+  TypeChecker::AggregateInitGuard guard{ctx.checker, classSymbol};
+  if (!guard) return;
+
   std::vector<FieldSymbol*> fields;
   collectEffectiveFields(classSymbol, fields);
 
@@ -1001,6 +1023,7 @@ struct ClassInitChecker {
     FunctionSymbol* constructor = nullptr;
     List<ExpressionAST*>** argumentList = nullptr;
     bool diagnoseUnresolved = false;
+    std::optional<InitializationKind> initializationKind;
   };
 
   void checkClassInit(Target& target);
@@ -1039,7 +1062,7 @@ void ClassInitChecker::checkClassInit(Target& target) {
   auto targetType = ctx.traits.remove_cv(target.type);
   auto classType = type_cast<ClassType>(targetType);
   if (!classType || !classType->symbol()) return;
-  auto classSymbol = classType->symbol();
+  auto classSymbol = classType->definition();
 
   if (ctx.traits.is_aggregate(classType)) {
     if (!target.initializer && !target.argumentList) {
@@ -1126,7 +1149,12 @@ void ClassInitChecker::checkConstructorInit(Target& target,
   }
 
   OverloadResolution overloadRes(ctx.unit);
-  auto resolution = overloadRes.resolveConstructor(classSymbol, args);
+  auto resolution = overloadRes.resolveConstructor(
+      classSymbol, args,
+      target.initializationKind.value_or(
+          target.initializer
+              ? InitUnwrapper::initializationKind(target.initializer)
+              : InitializationKind::kDirectInitialization));
 
   auto location = target.location;
   if (!location && target.initializer)
@@ -1134,10 +1162,10 @@ void ClassInitChecker::checkConstructorInit(Target& target,
   if (!location) location = classSymbol->location();
 
   auto bracedInitList = InitUnwrapper::getBracedInitList(target.initializer);
-  if (bracedInitList &&
+  const bool selectedInitializerListConstructor =
+      bracedInitList &&
       tryInitializerListConstructor(target, bracedInitList, classSymbol,
-                                    overloadRes, resolution))
-    return;
+                                    overloadRes, resolution);
 
   if (!resolution.best) {
     if (diagnoseUnresolved) {
@@ -1155,13 +1183,28 @@ void ClassInitChecker::checkConstructorInit(Target& target,
                                     to_string(classSymbol->type())));
     for (const auto& candidate : resolution.candidates) {
       if (!candidate.viable || !candidate.symbol) continue;
-      ctx.checker.note(candidate.symbol->location(), "candidate constructor");
+      ctx.checker.note(candidate.symbol->location(),
+                       std::format("candidate constructor '{}'",
+                                   to_string(candidate.symbol->type())));
     }
+    return;
+  }
+
+  const auto initializationKind = target.initializationKind.value_or(
+      target.initializer ? InitUnwrapper::initializationKind(target.initializer)
+                         : InitializationKind::kDirectInitialization);
+  if (initializationKind == InitializationKind::kCopyListInitialization &&
+      resolution.best->symbol->isExplicit()) {
+    ctx.error(location,
+              "chosen constructor is explicit in copy-initialization");
+    ctx.checker.note(resolution.best->symbol->location(),
+                     "explicit constructor declared here");
     return;
   }
 
   target.constructor = resolution.best->symbol;
   ctx.checker.reportDeletedFunction(target.constructor, target.location);
+  if (selectedInitializerListConstructor) return;
   applyArgumentConversions(target, resolution.best->conversions);
   appendDefaultArguments(target, target.constructor);
 }
@@ -1269,8 +1312,10 @@ auto ClassInitChecker::tryInitializerListConstructor(
     Target& target, BracedInitListAST* bracedInitList, ClassSymbol* classSymbol,
     OverloadResolution& overloadRes, ConstructorResult& resolution) -> bool {
   std::vector<ExpressionAST*> listInitArgs = {bracedInitList};
-  auto listInitResolution =
-      overloadRes.resolveConstructor(classSymbol, listInitArgs);
+  auto listInitResolution = overloadRes.resolveConstructor(
+      classSymbol, listInitArgs,
+      target.initializationKind.value_or(
+          InitUnwrapper::initializationKind(target.initializer)));
   if (!listInitResolution.best) return false;
 
   auto ctorType =
@@ -1292,11 +1337,6 @@ auto ClassInitChecker::tryInitializerListConstructor(
                     "of type '{}' with expression of type '{}'",
                     to_string(elemType), to_string(it->value->type)));
   }
-
-  if (!resolution.ambiguous)
-    target.constructor = resolution.best->symbol;
-  else
-    ctx.error(target.location, "constructor call is ambiguous");
 
   return true;
 }
@@ -1693,6 +1733,16 @@ void InitDeclaratorChecker::checkVariable(VariableSymbol* var,
 
   if (var->isConstexpr()) var->setType(ctx.traits.add_const(var->type()));
 
+  if (!var->isExtern() || initializer) {
+    auto objectType =
+        ctx.traits.remove_cv(ctx.traits.remove_all_extents(var->type()));
+    if (auto classType = type_cast<ClassType>(objectType)) {
+      auto classSymbol = classType->symbol()->resolvedDefinition();
+      ASTRewriter::requireFunctionDefinition(ctx.unit,
+                                             classSymbol->destructor());
+    }
+  }
+
   checkInitialization(var, initializer, location);
   evaluateConstValue(var);
 }
@@ -1700,6 +1750,20 @@ void InitDeclaratorChecker::checkVariable(VariableSymbol* var,
 void InitDeclaratorChecker::checkBracedInitList(
     const Type* type, BracedInitListAST* ast,
     InitializationKind initializationKind) {
+  auto targetType = ctx.traits.remove_cv(type);
+  if (auto classType = type_cast<ClassType>(targetType);
+      classType && !ctx.traits.is_aggregate(classType)) {
+    ExpressionAST* initializer = ast;
+    ClassInitChecker::Target target{.type = type,
+                                    .initializer = initializer,
+                                    .location = ast->firstSourceLocation(),
+                                    .diagnoseUnresolved = true,
+                                    .initializationKind = initializationKind};
+    classChecker.checkClassInit(target);
+    ast->type = type;
+    ast->valueCategory = ValueCategory::kPrValue;
+    return;
+  }
   bracedChecker.check(type, ast, initializationKind);
 }
 

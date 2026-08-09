@@ -24,6 +24,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace cxx {
@@ -38,6 +39,15 @@ enum class LinkerFlavor {
   kWinLink,
 };
 
+struct LanguageStandard {
+  std::string_view name;
+  LanguageKind language;
+  std::string_view versionMacroValue;
+};
+
+[[nodiscard]] auto findLanguageStandard(std::string_view name)
+    -> const LanguageStandard*;
+
 class Toolchain {
  public:
   Toolchain(const Toolchain&) = delete;
@@ -47,6 +57,8 @@ class Toolchain {
   virtual ~Toolchain();
 
   [[nodiscard]] auto language() const -> LanguageKind;
+
+  void setLanguageStandard(const LanguageStandard* languageStandard);
 
   [[nodiscard]] auto memoryLayout() const -> MemoryLayout* {
     return memoryLayout_.get();
@@ -102,7 +114,11 @@ class Toolchain {
   void addWASICxx26Macros();
 
  private:
+  [[nodiscard]] auto cplusplusMacroValue() const -> std::string_view;
+  [[nodiscard]] auto stdcVersionMacroValue() const -> std::string_view;
+
   Preprocessor* preprocessor_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
+  const LanguageStandard* languageStandard_ = nullptr;
 };
 }  // namespace cxx

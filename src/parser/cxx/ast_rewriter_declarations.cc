@@ -425,11 +425,33 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
 
   copy->usingLoc = ast->usingLoc;
 
+  auto append = [&](List<UsingDeclaratorAST*>**& out,
+                    UsingDeclaratorAST* value) {
+    *out = make_list_node(arena(), value);
+    out = &(*out)->next;
+  };
+
   for (auto usingDeclaratorList = &copy->usingDeclaratorList;
        auto node : ListView{ast->usingDeclaratorList}) {
-    auto value = rewrite.usingDeclarator(node);
-    *usingDeclaratorList = make_list_node(arena(), value);
-    usingDeclaratorList = &(*usingDeclaratorList)->next;
+    if (node->isPack) {
+      auto pack =
+          rewrite.findReferencedParameterPack(node->nestedNameSpecifier);
+      if (!pack)
+        pack = rewrite.findReferencedParameterPack(node->unqualifiedId);
+
+      if (pack) {
+        rewrite.forEachPackElement(pack, [&] {
+          auto value = rewrite.usingDeclarator(node);
+          value->ellipsisLoc = {};
+          value->isPack = false;
+          append(usingDeclaratorList, value);
+        });
+
+        continue;
+      }
+    }
+
+    append(usingDeclaratorList, rewrite.usingDeclarator(node));
   }
 
   copy->semicolonLoc = ast->semicolonLoc;
@@ -610,6 +632,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
                                           declSpecifierListCtx.type());
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
+  declaratorDecl.trailingRequiresClause = copy->requiresClause;
 
   const bool isTemplateInstantiation =
       ast->symbol && ast->symbol->templateDeclaration() &&
@@ -617,7 +640,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto _ = Binder::ScopeGuard{binder()};
 
-  const auto declaratorScope = declaratorDecl.getScope();
+  auto declaratorScope = declaratorDecl.getScope();
+  if (auto remappedScope =
+          symbol_cast<ScopeSymbol>(rewrite.remapSymbol(declaratorScope))) {
+    declaratorScope = remappedScope;
+  }
   const auto isOutOfClassMemberDef =
       declaratorScope && declaratorScope->isClass();
   if (declaratorScope) binder()->setScope(declaratorScope);
@@ -629,9 +656,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   FunctionSymbol* functionSymbol = nullptr;
   if ((!isTemplateInstantiation || isOutOfClassMemberDef) &&
       !isFunctionTemplateSpecialization) {
-    functionSymbol =
-        binder()->getFunction(binder()->scope(), declaratorDecl.getName(),
-                              declaratorType, templateHead);
+    functionSymbol = binder()->getFunction(
+        binder()->scope(), declaratorDecl.getName(), declaratorType,
+        templateHead, copy->requiresClause);
   }
   if (!functionSymbol) {
     functionSymbol =
@@ -789,7 +816,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(ConceptDefinitionAST* ast)
   copy->conceptLoc = ast->conceptLoc;
   copy->identifierLoc = ast->identifierLoc;
   copy->equalLoc = ast->equalLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
   copy->identifier = ast->identifier;
   copy->symbol = ast->symbol;
@@ -1065,15 +1092,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   rewrite.binder().bindStructuredBindings(copy, declSpecifierListCtx);
 
-  if (ast->hiddenVariable && copy->hiddenVariable) {
-    rewrite.addSymbolRemap(ast->hiddenVariable->symbol,
-                           copy->hiddenVariable->symbol);
-  }
-  for (auto oldNode = ast->bindingDeclaratorList,
-            newNode = copy->bindingDeclaratorList;
-       oldNode && newNode; oldNode = oldNode->next, newNode = newNode->next) {
-    rewrite.addSymbolRemap(oldNode->value->symbol, newNode->value->symbol);
-  }
+  rewrite.remapStructuredBindingSymbols(ast, copy);
 
   return copy;
 }
@@ -1222,7 +1241,7 @@ auto ASTRewriter::RequirementVisitor::operator()(SimpleRequirementAST* ast)
     -> RequirementAST* {
   auto copy = SimpleRequirementAST::create(arena());
 
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
 
   return copy;
@@ -1233,7 +1252,7 @@ auto ASTRewriter::RequirementVisitor::operator()(CompoundRequirementAST* ast)
   auto copy = CompoundRequirementAST::create(arena());
 
   copy->lbraceLoc = ast->lbraceLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
   copy->rbraceLoc = ast->rbraceLoc;
   copy->noexceptLoc = ast->noexceptLoc;
   copy->minusGreaterLoc = ast->minusGreaterLoc;
@@ -1263,7 +1282,7 @@ auto ASTRewriter::RequirementVisitor::operator()(NestedRequirementAST* ast)
   auto copy = NestedRequirementAST::create(arena());
 
   copy->requiresLoc = ast->requiresLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
   copy->semicolonLoc = ast->semicolonLoc;
 
   return copy;

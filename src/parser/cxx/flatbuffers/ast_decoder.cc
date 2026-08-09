@@ -2229,6 +2229,13 @@ auto ASTDecoder::decodeForRangeStatement(const io::ForRangeStatement* node)
                                            node->range_initializer_type());
   ast->rparenLoc = SourceLocation(node->rparen_loc());
   ast->statement = decodeStatement(node->statement(), node->statement_type());
+  ast->beginInitializer = decodeExpression(node->begin_initializer(),
+                                           node->begin_initializer_type());
+  ast->endInitializer =
+      decodeExpression(node->end_initializer(), node->end_initializer_type());
+  ast->condition = decodeExpression(node->condition(), node->condition_type());
+  ast->increment = decodeExpression(node->increment(), node->increment_type());
+  ast->element = decodeExpression(node->element(), node->element_type());
   return ast;
 }
 

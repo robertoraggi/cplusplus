@@ -70,6 +70,20 @@ class TranslationUnit {
   [[nodiscard]] auto takePendingBodyCompletions()
       -> std::vector<FunctionSymbol*>;
 
+  [[nodiscard]] auto reportingDiagnosticsClient() const -> DiagnosticsClient* {
+    return reportingDiagnosticsClient_;
+  }
+
+  [[nodiscard]] auto templateInstantiationDepth() const -> int {
+    return templateInstantiationDepth_;
+  }
+
+  void setTemplateInstantiationDepth(int depth) {
+    templateInstantiationDepth_ = depth;
+  }
+
+  static constexpr int kMaxTemplateInstantiationDepth = 1024;
+
   void deferBodyDiagnostics(FunctionSymbol* function,
                             std::vector<Diagnostic> diagnostics);
   [[nodiscard]] auto takeDeferredBodyDiagnostics(FunctionSymbol* function)
@@ -158,11 +172,13 @@ class TranslationUnit {
   UnitAST* ast_ = nullptr;
   const char* yyptr = nullptr;
   DiagnosticsClient* diagnosticsClient_ = nullptr;
+  DiagnosticsClient* reportingDiagnosticsClient_ = nullptr;
   NamespaceSymbol* globalNamespace_ = nullptr;
   ParserConfiguration config_;
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
   std::unordered_map<FunctionSymbol*, std::vector<Diagnostic>>
       deferredBodyDiagnostics_;
+  int templateInstantiationDepth_ = 0;
 };
 }  // namespace cxx

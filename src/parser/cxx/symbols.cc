@@ -1253,6 +1253,23 @@ void FunctionSymbol::setNoPrototype(bool hasNoPrototype) {
   hasNoPrototype_ = hasNoPrototype;
 }
 
+auto FunctionSymbol::hasExceptionSpecifier() const -> bool {
+  return hasExceptionSpecifier_;
+}
+
+void FunctionSymbol::setExceptionSpecifier(bool hasExceptionSpecifier) {
+  hasExceptionSpecifier_ = hasExceptionSpecifier;
+}
+
+auto FunctionSymbol::trailingRequiresClause() const -> RequiresClauseAST* {
+  return trailingRequiresClause_;
+}
+
+void FunctionSymbol::setTrailingRequiresClause(
+    RequiresClauseAST* requiresClause) {
+  trailingRequiresClause_ = requiresClause;
+}
+
 auto FunctionSymbol::isConstructor() const -> bool {
   ScopeSymbol* enclosing = parent();
   if (enclosing && enclosing->isTemplateParameters()) {
@@ -1294,6 +1311,14 @@ void FunctionSymbol::setLanguageLinkage(LanguageKind linkage) {
 }
 
 auto FunctionSymbol::hasCLinkage() const -> bool { return hasCLinkage_; }
+
+auto FunctionSymbol::isDefinitionRequired() const -> bool {
+  return isDefinitionRequired_;
+}
+
+void FunctionSymbol::setDefinitionRequired(bool isDefinitionRequired) {
+  isDefinitionRequired_ = isDefinitionRequired;
+}
 
 auto FunctionSymbol::externalName() const -> const Identifier* {
   return externalName_;

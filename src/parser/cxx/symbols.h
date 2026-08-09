@@ -910,6 +910,15 @@ class FunctionSymbol final
   [[nodiscard]] auto hasNoPrototype() const -> bool;
   void setNoPrototype(bool hasNoPrototype);
 
+  [[nodiscard]] auto hasExceptionSpecifier() const -> bool;
+  void setExceptionSpecifier(bool hasExceptionSpecifier);
+
+  [[nodiscard]] auto isDefinitionRequired() const -> bool;
+  void setDefinitionRequired(bool isDefinitionRequired);
+
+  [[nodiscard]] auto trailingRequiresClause() const -> RequiresClauseAST*;
+  void setTrailingRequiresClause(RequiresClauseAST* requiresClause);
+
   [[nodiscard]] auto isConstructor() const -> bool;
   [[nodiscard]] auto isDestructor() const -> bool;
 
@@ -995,6 +1004,7 @@ class FunctionSymbol final
   int vtableSlotIndex_ = -1;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;
+  RequiresClauseAST* trailingRequiresClause_ = nullptr;
   union {
     std::uint32_t flags_{};
     struct {
@@ -1015,6 +1025,8 @@ class FunctionSymbol final
       std::uint32_t isFinal_ : 1;
       std::uint32_t hasNoPrototype_ : 1;
       std::uint32_t hasHiddenVisibility_ : 1;
+      std::uint32_t hasExceptionSpecifier_ : 1;
+      std::uint32_t isDefinitionRequired_ : 1;
     };
   };
 };

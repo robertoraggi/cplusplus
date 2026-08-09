@@ -68,10 +68,6 @@ class ASTInterpreter {
                                   std::shared_ptr<ConstObject> thisObject = {})
       -> std::optional<ConstValue>;
 
-  [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,
-                                        std::vector<ConstValue> args)
-      -> ConstValue*;
-
   [[nodiscard]] auto evaluateConstructor(FunctionSymbol* ctor,
                                          const Type* classType,
                                          std::vector<ConstValue> args)
@@ -283,13 +279,24 @@ class ASTInterpreter {
                                        List<ExpressionAST*>* argExprs)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,
+                                        std::vector<ConstValue> args)
+      -> ConstValue*;
+
   [[nodiscard]] auto evaluateCallLValueFromExprs(FunctionSymbol* func,
                                                  List<ExpressionAST*>* argExprs)
       -> ConstValue*;
 
   void bindReference(const Symbol* sym, ConstValue* target);
 
+  void interpretInitDeclarator(InitDeclaratorAST* initDecl);
+
+  void interpretStructuredBinding(StructuredBindingDeclarationAST* ast);
+
   void applyNsdmis(const std::shared_ptr<ConstObject>& obj);
+
+  [[nodiscard]] auto valueInitializeClass(const Type* type, ClassSymbol* symbol)
+      -> std::shared_ptr<ConstObject>;
 
   void applyMemInitializer(MemInitializerAST* ast,
                            std::vector<ConstValue> args);
@@ -311,6 +318,7 @@ class ASTInterpreter {
 
   void pushFrame();
   void popFrame();
+  void retireFrame();
 
   [[nodiscard]] auto hasReturnValue() const -> bool {
     return returnValue_.has_value();
@@ -354,6 +362,23 @@ class ASTInterpreter {
     std::unordered_map<const Symbol*, ConstValue*> refs;
   };
   std::vector<Frame> frames_;
+  std::vector<Frame> retiredFrames_;
+
+  class EvaluationScope {
+   public:
+    explicit EvaluationScope(ASTInterpreter& interp) : interp_(interp) {
+      ++interp_.activeEvaluations_;
+    }
+
+    ~EvaluationScope() {
+      if (--interp_.activeEvaluations_ == 0) interp_.retiredFrames_.clear();
+    }
+
+   private:
+    ASTInterpreter& interp_;
+  };
+
+  int activeEvaluations_ = 0;
 
   std::optional<ConstValue> returnValue_;
 

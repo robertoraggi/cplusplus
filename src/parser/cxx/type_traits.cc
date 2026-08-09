@@ -1426,8 +1426,79 @@ auto TypeTraits::is_virtual_base_of(const Type* base, const Type* derived) const
       baseClassType->symbol());
 }
 
-auto TypeTraits::is_convertible(const Type* from, const Type* to) const
+auto TypeTraits::is_corresponding_overrider(
+    const FunctionSymbol* overrider, const FunctionSymbol* overridden) const
     -> bool {
+  if (!overrider || !overridden) return false;
+
+  if (overrider->isDestructor() || overridden->isDestructor())
+    return overrider->isDestructor() && overridden->isDestructor();
+
+  if (overrider->name() != overridden->name()) return false;
+
+  auto overriderType = type_cast<FunctionType>(overrider->type());
+  auto overriddenType = type_cast<FunctionType>(overridden->type());
+  if (!overriderType || !overriddenType) return false;
+
+  if (overriderType->cvQualifiers() != overriddenType->cvQualifiers())
+    return false;
+
+  if (overriderType->refQualifier() != overriddenType->refQualifier())
+    return false;
+
+  if (overriderType->isVariadic() != overriddenType->isVariadic()) return false;
+
+  const auto& overriderParams = overriderType->parameterTypes();
+  const auto& overriddenParams = overriddenType->parameterTypes();
+  if (overriderParams.size() != overriddenParams.size()) return false;
+
+  for (std::size_t i = 0; i < overriderParams.size(); ++i) {
+    if (!is_same(overriderParams[i], overriddenParams[i])) return false;
+  }
+
+  return true;
+}
+
+auto TypeTraits::is_covariant_return_type(const Type* overriddenReturnType,
+                                          const Type* overriderReturnType) const
+    -> bool {
+  if (!overriddenReturnType || !overriderReturnType) return false;
+  if (is_same(overriddenReturnType, overriderReturnType)) return true;
+
+  if (get_cv_qualifiers(overriddenReturnType) !=
+      get_cv_qualifiers(overriderReturnType))
+    return false;
+
+  auto overridden = remove_cv(overriddenReturnType);
+  auto overrider = remove_cv(overriderReturnType);
+  if (overridden->kind() != overrider->kind()) return false;
+
+  auto classOf = [this](const Type* type) -> const Type* {
+    const Type* element = nullptr;
+    if (auto pointerType = type_cast<PointerType>(type))
+      element = pointerType->elementType();
+    else if (auto referenceType = type_cast<LvalueReferenceType>(type))
+      element = referenceType->elementType();
+    else if (auto referenceType = type_cast<RvalueReferenceType>(type))
+      element = referenceType->elementType();
+    if (!element || !is_class(remove_cv(element))) return nullptr;
+    return element;
+  };
+
+  auto overriddenClass = classOf(overridden);
+  auto overriderClass = classOf(overrider);
+  if (!overriddenClass || !overriderClass) return false;
+
+  const auto overriddenCv = get_cv_qualifiers(overriddenClass);
+  const auto overriderCv = get_cv_qualifiers(overriderClass);
+  if ((static_cast<int>(overriderCv) & ~static_cast<int>(overriddenCv)) != 0)
+    return false;
+
+  return is_base_of(overriddenClass, overriderClass);
+}
+
+auto TypeTraits::can_initialize(const Type* to, const Type* from,
+                                bool directInitialization) const -> bool {
   if (!from || !to) return false;
 
   const auto fromIsVoid = is_void(from);
@@ -1441,8 +1512,15 @@ auto TypeTraits::is_convertible(const Type* from, const Type* to) const
                                                remove_reference(from));
 
   StandardConversion conversions{unit_};
-  return static_cast<bool>(
-      conversions.computeConversionSequence(declvalFrom, to));
+  return static_cast<bool>(conversions.computeConversionSequence(
+      declvalFrom, to,
+      directInitialization ? InitializationKind::kDirectInitialization
+                           : InitializationKind::kCopyInitialization));
+}
+
+auto TypeTraits::is_convertible(const Type* from, const Type* to) const
+    -> bool {
+  return can_initialize(to, from, false);
 }
 
 auto TypeTraits::is_pod(const Type* type) -> bool {
@@ -1591,12 +1669,12 @@ auto TypeTraits::is_constructible(const Type* type,
 
   if (is_reference(unqual)) {
     if (argTypes.size() != 1) return false;
-    return true;
+    return can_initialize(unqual, argTypes[0], true);
   }
 
   if (is_scalar(unqual)) {
     if (argTypes.empty()) return true;
-    if (argTypes.size() == 1) return true;
+    if (argTypes.size() == 1) return can_initialize(unqual, argTypes[0], true);
     return false;
   }
 
@@ -1658,48 +1736,10 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
 
-    if (argTypes.empty()) {
-      auto defCtor = cls->defaultConstructor();
-      if (!defCtor) {
-        if (!cls->hasUserDeclaredConstructors()) return true;
-        return false;
-      }
-      if (defCtor->isDeleted()) return false;
-      if (defCtor->isDefaulted() || !cls->hasUserDeclaredConstructors()) {
-        for (auto base : cls->baseClasses()) {
-          auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-          if (!baseClass) continue;
-          std::span<const Type* const> empty;
-          if (!is_nothrow_constructible(baseClass->type(), empty)) return false;
-        }
-        return true;
-      }
-      auto ctorType = type_cast<FunctionType>(defCtor->type());
-      return ctorType && ctorType->isNoexcept();
-    }
-
-    if (argTypes.size() == 1) {
-      auto argUnqual = remove_cvref(argTypes[0]);
-      if (is_same(argUnqual, unqual)) {
-        if (is_rvalue_reference(argTypes[0]) ||
-            (!is_reference(argTypes[0]) && !is_const(argTypes[0]))) {
-          auto moveCtor = cls->moveConstructor();
-          if (moveCtor && !moveCtor->isDeleted()) {
-            auto ctorType = type_cast<FunctionType>(moveCtor->type());
-            return ctorType && ctorType->isNoexcept();
-          }
-        }
-        auto copyCtor = cls->copyConstructor();
-        if (copyCtor && !copyCtor->isDeleted()) {
-          auto ctorType = type_cast<FunctionType>(copyCtor->type());
-          return ctorType && ctorType->isNoexcept();
-        }
-        if (!cls->hasUserDeclaredConstructors()) return true;
-      }
-    }
-
     auto selected = selectConstructor(cls, argTypes);
-    if (!selected || selected->isDeleted()) return false;
+    if (!selected) return !cls->hasUserDeclaredConstructors();
+    if (selected->isDeleted()) return false;
+
     auto ctorType = type_cast<FunctionType>(selected->type());
     return ctorType && ctorType->isNoexcept();
   }
@@ -1737,81 +1777,61 @@ auto TypeTraits::is_trivially_constructible(const Type* type) -> bool {
   return false;
 }
 
+auto TypeTraits::selectAssignmentOperator(const Type* to, const Type* from)
+    -> FunctionSymbol* {
+  if (!to || !from) return nullptr;
+
+  auto makeOperand = [&](const Type* type) {
+    const auto valueCategory = is_lvalue_reference(type)
+                                   ? ValueCategory::kLValue
+                                   : ValueCategory::kXValue;
+    return ThisExpressionAST::create(unit_->arena(), valueCategory,
+                                     remove_reference(type));
+  };
+
+  auto lhs = makeOperand(to);
+  auto rhs = makeOperand(from);
+
+  OverloadResolution resolution{unit_};
+  auto selected = resolution.lookupOperator(lhs->type, TokenKind::T_EQUAL,
+                                            rhs->type, lhs, rhs);
+
+  if (resolution.wasLastLookupAmbiguous()) return nullptr;
+  if (selected && selected->isDeleted()) return nullptr;
+  return selected;
+}
+
 auto TypeTraits::is_assignable(const Type* to, const Type* from) -> bool {
   if (!to || !from) return false;
 
-  if (is_lvalue_reference(to)) {
-    auto targetType = remove_reference(to);
-    if (is_const(targetType)) return false;
+  auto targetType = remove_reference(to);
+  auto target = remove_cv(targetType);
 
-    auto target = remove_cv(targetType);
-    auto source = remove_cvref(from);
-
-    if (is_scalar(target)) return is_convertible(source, target);
-
-    if (auto classType = type_cast<ClassType>(target)) {
-      auto cls = classType->definition();
-      requireCompleteClass(cls);
-      if (!cls || !cls->isComplete()) return false;
-
-      if (is_same(source, target)) {
-        if (is_rvalue_reference(from)) {
-          auto moveOp = cls->moveAssignmentOperator();
-          if (moveOp && !moveOp->isDeleted()) return true;
-        }
-        auto copyOp = cls->copyAssignmentOperator();
-        if (copyOp && !copyOp->isDeleted()) return true;
-        if (!cls->hasUserDeclaredConstructors()) return true;
-        return false;
-      }
-
-      return true;
-    }
-
-    return false;
-  }
-
-  if (is_rvalue_reference(to)) {
-    auto targetType = remove_reference(to);
-    if (is_const(targetType)) return false;
-    auto target = remove_cv(targetType);
-
-    if (auto classType = type_cast<ClassType>(target)) {
-      auto cls = classType->definition();
-      requireCompleteClass(cls);
-      if (!cls || !cls->isComplete()) return false;
-      auto copyOp = cls->copyAssignmentOperator();
-      if (copyOp && !copyOp->isDeleted()) return true;
-      auto moveOp = cls->moveAssignmentOperator();
-      if (moveOp && !moveOp->isDeleted()) return true;
-      if (!cls->hasUserDeclaredConstructors()) return true;
-      return false;
-    }
-
-    return false;
-  }
-
-  if (auto classType = type_cast<ClassType>(remove_cv(to))) {
+  if (auto classType = type_cast<ClassType>(target)) {
     auto cls = classType->definition();
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
-    auto copyOp = cls->copyAssignmentOperator();
-    if (copyOp && !copyOp->isDeleted()) return true;
-    auto moveOp = cls->moveAssignmentOperator();
-    if (moveOp && !moveOp->isDeleted()) return true;
-    if (!cls->hasUserDeclaredConstructors()) return true;
-    return false;
+    return selectAssignmentOperator(to, from) != nullptr;
   }
 
-  return false;
+  if (!is_lvalue_reference(to)) return false;
+  if (is_const(targetType)) return false;
+  if (!is_scalar(target)) return false;
+
+  return is_convertible(remove_cvref(from), target);
 }
 
 auto TypeTraits::is_nothrow_assignable(const Type* to, const Type* from)
     -> bool {
   if (!is_assignable(to, from)) return false;
-  auto target = remove_cvref(to);
-  if (is_scalar(target)) return true;
-  return is_trivially_assignable(to, from);
+
+  if (!type_cast<ClassType>(remove_cvref(to))) return true;
+
+  auto selected = selectAssignmentOperator(to, from);
+  if (!selected) return false;
+
+  auto assignmentType = type_cast<FunctionType>(selected->type());
+  return assignmentType && assignmentType->isNoexcept();
 }
 
 auto TypeTraits::is_trivially_assignable(const Type* from, const Type* to)
@@ -1890,6 +1910,28 @@ auto TypeTraits::is_destructible(const Type* type) -> bool {
   if (is_enum(unqual)) return true;
 
   return false;
+}
+
+auto TypeTraits::is_nothrow_destructible(const Type* type) -> bool {
+  if (!is_destructible(type)) return false;
+
+  auto unqual = remove_cv(type);
+
+  if (is_bounded_array(unqual))
+    return is_nothrow_destructible(remove_all_extents(unqual));
+
+  auto classType = type_cast<ClassType>(unqual);
+  if (!classType) return true;
+
+  auto cls = classType->definition();
+  requireCompleteClass(cls);
+  if (!cls || !cls->isComplete()) return false;
+
+  auto destructor = cls->destructor();
+  if (!destructor) return true;
+
+  auto destructorType = type_cast<FunctionType>(destructor->type());
+  return !destructorType || destructorType->isNoexcept();
 }
 
 auto TypeTraits::is_trivially_destructible(const Type* type) -> bool {

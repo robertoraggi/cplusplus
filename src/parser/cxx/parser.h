@@ -33,6 +33,7 @@
 #include <deque>
 #include <functional>
 #include <optional>
+#include <set>
 #include <unordered_map>
 
 namespace cxx {
@@ -68,6 +69,7 @@ class Parser final {
   struct UncheckedInitializerContext;
   struct CombinedScopeGuard;
   struct ExplicitTemplateHeadGuard;
+  struct UnevaluatedOperandGuard;
 
   enum class TypeNameContext { kGeneral, kTypeOnly };
 
@@ -142,10 +144,20 @@ class Parser final {
     return false;
   }
 
+  struct FailedParse {
+    std::vector<Diagnostic> messages;
+    std::uint32_t start = 0;
+    std::uint32_t reach = 0;
+  };
+
   void parse_warn(std::string message);
   void parse_warn(SourceLocation loc, std::string message);
   void parse_error(std::string message);
   void parse_error(SourceLocation loc, std::string message);
+  [[nodiscard]] auto is_ambiguous_with_expression_statement() const -> bool;
+  void record_failed_parse(SourceLocation start,
+                           std::vector<Diagnostic> messages);
+  void report_failed_parse(std::string message);
   void type_error(SourceLocation loc, std::string message);
 
   void warning(std::string message);
@@ -407,8 +419,8 @@ class Parser final {
   [[nodiscard]] auto parse_for_statement(
       StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
 
-  [[nodiscard]] auto parse_for_range_declaration(DeclarationAST*& yyast)
-      -> bool;
+  [[nodiscard]] auto parse_for_range_declaration(DeclarationAST*& yyast,
+                                                 DeclSpecs& specs) -> bool;
 
   void parse_for_range_initializer(ExpressionAST*& yyast);
 
@@ -894,6 +906,10 @@ class Parser final {
   [[nodiscard]] auto scope() const -> ScopeSymbol*;
   void setScope(ScopeSymbol* scope);
 
+  void enterScopeChain(ScopeSymbol* scope);
+
+  [[nodiscard]] auto isOnLexicalScopeChain(ScopeSymbol* symbol) const -> bool;
+
   void pushScope(ScopeSymbol* symbol);
 
   [[nodiscard]] auto lexicalScope() const -> Scope* { return lexicalScope_; }
@@ -947,8 +963,11 @@ class Parser final {
   int templArgDepth_ = 0;
   int classDepth_ = 0;
   int uncheckedInitializerDepth_ = 0;
+  int unevaluatedOperandDepth_ = 0;
   std::uint32_t lastErrorCursor_ = 0;
   std::uint32_t cursor_ = 0;
+  FailedParse deepestFailedParse_;
+  std::set<std::pair<unsigned, std::string>> reportedDiagnostics_;
   int anonNamespaceCount_ = 0;
   int templateParameterDepth_ = -1;
   int templateParameterCount_ = 0;

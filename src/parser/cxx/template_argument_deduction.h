@@ -104,7 +104,8 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto buildTemplateArgumentList()
       -> std::optional<List<TemplateArgumentAST*>*>;
 
-  [[nodiscard]] auto collectDeducedSoFar(int i)
+  [[nodiscard]] auto collectDeducedSoFar(
+      List<TemplateArgumentAST*>* argumentsSoFar)
       -> std::optional<std::vector<TemplateArgument>>;
 
   static auto getParameterClause(DeclarationAST* decl)

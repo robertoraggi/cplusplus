@@ -241,6 +241,13 @@ auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
   return rewriter.completePendingBody(function, captureBodyErrors);
 }
 
+void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
+                                            FunctionSymbol* function) {
+  if (!unit || !function) return;
+  function->setDefinitionRequired(true);
+  if (function->hasPendingBody()) unit->addPendingBodyCompletion(function);
+}
+
 void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
                                             Symbol* symbol) {
   auto function = symbol_cast<FunctionSymbol>(symbol);

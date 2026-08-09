@@ -1036,6 +1036,18 @@ void ASTPrinter::visit(ForRangeStatementAST* ast) {
     out_ << std::format("is-pointer-iterator: {}\n", ast->isPointerIterator);
     --indent_;
   }
+  if (ast->notEqualRewritten) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("not-equal-rewritten: {}\n", ast->notEqualRewritten);
+    --indent_;
+  }
+  if (ast->notEqualReversed) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("not-equal-reversed: {}\n", ast->notEqualReversed);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1049,6 +1061,11 @@ void ASTPrinter::visit(ForRangeStatementAST* ast) {
   accept(ast->rangeDeclaration, "range-declaration");
   accept(ast->rangeInitializer, "range-initializer");
   accept(ast->statement, "statement");
+  accept(ast->beginInitializer, "begin-initializer");
+  accept(ast->endInitializer, "end-initializer");
+  accept(ast->condition, "condition");
+  accept(ast->increment, "increment");
+  accept(ast->element, "element");
 }
 
 void ASTPrinter::visit(ForStatementAST* ast) {

@@ -29,10 +29,14 @@
 #include <cxx/token.h>
 #include <cxx/types_fwd.h>
 
+#include <unordered_set>
+
 namespace cxx {
 class TranslationUnit;
 
 [[nodiscard]] auto isUntypedAfterError(ExpressionAST* expr) -> bool;
+
+void markUntypedAfterError(ExpressionAST* expr);
 
 class TypeChecker {
  public:
@@ -137,6 +141,14 @@ class TypeChecker {
     return lastOperatorLookupAmbiguous_;
   }
 
+  [[nodiscard]] auto wasLastOperatorRewritten() const -> bool {
+    return lastOperatorRewritten_;
+  }
+
+  [[nodiscard]] auto wasLastOperatorReversed() const -> bool {
+    return lastOperatorReversed_;
+  }
+
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
@@ -144,8 +156,35 @@ class TypeChecker {
 
   void reportDeletedConversion(ExpressionAST* expr);
 
+  void setPotentiallyEvaluated(bool potentiallyEvaluated) {
+    potentiallyEvaluated_ = potentiallyEvaluated;
+  }
+
+  void requireFunctionDefinition(FunctionSymbol* function);
+
   [[nodiscard]] auto as_pointer(const Type* type) const -> const PointerType*;
   [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
+
+  struct AggregateInitGuard {
+    AggregateInitGuard(const AggregateInitGuard&) = delete;
+    auto operator=(const AggregateInitGuard&) -> AggregateInitGuard& = delete;
+
+    TypeChecker& checker;
+    ClassSymbol* classSymbol;
+    bool entered;
+
+    AggregateInitGuard(TypeChecker& checker, ClassSymbol* classSymbol)
+        : checker(checker),
+          classSymbol(classSymbol),
+          entered(
+              checker.aggregatesBeingInitialized_.insert(classSymbol).second) {}
+
+    ~AggregateInitGuard() {
+      if (entered) checker.aggregatesBeingInitialized_.erase(classSymbol);
+    }
+
+    [[nodiscard]] explicit operator bool() const { return entered; }
+  };
 
  private:
   struct Visitor;
@@ -154,5 +193,9 @@ class TypeChecker {
   ScopeSymbol* scope_ = nullptr;
   bool reportErrors_ = false;
   bool lastOperatorLookupAmbiguous_ = false;
+  bool lastOperatorRewritten_ = false;
+  bool lastOperatorReversed_ = false;
+  bool potentiallyEvaluated_ = true;
+  std::unordered_set<ClassSymbol*> aggregatesBeingInitialized_;
 };
 }  // namespace cxx

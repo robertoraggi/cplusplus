@@ -1131,10 +1131,20 @@ auto ForRangeStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(rangeInitializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
+  if (auto loc = cxx::firstSourceLocation(beginInitializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(endInitializer)) return loc;
+  if (auto loc = cxx::firstSourceLocation(condition)) return loc;
+  if (auto loc = cxx::firstSourceLocation(increment)) return loc;
+  if (auto loc = cxx::firstSourceLocation(element)) return loc;
   return {};
 }
 
 auto ForRangeStatementAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(element)) return loc;
+  if (auto loc = cxx::lastSourceLocation(increment)) return loc;
+  if (auto loc = cxx::lastSourceLocation(condition)) return loc;
+  if (auto loc = cxx::lastSourceLocation(endInitializer)) return loc;
+  if (auto loc = cxx::lastSourceLocation(beginInitializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rangeInitializer)) return loc;
@@ -7159,7 +7169,20 @@ auto ForRangeStatementAST::clone(Arena* arena) -> ForRangeStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
+  if (beginInitializer) node->beginInitializer = beginInitializer->clone(arena);
+
+  if (endInitializer) node->endInitializer = endInitializer->clone(arena);
+
+  if (condition) node->condition = condition->clone(arena);
+
+  if (increment) node->increment = increment->clone(arena);
+
+  if (element) node->element = element->clone(arena);
+
   node->symbol = symbol;
+  node->rangeVariable = rangeVariable;
+  node->beginVariable = beginVariable;
+  node->endVariable = endVariable;
   node->beginFunction = beginFunction;
   node->endFunction = endFunction;
   node->derefFunction = derefFunction;
@@ -7167,6 +7190,8 @@ auto ForRangeStatementAST::clone(Arena* arena) -> ForRangeStatementAST* {
   node->notEqualFunction = notEqualFunction;
   node->usesMemberBeginEnd = usesMemberBeginEnd;
   node->isPointerIterator = isPointerIterator;
+  node->notEqualRewritten = notEqualRewritten;
+  node->notEqualReversed = notEqualReversed;
 
   return node;
 }
@@ -7181,10 +7206,15 @@ auto ForRangeStatementAST::create(
     SourceLocation forLoc, SourceLocation lparenLoc, StatementAST* initializer,
     DeclarationAST* rangeDeclaration, SourceLocation colonLoc,
     ExpressionAST* rangeInitializer, SourceLocation rparenLoc,
-    StatementAST* statement, BlockSymbol* symbol, FunctionSymbol* beginFunction,
+    StatementAST* statement, ExpressionAST* beginInitializer,
+    ExpressionAST* endInitializer, ExpressionAST* condition,
+    ExpressionAST* increment, ExpressionAST* element, BlockSymbol* symbol,
+    VariableSymbol* rangeVariable, VariableSymbol* beginVariable,
+    VariableSymbol* endVariable, FunctionSymbol* beginFunction,
     FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
     FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
-    bool usesMemberBeginEnd, bool isPointerIterator) -> ForRangeStatementAST* {
+    bool usesMemberBeginEnd, bool isPointerIterator, bool notEqualRewritten,
+    bool notEqualReversed) -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
   node->attributeList = attributeList;
   node->forLoc = forLoc;
@@ -7195,7 +7225,15 @@ auto ForRangeStatementAST::create(
   node->rangeInitializer = rangeInitializer;
   node->rparenLoc = rparenLoc;
   node->statement = statement;
+  node->beginInitializer = beginInitializer;
+  node->endInitializer = endInitializer;
+  node->condition = condition;
+  node->increment = increment;
+  node->element = element;
   node->symbol = symbol;
+  node->rangeVariable = rangeVariable;
+  node->beginVariable = beginVariable;
+  node->endVariable = endVariable;
   node->beginFunction = beginFunction;
   node->endFunction = endFunction;
   node->derefFunction = derefFunction;
@@ -7203,6 +7241,8 @@ auto ForRangeStatementAST::create(
   node->notEqualFunction = notEqualFunction;
   node->usesMemberBeginEnd = usesMemberBeginEnd;
   node->isPointerIterator = isPointerIterator;
+  node->notEqualRewritten = notEqualRewritten;
+  node->notEqualReversed = notEqualReversed;
   return node;
 }
 
@@ -7210,17 +7250,30 @@ auto ForRangeStatementAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     StatementAST* initializer, DeclarationAST* rangeDeclaration,
     ExpressionAST* rangeInitializer, StatementAST* statement,
-    BlockSymbol* symbol, FunctionSymbol* beginFunction,
-    FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
-    FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
-    bool usesMemberBeginEnd, bool isPointerIterator) -> ForRangeStatementAST* {
+    ExpressionAST* beginInitializer, ExpressionAST* endInitializer,
+    ExpressionAST* condition, ExpressionAST* increment, ExpressionAST* element,
+    BlockSymbol* symbol, VariableSymbol* rangeVariable,
+    VariableSymbol* beginVariable, VariableSymbol* endVariable,
+    FunctionSymbol* beginFunction, FunctionSymbol* endFunction,
+    FunctionSymbol* derefFunction, FunctionSymbol* incrementFunction,
+    FunctionSymbol* notEqualFunction, bool usesMemberBeginEnd,
+    bool isPointerIterator, bool notEqualRewritten, bool notEqualReversed)
+    -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
   node->attributeList = attributeList;
   node->initializer = initializer;
   node->rangeDeclaration = rangeDeclaration;
   node->rangeInitializer = rangeInitializer;
   node->statement = statement;
+  node->beginInitializer = beginInitializer;
+  node->endInitializer = endInitializer;
+  node->condition = condition;
+  node->increment = increment;
+  node->element = element;
   node->symbol = symbol;
+  node->rangeVariable = rangeVariable;
+  node->beginVariable = beginVariable;
+  node->endVariable = endVariable;
   node->beginFunction = beginFunction;
   node->endFunction = endFunction;
   node->derefFunction = derefFunction;
@@ -7228,6 +7281,8 @@ auto ForRangeStatementAST::create(
   node->notEqualFunction = notEqualFunction;
   node->usesMemberBeginEnd = usesMemberBeginEnd;
   node->isPointerIterator = isPointerIterator;
+  node->notEqualRewritten = notEqualRewritten;
+  node->notEqualReversed = notEqualReversed;
   return node;
 }
 

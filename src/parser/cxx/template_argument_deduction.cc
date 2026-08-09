@@ -24,6 +24,7 @@
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
@@ -698,23 +699,21 @@ auto TemplateArgumentDeduction::checkDeducedArguments() -> bool {
   return true;
 }
 
-auto TemplateArgumentDeduction::collectDeducedSoFar(int i)
+auto TemplateArgumentDeduction::collectDeducedSoFar(
+    List<TemplateArgumentAST*>* argumentsSoFar)
     -> std::optional<std::vector<TemplateArgument>> {
-  std::vector<TemplateArgument> deducedSoFar;
-  for (int j = 0; j < i; ++j) {
-    const Type* argType = deducedTypes_[j];
-    if (!argType && explicitParamArg_[j]) {
-      if (auto ta = ast_cast<TypeTemplateArgumentAST>(explicitParamArg_[j]);
-          ta && ta->typeId) {
-        argType = ta->typeId->type;
-      }
-    }
-    if (!argType) return std::nullopt;
-    auto alias = control_->newTypeAliasSymbol(nullptr, {});
-    alias->setType(argType);
-    deducedSoFar.push_back(alias);
-  }
-  return deducedSoFar;
+  if (!argumentsSoFar) return std::vector<TemplateArgument>{};
+
+  SilentDiagnosticsClient silent;
+  auto saved = unit_->changeDiagnosticsClient(&silent);
+  auto substitution =
+      Substitution::make(unit_, templateDecl_, argumentsSoFar, false);
+  (void)unit_->changeDiagnosticsClient(saved);
+
+  if (!substitution.has_value() || substitution->hadError())
+    return std::nullopt;
+
+  return std::move(*substitution).templateArguments();
 }
 
 auto TemplateArgumentDeduction::recordDeducedValue(int index,
@@ -897,7 +896,7 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
 
         if (auto declaredType = n->declaration->type;
             declaredType && isDependent(unit_, declaredType) && templateDecl_) {
-          if (auto deducedSoFar = collectDeducedSoFar(i);
+          if (auto deducedSoFar = collectDeducedSoFar(templArgList);
               deducedSoFar && !deducedSoFar->empty()) {
             auto typeId = TypeIdAST::create(arena_);
             typeId->typeSpecifierList = n->declaration->typeSpecifierList;
@@ -925,7 +924,7 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
         if (!t->typeId) return std::nullopt;
         auto typeId = t->typeId;
         if (!typeId->type || isDependent(unit_, typeId->type)) {
-          if (auto deducedSoFar = collectDeducedSoFar(i);
+          if (auto deducedSoFar = collectDeducedSoFar(templArgList);
               deducedSoFar && !deducedSoFar->empty() && templateDecl_) {
             SilentDiagnosticsClient silent;
             auto saved = unit_->changeDiagnosticsClient(&silent);
@@ -933,10 +932,11 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
                 unit_, typeId, *deducedSoFar, templateDecl_->depth,
                 templateDecl_->symbol);
             (void)unit_->changeDiagnosticsClient(saved);
-            if (substituted && substituted->type &&
-                !isDependent(unit_, substituted->type)) {
-              typeId = substituted;
+            if (!substituted || !substituted->type ||
+                type_cast<UnresolvedNameType>(substituted->type)) {
+              return std::nullopt;
             }
+            if (!isDependent(unit_, substituted->type)) typeId = substituted;
           }
         }
         auto typeArg = TypeTemplateArgumentAST::create(arena_);

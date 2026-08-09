@@ -36,6 +36,23 @@
 
 namespace cxx {
 namespace {
+void bindResultToReference(ImplicitConversionSequence& seq,
+                           const Type* targetType) {
+  const Type* referencedType = nullptr;
+  if (auto rvalueRef = type_cast<RvalueReferenceType>(targetType)) {
+    seq.bindsToRvalueRef = true;
+    referencedType = rvalueRef->elementType();
+  } else if (auto lvalueRef = type_cast<LvalueReferenceType>(targetType)) {
+    referencedType = lvalueRef->elementType();
+  }
+
+  if (!referencedType) return;
+
+  seq.bindsToReference = true;
+  if (auto qual = type_cast<QualType>(referencedType))
+    seq.referenceCv = qual->cvQualifiers();
+}
+
 [[nodiscard]] auto resolveOverloadSetAgainstFunctionType(
     TranslationUnit* unit, OverloadSetSymbol* ovl,
     const FunctionType* targetFunctionType, SourceLocation loc)
@@ -988,6 +1005,8 @@ auto StandardConversion::computeConversionSequence(
     if (listInitializes(bracedInitList, listTarget)) {
       seq.rank = ConversionRank::kConversion;
       seq.kind = ConversionSequenceKind::kUserDefined;
+      seq.aggregateInitializedClass = listTarget;
+      bindResultToReference(seq, targetType);
       addStep(ImplicitCastKind::kIdentity, listTarget);
     }
     return seq;
@@ -995,33 +1014,40 @@ auto StandardConversion::computeConversionSequence(
 
   if (traits.is_reference(targetType)) {
     if (auto rvalRef = type_cast<RvalueReferenceType>(targetType)) {
+      seq.bindsToRvalueRef = true;
+
       if (currentValCat == ValueCategory::kLValue) {
         auto sourceRefRemoved = traits.remove_reference(currentType);
         auto targetElem = rvalRef->elementType();
 
-        if (!traits.is_function(traits.remove_reference(targetElem)))
+        const bool bindsFunctionLvalue =
+            traits.is_function(traits.remove_reference(targetElem)) &&
+            isReferenceCompatible(targetElem, sourceRefRemoved);
+
+        if (bindsFunctionLvalue) {
+          auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
+                                           traits.remove_cv(targetElem));
+          auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
+          auto targetCv = traits.get_cv_qualifiers(targetElem);
+
+          seq.bindsToReference = true;
+          seq.referenceCv = targetCv;
+          seq.rank = sameUnqual ? ConversionRank::kExactMatch
+                                : ConversionRank::kConversion;
+          addStep(!sameUnqual ? ImplicitCastKind::kDerivedToBaseConversion
+                  : sourceCv != targetCv
+                      ? ImplicitCastKind::kQualificationConversion
+                      : ImplicitCastKind::kIdentity,
+                  targetElem);
           return seq;
+        }
 
-        if (!isReferenceCompatible(targetElem, sourceRefRemoved)) return seq;
-
-        auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
-                                         traits.remove_cv(targetElem));
-        auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
-        auto targetCv = traits.get_cv_qualifiers(targetElem);
-
-        seq.bindsToRvalueRef = true;
-        seq.bindsToReference = true;
-        seq.referenceCv = targetCv;
-        seq.rank = sameUnqual ? ConversionRank::kExactMatch
-                              : ConversionRank::kConversion;
-        addStep(!sameUnqual ? ImplicitCastKind::kDerivedToBaseConversion
-                : sourceCv != targetCv
-                    ? ImplicitCastKind::kQualificationConversion
-                    : ImplicitCastKind::kIdentity,
-                targetElem);
-        return seq;
+        auto sourceClass = traits.remove_cv(sourceRefRemoved);
+        auto targetClass = traits.remove_cv(targetElem);
+        if (!traits.is_class(sourceClass)) return seq;
+        if (traits.is_same(sourceClass, targetClass)) return seq;
+        if (traits.is_base_of(targetClass, sourceClass)) return seq;
       }
-      seq.bindsToRvalueRef = true;
     }
 
     if (auto lvalRef = type_cast<LvalueReferenceType>(targetType)) {
@@ -1031,10 +1057,18 @@ auto StandardConversion::computeConversionSequence(
 
       auto sourceRefRemoved = traits.remove_reference(currentType);
 
-      if (!isConst) {
-        if (currentValCat != ValueCategory::kLValue) return seq;
-        if (!isReferenceCompatible(inner, sourceRefRemoved)) return seq;
+      const bool bindsDirectly = currentValCat == ValueCategory::kLValue &&
+                                 isReferenceCompatible(inner, sourceRefRemoved);
 
+      if (!isConst && !bindsDirectly) {
+        auto sourceClass = traits.remove_cv(sourceRefRemoved);
+        auto targetClass = traits.remove_cv(inner);
+        if (!traits.is_class(sourceClass)) return seq;
+        if (traits.is_same(sourceClass, targetClass)) return seq;
+        if (traits.is_base_of(targetClass, sourceClass)) return seq;
+      }
+
+      if (bindsDirectly) {
         auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
                                          traits.remove_cv(inner));
         auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
@@ -1051,27 +1085,6 @@ auto StandardConversion::computeConversionSequence(
                 inner);
         return seq;
       }
-
-      if (currentValCat == ValueCategory::kLValue &&
-          isReferenceCompatible(inner, sourceRefRemoved)) {
-        auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
-                                         traits.remove_cv(inner));
-        auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
-        auto targetCv = traits.get_cv_qualifiers(inner);
-
-        seq.bindsToReference = true;
-        seq.referenceCv = targetCv;
-        seq.rank = sameUnqual ? ConversionRank::kExactMatch
-                              : ConversionRank::kConversion;
-        addStep(!sameUnqual ? ImplicitCastKind::kDerivedToBaseConversion
-                : sourceCv != targetCv
-                    ? ImplicitCastKind::kQualificationConversion
-                    : ImplicitCastKind::kIdentity,
-                inner);
-        return seq;
-      }
-
-      if (!isConst && currentValCat != ValueCategory::kLValue) return seq;
     }
   }
 
@@ -1310,6 +1323,31 @@ auto StandardConversion::computeConversionSequence(
     return classSymbol->implicitConversionFunctions();
   };
 
+  const bool bindsNonConstLvalueReference = [&] {
+    auto lvalueRef = type_cast<LvalueReferenceType>(targetType);
+    if (!lvalueRef) return false;
+    auto qual = type_cast<QualType>(lvalueRef->elementType());
+    return !qual || !qual->isConst();
+  }();
+
+  auto referenceBindsConversionResult = [&](const Type* reference,
+                                            const Type* resultType) {
+    const bool resultIsLvalue =
+        type_cast<LvalueReferenceType>(resultType) != nullptr;
+
+    if (auto lvalueRef = type_cast<LvalueReferenceType>(reference)) {
+      auto inner = lvalueRef->elementType();
+      auto qual = type_cast<QualType>(inner);
+      if (qual && qual->isConst()) return true;
+      if (!resultIsLvalue) return false;
+      return isReferenceCompatible(inner, traits.remove_reference(resultType));
+    }
+
+    if (type_cast<RvalueReferenceType>(reference)) return !resultIsLvalue;
+
+    return true;
+  };
+
   auto conversionResultType = [&](FunctionSymbol* func) -> const Type* {
     auto funcType = type_cast<FunctionType>(func->type());
     if (!funcType) return comparisonTargetType;
@@ -1325,6 +1363,7 @@ auto StandardConversion::computeConversionSequence(
     uds.rank = ConversionRank::kConversion;
     uds.userDefinedConversionFunction = func;
     uds.secondStandardConversionRank = s2Rank;
+    bindResultToReference(uds, targetType);
 
     auto resultType = conversionResultType(func);
     uds.steps.push_back({ImplicitCastKind::kUserDefinedConversion, resultType});
@@ -1337,6 +1376,7 @@ auto StandardConversion::computeConversionSequence(
   };
 
   ImplicitConversionSequence bestUserDefined;
+  FunctionSymbol* bestConversionFunction = nullptr;
 
   auto checkViability = [&](const Type* from,
                             const Type* to) -> std::pair<bool, ConversionRank> {
@@ -1351,13 +1391,29 @@ auto StandardConversion::computeConversionSequence(
   };
 
   auto updateBest = [&](FunctionSymbol* func, ConversionRank s2Rank) {
-    if (bestUserDefined &&
-        s2Rank <= bestUserDefined.secondStandardConversionRank)
-      return;
+    if (bestUserDefined) {
+      if (s2Rank < bestUserDefined.secondStandardConversionRank) return;
+      if (s2Rank == bestUserDefined.secondStandardConversionRank) {
+        if (func->isSpecialization() !=
+            bestConversionFunction->isSpecialization()) {
+          if (func->isSpecialization()) return;
+        } else if (!func->isSpecialization()) {
+          return;
+        } else {
+          auto order = compareFunctionTemplateSpecializations(
+              unit_, func, bestConversionFunction);
+          if (order < 0) return;
+          if (order == 0) return;
+        }
+      }
+    }
     bestUserDefined = makeUserDefinedSeq(func, s2Rank);
+    bestConversionFunction = func;
   };
 
-  if (auto destClassType = type_cast<ClassType>(unqualTo)) {
+  if (auto destClassType = bindsNonConstLvalueReference
+                               ? nullptr
+                               : type_cast<ClassType>(unqualTo)) {
     if (auto destClass = destClassType->symbol()) {
       traits.requireCompleteClass(destClass);
 
@@ -1424,7 +1480,10 @@ auto StandardConversion::computeConversionSequence(
           auto returnType = convFuncType->returnType();
           if (!returnType) continue;
 
-          auto retUnqual = traits.remove_cv(returnType);
+          if (!referenceBindsConversionResult(targetType, returnType)) continue;
+
+          auto retUnqual =
+              traits.remove_cv(traits.remove_reference(returnType));
 
           if (convFunc->isExplicit()) {
             if (isQualificationConversion(retUnqual, unqualTo, /*level=*/0))

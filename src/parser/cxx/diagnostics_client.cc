@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
+#include <cxx/translation_unit.h>
 
 #include <cctype>
 #include <cstdlib>
@@ -32,6 +33,16 @@
 namespace cxx {
 
 DiagnosticsClient::~DiagnosticsClient() = default;
+
+SilentDiagnosticsScope::SilentDiagnosticsScope(TranslationUnit* unit,
+                                               bool sfinae)
+    : unit_(unit),
+      client_(sfinae),
+      saved_(unit->changeDiagnosticsClient(&client_)) {}
+
+SilentDiagnosticsScope::~SilentDiagnosticsScope() {
+  (void)unit_->changeDiagnosticsClient(saved_);
+}
 
 void DiagnosticsClient::report(const Diagnostic& diag) {
   std::string_view severity;

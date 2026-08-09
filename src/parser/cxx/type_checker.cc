@@ -101,54 +101,33 @@ struct IsPotentiallyThrowing {
   }
 
   auto operator()(TypeConstructionAST* ast) -> bool {
-    if (auto classType = type_cast<ClassType>(ast->type)) {
-      auto cls = classType->definition();
-      if (!cls || !cls->isComplete()) return true;
-      auto defCtor = cls->defaultConstructor();
-      if (!defCtor) return cls->hasUserDeclaredConstructors();
-      auto ctorFuncType = type_cast<FunctionType>(defCtor->type());
-      return !ctorFuncType || !ctorFuncType->isNoexcept();
-    }
-    return false;
+    if (initializationIsPotentiallyThrowing(ast->type, ast->constructorSymbol))
+      return true;
+    return applyAll(ast->expressionList);
   }
 
   auto operator()(BinaryExpressionAST* ast) -> bool {
-    if (ast->symbol) {
-      auto ft = type_cast<FunctionType>(ast->symbol->type());
-      if (!ft || !ft->isNoexcept()) return true;
-    }
+    if (ast->symbol && functionIsPotentiallyThrowing(ast->symbol)) return true;
     return apply(ast->leftExpression) || apply(ast->rightExpression);
   }
 
   auto operator()(UnaryExpressionAST* ast) -> bool {
-    if (ast->symbol) {
-      auto ft = type_cast<FunctionType>(ast->symbol->type());
-      if (!ft || !ft->isNoexcept()) return true;
-    }
+    if (ast->symbol && functionIsPotentiallyThrowing(ast->symbol)) return true;
     return apply(ast->expression);
   }
 
   auto operator()(AssignmentExpressionAST* ast) -> bool {
-    if (ast->symbol) {
-      auto ft = type_cast<FunctionType>(ast->symbol->type());
-      if (!ft || !ft->isNoexcept()) return true;
-    }
+    if (ast->symbol && functionIsPotentiallyThrowing(ast->symbol)) return true;
     return apply(ast->leftExpression) || apply(ast->rightExpression);
   }
 
   auto operator()(CompoundAssignmentExpressionAST* ast) -> bool {
-    if (ast->symbol) {
-      auto ft = type_cast<FunctionType>(ast->symbol->type());
-      if (!ft || !ft->isNoexcept()) return true;
-    }
+    if (ast->symbol && functionIsPotentiallyThrowing(ast->symbol)) return true;
     return apply(ast->targetExpression) || apply(ast->rightExpression);
   }
 
   auto operator()(SubscriptExpressionAST* ast) -> bool {
-    if (ast->symbol) {
-      auto ft = type_cast<FunctionType>(ast->symbol->type());
-      if (!ft || !ft->isNoexcept()) return true;
-    }
+    if (ast->symbol && functionIsPotentiallyThrowing(ast->symbol)) return true;
     return apply(ast->baseExpression) || apply(ast->indexExpression);
   }
 
@@ -173,15 +152,79 @@ struct IsPotentiallyThrowing {
   }
 
   auto operator()(BracedTypeConstructionAST* ast) -> bool {
-    if (auto classType = type_cast<ClassType>(ast->type)) {
-      auto cls = classType->definition();
-      if (!cls || !cls->isComplete()) return true;
-      auto defCtor = cls->defaultConstructor();
-      if (!defCtor) return cls->hasUserDeclaredConstructors();
-      auto ctorFuncType = type_cast<FunctionType>(defCtor->type());
-      return !ctorFuncType || !ctorFuncType->isNoexcept();
-    }
-    return false;
+    if (initializationIsPotentiallyThrowing(ast->type, ast->constructorSymbol))
+      return true;
+    return apply(ast->bracedInitList);
+  }
+
+  auto operator()(EqualInitializerAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(BracedInitListAST* ast) -> bool {
+    return applyAll(ast->expressionList);
+  }
+
+  auto operator()(ParenInitializerAST* ast) -> bool {
+    return applyAll(ast->expressionList);
+  }
+
+  auto operator()(DesignatedInitializerClauseAST* ast) -> bool {
+    return apply(ast->initializer);
+  }
+
+  auto operator()(ConditionExpressionAST* ast) -> bool {
+    return apply(ast->initializer);
+  }
+
+  auto operator()(PackExpansionExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(MemberExpressionAST* ast) -> bool {
+    return apply(ast->baseExpression);
+  }
+
+  auto operator()(GenericSelectionExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(BuiltinBitCastExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(VaArgExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
+  auto operator()(NestedStatementExpressionAST*) -> bool { return true; }
+
+  auto operator()(AwaitExpressionAST*) -> bool { return true; }
+
+  auto operator()(YieldExpressionAST*) -> bool { return true; }
+
+  auto operator()(TypeidExpressionAST* ast) -> bool {
+    auto expr = ast->expression;
+    while (auto nested = ast_cast<NestedExpressionAST>(expr))
+      expr = nested->expression;
+
+    auto unary = ast_cast<UnaryExpressionAST>(expr);
+    if (!unary || unary->op != TokenKind::T_STAR) return false;
+    if (unary->symbol) return true;
+
+    auto operand = unary->expression ? unary->expression->type : nullptr;
+    auto pointerType = type_cast<PointerType>(operand);
+    if (!pointerType) return false;
+
+    auto elementType = pointerType->elementType();
+    if (auto qualType = type_cast<QualType>(elementType))
+      elementType = qualType->elementType();
+
+    auto classType = type_cast<ClassType>(elementType);
+    if (!classType) return false;
+
+    auto cls = classType->definition();
+    return !cls || cls->isPolymorphic();
   }
 
   auto operator()(NewExpressionAST*) -> bool { return true; }
@@ -202,6 +245,35 @@ struct IsPotentiallyThrowing {
   auto apply(ExpressionAST* expr) -> bool {
     if (!expr) return false;
     return visit(*this, expr);
+  }
+
+  auto applyAll(List<ExpressionAST*>* expressions) -> bool {
+    for (auto expr : ListView{expressions})
+      if (apply(expr)) return true;
+    return false;
+  }
+
+  auto functionIsPotentiallyThrowing(FunctionSymbol* symbol) -> bool {
+    auto funcType = type_cast<FunctionType>(symbol->type());
+    return !funcType || !funcType->isNoexcept();
+  }
+
+  auto initializationIsPotentiallyThrowing(const Type* type,
+                                           FunctionSymbol* constructorSymbol)
+      -> bool {
+    if (constructorSymbol)
+      return functionIsPotentiallyThrowing(constructorSymbol);
+
+    auto classType = type_cast<ClassType>(type);
+    if (!classType) return false;
+
+    auto cls = classType->definition();
+    if (!cls || !cls->isComplete()) return true;
+
+    auto defaultConstructor = cls->defaultConstructor();
+    if (!defaultConstructor) return cls->hasUserDeclaredConstructors();
+
+    return functionIsPotentiallyThrowing(defaultConstructor);
   }
 };
 
@@ -400,8 +472,9 @@ struct TypeChecker::Visitor {
       -> const FunctionType*;
   [[nodiscard]] auto resolve_arrow_operator(MemberExpressionAST* ast)
       -> FunctionSymbol*;
-  void check_call_arguments(CallExpressionAST* ast,
-                            const FunctionType* functionType);
+  void check_function_arguments(List<ExpressionAST*>* arguments,
+                                SourceLocation callLoc,
+                                const FunctionType* functionType);
   [[nodiscard]] auto typeCheckBuiltinDispatch(CallExpressionAST* ast,
                                               BuiltinFunctionKind kind) -> bool;
   [[nodiscard]] auto checkBuiltinInvoke(CallExpressionAST* ast) -> bool;
@@ -1479,9 +1552,24 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
   auto objectCv = strip_cv(baseType);
   auto objectValueCategory = ast->baseExpression->valueCategory;
 
+  bool anyDeductionSucceeded = false;
+
   std::vector<Candidate> viableCandidates;
-  for (auto func : allFunctions) {
-    if (func->templateDeclaration() && !func->isSpecialization()) continue;
+  for (auto pattern : allFunctions) {
+    auto func = pattern;
+    const bool fromTemplate =
+        pattern->templateDeclaration() && !pattern->isSpecialization();
+
+    if (fromTemplate) {
+      auto deducedArgs =
+          deduceTemplateArguments(pattern, ast->expressionList, nullptr);
+      if (!deducedArgs.has_value()) continue;
+      anyDeductionSucceeded = true;
+      func = ASTRewriter::instantiateForArgs(
+          check.unit_, *deducedArgs, pattern,
+          ast->baseExpression->firstSourceLocation(), false);
+      if (!func) continue;
+    }
 
     auto type = type_cast<FunctionType>(func->type());
     if (!type) continue;
@@ -1494,6 +1582,7 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
 
     Candidate cand{func};
     cand.viable = true;
+    cand.fromTemplate = fromTemplate;
 
     auto objectConversion = resolution.implicitObjectArgumentConversion(
         func, {.type = baseType,
@@ -1531,40 +1620,21 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
     if (cand.viable) viableCandidates.push_back(std::move(cand));
   }
 
-  if (viableCandidates.empty()) {
-    bool anyDeductionSucceeded = false;
+  if (viableCandidates.empty() && anyDeductionSucceeded) {
     for (auto func : allFunctions) {
       if (!func->templateDeclaration() || func->isSpecialization()) continue;
       auto deducedArgs =
           deduceTemplateArguments(func, ast->expressionList, nullptr);
       if (!deducedArgs.has_value()) continue;
-      anyDeductionSucceeded = true;
-      auto instFunc = ASTRewriter::instantiateForArgs(
-          check.unit_, *deducedArgs, func,
-          ast->baseExpression->firstSourceLocation(), /*argsComplete=*/false);
-      if (!instFunc) continue;
-      Candidate cand{instFunc};
-      cand.viable = true;
-      cand.fromTemplate = true;
-      viableCandidates.push_back(std::move(cand));
+      (void)ASTRewriter::instantiate(check.unit_, *deducedArgs, func,
+                                     ast->baseExpression->firstSourceLocation(),
+                                     false);
     }
-    if (anyDeductionSucceeded && viableCandidates.empty()) {
-      for (auto func : allFunctions) {
-        if (!func->templateDeclaration() || func->isSpecialization()) continue;
-        auto deducedArgs =
-            deduceTemplateArguments(func, ast->expressionList, nullptr);
-        if (!deducedArgs.has_value()) continue;
-        (void)ASTRewriter::instantiate(
-            check.unit_, *deducedArgs, func,
-            ast->baseExpression->firstSourceLocation(),
-            /*sfinaeContext=*/false);
-      }
-      return nullptr;
-    }
+    return nullptr;
   }
 
   auto [bestPtr, ambiguous] =
-      resolution.selectBestViableFunction(viableCandidates);
+      resolution.selectBestViableFunction(viableCandidates, true);
 
   if (!bestPtr) return nullptr;
   if (ambiguous) {
@@ -1574,17 +1644,6 @@ auto TypeChecker::Visitor::resolve_call_operator(CallExpressionAST* ast)
   }
 
   auto operatorFunc = bestPtr->symbol;
-  if (operatorFunc->templateDeclaration() &&
-      !operatorFunc->isSpecialization()) {
-    auto deducedArgs =
-        deduceTemplateArguments(operatorFunc, ast->expressionList, nullptr);
-    if (deducedArgs.has_value()) {
-      auto instFunc = ASTRewriter::instantiateForArgs(
-          check.unit_, *deducedArgs, operatorFunc,
-          ast->baseExpression->firstSourceLocation(), /*argsComplete=*/false);
-      if (instFunc) operatorFunc = instFunc;
-    }
-  }
   if (operatorFunc->isSpecialization()) {
     ASTRewriter::reportPendingInstantiationErrors(
         check.unit_, operatorFunc->primaryTemplateSymbol(), operatorFunc,
@@ -1664,17 +1723,17 @@ auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
   return operatorFunc;
 }
 
-void TypeChecker::Visitor::check_call_arguments(
-    CallExpressionAST* ast, const FunctionType* functionType) {
+void TypeChecker::Visitor::check_function_arguments(
+    List<ExpressionAST*>* arguments, SourceLocation callLoc,
+    const FunctionType* functionType) {
   const auto& parameterTypes = functionType->parameterTypes();
 
   OverloadResolution resolution(check.unit_);
 
   int argc = 0;
-  for (auto it = ast->expressionList; it; it = it->next) {
+  for (auto it = arguments; it; it = it->next) {
     if (!it->value) {
-      error(ast->firstSourceLocation(),
-            "invalid call with null argument expression");
+      error(callLoc, "invalid call with null argument expression");
       continue;
     }
 
@@ -1801,7 +1860,8 @@ auto TypeChecker::Visitor::checkBuiltinInvoke(CallExpressionAST* ast) -> bool {
     }
 
     ast->expressionList = restArgs(2);
-    check_call_arguments(ast, mfp->functionType());
+    check_function_arguments(ast->expressionList, ast->firstSourceLocation(),
+                             mfp->functionType());
     setResultTypeAndValueCategory(ast, mfp->functionType());
     return true;
   }
@@ -2109,6 +2169,11 @@ void TypeChecker::Visitor::mark_virtual_dispatch(CallExpressionAST* ast) {
 void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
   if (!ast->baseExpression) return;
 
+  if (isUntypedAfterError(ast->baseExpression)) {
+    markUntypedAfterError(ast);
+    return;
+  }
+
   if (auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression)) {
     if (auto classSym = symbol_cast<ClassSymbol>(idExpr->symbol)) {
       ast->type = classSym->type();
@@ -2172,6 +2237,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
   }
 
   if (std::ranges::any_of(ListView{ast->expressionList}, isUntypedAfterError)) {
+    markUntypedAfterError(ast);
     return;
   }
 
@@ -2213,6 +2279,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
   if (auto funcSym =
           symbol_cast<FunctionSymbol>(base_symbol(ast->baseExpression))) {
     check.reportDeletedFunction(funcSym, ast->firstSourceLocation());
+    check.requireFunctionDefinition(funcSym);
 
     int argCount = 0;
     for (auto it = ast->expressionList; it; it = it->next) ++argCount;
@@ -2220,7 +2287,8 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     appendDefaultArguments(ast, funcSym, argCount, totalParams);
   }
 
-  check_call_arguments(ast, functionType);
+  check_function_arguments(ast->expressionList, ast->firstSourceLocation(),
+                           functionType);
 
   mark_virtual_dispatch(ast);
 
@@ -2593,10 +2661,7 @@ void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
     return;
   }
 
-  if (in_template() &&
-      (!ast->type || !ast->expression || !ast->expression->type)) {
-    return;
-  }
+  if (!ast->type || !ast->expression || !ast->expression->type) return;
 
   using CastCheck =
       bool (Visitor::*)(ExpressionAST*&, const Type*, ValueCategory);
@@ -3315,6 +3380,12 @@ void TypeChecker::Visitor::check_address_of(UnaryExpressionAST* ast) {
   }
 
   auto idExpr = ast_cast<IdExpressionAST>(ast->expression);
+  if (idExpr) {
+    if (auto function = designatedFunction(idExpr->symbol)) {
+      idExpr->symbol = function;
+      check.requireFunctionDefinition(function);
+    }
+  }
   if (idExpr && idExpr->nestedNameSpecifier) {
     auto symbol = idExpr->symbol;
 
@@ -4518,6 +4589,10 @@ auto isUntypedAfterError(ExpressionAST* expr) -> bool {
   return !ast_cast<BracedInitListAST>(expr);
 }
 
+void markUntypedAfterError(ExpressionAST* expr) {
+  if (expr) expr->type = nullptr;
+}
+
 TypeChecker::TypeChecker(TranslationUnit* unit) : unit_(unit) {}
 
 auto TypeChecker::translationUnit() const -> TranslationUnit* { return unit_; }
@@ -5382,6 +5457,7 @@ auto TypeChecker::Visitor::resolve_operator_overload(
           check.lookupOperator(leftType, op, rightType, leftExpr, rightExpr)) {
     symbolOut = symbol;
     check.reportDeletedFunction(symbol, opLoc);
+    check.requireFunctionDefinition(symbol);
     return true;
   }
 
@@ -5418,23 +5494,25 @@ void TypeChecker::Visitor::apply_operator_argument_conversions(
   auto functionType = type_cast<FunctionType>(operatorFunc->type());
   if (!functionType) return;
 
-  const auto& params = functionType->parameterTypes();
-
   const bool isMember = operatorFunc->isImplicitObjectMemberFunction();
-
-  auto applyConversion = [&](ExpressionAST*& expr, const Type* paramType) {
-    if (!expr || !expr->type) return;
-    auto conv = check.checkImplicitConversion(expr, paramType);
-    if (conv) check.applyImplicitConversion(conv, expr);
-  };
-
-  if (!isMember && params.size() == 2) {
-    applyConversion(leftExpression, params[0]);
-    applyConversion(rightExpression, params[1]);
-  } else if (isMember) {
+  if (isMember) {
     adjust_member_operator_object_argument(operatorFunc, leftExpression);
-    if (params.size() == 1) applyConversion(rightExpression, params[0]);
+    auto arguments =
+        make_list_node<ExpressionAST>(check.unit_->arena(), rightExpression);
+    check_function_arguments(arguments, rightExpression->firstSourceLocation(),
+                             functionType);
+    rightExpression = arguments->value;
+    return;
   }
+
+  auto arguments =
+      make_list_node<ExpressionAST>(check.unit_->arena(), leftExpression);
+  arguments->next =
+      make_list_node<ExpressionAST>(check.unit_->arena(), rightExpression);
+  check_function_arguments(arguments, leftExpression->firstSourceLocation(),
+                           functionType);
+  leftExpression = arguments->value;
+  rightExpression = arguments->next->value;
 }
 
 void TypeChecker::Visitor::adjust_member_operator_object_argument(
@@ -5476,6 +5554,65 @@ auto TypeChecker::Visitor::resolve_binary_overload(BinaryExpressionAST* ast,
   }
 
   if (!operatorFunc) return true;
+
+  if (check.wasLastOperatorRewritten()) {
+    auto operatorId = name_cast<OperatorId>(operatorFunc->name());
+    const auto rewrittenOp =
+        operatorId ? operatorId->op() : TokenKind::T_LESS_EQUAL_GREATER;
+    const bool reversed = check.wasLastOperatorReversed();
+
+    auto comparison = BinaryExpressionAST::create(check.unit_->arena());
+    comparison->leftExpression = ast->leftExpression;
+    comparison->opLoc = ast->opLoc;
+    comparison->rightExpression = ast->rightExpression;
+    comparison->op = rewrittenOp;
+    if (reversed)
+      std::swap(comparison->leftExpression, comparison->rightExpression);
+    comparison->symbol = operatorFunc;
+    apply_operator_argument_conversions(
+        operatorFunc, comparison->leftExpression, comparison->rightExpression);
+    comparison->isVirtualDispatch = is_virtual_member_operator_dispatch(
+        operatorFunc, comparison->leftExpression);
+    setResultTypeAndValueCategory(comparison, operatorFunc);
+
+    if (rewrittenOp == TokenKind::T_EQUAL_EQUAL) {
+      if (ast->op == TokenKind::T_EQUAL_EQUAL) {
+        ast->leftExpression = comparison->leftExpression;
+        ast->rightExpression = comparison->rightExpression;
+        ast->symbol = operatorFunc;
+        ast->isVirtualDispatch = comparison->isVirtualDispatch;
+        setResultTypeAndValueCategory(ast, named_symbol_type(operatorFunc));
+        return true;
+      }
+
+      auto falseLiteral = BoolLiteralExpressionAST::create(
+          check.unit_->arena(), ast->opLoc, false, ValueCategory::kPrValue,
+          control()->getBoolType());
+
+      ast->leftExpression = comparison;
+      ast->rightExpression = falseLiteral;
+      ast->op = TokenKind::T_EQUAL_EQUAL;
+      ast->symbol = nullptr;
+      ast->isVirtualDispatch = false;
+      check_equality(ast);
+      return true;
+    }
+
+    auto zero = IntLiteralExpressionAST::create(
+        check.unit_->arena(), control()->integerLiteral("0"),
+        ValueCategory::kPrValue, control()->getIntType());
+    if (reversed) {
+      ast->leftExpression = zero;
+      ast->rightExpression = comparison;
+    } else {
+      ast->leftExpression = comparison;
+      ast->rightExpression = zero;
+    }
+    ast->symbol = nullptr;
+    ast->isVirtualDispatch = false;
+    check_relational(ast);
+    return true;
+  }
 
   ast->symbol = operatorFunc;
 
@@ -5522,7 +5659,8 @@ auto TypeChecker::Visitor::resolve_compound_assignment_overload(
   FunctionSymbol* operatorFunc = nullptr;
   if (!resolve_operator_overload(ast->targetExpression->type, ast->op,
                                  ast->opLoc, ast->rightExpression->type,
-                                 operatorFunc)) {
+                                 operatorFunc, ast->targetExpression,
+                                 ast->rightExpression)) {
     return false;
   }
 
@@ -5995,7 +6133,14 @@ auto TypeChecker::lookupOperator(const Type* type, TokenKind op,
   auto result =
       resolution.lookupOperator(type, op, rightType, leftExpr, rightExpr);
   lastOperatorLookupAmbiguous_ = resolution.wasLastLookupAmbiguous();
+  lastOperatorRewritten_ = resolution.wasLastOperatorRewritten();
+  lastOperatorReversed_ = resolution.wasLastOperatorReversed();
   return result;
+}
+
+void TypeChecker::requireFunctionDefinition(FunctionSymbol* function) {
+  if (!potentiallyEvaluated_) return;
+  ASTRewriter::requireFunctionDefinition(unit_, function);
 }
 
 auto TypeChecker::as_pointer(const Type* type) const -> const PointerType* {

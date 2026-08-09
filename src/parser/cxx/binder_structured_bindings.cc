@@ -45,8 +45,9 @@ auto asExpression(NameIdAST* nameId) -> const Identifier* {
 
 auto Binder::declareStructuredBindingEntity(
     SourceLocation loc, const Identifier* name, const DeclSpecs& specs,
-    TokenKind refOp, ExpressionAST* initializer) -> InitDeclaratorAST* {
-  if (!name || !initializer) return nullptr;
+    TokenKind refOp, ExpressionAST* initializer, bool addSymbolToParentScope)
+    -> InitDeclaratorAST* {
+  if (!name) return nullptr;
 
   auto ar = unit_->arena();
 
@@ -68,8 +69,7 @@ auto Binder::declareStructuredBindingEntity(
 
   Decl decl{specs, declarator};
 
-  auto symbol = declareVariable(declarator, decl,
-                                /*addSymbolToParentScope=*/true);
+  auto symbol = declareVariable(declarator, decl, addSymbolToParentScope);
   if (!symbol) return nullptr;
 
   auto initDeclarator = InitDeclaratorAST::create(ar);
@@ -77,12 +77,18 @@ auto Binder::declareStructuredBindingEntity(
   initDeclarator->initializer = initializer;
   initDeclarator->symbol = symbol;
 
-  TypeChecker check{unit_};
-  check.setScope(scope());
-  check.setReportErrors(unit_->config().checkTypes);
-  check.check_init_declarator(initDeclarator, /*typeSpecifier=*/nullptr);
+  if (initializer) {
+    TypeChecker check{unit_};
+    check.setScope(scope());
+    check.setReportErrors(unit_->config().checkTypes);
+    check.check_init_declarator(initDeclarator, /*typeSpecifier=*/nullptr);
+  }
 
   return initDeclarator;
+}
+
+auto Binder::structuredBindingEntityName() -> const Identifier* {
+  return control()->getIdentifier("$e");
 }
 
 void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
@@ -93,14 +99,11 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
   for (auto it = ast->bindingList; it; it = it->next) ++count;
   if (count == 0) return;
 
-  auto ar = unit_->arena();
-
   const auto refOp = ast->refQualifierLoc
                          ? unit_->tokenKind(ast->refQualifierLoc)
                          : TokenKind::T_EOF_SYMBOL;
 
-  auto eIdent =
-      control()->getIdentifier(std::format("$e{}", ast->lbracketLoc.index()));
+  auto eIdent = structuredBindingEntityName();
 
   auto initializerRefOp = refOp;
   if (initializerRefOp == TokenKind::T_EOF_SYMBOL &&
@@ -111,12 +114,24 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
 
   auto eInitDeclarator = declareStructuredBindingEntity(
       ast->initializer->firstSourceLocation(), eIdent, specs, initializerRefOp,
-      ast->initializer);
+      ast->initializer, /*addSymbolToParentScope=*/false);
   if (!eInitDeclarator) return;
   ast->hiddenVariable = eInitDeclarator;
 
   auto eSymbol = symbol_cast<VariableSymbol>(eInitDeclarator->symbol);
   if (!eSymbol) return;
+
+  decomposeStructuredBinding(ast, eSymbol);
+}
+
+void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
+                                        VariableSymbol* eSymbol) {
+  int count = 0;
+  for (auto it = ast->bindingList; it; it = it->next) ++count;
+  if (count == 0) return;
+
+  auto ar = unit_->arena();
+  auto eIdent = name_cast<Identifier>(eSymbol->name());
 
   if (isDependent(unit_, eSymbol->type())) {
     auto dependentType = control()->getTypeParameterType(0, 0, false);
@@ -182,7 +197,8 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
             : TokenKind::T_AMP_AMP;
 
     auto bindingInitDeclarator = declareStructuredBindingEntity(
-        nameId->identifierLoc, name, bindingSpecs, bindingRefOp, equalInit);
+        nameId->identifierLoc, name, bindingSpecs, bindingRefOp, equalInit,
+        /*addSymbolToParentScope=*/true);
     if (!bindingInitDeclarator) return;
 
     *bindingDeclaratorListTail =
@@ -252,7 +268,7 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
 
     auto templateId = SimpleTemplateIdAST::create(ar);
     templateId->identifier = getIdent;
-    templateId->identifierLoc = ast->initializer->firstSourceLocation();
+    templateId->identifierLoc = ast->lbracketLoc;
     templateId->templateArgumentList =
         make_list_node<TemplateArgumentAST>(ar, exprArg);
 

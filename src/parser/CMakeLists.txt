@@ -44,6 +44,7 @@ add_library(cxx-parser
     cxx/ast_rewriter_requires.cc
     cxx/ast_rewriter_specifiers.cc
     cxx/ast_rewriter_statements.cc
+    cxx/ast_rewriter_subsumption.cc
     cxx/ast_rewriter_units.cc
     cxx/ast_rewriter.cc
     cxx/ast_slot.cc

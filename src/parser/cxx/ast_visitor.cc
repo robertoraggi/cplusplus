@@ -444,6 +444,11 @@ void ASTVisitor::visit(ForRangeStatementAST* ast) {
   accept(ast->rangeDeclaration);
   accept(ast->rangeInitializer);
   accept(ast->statement);
+  accept(ast->beginInitializer);
+  accept(ast->endInitializer);
+  accept(ast->condition);
+  accept(ast->increment);
+  accept(ast->element);
 }
 
 void ASTVisitor::visit(ForStatementAST* ast) {

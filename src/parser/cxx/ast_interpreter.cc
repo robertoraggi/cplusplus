@@ -156,6 +156,7 @@ ASTInterpreter::~ASTInterpreter() {}
 auto ASTInterpreter::control() const -> Control* { return unit_->control(); }
 
 auto ASTInterpreter::evaluate(ExpressionAST* ast) -> std::optional<ConstValue> {
+  EvaluationScope evaluationScope{*this};
   auto result = expression(ast);
   return result;
 }
@@ -292,12 +293,14 @@ auto ASTInterpreter::bindParametersFromExprs(FunctionSymbol* func,
 void ASTInterpreter::applyNsdmis(const std::shared_ptr<ConstObject>& obj) {
   auto classType = type_cast<ClassType>(obj->type());
   if (!classType || !classType->symbol()) return;
+  auto savedThis = std::exchange(thisObject_, obj);
   for (auto member : classType->symbol()->members()) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field || field->isStatic() || !field->initializer()) continue;
     auto value = evaluate(field->initializer());
     if (value) obj->setField(field, std::move(*value));
   }
+  thisObject_ = std::move(savedThis);
 }
 
 void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
@@ -346,6 +349,7 @@ void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
 
 auto ASTInterpreter::defaultConstruct(const Type* type)
     -> std::optional<ConstValue> {
+  EvaluationScope evaluationScope{*this};
   auto classType = type_cast<ClassType>(traits.remove_cv(type));
   if (!classType || !classType->symbol()) return std::nullopt;
 
@@ -387,10 +391,17 @@ void ASTInterpreter::popFrame() {
   if (!frames_.empty()) frames_.pop_back();
 }
 
+void ASTInterpreter::retireFrame() {
+  if (frames_.empty()) return;
+  retiredFrames_.push_back(std::move(frames_.back()));
+  frames_.pop_back();
+}
+
 auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
                                   std::vector<ConstValue> args,
                                   std::shared_ptr<ConstObject> thisObject)
     -> std::optional<ConstValue> {
+  EvaluationScope evaluationScope{*this};
   if (!func || !func->isConstexpr()) return std::nullopt;
 
   auto defn = func->definition();
@@ -488,7 +499,10 @@ auto ASTInterpreter::evaluateCallLValue(FunctionSymbol* func,
   captureReturnLValue_ = savedCapture;
   returnLValue_ = nullptr;
 
-  popFrame();
+  if (result)
+    retireFrame();
+  else
+    popFrame();
   --depth_;
 
   if (aborted_) return nullptr;
@@ -591,7 +605,10 @@ auto ASTInterpreter::evaluateCallLValueFromExprs(FunctionSymbol* func,
   captureReturnLValue_ = savedCapture;
   returnLValue_ = nullptr;
 
-  popFrame();
+  if (result)
+    retireFrame();
+  else
+    popFrame();
   --depth_;
 
   if (aborted_) return nullptr;
@@ -603,6 +620,7 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
                                          const Type* classType,
                                          std::vector<ConstValue> args)
     -> std::optional<ConstValue> {
+  EvaluationScope evaluationScope{*this};
   if (!ctor || !ctor->isConstexpr()) return std::nullopt;
 
   auto defn = ctor->definition();

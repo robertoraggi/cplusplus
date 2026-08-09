@@ -135,6 +135,14 @@ class TypeTraits {
 
   [[nodiscard]] auto is_virtual_base_of(const Type* base,
                                         const Type* derived) const -> bool;
+
+  [[nodiscard]] auto is_corresponding_overrider(
+      const FunctionSymbol* overrider, const FunctionSymbol* overridden) const
+      -> bool;
+
+  [[nodiscard]] auto is_covariant_return_type(
+      const Type* overriddenReturnType, const Type* overriderReturnType) const
+      -> bool;
   [[nodiscard]] auto is_convertible(const Type* from, const Type* to) const
       -> bool;
 
@@ -154,16 +162,21 @@ class TypeTraits {
   auto is_nothrow_constructible(const Type* type,
                                 std::span<const Type* const> argTypes) -> bool;
   auto is_trivially_constructible(const Type* type) -> bool;
+  auto selectAssignmentOperator(const Type* to, const Type* from)
+      -> FunctionSymbol*;
   auto is_assignable(const Type* to, const Type* from) -> bool;
   auto is_nothrow_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_assignable(const Type* from, const Type* to) -> bool;
   auto is_trivially_copyable(const Type* type) -> bool;
   auto is_abstract(const Type* type) -> bool;
   auto is_destructible(const Type* type) -> bool;
+  auto is_nothrow_destructible(const Type* type) -> bool;
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;
 
  private:
+  [[nodiscard]] auto can_initialize(const Type* to, const Type* from,
+                                    bool directInitialization) const -> bool;
   [[nodiscard]] auto apply_sign(const Type* type, bool isUnsigned) const
       -> const Type*;
   [[nodiscard]] auto corresponding_integer_type(const Type* type,

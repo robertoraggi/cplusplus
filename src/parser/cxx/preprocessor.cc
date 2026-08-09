@@ -199,9 +199,9 @@ struct SourceFile {
   [[nodiscard]] auto getTokenStartPosition(unsigned offset) const
       -> SourcePosition {
     ensureLineMap();
-    auto it = std::lower_bound(lines.cbegin(), lines.cend(),
+    auto it = std::upper_bound(lines.cbegin(), lines.cend(),
                                static_cast<int>(offset));
-    if (*it != static_cast<int>(offset)) --it;
+    if (it != lines.cbegin()) --it;
     assert(*it <= int(offset));
     auto line = std::uint32_t(std::distance(cbegin(lines), it) + 1);
     const auto start = cbegin(source) + *it;

@@ -23,6 +23,7 @@
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl_specs.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
@@ -168,12 +169,13 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
 
 auto Binder::BindClass::findPrimaryTemplateSymbol(
     SimpleTemplateIdAST* templateId) const -> ClassSymbol* {
-  for (auto candidate :
-       binder.declaringScope()->find(templateId->identifier) | views::classes) {
-    return candidate;
-  }
+  auto isClassTemplate = [](Symbol* symbol) {
+    auto classSymbol = symbol_cast<ClassSymbol>(symbol);
+    return classSymbol && classSymbol->templateParameters();
+  };
 
-  return nullptr;
+  return symbol_cast<ClassSymbol>(qualifiedLookup(
+      binder.declaringScope(), templateId->identifier, isClassTemplate));
 }
 
 auto Binder::BindClass::isTrueRedefinition(

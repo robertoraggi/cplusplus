@@ -227,19 +227,9 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
 auto ASTRewriter::UnqualifiedIdVisitor::expandTypePackArgument(
     TypeTemplateArgumentAST* typeArg,
     List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult {
-  if (!typeArg || !typeArg->typeId || !typeArg->typeId->declarator)
-    return PackResult::kNotPack;
+  if (!typeArg) return PackResult::kNotPack;
 
-  auto packDecl =
-      ast_cast<ParameterPackAST>(typeArg->typeId->declarator->coreDeclarator);
-  if (!packDecl) return PackResult::kNotPack;
-
-  ParameterPackSymbol* pack = nullptr;
-  for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
-    pack = rewrite.findReferencedParameterPack(spec);
-    if (pack) break;
-  }
-
+  auto pack = rewrite.expandedParameterPack(typeArg->typeId);
   if (!pack) return PackResult::kNotPack;
   if (pack->elements().empty()) return PackResult::kEmpty;
 
@@ -394,8 +384,11 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   copy->identifier = ast->identifier;
   copy->scopeLoc = ast->scopeLoc;
 
-  auto needsSubstitution =
-      (!copy->symbol || symbol_cast<TypeParameterSymbol>(copy->symbol));
+  const bool isTypeParameter =
+      symbol_cast<TypeParameterSymbol>(copy->symbol) ||
+      symbol_cast<ConstraintTypeParameterSymbol>(copy->symbol);
+
+  auto needsSubstitution = !copy->symbol || isTypeParameter;
   if (needsSubstitution && copy->identifier) {
     auto emitNonScopeError = [&](SourceLocation loc, Symbol* argSym) {
       auto alias = symbol_cast<TypeAliasSymbol>(argSym);
@@ -406,10 +399,8 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
                                      to_string(alias->type())));
     };
 
-    TypeParameterSymbol* tps = symbol_cast<TypeParameterSymbol>(copy->symbol);
-
-    if (tps) {
-      if (auto substituted = rewrite.substitutedSymbol(tps)) {
+    if (isTypeParameter) {
+      if (auto substituted = rewrite.substitutedSymbol(copy->symbol)) {
         copy->symbol = binder()->resolveNestedNameSpecifier(substituted);
         if (!copy->symbol) emitNonScopeError(ast->identifierLoc, substituted);
       }

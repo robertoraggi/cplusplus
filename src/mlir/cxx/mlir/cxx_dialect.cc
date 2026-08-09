@@ -168,6 +168,18 @@ auto FuncOp::parse(OpAsmParser& parser, OperationState& result) -> ParseResult {
       getResAttrsAttrName(result.name));
 }
 
+auto CallOp::verify() -> LogicalResult {
+  if (getCalleeAttr() && getCalleeOperand()) {
+    return emitOpError("expects either a callee symbol or a callee operand");
+  }
+
+  if (!getCalleeAttr() && !getCalleeOperand()) {
+    return emitOpError("expects a callee symbol or a callee operand");
+  }
+
+  return success();
+}
+
 auto StoreOp::verify() -> LogicalResult {
 #if false
   auto addrType = dyn_cast<PointerType>(getAddr().getType());
