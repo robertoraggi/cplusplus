@@ -1,4 +1,4 @@
-import { OutputCodeFormat } from "cxx-frontend"
+import { TextOutputCodeFormat } from "../compiler"
 import { ButtonGroup } from "./ui/button-group"
 import { Button } from "./ui/button"
 
@@ -6,12 +6,12 @@ export function OutputFormatSelector({
   outputFormat,
   setOutputFormat,
 }: {
-  outputFormat: OutputCodeFormat
-  setOutputFormat: (format: OutputCodeFormat) => void
+  outputFormat: TextOutputCodeFormat
+  setOutputFormat: (format: TextOutputCodeFormat) => void
 }) {
   return (
     <ButtonGroup>
-      {OutputCodeFormat.map((format) => (
+      {TextOutputCodeFormat.map((format) => (
         <Button
           key={format}
           variant={outputFormat === format ? "default" : "outline"}

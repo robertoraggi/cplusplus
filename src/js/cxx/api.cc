@@ -66,15 +66,6 @@ cxx::ASTSlot getSlot;
 EMSCRIPTEN_DECLARE_VAL_TYPE(UnitOptions);
 EMSCRIPTEN_DECLARE_VAL_TYPE(DiagnosticList);
 
-auto cplusplusMacroValue(std::string_view standard) -> std::string_view {
-  if (standard == "c++14") return "201402L";
-  if (standard == "c++17") return "201703L";
-  if (standard == "c++20") return "202002L";
-  if (standard == "c++23") return "202302L";
-  if (standard == "c++26") return "202400L";
-  return {};
-}
-
 auto severityName(cxx::Severity severity) -> std::string_view {
   switch (severity) {
     case cxx::Severity::Message:
@@ -160,22 +151,22 @@ struct WrappedUnit {
         if (val value = api["debugInfo"]; value.isTrue() || value.isFalse()) {
           debugInfo = value.as<bool>();
         }
+
+        if (val standard = api["std"]; standard.isString()) {
+          auto languageStandard =
+              cxx::findLanguageStandard(standard.as<std::string>());
+
+          if (languageStandard &&
+              languageStandard->language == toolchain->language()) {
+            toolchain->setLanguageStandard(languageStandard);
+          }
+        }
       }
 
       toolchain->initMemoryLayout();
       toolchain->addSystemCppIncludePaths();
       toolchain->addSystemIncludePaths();
       toolchain->addPredefinedMacros();
-
-      if (!api.isUndefined()) {
-        if (val standard = api["std"]; standard.isString()) {
-          auto value = cplusplusMacroValue(standard.as<std::string>());
-          if (!value.empty()) {
-            preprocessor->undefMacro("__cplusplus");
-            preprocessor->defineMacro("__cplusplus", std::string(value));
-          }
-        }
-      }
 
       addIncludePaths("quoteIncludePaths", [&](std::string path) {
         preprocessor->addQuoteIncludePath(std::move(path));
@@ -297,10 +288,17 @@ struct WrappedUnit {
     co_return val{true};
   }
 
-  auto emitCode(const std::string& format) -> std::string {
+  auto emitCode(const std::string& format) -> val {
+    const auto objectFile = format == "obj";
+
+    auto emptyOutput = [&] {
+      if (objectFile) return val::global("Uint8Array").new_(0);
+      return val(std::string{});
+    };
+
 #ifdef CXX_WITH_MLIR
     if (diagnosticsClient->hasErrors) {
-      return {};
+      return emptyOutput();
     }
 
     mlir::MLIRContext context{mlir::MLIRContext::Threading::DISABLED};
@@ -314,24 +312,28 @@ struct WrappedUnit {
     std::ostringstream out;
     llvm::raw_os_ostream os(out);
 
+    auto textOutput = [&] {
+      os.flush();
+      return val(out.str());
+    };
+
     if (format == "cxxir") {
       mlir::OpPrintingFlags flags;
       if (debugInfo) flags.enableDebugInfo(true);
       ir.module->print(os, flags);
-      os.flush();
-      return out.str();
+      return textOutput();
     }
 
     if (failed(cxx::lowerToMLIR(ir.module))) {
-      return std::format("<error lowering to {}>", format);
+      if (objectFile) return emptyOutput();
+      return val(std::format("<error lowering to {}>", format));
     }
 
     if (format == "mlir") {
       mlir::OpPrintingFlags flags;
       if (debugInfo) flags.enableDebugInfo(true);
       ir.module->print(os, flags);
-      os.flush();
-      return out.str();
+      return textOutput();
     }
 
     llvm::LLVMContext llvmContext;
@@ -340,7 +342,7 @@ struct WrappedUnit {
 
     if (format == "llvm") {
       llvmModule->print(os, nullptr);
-      return out.str();
+      return textOutput();
     }
 
     LLVMInitializeWebAssemblyTargetInfo();
@@ -365,17 +367,32 @@ struct WrappedUnit {
     llvm::SmallString<0> outputBuffer;
     llvm::raw_svector_ostream outBytes(outputBuffer);
 
-    llvm::CodeGenFileType fileType = llvm::CodeGenFileType::AssemblyFile;
+    llvm::CodeGenFileType fileType = objectFile
+                                         ? llvm::CodeGenFileType::ObjectFile
+                                         : llvm::CodeGenFileType::AssemblyFile;
+
     if (targetMachine->addPassesToEmitFile(pm, outBytes, nullptr, fileType)) {
-      return {};
+      return emptyOutput();
     }
 
     pm.run(*llvmModule);
 
-    return std::string(outputBuffer.begin(), outputBuffer.size());
+    if (!objectFile) {
+      return val(std::string(outputBuffer.begin(), outputBuffer.size()));
+    }
+
+    auto result = val::global("Uint8Array").new_(outputBuffer.size());
+
+    val memory = val(typed_memory_view(
+        outputBuffer.size(),
+        reinterpret_cast<const unsigned char*>(outputBuffer.data())));
+
+    result.call<void>("set", memory);
+
+    return result;
 #endif
 
-    return {};
+    return emptyOutput();
   }
 };
 

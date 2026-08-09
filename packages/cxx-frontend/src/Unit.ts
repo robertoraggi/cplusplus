@@ -26,5 +26,5 @@ export interface Unit {
   getHandle(): number;
   getUnitHandle(): number;
   getDiagnostics(): Diagnostic[];
-  emitCode(format: string): string;
+  emitCode(format: string): string | Uint8Array;
 }

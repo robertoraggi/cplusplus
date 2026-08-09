@@ -1,14 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 import * as monaco from "monaco-editor"
-import type { OutputCodeFormat } from "cxx-frontend"
-import { loadCompiler, compile } from "./compiler"
+import { loadCompiler, compile, type TextOutputCodeFormat } from "./compiler"
 import { applyDiagnostics } from "./diagnostics"
 import { inputCodeModel } from "./input-code-model"
 import { outputCodeModel } from "./output-code-model"
 import { defaultSample, samples } from "./samples"
 
-const outputLanguageByFormat: Record<OutputCodeFormat, string> = {
+const outputLanguageByFormat: Record<TextOutputCodeFormat, string> = {
   cxxir: "mlir",
   mlir: "mlir",
   llvm: "llvm",
@@ -21,9 +20,11 @@ interface PlaygroundContextValue {
   diagnosticCount: number
   compileTimeMs: number | null
   currentSampleId: string
-  outputFormat: OutputCodeFormat
+  outputFormat: TextOutputCodeFormat
+  debugInfo: boolean
   loadSample: (id: string) => void
-  setOutputFormat: (format: OutputCodeFormat) => void
+  setOutputFormat: (format: TextOutputCodeFormat) => void
+  setDebugInfo: (debugInfo: boolean) => void
 }
 
 const PlaygroundContext = React.createContext<PlaygroundContextValue | null>(
@@ -51,13 +52,15 @@ export function PlaygroundProvider({
     defaultSample?.id ?? ""
   )
   const [outputFormat, setOutputFormatState] =
-    React.useState<OutputCodeFormat>("cxxir")
+    React.useState<TextOutputCodeFormat>("cxxir")
+  const [debugInfo, setDebugInfoState] = React.useState(false)
 
   const isCompilingRef = React.useRef(false)
   const pendingCompileRef = React.useRef(false)
   const compileRevisionRef = React.useRef(0)
   const currentSampleIdRef = React.useRef(currentSampleId)
   const outputFormatRef = React.useRef(outputFormat)
+  const debugInfoRef = React.useRef(debugInfo)
   const compileTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(null)
 
   const runCompile = React.useCallback(async () => {
@@ -79,6 +82,7 @@ export function PlaygroundProvider({
           source: inputCodeModel.getValue(),
           path: currentSampleIdRef.current || "main.cc",
           format: outputFormatRef.current,
+          debugInfo: debugInfoRef.current,
         })
 
         if (compileRevision === compileRevisionRef.current) {
@@ -156,7 +160,7 @@ export function PlaygroundProvider({
   )
 
   const setOutputFormat = React.useCallback(
-    (format: OutputCodeFormat) => {
+    (format: TextOutputCodeFormat) => {
       if (outputFormatRef.current === format) return
       outputFormatRef.current = format
       setOutputFormatState(format)
@@ -164,6 +168,16 @@ export function PlaygroundProvider({
         outputCodeModel,
         outputLanguageByFormat[format]
       )
+      scheduleCompile(false)
+    },
+    [scheduleCompile]
+  )
+
+  const setDebugInfo = React.useCallback(
+    (debugInfo: boolean) => {
+      if (debugInfoRef.current === debugInfo) return
+      debugInfoRef.current = debugInfo
+      setDebugInfoState(debugInfo)
       scheduleCompile(false)
     },
     [scheduleCompile]
@@ -177,8 +191,10 @@ export function PlaygroundProvider({
       compileTimeMs,
       currentSampleId,
       outputFormat,
+      debugInfo,
       loadSample,
       setOutputFormat,
+      setDebugInfo,
     }),
     [
       isReady,
@@ -187,8 +203,10 @@ export function PlaygroundProvider({
       compileTimeMs,
       currentSampleId,
       outputFormat,
+      debugInfo,
       loadSample,
       setOutputFormat,
+      setDebugInfo,
     ]
   )
 

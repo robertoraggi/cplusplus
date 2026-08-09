@@ -4949,17 +4949,81 @@ export class ForRangeStatementAST extends StatementAST {
   }
 
   /**
+   * Returns the beginInitializer of this node
+   */
+  getBeginInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 9),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the endInitializer of this node
+   */
+  getEndInitializer(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 10),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the condition of this node
+   */
+  getCondition(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 11),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the increment of this node
+   */
+  getIncrement(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 12),
+      this.parser,
+    );
+  }
+
+  /**
+   * Returns the element of this node
+   */
+  getElement(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 13),
+      this.parser,
+    );
+  }
+
+  /**
    * Returns the usesMemberBeginEnd attribute of this node
    */
   getUsesMemberBeginEnd(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 9) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 14) !== 0;
   }
 
   /**
    * Returns the isPointerIterator attribute of this node
    */
   getIsPointerIterator(): boolean {
-    return cxx.getASTSlot(this.getHandle(), 10) !== 0;
+    return cxx.getASTSlot(this.getHandle(), 15) !== 0;
+  }
+
+  /**
+   * Returns the notEqualRewritten attribute of this node
+   */
+  getNotEqualRewritten(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 16) !== 0;
+  }
+
+  /**
+   * Returns the notEqualReversed attribute of this node
+   */
+  getNotEqualReversed(): boolean {
+    return cxx.getASTSlot(this.getHandle(), 17) !== 0;
   }
 }
 

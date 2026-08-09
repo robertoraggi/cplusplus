@@ -89,6 +89,25 @@ test("Parser.parse configures preprocessing and debug information", async () => 
   }
 });
 
+test("Parser.emitCode returns object code as bytes", async () => {
+  const parser = await Parser.parse({
+    source: "int answer() { return 42; }",
+    path: "/source/obj.cc",
+  });
+
+  try {
+    const text = parser.emitCode({ format: "asm" });
+    assert.equal(typeof text, "string");
+    assert.match(text, /answer/);
+
+    const bytes = parser.emitCode({ format: "obj" });
+    assert.ok(bytes instanceof Uint8Array);
+    assert.deepEqual([...bytes.subarray(0, 4)], [0x00, 0x61, 0x73, 0x6d]);
+  } finally {
+    parser.dispose();
+  }
+});
+
 test("diagnostics preserve severity, group notes, and gate codegen", async () => {
   const parserWithWarning = await Parser.parse({
     source: '#warning "keep compiling"\nint answer() { return 42; }',
