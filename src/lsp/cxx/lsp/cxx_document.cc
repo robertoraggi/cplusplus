@@ -171,6 +171,13 @@ void CxxDocument::Private::configure() {
   if (toolchain) {
     unit.control()->setMemoryLayout(toolchain->memoryLayout());
 
+    if (auto standardName = cli.getSingle("-std")) {
+      auto standard = findLanguageStandard(*standardName);
+      if (standard && standard->language == toolchain->language()) {
+        toolchain->setLanguageStandard(standard);
+      }
+    }
+
     if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
 
     if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();

@@ -22,6 +22,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/names.h>
 #include <cxx/substitution.h>
@@ -31,8 +32,44 @@
 #include <cxx/types.h>
 
 namespace cxx {
+namespace {
+auto functionParameterClause(FunctionSymbol* function)
+    -> ParameterDeclarationClauseAST* {
+  if (!function) return nullptr;
+
+  auto declaration = template_declaration_ast(function);
+  if (auto definition = ast_cast<FunctionDefinitionAST>(declaration)) {
+    if (auto prototype = getFunctionPrototype(definition->declarator))
+      return prototype->parameterDeclarationClause;
+  }
+
+  auto simpleDeclaration = ast_cast<SimpleDeclarationAST>(declaration);
+  if (!simpleDeclaration) return nullptr;
+  for (auto initDeclarator : ListView{simpleDeclaration->initDeclaratorList}) {
+    auto candidate = symbol_cast<FunctionSymbol>(initDeclarator->symbol);
+    if (!candidate || candidate->canonical() != function->canonical()) continue;
+    if (auto prototype = getFunctionPrototype(initDeclarator->declarator))
+      return prototype->parameterDeclarationClause;
+  }
+  return nullptr;
+}
+}  // namespace
+
+ASTRewriter::ImmediateContextGuard::ImmediateContextGuard(ASTRewriter& rewrite)
+    : rewrite_(rewrite),
+      silent_(rewrite.unit_),
+      substitutionFailed_(std::exchange(rewrite.substitutionFailed_, false)) {
+  ++rewrite_.immediateContextDepth_;
+}
+
+ASTRewriter::ImmediateContextGuard::~ImmediateContextGuard() {
+  --rewrite_.immediateContextDepth_;
+  rewrite_.substitutionFailed_ = substitutionFailed_;
+}
+
 auto ASTRewriter::shouldReportCheckErrors() const -> bool {
-  return symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
+  return immediateContextDepth_ == 0 &&
+         symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
          binder_.reportErrors();
 }
 
@@ -129,8 +166,11 @@ auto ASTRewriter::associatedConstraints(TranslationUnit* unit, Symbol* symbol)
   if (templateDeclaration) append(templateDeclaration->requiresClause);
 
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    if (auto declaration = function->declaration())
+    if (auto clause = function->trailingRequiresClause()) {
+      append(clause);
+    } else if (auto declaration = function->declaration()) {
       append(declaration->requiresClause);
+    }
   }
 
   return constraints;
@@ -181,9 +221,29 @@ auto ASTRewriter::checkConstraintExpression(
     const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
   if (!constraint) return true;
 
+  while (auto nested = ast_cast<NestedExpressionAST>(constraint))
+    constraint = nested->expression;
+
+  if (auto binary = ast_cast<BinaryExpressionAST>(constraint);
+      binary && (binary->op == TokenKind::T_AMP_AMP ||
+                 binary->op == TokenKind::T_BAR_BAR)) {
+    const bool left = checkConstraintExpression(
+        unit, symbol, binary->leftExpression, templateArguments, depth);
+
+    if (binary->op == TokenKind::T_AMP_AMP && !left) return false;
+    if (binary->op == TokenKind::T_BAR_BAR && left) return true;
+
+    return checkConstraintExpression(unit, symbol, binary->rightExpression,
+                                     templateArguments, depth);
+  }
+
   auto parentScope = symbol->enclosingNonTemplateParametersScope();
   auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
   reqRewriter.depth_ = depth;
+  if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+    (void)reqRewriter.parameterDeclarationClause(
+        functionParameterClause(function));
+  }
   auto rewritten = reqRewriter.expression(constraint);
   if (!rewritten) return true;
 
@@ -210,31 +270,35 @@ auto ASTRewriter::checkAssociatedConstraints(
   return true;
 }
 
-auto ASTRewriter::evaluateConcept(
-    TranslationUnit* unit, ConceptSymbol* conceptSymbol,
-    List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool> {
-  if (!conceptSymbol) return std::nullopt;
+auto ASTRewriter::evaluateConstraintExpression(
+    TranslationUnit* unit, ScopeSymbol* parentScope, ExpressionAST* expression,
+    const std::vector<TemplateArgument>& templateArguments, int depth)
+    -> std::optional<bool> {
+  if (auto binary = ast_cast<BinaryExpressionAST>(expression);
+      binary && (binary->op == TokenKind::T_AMP_AMP ||
+                 binary->op == TokenKind::T_BAR_BAR)) {
+    const bool isConjunction = binary->op == TokenKind::T_AMP_AMP;
 
-  auto definition = conceptSymbol->declaration();
-  if (!definition || !definition->expression) return std::nullopt;
+    auto left = evaluateConstraintExpression(
+        unit, parentScope, binary->leftExpression, templateArguments, depth);
 
-  auto templateDecl = conceptSymbol->templateDeclaration();
-  if (!templateDecl) return std::nullopt;
+    if (left.has_value() && *left != isConjunction) return left;
 
-  auto subst = Substitution::make(unit, templateDecl, templateArgumentList);
-  if (!subst) return std::nullopt;
+    auto right = evaluateConstraintExpression(
+        unit, parentScope, binary->rightExpression, templateArguments, depth);
 
-  auto templateArguments = std::move(*subst).templateArguments();
+    if (!left.has_value() || !right.has_value()) return std::nullopt;
 
-  auto parentScope = conceptSymbol->parent();
+    return isConjunction ? (*left && *right) : (*left || *right);
+  }
 
   SilentDiagnosticsClient silent;
   auto saved = unit->changeDiagnosticsClient(&silent);
 
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
-  rewriter.depth_ = templateDecl->depth;
+  rewriter.depth_ = depth;
 
-  auto constraint = rewriter.expression(definition->expression);
+  auto constraint = rewriter.expression(expression);
   if (constraint) rewriter.check(constraint);
 
   (void)unit->changeDiagnosticsClient(saved);
@@ -249,6 +313,25 @@ auto ASTRewriter::evaluateConcept(
   return interp.toBool(*value);
 }
 
+auto ASTRewriter::evaluateConcept(
+    TranslationUnit* unit, ConceptSymbol* conceptSymbol,
+    List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool> {
+  if (!conceptSymbol) return std::nullopt;
+
+  auto definition = conceptSymbol->declaration();
+  if (!definition || !definition->expression) return std::nullopt;
+
+  auto templateDecl = conceptSymbol->templateDeclaration();
+  if (!templateDecl) return std::nullopt;
+
+  auto subst = Substitution::make(unit, templateDecl, templateArgumentList);
+  if (!subst) return std::nullopt;
+
+  return evaluateConstraintExpression(
+      unit, conceptSymbol->parent(), definition->expression,
+      std::move(*subst).templateArguments(), templateDecl->depth);
+}
+
 void ASTRewriter::check(ExpressionAST* ast) {
   if (!ast) return;
   if (isDependent(unit_, ast)) return;
@@ -256,6 +339,13 @@ void ASTRewriter::check(ExpressionAST* ast) {
   auto typeChecker = TypeChecker{unit_};
   typeChecker.setScope(binder_.scope());
   typeChecker.setReportErrors(shouldReportCheckErrors());
+  typeChecker.setPotentiallyEvaluated(unevaluatedOperandDepth_ == 0);
   typeCheckAndCapture([&] { typeChecker.check(ast); });
+}
+
+void ASTRewriter::checkUnevaluated(ExpressionAST* ast) {
+  ++unevaluatedOperandDepth_;
+  check(ast);
+  --unevaluatedOperandDepth_;
 }
 }  // namespace cxx

@@ -80,6 +80,8 @@ struct [[nodiscard]] Binder::CompleteClass {
   void addInheritedConstructors();
   auto declareInheritedConstructor(FunctionSymbol* inherited)
       -> FunctionSymbol*;
+  auto directInheritedConstructor(FunctionSymbol* inherited)
+      -> std::pair<BaseClassSymbol*, FunctionSymbol*>;
   void synthesizeInheritedConstructorBody(FunctionSymbol* fn);
 
   void synthesizeStructorVariants();
@@ -99,6 +101,8 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   void synthesizeMemberwiseBodies();
   void typeFieldInitializers();
+  void applyImplicitExceptionSpecifications();
+  void checkOverriderExceptionSpecifications();
   [[nodiscard]] auto hasNonAssignableSubobject(bool moveForm) const -> bool;
   [[nodiscard]] auto hasNonCopyConstructibleSubobject(bool moveForm) const
       -> bool;
@@ -281,29 +285,55 @@ auto Binder::CompleteClass::declareInheritedConstructor(
   return symbol;
 }
 
+auto Binder::CompleteClass::directInheritedConstructor(
+    FunctionSymbol* inherited) -> std::pair<BaseClassSymbol*, FunctionSymbol*> {
+  auto origin = inherited->inheritedConstructorOrigin();
+  if (!origin) origin = inherited;
+  auto canonical = origin->canonical();
+
+  for (auto baseClass : classSymbol->baseClasses()) {
+    auto base = symbol_cast<ClassSymbol>(baseClass->symbol());
+    if (!base) continue;
+    base = base->resolvedDefinition();
+
+    for (auto constructor : base->declaredConstructors()) {
+      auto candidateOrigin = constructor->inheritedConstructorOrigin();
+      if (!candidateOrigin) candidateOrigin = constructor;
+      if (candidateOrigin->canonical() == canonical)
+        return {baseClass, constructor};
+    }
+
+    for (auto constructor : base->constructors()) {
+      auto candidateOrigin = constructor->inheritedConstructorOrigin();
+      if (!candidateOrigin) candidateOrigin = constructor;
+      if (candidateOrigin->canonical() != canonical) continue;
+      auto direct = binder.inheritedConstructorFor(base, constructor);
+      if (direct) return {baseClass, direct};
+    }
+  }
+
+  return {};
+}
+
 void Binder::CompleteClass::synthesizeInheritedConstructorBody(
     FunctionSymbol* fn) {
   auto def = fn->declaration();
   if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
 
   auto inherited = fn->inheritedConstructor();
-  auto base = symbol_cast<ClassSymbol>(inherited->parent());
+  auto [baseClass, constructor] = directInheritedConstructor(inherited);
+  if (!baseClass || !constructor) return;
+  fn->setInheritedConstructor(constructor);
+
+  auto base = symbol_cast<ClassSymbol>(baseClass->symbol());
   if (!base) return;
   base = base->resolvedDefinition();
-
-  BaseClassSymbol* baseClass = nullptr;
-  for (auto candidate : classSymbol->baseClasses()) {
-    auto candidateClass = symbol_cast<ClassSymbol>(candidate->symbol());
-    if (candidateClass && candidateClass->resolvedDefinition() == base)
-      baseClass = candidate;
-  }
-  if (!baseClass) return;
 
   auto init = ParenMemInitializerAST::create(pool);
   if (auto id = name_cast<Identifier>(base->name()))
     init->unqualifiedId = NameIdAST::create(pool, id);
   init->symbol = baseClass;
-  init->constructor = inherited;
+  init->constructor = constructor;
 
   List<ExpressionAST*>* args = nullptr;
   auto argsTail = &args;
@@ -374,12 +404,181 @@ void Binder::CompleteClass::complete() {
 
   typeFieldInitializers();
 
+  applyImplicitExceptionSpecifications();
+
+  checkOverriderExceptionSpecifications();
+
   if (shouldSynthesizeSpecialMembers()) {
     synthesizeStructorVariants();
     synthesizeMemberwiseBodies();
   }
 
   markComplete();
+}
+
+void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
+  if (!fn || fn->hasExceptionSpecifier()) return;
+  if (!fn->isDestructor() && !fn->isDefaulted()) return;
+
+  auto funcType = type_cast<FunctionType>(fn->type());
+  if (!funcType) return;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+
+  const bool isMoveForm = fn == classSymbol->moveConstructor() ||
+                          fn == classSymbol->moveAssignmentOperator();
+
+  const bool isAssignment = fn == classSymbol->copyAssignmentOperator() ||
+                            fn == classSymbol->moveAssignmentOperator();
+
+  const bool isCopyOrMoveConstructor = fn == classSymbol->copyConstructor() ||
+                                       fn == classSymbol->moveConstructor();
+
+  const bool isDefaultConstructor = fn == classSymbol->defaultConstructor();
+
+  auto operatorId = name_cast<OperatorId>(fn->name());
+  const bool isDefaultedComparison =
+      operatorId && (operatorId->op() == TokenKind::T_EQUAL_EQUAL ||
+                     operatorId->op() == TokenKind::T_LESS_EQUAL_GREATER ||
+                     operatorId->op() == TokenKind::T_EXCLAIM_EQUAL ||
+                     operatorId->op() == TokenKind::T_LESS ||
+                     operatorId->op() == TokenKind::T_LESS_EQUAL ||
+                     operatorId->op() == TokenKind::T_GREATER ||
+                     operatorId->op() == TokenKind::T_GREATER_EQUAL);
+
+  auto inherited = fn->inheritedConstructor();
+  auto inheritedBase =
+      inherited ? symbol_cast<ClassSymbol>(inherited->parent()) : nullptr;
+  if (inheritedBase) inheritedBase = inheritedBase->resolvedDefinition();
+
+  auto sourceType = [&](const Type* subobjectType) -> const Type* {
+    if (isMoveForm) return control()->getRvalueReferenceType(subobjectType);
+    return control()->getLvalueReferenceType(
+        control()->getConstType(subobjectType));
+  };
+
+  auto initializationIsPotentiallyThrowing = [&](const Type* type,
+                                                 FieldSymbol* field) {
+    if (isDefaultedComparison) {
+      auto left = ThisExpressionAST::create(unit_->arena(),
+                                            ValueCategory::kLValue, type);
+      auto right = ThisExpressionAST::create(unit_->arena(),
+                                             ValueCategory::kLValue, type);
+      auto comparison = BinaryExpressionAST::create(unit_->arena());
+      comparison->leftExpression = left;
+      comparison->rightExpression = right;
+      comparison->op = operatorId->op();
+      comparison->opLoc = fn->location();
+
+      TypeChecker check{unit_};
+      check.setScope(classSymbol);
+      check.setReportErrors(false);
+      check.check(comparison);
+      return !comparison->type ||
+             TypeChecker::isPotentiallyThrowing(comparison);
+    }
+
+    if (fn->isDestructor()) {
+      return traits.is_destructible(type) &&
+             !traits.is_nothrow_destructible(type);
+    }
+
+    if (isDefaultConstructor && field && field->initializer())
+      return TypeChecker::isPotentiallyThrowing(field->initializer());
+
+    auto subobjectType = traits.remove_all_extents(type);
+    if (traits.is_reference(subobjectType)) return false;
+
+    auto classType = type_cast<ClassType>(traits.remove_cv(subobjectType));
+    if (!classType) return false;
+
+    if (inheritedBase && classType->symbol() &&
+        classType->symbol()->resolvedDefinition() == inheritedBase) {
+      auto inheritedType = type_cast<FunctionType>(inherited->type());
+      return !inheritedType || !inheritedType->isNoexcept();
+    }
+
+    if (isAssignment) {
+      return !traits.is_nothrow_assignable(
+          control()->getLvalueReferenceType(subobjectType),
+          sourceType(subobjectType));
+    }
+
+    if (isCopyOrMoveConstructor) {
+      const Type* argumentTypes[] = {sourceType(subobjectType)};
+      return !traits.is_nothrow_constructible(subobjectType, argumentTypes);
+    }
+
+    return !traits.is_nothrow_constructible(subobjectType, {});
+  };
+
+  auto isPotentiallyThrowing = [&] {
+    for (auto base : classSymbol->baseClasses()) {
+      if (initializationIsPotentiallyThrowing(base->symbol()->type(), nullptr))
+        return true;
+    }
+
+    if (auto layout = classSymbol->layout()) {
+      for (auto base : layout->virtualBases()) {
+        if (initializationIsPotentiallyThrowing(base->type(), nullptr))
+          return true;
+      }
+    }
+
+    for (auto field : views::members(classSymbol) | views::non_static_fields) {
+      if (initializationIsPotentiallyThrowing(field->type(), field))
+        return true;
+    }
+
+    return false;
+  };
+
+  const bool isNoexcept = !isPotentiallyThrowing();
+  if (funcType->isNoexcept() == isNoexcept) return;
+
+  fn->setType(control()->getFunctionType(
+      funcType->returnType(),
+      std::vector<const Type*>(funcType->parameterTypes().begin(),
+                               funcType->parameterTypes().end()),
+      funcType->isVariadic(), funcType->cvQualifiers(),
+      funcType->refQualifier(), isNoexcept));
+}
+
+void Binder::CompleteClass::applyImplicitExceptionSpecifications() {
+  for (auto constructor : classSymbol->declaredConstructors())
+    binder.applyImplicitExceptionSpecification(constructor);
+
+  for (auto member : classSymbol->members()) {
+    for (auto func : views::each_function(member))
+      binder.applyImplicitExceptionSpecification(func);
+  }
+}
+
+void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
+  for (auto member : classSymbol->members()) {
+    for (auto func : views::each_function(member)) {
+      if (!func->isVirtual() || func->isDeleted()) continue;
+
+      auto overriderType = type_cast<FunctionType>(func->type());
+      if (!overriderType || overriderType->isNoexcept()) continue;
+
+      auto overridden = binder.findOverriddenFunction(classSymbol, func);
+      if (!overridden) continue;
+
+      auto overriddenType = type_cast<FunctionType>(overridden->type());
+      if (!overriddenType || !overriddenType->isNoexcept()) continue;
+
+      binder.error(func->location(),
+                   std::format("exception specification of overriding "
+                               "function '{}' is more lax than the function it "
+                               "overrides",
+                               to_string(func->name())));
+      binder.note(overridden->location(),
+                  "overridden virtual function is here");
+    }
+  }
 }
 
 auto Binder::CompleteClass::newDefaultedFunction(const Name* name,
@@ -1814,8 +2013,7 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
       const bool isOverride =
           isDtor
               ? slots[i].kind != VTableLayout::SlotKind::kFunction
-              : slots[i].function->name() == func->name() &&
-                    typeTraits.is_same(slots[i].function->type(), func->type());
+              : typeTraits.is_corresponding_overrider(func, slots[i].function);
       if (!isOverride) continue;
       slots[i].function = func;
       foundOverride = true;
@@ -1887,7 +2085,7 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
       auto it = virtualsByName.find(baseFunc->name());
       if (it == virtualsByName.end()) return nullptr;
       for (auto func : it->second) {
-        if (typeTraits.is_same(func->type(), baseFunc->type())) return func;
+        if (typeTraits.is_corresponding_overrider(func, baseFunc)) return func;
       }
       return nullptr;
     };

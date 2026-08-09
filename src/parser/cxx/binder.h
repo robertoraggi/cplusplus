@@ -32,6 +32,7 @@
 #include <expected>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace cxx {
@@ -40,8 +41,26 @@ class Decl;
 
 class TranslationUnit;
 
+[[nodiscard]] auto trailingRequiresClausesEquivalent(TranslationUnit* unit,
+                                                     RequiresClauseAST* a,
+                                                     RequiresClauseAST* b)
+    -> bool;
+
 [[nodiscard]] auto areTemplateHeadsEquivalentForRedeclaration(
     TranslationUnit* unit, TemplateDeclarationAST* a, TemplateDeclarationAST* b)
+    -> bool;
+
+[[nodiscard]] auto areTemplateParameterListsEquivalent(
+    TranslationUnit* unit, List<TemplateParameterAST*>* a,
+    List<TemplateParameterAST*>* b) -> bool;
+
+[[nodiscard]] auto areTemplateParameterListsEquivalentForPartialOrdering(
+    TranslationUnit* unit, List<TemplateParameterAST*>* a,
+    List<TemplateParameterAST*>* b) -> bool;
+
+[[nodiscard]] auto areTypesEquivalentForPartialOrdering(
+    TranslationUnit* unit, const Type* a, const Type* b,
+    TemplateDeclarationAST* aTemplate, TemplateDeclarationAST* bTemplate)
     -> bool;
 
 [[nodiscard]] auto areFunctionTemplateHeadsEquivalentForRedeclaration(
@@ -150,11 +169,18 @@ class Binder {
   void bindStructuredBindings(StructuredBindingDeclarationAST* ast,
                               const DeclSpecs& specs);
 
+  void decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
+                                  VariableSymbol* entity);
+
   [[nodiscard]] auto declareStructuredBindingEntity(
       SourceLocation loc, const Identifier* name, const DeclSpecs& specs,
-      TokenKind refOp, ExpressionAST* initializer) -> InitDeclaratorAST*;
+      TokenKind refOp, ExpressionAST* initializer, bool addSymbolToParentScope)
+      -> InitDeclaratorAST*;
 
-  void finishForRangeDeclaration(ForRangeStatementAST* ast);
+  [[nodiscard]] auto structuredBindingEntityName() -> const Identifier*;
+
+  void finishForRangeDeclaration(ForRangeStatementAST* ast,
+                                 const DeclSpecs& specs);
 
   void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
@@ -237,10 +263,10 @@ class Binder {
   [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
       NestedNameSpecifierAST* ast) -> bool;
 
-  [[nodiscard]] auto getFunction(ScopeSymbol* scope, const Name* name,
-                                 const Type* type,
-                                 TemplateDeclarationAST* templateHead = nullptr)
-      -> FunctionSymbol*;
+  [[nodiscard]] auto getFunction(
+      ScopeSymbol* scope, const Name* name, const Type* type,
+      TemplateDeclarationAST* templateHead = nullptr,
+      RequiresClauseAST* trailingRequiresClause = nullptr) -> FunctionSymbol*;
 
   class ScopeGuard {
    public:
@@ -331,6 +357,16 @@ class Binder {
       -> ScopeSymbol*;
 
   void declareArgumentDependentCallee(IdExpressionAST* ast);
+
+  [[nodiscard]] auto findOverriddenFunction(ClassSymbol* cls,
+                                            FunctionSymbol* fn)
+      -> FunctionSymbol*;
+
+  void applyImplicitExceptionSpecification(FunctionSymbol* fn);
+
+  [[nodiscard]] auto findOverriddenFunctionImpl(
+      ClassSymbol* cls, FunctionSymbol* fn,
+      std::unordered_set<ClassSymbol*>& visited) -> FunctionSymbol*;
 
   [[nodiscard]] auto overloadSetFor(ScopeSymbol* scope, const Name* name,
                                     SourceLocation location)

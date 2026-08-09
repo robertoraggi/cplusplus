@@ -26,6 +26,7 @@
 
 namespace cxx {
 class Preprocessor;
+class TranslationUnit;
 
 class DiagnosticsClient {
  public:
@@ -105,6 +106,23 @@ class SilentDiagnosticsClient final : public DiagnosticsClient {
  private:
   bool sfinae_ = true;
   bool hadError_ = false;
+};
+
+class SilentDiagnosticsScope {
+ public:
+  explicit SilentDiagnosticsScope(TranslationUnit* unit, bool sfinae = true);
+  ~SilentDiagnosticsScope();
+
+  SilentDiagnosticsScope(const SilentDiagnosticsScope&) = delete;
+  auto operator=(const SilentDiagnosticsScope&)
+      -> SilentDiagnosticsScope& = delete;
+
+  [[nodiscard]] auto hadError() const -> bool { return client_.hadError(); }
+
+ private:
+  TranslationUnit* unit_;
+  SilentDiagnosticsClient client_;
+  DiagnosticsClient* saved_;
 };
 
 struct CapturingDiagnosticsClient final : DiagnosticsClient {

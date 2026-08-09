@@ -76,13 +76,19 @@ struct ASTInterpreter::StatementVisitor {
 
   [[nodiscard]] auto operator()(TryBlockStatementAST* ast) -> StatementResult;
 
-  [[nodiscard]] auto forRangeOverArray(ForRangeStatementAST* ast,
-                                       VariableSymbol* var) -> StatementResult;
+  void bindRangeElementBindings(ForRangeStatementAST* ast);
+
+  [[nodiscard]] auto forRangeOverList(ForRangeStatementAST* ast,
+                                      VariableSymbol* var,
+                                      const ConstValue& rangeVal)
+      -> StatementResult;
   [[nodiscard]] auto forRangeOverPointerIterator(ForRangeStatementAST* ast,
-                                                 VariableSymbol* var)
+                                                 VariableSymbol* var,
+                                                 const ConstValue& rangeVal)
       -> StatementResult;
   [[nodiscard]] auto forRangeOverClassIterator(ForRangeStatementAST* ast,
-                                               VariableSymbol* var)
+                                               VariableSymbol* var,
+                                               const ConstValue& rangeVal)
       -> StatementResult;
 };
 
@@ -263,18 +269,35 @@ auto ASTInterpreter::StatementVisitor::operator()(DoStatementAST* ast)
 
 static auto rangeForVariable(DeclarationAST* rangeDeclaration)
     -> VariableSymbol* {
-  auto simpleDecl = ast_cast<SimpleDeclarationAST>(rangeDeclaration);
-  auto initDecl = simpleDecl && simpleDecl->initDeclaratorList
-                      ? simpleDecl->initDeclaratorList->value
-                      : nullptr;
-  return initDecl ? symbol_cast<VariableSymbol>(initDecl->symbol) : nullptr;
+  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(rangeDeclaration)) {
+    auto initDecl = simpleDecl->initDeclaratorList
+                        ? simpleDecl->initDeclaratorList->value
+                        : nullptr;
+    return initDecl ? symbol_cast<VariableSymbol>(initDecl->symbol) : nullptr;
+  }
+
+  if (auto structuredBinding =
+          ast_cast<StructuredBindingDeclarationAST>(rangeDeclaration)) {
+    if (auto hidden = structuredBinding->hiddenVariable)
+      return symbol_cast<VariableSymbol>(hidden->symbol);
+  }
+
+  return nullptr;
 }
 
-auto ASTInterpreter::StatementVisitor::forRangeOverArray(
-    ForRangeStatementAST* ast, VariableSymbol* var) -> StatementResult {
-  auto rangeVal = interp.expression(ast->rangeInitializer);
-  if (!rangeVal.has_value()) return {};
-  auto listPtr = std::get_if<std::shared_ptr<InitializerList>>(&*rangeVal);
+void ASTInterpreter::StatementVisitor::bindRangeElementBindings(
+    ForRangeStatementAST* ast) {
+  auto structuredBinding =
+      ast_cast<StructuredBindingDeclarationAST>(ast->rangeDeclaration);
+  if (!structuredBinding) return;
+  for (auto initDecl : ListView{structuredBinding->bindingDeclaratorList})
+    interp.interpretInitDeclarator(initDecl);
+}
+
+auto ASTInterpreter::StatementVisitor::forRangeOverList(
+    ForRangeStatementAST* ast, VariableSymbol* var, const ConstValue& rangeVal)
+    -> StatementResult {
+  auto listPtr = std::get_if<std::shared_ptr<InitializerList>>(&rangeVal);
   if (!listPtr || !*listPtr) return {};
   auto list = *listPtr;
 
@@ -289,6 +312,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverArray(
     } else {
       interp.setLocal(var, element);
     }
+    bindRangeElementBindings(ast);
 
     auto result = interp.statement(ast->statement);
     if (interp.aborted()) return {};
@@ -299,13 +323,11 @@ auto ASTInterpreter::StatementVisitor::forRangeOverArray(
 }
 
 auto ASTInterpreter::StatementVisitor::forRangeOverPointerIterator(
-    ForRangeStatementAST* ast, VariableSymbol* var) -> StatementResult {
-  auto rangeVal = interp.expression(ast->rangeInitializer);
-  if (!rangeVal.has_value()) return {};
-
+    ForRangeStatementAST* ast, VariableSymbol* var, const ConstValue& rangeVal)
+    -> StatementResult {
   auto callOnRange = [&](FunctionSymbol* f) -> std::optional<ConstValue> {
     if (ast->usesMemberBeginEnd) {
-      auto objPtr = std::get_if<std::shared_ptr<ConstObject>>(&*rangeVal);
+      auto objPtr = std::get_if<std::shared_ptr<ConstObject>>(&rangeVal);
       if (!objPtr) return std::nullopt;
       auto savedThis = interp.thisObject();
       interp.setThisObject(*objPtr);
@@ -313,7 +335,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverPointerIterator(
       interp.setThisObject(savedThis);
       return result;
     }
-    return interp.evaluateCall(f, {*rangeVal});
+    return interp.evaluateCall(f, {rangeVal});
   };
 
   auto beginVal = callOnRange(ast->beginFunction);
@@ -340,6 +362,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverPointerIterator(
       if (!elemVal.has_value()) return {};
       interp.setLocal(var, *elemVal);
     }
+    bindRangeElementBindings(ast);
 
     auto result = interp.statement(ast->statement);
     if (interp.aborted()) return {};
@@ -350,13 +373,11 @@ auto ASTInterpreter::StatementVisitor::forRangeOverPointerIterator(
 }
 
 auto ASTInterpreter::StatementVisitor::forRangeOverClassIterator(
-    ForRangeStatementAST* ast, VariableSymbol* var) -> StatementResult {
-  auto rangeVal = interp.expression(ast->rangeInitializer);
-  if (!rangeVal.has_value()) return {};
-
+    ForRangeStatementAST* ast, VariableSymbol* var, const ConstValue& rangeVal)
+    -> StatementResult {
   auto callOnRange = [&](FunctionSymbol* f) -> std::optional<ConstValue> {
     if (ast->usesMemberBeginEnd) {
-      auto objPtr = std::get_if<std::shared_ptr<ConstObject>>(&*rangeVal);
+      auto objPtr = std::get_if<std::shared_ptr<ConstObject>>(&rangeVal);
       if (!objPtr) return std::nullopt;
       auto savedThis = interp.thisObject();
       interp.setThisObject(*objPtr);
@@ -364,7 +385,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverClassIterator(
       interp.setThisObject(savedThis);
       return result;
     }
-    return interp.evaluateCall(f, {*rangeVal});
+    return interp.evaluateCall(f, {rangeVal});
   };
 
   auto beginVal = callOnRange(ast->beginFunction);
@@ -407,10 +428,14 @@ auto ASTInterpreter::StatementVisitor::forRangeOverClassIterator(
   for (;;) {
     if (!interp.tick()) return {};
 
-    auto neq = callBinary(ast->notEqualFunction, *beginObj, *endObj);
+    auto neq = ast->notEqualReversed
+                   ? callBinary(ast->notEqualFunction, *endObj, *beginObj)
+                   : callBinary(ast->notEqualFunction, *beginObj, *endObj);
     if (!neq.has_value()) return {};
     auto keepGoing = interp.toBool(*neq);
-    if (!keepGoing.has_value() || !*keepGoing) break;
+    if (!keepGoing.has_value()) break;
+    if (ast->notEqualRewritten) keepGoing = !*keepGoing;
+    if (!*keepGoing) break;
 
     if (bindByRef) {
       ConstValue* slot = nullptr;
@@ -430,6 +455,7 @@ auto ASTInterpreter::StatementVisitor::forRangeOverClassIterator(
       if (!elemVal.has_value()) return {};
       interp.setLocal(var, *elemVal);
     }
+    bindRangeElementBindings(ast);
 
     auto result = interp.statement(ast->statement);
     if (interp.aborted()) return {};
@@ -449,24 +475,26 @@ auto ASTInterpreter::StatementVisitor::operator()(ForRangeStatementAST* ast)
   auto rangeDeclarationResult = interp.declaration(ast->rangeDeclaration);
 
   auto var = rangeForVariable(ast->rangeDeclaration);
-  auto rangeType =
-      ast->rangeInitializer ? ast->rangeInitializer->type : nullptr;
 
-  if (var && rangeType) {
-    if (!ast->beginFunction &&
-        type_cast<BoundedArrayType>(interp.traits.remove_cvref(rangeType))) {
-      return forRangeOverArray(ast, var);
+  if (var) {
+    auto rangeVal = interp.expression(ast->rangeInitializer);
+
+    if (rangeVal.has_value()) {
+      if (std::get_if<std::shared_ptr<InitializerList>>(&*rangeVal)) {
+        return forRangeOverList(ast, var, *rangeVal);
+      }
+      if (ast->beginFunction && ast->isPointerIterator) {
+        return forRangeOverPointerIterator(ast, var, *rangeVal);
+      }
+      if (ast->beginFunction && ast->derefFunction && ast->incrementFunction &&
+          ast->notEqualFunction) {
+        return forRangeOverClassIterator(ast, var, *rangeVal);
+      }
     }
-    if (ast->beginFunction && ast->isPointerIterator) {
-      return forRangeOverPointerIterator(ast, var);
-    }
-    if (ast->beginFunction && ast->derefFunction && ast->incrementFunction &&
-        ast->notEqualFunction) {
-      return forRangeOverClassIterator(ast, var);
-    }
+  } else {
+    auto rangeInitializerResult = interp.expression(ast->rangeInitializer);
   }
 
-  auto rangeInitializerResult = interp.expression(ast->rangeInitializer);
   auto statementResult = interp.statement(ast->statement);
 
   return {};
@@ -538,73 +566,80 @@ auto ASTInterpreter::StatementVisitor::operator()(GotoStatementAST* ast)
   return {};
 }
 
-auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
-    -> StatementResult {
-  auto declarationResult = interp.declaration(ast->declaration);
+void ASTInterpreter::interpretInitDeclarator(InitDeclaratorAST* initDecl) {
+  if (!initDecl || !initDecl->symbol) return;
 
-  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration)) {
-    for (auto initDecl : ListView{simpleDecl->initDeclaratorList}) {
-      if (!initDecl->symbol) continue;
+  auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
 
-      auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
+  if (var && traits.is_reference(var->type())) {
+    auto initExpr = initDecl->initializer;
+    if (auto eq = ast_cast<EqualInitializerAST>(initExpr))
+      initExpr = eq->expression;
+    if (auto slot = lvalue(initExpr)) {
+      bindReference(initDecl->symbol, slot);
+    }
+    return;
+  }
 
-      if (var && interp.traits.is_reference(var->type())) {
-        auto initExpr = initDecl->initializer;
-        if (auto eq = ast_cast<EqualInitializerAST>(initExpr))
-          initExpr = eq->expression;
-        if (auto slot = interp.lvalue(initExpr)) {
-          interp.bindReference(initDecl->symbol, slot);
-        }
-        continue;
-      }
+  auto initVal = expression(initDecl->initializer);
 
-      auto initVal = interp.expression(initDecl->initializer);
-
-      if (!initVal.has_value()) {
-        if (auto parenInit =
-                ast_cast<ParenInitializerAST>(initDecl->initializer)) {
-          if (var) {
-            auto varType = interp.traits.remove_cv(var->type());
-            if (auto classType = type_cast<ClassType>(varType)) {
-              std::vector<ConstValue> args;
-              bool argsOk = true;
-              for (auto node : ListView{parenInit->expressionList}) {
-                auto val = interp.evaluate(node);
-                if (!val) {
-                  argsOk = false;
+  if (!initVal.has_value()) {
+    if (auto parenInit = ast_cast<ParenInitializerAST>(initDecl->initializer)) {
+      if (var) {
+        auto varType = traits.remove_cv(var->type());
+        if (auto classType = type_cast<ClassType>(varType)) {
+          std::vector<ConstValue> args;
+          bool argsOk = true;
+          for (auto node : ListView{parenInit->expressionList}) {
+            auto val = evaluate(node);
+            if (!val) {
+              argsOk = false;
+              break;
+            }
+            args.push_back(std::move(*val));
+          }
+          if (argsOk) {
+            if (var->constructor() && var->constructor()->isConstexpr()) {
+              initVal = evaluateConstructor(var->constructor(), varType,
+                                            std::move(args));
+            } else if (auto classSym = classType->symbol()) {
+              for (auto ctor : classSym->constructors()) {
+                if (ctor->isConstexpr()) {
+                  initVal = evaluateConstructor(ctor, varType, std::move(args));
                   break;
-                }
-                args.push_back(std::move(*val));
-              }
-              if (argsOk) {
-                if (var->constructor() && var->constructor()->isConstexpr()) {
-                  initVal = interp.evaluateConstructor(
-                      var->constructor(), varType, std::move(args));
-                } else if (auto classSym = classType->symbol()) {
-                  for (auto ctor : classSym->constructors()) {
-                    if (ctor->isConstexpr()) {
-                      initVal = interp.evaluateConstructor(ctor, varType,
-                                                           std::move(args));
-                      break;
-                    }
-                  }
                 }
               }
             }
           }
         }
       }
-
-      if (!initVal.has_value() && !initDecl->initializer) {
-        if (var) {
-          initVal = interp.defaultConstruct(var->type());
-        }
-      }
-
-      if (initVal.has_value()) {
-        interp.setLocal(initDecl->symbol, *initVal);
-      }
     }
+  }
+
+  if (!initVal.has_value() && !initDecl->initializer) {
+    if (var) initVal = defaultConstruct(var->type());
+  }
+
+  if (initVal.has_value()) setLocal(initDecl->symbol, *initVal);
+}
+
+void ASTInterpreter::interpretStructuredBinding(
+    StructuredBindingDeclarationAST* ast) {
+  interpretInitDeclarator(ast->hiddenVariable);
+  for (auto initDecl : ListView{ast->bindingDeclaratorList})
+    interpretInitDeclarator(initDecl);
+}
+
+auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
+    -> StatementResult {
+  auto declarationResult = interp.declaration(ast->declaration);
+
+  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration)) {
+    for (auto initDecl : ListView{simpleDecl->initDeclaratorList})
+      interp.interpretInitDeclarator(initDecl);
+  } else if (auto structuredBinding =
+                 ast_cast<StructuredBindingDeclarationAST>(ast->declaration)) {
+    interp.interpretStructuredBinding(structuredBinding);
   }
 
   return {};

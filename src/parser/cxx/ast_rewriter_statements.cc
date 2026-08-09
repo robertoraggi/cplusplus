@@ -565,7 +565,25 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
   copy->colonLoc = ast->colonLoc;
   copy->rangeInitializer = rewrite.expression(ast->rangeInitializer);
 
-  binder()->finishForRangeDeclaration(copy);
+  auto rangeDeclSpecifierList = [&]() -> List<SpecifierAST*>* {
+    if (auto simpleDecl =
+            ast_cast<SimpleDeclarationAST>(copy->rangeDeclaration))
+      return simpleDecl->declSpecifierList;
+    if (auto structuredBinding =
+            ast_cast<StructuredBindingDeclarationAST>(copy->rangeDeclaration))
+      return structuredBinding->declSpecifierList;
+    return nullptr;
+  }();
+
+  auto rangeSpecs = DeclSpecs{rewrite.unit_};
+  for (auto node : ListView{rangeDeclSpecifierList}) rangeSpecs.accept(node);
+  rangeSpecs.finish();
+
+  binder()->finishForRangeDeclaration(copy, rangeSpecs);
+
+  rewrite.remapStructuredBindingSymbols(
+      ast_cast<StructuredBindingDeclarationAST>(ast->rangeDeclaration),
+      ast_cast<StructuredBindingDeclarationAST>(copy->rangeDeclaration));
 
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);

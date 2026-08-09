@@ -38,14 +38,14 @@ X::operator int() { return i; }
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:            block
 // CHECK-NEXT:              variable static constexpr const char __func__[2]
-// CHECK-NEXT:    constructor defaulted void X(const ::X&)
+// CHECK-NEXT:    constructor defaulted void X(const ::X&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::X&
 // CHECK-NEXT:    injected class name X
 // CHECK-NEXT:    field int i
-// CHECK-NEXT:    function void ~X()
+// CHECK-NEXT:    function void ~X() noexcept
 // CHECK-NEXT:      [redeclarations]
-// CHECK-NEXT:        function void ~X()
+// CHECK-NEXT:        function void ~X() noexcept
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[3]
 // CHECK-NEXT:    function int operator int()
@@ -58,6 +58,6 @@ X::operator int() { return i; }
 // CHECK-NEXT:        function const int& operator const int&()
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[20]
-// CHECK-NEXT:    function defaulted ::X& operator =(const ::X&)
+// CHECK-NEXT:    function defaulted ::X& operator =(const ::X&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::X&

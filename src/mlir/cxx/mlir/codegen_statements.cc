@@ -49,6 +49,7 @@ struct Codegen::StatementVisitor {
   void operator()(WhileStatementAST* ast);
   void operator()(DoStatementAST* ast);
   void operator()(ForRangeStatementAST* ast);
+  void emitRangeElementBindings(ForRangeStatementAST* ast);
   void operator()(ForStatementAST* ast);
   void operator()(BreakStatementAST* ast);
   void operator()(ContinueStatementAST* ast);
@@ -332,10 +333,87 @@ void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
   std::swap(gen.loop_, loop);
 }
 
+namespace {
+
+auto rangeDeclarationVariable(DeclarationAST* rangeDeclaration)
+    -> VariableSymbol* {
+  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(rangeDeclaration)) {
+    auto initDecl = simpleDecl->initDeclaratorList
+                        ? simpleDecl->initDeclaratorList->value
+                        : nullptr;
+    return initDecl ? symbol_cast<VariableSymbol>(initDecl->symbol) : nullptr;
+  }
+
+  if (auto structuredBinding =
+          ast_cast<StructuredBindingDeclarationAST>(rangeDeclaration)) {
+    if (auto hidden = structuredBinding->hiddenVariable)
+      return symbol_cast<VariableSymbol>(hidden->symbol);
+  }
+
+  return nullptr;
+}
+
+}  // namespace
+
+void Codegen::StatementVisitor::emitRangeElementBindings(
+    ForRangeStatementAST* ast) {
+  auto structuredBinding =
+      ast_cast<StructuredBindingDeclarationAST>(ast->rangeDeclaration);
+  if (!structuredBinding) return;
+
+  for (auto node : ListView{structuredBinding->bindingDeclaratorList}) {
+    auto var = symbol_cast<VariableSymbol>(node->symbol);
+    if (!var) continue;
+    gen.emitLocalVariableInit(var, node->initializer);
+  }
+}
+
 void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
   auto loc = gen.getLocation(ast->firstSourceLocation());
 
   gen.statement(ast->initializer);
+
+  if (ast->rangeVariable && ast->beginVariable && ast->endVariable &&
+      ast->beginInitializer && ast->endInitializer && ast->condition &&
+      ast->increment && ast->element) {
+    gen.emitLocalVariableInit(ast->rangeVariable, ast->rangeInitializer);
+    gen.emitLocalVariableInit(ast->beginVariable, ast->beginInitializer);
+    gen.emitLocalVariableInit(ast->endVariable, ast->endInitializer);
+
+    auto conditionBlock = gen.newBlock();
+    auto bodyBlock = gen.newBlock();
+    auto stepBlock = gen.newBlock();
+    auto exitBlock = gen.newBlock();
+
+    Loop loop;
+    loop.continueBlock = stepBlock;
+    loop.breakBlock = exitBlock;
+    loop.continueCleanupDepth = gen.cleanupStack_.size();
+    loop.breakCleanupDepth = gen.cleanupStack_.size();
+    std::swap(gen.loop_, loop);
+
+    gen.branch(loc, conditionBlock);
+    gen.builder_.setInsertionPointToEnd(conditionBlock);
+    gen.conditionWithCleanups(ast->condition, bodyBlock, exitBlock);
+
+    gen.builder_.setInsertionPointToEnd(bodyBlock);
+    if (auto loopVar = rangeDeclarationVariable(ast->rangeDeclaration))
+      gen.emitLocalVariableInit(loopVar, ast->element);
+    emitRangeElementBindings(ast);
+    gen.statement(ast->statement);
+    gen.branch(
+        gen.getLocation(ast->statement ? ast->statement->lastSourceLocation()
+                                       : ast->rparenLoc),
+        stepBlock);
+
+    gen.builder_.setInsertionPointToEnd(stepBlock);
+    (void)gen.expression(ast->increment);
+    gen.branch(loc, conditionBlock);
+
+    gen.builder_.setInsertionPointToEnd(exitBlock);
+    std::swap(gen.loop_, loop);
+    return;
+  }
 
   auto rangeResult = gen.expression(ast->rangeInitializer);
 
@@ -456,15 +534,28 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     auto neqParent = neqFunc->parent();
     bool isMemberNeq = neqParent && neqParent->kind() == SymbolKind::kClass;
 
+    mlir::Value firstArg = iterAlloca;
+    mlir::Value secondArg = endAlloca;
+    if (ast->notEqualReversed) std::swap(firstArg, secondArg);
+
     ExpressionResult neqResult;
     if (isMemberNeq) {
       neqResult =
-          gen.emitCall(ast->colonLoc, neqFunc, {iterAlloca}, {{endAlloca}});
+          gen.emitCall(ast->colonLoc, neqFunc, {firstArg}, {{secondArg}});
     } else {
       neqResult =
-          gen.emitCall(ast->colonLoc, neqFunc, {}, {{iterAlloca}, {endAlloca}});
+          gen.emitCall(ast->colonLoc, neqFunc, {}, {{firstArg}, {secondArg}});
     }
     condVal = neqResult.value;
+
+    if (condVal && ast->notEqualRewritten) {
+      auto boolType = condVal.getType();
+      auto trueConst = mlir::arith::ConstantOp::create(
+          gen.builder_, loc, boolType,
+          gen.builder_.getIntegerAttr(boolType, 1));
+      condVal =
+          mlir::arith::XOrIOp::create(gen.builder_, loc, condVal, trueConst);
+    }
   }
 
   if (!condVal) {
@@ -482,15 +573,7 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
 
   gen.builder_.setInsertionPointToEnd(bodyBlock);
 
-  VariableSymbol* loopVar = nullptr;
-  if (ast->symbol) {
-    for (auto member : ast->symbol->members()) {
-      if (auto var = symbol_cast<VariableSymbol>(member)) {
-        loopVar = var;
-        break;
-      }
-    }
-  }
+  auto loopVar = rangeDeclarationVariable(ast->rangeDeclaration);
 
   if (loopVar) {
     auto local = gen.findOrCreateLocal(loopVar);
@@ -533,6 +616,8 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
       }
     }
   }
+
+  emitRangeElementBindings(ast);
 
   gen.statement(ast->statement);
   gen.branch(

@@ -24,6 +24,30 @@
 #include <cxx/toolchain.h>
 
 namespace cxx {
+namespace {
+
+constexpr LanguageStandard kLanguageStandards[] = {
+    {"c++14", LanguageKind::kCXX, "201402L"},
+    {"c++17", LanguageKind::kCXX, "201703L"},
+    {"c++20", LanguageKind::kCXX, "202002L"},
+    {"c++23", LanguageKind::kCXX, "202302L"},
+    {"c++26", LanguageKind::kCXX, "202400L"},
+    {"c23", LanguageKind::kC, "202311L"},
+};
+
+constexpr std::string_view kDefaultCplusplusMacroValue = "202400L";
+constexpr std::string_view kDefaultStdcVersionMacroValue = "202311L";
+
+}  // namespace
+
+auto findLanguageStandard(std::string_view name) -> const LanguageStandard* {
+  for (const auto& standard : kLanguageStandards) {
+    if (standard.name == name) return &standard;
+  }
+
+  return nullptr;
+}
+
 Toolchain::Toolchain(Preprocessor* preprocessor) : preprocessor_(preprocessor) {
   setMemoryLayout(std::make_unique<MemoryLayout>(64));
 }
@@ -32,6 +56,24 @@ Toolchain::~Toolchain() = default;
 
 auto Toolchain::language() const -> LanguageKind {
   return preprocessor_->language();
+}
+
+void Toolchain::setLanguageStandard(const LanguageStandard* languageStandard) {
+  languageStandard_ = languageStandard;
+}
+
+auto Toolchain::cplusplusMacroValue() const -> std::string_view {
+  if (languageStandard_ && languageStandard_->language == LanguageKind::kCXX) {
+    return languageStandard_->versionMacroValue;
+  }
+  return kDefaultCplusplusMacroValue;
+}
+
+auto Toolchain::stdcVersionMacroValue() const -> std::string_view {
+  if (languageStandard_ && languageStandard_->language == LanguageKind::kC) {
+    return languageStandard_->versionMacroValue;
+  }
+  return kDefaultStdcVersionMacroValue;
 }
 
 void Toolchain::setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout) {
@@ -292,7 +334,7 @@ void Toolchain::addCommonMacros() {
 
 void Toolchain::addCommonC23Macros() {
   defineMacro("__CHAR8_TYPE__", "unsigned char");
-  defineMacro("__STDC_VERSION__", "202311L");
+  defineMacro("__STDC_VERSION__", std::string(stdcVersionMacroValue()));
   defineMacro("__UINT16_FMTB__", "\"hB\"");
   defineMacro("__UINT16_FMTb__", "\"hb\"");
   defineMacro("__UINT32_FMTB__", "\"B\"");
@@ -315,7 +357,7 @@ void Toolchain::addCommonC23Macros() {
 
 void Toolchain::addCommonCxx26Macros() {
   defineMacro("__DEPRECATED", "1");
-  defineMacro("__cplusplus", "202400L");
+  defineMacro("__cplusplus", std::string(cplusplusMacroValue()));
   defineMacro("__cpp_aggregate_bases", "201603L");
   defineMacro("__cpp_aggregate_nsdmi", "201304L");
   defineMacro("__cpp_aggregate_paren_init", "201902L");

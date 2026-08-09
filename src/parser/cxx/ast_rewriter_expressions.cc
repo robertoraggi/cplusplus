@@ -26,6 +26,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
@@ -293,6 +294,13 @@ auto ASTRewriter::expression(ExpressionAST* ast) -> ExpressionAST* {
   auto expr = visit(ExpressionVisitor{*this}, ast);
   if (expr) check(expr);
   return expr;
+}
+
+auto ASTRewriter::unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST* {
+  ++unevaluatedOperandDepth_;
+  auto result = expression(ast);
+  --unevaluatedOperandDepth_;
+  return result;
 }
 
 auto ASTRewriter::newInitializer(NewInitializerAST* ast) -> NewInitializerAST* {
@@ -994,11 +1002,15 @@ auto ASTRewriter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
                     ? copy->parameterDeclarationClause->functionParametersSymbol
                     : nullptr};
 
-  for (auto requirementList = &copy->requirementList;
-       auto node : ListView{ast->requirementList}) {
-    auto value = rewrite.requirement(node);
-    *requirementList = make_list_node(arena(), value);
-    requirementList = &(*requirementList)->next;
+  {
+    ASTRewriter::ImmediateContextGuard immediateContext{rewrite};
+
+    for (auto requirementList = &copy->requirementList;
+         auto node : ListView{ast->requirementList}) {
+      auto value = rewrite.requirement(node);
+      *requirementList = make_list_node(arena(), value);
+      requirementList = &(*requirementList)->next;
+    }
   }
 
   copy->rbraceLoc = ast->rbraceLoc;
@@ -1330,7 +1342,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
   copy->type = ast->type;
   copy->typeidLoc = ast->typeidLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
+  auto traits = rewrite.unit_->typeTraits();
+  if (copy->expression && copy->expression->type &&
+      copy->expression->valueCategory != ValueCategory::kPrValue &&
+      traits.is_polymorphic(traits.remove_cvref(copy->expression->type))) {
+    rewrite.check(copy->expression);
+  }
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;
@@ -1406,7 +1424,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(ReflectExpressionAST* ast)
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   copy->caretCaretLoc = ast->caretCaretLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
 
   return copy;
 }
@@ -1457,7 +1475,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   copy->sizeofLoc = ast->sizeofLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
 
   if (copy->expression && copy->expression->type) {
     copy->value = control()->memoryLayout()->sizeOf(copy->expression->type);
@@ -1547,7 +1565,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NoexceptExpressionAST* ast)
   copy->type = ast->type;
   copy->noexceptLoc = ast->noexceptLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;
@@ -1797,6 +1815,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
   for (auto typeIdList = &copy->typeIdList;
        auto node : ListView{ast->typeIdList}) {
+    if (auto pack = rewrite.expandedParameterPack(node)) {
+      rewrite.forEachPackElement(pack, [&] {
+        *typeIdList = make_list_node(arena(), rewrite.typeId(node));
+        typeIdList = &(*typeIdList)->next;
+      });
+      continue;
+    }
+
     auto value = rewrite.typeId(node);
     *typeIdList = make_list_node(arena(), value);
     typeIdList = &(*typeIdList)->next;

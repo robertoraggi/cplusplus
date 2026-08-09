@@ -597,6 +597,10 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
       if (auto var = symbol_cast<VariableSymbol>(sym)) {
         if (!var->parent() || !var->parent()->isBlock() || var->isStatic())
           return nullptr;
+        if (var->constValue().has_value()) {
+          setLocal(sym, *var->constValue());
+          return lookupLocalSlot(sym);
+        }
       }
       setLocal(sym, ConstValue{std::intmax_t{0}});
       return lookupLocalSlot(sym);
@@ -1105,16 +1109,16 @@ auto ASTInterpreter::isRequirementSatisfied(RequirementAST* ast,
       [&](ExpressionAST* expression) -> std::optional<bool> {
     if (!expression) return std::nullopt;
 
-    SilentDiagnosticsClient silent;
-    auto saved = unit_->changeDiagnosticsClient(&silent);
-    auto typeChecker = TypeChecker{unit_};
-    typeChecker.setScope(scope);
-    typeChecker.setReportErrors(true);
-    typeChecker.check(expression);
-    (void)unit_->changeDiagnosticsClient(saved);
+    {
+      SilentDiagnosticsScope silent{unit_};
+      auto typeChecker = TypeChecker{unit_};
+      typeChecker.setScope(scope);
+      typeChecker.setReportErrors(true);
+      typeChecker.check(expression);
+      if (silent.hadError()) return false;
+    }
 
-    if (silent.hadError()) return false;
-    if (!expression->type) return std::nullopt;
+    if (!expression->type) return false;
     if (isDependent(unit_, expression->type)) return std::nullopt;
     return true;
   };
@@ -1326,6 +1330,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeConstructionAST* ast)
           if (ctor->isConstexpr()) {
             return interp.evaluateConstructor(ctor, ast->type, std::move(args));
           }
+        }
+        if (args.empty() && !classSym->hasUserDeclaredConstructors()) {
+          return ConstValue{interp.valueInitializeClass(ast->type, classSym)};
         }
       }
     }
@@ -2452,6 +2459,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       case BuiltinTypeTraitKind::T___IS_DESTRUCTIBLE:
         return unit()->typeTraits().is_destructible(firstType);
 
+      case BuiltinTypeTraitKind::T___IS_NOTHROW_DESTRUCTIBLE:
+        return unit()->typeTraits().is_nothrow_destructible(firstType);
+
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
         return unit()->typeTraits().is_trivially_destructible(firstType);
 
@@ -2653,6 +2663,20 @@ auto setDesignatedValue(ASTInterpreter& interp,
                             valueType);
 }
 }  // namespace
+
+auto ASTInterpreter::valueInitializeClass(const Type* type, ClassSymbol* symbol)
+    -> std::shared_ptr<ConstObject> {
+  auto obj = std::make_shared<ConstObject>(type);
+  for (auto member : symbol->members()) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field || field->isStatic()) continue;
+    ConstValue zero = std::intmax_t{0};
+    if (auto z = makeZeroConstValue(unit_, field->type())) zero = *z;
+    obj->addField(field, std::move(zero));
+  }
+  applyNsdmis(obj);
+  return obj;
+}
 
 auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
     -> ExpressionResult {
@@ -2993,12 +3017,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
           }
 
           if (!hasBitfield && !classSymbol->isUnion()) {
-            auto obj = std::make_shared<ConstObject>(ast->type);
-            for (auto field : fields) {
-              ConstValue zero = std::intmax_t{0};
-              if (auto z = makeZeroConstValue(unit(), field->type())) zero = *z;
-              obj->addField(field, zero);
-            }
+            auto obj = interp.valueInitializeClass(ast->type, classSymbol);
             size_t fieldIdx = 0;
             for (auto node : ListView{ast->expressionList}) {
               if (fieldIdx >= fields.size()) break;

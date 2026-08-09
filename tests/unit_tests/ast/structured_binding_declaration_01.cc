@@ -75,7 +75,7 @@ struct Pair {
 // CHECK-NEXT:                          declarator: declarator
 // CHECK-NEXT:                            core-declarator: id-declarator
 // CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: $e{{[0-9]+}}
+// CHECK-NEXT:                                identifier: $e
 // CHECK-NEXT:                          initializer: equal-initializer [lvalue ::Pair]
 // CHECK-NEXT:                            expression: implicit-cast-expression [lvalue const ::Pair]
 // CHECK-NEXT:                              cast-kind: qualification-conversion
@@ -96,7 +96,7 @@ struct Pair {
 // CHECK-NEXT:                                access-op: .
 // CHECK-NEXT:                                base-expression: id-expression [lvalue ::Pair]
 // CHECK-NEXT:                                  unqualified-id: name-id
-// CHECK-NEXT:                                    identifier: $e{{[0-9]+}}
+// CHECK-NEXT:                                    identifier: $e
 // CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: first
 // CHECK-NEXT:                          init-declarator
@@ -112,7 +112,7 @@ struct Pair {
 // CHECK-NEXT:                                access-op: .
 // CHECK-NEXT:                                base-expression: id-expression [lvalue ::Pair]
 // CHECK-NEXT:                                  unqualified-id: name-id
-// CHECK-NEXT:                                    identifier: $e{{[0-9]+}}
+// CHECK-NEXT:                                    identifier: $e
 // CHECK-NEXT:                                unqualified-id: name-id
 // CHECK-NEXT:                                  identifier: second
 // CHECK-NEXT:                    return-statement

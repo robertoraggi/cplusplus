@@ -40,6 +40,27 @@
 
 namespace cxx {
 namespace {
+class InstantiationDepthGuard {
+ public:
+  explicit InstantiationDepthGuard(TranslationUnit* unit) : unit_(unit) {
+    unit_->setTemplateInstantiationDepth(unit_->templateInstantiationDepth() +
+                                         1);
+  }
+
+  ~InstantiationDepthGuard() {
+    unit_->setTemplateInstantiationDepth(unit_->templateInstantiationDepth() -
+                                         1);
+  }
+
+  [[nodiscard]] auto exceeded() const -> bool {
+    return unit_->templateInstantiationDepth() >
+           TranslationUnit::kMaxTemplateInstantiationDepth;
+  }
+
+ private:
+  TranslationUnit* unit_;
+};
+
 struct GetSpecialization {
   const std::vector<TemplateArgument>& templateArguments;
 
@@ -544,6 +565,27 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
 
   if (!unit->config().checkTypes) return nullptr;
 
+  InstantiationDepthGuard depthGuard{unit};
+
+  if (depthGuard.exceeded()) {
+    auto message = std::format(
+        "recursive template instantiation exceeded maximum depth "
+        "of {} while instantiating '{}'",
+        TranslationUnit::kMaxTemplateInstantiationDepth,
+        to_string(symbol->name()));
+
+    if (auto client = unit->reportingDiagnosticsClient();
+        client && unit->diagnosticsClient() &&
+        unit->diagnosticsClient()->isSfinae()) {
+      client->report(unit->tokenAt(instantiationLoc), Severity::Error,
+                     std::move(message));
+    } else {
+      unit->error(instantiationLoc, std::move(message));
+    }
+
+    return nullptr;
+  }
+
   const auto activeClientIsSfinae =
       unit->diagnosticsClient() && unit->diagnosticsClient()->isSfinae();
 
@@ -642,18 +684,18 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
     auto partial =
         tryPartialSpecialization(unit, classSymbol, templateArguments);
-    if (partial) {
+    if (partial.handled()) {
       if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
-      return partial;
+      return partial.symbol;
     }
   }
 
   if (auto variableSymbol = symbol_cast<VariableSymbol>(symbol)) {
     auto partial =
         tryPartialSpecialization(unit, variableSymbol, templateArguments);
-    if (partial) {
+    if (partial.handled()) {
       if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
-      return partial;
+      return partial.symbol;
     }
   }
 
@@ -750,6 +792,7 @@ void ASTRewriter::markExplicitInstantiationDeclared(
   if (!subst) return;
 
   auto templateArguments = std::move(*subst).templateArguments();
+
   if (isPrimaryTemplate(templateArguments)) return;
 
   classSymbol->addExternInstantiationDeclaration(std::move(templateArguments));
@@ -844,6 +887,9 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
     pending->parentScope = lexicalScope;
     pending->depth = depth;
     target->setPendingBody(std::move(pending));
+    if (target->isDefinitionRequired()) {
+      unit_->addPendingBodyCompletion(target);
+    }
   };
 
   auto attachPendingDefinition = [&](FunctionSymbol* member) {
@@ -873,8 +919,11 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
     if (!templateDecl) return;
     auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
     if (!defAst) return;
-    if (def->findSpecialization(templateArguments_)) return;
-    instantiateDefinition(def, defAst, templateDecl);
+    auto instanceMember = symbol_cast<FunctionSymbol>(remapSymbol(member));
+    if (!instanceMember || instanceMember == member) return;
+    if (instanceMember->isDefined()) return;
+    if (instanceMember->hasPendingBody()) return;
+    attachPendingBody(instanceMember, def, defAst, templateDecl->depth);
   };
 
   for (auto member : pattern->members()) {
@@ -1047,6 +1096,9 @@ void ASTRewriter::retryPendingMemberTemplateAttachment(FunctionSymbol* member) {
   pending->parentScope = lexicalScope;
   pending->depth = classTemplateDecl->depth;
   member->setPendingBody(std::move(pending));
+  if (member->isDefinitionRequired()) {
+    unit_->addPendingBodyCompletion(member);
+  }
 }
 
 void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {

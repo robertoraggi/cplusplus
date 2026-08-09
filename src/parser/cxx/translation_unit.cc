@@ -67,6 +67,9 @@ auto TranslationUnit::changeDiagnosticsClient(
 
   if (diagnosticsClient_) {
     diagnosticsClient_->setPreprocessor(preprocessor_.get());
+    if (!diagnosticsClient_->isSfinae()) {
+      reportingDiagnosticsClient_ = diagnosticsClient_;
+    }
   }
 
   return diagnosticsClient;

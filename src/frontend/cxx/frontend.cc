@@ -103,6 +103,7 @@ struct Frontend::Private {
   }
 
   void prepare();
+  void setLanguageStandard();
   void preparePreprocessor();
   void preprocess();
   void parse();
@@ -461,6 +462,35 @@ void Frontend::Private::prepare() {
   }
 
   toolchain_->initMemoryLayout();
+
+  setLanguageStandard();
+}
+
+void Frontend::Private::setLanguageStandard() {
+  auto standardName = cli.getSingle("-std");
+  if (!standardName) return;
+
+  auto standard = findLanguageStandard(*standardName);
+
+  if (!standard) {
+    std::cerr << std::format("cxx: invalid value '{}' in '-std={}'\n",
+                             *standardName, *standardName);
+    fail();
+    return;
+  }
+
+  if (standard->language != toolchain_->language()) {
+    const auto languageName =
+        toolchain_->language() == LanguageKind::kCXX ? "C++" : "C";
+
+    std::cerr << std::format(
+        "cxx: invalid argument '-std={}' not allowed with '{}'\n",
+        *standardName, languageName);
+    fail();
+    return;
+  }
+
+  toolchain_->setLanguageStandard(standard);
 }
 
 void Frontend::Private::preparePreprocessor() {

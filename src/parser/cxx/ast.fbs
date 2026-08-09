@@ -1817,6 +1817,11 @@ table ForRangeStatement /* StatementAST */ {
   range_declaration: Declaration;
   range_initializer: Expression;
   statement: Statement;
+  begin_initializer: Expression;
+  end_initializer: Expression;
+  condition: Expression;
+  increment: Expression;
+  element: Expression;
   for_loc: uint32;
   lparen_loc: uint32;
   colon_loc: uint32;

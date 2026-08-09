@@ -2183,6 +2183,11 @@ void ASTPrettyPrinter::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     accept.writeToken(ast->rparenLoc);
   }
   accept(ast->statement);
+  accept(ast->beginInitializer);
+  accept(ast->endInitializer);
+  accept(ast->condition);
+  accept(ast->increment);
+  accept(ast->element);
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(ForStatementAST* ast) {

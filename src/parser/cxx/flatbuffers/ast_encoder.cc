@@ -2318,6 +2318,18 @@ void ASTEncoder::visit(ForRangeStatementAST* ast) {
 
   const auto [statement, statementType] = acceptStatement(ast->statement);
 
+  const auto [beginInitializer, beginInitializerType] =
+      acceptExpression(ast->beginInitializer);
+
+  const auto [endInitializer, endInitializerType] =
+      acceptExpression(ast->endInitializer);
+
+  const auto [condition, conditionType] = acceptExpression(ast->condition);
+
+  const auto [increment, incrementType] = acceptExpression(ast->increment);
+
+  const auto [element, elementType] = acceptExpression(ast->element);
+
   io::ForRangeStatement::Builder builder{fbb_};
   builder.add_attribute_list(attributeListOffsetsVector);
   builder.add_attribute_list_type(attributeListTypesVector);
@@ -2335,6 +2347,18 @@ void ASTEncoder::visit(ForRangeStatementAST* ast) {
   builder.add_rparen_loc(ast->rparenLoc.index());
   builder.add_statement(statement);
   builder.add_statement_type(static_cast<io::Statement>(statementType));
+  builder.add_begin_initializer(beginInitializer);
+  builder.add_begin_initializer_type(
+      static_cast<io::Expression>(beginInitializerType));
+  builder.add_end_initializer(endInitializer);
+  builder.add_end_initializer_type(
+      static_cast<io::Expression>(endInitializerType));
+  builder.add_condition(condition);
+  builder.add_condition_type(static_cast<io::Expression>(conditionType));
+  builder.add_increment(increment);
+  builder.add_increment_type(static_cast<io::Expression>(incrementType));
+  builder.add_element(element);
+  builder.add_element_type(static_cast<io::Expression>(elementType));
 
   offset_ = builder.Finish().Union();
   type_ = io::Statement_ForRangeStatement;

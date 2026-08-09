@@ -2448,8 +2448,7 @@ auto Codegen::findOrCreateThunk(
   callArgs[thisIndex] = adjustedThis;
 
   auto callOp = mlir::cxx::CallOp::create(builder_, loc, funcType.getResults(),
-                                          targetFuncOp.getSymName(), callArgs,
-                                          mlir::TypeAttr{});
+                                          targetFuncOp.getSymName(), callArgs);
 
   if (funcType.getResults().empty()) {
     mlir::cxx::ReturnOp::create(builder_, loc);
@@ -2759,7 +2758,7 @@ void Codegen::emitGlobalVarDtorRegistration(VariableSymbol* defVar,
   mlir::SmallVector<mlir::Value> args{thunkPtr, nullPtr, dsoHandlePtr};
   mlir::SmallVector<mlir::Type> callResultTypes{builder_.getI32Type()};
   mlir::cxx::CallOp::create(builder_, loc, callResultTypes,
-                            atexitFunc.getSymName(), args, mlir::TypeAttr{});
+                            atexitFunc.getSymName(), args);
 }
 
 auto Codegen::completeObjectDtor(FunctionSymbol* dtor) -> FunctionSymbol* {

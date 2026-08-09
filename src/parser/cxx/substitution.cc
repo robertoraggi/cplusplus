@@ -139,22 +139,17 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
 
   auto expression = parameter->declaration->expression;
 
-  auto interp = ASTInterpreter{subst.unit_};
-
-  auto value = interp.evaluate(expression);
-
-  if (!value.has_value() && isDependent(subst.unit_, expression) &&
+  if (isDependent(subst.unit_, expression) &&
       !subst.templateArguments_.empty() && subst.templateDecl_) {
     if (auto substituted = ASTRewriter::substituteDefaultExpression(
             subst.unit_, expression, subst.templateArguments_,
             subst.templateDecl_->depth, subst.templateDecl_->symbol)) {
-      if (auto substitutedValue = interp.evaluate(substituted);
-          substitutedValue.has_value()) {
-        expression = substituted;
-        value = substitutedValue;
-      }
+      expression = substituted;
     }
   }
+
+  auto interp = ASTInterpreter{subst.unit_};
+  auto value = interp.evaluate(expression);
 
   if (!value.has_value()) {
     if (isDependent(subst.unit_, expression)) return std::nullopt;

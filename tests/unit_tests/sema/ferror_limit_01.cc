@@ -3,9 +3,9 @@
 template <int>
 struct S;
 
-// expected-error@+1 {{expected a declaration}}
+// expected-error@+1 {{expected a declarator}}
 S<"bad">;
-// expected-error@+1 {{expected a declaration}}
+// expected-error@+1 {{expected a declarator}}
 S<"bad">;
 // No more errors expected - limit reached
 S<"bad">;

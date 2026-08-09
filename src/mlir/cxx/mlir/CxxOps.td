@@ -209,16 +209,43 @@ def Cxx_UnreachableOp : Cxx_Op<"unreachable", [Terminator]> {
   let assemblyFormat = "attr-dict";
 }
 
-def Cxx_CallOp : Cxx_Op<"call"> {
+def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
   let arguments = (ins
-      FlatSymbolRefAttr:$callee
+      OptionalAttr<FlatSymbolRefAttr>:$callee
+    , Optional<Cxx_PointerType>:$callee_operand
     , Variadic<AnyType>:$inputs
     , OptionalAttr<TypeAttrOf<Cxx_FunctionType>>:$var_callee_type
   );
 
   let results = (outs Optional<AnyType>:$result);
 
-  let assemblyFormat = "$callee `(` $inputs `)` attr-dict `:` functional-type($inputs, results)";
+  let assemblyFormat = [{
+    ($callee^)?
+    (`indirect` $callee_operand^ `:` type($callee_operand))?
+    `(` $inputs `)` attr-dict `:` functional-type($inputs, results)
+  }];
+
+  let builders = [
+    OpBuilder<(ins "::mlir::TypeRange":$resultTypes,
+                   "::mlir::FlatSymbolRefAttr":$callee,
+                   "::mlir::ValueRange":$inputs), [{
+      build($_builder, $_state, resultTypes, callee, ::mlir::Value{}, inputs,
+            ::mlir::TypeAttr{});
+    }]>,
+    OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::llvm::StringRef":$callee,
+                   "::mlir::ValueRange":$inputs), [{
+      build($_builder, $_state, resultTypes,
+            ::mlir::FlatSymbolRefAttr::get($_builder.getContext(), callee),
+            inputs);
+    }]>,
+    OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::mlir::Value":$callee,
+                   "::mlir::ValueRange":$inputs), [{
+      build($_builder, $_state, resultTypes, ::mlir::FlatSymbolRefAttr{},
+            callee, inputs, ::mlir::TypeAttr{});
+    }]>
+  ];
+
+  let hasVerifier = 1;
 }
 
 def Cxx_AllocaOp : Cxx_Op<"alloca"> {

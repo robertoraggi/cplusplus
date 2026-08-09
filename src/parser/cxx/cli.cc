@@ -108,7 +108,9 @@ std::vector<CLIOptionDescr> options{
 
     {"-U", "<macro>", "Undefine <macro>", CLIOptionDescrKind::kSeparated},
 
-    {"-std", "<standard>", "Assume that the input sources are for <standard>",
+    {"-std", "<standard>",
+     "Assume that the input sources are for <standard>, one of 'c++14', "
+     "'c++17', 'c++20', 'c++23', 'c++26', or 'c23'",
      CLIOptionDescrKind::kJoined},
 
     {"--sysroot", "<directory>",
@@ -370,7 +372,7 @@ void CLI::parse(int& argc, char**& argv) {
 
     const auto eq = arg.find_first_of('=');
 
-    if (eq) {
+    if (eq != std::string::npos) {
       const auto name = arg.substr(0, eq);
       const auto value = arg.substr(eq + 1);
 

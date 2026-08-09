@@ -595,14 +595,11 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
 
-    SmallVector<Type> argumentTypes;
     for (auto argType : op.getOperandTypes()) {
-      auto convertedType = typeConverter->convertType(argType);
-      if (!convertedType) {
+      if (!typeConverter->convertType(argType)) {
         return rewriter.notifyMatchFailure(
             op, "failed to convert call argument type");
       }
-      argumentTypes.push_back(convertedType);
     }
 
     SmallVector<Type> resultTypes;
@@ -612,13 +609,9 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
     }
 
     LLVM::CallOp llvmCallOp;
-    if (!op.getCalleeAttr()) {
-      auto inputs = adaptor.getInputs();
-      auto callee = inputs[0];
-      auto callArgs = inputs.drop_front();
-
+    if (auto calleeOperand = adaptor.getCalleeOperand()) {
       SmallVector<Type> argTypes;
-      for (auto arg : callArgs) {
+      for (auto arg : adaptor.getInputs()) {
         argTypes.push_back(arg.getType());
       }
 
@@ -628,12 +621,15 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
                               : resultTypes.front(),
           argTypes, /*isVarArg=*/false);
 
+      SmallVector<Value> operands{calleeOperand};
+      operands.append(adaptor.getInputs().begin(), adaptor.getInputs().end());
+
       llvmCallOp =
-          LLVM::CallOp::create(rewriter, op.getLoc(), llvmFuncType, inputs);
+          LLVM::CallOp::create(rewriter, op.getLoc(), llvmFuncType, operands);
     } else {
-      llvmCallOp =
-          LLVM::CallOp::create(rewriter, op.getLoc(), resultTypes,
-                               adaptor.getCallee(), adaptor.getInputs());
+      llvmCallOp = LLVM::CallOp::create(rewriter, op.getLoc(), resultTypes,
+                                        op.getCalleeAttr().getAttr(),
+                                        adaptor.getInputs());
     }
 
     if (op.getVarCalleeType().has_value()) {

@@ -255,57 +255,14 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   copy->isVariadic = ast->isVariadic;
   copy->accessSpecifier = ast->accessSpecifier;
 
-  if (ast->symbol) {
-    if (auto resolved =
-            substitutedTemplateParameterClass(ast->symbol->symbol())) {
-      auto location = ast->unqualifiedId
-                          ? ast->unqualifiedId->firstSourceLocation()
-                          : SourceLocation{};
-      auto baseClassSym =
-          control()->newBaseClassSymbol(binder_.scope(), location);
-      baseClassSym->setSymbol(resolved);
-      baseClassSym->setName(resolved->name());
-      baseClassSym->setVirtual(ast->isVirtual);
-      switch (ast->accessSpecifier) {
-        case TokenKind::T_PRIVATE:
-          baseClassSym->setAccessSpecifier(AccessSpecifier::kPrivate);
-          break;
-        case TokenKind::T_PROTECTED:
-          baseClassSym->setAccessSpecifier(AccessSpecifier::kProtected);
-          break;
-        case TokenKind::T_PUBLIC:
-          baseClassSym->setAccessSpecifier(AccessSpecifier::kPublic);
-          break;
-        default:
-          break;
-      }
-      copy->symbol = baseClassSym;
-      return copy;
+  auto setResolvedBase = [&](Symbol* resolved) {
+    if (auto typeAlias = symbol_cast<TypeAliasSymbol>(resolved)) {
+      if (auto classType = type_cast<ClassType>(
+              translationUnit()->typeTraits().remove_cv(typeAlias->type())))
+        resolved = classType->symbol();
     }
-  }
+    if (!resolved || !resolved->isClass()) return false;
 
-  const auto checkTemplates = binder_.translationUnit()->config().checkTypes;
-
-  const bool hasResolvedNNS =
-      copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
-
-  const bool isTemplateId =
-      ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId) != nullptr;
-
-  Symbol* resolved = nullptr;
-  if (hasResolvedNNS || isTemplateId) {
-    resolved = binder_.resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
-                               checkTemplates);
-  }
-
-  if (auto typeAlias = symbol_cast<TypeAliasSymbol>(resolved)) {
-    if (auto classType = type_cast<ClassType>(
-            translationUnit()->typeTraits().remove_cv(typeAlias->type()))) {
-      resolved = classType->symbol();
-    }
-  }
-
-  if (resolved && resolved->isClass()) {
     auto location = ast->unqualifiedId
                         ? ast->unqualifiedId->firstSourceLocation()
                         : SourceLocation{};
@@ -328,13 +285,44 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
         break;
     }
     copy->symbol = baseClassSym;
-  } else if (ast->symbol) {
+    return true;
+  };
+
+  if (ast->symbol) {
+    if (auto resolved =
+            substitutedTemplateParameterClass(ast->symbol->symbol());
+        setResolvedBase(resolved))
+      return copy;
+  }
+
+  const auto checkTemplates = binder_.translationUnit()->config().checkTypes;
+
+  const bool hasResolvedNNS =
+      copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
+
+  const bool isTemplateId =
+      ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId) != nullptr;
+
+  Symbol* resolved = nullptr;
+  if (hasResolvedNNS || isTemplateId) {
+    resolved = binder_.resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
+                               checkTemplates);
+  } else if (auto decltypeId = ast_cast<DecltypeIdAST>(copy->unqualifiedId)) {
+    if (auto decltypeSpecifier = decltypeId->decltypeSpecifier) {
+      if (auto classType =
+              type_cast<ClassType>(translationUnit()->typeTraits().remove_cv(
+                  decltypeSpecifier->type)))
+        resolved = classType->symbol();
+    }
+  }
+
+  if (!setResolvedBase(resolved) && ast->symbol) {
     auto location = ast->unqualifiedId
                         ? ast->unqualifiedId->firstSourceLocation()
                         : SourceLocation{};
     auto baseClassSym =
         control()->newBaseClassSymbol(binder_.scope(), location);
-    baseClassSym->setSymbol(ast->symbol->symbol());
+    baseClassSym->setSymbol(remapSymbol(ast->symbol->symbol()));
     baseClassSym->setName(ast->symbol->name());
     baseClassSym->setVirtual(ast->isVirtual);
     switch (ast->accessSpecifier) {
@@ -754,6 +742,9 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
 
     if (s) {
       copy->symbol = s;
+    } else if (isTemplateId &&
+               symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) {
+      copy->symbol = nullptr;
     } else {
       copy->symbol = rewrite.remapSymbol(ast->symbol);
     }
@@ -855,11 +846,11 @@ auto ASTRewriter::SpecifierVisitor::operator()(DecltypeSpecifierAST* ast)
 
   copy->decltypeLoc = ast->decltypeLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
 
   if (copy->expression) {
-    rewrite.check(copy->expression);
+    rewrite.checkUnevaluated(copy->expression);
     rewrite.binder().bind(copy);
   }
   if (!copy->type) {
@@ -1179,6 +1170,13 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
   rewrite.setRestrictedToDeclarations(savedRestricted);
 
   for (const auto& [newAst, oldAst] : delayedFunctions) {
+    if (oldAst && !oldAst->functionBody) {
+      if (auto patternFunction = symbol_cast<FunctionSymbol>(oldAst->symbol);
+          patternFunction && patternFunction->hasPendingBody()) {
+        (void)completePendingBodyFor(rewrite.unit_, patternFunction);
+      }
+    }
+
     if (newAst->symbol) {
       auto pending = std::make_unique<PendingBodyInstantiation>();
       pending->originalDefinition = oldAst;

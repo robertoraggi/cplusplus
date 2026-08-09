@@ -302,6 +302,19 @@ auto ASTRewriter::findReferencedParameterPack(AST* ast) const
   return finder.exprPack ? finder.exprPack : finder.typePack;
 }
 
+auto ASTRewriter::expandedParameterPack(TypeIdAST* typeId) const
+    -> ParameterPackSymbol* {
+  if (!typeId || !typeId->declarator) return nullptr;
+  if (!ast_cast<ParameterPackAST>(typeId->declarator->coreDeclarator))
+    return nullptr;
+
+  for (auto spec : ListView{typeId->typeSpecifierList}) {
+    if (auto pack = findReferencedParameterPack(spec)) return pack;
+  }
+
+  return nullptr;
+}
+
 auto ASTRewriter::emptyFoldIdentity(TokenKind op) -> ExpressionAST* {
   if (op == TokenKind::T_AMP_AMP) {
     return BoolLiteralExpressionAST::create(

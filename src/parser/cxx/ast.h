@@ -2534,7 +2534,15 @@ class ForRangeStatementAST final : public StatementAST {
   ExpressionAST* rangeInitializer = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
+  ExpressionAST* beginInitializer = nullptr;
+  ExpressionAST* endInitializer = nullptr;
+  ExpressionAST* condition = nullptr;
+  ExpressionAST* increment = nullptr;
+  ExpressionAST* element = nullptr;
   BlockSymbol* symbol = nullptr;
+  VariableSymbol* rangeVariable = nullptr;
+  VariableSymbol* beginVariable = nullptr;
+  VariableSymbol* endVariable = nullptr;
   FunctionSymbol* beginFunction = nullptr;
   FunctionSymbol* endFunction = nullptr;
   FunctionSymbol* derefFunction = nullptr;
@@ -2542,6 +2550,8 @@ class ForRangeStatementAST final : public StatementAST {
   FunctionSymbol* notEqualFunction = nullptr;
   bool usesMemberBeginEnd = false;
   bool isPointerIterator = false;
+  bool notEqualRewritten = false;
+  bool notEqualReversed = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2557,20 +2567,30 @@ class ForRangeStatementAST final : public StatementAST {
       SourceLocation forLoc, SourceLocation lparenLoc,
       StatementAST* initializer, DeclarationAST* rangeDeclaration,
       SourceLocation colonLoc, ExpressionAST* rangeInitializer,
-      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol,
-      FunctionSymbol* beginFunction, FunctionSymbol* endFunction,
-      FunctionSymbol* derefFunction, FunctionSymbol* incrementFunction,
-      FunctionSymbol* notEqualFunction, bool usesMemberBeginEnd,
-      bool isPointerIterator) -> ForRangeStatementAST*;
+      SourceLocation rparenLoc, StatementAST* statement,
+      ExpressionAST* beginInitializer, ExpressionAST* endInitializer,
+      ExpressionAST* condition, ExpressionAST* increment,
+      ExpressionAST* element, BlockSymbol* symbol,
+      VariableSymbol* rangeVariable, VariableSymbol* beginVariable,
+      VariableSymbol* endVariable, FunctionSymbol* beginFunction,
+      FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
+      FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
+      bool usesMemberBeginEnd, bool isPointerIterator, bool notEqualRewritten,
+      bool notEqualReversed) -> ForRangeStatementAST*;
 
   [[nodiscard]] static auto create(
       Arena* arena, List<AttributeSpecifierAST*>* attributeList,
       StatementAST* initializer, DeclarationAST* rangeDeclaration,
       ExpressionAST* rangeInitializer, StatementAST* statement,
-      BlockSymbol* symbol, FunctionSymbol* beginFunction,
+      ExpressionAST* beginInitializer, ExpressionAST* endInitializer,
+      ExpressionAST* condition, ExpressionAST* increment,
+      ExpressionAST* element, BlockSymbol* symbol,
+      VariableSymbol* rangeVariable, VariableSymbol* beginVariable,
+      VariableSymbol* endVariable, FunctionSymbol* beginFunction,
       FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
       FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
-      bool usesMemberBeginEnd, bool isPointerIterator) -> ForRangeStatementAST*;
+      bool usesMemberBeginEnd, bool isPointerIterator, bool notEqualRewritten,
+      bool notEqualReversed) -> ForRangeStatementAST*;
 
  protected:
   ForRangeStatementAST() : StatementAST(Kind) {}

@@ -155,6 +155,9 @@ class [[nodiscard]] ASTRewriter {
                                      bool captureBodyErrors = false)
       -> std::vector<Diagnostic>;
 
+  static void requireFunctionDefinition(TranslationUnit* unit,
+                                        FunctionSymbol* function);
+
   static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
 
   void setInstantiatingFunctionTemplateSpecialization(bool value) {
@@ -185,6 +188,10 @@ class [[nodiscard]] ASTRewriter {
       TranslationUnit* unit, ConstraintTypeParameterSymbol* parameter)
       -> ExpressionAST*;
 
+  [[nodiscard]] static auto isMoreConstrained(TranslationUnit* unit,
+                                              Symbol* symbol, Symbol* other)
+      -> bool;
+
  private:
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
@@ -192,18 +199,43 @@ class [[nodiscard]] ASTRewriter {
 
   void check(ExpressionAST* ast);
 
+  struct RewritePartialSpecialization;
+  struct ConstraintSubsumption;
+
+  [[nodiscard]] static auto substituteTemplateArgumentList(
+      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
+      const std::vector<TemplateArgument>& templateArguments, int depth,
+      ScopeSymbol* scope) -> List<TemplateArgumentAST*>*;
+
+  struct PartialSpecializationResult {
+    Symbol* symbol = nullptr;
+    bool resolutionFailed = false;
+
+    [[nodiscard]] auto handled() const -> bool {
+      return symbol || resolutionFailed;
+    }
+  };
+
   static auto tryPartialSpecialization(
       TranslationUnit* unit, ClassSymbol* classSymbol,
-      const std::vector<TemplateArgument>& templateArguments) -> Symbol*;
+      const std::vector<TemplateArgument>& templateArguments)
+      -> PartialSpecializationResult;
 
   static auto tryPartialSpecialization(
       TranslationUnit* unit, VariableSymbol* variableSymbol,
-      const std::vector<TemplateArgument>& templateArguments) -> Symbol*;
+      const std::vector<TemplateArgument>& templateArguments)
+      -> PartialSpecializationResult;
 
   static auto checkConstraintExpression(
       TranslationUnit* unit, Symbol* symbol, ExpressionAST* constraint,
       const std::vector<TemplateArgument>& templateArguments, int depth)
       -> bool;
+
+  static auto evaluateConstraintExpression(
+      TranslationUnit* unit, ScopeSymbol* parentScope,
+      ExpressionAST* expression,
+      const std::vector<TemplateArgument>& templateArguments, int depth)
+      -> std::optional<bool>;
 
   auto control() const -> Control*;
   auto arena() const -> Arena*;
@@ -224,12 +256,29 @@ class [[nodiscard]] ASTRewriter {
     return substitutionFailed_;
   }
 
+  class ImmediateContextGuard {
+   public:
+    explicit ImmediateContextGuard(ASTRewriter& rewrite);
+    ~ImmediateContextGuard();
+
+    ImmediateContextGuard(const ImmediateContextGuard&) = delete;
+    auto operator=(const ImmediateContextGuard&)
+        -> ImmediateContextGuard& = delete;
+
+   private:
+    ASTRewriter& rewrite_;
+    SilentDiagnosticsScope silent_;
+    bool substitutionFailed_;
+  };
+
   void markSubstitutionFailure() {
     if (!shouldCaptureBodyErrors()) substitutionFailed_ = true;
   }
 
   auto unit(UnitAST* ast) -> UnitAST*;
   auto expression(ExpressionAST* ast) -> ExpressionAST*;
+  auto unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST*;
+  void checkUnevaluated(ExpressionAST* ast);
 
   auto rewriteExpressionList(List<ExpressionAST*>* source)
       -> List<ExpressionAST*>*;
@@ -332,6 +381,9 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto findReferencedParameterPack(AST* ast) const
       -> ParameterPackSymbol*;
 
+  [[nodiscard]] auto expandedParameterPack(TypeIdAST* typeId) const
+      -> ParameterPackSymbol*;
+
   [[nodiscard]] auto parameterPackAt(int depth, int index, bool isPack) const
       -> ParameterPackSymbol*;
 
@@ -379,6 +431,9 @@ class [[nodiscard]] ASTRewriter {
 
   void addSymbolRemap(Symbol* oldSym, Symbol* newSym);
 
+  void remapStructuredBindingSymbols(StructuredBindingDeclarationAST* from,
+                                     StructuredBindingDeclarationAST* to);
+
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
 
   void checkMemInitializers(FunctionSymbol* function,
@@ -403,6 +458,8 @@ class [[nodiscard]] ASTRewriter {
       enclosingTemplateArguments_;
   std::vector<Diagnostic> bodyErrors_;
   bool rewritingFunctionBody_ = false;
+  int unevaluatedOperandDepth_ = 0;
+  int immediateContextDepth_ = 0;
   ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
   Binder binder_;

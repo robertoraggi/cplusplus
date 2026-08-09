@@ -157,7 +157,7 @@ auto ASTRewriter::requiresClause(RequiresClauseAST* ast) -> RequiresClauseAST* {
   auto copy = RequiresClauseAST::create(arena());
 
   copy->requiresLoc = ast->requiresLoc;
-  copy->expression = expression(ast->expression);
+  copy->expression = unevaluatedExpression(ast->expression);
 
   return copy;
 }
@@ -174,6 +174,17 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
 
   binder().setScope(copy->functionParametersSymbol);
 
+  auto originalParameter = [&](const Identifier* identifier) {
+    if (!identifier || !ast->functionParametersSymbol)
+      return static_cast<ParameterSymbol*>(nullptr);
+    for (auto member : ast->functionParametersSymbol->members()) {
+      if (auto parameter = symbol_cast<ParameterSymbol>(member);
+          parameter && name_cast<Identifier>(parameter->name()) == identifier)
+        return parameter;
+    }
+    return static_cast<ParameterSymbol*>(nullptr);
+  };
+
   for (auto parameterDeclarationList = &copy->parameterDeclarationList;
        auto node : ListView{ast->parameterDeclarationList}) {
     auto paramDecl = ast_cast<ParameterDeclarationAST>(node);
@@ -186,17 +197,7 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
       }
 
       if (pack) {
-        ParameterSymbol* originalParam = nullptr;
-        if (ast->functionParametersSymbol) {
-          for (auto member : ast->functionParametersSymbol->members()) {
-            if (auto ps = symbol_cast<ParameterSymbol>(member)) {
-              if (name_cast<Identifier>(ps->name()) == paramDecl->identifier) {
-                originalParam = ps;
-                break;
-              }
-            }
-          }
-        }
+        auto originalParam = originalParameter(paramDecl->identifier);
 
         auto funcParamPack = control()->newParameterPackSymbol(
             binder().scope(), SourceLocation{});
@@ -226,6 +227,12 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
     auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
     *parameterDeclarationList = make_list_node(arena(), value);
     parameterDeclarationList = &(*parameterDeclarationList)->next;
+
+    if (auto oldParameter =
+            originalParameter(paramDecl ? paramDecl->identifier : nullptr)) {
+      const auto& members = copy->functionParametersSymbol->members();
+      if (!members.empty()) addSymbolRemap(oldParameter, members.back());
+    }
   }
 
   copy->commaLoc = ast->commaLoc;
@@ -269,6 +276,9 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   if (!decl.specs.templateHead && currentTemplateHead_) {
     decl.specs.templateHead = currentTemplateHead_;
   }
+
+  copy->requiresClause = requiresClause(ast->requiresClause);
+  decl.trailingRequiresClause = copy->requiresClause;
 
   auto type =
       getDeclaratorType(translationUnit(), copy->declarator, declSpecs.type());
@@ -322,8 +332,6 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       }
     }
   }
-
-  copy->requiresClause = requiresClause(ast->requiresClause);
 
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol);
       fieldSymbol && !fieldSymbol->isStatic() && classBodyDepth_ > 0) {

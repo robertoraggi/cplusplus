@@ -598,6 +598,13 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
 
 namespace {
 
+[[nodiscard]] auto joinsFunctionOverloadSet(Symbol* candidate) -> bool {
+  if (symbol_cast<OverloadSetSymbol>(candidate)) return true;
+  if (symbol_cast<FunctionSymbol>(candidate)) return true;
+  auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(candidate);
+  return usingDeclaration && !usingDeclaration->introducedFunctions().empty();
+}
+
 struct TerminalNestedNameSpecifierName {
   auto operator()(GlobalNestedNameSpecifierAST*) const -> const Identifier* {
     return nullptr;
@@ -715,10 +722,7 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
 
   const auto joinsAnOverloadSet =
       !symbol->introducedFunctions().empty() &&
-      std::ranges::any_of(scope()->find(name), [](Symbol* candidate) {
-        return symbol_cast<FunctionSymbol>(candidate) ||
-               symbol_cast<OverloadSetSymbol>(candidate);
-      });
+      std::ranges::any_of(scope()->find(name), joinsFunctionOverloadSet);
 
   if (!joinsAnOverloadSet) {
     scope()->addSymbol(symbol);
@@ -939,6 +943,11 @@ void Binder::bind(DeductionGuideAST* ast,
 
   if (auto templateDecl = primaryTemplate->templateDeclaration();
       templateDecl && ast->templateId->templateArgumentList) {
+    const bool dependent = std::ranges::any_of(
+        ListView{ast->templateId->templateArgumentList},
+        [&](TemplateArgumentAST* argument) {
+          return isDependentTemplateArgument(unit_, argument);
+        });
     auto templateArgs =
         Substitution(unit_, templateDecl, ast->templateId->templateArgumentList)
             .templateArguments();
@@ -954,12 +963,14 @@ void Binder::bind(DeductionGuideAST* ast,
         spec->setName(primaryTemplate->name());
         spec->setType(control()->getClassType(spec));
         primaryTemplate->addSpecialization(std::move(templateArgs), spec);
-        for (auto& s : primaryTemplate->mutableSpecializations()) {
-          if (s.symbol == spec) {
-            s.pendingArgumentList = ast->templateId->templateArgumentList;
-            s.pendingInstantiationLoc = ast->templateId->identifierLoc;
-            s.isPendingInstantiation = true;
-            break;
+        if (!dependent) {
+          for (auto& s : primaryTemplate->mutableSpecializations()) {
+            if (s.symbol == spec) {
+              s.pendingArgumentList = ast->templateId->templateArgumentList;
+              s.pendingInstantiationLoc = ast->templateId->identifierLoc;
+              s.isPendingInstantiation = true;
+              break;
+            }
           }
         }
         deducedClassSymbol = spec;
@@ -1785,8 +1796,8 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     -> TypeAliasSymbol* {
   auto name = decl.getName();
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
-  auto symbol =
-      control()->newTypeAliasSymbol(declaringScope(), decl.location());
+  auto targetScope = declaringScope();
+  auto symbol = control()->newTypeAliasSymbol(targetScope, decl.location());
   symbol->setName(name);
   symbol->setType(type);
 
@@ -1826,7 +1837,7 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
     return false;
   };
 
-  for (auto candidate : scope()->find(name)) {
+  for (auto candidate : targetScope->find(name)) {
     if (auto existing = symbol_cast<TypeAliasSymbol>(candidate)) {
       if (existing->type() && symbol->type() &&
           !traits.is_same(existing->type(), symbol->type())) {
@@ -1854,7 +1865,7 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   }
 
   if (!hasConflict) {
-    scope()->addSymbol(symbol);
+    targetScope->addSymbol(symbol);
   }
 
   if (auto classType = type_cast<ClassType>(symbol->type())) {
@@ -2171,14 +2182,16 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
       [](FunctionSymbol* fn) { return fn->isVirtual() && fn->isPure(); });
 
   if (!abstract) {
-    auto overridesInClass = [&](FunctionSymbol* fn) -> bool {
-      auto match = views::find_function(
-          classSymbol->members(), [&](FunctionSymbol* member) {
-            if (fn->isDestructor() && member->isDestructor()) return true;
-            return fn->name() == member->name() &&
-                   traits.is_same(fn->type(), member->type());
+    auto hasFinalOverriderIn = [&](ScopeSymbol* cls, FunctionSymbol* fn) {
+      auto match =
+          views::find_function(cls->members(), [&](FunctionSymbol* member) {
+            return traits.is_corresponding_overrider(member, fn);
           });
       return match && !match->isPure();
+    };
+
+    auto overridesInClass = [&](FunctionSymbol* fn) -> bool {
+      return hasFinalOverriderIn(classSymbol, fn);
     };
 
     for (auto base : classSymbol->baseClasses()) {
@@ -2205,14 +2218,7 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
         }
 
         auto overridesInBaseOrClass = [&](FunctionSymbol* fn) -> bool {
-          auto match = views::find_function(
-              baseClass->members(), [&](FunctionSymbol* m) {
-                if (fn->isDestructor() && m->isDestructor()) return true;
-                return fn->name() == m->name() &&
-                       traits.is_same(fn->type(), m->type());
-              });
-          if (match && !match->isPure()) return true;
-          return overridesInClass(fn);
+          return hasFinalOverriderIn(baseClass, fn) || overridesInClass(fn);
         };
 
         while (!worklist.empty() && !abstract) {
@@ -2731,11 +2737,10 @@ auto Binder::overloadSetFor(ScopeSymbol* scope, const Name* name,
     if (auto overloadSet = symbol_cast<OverloadSetSymbol>(candidate))
       return overloadSet;
 
+    if (!joinsFunctionOverloadSet(candidate)) continue;
+
     auto function = symbol_cast<FunctionSymbol>(candidate);
     auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(candidate);
-    if (usingDeclaration && usingDeclaration->introducedFunctions().empty())
-      continue;
-    if (!function && !usingDeclaration) continue;
 
     auto overloadSet = control()->newOverloadSetSymbol(scope, location);
     overloadSet->setName(name);
@@ -3105,7 +3110,8 @@ auto Binder::resolveMemberOfCurrentInstantiation(
 }
 
 auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
-                         TemplateDeclarationAST* templateHead)
+                         TemplateDeclarationAST* templateHead,
+                         RequiresClauseAST* trailingRequiresClause)
     -> FunctionSymbol* {
   auto parentScope = scope;
 
@@ -3118,6 +3124,9 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
             unit_, function->type(), type)) {
       return false;
     }
+    if (!trailingRequiresClausesEquivalent(
+            unit_, function->trailingRequiresClause(), trailingRequiresClause))
+      return false;
     return areFunctionTemplateHeadsEquivalentForRedeclaration(
         unit_, symbol_cast<ClassSymbol>(parentScope),
         function->templateDeclaration(), templateHead);
@@ -3137,17 +3146,25 @@ auto areFunctionTemplateHeadsEquivalentForRedeclaration(
     TranslationUnit* unit, ClassSymbol* enclosingClass,
     TemplateDeclarationAST* existingHead, TemplateDeclarationAST* newHead)
     -> bool {
-  auto enclosingHead =
-      enclosingClass ? enclosingClass->templateDeclaration() : nullptr;
-  if (!enclosingHead && enclosingClass && enclosingClass->isSpecialization()) {
-    auto primaryClass = enclosingClass->primaryTemplateSymbol();
-    enclosingHead =
-        primaryClass ? primaryClass->templateDeclaration() : nullptr;
-  }
+  auto enclosingHeadAtDepth = [&](int depth) -> TemplateDeclarationAST* {
+    for (auto current = enclosingClass; current;
+         current = symbol_cast<ClassSymbol>(current->parent())) {
+      auto head = current->templateDeclaration();
+      if (!head && current->isSpecialization()) {
+        auto primary = current->primaryTemplateSymbol();
+        head = primary ? primary->templateDeclaration() : nullptr;
+      }
+      if (head && head->depth == depth) return head;
+    }
+    return nullptr;
+  };
   auto ownHead = [&](TemplateDeclarationAST* head) -> TemplateDeclarationAST* {
-    if (head && enclosingHead && head->depth == enclosingHead->depth &&
-        areTemplateHeadsEquivalentForRedeclaration(unit, enclosingHead, head))
-      return nullptr;
+    if (head) {
+      auto enclosingHead = enclosingHeadAtDepth(head->depth);
+      if (enclosingHead &&
+          areTemplateHeadsEquivalentForRedeclaration(unit, enclosingHead, head))
+        return nullptr;
+    }
     return head;
   };
   return areTemplateHeadsEquivalentForRedeclaration(unit, ownHead(existingHead),

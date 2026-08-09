@@ -123,6 +123,8 @@ auto resolveRangeIteration(TranslationUnit* unit, ForRangeStatementAST* ast,
   ast->notEqualFunction =
       resolution.lookupOperator(definedIterType, TokenKind::T_EXCLAIM_EQUAL,
                                 definedIterType, placeholder, placeholder);
+  ast->notEqualRewritten = resolution.wasLastOperatorRewritten();
+  ast->notEqualReversed = resolution.wasLastOperatorReversed();
 
   if (!ast->derefFunction) return nullptr;
 
@@ -138,9 +140,12 @@ auto resolveRangeIteration(TranslationUnit* unit, ForRangeStatementAST* ast,
 }
 }  // namespace
 
-void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast) {
+void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
+                                       const DeclSpecs& specs) {
   auto rangeInitializer = ast->rangeInitializer;
   auto var = rangeDeclarationVariable(ast->rangeDeclaration);
+  auto structuredBinding =
+      ast_cast<StructuredBindingDeclarationAST>(ast->rangeDeclaration);
 
   TypeChecker check{unit_};
   check.setScope(scope());
@@ -157,15 +162,148 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast) {
   auto rangeType = traits.remove_cvref(rangeInitializer->type);
 
   auto elementType = resolveRangeIteration(unit_, ast, rangeType);
-  if (!elementType || !needsDeduction) return;
 
-  auto deduced = check.deduceAutoType(var->type(), elementType);
-  if (!deduced) return;
+  if (type_cast<ClassType>(rangeType)) {
+    auto makeVariable = [&](const Type* type) {
+      auto symbol = control()->newVariableSymbol(ast->symbol, ast->colonLoc);
+      symbol->setType(type);
+      ast->symbol->addSymbol(symbol);
+      return symbol;
+    };
 
-  var->setType(deduced);
+    const Type* rangeReferenceType = nullptr;
+    if (rangeInitializer->valueCategory == ValueCategory::kLValue)
+      rangeReferenceType =
+          control()->getLvalueReferenceType(rangeInitializer->type);
+    else
+      rangeReferenceType =
+          control()->getRvalueReferenceType(rangeInitializer->type);
+    ast->rangeVariable = makeVariable(rangeReferenceType);
 
-  if (auto classType = type_cast<ClassType>(traits.remove_cvref(var->type()))) {
-    (void)traits.requireCompleteClass(classType->symbol());
+    auto makeId = [&](VariableSymbol* symbol) {
+      auto id = IdExpressionAST::create(unit_->arena());
+      id->symbol = symbol;
+      id->type = traits.remove_reference(symbol->type());
+      id->valueCategory = ValueCategory::kLValue;
+      return id;
+    };
+
+    auto classType = type_cast<ClassType>(rangeType);
+    auto classSymbol = classType ? classType->symbol() : nullptr;
+    if (classSymbol) classSymbol = classSymbol->resolvedDefinition();
+    auto beginName = control()->getIdentifier("begin");
+    auto endName = control()->getIdentifier("end");
+    const bool memberCase = classSymbol &&
+                            qualifiedLookup(classSymbol, beginName) &&
+                            qualifiedLookup(classSymbol, endName);
+
+    auto makeCall = [&](const Identifier* name) -> ExpressionAST* {
+      ExpressionAST* callee = nullptr;
+      if (memberCase) {
+        auto member = MemberExpressionAST::create(unit_->arena());
+        member->baseExpression = makeId(ast->rangeVariable);
+        member->unqualifiedId = NameIdAST::create(unit_->arena(), name);
+        member->accessOp = TokenKind::T_DOT;
+        callee = member;
+      } else {
+        auto id = IdExpressionAST::create(unit_->arena());
+        id->unqualifiedId = NameIdAST::create(unit_->arena(), name);
+        declareArgumentDependentCallee(id);
+        callee = id;
+      }
+
+      auto call = CallExpressionAST::create(unit_->arena());
+      call->baseExpression = callee;
+      if (!memberCase) {
+        call->expressionList = make_list_node<ExpressionAST>(
+            unit_->arena(), makeId(ast->rangeVariable));
+      }
+      check.check(callee);
+      check.check(call);
+      return call;
+    };
+
+    ast->beginInitializer = makeCall(beginName);
+    ast->endInitializer = makeCall(endName);
+    if (ast->beginInitializer->type && ast->endInitializer->type) {
+      ast->beginVariable =
+          makeVariable(traits.remove_cvref(ast->beginInitializer->type));
+      ast->endVariable =
+          makeVariable(traits.remove_cvref(ast->endInitializer->type));
+
+      ExpressionAST* condition = BinaryExpressionAST::create(unit_->arena());
+      auto binaryCondition = ast_cast<BinaryExpressionAST>(condition);
+      binaryCondition->leftExpression = makeId(ast->beginVariable);
+      binaryCondition->rightExpression = makeId(ast->endVariable);
+      binaryCondition->op = TokenKind::T_EXCLAIM_EQUAL;
+      binaryCondition->opLoc = ast->colonLoc;
+      check.check(condition);
+      check.check_bool_condition(condition);
+      ast->condition = condition;
+
+      auto increment = UnaryExpressionAST::create(unit_->arena());
+      increment->expression = makeId(ast->beginVariable);
+      increment->op = TokenKind::T_PLUS_PLUS;
+      increment->opLoc = ast->colonLoc;
+      check.check(increment);
+      ast->increment = increment;
+
+      auto dereference = UnaryExpressionAST::create(unit_->arena());
+      dereference->expression = makeId(ast->beginVariable);
+      dereference->op = TokenKind::T_STAR;
+      dereference->opLoc = ast->colonLoc;
+      check.check(dereference);
+      ast->element = dereference;
+      if (dereference->type) elementType = dereference->type;
+    }
+  }
+
+  if (elementType && needsDeduction) {
+    auto deduced = check.deduceAutoType(var->type(), elementType);
+    if (!deduced) return;
+
+    var->setType(deduced);
+
+    if (auto classType =
+            type_cast<ClassType>(traits.remove_cvref(var->type()))) {
+      (void)traits.requireCompleteClass(classType->symbol());
+    }
+  }
+
+  if (structuredBinding && elementType) {
+    const auto refOp =
+        structuredBinding->refQualifierLoc
+            ? unit_->tokenKind(structuredBinding->refQualifierLoc)
+            : TokenKind::T_EOF_SYMBOL;
+
+    auto entityDeclarator = declareStructuredBindingEntity(
+        structuredBinding->lbracketLoc, structuredBindingEntityName(), specs,
+        refOp, /*initializer=*/nullptr, /*addSymbolToParentScope=*/false);
+    if (!entityDeclarator) return;
+
+    auto entity = symbol_cast<VariableSymbol>(entityDeclarator->symbol);
+    if (!entity) return;
+
+    auto deduced = check.deduceAutoType(entity->type(), elementType);
+    if (!deduced) return;
+    entity->setType(deduced);
+
+    if (auto classType =
+            type_cast<ClassType>(traits.remove_cvref(entity->type()))) {
+      (void)traits.requireCompleteClass(classType->symbol());
+    }
+
+    structuredBinding->hiddenVariable = entityDeclarator;
+    decomposeStructuredBinding(structuredBinding, entity);
+
+    var = entity;
+  }
+
+  if (var && ast->element && var->type()) {
+    (void)check.implicit_conversion(ast->element, var->type());
+    ast->element = EqualInitializerAST::create(
+        unit_->arena(), ast->colonLoc, ast->element,
+        ast->element->valueCategory, ast->element->type);
   }
 }
 }  // namespace cxx

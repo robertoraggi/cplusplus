@@ -831,18 +831,15 @@ auto Codegen::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
+  auto loc = gen.getLocation(ast->firstSourceLocation());
 
-#if false
-  auto parameterDeclarationClauseResult = gen(ast->parameterDeclarationClause);
-
-  for (auto node : ListView{ast->requirementList}) {
-    auto value = gen(node);
+  auto interp = ASTInterpreter{gen.unit_};
+  if (auto value = interp.evaluate(ast)) {
+    if (auto cst = gen.emitConstInitValue(gen.builder_, loc, ast->type, *value))
+      return {cst};
   }
-#endif
 
-  return {op};
+  return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
 }
 
 auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
@@ -1091,11 +1088,12 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   }
 
   const FunctionType* functionType = nullptr;
+  mlir::Value calleeValue;
 
   if (functionSymbol) {
     functionType = type_cast<FunctionType>(functionSymbol->type());
   } else if (gen.traits.is_pointer(ast->baseExpression->type)) {
-    thisValue = gen.expression(ast->baseExpression);
+    calleeValue = gen.expression(ast->baseExpression).value;
 
     auto elementType = gen.traits.get_element_type(ast->baseExpression->type);
     functionType = type_cast<cxx::FunctionType>(elementType);
@@ -1123,7 +1121,8 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   return gen.emitCall(
       ast->lparenLoc, functionType, functionSymbol, isVirtualCall, thisValue,
       std::move(callArguments),
-      returnsIndirectly ? gen.takeResultObject(ast) : mlir::Value{});
+      returnsIndirectly ? gen.takeResultObject(ast) : mlir::Value{},
+      calleeValue);
 }
 
 auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
@@ -2265,8 +2264,7 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
     mlir::SmallVector<mlir::Value> args{sizeVal};
     mlir::SmallVector<mlir::Type> resultTypes{ptrType};
     auto callOp = mlir::cxx::CallOp::create(gen.builder_, loc, resultTypes,
-                                            existingFunc.getSymName(), args,
-                                            mlir::TypeAttr{});
+                                            existingFunc.getSymName(), args);
     rawPtr = callOp.getResult();
   }
 
@@ -2366,13 +2364,9 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
           auto funcPtr = mlir::cxx::LoadOp::create(gen.builder_, loc, i8PtrType,
                                                    funcPtrAddr, 8);
 
-          mlir::SmallVector<mlir::Value> indirectArgs;
-          indirectArgs.push_back(funcPtr);
-          indirectArgs.push_back(ptrValue);
           mlir::SmallVector<mlir::Type> dtorResultTypes;
-          mlir::cxx::CallOp::create(gen.builder_, loc, dtorResultTypes,
-                                    mlir::FlatSymbolRefAttr{}, indirectArgs,
-                                    mlir::TypeAttr{});
+          mlir::cxx::CallOp::create(gen.builder_, loc, dtorResultTypes, funcPtr,
+                                    mlir::ValueRange{ptrValue});
 
           return {};
         } else {
@@ -4328,7 +4322,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
                        FunctionSymbol* symbol, bool isVirtualDispatch,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
-                       mlir::Value resultObject) -> ExpressionResult {
+                       mlir::Value resultObject, mlir::Value calleeValue)
+    -> ExpressionResult {
   if (!functionType) return {};
 
   auto mlirLoc = getLocation(loc);
@@ -4421,22 +4416,15 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
     auto funcPtr =
         mlir::cxx::LoadOp::create(builder_, mlirLoc, i8PtrType, funcPtrAddr, 8);
 
-    mlir::SmallVector<mlir::Value> indirectCallArgs;
-    indirectCallArgs.push_back(funcPtr);
-    indirectCallArgs.append(args.begin(), args.end());
-
-    callOp = mlir::cxx::CallOp::create(builder_, mlirLoc, resultTypes,
-                                       mlir::FlatSymbolRefAttr{},
-                                       indirectCallArgs, mlir::TypeAttr{});
+    callOp = mlir::cxx::CallOp::create(builder_, mlirLoc, resultTypes, funcPtr,
+                                       args);
   } else if (!symbol) {
     callOp = mlir::cxx::CallOp::create(builder_, mlirLoc, resultTypes,
-                                       mlir::FlatSymbolRefAttr{}, args,
-                                       mlir::TypeAttr{});
+                                       calleeValue, args);
   } else {
     auto funcOp = findOrCreateFunction(symbol);
-    callOp =
-        mlir::cxx::CallOp::create(builder_, mlirLoc, resultTypes,
-                                  funcOp.getSymName(), args, mlir::TypeAttr{});
+    callOp = mlir::cxx::CallOp::create(builder_, mlirLoc, resultTypes,
+                                       funcOp.getSymName(), args);
   }
 
   if (functionType->isVariadic()) {

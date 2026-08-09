@@ -541,9 +541,10 @@ auto areTemplateArgumentListsSyntacticallyEquivalent(
   return walkTemplateArgumentLists(unit, a, b, typeIdsStructurallyEquivalent);
 }
 
-[[nodiscard]] auto templateParameterListsEquivalent(
-    TranslationUnit* unit, List<TemplateParameterAST*>* aIt,
-    List<TemplateParameterAST*>* bIt) -> bool {
+auto areTemplateParameterListsEquivalent(TranslationUnit* unit,
+                                         List<TemplateParameterAST*>* aIt,
+                                         List<TemplateParameterAST*>* bIt)
+    -> bool {
   for (; aIt && bIt; aIt = aIt->next, bIt = bIt->next) {
     auto aParam = aIt->value;
     auto bParam = bIt->value;
@@ -597,9 +598,9 @@ auto areTemplateArgumentListsSyntacticallyEquivalent(
     auto bTemplate = ast_cast<TemplateTypeParameterAST>(bParam);
     if (aTemplate && bTemplate) {
       if (aTemplate->isPack != bTemplate->isPack) return false;
-      if (!templateParameterListsEquivalent(unit,
-                                            aTemplate->templateParameterList,
-                                            bTemplate->templateParameterList))
+      if (!areTemplateParameterListsEquivalent(
+              unit, aTemplate->templateParameterList,
+              bTemplate->templateParameterList))
         return false;
       if (!aTemplate->requiresClause || !bTemplate->requiresClause) {
         if (aTemplate->requiresClause != bTemplate->requiresClause)
@@ -615,14 +616,82 @@ auto areTemplateArgumentListsSyntacticallyEquivalent(
   return !aIt && !bIt;
 }
 
+auto areTemplateParameterListsEquivalentForPartialOrdering(
+    TranslationUnit* unit, List<TemplateParameterAST*>* aIt,
+    List<TemplateParameterAST*>* bIt) -> bool {
+  for (; aIt && bIt; aIt = aIt->next, bIt = bIt->next) {
+    auto a = aIt->value;
+    auto b = bIt->value;
+
+    const bool aType = ast_cast<TypenameTypeParameterAST>(a) ||
+                       ast_cast<ConstraintTypeParameterAST>(a);
+    const bool bType = ast_cast<TypenameTypeParameterAST>(b) ||
+                       ast_cast<ConstraintTypeParameterAST>(b);
+    if (aType || bType) {
+      if (!aType || !bType) return false;
+      auto aInfo = template_parameter_info(a->symbol);
+      auto bInfo = template_parameter_info(b->symbol);
+      if (!aInfo || !bInfo || aInfo->isPack != bInfo->isPack) return false;
+      continue;
+    }
+
+    auto aNonType = ast_cast<NonTypeTemplateParameterAST>(a);
+    auto bNonType = ast_cast<NonTypeTemplateParameterAST>(b);
+    if (aNonType || bNonType) {
+      if (!aNonType || !bNonType ||
+          !nonTypeParameterTypesEquivalent(unit, aNonType, bNonType))
+        return false;
+      auto aInfo = template_parameter_info(a->symbol);
+      auto bInfo = template_parameter_info(b->symbol);
+      if (!aInfo || !bInfo || aInfo->isPack != bInfo->isPack) return false;
+      continue;
+    }
+
+    auto aTemplate = ast_cast<TemplateTypeParameterAST>(a);
+    auto bTemplate = ast_cast<TemplateTypeParameterAST>(b);
+    if (!aTemplate || !bTemplate || aTemplate->isPack != bTemplate->isPack)
+      return false;
+    if (!areTemplateParameterListsEquivalentForPartialOrdering(
+            unit, aTemplate->templateParameterList,
+            bTemplate->templateParameterList))
+      return false;
+  }
+
+  return !aIt && !bIt;
+}
+
+auto areTypesEquivalentForPartialOrdering(TranslationUnit* unit, const Type* a,
+                                          const Type* b,
+                                          TemplateDeclarationAST* aTemplate,
+                                          TemplateDeclarationAST* bTemplate)
+    -> bool {
+  if (!aTemplate || !bTemplate) return false;
+
+  int parameterCount = 0;
+  for (auto parameter : ListView{aTemplate->templateParameterList}) {
+    (void)parameter;
+    ++parameterCount;
+  }
+
+  return typesEquivalentModuloOwnHeadDepth(unit, a, b, aTemplate->depth,
+                                           bTemplate->depth, parameterCount);
+}
+
+auto trailingRequiresClausesEquivalent(TranslationUnit* unit,
+                                       RequiresClauseAST* a,
+                                       RequiresClauseAST* b) -> bool {
+  if (!a || !b) return a == b;
+  return expressionsStructurallyEquivalent(unit, a->expression, b->expression);
+}
+
 auto areTemplateHeadsEquivalentForRedeclaration(TranslationUnit* unit,
                                                 TemplateDeclarationAST* a,
                                                 TemplateDeclarationAST* b)
     -> bool {
   if (a == b) return true;
   if (!a || !b) return false;
-  if (!templateParameterListsEquivalent(unit, a->templateParameterList,
-                                        b->templateParameterList))
+  if (!areTemplateParameterListsEquivalent(unit, a->templateParameterList,
+                                           b->templateParameterList))
     return false;
   if (!a->requiresClause || !b->requiresClause)
     return a->requiresClause == b->requiresClause;
@@ -661,6 +730,7 @@ struct [[nodiscard]] Binder::DeclareFunction {
   auto enclosingClass() const -> ClassSymbol*;
   void checkVirtualSpecifierOutsideClass();
   void checkOverrideAndFinalSpecifiers(FunctionSymbol* overridden);
+  void checkCovariantReturnType(FunctionSymbol* overridden);
 
   auto declare() -> FunctionSymbol*;
 
@@ -671,12 +741,6 @@ struct [[nodiscard]] Binder::DeclareFunction {
   void checkDeclSpecifiers();
   void checkExternalLinkageSpec();
 
-  auto findOverriddenFunction(ClassSymbol* cls, FunctionSymbol* fn)
-      -> FunctionSymbol*;
-
-  auto findOverriddenFunctionImpl(ClassSymbol* cls, FunctionSymbol* fn,
-                                  std::unordered_set<ClassSymbol*>& visited)
-      -> FunctionSymbol*;
   void checkVirtualSpecifier();
   void mergeRedeclaration();
 };
@@ -704,6 +768,13 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   functionSymbol = control()->newFunctionSymbol(targetScope, decl.location());
   functionSymbol->setName(name);
   functionSymbol->setType(type);
+
+  functionSymbol->setTrailingRequiresClause(decl.trailingRequiresClause);
+
+  if (functionDeclarator && functionDeclarator->exceptionSpecifier)
+    functionSymbol->setExceptionSpecifier(true);
+
+  binder.applyImplicitExceptionSpecification(functionSymbol);
 
   if (binder.isC() && binder.unit_->config().allowUnprototypedFunctions &&
       functionDeclarator && !functionDeclarator->parameterDeclarationClause) {
@@ -799,6 +870,11 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
     }
 
     if (!sigEq) continue;
+
+    if (!trailingRequiresClausesEquivalent(
+            binder.unit_, existingFunction->trailingRequiresClause(),
+            functionSymbol->trailingRequiresClause()))
+      continue;
 
     reportMemberRedeclaration(existingFunction);
 
@@ -995,6 +1071,34 @@ void Binder::DeclareFunction::checkVirtualSpecifierOutsideClass() {
   }
 }
 
+void Binder::DeclareFunction::checkCovariantReturnType(
+    FunctionSymbol* overridden) {
+  auto overriderType = type_cast<FunctionType>(functionSymbol->type());
+  auto overriddenType = type_cast<FunctionType>(overridden->type());
+  if (!overriderType || !overriddenType) return;
+
+  auto overriderReturnType = overriderType->returnType();
+  auto overriddenReturnType = overriddenType->returnType();
+  if (!overriderReturnType || !overriddenReturnType) return;
+
+  if (isDependent(binder.unit_, overriderReturnType) ||
+      isDependent(binder.unit_, overriddenReturnType)) {
+    return;
+  }
+
+  if (binder.traits.is_covariant_return_type(overriddenReturnType,
+                                             overriderReturnType)) {
+    return;
+  }
+
+  binder.error(functionSymbol->location(),
+               std::format("return type of virtual function '{}' is not "
+                           "covariant with the return type of the function it "
+                           "overrides",
+                           to_string(functionSymbol->name())));
+  binder.note(overridden->location(), "overridden virtual function is here");
+}
+
 void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
     FunctionSymbol* overridden) {
   if (functionSymbol->isOverride() && !overridden) {
@@ -1011,14 +1115,13 @@ void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
                            to_string(functionSymbol->name())));
 }
 
-auto Binder::DeclareFunction::findOverriddenFunction(ClassSymbol* cls,
-                                                     FunctionSymbol* fn)
+auto Binder::findOverriddenFunction(ClassSymbol* cls, FunctionSymbol* fn)
     -> FunctionSymbol* {
   std::unordered_set<ClassSymbol*> visited;
   return findOverriddenFunctionImpl(cls, fn, visited);
 }
 
-auto Binder::DeclareFunction::findOverriddenFunctionImpl(
+auto Binder::findOverriddenFunctionImpl(
     ClassSymbol* cls, FunctionSymbol* fn,
     std::unordered_set<ClassSymbol*>& visited) -> FunctionSymbol* {
   for (auto base : cls->baseClasses()) {
@@ -1028,13 +1131,8 @@ auto Binder::DeclareFunction::findOverriddenFunctionImpl(
 
     auto checkMember = [&](FunctionSymbol* member) -> FunctionSymbol* {
       if (!member->isVirtual()) return nullptr;
-      if (fn->isDestructor() && member->isDestructor()) return member;
-
-      if (fn->name() == member->name() &&
-          binder.traits.is_same(fn->type(), member->type())) {
-        return member;
-      }
-      return nullptr;
+      if (!traits.is_corresponding_overrider(fn, member)) return nullptr;
+      return member;
     };
 
     for (auto symbol : baseClass->members()) {
@@ -1064,7 +1162,7 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
 
   if (functionSymbol->isConstructor()) return;
 
-  auto overridden = findOverriddenFunction(cls, functionSymbol);
+  auto overridden = binder.findOverriddenFunction(cls, functionSymbol);
 
   if (overridden) {
     functionSymbol->setVirtual(true);
@@ -1075,6 +1173,8 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
           std::format("declaration of '{}' overrides a 'final' function",
                       to_string(functionSymbol->name())));
     }
+
+    checkCovariantReturnType(overridden);
   }
 
   if (!overridden) {

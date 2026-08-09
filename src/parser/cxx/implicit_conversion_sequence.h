@@ -53,6 +53,7 @@ struct ImplicitConversionSequence {
   std::vector<Step> steps;
 
   const Type* destinationType = nullptr;
+  const Type* aggregateInitializedClass = nullptr;
 
   FunctionSymbol* userDefinedConversionFunction = nullptr;
   ConversionRank secondStandardConversionRank = ConversionRank::kNone;
@@ -68,6 +69,31 @@ struct ImplicitConversionSequence {
   const Type* pointeeUnqual = nullptr;
   CvQualifiers pointeeCv = CvQualifiers::kNone;
 
+  [[nodiscard]] auto referenceBindingIsBetterThan(
+      const ImplicitConversionSequence& other) const -> bool {
+    if (bindsToRvalueRef != other.bindsToRvalueRef &&
+        !bindsUnqualifiedImplicitObjectParameter &&
+        !other.bindsUnqualifiedImplicitObjectParameter) {
+      return bindsToRvalueRef;
+    }
+
+    if (bindsToReference && other.bindsToReference &&
+        referenceCv != other.referenceCv) {
+      return referenceCv < other.referenceCv;
+    }
+
+    return false;
+  }
+
+  [[nodiscard]] auto comparesSecondStandardSequenceWith(
+      const ImplicitConversionSequence& other) const -> bool {
+    if (userDefinedConversionFunction || other.userDefinedConversionFunction)
+      return userDefinedConversionFunction ==
+             other.userDefinedConversionFunction;
+    return aggregateInitializedClass &&
+           aggregateInitializedClass == other.aggregateInitializedClass;
+  }
+
   [[nodiscard]] auto isBetterThan(const ImplicitConversionSequence& other) const
       -> bool {
     if (kind != other.kind) {
@@ -79,16 +105,8 @@ struct ImplicitConversionSequence {
         return rank > other.rank;
       }
 
-      if (bindsToRvalueRef != other.bindsToRvalueRef &&
-          !bindsUnqualifiedImplicitObjectParameter &&
-          !other.bindsUnqualifiedImplicitObjectParameter) {
-        return bindsToRvalueRef;
-      }
-
-      if (bindsToReference && other.bindsToReference &&
-          referenceCv != other.referenceCv) {
-        return referenceCv < other.referenceCv;
-      }
+      if (referenceBindingIsBetterThan(other)) return true;
+      if (other.referenceBindingIsBetterThan(*this)) return false;
 
       if (hasQualificationConversion != other.hasQualificationConversion) {
         return !hasQualificationConversion;
@@ -105,12 +123,13 @@ struct ImplicitConversionSequence {
     }
 
     if (kind == ConversionSequenceKind::kUserDefined) {
-      if (userDefinedConversionFunction ==
-          other.userDefinedConversionFunction) {
+      if (!comparesSecondStandardSequenceWith(other)) return false;
+
+      if (secondStandardConversionRank != other.secondStandardConversionRank)
         return secondStandardConversionRank >
                other.secondStandardConversionRank;
-      }
-      return false;
+
+      return referenceBindingIsBetterThan(other);
     }
 
     return false;

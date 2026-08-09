@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/symbols.h>
@@ -38,6 +39,22 @@ ASTRewriter::~ASTRewriter() {}
 void ASTRewriter::addSymbolRemap(Symbol* oldSym, Symbol* newSym) {
   if (oldSym && newSym && oldSym != newSym) {
     symbolRemap_[oldSym] = newSym;
+  }
+}
+
+void ASTRewriter::remapStructuredBindingSymbols(
+    StructuredBindingDeclarationAST* from,
+    StructuredBindingDeclarationAST* to) {
+  if (!from || !to) return;
+
+  if (from->hiddenVariable && to->hiddenVariable) {
+    addSymbolRemap(from->hiddenVariable->symbol, to->hiddenVariable->symbol);
+  }
+
+  for (auto oldNode = from->bindingDeclaratorList,
+            newNode = to->bindingDeclaratorList;
+       oldNode && newNode; oldNode = oldNode->next, newNode = newNode->next) {
+    addSymbolRemap(oldNode->value->symbol, newNode->value->symbol);
   }
 }
 

@@ -497,8 +497,8 @@ class Codegen {
                               FunctionSymbol* symbol, bool isVirtualDispatch,
                               ExpressionResult thisValue,
                               std::vector<ExpressionResult> arguments,
-                              mlir::Value resultObject = {})
-      -> ExpressionResult;
+                              mlir::Value resultObject = {},
+                              mlir::Value calleeValue = {}) -> ExpressionResult;
 
   [[nodiscard]] auto emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
                                   mlir::Value thisPtr,

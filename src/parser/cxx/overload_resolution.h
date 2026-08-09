@@ -66,6 +66,12 @@ struct OverloadResult {
   bool ambiguous = false;
 };
 
+struct BinaryOperatorCandidate {
+  FunctionSymbol* symbol = nullptr;
+  bool rewritten = false;
+  bool reversed = false;
+};
+
 [[nodiscard]] auto isExcludedInheritedConstructor(const TypeTraits& traits,
                                                   FunctionSymbol* constructor,
                                                   ClassSymbol* classSymbol,
@@ -96,6 +102,10 @@ struct ConstructorResult {
 [[nodiscard]] auto functionTemplateHasPackParameter(FunctionSymbol* pattern)
     -> bool;
 
+[[nodiscard]] auto compareFunctionTemplateSpecializations(
+    TranslationUnit* unit, FunctionSymbol* candidate, FunctionSymbol* other)
+    -> int;
+
 class OverloadResolution {
  public:
   explicit OverloadResolution(TranslationUnit* unit);
@@ -118,9 +128,10 @@ class OverloadResolution {
       std::vector<Candidate>& candidates, bool preferNonTemplate = false)
       -> OverloadResult;
 
-  [[nodiscard]] auto resolveConstructor(ClassSymbol* classSymbol,
-                                        const std::vector<ExpressionAST*>& args)
-      -> ConstructorResult;
+  [[nodiscard]] auto resolveConstructor(
+      ClassSymbol* classSymbol, const std::vector<ExpressionAST*>& args,
+      InitializationKind initializationKind =
+          InitializationKind::kDirectInitialization) -> ConstructorResult;
 
   [[nodiscard]] auto findCandidates(ScopeSymbol* scope, const Name* name) const
       -> std::vector<FunctionSymbol*>;
@@ -139,14 +150,30 @@ class OverloadResolution {
                                     ExpressionAST* rightExpr = nullptr)
       -> FunctionSymbol*;
 
+  [[nodiscard]] auto isRewriteTarget(FunctionSymbol* equalityOperator,
+                                     const Type* firstOperandType) -> bool;
+
   [[nodiscard]] auto wasLastLookupAmbiguous() const -> bool {
     return lastLookupAmbiguous_;
+  }
+
+  [[nodiscard]] auto wasLastOperatorRewritten() const -> bool {
+    return lastOperatorRewritten_;
+  }
+
+  [[nodiscard]] auto wasLastOperatorReversed() const -> bool {
+    return lastOperatorReversed_;
   }
 
   [[nodiscard]] auto initializerListElementType(const Type* targetType)
       -> const Type*;
 
  private:
+  [[nodiscard]] auto resolveBinaryOperator(
+      const std::vector<BinaryOperatorCandidate>& candidates,
+      const Type* leftType, const Type* rightType, bool* ambiguous,
+      ExpressionAST* leftExpr, ExpressionAST* rightExpr) -> FunctionSymbol*;
+
   [[nodiscard]] auto trySelectOperator(
       const std::vector<FunctionSymbol*>& candidates, const Type* type,
       const Type* rightType, ExpressionAST* leftExpr = nullptr,
@@ -161,5 +188,7 @@ class OverloadResolution {
   Arena* arena_;
   StandardConversion stdconv_;
   bool lastLookupAmbiguous_ = false;
+  bool lastOperatorRewritten_ = false;
+  bool lastOperatorReversed_ = false;
 };
 }  // namespace cxx
