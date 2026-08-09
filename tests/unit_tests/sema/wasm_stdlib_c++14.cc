@@ -1,7 +1,5 @@
-// RUN: %cxx -toolchain wasm32 -fsyntax-only %s
-
-#undef __cplusplus
-#define __cplusplus 201402L
+// RUN: %cxx -toolchain wasm32 -std=c++14 -fsyntax-only %s
+// RUN: %cxx -toolchain wasm32 -std=c++17 -fsyntax-only %s
 
 #include <algorithm>
 #include <any>
@@ -131,5 +129,5 @@
 #include <vector>
 
 //
-// #include <random>
-// #include <valarray>
+#include <random>
+#include <valarray>
