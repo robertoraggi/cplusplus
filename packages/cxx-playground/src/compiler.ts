@@ -1,9 +1,19 @@
 import type { Diagnostic, OutputCodeFormat } from "cxx-frontend"
 
+export const TextOutputCodeFormat = [
+  "cxxir",
+  "mlir",
+  "llvm",
+  "asm",
+] as const satisfies readonly OutputCodeFormat[]
+
+export type TextOutputCodeFormat = (typeof TextOutputCodeFormat)[number]
+
 export interface CompileOptions {
   source: string
   path: string
-  format: OutputCodeFormat
+  format: TextOutputCodeFormat
+  debugInfo: boolean
 }
 
 export interface CompileResult {

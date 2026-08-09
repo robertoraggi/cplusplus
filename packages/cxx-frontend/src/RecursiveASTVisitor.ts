@@ -974,6 +974,11 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     this.accept(node.getRangeDeclaration(), context);
     this.accept(node.getRangeInitializer(), context);
     this.accept(node.getStatement(), context);
+    this.accept(node.getBeginInitializer(), context);
+    this.accept(node.getEndInitializer(), context);
+    this.accept(node.getCondition(), context);
+    this.accept(node.getIncrement(), context);
+    this.accept(node.getElement(), context);
   }
 
   /**

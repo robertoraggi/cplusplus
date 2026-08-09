@@ -48,8 +48,8 @@ export interface Unit extends ClassHandle {
   getDiagnostics(): DiagnosticList;
   getHandle(): number;
   getUnitHandle(): number;
-  emitCode(_0: EmbindString): string;
   parse(): any;
+  emitCode(_0: EmbindString): any;
 }
 
 interface EmbindModule {

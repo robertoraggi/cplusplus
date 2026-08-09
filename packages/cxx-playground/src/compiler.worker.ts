@@ -23,6 +23,7 @@ async function compile({
   source,
   path,
   format,
+  debugInfo,
 }: CompileOptions): Promise<CompileResult> {
   await initialization
 
@@ -31,8 +32,8 @@ async function compile({
     path,
     appdir,
     sysroot,
-    undefines: ["__cplusplus"],
-    defines: ["__cplusplus=201402L"],
+    std: "c++14",
+    debugInfo,
     exists,
     readFile,
   })

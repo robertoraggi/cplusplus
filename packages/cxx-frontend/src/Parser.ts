@@ -26,8 +26,22 @@ import { type Unit } from "./Unit.js";
 import { AST } from "./AST.js";
 import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 
-export const OutputCodeFormat = ["cxxir", "mlir", "llvm", "asm"] as const;
+export const OutputCodeFormat = [
+  "cxxir",
+  "mlir",
+  "llvm",
+  "asm",
+  "obj",
+] as const;
 export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
+
+/**
+ * The result of {@link Parser.emitCode} for a given output format.
+ *
+ * Textual formats produce a `string`, object code produces a `Uint8Array`.
+ */
+export type OutputCode<Format extends OutputCodeFormat = OutputCodeFormat> =
+  Format extends "obj" ? Uint8Array : string;
 
 export const CxxStandard = [
   "c++14",
@@ -137,10 +151,15 @@ export class Parser implements Disposable, AsyncDisposable {
    * Generates code in the given format.
    *
    * @param options the output format.
-   * @returns the generated code.
+   * @returns the generated code, a `Uint8Array` when the format is `obj` and a
+   * `string` for the textual formats.
    */
-  emitCode({ format }: { format: OutputCodeFormat }): string {
-    return this.#nativeUnit().emitCode(format);
+  emitCode<Format extends OutputCodeFormat>({
+    format,
+  }: {
+    format: Format;
+  }): OutputCode<Format> {
+    return this.#nativeUnit().emitCode(format) as OutputCode<Format>;
   }
 
   /**

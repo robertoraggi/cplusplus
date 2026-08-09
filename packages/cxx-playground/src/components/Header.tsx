@@ -2,6 +2,7 @@ import { usePlayground } from "../playground-context"
 import { Button } from "./ui/button"
 import { SampleSelector } from "./sample-selector"
 import { OutputFormatSelector } from "./output-format-selector"
+import { DebugInfoToggle } from "./debug-info-toggle"
 
 function statusLabel({
   diagnosticCount,
@@ -47,23 +48,29 @@ export function Header() {
         setOutputFormat={state.setOutputFormat}
       />
 
-      <Button
-        className="justify-self-end"
-        variant="ghost"
-        size="icon-xs"
-        nativeButton={false}
-        render={
-          <a
-            href="https://github.com/robertoraggi/cplusplus"
-            target="_blank"
-            rel="noreferrer"
-            title="GitHub Repository"
-          />
-        }
-      >
-        <GithubIcon />
-        <span className="sr-only">GitHub Repository</span>
-      </Button>
+      <div className="flex items-center gap-1 justify-self-end">
+        <DebugInfoToggle
+          debugInfo={state.debugInfo}
+          setDebugInfo={state.setDebugInfo}
+        />
+
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          nativeButton={false}
+          render={
+            <a
+              href="https://github.com/robertoraggi/cplusplus"
+              target="_blank"
+              rel="noreferrer"
+              title="GitHub Repository"
+            />
+          }
+        >
+          <GithubIcon />
+          <span className="sr-only">GitHub Repository</span>
+        </Button>
+      </div>
     </header>
   )
 }
