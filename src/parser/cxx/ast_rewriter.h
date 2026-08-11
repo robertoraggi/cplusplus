@@ -77,6 +77,9 @@ class [[nodiscard]] ASTRewriter {
                                                Symbol* instantiated,
                                                SourceLocation instantiationLoc);
 
+  static void completePendingExceptionSpecification(TranslationUnit* unit,
+                                                    FunctionSymbol* function);
+
   static auto substituteDefaultTypeId(
       TranslationUnit* unit, TypeIdAST* typeId,
       const std::vector<TemplateArgument>& templateArguments, int depth,
@@ -237,6 +240,10 @@ class [[nodiscard]] ASTRewriter {
       const std::vector<TemplateArgument>& templateArguments, int depth)
       -> std::optional<bool>;
 
+  [[nodiscard]] auto constraintOperandDeterminesResult(ExpressionAST* operand,
+                                                       TokenKind op) const
+      -> bool;
+
   auto control() const -> Control*;
   auto arena() const -> Arena*;
   auto binder() -> Binder& { return binder_; }
@@ -297,6 +304,16 @@ class [[nodiscard]] ASTRewriter {
   auto lambdaBody(StatementAST* ast) -> CompoundStatementAST*;
   auto templateArgument(TemplateArgumentAST* ast) -> TemplateArgumentAST*;
   auto exceptionSpecifier(ExceptionSpecifierAST* ast) -> ExceptionSpecifierAST*;
+  [[nodiscard]] auto pendingExceptionSpecifierMark() const -> std::size_t;
+  void associatePendingExceptionSpecifiers(
+      std::size_t mark, FunctionSymbol* function,
+      FunctionSymbol* originalFunction,
+      ExceptionSpecifierAST* functionExceptionSpecifier,
+      std::function<void()> refreshType);
+  void completePendingExceptionSpecifiers(std::size_t mark);
+  void resolvePendingExceptionSpecifier(std::size_t index);
+  [[nodiscard]] auto hasPendingExceptionSpecifier(
+      ClassSymbol* classSymbol) const -> bool;
   auto requirement(RequirementAST* ast) -> RequirementAST*;
   auto newInitializer(NewInitializerAST* ast) -> NewInitializerAST*;
   auto memInitializer(MemInitializerAST* ast) -> MemInitializerAST*;
@@ -470,12 +487,35 @@ class [[nodiscard]] ASTRewriter {
   int depth_ = 0;
   ClassSymbol* classInstanceToComplete_ = nullptr;
   bool restrictedToDeclarations_ = false;
+  bool rewritingConstraintExpression_ = false;
   bool retainsEnclosingTemplateLevels_ = false;
   bool substitutionFailed_ = false;
 
   bool instantiatingFunctionTemplateSpecialization_ = false;
 
   int classBodyDepth_ = 0;
+
+  enum class PendingExceptionSpecifierState {
+    kUnresolved,
+    kResolving,
+    kDeferred,
+    kResolved,
+  };
+
+  struct PendingExceptionSpecifier {
+    NoexceptSpecifierAST* pattern = nullptr;
+    NoexceptSpecifierAST* instance = nullptr;
+    FunctionSymbol* originalFunction = nullptr;
+    ScopeSymbol* scope = nullptr;
+    PendingExceptionSpecifierState state =
+        PendingExceptionSpecifierState::kUnresolved;
+    std::vector<std::function<void()>> typeRefreshers;
+  };
+
+  std::vector<PendingExceptionSpecifier> pendingExceptionSpecifiers_;
+  std::unordered_map<FunctionSymbol*, std::size_t>
+      pendingFunctionExceptionSpecifiers_;
+  std::vector<ClassSymbol*> pendingExceptionSpecificationClasses_;
 
   struct PendingFieldInitializer {
     InitDeclaratorAST* pattern = nullptr;

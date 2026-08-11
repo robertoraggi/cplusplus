@@ -19,8 +19,10 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
@@ -41,6 +43,15 @@
 #include <unordered_set>
 
 namespace cxx {
+[[nodiscard]] static auto defersClassSemanticCompletion(
+    ClassSymbol* classSymbol) -> bool {
+  if (!isEnclosedInTemplate(classSymbol)) return false;
+  if (!classSymbol->isSpecialization()) return true;
+  auto templateParameters = classSymbol->templateParameters();
+  return !templateParameters ||
+         !templateParameters->isExplicitTemplateSpecialization();
+}
+
 struct [[nodiscard]] Binder::CompleteClass {
   Binder& binder;
   ClassSpecifierAST* ast;
@@ -55,7 +66,7 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   auto control() const -> Control* { return binder.control(); }
 
-  void complete();
+  void complete(bool deferExceptionSpecificationChecks);
 
   void markComplete();
   auto shouldSynthesizeSpecialMembers() const -> bool;
@@ -101,7 +112,6 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   void synthesizeMemberwiseBodies();
   void typeFieldInitializers();
-  void applyImplicitExceptionSpecifications();
   void checkOverriderExceptionSpecifications();
   [[nodiscard]] auto hasNonAssignableSubobject(bool moveForm) const -> bool;
   [[nodiscard]] auto hasNonCopyConstructibleSubobject(bool moveForm) const
@@ -113,8 +123,9 @@ struct [[nodiscard]] Binder::CompleteClass {
   void synthesizeCopyMoveAssignBody(FunctionSymbol* fn, bool isMove);
 };
 
-void Binder::complete(ClassSpecifierAST* ast) {
-  CompleteClass{*this, ast}.complete();
+void Binder::complete(ClassSpecifierAST* ast,
+                      bool deferExceptionSpecificationChecks) {
+  CompleteClass{*this, ast}.complete(deferExceptionSpecificationChecks);
 }
 
 auto Binder::inheritedConstructorFor(ClassSymbol* classSymbol,
@@ -382,14 +393,8 @@ auto Binder::CompleteClass::buildRecordLayout()
   return binder.buildRecordLayout(classSymbol);
 }
 
-void Binder::CompleteClass::complete() {
-  auto isFullExplicitSpecialization = [&]() {
-    if (!classSymbol->isSpecialization()) return false;
-    auto tp = classSymbol->templateParameters();
-    return tp && tp->isExplicitTemplateSpecialization();
-  };
-
-  if (binder.inTemplate() && !isFullExplicitSpecialization()) {
+void Binder::CompleteClass::complete(bool deferExceptionSpecificationChecks) {
+  if (defersClassSemanticCompletion(classSymbol)) {
     markComplete();
     return;
   }
@@ -404,9 +409,10 @@ void Binder::CompleteClass::complete() {
 
   typeFieldInitializers();
 
-  applyImplicitExceptionSpecifications();
+  binder.refreshImplicitExceptionSpecifications(classSymbol);
 
-  checkOverriderExceptionSpecifications();
+  if (!deferExceptionSpecificationChecks)
+    checkOverriderExceptionSpecifications();
 
   if (shouldSynthesizeSpecialMembers()) {
     synthesizeStructorVariants();
@@ -535,25 +541,28 @@ void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
     return false;
   };
 
-  const bool isNoexcept = !isPotentiallyThrowing();
-  if (funcType->isNoexcept() == isNoexcept) return;
-
-  fn->setType(control()->getFunctionType(
-      funcType->returnType(),
-      std::vector<const Type*>(funcType->parameterTypes().begin(),
-                               funcType->parameterTypes().end()),
-      funcType->isVariadic(), funcType->cvQualifiers(),
-      funcType->refQualifier(), isNoexcept));
+  setFunctionNoexcept(control(), fn, !isPotentiallyThrowing());
 }
 
-void Binder::CompleteClass::applyImplicitExceptionSpecifications() {
+void Binder::refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+
   for (auto constructor : classSymbol->declaredConstructors())
-    binder.applyImplicitExceptionSpecification(constructor);
+    applyImplicitExceptionSpecification(constructor);
 
   for (auto member : classSymbol->members()) {
     for (auto func : views::each_function(member))
-      binder.applyImplicitExceptionSpecification(func);
+      applyImplicitExceptionSpecification(func);
   }
+}
+
+void Binder::finalizeExceptionSpecifications(ClassSymbol* classSymbol) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (defersClassSemanticCompletion(classSymbol)) return;
+  refreshImplicitExceptionSpecifications(classSymbol);
+  CompleteClass{*this, classSymbol}.checkOverriderExceptionSpecifications();
 }
 
 void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
@@ -561,11 +570,16 @@ void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
     for (auto func : views::each_function(member)) {
       if (!func->isVirtual() || func->isDeleted()) continue;
 
+      ASTRewriter::completePendingExceptionSpecification(binder.unit_, func);
+
       auto overriderType = type_cast<FunctionType>(func->type());
       if (!overriderType || overriderType->isNoexcept()) continue;
 
       auto overridden = binder.findOverriddenFunction(classSymbol, func);
       if (!overridden) continue;
+
+      ASTRewriter::completePendingExceptionSpecification(binder.unit_,
+                                                         overridden);
 
       auto overriddenType = type_cast<FunctionType>(overridden->type());
       if (!overriddenType || !overriddenType->isNoexcept()) continue;

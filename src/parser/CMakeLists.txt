@@ -92,6 +92,7 @@ add_library(cxx-parser
     cxx/template_argument_deduction.cc
     cxx/token.cc
     cxx/toolchain.cc
+    cxx/toolchain_config.cc
     cxx/translation_unit.cc
     cxx/type_checker.cc
     cxx/type_checker_initializer.cc

@@ -60,4 +60,11 @@ class Decl {
                                      DeclaratorAST* declarator,
                                      const Type* type) -> const Type*;
 
+[[nodiscard]] auto exceptionSpecifierIsNoexcept(TranslationUnit* unit,
+                                                ExceptionSpecifierAST* ast)
+    -> bool;
+
+void setFunctionNoexcept(Control* control, FunctionSymbol* function,
+                         bool isNoexcept);
+
 }  // namespace cxx

@@ -24,10 +24,13 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <unordered_set>
+
 namespace cxx {
 namespace {
 struct IsDependent {
   TranslationUnit* unit = nullptr;
+  std::unordered_set<Symbol*> initializerStack;
 
   [[nodiscard]] auto isDependent(ExpressionAST* ast) -> bool {
     if (!ast) return false;
@@ -139,6 +142,34 @@ struct IsDependent {
                                        /*stopAtConcreteSpecialization=*/true);
   }
 
+  [[nodiscard]] auto isPotentiallyConstant(Symbol* symbol, bool isConstexpr)
+      -> bool {
+    if (isConstexpr) return true;
+    if (!symbol || !symbol->type() || !unit) return false;
+
+    auto traits = unit->typeTraits();
+    if (traits.is_reference(symbol->type())) return true;
+
+    auto cv = traits.get_cv_qualifiers(symbol->type());
+    if ((cv & CvQualifiers::kConst) == CvQualifiers::kNone ||
+        (cv & CvQualifiers::kVolatile) != CvQualifiers::kNone)
+      return false;
+
+    auto type = traits.remove_cv(symbol->type());
+    return traits.is_integral(type) || traits.is_enum(type);
+  }
+
+  [[nodiscard]] auto hasValueDependentInitializer(Symbol* symbol,
+                                                  ExpressionAST* initializer,
+                                                  bool isConstexpr) -> bool {
+    if (!initializer || !isPotentiallyConstant(symbol, isConstexpr))
+      return false;
+    if (!initializerStack.insert(symbol).second) return false;
+    const bool dependent = isDependent(initializer);
+    initializerStack.erase(symbol);
+    return dependent;
+  }
+
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
     if (!type) return false;
     return visit(*this, type);
@@ -213,15 +244,11 @@ struct IsDependent {
     if (sym->templateDeclaration() && !sym->primaryTemplateSymbol())
       return true;
 
-    if (!sym->primaryTemplateSymbol()) {
-      for (auto enclosing = sym->parent(); enclosing;
-           enclosing = enclosing->parent()) {
-        auto enclosingClass = symbol_cast<ClassSymbol>(enclosing);
-        if (!enclosingClass) break;
-        if (enclosingClass->templateDeclaration() &&
-            !enclosingClass->primaryTemplateSymbol())
-          return true;
-      }
+    for (auto enclosing = sym->parent(); enclosing;
+         enclosing = enclosing->parent()) {
+      auto enclosingClass = symbol_cast<ClassSymbol>(enclosing);
+      if (!enclosingClass) break;
+      if (isDependent(enclosingClass->type())) return true;
     }
 
     for (const auto& arg : sym->templateArguments()) {
@@ -591,14 +618,21 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
 
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
-    if (field->isStatic() && field->initializer()) {
-      if (isInTemplateScope(field)) return true;
-    }
+    if (field->isStatic() && !field->initializer() && isInTemplateScope(field))
+      return true;
+    if (hasValueDependentInitializer(field, field->initializer(),
+                                     field->isConstexpr()))
+      return true;
     if (isDependent(field->type())) return true;
   }
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
-    if (var->initializer() && isInTemplateScope(var)) return true;
+    if (hasValueDependentInitializer(var, var->initializer(),
+                                     var->isConstexpr()))
+      return true;
     if (isDependent(var->type())) return true;
+  }
+  if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
+    if (func->isStatic() && isInTemplateScope(func)) return true;
   }
   if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
     if (isDependent(param->type())) return true;

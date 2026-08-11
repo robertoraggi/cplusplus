@@ -68,6 +68,7 @@ class Parser final {
   struct LoopParser;
   struct UncheckedInitializerContext;
   struct CombinedScopeGuard;
+  struct RestoredScopeChain;
   struct ExplicitTemplateHeadGuard;
   struct UnevaluatedOperandGuard;
 
@@ -885,8 +886,16 @@ class Parser final {
 
   void completePendingFunctionDefinitions();
   [[nodiscard]] auto isDeferredFieldInitializer(Symbol* symbol) const -> bool;
+  struct PendingFieldInitializer {
+    InitDeclaratorAST* ast;
+    ScopeSymbol* scope;
+  };
   void recordFieldInitializer(InitDeclaratorAST* ast);
   [[nodiscard]] auto isDeferredDefaultArgument(bool templParam) const -> bool;
+  [[nodiscard]] auto isDeferredNoexceptSpecifier() const -> bool;
+  [[nodiscard]] auto hasPendingNoexceptSpecifier(ClassSymbol* classSymbol,
+                                                 std::size_t mark) const
+      -> bool;
   struct PendingDefaultArgument {
     ParameterDeclarationAST* ast;
     ParameterSymbol* symbol;
@@ -897,8 +906,18 @@ class Parser final {
   void completeDefaultArguments(
       const std::vector<PendingDefaultArgument>& pending);
   void completeFieldInitializers(
-      const std::vector<InitDeclaratorAST*>& pending);
+      const std::vector<PendingFieldInitializer>& pending);
   void completePendingFieldInitializers(std::size_t mark);
+  struct PendingNoexceptSpecifier {
+    FunctionDeclaratorChunkAST* ast;
+    ScopeSymbol* scope;
+    FunctionSymbol* symbol = nullptr;
+  };
+  void associatePendingNoexceptSpecifier(DeclaratorAST* declarator,
+                                         FunctionSymbol* symbol);
+  void completePendingNoexceptSpecifiers(std::size_t mark);
+  void completeNoexceptSpecifiers(
+      const std::vector<PendingNoexceptSpecifier>& pending);
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
 
   [[nodiscard]] auto getCurrentNonClassScope() const -> ScopeSymbol*;
@@ -976,9 +995,10 @@ class Parser final {
   TemplateDeclarationAST* enclosingExplicitTemplateHead_ = nullptr;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
-  std::vector<InitDeclaratorAST*> pendingFieldInitializers_;
+  std::vector<PendingFieldInitializer> pendingFieldInitializers_;
 
   std::vector<PendingDefaultArgument> pendingDefaultArguments_;
+  std::vector<PendingNoexceptSpecifier> pendingNoexceptSpecifiers_;
 
   template <typename T>
   class CachedAST {

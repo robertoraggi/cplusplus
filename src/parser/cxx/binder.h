@@ -195,7 +195,10 @@ class Binder {
 
   void bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs);
 
-  void complete(ClassSpecifierAST* ast);
+  void complete(ClassSpecifierAST* ast,
+                bool deferExceptionSpecificationChecks = false);
+  void refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol);
+  void finalizeExceptionSpecifications(ClassSymbol* classSymbol);
 
   void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
 

@@ -1399,6 +1399,87 @@ auto TypeTraits::remove_noexcept(const Type* type) const -> const Type* {
       functionType->refQualifier(), false);
 }
 
+auto TypeTraits::replace_placeholder_types(const Type* type,
+                                           const Type* replacement) const
+    -> const Type* {
+  if (type_cast<AutoType>(type) || type_cast<DecltypeAutoType>(type))
+    return replacement;
+
+  if (auto qualType = type_cast<QualType>(type)) {
+    auto elementType =
+        replace_placeholder_types(qualType->elementType(), replacement);
+    return control()->getQualType(elementType, qualType->cvQualifiers());
+  }
+
+  if (auto arrayType = type_cast<BoundedArrayType>(type)) {
+    auto elementType =
+        replace_placeholder_types(arrayType->elementType(), replacement);
+    return control()->getBoundedArrayType(elementType, arrayType->size());
+  }
+
+  if (auto arrayType = type_cast<UnboundedArrayType>(type)) {
+    auto elementType =
+        replace_placeholder_types(arrayType->elementType(), replacement);
+    return control()->getUnboundedArrayType(elementType);
+  }
+
+  if (auto arrayType = type_cast<UnresolvedBoundedArrayType>(type)) {
+    auto elementType =
+        replace_placeholder_types(arrayType->elementType(), replacement);
+    return control()->getUnresolvedBoundedArrayType(
+        arrayType->translationUnit(), elementType, arrayType->size());
+  }
+
+  if (auto pointerType = type_cast<PointerType>(type)) {
+    auto elementType =
+        replace_placeholder_types(pointerType->elementType(), replacement);
+    return control()->getPointerType(elementType);
+  }
+
+  if (auto referenceType = type_cast<LvalueReferenceType>(type)) {
+    auto elementType =
+        replace_placeholder_types(referenceType->elementType(), replacement);
+    return control()->getLvalueReferenceType(elementType);
+  }
+
+  if (auto referenceType = type_cast<RvalueReferenceType>(type)) {
+    auto elementType =
+        replace_placeholder_types(referenceType->elementType(), replacement);
+    return control()->getRvalueReferenceType(elementType);
+  }
+
+  if (auto functionType = type_cast<FunctionType>(type)) {
+    auto returnType =
+        replace_placeholder_types(functionType->returnType(), replacement);
+    auto parameterTypes = std::vector<const Type*>{};
+    parameterTypes.reserve(functionType->parameterTypes().size());
+    for (auto parameterType : functionType->parameterTypes()) {
+      parameterTypes.push_back(
+          replace_placeholder_types(parameterType, replacement));
+    }
+    return control()->getFunctionType(
+        returnType, std::move(parameterTypes), functionType->isVariadic(),
+        functionType->cvQualifiers(), functionType->refQualifier(),
+        functionType->isNoexcept());
+  }
+
+  if (auto pointerType = type_cast<MemberObjectPointerType>(type)) {
+    auto elementType =
+        replace_placeholder_types(pointerType->elementType(), replacement);
+    return control()->getMemberObjectPointerType(pointerType->classType(),
+                                                 elementType);
+  }
+
+  if (auto pointerType = type_cast<MemberFunctionPointerType>(type)) {
+    auto functionType =
+        replace_placeholder_types(pointerType->functionType(), replacement);
+    return control()->getMemberFunctionPointerType(
+        pointerType->classType(), type_cast<FunctionType>(functionType));
+  }
+
+  return type;
+}
+
 auto TypeTraits::is_base_of(const Type* base, const Type* derived) const
     -> bool {
   auto baseClassType = type_cast<ClassType>(remove_cv(base));

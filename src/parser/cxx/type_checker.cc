@@ -81,6 +81,8 @@ constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
 }
 
 struct IsPotentiallyThrowing {
+  TranslationUnit* unit = nullptr;
+
   auto operator()(ExpressionAST*) -> bool { return false; }
 
   auto operator()(ThrowExpressionAST*) -> bool { return true; }
@@ -90,7 +92,20 @@ struct IsPotentiallyThrowing {
   auto operator()(CallExpressionAST* ast) -> bool {
     auto base = ast->baseExpression;
     if (!base) return true;
-    const FunctionType* ft = type_cast<FunctionType>(base->type);
+
+    FunctionSymbol* function = nullptr;
+    if (auto id = ast_cast<IdExpressionAST>(base))
+      function = symbol_cast<FunctionSymbol>(id->symbol);
+    else if (auto member = ast_cast<MemberExpressionAST>(base))
+      function = symbol_cast<FunctionSymbol>(member->symbol);
+
+    const FunctionType* ft = nullptr;
+    if (function) {
+      if (unit)
+        ASTRewriter::completePendingExceptionSpecification(unit, function);
+      ft = type_cast<FunctionType>(function->type());
+    }
+    if (!ft) ft = type_cast<FunctionType>(base->type);
     if (!ft)
       if (auto pt = type_cast<PointerType>(base->type))
         ft = type_cast<FunctionType>(pt->elementType());
@@ -254,6 +269,7 @@ struct IsPotentiallyThrowing {
   }
 
   auto functionIsPotentiallyThrowing(FunctionSymbol* symbol) -> bool {
+    if (unit) ASTRewriter::completePendingExceptionSpecification(unit, symbol);
     auto funcType = type_cast<FunctionType>(symbol->type());
     return !funcType || !funcType->isNoexcept();
   }
@@ -1195,6 +1211,8 @@ auto TypeChecker::Visitor::designated_function_type(
 
 auto TypeChecker::Visitor::named_symbol_type(Symbol* symbol) -> const Type* {
   ASTRewriter::completeDeducedReturnType(check.unit_, symbol);
+  if (auto function = symbol_cast<FunctionSymbol>(symbol))
+    ASTRewriter::completePendingExceptionSpecification(check.unit_, function);
   return symbol->type();
 }
 
@@ -3561,7 +3579,7 @@ void TypeChecker::Visitor::operator()(NoexceptExpressionAST* ast) {
   ast->valueCategory = ValueCategory::kPrValue;
 
   if (ast->expression && ast->expression->type) {
-    ast->value = !isPotentiallyThrowing(ast->expression);
+    ast->value = !IsPotentiallyThrowing{check.unit_}.apply(ast->expression);
   }
 }
 

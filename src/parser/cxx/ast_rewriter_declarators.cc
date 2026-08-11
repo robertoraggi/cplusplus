@@ -151,13 +151,140 @@ auto ASTRewriter::exceptionSpecifier(ExceptionSpecifierAST* ast)
   return visit(ExceptionSpecifierVisitor{*this}, ast);
 }
 
+auto ASTRewriter::pendingExceptionSpecifierMark() const -> std::size_t {
+  return pendingExceptionSpecifiers_.size();
+}
+
+void ASTRewriter::associatePendingExceptionSpecifiers(
+    std::size_t mark, FunctionSymbol* function,
+    FunctionSymbol* originalFunction,
+    ExceptionSpecifierAST* functionExceptionSpecifier,
+    std::function<void()> refreshType) {
+  for (auto index = mark; index < pendingExceptionSpecifiers_.size(); ++index) {
+    auto& pending = pendingExceptionSpecifiers_[index];
+    pending.typeRefreshers.push_back(refreshType);
+    if (function && pending.instance == functionExceptionSpecifier) {
+      pendingFunctionExceptionSpecifiers_[function] = index;
+      pending.originalFunction = originalFunction;
+    }
+  }
+}
+
+void ASTRewriter::resolvePendingExceptionSpecifier(std::size_t index) {
+  auto& pending = pendingExceptionSpecifiers_[index];
+  if (pending.state == PendingExceptionSpecifierState::kResolved) return;
+  if (pending.state == PendingExceptionSpecifierState::kDeferred) return;
+  if (pending.state == PendingExceptionSpecifierState::kResolving) {
+    error(pending.instance->noexceptLoc,
+          "recursive exception specification instantiation");
+    return;
+  }
+
+  pending.state = PendingExceptionSpecifierState::kResolving;
+
+  auto _ = Binder::ScopeGuard{&binder_};
+  binder_.setScope(pending.scope);
+  pending.instance->expression = expression(pending.pattern->expression);
+
+  for (auto& refreshType : pending.typeRefreshers) refreshType();
+
+  pending.state = PendingExceptionSpecifierState::kResolved;
+}
+
+void ASTRewriter::completePendingExceptionSpecifiers(std::size_t mark) {
+  for (const auto& [function, index] : pendingFunctionExceptionSpecifiers_) {
+    if (index < mark) continue;
+
+    auto& pending = pendingExceptionSpecifiers_[index];
+    if (pending.state != PendingExceptionSpecifierState::kUnresolved) continue;
+
+    auto specification = std::make_unique<PendingExceptionSpecification>();
+    specification->original = pending.pattern;
+    specification->instance = pending.instance;
+    specification->originalFunction = pending.originalFunction;
+    specification->templateArguments = templateArguments_;
+    specification->parentScope = pending.scope;
+    specification->depth = depth_;
+    function->setPendingExceptionSpecification(std::move(specification));
+    pending.state = PendingExceptionSpecifierState::kDeferred;
+  }
+
+  for (auto index = mark; index < pendingExceptionSpecifiers_.size(); ++index) {
+    resolvePendingExceptionSpecifier(index);
+  }
+}
+
+auto ASTRewriter::hasPendingExceptionSpecifier(ClassSymbol* classSymbol) const
+    -> bool {
+  for (const auto& [function, index] : pendingFunctionExceptionSpecifiers_) {
+    if (function->parent() != classSymbol) continue;
+    const auto state = pendingExceptionSpecifiers_[index].state;
+    if (state == PendingExceptionSpecifierState::kUnresolved ||
+        state == PendingExceptionSpecifierState::kResolving)
+      return true;
+  }
+  return false;
+}
+
+void ASTRewriter::completePendingExceptionSpecification(
+    TranslationUnit* unit, FunctionSymbol* function) {
+  if (!function) return;
+  auto pending = function->pendingExceptionSpecification();
+  if (!pending) return;
+  if (pending->state == PendingExceptionSpecificationState::kResolved) return;
+  if (pending->state == PendingExceptionSpecificationState::kResolving) {
+    if (!pending->recursionDiagnosed) {
+      unit->error(pending->instance->noexceptLoc,
+                  "recursive exception specification instantiation");
+      pending->recursionDiagnosed = true;
+    }
+    return;
+  }
+
+  pending->state = PendingExceptionSpecificationState::kResolving;
+
+  auto rewriter =
+      ASTRewriter{unit, pending->parentScope, pending->templateArguments};
+  rewriter.depth_ = pending->depth;
+  rewriter.inheritEnclosingTemplateArguments(pending->parentScope);
+  rewriter.binder_.setInstantiatingSymbol(function);
+
+  auto oldClass = symbol_cast<ClassSymbol>(pending->originalFunction->parent());
+  auto newClass = symbol_cast<ClassSymbol>(function->parent());
+
+  while (oldClass && newClass) {
+    auto oldParent = symbol_cast<ClassSymbol>(oldClass->parent());
+    auto newParent = symbol_cast<ClassSymbol>(newClass->parent());
+    if (!oldParent || !newParent) break;
+    oldClass = oldParent;
+    newClass = newParent;
+  }
+
+  if (oldClass && newClass && oldClass != newClass)
+    rewriter.remapScopeMembers(oldClass, newClass);
+
+  auto oldParameters = pending->originalFunction->functionParameters();
+  auto newParameters = function->functionParameters();
+  if (oldParameters && newParameters)
+    rewriter.remapScopeMembers(oldParameters, newParameters);
+
+  pending->instance->expression =
+      rewriter.expression(pending->original->expression);
+  const bool isNoexcept = exceptionSpecifierIsNoexcept(unit, pending->instance);
+  setFunctionNoexcept(unit->control(), function, isNoexcept);
+
+  pending->state = PendingExceptionSpecificationState::kResolved;
+}
+
 auto ASTRewriter::requiresClause(RequiresClauseAST* ast) -> RequiresClauseAST* {
   if (!ast) return {};
 
   auto copy = RequiresClauseAST::create(arena());
 
   copy->requiresLoc = ast->requiresLoc;
+  const auto saved = std::exchange(rewritingConstraintExpression_, true);
   copy->expression = unevaluatedExpression(ast->expression);
+  rewritingConstraintExpression_ = saved;
 
   return copy;
 }
@@ -270,6 +397,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
   auto copy = InitDeclaratorAST::create(arena());
 
+  const auto pendingExceptionSpecifierMark =
+      this->pendingExceptionSpecifierMark();
   copy->declarator = declarator(ast->declarator);
 
   auto decl = Decl{declSpecs, copy->declarator};
@@ -332,6 +461,20 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       }
     }
   }
+
+  auto function = symbol_cast<FunctionSymbol>(copy->symbol);
+  auto functionExceptionSpecifier =
+      static_cast<ExceptionSpecifierAST*>(nullptr);
+  if (auto prototype = getFunctionPrototype(copy->declarator))
+    functionExceptionSpecifier = prototype->exceptionSpecifier;
+
+  associatePendingExceptionSpecifiers(
+      pendingExceptionSpecifierMark, function,
+      symbol_cast<FunctionSymbol>(ast->symbol), functionExceptionSpecifier,
+      [this, copy, baseType = declSpecs.type()] {
+        auto type = getDeclaratorType(unit_, copy->declarator, baseType);
+        if (copy->symbol) copy->symbol->setType(type);
+      });
 
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol);
       fieldSymbol && !fieldSymbol->isStatic() && classBodyDepth_ > 0) {
@@ -650,8 +793,15 @@ auto ASTRewriter::ExceptionSpecifierVisitor::operator()(
 
   copy->noexceptLoc = ast->noexceptLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
+
+  if (ast->expression && rewrite.classBodyDepth_ > 0 &&
+      rewrite.restrictedToDeclarations_) {
+    rewrite.pendingExceptionSpecifiers_.push_back(
+        {ast, copy, nullptr, binder()->scope()});
+  } else {
+    copy->expression = rewrite.expression(ast->expression);
+  }
 
   return copy;
 }

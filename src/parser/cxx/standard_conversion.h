@@ -64,6 +64,10 @@ class StandardConversion {
           InitializationKind::kCopyInitialization)
       -> ImplicitConversionSequence;
 
+  [[nodiscard]] auto computeStandardConversionSequence(ExpressionAST* expr,
+                                                       const Type* targetType)
+      -> ImplicitConversionSequence;
+
   void applyConversionSequence(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
@@ -160,6 +164,13 @@ class StandardConversion {
       -> bool;
 
  private:
+  enum class ConversionScope { kStandardOnly, kImplicit };
+
+  [[nodiscard]] auto computeConversionSequenceImpl(
+      ExpressionAST* expr, const Type* targetType,
+      InitializationKind initializationKind, ConversionScope conversionScope)
+      -> ImplicitConversionSequence;
+
   [[nodiscard]] auto convertArithmetic(ExpressionAST*& expr,
                                        const Type* destinationType) -> bool;
 

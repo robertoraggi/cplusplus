@@ -32,6 +32,18 @@ struct ContainsPlaceholderType {
     return containsPlaceholderType(type->elementType());
   }
 
+  auto operator()(const BoundedArrayType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const UnboundedArrayType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const UnresolvedBoundedArrayType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
   auto operator()(const PointerType* type) const -> bool {
     return containsPlaceholderType(type->elementType());
   }
@@ -42,6 +54,22 @@ struct ContainsPlaceholderType {
 
   auto operator()(const RvalueReferenceType* type) const -> bool {
     return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const FunctionType* type) const -> bool {
+    if (containsPlaceholderType(type->returnType())) return true;
+    for (auto parameterType : type->parameterTypes()) {
+      if (containsPlaceholderType(parameterType)) return true;
+    }
+    return false;
+  }
+
+  auto operator()(const MemberObjectPointerType* type) const -> bool {
+    return containsPlaceholderType(type->elementType());
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) const -> bool {
+    return containsPlaceholderType(type->functionType());
   }
 
   template <typename T>

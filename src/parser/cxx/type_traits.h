@@ -127,6 +127,9 @@ class TypeTraits {
       -> const Type*;
   [[nodiscard]] auto get_cv_qualifiers(const Type* type) const -> CvQualifiers;
   [[nodiscard]] auto remove_noexcept(const Type* type) const -> const Type*;
+  [[nodiscard]] auto replace_placeholder_types(const Type* type,
+                                               const Type* replacement) const
+      -> const Type*;
   [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) const
       -> bool;
 
