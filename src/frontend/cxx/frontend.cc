@@ -26,18 +26,15 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/cli.h>
 #include <cxx/control.h>
-#include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lexer.h>
-#include <cxx/macos_toolchain.h>
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/symbols.h>
+#include <cxx/toolchain_config.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
-#include <cxx/wasm32_wasi_toolchain.h>
-#include <cxx/windows_toolchain.h>
 
 #ifdef CXX_WITH_MLIR
 #include <cxx/mlir/codegen.h>
@@ -103,7 +100,6 @@ struct Frontend::Private {
   }
 
   void prepare();
-  void setLanguageStandard();
   void preparePreprocessor();
   void preprocess();
   void parse();
@@ -377,120 +373,20 @@ void Frontend::Private::prepare() {
     preprocessor->setCommentHandler(diagnosticsClient_.get());
   }
 
-  auto toolchainId = cli.getSingle("-toolchain");
-
-  if (!toolchainId) {
-    toolchainId = "wasm32";
-  }
-
-  if (toolchainId == "darwin" || toolchainId == "macos") {
-    std::string host = "aarch64";
-
-#if __x86_64__
-    host = "x86_64";
-#endif
-
-    auto macToolchain = std::make_unique<MacOSToolchain>(
-        preprocessor, cli.getSingle("-arch").value_or(host));
-
-    if (auto paths = cli.get("-isysroot"); !paths.empty()) {
-      macToolchain->setSysroot(paths.back());
-    } else if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-      macToolchain->setSysroot(paths.back());
-    }
-
-    toolchain_ = std::move(macToolchain);
-
-  } else if (toolchainId == "wasm32") {
-    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
-
-    fs::path app_dir;
-
-#if __wasi__
-    app_dir = fs::path("/usr/bin/");
-#elif !defined(CXX_NO_FILESYSTEM)
-    app_dir = std::filesystem::canonical(
-        std::filesystem::path(cli.app_name).remove_filename());
-#elif __unix__ || __APPLE__
-    char* app_name = realpath(cli.app_name.c_str(), nullptr);
-    app_dir = fs::path(app_name).remove_filename().string();
-    std::free(app_name);
-#endif
-
-    wasmToolchain->setAppdir(app_dir.string());
-
-    if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-      wasmToolchain->setSysroot(paths.back());
-    } else {
-      auto sysroot_dir = app_dir / std::string("../lib/wasi-sysroot");
-      wasmToolchain->setSysroot(sysroot_dir.string());
-    }
-
-    toolchain_ = std::move(wasmToolchain);
-  } else if (toolchainId == "linux") {
-    std::string host = "x86_64";
-
-#ifdef __aarch64__
-    host = "aarch64";
-#endif
-
-    toolchain_ = std::make_unique<GCCLinuxToolchain>(
-        preprocessor, cli.getSingle("-arch").value_or(host));
-  } else if (toolchainId == "windows") {
-    std::string host = "x86_64";
-
-#ifdef __aarch64__
-    host = "aarch64";
-#endif
-
-    auto windowsToolchain = std::make_unique<WindowsToolchain>(
-        preprocessor, cli.getSingle("-arch").value_or(host));
-
-    if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
-      windowsToolchain->setVctoolsdir(paths.back());
-    }
-
-    if (auto paths = cli.get("-winsdkdir"); !paths.empty()) {
-      windowsToolchain->setWinsdkdir(paths.back());
-    }
-
-    if (auto versions = cli.get("-winsdkversion"); !versions.empty()) {
-      windowsToolchain->setWinsdkversion(versions.back());
-    }
-
-    toolchain_ = std::move(windowsToolchain);
-  }
-
-  toolchain_->initMemoryLayout();
-
-  setLanguageStandard();
-}
-
-void Frontend::Private::setLanguageStandard() {
-  auto standardName = cli.getSingle("-std");
-  if (!standardName) return;
-
-  auto standard = findLanguageStandard(*standardName);
-
-  if (!standard) {
-    std::cerr << std::format("cxx: invalid value '{}' in '-std={}'\n",
-                             *standardName, *standardName);
+  std::string error;
+  toolchain_ = createToolchain(cli, preprocessor, error);
+  if (!error.empty()) {
+    std::cerr << error << '\n';
     fail();
     return;
   }
-
-  if (standard->language != toolchain_->language()) {
-    const auto languageName =
-        toolchain_->language() == LanguageKind::kCXX ? "C++" : "C";
-
-    std::cerr << std::format(
-        "cxx: invalid argument '-std={}' not allowed with '{}'\n",
-        *standardName, languageName);
+  if (!toolchain_) {
+    auto id = cli.getSingle("-toolchain").value_or("wasm32");
+    std::cerr << std::format("cxx: unknown toolchain '{}'\n", id);
     fail();
     return;
   }
-
-  toolchain_->setLanguageStandard(standard);
+  unit_->control()->setMemoryLayout(toolchain_->memoryLayout());
 }
 
 void Frontend::Private::preparePreprocessor() {
@@ -498,42 +394,6 @@ void Frontend::Private::preparePreprocessor() {
 
   if (cli.opt_P) {
     preprocessor->setOmitLineMarkers(true);
-  }
-
-  if (!cli.opt_nostdincpp) {
-    toolchain_->addSystemCppIncludePaths();
-  }
-
-  if (!cli.opt_nostdinc) {
-    toolchain_->addSystemIncludePaths();
-  }
-
-  toolchain_->addPredefinedMacros();
-
-  for (const auto& path : cli.get("-iquote")) {
-    preprocessor->addQuoteIncludePath(path);
-  }
-
-  for (const auto& path : cli.get("-I")) {
-    preprocessor->addUserIncludePath(path);
-  }
-
-  for (const auto& path : cli.get("-isystem")) {
-    preprocessor->addSystemIncludePath(path);
-  }
-
-  for (const auto& macro : cli.get("-D")) {
-    auto sep = macro.find_first_of("=");
-
-    if (sep == std::string::npos) {
-      preprocessor->defineMacro(macro, "1");
-    } else {
-      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-    }
-  }
-
-  for (const auto& macro : cli.get("-U")) {
-    preprocessor->undefMacro(macro);
   }
 
   if (cli.opt_H && (cli.opt_E || cli.opt_Eonly)) {

@@ -1,0 +1,15 @@
+# RUN: %cxx -toolchain wasm32 -std=c++14 -lsp-test < %s | %filecheck %s
+
+{ "method": "initialize", "id": 0 }
+
+{ "method": "textDocument/didOpen", "id": 1, "params": { "textDocument": { "uri": "test:///source.cc", "version": 0, "text": "#include <iostream>\n" } } }
+
+# CHECK:  "method": "textDocument/publishDiagnostics"
+# CHECK:  "params":
+# CHECK:    "diagnostics": []
+# CHECK:    "uri": "test:///source.cc"
+# CHECK:    "version": 0
+
+{ "method": "shutdown", "id": 2 }
+
+{ "method": "exit" }
