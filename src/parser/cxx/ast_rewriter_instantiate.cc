@@ -577,10 +577,11 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     if (auto client = unit->reportingDiagnosticsClient();
         client && unit->diagnosticsClient() &&
         unit->diagnosticsClient()->isSfinae()) {
-      client->report(unit->tokenAt(instantiationLoc), Severity::Error,
+      client->report(unit->tokenAt(instantiationLoc), Severity::Fatal,
                      std::move(message));
     } else {
-      unit->error(instantiationLoc, std::move(message));
+      unit->diagnosticsClient()->report(unit->tokenAt(instantiationLoc),
+                                        Severity::Fatal, std::move(message));
     }
 
     return nullptr;
@@ -807,6 +808,12 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
   auto primaryTemplate = classSymbol->primaryTemplateSymbol();
   if (!primaryTemplate) return false;
 
+  auto templateDefinition = primaryTemplate->resolvedDefinition();
+  const bool hasPrimaryDefinition =
+      ast_cast<ClassSpecifierAST>(templateDefinition->declaration()) != nullptr;
+  auto instantiationTemplate = primaryTemplate;
+  if (hasPrimaryDefinition) instantiationTemplate = templateDefinition;
+
   TemplateSpecialization* spec = nullptr;
   for (auto& s : primaryTemplate->mutableSpecializations()) {
     if (s.symbol == classSymbol) {
@@ -822,8 +829,18 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
   spec->isPendingInstantiation = false;
   spec->pendingArgumentList = nullptr;
 
-  auto result =
-      instantiate(unit, pendingArgList, primaryTemplate, pendingLoc, false);
+  auto result = instantiate(unit, pendingArgList, instantiationTemplate,
+                            pendingLoc, false);
+
+  if (!result && !hasPrimaryDefinition) {
+    for (auto& candidate : primaryTemplate->mutableSpecializations()) {
+      if (candidate.symbol != classSymbol) continue;
+      candidate.isPendingInstantiation = true;
+      candidate.pendingArgumentList = pendingArgList;
+      candidate.pendingInstantiationLoc = pendingLoc;
+      break;
+    }
+  }
 
   if (!result) return false;
 

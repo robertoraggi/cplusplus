@@ -1518,8 +1518,8 @@ void TypeDeducer::deduceArraySizeFromExpr(VariableSymbol* var,
         ctx.control->getBoundedArrayType(ty->elementType(), bounded->size()));
 }
 
-static auto deduceCompoundAuto(InitContext& ctx, const Type* P, const Type* A)
-    -> const Type* {
+static auto deduceAutoReplacement(InitContext& ctx, const Type* P,
+                                  const Type* A) -> const Type* {
   if (!A) return nullptr;
 
   if (type_cast<AutoType>(P)) return A;
@@ -1530,32 +1530,79 @@ static auto deduceCompoundAuto(InitContext& ctx, const Type* P, const Type* A)
     auto remaining =
         CvQualifiers(std::to_underlying(aCv) & ~std::to_underlying(pCv));
     auto strippedA = ctx.traits.add_cv(ctx.traits.remove_cv(A), remaining);
-    auto inner = deduceCompoundAuto(ctx, qual->elementType(), strippedA);
-    if (!inner) return nullptr;
-    return ctx.traits.add_cv(inner, pCv);
+    return deduceAutoReplacement(ctx, qual->elementType(), strippedA);
+  }
+
+  if (auto array = type_cast<BoundedArrayType>(P)) {
+    auto aArray = type_cast<BoundedArrayType>(A);
+    if (!aArray) return nullptr;
+    return deduceAutoReplacement(ctx, array->elementType(),
+                                 aArray->elementType());
+  }
+
+  if (auto array = type_cast<UnboundedArrayType>(P)) {
+    auto aArray = type_cast<UnboundedArrayType>(A);
+    if (!aArray) return nullptr;
+    return deduceAutoReplacement(ctx, array->elementType(),
+                                 aArray->elementType());
+  }
+
+  if (auto array = type_cast<UnresolvedBoundedArrayType>(P)) {
+    auto aArray = type_cast<BoundedArrayType>(A);
+    if (!aArray) return nullptr;
+    return deduceAutoReplacement(ctx, array->elementType(),
+                                 aArray->elementType());
   }
 
   if (auto ptr = type_cast<PointerType>(P)) {
     auto aPtr = type_cast<PointerType>(A);
     if (!aPtr) return nullptr;
-    auto inner =
-        deduceCompoundAuto(ctx, ptr->elementType(), aPtr->elementType());
-    if (!inner) return nullptr;
-    return ctx.control->getPointerType(inner);
+    return deduceAutoReplacement(ctx, ptr->elementType(), aPtr->elementType());
   }
 
   if (auto ref = type_cast<LvalueReferenceType>(P)) {
-    auto inner = deduceCompoundAuto(ctx, ref->elementType(),
-                                    ctx.traits.remove_reference(A));
-    if (!inner) return nullptr;
-    return ctx.control->getLvalueReferenceType(inner);
+    return deduceAutoReplacement(ctx, ref->elementType(),
+                                 ctx.traits.remove_reference(A));
   }
 
   if (auto ref = type_cast<RvalueReferenceType>(P)) {
-    auto inner = deduceCompoundAuto(ctx, ref->elementType(),
-                                    ctx.traits.remove_reference(A));
-    if (!inner) return nullptr;
-    return ctx.control->getRvalueReferenceType(inner);
+    return deduceAutoReplacement(ctx, ref->elementType(),
+                                 ctx.traits.remove_reference(A));
+  }
+
+  if (auto function = type_cast<FunctionType>(P)) {
+    auto aFunction = type_cast<FunctionType>(A);
+    if (!aFunction) return nullptr;
+
+    if (containsPlaceholderType(function->returnType())) {
+      return deduceAutoReplacement(ctx, function->returnType(),
+                                   aFunction->returnType());
+    }
+
+    if (function->parameterTypes().size() != aFunction->parameterTypes().size())
+      return nullptr;
+
+    for (std::size_t i = 0; i < function->parameterTypes().size(); ++i) {
+      auto parameterType = function->parameterTypes()[i];
+      if (!containsPlaceholderType(parameterType)) continue;
+      return deduceAutoReplacement(ctx, parameterType,
+                                   aFunction->parameterTypes()[i]);
+    }
+    return nullptr;
+  }
+
+  if (auto pointer = type_cast<MemberObjectPointerType>(P)) {
+    auto aPointer = type_cast<MemberObjectPointerType>(A);
+    if (!aPointer) return nullptr;
+    return deduceAutoReplacement(ctx, pointer->elementType(),
+                                 aPointer->elementType());
+  }
+
+  if (auto pointer = type_cast<MemberFunctionPointerType>(P)) {
+    auto aPointer = type_cast<MemberFunctionPointerType>(A);
+    if (!aPointer) return nullptr;
+    return deduceAutoReplacement(ctx, pointer->functionType(),
+                                 aPointer->functionType());
   }
 
   return nullptr;
@@ -1598,9 +1645,12 @@ void TypeDeducer::deduceAutoType(VariableSymbol* var) {
 
   auto deducedExpr = InitUnwrapper::unwrapSingleExpr(var->initializer());
 
-  if ((!deducedExpr || !deducedExpr->type) &&
-      isEnclosedInTemplate(ctx.checker.scope())) {
-    var->setType(ctx.control->getTypeParameterType(0, 0, false));
+  const bool inTemplate = isEnclosedInTemplate(ctx.checker.scope());
+  if (inTemplate && (!deducedExpr || !deducedExpr->type ||
+                     isDependent(ctx.unit, deducedExpr) ||
+                     isDependent(ctx.unit, deducedExpr->type))) {
+    auto dependentType = ctx.control->getTypeParameterType(0, 0, false);
+    var->setType(ctx.traits.replace_placeholder_types(declType, dependentType));
     return;
   }
 
@@ -1919,7 +1969,9 @@ auto TypeChecker::deduceAutoType(const Type* declaredType,
   if (type_cast<AutoType>(declaredType))
     return ctx.traits.remove_cvref(initializerType);
 
-  return deduceCompoundAuto(ctx, declaredType, initializerType);
+  auto replacement = deduceAutoReplacement(ctx, declaredType, initializerType);
+  if (!replacement) return nullptr;
+  return ctx.traits.replace_placeholder_types(declaredType, replacement);
 }
 
 void TypeChecker::check_braced_init_list(

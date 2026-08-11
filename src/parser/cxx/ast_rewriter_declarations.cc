@@ -519,6 +519,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
     -> DeclarationAST* {
   auto copy = AliasDeclarationAST::create(arena());
+  const auto pendingExceptionSpecifierMark =
+      rewrite.pendingExceptionSpecifierMark();
 
   copy->usingLoc = ast->usingLoc;
   copy->identifierLoc = ast->identifierLoc;
@@ -561,8 +563,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   copy->symbol = symbol;
   symbol->setDeclaration(copy);
   symbol->setExpansionTypeId(copy->typeId);
-
   rewrite.addSymbolRemap(ast->symbol, symbol);
+
+  rewrite.associatePendingExceptionSpecifiers(
+      pendingExceptionSpecifierMark, nullptr, nullptr, nullptr,
+      [copy, symbol] { symbol->setType(copy->typeId->type); });
 
   return copy;
 }
@@ -625,6 +630,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
   declSpecifierListCtx.finish();
 
+  const auto pendingExceptionSpecifierMark =
+      rewrite.pendingExceptionSpecifierMark();
   copy->declarator = rewrite.declarator(ast->declarator);
 
   auto declaratorDecl = Decl{declSpecifierListCtx, copy->declarator};
@@ -705,6 +712,16 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
+
+  rewrite.associatePendingExceptionSpecifiers(
+      pendingExceptionSpecifierMark, functionSymbol,
+      symbol_cast<FunctionSymbol>(ast->symbol),
+      functionDeclarator->exceptionSpecifier,
+      [this, copy, functionSymbol, baseType = declSpecifierListCtx.type()] {
+        auto type = getDeclaratorType(rewrite.translationUnit(),
+                                      copy->declarator, baseType);
+        functionSymbol->setType(type);
+      });
 
   if (ast_cast<DefaultFunctionBodyAST>(ast->functionBody))
     functionSymbol->setDefaulted(true);
@@ -1017,6 +1034,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   }
   typeSpecifierListCtx.finish();
 
+  const auto pendingExceptionSpecifierMark =
+      rewrite.pendingExceptionSpecifierMark();
   copy->declarator = rewrite.declarator(ast->declarator);
 
   auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
@@ -1033,6 +1052,19 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   copy->expression = rewrite.expression(ast->expression);
 
   binder()->bind(copy, declaratorDecl, inTemplateParameters);
+
+  ParameterSymbol* parameter = nullptr;
+  if (!binder()->scope()->members().empty())
+    parameter =
+        symbol_cast<ParameterSymbol>(binder()->scope()->members().back());
+
+  rewrite.associatePendingExceptionSpecifiers(
+      pendingExceptionSpecifierMark, nullptr, nullptr, nullptr,
+      [this, copy, parameter, baseType = typeSpecifierListCtx.type()] {
+        copy->type = getDeclaratorType(rewrite.translationUnit(),
+                                       copy->declarator, baseType);
+        if (parameter) parameter->setType(copy->type);
+      });
 
   return copy;
 }
@@ -1101,29 +1133,40 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
     TemplateTypeParameterAST* ast) -> TemplateParameterAST* {
   auto copy = TemplateTypeParameterAST::create(arena());
 
-  copy->symbol = ast->symbol;
   copy->depth = ast->depth;
   copy->index = ast->index;
   copy->templateLoc = ast->templateLoc;
   copy->lessLoc = ast->lessLoc;
 
-  for (auto templateParameterList = &copy->templateParameterList;
-       auto node : ListView{ast->templateParameterList}) {
-    auto value = rewrite.templateParameter(node);
-    *templateParameterList = make_list_node(arena(), value);
-    templateParameterList = &(*templateParameterList)->next;
+  {
+    auto _ = Binder::ScopeGuard{binder()};
+    auto parameters = control()->newTemplateParametersSymbol(binder()->scope(),
+                                                             ast->templateLoc);
+    binder()->setScope(parameters);
+
+    for (auto templateParameterList = &copy->templateParameterList;
+         auto node : ListView{ast->templateParameterList}) {
+      auto value = rewrite.templateParameter(node);
+      *templateParameterList = make_list_node(arena(), value);
+      templateParameterList = &(*templateParameterList)->next;
+    }
+
+    copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   }
 
   copy->greaterLoc = ast->greaterLoc;
-  copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   copy->classKeyLoc = ast->classKeyLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->identifierLoc = ast->identifierLoc;
   copy->equalLoc = ast->equalLoc;
-  copy->idExpression =
-      ast_cast<IdExpressionAST>(rewrite.expression(ast->idExpression));
   copy->identifier = ast->identifier;
   copy->isPack = ast->isPack;
+
+  binder()->bind(copy, copy->index, copy->depth);
+  rewrite.addSymbolRemap(ast->symbol, copy->symbol);
+
+  copy->idExpression =
+      ast_cast<IdExpressionAST>(rewrite.expression(ast->idExpression));
 
   return copy;
 }
@@ -1132,11 +1175,13 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
     NonTypeTemplateParameterAST* ast) -> TemplateParameterAST* {
   auto copy = NonTypeTemplateParameterAST::create(arena());
 
-  copy->symbol = ast->symbol;
   copy->depth = ast->depth;
   copy->index = ast->index;
   copy->declaration =
       ast_cast<ParameterDeclarationAST>(rewrite.declaration(ast->declaration));
+
+  binder()->bind(copy, copy->index, copy->depth);
+  rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
 }
@@ -1156,6 +1201,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->isPack = ast->isPack;
 
   binder()->bind(copy, copy->index, copy->depth);
+  rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
 }
@@ -1164,7 +1210,6 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
     ConstraintTypeParameterAST* ast) -> TemplateParameterAST* {
   auto copy = ConstraintTypeParameterAST::create(arena());
 
-  copy->symbol = ast->symbol;
   copy->depth = ast->depth;
   copy->index = ast->index;
   copy->typeConstraint = rewrite.typeConstraint(ast->typeConstraint);
@@ -1173,6 +1218,9 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->equalLoc = ast->equalLoc;
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->identifier = ast->identifier;
+
+  binder()->bind(copy, copy->index, copy->depth);
+  rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
 }

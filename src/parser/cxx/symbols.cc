@@ -1359,6 +1359,16 @@ void FunctionSymbol::setPendingBody(
 
 void FunctionSymbol::clearPendingBody() { pendingBody_.reset(); }
 
+auto FunctionSymbol::pendingExceptionSpecification() const
+    -> PendingExceptionSpecification* {
+  return pendingExceptionSpecification_.get();
+}
+
+void FunctionSymbol::setPendingExceptionSpecification(
+    std::unique_ptr<PendingExceptionSpecification> pending) {
+  pendingExceptionSpecification_ = std::move(pending);
+}
+
 auto FunctionSymbol::functionParameters() const -> FunctionParametersSymbol* {
   for (auto member : members()) {
     if (auto params = symbol_cast<FunctionParametersSymbol>(member))

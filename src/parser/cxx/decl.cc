@@ -32,6 +32,32 @@
 
 namespace cxx {
 
+auto exceptionSpecifierIsNoexcept(TranslationUnit* unit,
+                                  ExceptionSpecifierAST* ast) -> bool {
+  auto noexceptSpecifier = ast_cast<NoexceptSpecifierAST>(ast);
+  if (!noexceptSpecifier) return false;
+  if (!noexceptSpecifier->expression) return true;
+
+  auto interpreter = ASTInterpreter{unit};
+  auto value = interpreter.evaluate(noexceptSpecifier->expression);
+  if (!value.has_value()) return false;
+  return interpreter.toBool(*value).value_or(false);
+}
+
+void setFunctionNoexcept(Control* control, FunctionSymbol* function,
+                         bool isNoexcept) {
+  if (!function) return;
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType || functionType->isNoexcept() == isNoexcept) return;
+
+  function->setType(control->getFunctionType(
+      functionType->returnType(),
+      std::vector<const Type*>(functionType->parameterTypes().begin(),
+                               functionType->parameterTypes().end()),
+      functionType->isVariadic(), functionType->cvQualifiers(),
+      functionType->refQualifier(), isNoexcept));
+}
+
 namespace {
 
 class GetFunctionPrototype {
@@ -305,11 +331,7 @@ struct GetDeclaratorType {
   auto operator()(ThrowExceptionSpecifierAST* ast) -> bool { return false; }
 
   auto operator()(NoexceptSpecifierAST* ast) -> bool {
-    if (!ast->expression) return true;
-    auto interp = ASTInterpreter{unit};
-    auto value = interp.evaluate(ast->expression);
-    if (value.has_value()) return interp.toBool(*value).value_or(false);
-    return false;
+    return exceptionSpecifierIsNoexcept(unit, ast);
   }
 };
 

@@ -416,6 +416,8 @@ auto ASTRewriter::typeId(TypeIdAST* ast) -> TypeIdAST* {
   if (!ast) return {};
 
   auto copy = TypeIdAST::create(arena());
+  const auto pendingExceptionSpecifierMark =
+      this->pendingExceptionSpecifierMark();
 
   auto typeSpecifierListCtx = DeclSpecs{unit_};
   for (auto typeSpecifierList = &copy->typeSpecifierList;
@@ -433,6 +435,12 @@ auto ASTRewriter::typeId(TypeIdAST* ast) -> TypeIdAST* {
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
                                           typeSpecifierListCtx.type());
   copy->type = declaratorType;
+
+  associatePendingExceptionSpecifiers(
+      pendingExceptionSpecifierMark, nullptr, nullptr, nullptr,
+      [this, copy, baseType = typeSpecifierListCtx.type()] {
+        copy->type = getDeclaratorType(unit_, copy->declarator, baseType);
+      });
 
   return copy;
 }
@@ -1074,7 +1082,11 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   copy->classKey = ast->classKey;
   copy->isFinal = ast->isFinal;
 
-  binder()->complete(copy);
+  const bool deferExceptionSpecificationChecks =
+      rewrite.hasPendingExceptionSpecifier(classSymbol);
+  binder()->complete(copy, deferExceptionSpecificationChecks);
+  if (deferExceptionSpecificationChecks)
+    rewrite.pendingExceptionSpecificationClasses_.push_back(classSymbol);
 
   if (!classSymbol->layout() && !classSymbol->templateDeclaration()) {
     auto status = binder()->buildRecordLayout(classSymbol);
@@ -1129,16 +1141,11 @@ void ASTRewriter::SpecifierVisitor::appendBaseSpecifier(
 
 void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
                                                      ClassSpecifierAST* copy) {
-  struct DelayedFunction {
-    FunctionDefinitionAST* newAst = nullptr;
-    FunctionDefinitionAST* oldAst = nullptr;
-  };
-
-  std::vector<DelayedFunction> delayedFunctions;
-
   auto savedRestricted = rewrite.restrictedToDeclarations();
   rewrite.setRestrictedToDeclarations(true);
 
+  const auto pendingExceptionSpecifierMark =
+      rewrite.pendingExceptionSpecifierMark();
   ++rewrite.classBodyDepth_;
 
   const auto pendingFieldInitializerMark =
@@ -1160,8 +1167,38 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
     }
 
     if (auto newFunc = ast_cast<FunctionDefinitionAST>(newDecl)) {
-      delayedFunctions.push_back(
-          {newFunc, ast_cast<FunctionDefinitionAST>(oldDecl)});
+      auto oldFunc = ast_cast<FunctionDefinitionAST>(oldDecl);
+      if (oldFunc && !oldFunc->functionBody) {
+        if (auto patternFunction = symbol_cast<FunctionSymbol>(oldFunc->symbol);
+            patternFunction && patternFunction->hasPendingBody()) {
+          (void)completePendingBodyFor(rewrite.unit_, patternFunction);
+        }
+      }
+
+      if (newFunc->symbol) {
+        Symbol* oldSymbol = nullptr;
+        if (oldFunc) oldSymbol = oldFunc->symbol;
+        rewrite.addSymbolRemap(oldSymbol, newFunc->symbol);
+
+        auto pending = std::make_unique<PendingBodyInstantiation>();
+        pending->originalDefinition = oldFunc;
+        pending->templateArguments = rewrite.templateArguments();
+        pending->parentScope =
+            copy->symbol->enclosingNonTemplateParametersScope();
+        pending->depth = rewrite.depth_;
+        newFunc->symbol->setPendingBody(std::move(pending));
+
+        bool isMemberFunctionTemplate = false;
+        if (auto funcSymbol = symbol_cast<FunctionSymbol>(newFunc->symbol)) {
+          if (auto templateDecl = funcSymbol->templateDeclaration()) {
+            isMemberFunctionTemplate =
+                templateDecl->templateParameterList != nullptr;
+          }
+        }
+        if (!isMemberFunctionTemplate) {
+          rewrite.pendingBodyCompletions_.push_back(newFunc->symbol);
+        }
+      }
     }
   }
 
@@ -1169,41 +1206,19 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
 
   rewrite.setRestrictedToDeclarations(savedRestricted);
 
-  for (const auto& [newAst, oldAst] : delayedFunctions) {
-    if (oldAst && !oldAst->functionBody) {
-      if (auto patternFunction = symbol_cast<FunctionSymbol>(oldAst->symbol);
-          patternFunction && patternFunction->hasPendingBody()) {
-        (void)completePendingBodyFor(rewrite.unit_, patternFunction);
-      }
-    }
-
-    if (newAst->symbol) {
-      auto pending = std::make_unique<PendingBodyInstantiation>();
-      pending->originalDefinition = oldAst;
-      pending->templateArguments = rewrite.templateArguments();
-      pending->parentScope =
-          copy->symbol->enclosingNonTemplateParametersScope();
-      pending->depth = rewrite.depth_;
-      newAst->symbol->setPendingBody(std::move(pending));
-
-      bool isMemberFunctionTemplate = false;
-      if (auto funcSymbol = symbol_cast<FunctionSymbol>(newAst->symbol)) {
-        if (auto templateDecl = funcSymbol->templateDeclaration()) {
-          isMemberFunctionTemplate =
-              templateDecl->templateParameterList != nullptr;
-        }
-      }
-      if (!isMemberFunctionTemplate) {
-        rewrite.pendingBodyCompletions_.push_back(newAst->symbol);
-      }
-    }
-  }
-
   rewrite.pendingOutOfClassMemberDefClasses_.push_back(ast->symbol);
 
   --rewrite.classBodyDepth_;
 
   if (rewrite.classBodyDepth_ != 0) return;
+
+  rewrite.completePendingExceptionSpecifiers(pendingExceptionSpecifierMark);
+
+  auto pendingExceptionSpecificationClasses =
+      std::move(rewrite.pendingExceptionSpecificationClasses_);
+  rewrite.pendingExceptionSpecificationClasses_.clear();
+  for (auto* classSymbol : pendingExceptionSpecificationClasses)
+    binder()->finalizeExceptionSpecifications(classSymbol);
 
   auto pendingFunctions = std::move(rewrite.pendingBodyCompletions_);
   rewrite.pendingBodyCompletions_.clear();

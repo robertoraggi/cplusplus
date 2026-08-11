@@ -1668,7 +1668,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
   copy->isVirtualDispatch = ast->isVirtualDispatch;
   copy->leftExpression = rewrite.expression(ast->leftExpression);
   copy->opLoc = ast->opLoc;
-  copy->rightExpression = rewrite.expression(ast->rightExpression);
+  if (rewrite.rewritingConstraintExpression_ &&
+      rewrite.constraintOperandDeterminesResult(copy->leftExpression,
+                                                ast->op)) {
+    copy->rightExpression = ast->rightExpression->clone(arena());
+  } else {
+    copy->rightExpression = rewrite.expression(ast->rightExpression);
+  }
   copy->op = ast->op;
 
   if (!copy->type || isDependent(rewrite.unit_, copy->type)) {

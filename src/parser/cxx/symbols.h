@@ -59,6 +59,24 @@ struct PendingBodyInstantiation {
   int depth = 0;
 };
 
+enum class PendingExceptionSpecificationState {
+  kUnresolved,
+  kResolving,
+  kResolved,
+};
+
+struct PendingExceptionSpecification {
+  NoexceptSpecifierAST* original = nullptr;
+  NoexceptSpecifierAST* instance = nullptr;
+  FunctionSymbol* originalFunction = nullptr;
+  std::vector<TemplateArgument> templateArguments;
+  ScopeSymbol* parentScope = nullptr;
+  int depth = 0;
+  PendingExceptionSpecificationState state =
+      PendingExceptionSpecificationState::kUnresolved;
+  bool recursionDiagnosed = false;
+};
+
 [[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
@@ -941,6 +959,11 @@ class FunctionSymbol final
   void setPendingBody(std::unique_ptr<PendingBodyInstantiation> pending);
   void clearPendingBody();
 
+  [[nodiscard]] auto pendingExceptionSpecification() const
+      -> PendingExceptionSpecification*;
+  void setPendingExceptionSpecification(
+      std::unique_ptr<PendingExceptionSpecification> pending);
+
   [[nodiscard]] auto vtableSlotIndex() const -> int { return vtableSlotIndex_; }
   void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
 
@@ -996,6 +1019,7 @@ class FunctionSymbol final
 
  private:
   std::unique_ptr<PendingBodyInstantiation> pendingBody_;
+  std::unique_ptr<PendingExceptionSpecification> pendingExceptionSpecification_;
   FunctionSymbol* completeObjectVariant_ = nullptr;
   FunctionSymbol* delegatingConstructor_ = nullptr;
   FunctionSymbol* deletingDtorVariant_ = nullptr;

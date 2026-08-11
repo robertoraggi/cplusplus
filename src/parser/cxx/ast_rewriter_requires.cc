@@ -313,6 +313,22 @@ auto ASTRewriter::evaluateConstraintExpression(
   return interp.toBool(*value);
 }
 
+auto ASTRewriter::constraintOperandDeterminesResult(ExpressionAST* operand,
+                                                    TokenKind op) const
+    -> bool {
+  if (op != TokenKind::T_AMP_AMP && op != TokenKind::T_BAR_BAR) return false;
+  if (!operand) return false;
+
+  auto interpreter = ASTInterpreter{unit_};
+  auto value = interpreter.evaluate(operand);
+  if (!value.has_value()) return false;
+  auto result = interpreter.toBool(*value);
+  if (!result.has_value()) return false;
+
+  if (op == TokenKind::T_AMP_AMP) return !*result;
+  return *result;
+}
+
 auto ASTRewriter::evaluateConcept(
     TranslationUnit* unit, ConceptSymbol* conceptSymbol,
     List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool> {

@@ -950,6 +950,21 @@ auto StandardConversion::isFloatingPointPromotion(const Type* sourceType,
 auto StandardConversion::computeConversionSequence(
     ExpressionAST* expr, const Type* targetType,
     InitializationKind initializationKind) -> ImplicitConversionSequence {
+  return computeConversionSequenceImpl(expr, targetType, initializationKind,
+                                       ConversionScope::kImplicit);
+}
+
+auto StandardConversion::computeStandardConversionSequence(
+    ExpressionAST* expr, const Type* targetType) -> ImplicitConversionSequence {
+  return computeConversionSequenceImpl(expr, targetType,
+                                       InitializationKind::kCopyInitialization,
+                                       ConversionScope::kStandardOnly);
+}
+
+auto StandardConversion::computeConversionSequenceImpl(
+    ExpressionAST* expr, const Type* targetType,
+    InitializationKind initializationKind, ConversionScope conversionScope)
+    -> ImplicitConversionSequence {
   ImplicitConversionSequence seq;
   if (!expr || !targetType) return seq;
 
@@ -1316,6 +1331,8 @@ auto StandardConversion::computeConversionSequence(
     return seq;
   }
 
+  if (conversionScope == ConversionScope::kStandardOnly) return seq;
+
   auto candidateConversionFunctions =
       [&](ClassSymbol* classSymbol) -> std::vector<FunctionSymbol*> {
     if (isDirectInitialization(initializationKind))
@@ -1378,16 +1395,9 @@ auto StandardConversion::computeConversionSequence(
   ImplicitConversionSequence bestUserDefined;
   FunctionSymbol* bestConversionFunction = nullptr;
 
-  auto checkViability = [&](const Type* from,
-                            const Type* to) -> std::pair<bool, ConversionRank> {
-    if (traits.is_same(from, to)) return {true, ConversionRank::kExactMatch};
-    if (traits.is_arithmetic(from) && traits.is_arithmetic(to))
-      return {true, ConversionRank::kConversion};
-    if (traits.is_pointer(from) && traits.is_pointer(to))
-      return {true, ConversionRank::kConversion};
-    if (traits.is_null_pointer(from) && traits.is_pointer(to))
-      return {true, ConversionRank::kConversion};
-    return {false, ConversionRank::kNone};
+  auto standardConversionRank = [&](ExpressionAST* source,
+                                    const Type* to) -> ConversionRank {
+    return computeStandardConversionSequence(source, to).rank;
   };
 
   auto updateBest = [&](FunctionSymbol* func, ConversionRank s2Rank) {
@@ -1443,10 +1453,8 @@ auto StandardConversion::computeConversionSequence(
         auto& params = funcType->parameterTypes();
         if (!isCallableWithOneArgument(ctor)) continue;
 
-        auto paramUnqual = traits.remove_cv(traits.remove_reference(params[0]));
-
-        auto [viable, s2Rank] = checkViability(unqualFrom, paramUnqual);
-        if (viable) updateBest(ctor, s2Rank);
+        auto rank = standardConversionRank(expr, params[0]);
+        if (rank != ConversionRank::kNone) updateBest(ctor, rank);
       }
     }
   }
@@ -1491,12 +1499,15 @@ auto StandardConversion::computeConversionSequence(
             continue;
           }
 
-          auto [viable, s2Rank] = checkViability(retUnqual, unqualTo);
-          if (!viable && traits.is_same(unqualTo, control_->getBoolType())) {
-            viable = true;
-            s2Rank = ConversionRank::kConversion;
-          }
-          if (viable) updateBest(convFunc, s2Rank);
+          auto result = IdExpressionAST::create(arena_);
+          result->type = retUnqual;
+          result->valueCategory = ValueCategory::kPrValue;
+          if (type_cast<LvalueReferenceType>(returnType))
+            result->valueCategory = ValueCategory::kLValue;
+          else if (type_cast<RvalueReferenceType>(returnType))
+            result->valueCategory = ValueCategory::kXValue;
+          auto rank = standardConversionRank(result, unqualTo);
+          if (rank != ConversionRank::kNone) updateBest(convFunc, rank);
         }
       }
     }

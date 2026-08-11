@@ -183,8 +183,13 @@ struct Parser::UncheckedInitializerContext {
     savedBinderScope = p->binder_.scope();
     savedLexicalScope = p->lexicalScope_;
     savedClosureNaming = p->binder_.closureNamingState();
+    auto blockParent = savedBinderScope;
+    if (blockParent && blockParent->isTemplateParameters()) {
+      blockParent = p->control()->newFunctionParametersSymbol(
+          blockParent, p->currentLocation());
+    }
     p->setScope(
-        p->control()->newBlockSymbol(savedBinderScope, p->currentLocation()));
+        p->control()->newBlockSymbol(blockParent, p->currentLocation()));
   }
 
   ~UncheckedInitializerContext() {
@@ -219,6 +224,14 @@ struct Parser::CombinedScopeGuard {
   ~CombinedScopeGuard() {
     parser->binder_.setScope(savedBinderScope);
     parser->lexicalScope_ = savedLexicalScope;
+  }
+};
+
+struct Parser::RestoredScopeChain {
+  CombinedScopeGuard guard;
+
+  RestoredScopeChain(Parser* parser, ScopeSymbol* scope) : guard(parser) {
+    parser->enterScopeChain(scope);
   }
 };
 
@@ -4854,6 +4867,7 @@ auto Parser::parse_simple_declaration(
     decl.trailingRequiresClause = requiresClause;
 
     auto functionSymbol = binder_.declareFunction(declarator, decl);
+    associatePendingNoexceptSpecifier(declarator, functionSymbol);
 
     if (auto canon = functionSymbol->canonical(); canon != functionSymbol) {
       canon->setDefinition(functionSymbol);
@@ -5012,6 +5026,7 @@ auto Parser::parse_notypespec_function_definition(
   decl.trailingRequiresClause = requiresClause;
 
   auto functionSymbol = binder_.declareFunction(declarator, decl);
+  associatePendingNoexceptSpecifier(declarator, functionSymbol);
 
   binder_.applyAbiTags(functionSymbol, attributes);
 
@@ -6368,6 +6383,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                type_cast<FunctionType>(
                    getDeclaratorType(unit_, declarator, decl.specs.type()))) {
       auto functionSymbol = binder_.declareFunction(declarator, decl);
+      associatePendingNoexceptSpecifier(declarator, functionSymbol);
       functionSymbol->setTemplateDeclaration(templateHead);
       if (templateHead)
         functionSymbol->setTemplateParameters(templateHead->symbol);
@@ -6657,7 +6673,18 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
 
   (void)parse_ref_qualifier(ast->refLoc);
 
-  (void)parse_noexcept_specifier(ast->exceptionSpecifier);
+  const auto deferredNoexceptSpecifier = isDeferredNoexceptSpecifier();
+  {
+    UncheckedInitializerContext uncheckedContext{this,
+                                                 deferredNoexceptSpecifier};
+    (void)parse_noexcept_specifier(ast->exceptionSpecifier);
+  }
+  if (deferredNoexceptSpecifier) {
+    auto noexceptSpecifier =
+        ast_cast<NoexceptSpecifierAST>(ast->exceptionSpecifier);
+    if (noexceptSpecifier && noexceptSpecifier->expression)
+      pendingNoexceptSpecifiers_.push_back({ast, scope()});
+  }
 
   if (acceptTrailingReturnType) {
     (void)parse_trailing_return_type(ast->trailingReturnType);
@@ -8916,19 +8943,26 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
 
   const auto pendingFieldInitializersMark = pendingFieldInitializers_.size();
   const auto pendingDefaultArgumentsMark = pendingDefaultArguments_.size();
+  const auto pendingNoexceptSpecifiersMark = pendingNoexceptSpecifiers_.size();
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
     parse_class_body(ast->declarationList);
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
   }
 
-  while (pendingDefaultArguments_.size() > pendingDefaultArgumentsMark ||
-         pendingFieldInitializers_.size() > pendingFieldInitializersMark) {
-    completePendingDefaultArguments(pendingDefaultArgumentsMark);
-    completePendingFieldInitializers(pendingFieldInitializersMark);
+  if (classDepth_ == 1) {
+    while (pendingDefaultArguments_.size() > pendingDefaultArgumentsMark ||
+           pendingFieldInitializers_.size() > pendingFieldInitializersMark ||
+           pendingNoexceptSpecifiers_.size() > pendingNoexceptSpecifiersMark) {
+      completePendingDefaultArguments(pendingDefaultArgumentsMark);
+      completePendingFieldInitializers(pendingFieldInitializersMark);
+      completePendingNoexceptSpecifiers(pendingNoexceptSpecifiersMark);
+    }
   }
 
-  binder_.complete(ast);
+  const bool deferExceptionSpecificationChecks =
+      hasPendingNoexceptSpecifier(ast->symbol, pendingNoexceptSpecifiersMark);
+  binder_.complete(ast, deferExceptionSpecificationChecks);
 
   return true;
 }
@@ -9130,6 +9164,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     decl.trailingRequiresClause = requiresClause;
 
     auto functionSymbol = binder_.declareFunction(declarator, decl);
+    associatePendingNoexceptSpecifier(declarator, functionSymbol);
 
     if (templateHead) {
       functionSymbol->setTemplateDeclaration(templateHead);
@@ -9308,6 +9343,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   auto symbol = binder_.declareMemberSymbol(declarator, decl);
 
   if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
+    associatePendingNoexceptSpecifier(declarator, funcSym);
     if (auto functionDeclarator = getFunctionPrototype(declarator)) {
       if (auto params = functionDeclarator->parameterDeclarationClause)
         funcSym->addSymbol(params->functionParametersSymbol);
@@ -11104,11 +11140,82 @@ void Parser::recordFieldInitializer(InitDeclaratorAST* ast) {
   auto field = symbol_cast<FieldSymbol>(ast->symbol);
   if (!field) return;
   field->setInitializer(ast->initializer);
-  if (!field->isStatic()) pendingFieldInitializers_.push_back(ast);
+  if (!field->isStatic()) pendingFieldInitializers_.push_back({ast, scope()});
 }
 
 auto Parser::isDeferredDefaultArgument(bool templParam) const -> bool {
   return classDepth_ > 0 && !uncheckedInitializerDepth_ && !templParam;
+}
+
+auto Parser::isDeferredNoexceptSpecifier() const -> bool {
+  return classDepth_ > 0 && !uncheckedInitializerDepth_;
+}
+
+auto Parser::hasPendingNoexceptSpecifier(ClassSymbol* classSymbol,
+                                         std::size_t mark) const -> bool {
+  for (std::size_t index = mark; index < pendingNoexceptSpecifiers_.size();
+       ++index) {
+    auto symbol = pendingNoexceptSpecifiers_[index].symbol;
+    if (symbol && symbol->parent() == classSymbol) return true;
+  }
+  return false;
+}
+
+void Parser::associatePendingNoexceptSpecifier(DeclaratorAST* declarator,
+                                               FunctionSymbol* symbol) {
+  auto functionDeclarator = getFunctionPrototype(declarator);
+  if (!functionDeclarator) return;
+
+  for (auto it = pendingNoexceptSpecifiers_.rbegin();
+       it != pendingNoexceptSpecifiers_.rend(); ++it) {
+    if (it->ast != functionDeclarator) continue;
+    it->symbol = symbol;
+    return;
+  }
+}
+
+void Parser::completePendingNoexceptSpecifiers(std::size_t mark) {
+  while (pendingNoexceptSpecifiers_.size() > mark) {
+    std::vector<PendingNoexceptSpecifier> pending{
+        pendingNoexceptSpecifiers_.begin() + mark,
+        pendingNoexceptSpecifiers_.end()};
+
+    pendingNoexceptSpecifiers_.resize(mark);
+    completeNoexceptSpecifiers(pending);
+  }
+}
+
+void Parser::completeNoexceptSpecifiers(
+    const std::vector<PendingNoexceptSpecifier>& pending) {
+  const auto saved = currentLocation();
+  std::unordered_set<ClassSymbol*> affectedClasses;
+
+  for (const auto& entry : pending) {
+    auto scopeGuard = RestoredScopeChain{this, entry.scope};
+
+    auto oldSpecifier = entry.ast->exceptionSpecifier;
+    rewind(oldSpecifier->firstSourceLocation());
+
+    ExceptionSpecifierAST* specifier = nullptr;
+    if (!parse_noexcept_specifier(specifier)) {
+      parse_error("expected a noexcept-specifier");
+      continue;
+    }
+    entry.ast->exceptionSpecifier = specifier;
+
+    if (!entry.symbol) continue;
+    if (auto classSymbol = symbol_cast<ClassSymbol>(entry.symbol->parent()))
+      affectedClasses.insert(classSymbol);
+    const bool isNoexcept = exceptionSpecifierIsNoexcept(unit_, specifier);
+    setFunctionNoexcept(control(), entry.symbol, isNoexcept);
+  }
+
+  for (auto classSymbol : affectedClasses) {
+    if (classSymbol->isComplete())
+      binder_.finalizeExceptionSpecifications(classSymbol);
+  }
+
+  rewind(saved);
 }
 
 void Parser::completePendingDefaultArguments(std::size_t mark) {
@@ -11127,9 +11234,7 @@ void Parser::completeDefaultArguments(
   const auto saved = currentLocation();
 
   for (const auto& entry : pending) {
-    auto _ = CombinedScopeGuard{this};
-
-    enterScopeChain(entry.scope);
+    auto scopeGuard = RestoredScopeChain{this, entry.scope};
 
     rewind(entry.ast->equalLoc.next());
     entry.ast->expression = nullptr;
@@ -11145,7 +11250,7 @@ void Parser::completeDefaultArguments(
 
 void Parser::completePendingFieldInitializers(std::size_t mark) {
   while (pendingFieldInitializers_.size() > mark) {
-    std::vector<InitDeclaratorAST*> pending{
+    std::vector<PendingFieldInitializer> pending{
         pendingFieldInitializers_.begin() + mark,
         pendingFieldInitializers_.end()};
 
@@ -11155,10 +11260,17 @@ void Parser::completePendingFieldInitializers(std::size_t mark) {
 }
 
 void Parser::completeFieldInitializers(
-    const std::vector<InitDeclaratorAST*>& pending) {
+    const std::vector<PendingFieldInitializer>& pending) {
   const auto saved = currentLocation();
+  std::unordered_set<ClassSymbol*> affectedClasses;
 
-  for (auto ast : pending) {
+  for (const auto& entry : pending) {
+    auto scopeGuard = RestoredScopeChain{this, entry.scope};
+    auto ast = entry.ast;
+    if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
+      if (auto classSymbol = symbol_cast<ClassSymbol>(field->parent()))
+        affectedClasses.insert(classSymbol);
+    }
     if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
       rewind(equal->equalLoc.next());
       equal->expression = nullptr;
@@ -11178,6 +11290,9 @@ void Parser::completeFieldInitializers(
       symbol_cast<FieldSymbol>(ast->symbol)->setInitializer(reparsed);
     }
   }
+
+  for (auto classSymbol : affectedClasses)
+    binder_.refreshImplicitExceptionSpecifications(classSymbol);
 
   rewind(saved);
 }
@@ -11227,7 +11342,10 @@ void Parser::enterScopeChain(ScopeSymbol* scope) {
   std::vector<ScopeSymbol*> scopesToPush;
 
   for (auto sc = scope; sc && !isOnLexicalScopeChain(sc); sc = sc->parent()) {
-    if (sc->isTemplateParameters()) continue;
+    if (sc->isTemplateParameters()) {
+      if (sc == scope) scopesToPush.push_back(sc);
+      continue;
+    }
     scopesToPush.push_back(sc);
     if (auto templateParameters = template_parameters_of(sc);
         templateParameters && !isOnLexicalScopeChain(templateParameters)) {
