@@ -22,18 +22,14 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
-#include <cxx/gcc_linux_toolchain.h>
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/types.h>
-#include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
-#include <cxx/private/path.h>
 #include <cxx/symbols.h>
+#include <cxx/toolchain_config.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
-#include <cxx/wasm32_wasi_toolchain.h>
-#include <cxx/windows_toolchain.h>
 
 #ifndef CXX_NO_THREADS
 #include <atomic>
@@ -94,114 +90,10 @@ struct CxxDocument::Private {
 
 void CxxDocument::Private::configure() {
   auto preprocessor = unit.preprocessor();
-
-  auto toolchainId = cli.getSingle("-toolchain");
-
-  if (!toolchainId) {
-    toolchainId = "wasm32";
-  }
-
-  if (toolchainId == "darwin" || toolchainId == "macos") {
-    std::string host = "aarch64";
-#ifdef __x86_64__
-    host = "x86_64";
-#endif
-
-    toolchain = std::make_unique<MacOSToolchain>(
-        preprocessor, cli.getSingle("-arch").value_or(host));
-  } else if (toolchainId == "wasm32") {
-    auto wasmToolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
-
-    fs::path app_dir;
-
-#if __wasi__
-    app_dir = fs::path("/usr/bin/");
-#elif !defined(CXX_NO_FILESYSTEM)
-    app_dir = std::filesystem::canonical(
-        std::filesystem::path(cli.app_name).remove_filename());
-#elif __unix__ || __APPLE__
-    char* app_name = realpath(cli.app_name.c_str(), nullptr);
-    app_dir = fs::path(app_name).remove_filename().string();
-    std::free(app_name);
-#endif
-
-    wasmToolchain->setAppdir(app_dir.string());
-
-    if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-      wasmToolchain->setSysroot(paths.back());
-    } else {
-      auto sysroot_dir = app_dir / std::string("../lib/wasi-sysroot");
-      wasmToolchain->setSysroot(sysroot_dir.string());
-    }
-
-    toolchain = std::move(wasmToolchain);
-  } else if (toolchainId == "linux") {
-    std::string host = "x86_64";
-#ifdef __aarch64__
-    host = "aarch64";
-#endif
-
-    toolchain = std::make_unique<GCCLinuxToolchain>(
-        preprocessor, cli.getSingle("-arch").value_or(host));
-
-  } else if (toolchainId == "windows") {
-    std::string host = "x86_64";
-#ifdef __aarch64__
-    host = "aarch64";
-#endif
-
-    auto windowsToolchain = std::make_unique<WindowsToolchain>(
-        preprocessor, cli.getSingle("-arch").value_or(host));
-
-    if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
-      windowsToolchain->setVctoolsdir(paths.back());
-    }
-
-    if (auto paths = cli.get("-winsdkdir"); !paths.empty()) {
-      windowsToolchain->setWinsdkdir(paths.back());
-    }
-
-    if (auto versions = cli.get("-winsdkversion"); !versions.empty()) {
-      windowsToolchain->setWinsdkversion(versions.back());
-    }
-
-    toolchain = std::move(windowsToolchain);
-  }
-
-  if (toolchain) {
-    unit.control()->setMemoryLayout(toolchain->memoryLayout());
-
-    if (auto standardName = cli.getSingle("-std")) {
-      auto standard = findLanguageStandard(*standardName);
-      if (standard && standard->language == toolchain->language()) {
-        toolchain->setLanguageStandard(standard);
-      }
-    }
-
-    if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
-
-    if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();
-
-    toolchain->addPredefinedMacros();
-  }
-
-  for (const auto& path : cli.get("-I")) {
-    preprocessor->addSystemIncludePath(path);
-  }
-
-  for (const auto& macro : cli.get("-D")) {
-    auto sep = macro.find_first_of("=");
-
-    if (sep == std::string::npos) {
-      preprocessor->defineMacro(macro, "1");
-    } else {
-      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-    }
-  }
-
-  for (const auto& macro : cli.get("-U")) {
-    preprocessor->undefMacro(macro);
-  }
+  std::string error;
+  toolchain = createToolchain(cli, preprocessor, error);
+  if (!error.empty()) toolchain.reset();
+  if (toolchain) unit.control()->setMemoryLayout(toolchain->memoryLayout());
 }
 
 CxxDocument::CxxDocument(const CLI& cli, std::string fileName, long version)
