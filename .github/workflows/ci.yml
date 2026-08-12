@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - uses: actions/checkout@v7
@@ -63,19 +63,14 @@ jobs:
           done
 
   build-linux-mlir:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - uses: actions/checkout@v7
 
       - name: Install LLVM and MLIR deps
         run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21
-          rm llvm.sh
-
-          sudo apt-get install -y libmlir-21-dev mlir-21-tools
+          sudo apt-get install -y libmlir-22-dev mlir-22-tools
 
       - name: Install unit tests requirements
         run: |
@@ -86,7 +81,7 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          PATH=/usr/lib/llvm-21/bin:$PATH
+          PATH=/usr/lib/llvm-22/bin:$PATH
 
           cmake --preset default-mlir
 
@@ -122,7 +117,7 @@ jobs:
           ctest --verbose -C Release
 
   build-emscripten:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - uses: actions/checkout@v7
@@ -170,7 +165,7 @@ jobs:
           npm -w cxx-frontend run docs
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cxx-frontend-dist
           path: |
@@ -179,7 +174,7 @@ jobs:
           retention-days: 1
 
       - name: Upload playground sysroot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cxx-playground-sysroot
           path: packages/cxx-playground/public/sysroot.zip
@@ -228,7 +223,7 @@ jobs:
           done
 
   build-wasi:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     env:
       WASMTIME_VERSION: 35.0.0
@@ -280,7 +275,7 @@ jobs:
           done
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cxx-wasi
           path: |
@@ -291,23 +286,23 @@ jobs:
           retention-days: 1
 
   build-playground:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: build-emscripten
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: cxx-frontend-dist
           path: packages/cxx-frontend
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: cxx-playground-sysroot
           path: packages/cxx-playground/public
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Build
         run: |
@@ -317,7 +312,7 @@ jobs:
           cp -a packages/cxx-frontend/docs/. packages/cxx-playground/dist/docs
 
       - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: packages/cxx-playground/dist
 
@@ -335,8 +330,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
