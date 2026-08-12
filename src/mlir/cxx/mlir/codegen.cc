@@ -809,7 +809,11 @@ void Codegen::buildSubprogramAttr(FunctionSymbol* functionSymbol,
 
   auto type = buildSubroutineTypeAttr(functionSymbol);
 
+#if LLVM_VERSION_MAJOR < 23
   mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
+#else
+  mlir::SmallVector<mlir::Attribute> retainedNodes;
+#endif
   mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
 
   auto subprogram = mlir::LLVM::DISubprogramAttr::get(
@@ -2223,6 +2227,9 @@ auto Codegen::getCompileUnitAttr() -> mlir::LLVM::DICompileUnitAttr {
 
   auto compileUnit = mlir::LLVM::DICompileUnitAttr::get(
       distinct, sourceLanguage, fileAttr, producer, isOptimized, emissionKind,
+#if LLVM_VERSION_MAJOR > 22
+      /*isDebugInfoForProfiling*/ false,
+#endif
       nameTableKind);
 
   compileUnitAttr_ = compileUnit;
@@ -2664,7 +2671,8 @@ auto Codegen::findOrCreateCxaAtexit(mlir::Location loc) -> mlir::cxx::FuncOp {
   mlir::SmallVector<mlir::Type> resultTypes{i32Type};
   auto funcType =
       mlir::cxx::FunctionType::get(context_, paramTypes, resultTypes,
-                                   /*isVariadic=*/false);
+                                   /*isVariadic=*/
+                                   false);
   auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
       context_, mlir::cxx::LinkageKind::External);
   auto inlineAttr =
