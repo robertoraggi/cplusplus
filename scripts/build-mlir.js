@@ -38,10 +38,8 @@ async function download({ pkg, version, outdir = "." }) {
   }
 
   // unpack
-  if (!(await zx.fs.exists(zx.path.join(outdir, pkg)))) {
-    await zx.fs.mkdir(zx.path.join(outdir, pkg), { recursive: true });
-    await $`tar xf ${outdir}/${fileName} -C ${outdir}/${pkg} --strip-components=1`.quiet();
-  }
+  await zx.fs.mkdir(zx.path.join(outdir, pkg), { recursive: true });
+  await $`tar xf ${outdir}/${fileName} -C ${outdir}/${pkg} --strip-components=1`.quiet();
 }
 
 async function downloadLLVM({ packages, version, outdir }) {
@@ -51,19 +49,19 @@ async function downloadLLVM({ packages, version, outdir }) {
 }
 
 async function main() {
-  const version = "21.1.7";
-  const packages = ["cmake", "third-party", "llvm", "mlir"];
+  const version = "23.1.0-rc3";
+  const packages = ["llvm-project"];
 
   const llvm_source_dir = zx.path.resolve(
-    zx.path.join("build.em", "llvm-project")
+    zx.path.join("build.em", "llvm-project"),
   );
 
   const llvm_build_dir = zx.path.resolve(
-    zx.path.join("build.em", "llvm-project", "build")
+    zx.path.join("build.em", "llvm-project", "build"),
   );
 
   const llvm_install_dir = zx.path.resolve(
-    zx.path.join("build.em", "llvm-project", "install")
+    zx.path.join("build.em", "llvm-project", "install"),
   );
 
   const llvm_cmake_options = [
@@ -78,6 +76,7 @@ async function main() {
     "-DLLVM_BUILD_TOOLS=OFF",
     "-DLLVM_ENABLE_EH=OFF",
     "-DLLVM_ENABLE_FFI=OFF",
+    "-DLLVM_ENABLE_PIC=OFF",
     "-DLLVM_ENABLE_PROJECTS=mlir",
     "-DLLVM_ENABLE_RTTI=OFF",
     "-DLLVM_ENABLE_RUNTIMES=",
@@ -104,10 +103,10 @@ async function main() {
   "name": "mlir",
   "version": "${version}",
   "type": "commonjs"
-}`
+}`,
   );
 
-  await downloadLLVM({ version, packages, outdir: llvm_source_dir });
+  await downloadLLVM({ version, packages, outdir: "build.em" });
 
   await $`emcmake cmake ${llvm_cmake_options} -S ${llvm_source_dir}/llvm -B ${llvm_build_dir}/llvm -DCMAKE_INSTALL_PREFIX=${llvm_install_dir}`;
 
@@ -119,6 +118,7 @@ async function main() {
     "llvm-tblgen",
     "mlir-pdll",
     "mlir-tblgen",
+    "mlir-src-sharder",
     "tblgen-to-irdl",
   ];
 
@@ -126,13 +126,13 @@ async function main() {
   for (const app of executables) {
     await zx.fs.copyFile(
       zx.path.join(llvm_build_dir, "llvm", "bin", app + ".wasm"),
-      zx.path.join(llvm_install_dir, "bin", app + ".wasm")
+      zx.path.join(llvm_install_dir, "bin", app + ".wasm"),
     );
 
     await zx.fs.writeFile(
       zx.path.join(llvm_install_dir, "bin", app),
       `#!/usr/bin/env node
-require("./${app}.js");`
+require("./${app}.js");`,
     );
 
     await zx.fs.chmod(zx.path.join(llvm_install_dir, "bin", app), 0o755);
@@ -145,7 +145,7 @@ require("./${app}.js");`
       "lib",
       "cmake",
       "llvm",
-      "LLVMExports-release.cmake"
+      "LLVMExports-release.cmake",
     ),
 
     zx.path.join(
@@ -153,7 +153,7 @@ require("./${app}.js");`
       "lib",
       "cmake",
       "mlir",
-      "MLIRTargets-release.cmake"
+      "MLIRTargets-release.cmake",
     ),
   ];
 

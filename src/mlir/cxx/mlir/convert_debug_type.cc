@@ -220,7 +220,12 @@ auto Codegen::ConvertDebugType::compositeType(
 #if LLVM_VERSION_MAJOR < 22
       elements, dataLocation, rank, allocated, associated
 #else
-      dataLocation, rank, allocated, associated, elements
+      dataLocation, rank, allocated, associated,
+#if LLVM_VERSION_MAJOR > 22
+      {},  // identifier
+      {},  // discriminator
+#endif
+      elements
 #endif
   );
 }
@@ -530,6 +535,10 @@ auto Codegen::ConvertDebugType::operator()(const EnumType* type)
       /*associated=*/{}
 #else
       /*dataLocation=*/{}, /*rank=*/{}, /*allocated=*/{}, /*associated=*/{},
+#if LLVM_VERSION_MAJOR > 22
+      {},  // identifier
+      {},  // discriminator
+#endif
       /*elements=*/{}
 #endif
   );
@@ -558,6 +567,11 @@ auto Codegen::ConvertDebugType::operator()(const ScopedEnumType* type)
       /*associated=*/{}
 #else
       /*dataLocation=*/{}, /*rank=*/{}, /*allocated=*/{}, /*associated=*/{},
+#if LLVM_VERSION_MAJOR > 22
+      {},  // identifier
+      {},  // discriminator
+#endif
+
       /*elements=*/{}
 #endif
   );
