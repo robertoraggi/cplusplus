@@ -40,6 +40,7 @@
 
 namespace cxx {
 class SymbolChainView;
+class TranslationUnit;
 
 class TemplateSpecialization {
  public:
@@ -77,7 +78,12 @@ struct PendingExceptionSpecification {
   bool recursionDiagnosed = false;
 };
 
-[[nodiscard]] auto compare_args(const std::vector<TemplateArgument>& args1,
+[[nodiscard]] auto compare_single_arg(TranslationUnit* unit,
+                                      const TemplateArgument& lhs,
+                                      const TemplateArgument& rhs) -> bool;
+
+[[nodiscard]] auto compare_args(TranslationUnit* unit,
+                                const std::vector<TemplateArgument>& args1,
                                 const std::vector<TemplateArgument>& args2)
     -> bool;
 
@@ -104,6 +110,12 @@ struct PendingExceptionSpecification {
 [[nodiscard]] auto template_declaration_ast(Symbol* symbol) -> AST*;
 
 [[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto names_current_instantiation(ClassSymbol* classSymbol,
+                                               ScopeSymbol* scope) -> bool;
+
+[[nodiscard]] auto names_template_head_parameters(
+    SimpleTemplateIdAST* templateId, ClassSymbol* classSymbol) -> bool;
 
 [[nodiscard]] auto template_parameter_info(Symbol* symbol)
     -> std::optional<TypeParamInfo>;
@@ -166,16 +178,33 @@ class MaybeTemplate {
 
  public:
   [[nodiscard]] auto findSpecialization(
+      TranslationUnit* unit,
       const std::vector<TemplateArgument>& arguments) const -> Symbol* {
     for (const auto& specialization : specializations()) {
       const std::vector<TemplateArgument>& args = specialization.arguments;
       if (args == arguments) return specialization.symbol;
       if (args.size() != arguments.size()) continue;
-      if (compare_args(args, arguments)) {
+      if (compare_args(unit, args, arguments)) {
         return specialization.symbol;
       }
     }
     return nullptr;
+  }
+
+  void setPendingInstantiation(S* specialization,
+                               List<TemplateArgumentAST*>* argumentList,
+                               SourceLocation location, bool isPending) {
+    for (auto& entry : mutableSpecializations()) {
+      if (entry.symbol != specialization) continue;
+      entry.pendingArgumentList = argumentList;
+      entry.pendingInstantiationLoc = location;
+      entry.isPendingInstantiation = isPending;
+      return;
+    }
+  }
+
+  void clearPendingInstantiation(S* specialization) {
+    setPendingInstantiation(specialization, nullptr, {}, false);
   }
 
   [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST* {
@@ -203,7 +232,8 @@ class MaybeTemplate {
     return template_->primaryTemplateSymbol_ != nullptr;
   }
 
-  void addSpecialization(std::vector<TemplateArgument> arguments,
+  void addSpecialization(TranslationUnit* unit,
+                         std::vector<TemplateArgument> arguments,
                          S* specialization) {
     ensure_template();
 
@@ -212,7 +242,7 @@ class MaybeTemplate {
       if (existing.symbol != specialization) continue;
       if (existing.arguments.size() != arguments.size()) continue;
       if (existing.arguments != arguments &&
-          !compare_args(existing.arguments, arguments))
+          !compare_args(unit, existing.arguments, arguments))
         continue;
       specialization->setSpecializationInfo(static_cast<S*>(this), i);
       return;
@@ -259,23 +289,26 @@ class MaybeTemplate {
   }
 
   [[nodiscard]] auto isExternInstantiationDeclared(
-      std::span<const TemplateArgument> arguments) const -> bool {
+      TranslationUnit* unit, std::span<const TemplateArgument> arguments) const
+      -> bool {
     if (!template_) return false;
     for (const auto& args : template_->externInstantiationDeclarations_) {
       if (args.size() != arguments.size()) continue;
       if (std::equal(args.begin(), args.end(), arguments.begin()) ||
-          compare_args(args, std::vector<TemplateArgument>(arguments.begin(),
-                                                           arguments.end())))
+          compare_args(unit, args,
+                       std::vector<TemplateArgument>(arguments.begin(),
+                                                     arguments.end())))
         return true;
     }
     return false;
   }
 
-  [[nodiscard]] auto isExplicitInstantiationDeclared() const -> bool {
+  [[nodiscard]] auto isExplicitInstantiationDeclared(
+      TranslationUnit* unit) const -> bool {
     if (!isSpecialization()) return false;
     auto primary = primaryTemplateSymbol();
     if (!primary) return false;
-    return primary->isExternInstantiationDeclared(templateArguments());
+    return primary->isExternInstantiationDeclared(unit, templateArguments());
   }
 
   [[nodiscard]] auto primaryTemplateSymbol() const -> S* {
@@ -349,9 +382,6 @@ class Symbol {
   void setParent(ScopeSymbol* parent);
 
   [[nodiscard]] auto enclosingNamespace() const -> NamespaceSymbol*;
-
-  [[nodiscard]] auto enclosingNonTemplateParametersScope() const
-      -> ScopeSymbol*;
 
   [[nodiscard]] auto enclosingSymbols() const {
     return std::ranges::subrange(EnclosingSymbolIterator{parent()},
@@ -1299,11 +1329,19 @@ class FieldSymbol final : public Symbol {
   }
   void setDefinition(VariableSymbol* definition) { definition_ = definition; }
 
+  [[nodiscard]] auto isDefinitionRequired() const -> bool {
+    return isDefinitionRequired_;
+  }
+  void setDefinitionRequired(bool isDefinitionRequired) {
+    isDefinitionRequired_ = isDefinitionRequired;
+  }
+
  private:
   VariableSymbol* definition_ = nullptr;
   union {
     std::uint32_t flags_{};
     struct {
+      std::uint32_t isDefinitionRequired_ : 1;
       std::uint32_t isBitField_ : 1;
       std::uint32_t isStatic_ : 1;
       std::uint32_t isThreadLocal_ : 1;
@@ -1513,4 +1551,8 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
 }
 
 [[nodiscard]] auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool;
+
+[[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto isUsableInConstantExpressions(Symbol* symbol) -> bool;
 }  // namespace cxx

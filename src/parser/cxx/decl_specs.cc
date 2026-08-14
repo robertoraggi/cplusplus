@@ -476,6 +476,11 @@ void DeclSpecs::Visitor::operator()(ClassSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
+  if (ast->symbol) {
+    specs.type_ = ast->symbol->type();
+    return;
+  }
+
   const auto dependentQualifier =
       isDependent(specs.translationUnit(), ast->nestedNameSpecifier);
 

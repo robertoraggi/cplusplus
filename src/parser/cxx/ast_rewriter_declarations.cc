@@ -440,12 +440,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
         pack = rewrite.findReferencedParameterPack(node->unqualifiedId);
 
       if (pack) {
-        rewrite.forEachPackElement(pack, [&] {
-          auto value = rewrite.usingDeclarator(node);
-          value->ellipsisLoc = {};
-          value->isPack = false;
-          append(usingDeclaratorList, value);
-        });
+        rewrite.forEachPackElement(
+            node, node->ellipsisLoc,
+            [&] {
+              auto value = rewrite.usingDeclarator(node);
+              value->ellipsisLoc = {};
+              value->isPack = false;
+              append(usingDeclaratorList, value);
+            },
+            pack);
 
         continue;
       }
@@ -552,7 +555,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
                                            addSymbolToParentScope);
   if (!addSymbolToParentScope && !rewrite.substitutionFailed() &&
       !rewrite.retainsEnclosingTemplateLevels()) {
-    ast->symbol->addSpecialization(rewrite.templateArguments(), symbol);
+    ast->symbol->addSpecialization(translationUnit(),
+                                   rewrite.templateArguments(), symbol);
   }
 
   if (templateHead && addSymbolToParentScope) {
@@ -739,7 +743,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
                     instSym->canonical() == primaryForThis ||
                     (isFunctionTemplateSpecialization &&
                      instSym->templateDeclaration()))) {
-      instSym->addSpecialization(rewrite.templateArguments(), functionSymbol);
+      instSym->addSpecialization(translationUnit(), rewrite.templateArguments(),
+                                 functionSymbol);
     }
   }
 

@@ -108,6 +108,19 @@ class TemplateArgumentDeduction {
       List<TemplateArgumentAST*>* argumentsSoFar)
       -> std::optional<std::vector<TemplateArgument>>;
 
+  [[nodiscard]] auto substituteDefaultTypeId(
+      TypeIdAST* typeId, const std::vector<TemplateArgument>& arguments)
+      -> TypeIdAST*;
+
+  [[nodiscard]] auto substituteDefaultExpression(
+      ExpressionAST* expression, const std::vector<TemplateArgument>& arguments)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto defaultTemplateArgument(
+      TemplateParameterAST* parameter,
+      const std::vector<TemplateArgument>& argumentsSoFar)
+      -> TemplateArgumentAST*;
+
   static auto getParameterClause(DeclarationAST* decl)
       -> ParameterDeclarationClauseAST*;
 
@@ -130,6 +143,8 @@ class TemplateArgumentDeduction {
 
   [[nodiscard]] auto recordDeducedValue(int index, const ConstValue& value,
                                         bool isPack) -> bool;
+
+  void beginParameterDeduction();
 
   [[nodiscard]] auto deduceFromClassTemplateParam(
       ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P)
@@ -154,6 +169,7 @@ class TemplateArgumentDeduction {
   std::vector<const Type*> deducedTypes_;
   std::vector<std::optional<std::uint64_t>> deducedValues_;
   std::vector<std::vector<const Type*>> deducedPacks_;
+  std::vector<std::size_t> packElementCursor_;
   std::vector<std::vector<std::uint64_t>> deducedValuePacks_;
   List<ParameterDeclarationAST*>* parameterDeclarations_ = nullptr;
   TemplateDeclarationAST* templateDecl_ = nullptr;

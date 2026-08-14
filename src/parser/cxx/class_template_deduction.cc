@@ -53,24 +53,6 @@ ClassTemplateArgumentDeduction::ClassTemplateArgumentDeduction(
     TranslationUnit* unit)
     : unit_(unit), control_(unit->control()), arena_(unit->arena()) {}
 
-auto ClassTemplateArgumentDeduction::namesCurrentInstantiation(
-    ClassSymbol* classSymbol, ScopeSymbol* scope) -> bool {
-  auto primary = classSymbol->resolvedDefinition();
-
-  for (auto enclosing = scope; enclosing; enclosing = enclosing->parent()) {
-    auto enclosingClass = symbol_cast<ClassSymbol>(enclosing);
-    if (!enclosingClass) continue;
-
-    auto candidate = enclosingClass->isSpecialization()
-                         ? enclosingClass->primaryTemplateSymbol()
-                         : enclosingClass;
-    if (!candidate) continue;
-    if (candidate->resolvedDefinition() == primary) return true;
-  }
-
-  return false;
-}
-
 auto ClassTemplateArgumentDeduction::placeholderClassTemplate(
     SpecifierAST* typeSpecifier, ScopeSymbol* scope) -> ClassSymbol* {
   auto named = ast_cast<NamedTypeSpecifierAST>(typeSpecifier);
@@ -84,7 +66,7 @@ auto ClassTemplateArgumentDeduction::placeholderClassTemplate(
   if (!classSymbol->templateDeclaration()) return nullptr;
   if (classSymbol->isSpecialization()) return nullptr;
 
-  if (namesCurrentInstantiation(classSymbol, scope)) return nullptr;
+  if (names_current_instantiation(classSymbol, scope)) return nullptr;
 
   return classSymbol;
 }

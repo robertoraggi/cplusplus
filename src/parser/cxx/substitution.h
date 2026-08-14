@@ -40,12 +40,17 @@ class Substitution {
 
   Substitution(TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
                List<TemplateArgumentAST*>* templateArgumentList,
-               bool argsComplete = false);
+               bool argsComplete = false, bool fillDefaults = true);
 
   [[nodiscard]] static auto make(
       TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
       List<TemplateArgumentAST*>* templateArgumentList,
       bool argsComplete = false) -> std::optional<Substitution>;
+
+  [[nodiscard]] static auto makePartial(
+      TranslationUnit* unit, TemplateDeclarationAST* templateDecl,
+      List<TemplateArgumentAST*>* templateArgumentList)
+      -> std::optional<Substitution>;
 
   auto templateArguments() const& -> const std::vector<TemplateArgument>& {
     return templateArguments_;
@@ -93,5 +98,6 @@ class Substitution {
   std::vector<TemplateArgument> templateArguments_;
   bool hadError_ = false;
   bool argsComplete_ = false;
+  bool fillDefaults_ = true;
 };
 }  // namespace cxx

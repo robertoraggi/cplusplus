@@ -171,6 +171,7 @@ auto TemplateArgumentDeduction::deduceFromTargetType(
 
     ++targetIt;
     if (paramDeclIt) paramDeclIt = paramDeclIt->next;
+    beginParameterDeduction();
   }
 
   if (!checkDeducedArguments()) return std::nullopt;
@@ -238,6 +239,7 @@ void TemplateArgumentDeduction::collectTemplateParameters(
   deducedTypes_.assign(n, nullptr);
   deducedValues_.assign(n, std::nullopt);
   deducedPacks_.assign(n, {});
+  packElementCursor_.assign(n, 0);
   deducedValuePacks_.assign(n, {});
 }
 
@@ -447,7 +449,16 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
       }
     }
 
-    deducedPacks_[idx].push_back(deducedArg);
+    auto& elements = deducedPacks_[idx];
+    auto& cursor = packElementCursor_[idx];
+
+    if (cursor < elements.size()) {
+      if (!traits.is_same(elements[cursor], deducedArg)) return false;
+    } else {
+      elements.push_back(deducedArg);
+    }
+
+    ++cursor;
     return true;
   }
 
@@ -617,6 +628,10 @@ auto TemplateArgumentDeduction::deduceFromCallArgument(const Type* P,
   return deduceTypeFromType(P, traits.remove_cv(A));
 }
 
+void TemplateArgumentDeduction::beginParameterDeduction() {
+  packElementCursor_.assign(packElementCursor_.size(), 0);
+}
+
 auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
                                                List<ExpressionAST*>* args)
     -> bool {
@@ -646,6 +661,7 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
     if (packSlot < 0 || !templateParams_[packSlot].isPack) {
       ++paramIt;
       if (paramDeclIt) paramDeclIt = paramDeclIt->next;
+      beginParameterDeduction();
     }
   }
 
@@ -704,16 +720,31 @@ auto TemplateArgumentDeduction::collectDeducedSoFar(
     -> std::optional<std::vector<TemplateArgument>> {
   if (!argumentsSoFar) return std::vector<TemplateArgument>{};
 
-  SilentDiagnosticsClient silent;
-  auto saved = unit_->changeDiagnosticsClient(&silent);
+  SilentDiagnosticsScope silent{unit_};
   auto substitution =
-      Substitution::make(unit_, templateDecl_, argumentsSoFar, false);
-  (void)unit_->changeDiagnosticsClient(saved);
+      Substitution::makePartial(unit_, templateDecl_, argumentsSoFar);
 
   if (!substitution.has_value() || substitution->hadError())
     return std::nullopt;
 
   return std::move(*substitution).templateArguments();
+}
+
+auto TemplateArgumentDeduction::substituteDefaultTypeId(
+    TypeIdAST* typeId, const std::vector<TemplateArgument>& arguments)
+    -> TypeIdAST* {
+  SilentDiagnosticsScope silent{unit_};
+  return ASTRewriter::substituteDefaultTypeId(
+      unit_, typeId, arguments, templateDecl_->depth, templateDecl_->symbol);
+}
+
+auto TemplateArgumentDeduction::substituteDefaultExpression(
+    ExpressionAST* expression, const std::vector<TemplateArgument>& arguments)
+    -> ExpressionAST* {
+  SilentDiagnosticsScope silent{unit_};
+  return ASTRewriter::substituteDefaultExpression(unit_, expression, arguments,
+                                                  templateDecl_->depth,
+                                                  templateDecl_->symbol);
 }
 
 auto TemplateArgumentDeduction::recordDeducedValue(int index,
@@ -891,59 +922,12 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
     if (!deducedTypes_[i]) {
       if (!templateParams_[i].hasDefault) return std::nullopt;
       auto p = templateParams_[i].parameterAST;
-      if (auto n = ast_cast<NonTypeTemplateParameterAST>(p)) {
-        if (!n->declaration || !n->declaration->expression) return std::nullopt;
-
-        if (auto declaredType = n->declaration->type;
-            declaredType && isDependent(unit_, declaredType) && templateDecl_) {
-          if (auto deducedSoFar = collectDeducedSoFar(templArgList);
-              deducedSoFar && !deducedSoFar->empty()) {
-            auto typeId = TypeIdAST::create(arena_);
-            typeId->typeSpecifierList = n->declaration->typeSpecifierList;
-            typeId->declarator = n->declaration->declarator;
-
-            SilentDiagnosticsClient silent;
-            auto saved = unit_->changeDiagnosticsClient(&silent);
-            auto substituted = ASTRewriter::substituteDefaultTypeId(
-                unit_, typeId, *deducedSoFar, templateDecl_->depth,
-                templateDecl_->symbol);
-            (void)unit_->changeDiagnosticsClient(saved);
-
-            if (!substituted || !substituted->type ||
-                type_cast<UnresolvedNameType>(substituted->type)) {
-              return std::nullopt;
-            }
-          }
-        }
-
-        auto exprArg = ExpressionTemplateArgumentAST::create(arena_);
-        exprArg->expression = n->declaration->expression;
-        *argListIt = make_list_node<TemplateArgumentAST>(arena_, exprArg);
-        argListIt = &(*argListIt)->next;
-      } else if (auto t = ast_cast<TypenameTypeParameterAST>(p)) {
-        if (!t->typeId) return std::nullopt;
-        auto typeId = t->typeId;
-        if (!typeId->type || isDependent(unit_, typeId->type)) {
-          if (auto deducedSoFar = collectDeducedSoFar(templArgList);
-              deducedSoFar && !deducedSoFar->empty() && templateDecl_) {
-            SilentDiagnosticsClient silent;
-            auto saved = unit_->changeDiagnosticsClient(&silent);
-            auto substituted = ASTRewriter::substituteDefaultTypeId(
-                unit_, typeId, *deducedSoFar, templateDecl_->depth,
-                templateDecl_->symbol);
-            (void)unit_->changeDiagnosticsClient(saved);
-            if (!substituted || !substituted->type ||
-                type_cast<UnresolvedNameType>(substituted->type)) {
-              return std::nullopt;
-            }
-            if (!isDependent(unit_, substituted->type)) typeId = substituted;
-          }
-        }
-        auto typeArg = TypeTemplateArgumentAST::create(arena_);
-        typeArg->typeId = typeId;
-        *argListIt = make_list_node<TemplateArgumentAST>(arena_, typeArg);
-        argListIt = &(*argListIt)->next;
-      }
+      auto deducedSoFar = collectDeducedSoFar(templArgList);
+      if (!deducedSoFar.has_value()) return std::nullopt;
+      auto defaultArgument = defaultTemplateArgument(p, *deducedSoFar);
+      if (!defaultArgument) return std::nullopt;
+      *argListIt = make_list_node<TemplateArgumentAST>(arena_, defaultArgument);
+      argListIt = &(*argListIt)->next;
       continue;
     }
 
@@ -956,6 +940,41 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
   }
 
   return templArgList;
+}
+
+auto TemplateArgumentDeduction::defaultTemplateArgument(
+    TemplateParameterAST* parameter,
+    const std::vector<TemplateArgument>& argumentsSoFar)
+    -> TemplateArgumentAST* {
+  if (auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter)) {
+    if (!nonType->declaration || !nonType->declaration->expression) {
+      return nullptr;
+    }
+    auto expression = nonType->declaration->expression;
+    if (isDependent(unit_, expression) && !argumentsSoFar.empty()) {
+      expression = substituteDefaultExpression(expression, argumentsSoFar);
+      if (!expression) return nullptr;
+    }
+    auto argument = ExpressionTemplateArgumentAST::create(arena_);
+    argument->expression = expression;
+    return argument;
+  }
+
+  auto type = ast_cast<TypenameTypeParameterAST>(parameter);
+  if (!type || !type->typeId) return nullptr;
+  auto typeId = type->typeId;
+  if ((!typeId->type || isDependent(unit_, typeId->type)) &&
+      !argumentsSoFar.empty() && templateDecl_) {
+    auto substituted = substituteDefaultTypeId(typeId, argumentsSoFar);
+    if (!substituted || !substituted->type ||
+        type_cast<UnresolvedNameType>(substituted->type)) {
+      return nullptr;
+    }
+    typeId = substituted;
+  }
+  auto argument = TypeTemplateArgumentAST::create(arena_);
+  argument->typeId = typeId;
+  return argument;
 }
 
 auto TemplateArgumentDeduction::getParameterClause(DeclarationAST* decl)

@@ -192,7 +192,7 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
   for (auto constraint : constraints) {
     if (!constraint->type) {
       auto typeChecker = TypeChecker{unit};
-      typeChecker.setScope(symbol->enclosingNonTemplateParametersScope());
+      typeChecker.setScope(symbol->parent());
       typeChecker.setReportErrors(false);
       typeChecker.check(constraint);
     }
@@ -237,7 +237,7 @@ auto ASTRewriter::checkConstraintExpression(
                                      templateArguments, depth);
   }
 
-  auto parentScope = symbol->enclosingNonTemplateParametersScope();
+  auto parentScope = symbol->parent();
   auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
   reqRewriter.depth_ = depth;
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
@@ -352,10 +352,11 @@ void ASTRewriter::check(ExpressionAST* ast) {
   if (!ast) return;
   if (isDependent(unit_, ast)) return;
 
+  TranslationUnit::PotentiallyEvaluatedScope evaluated{
+      unit_, unevaluatedOperandDepth_ == 0};
   auto typeChecker = TypeChecker{unit_};
   typeChecker.setScope(binder_.scope());
   typeChecker.setReportErrors(shouldReportCheckErrors());
-  typeChecker.setPotentiallyEvaluated(unevaluatedOperandDepth_ == 0);
   typeCheckAndCapture([&] { typeChecker.check(ast); });
 }
 

@@ -36,6 +36,7 @@
 
 #include <utf8/unchecked.h>
 
+#include <algorithm>
 #include <ostream>
 
 namespace cxx {
@@ -201,26 +202,41 @@ auto TranslationUnit::globalScope() const -> ScopeSymbol* {
 
 void TranslationUnit::addPendingMemberInstantiation(ClassSymbol* instance) {
   if (!instance) return;
-  if (std::find(pendingMemberInstantiations_.begin(),
-                pendingMemberInstantiations_.end(),
-                instance) != pendingMemberInstantiations_.end())
-    return;
+  if (std::ranges::contains(pendingMemberInstantiations_, instance)) return;
   pendingMemberInstantiations_.push_back(instance);
+}
+
+void TranslationUnit::reopenMemberInstantiation(ClassSymbol* instance) {
+  if (!instance) return;
+  instantiatedMemberClasses_.erase(instance);
+  addPendingMemberInstantiation(instance);
+}
+
+auto TranslationUnit::beginMemberInstantiation(ClassSymbol* instance) -> bool {
+  if (!instance) return false;
+  return instantiatedMemberClasses_.insert(instance).second;
 }
 
 auto TranslationUnit::takePendingMemberInstantiations()
     -> std::vector<ClassSymbol*> {
-  return std::move(pendingMemberInstantiations_);
+  auto pending = std::move(pendingMemberInstantiations_);
+  pendingMemberInstantiations_.clear();
+  return pending;
 }
 
 void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function) {
   if (!function) return;
+  if (!function->hasPendingBody()) return;
+  if (!function->isDefinitionRequired()) return;
+  if (std::ranges::contains(pendingBodyCompletions_, function)) return;
   pendingBodyCompletions_.push_back(function);
 }
 
 auto TranslationUnit::takePendingBodyCompletions()
     -> std::vector<FunctionSymbol*> {
-  return std::move(pendingBodyCompletions_);
+  auto pending = std::move(pendingBodyCompletions_);
+  pendingBodyCompletions_.clear();
+  return pending;
 }
 
 void TranslationUnit::deferBodyDiagnostics(

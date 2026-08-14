@@ -153,6 +153,10 @@ template <typename Predicate>
     TranslationUnit* unit, const Name* name,
     std::span<const Type* const> argumentTypes) -> std::vector<FunctionSymbol*>;
 
+[[nodiscard]] auto isDeferredDependentLookupContext(TranslationUnit* unit,
+                                                    Symbol* lookupContext,
+                                                    ScopeSymbol* scope) -> bool;
+
 [[nodiscard]] auto isArgumentDependentCallee(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto isPureFriend(FunctionSymbol* func) -> bool;

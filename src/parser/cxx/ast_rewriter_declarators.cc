@@ -329,19 +329,22 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
         auto funcParamPack = control()->newParameterPackSymbol(
             binder().scope(), SourceLocation{});
 
-        forEachPackElement(pack, [&] {
-          auto membersBefore = binder().scope()->members().size();
+        forEachPackElement(
+            paramDecl, paramDecl->firstSourceLocation(),
+            [&] {
+              auto membersBefore = binder().scope()->members().size();
 
-          auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
-          if (value) value->isPack = false;
-          *parameterDeclarationList = make_list_node(arena(), value);
-          parameterDeclarationList = &(*parameterDeclarationList)->next;
+              auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
+              if (value) value->isPack = false;
+              *parameterDeclarationList = make_list_node(arena(), value);
+              parameterDeclarationList = &(*parameterDeclarationList)->next;
 
-          const auto& members = binder().scope()->members();
-          if (members.size() > membersBefore) {
-            funcParamPack->addElement(members.back());
-          }
-        });
+              const auto& members = binder().scope()->members();
+              if (members.size() > membersBefore) {
+                funcParamPack->addElement(members.back());
+              }
+            },
+            pack);
 
         if (originalParam) {
           functionParamPacks_[originalParam] = funcParamPack;
@@ -455,7 +458,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
         if (!addSymbolToParentScope && !isOutOfClassMemberDef) {
           auto templateVariable = symbol_cast<VariableSymbol>(ast->symbol);
-          templateVariable->addSpecialization(templateArguments(),
+          templateVariable->addSpecialization(unit_, templateArguments(),
                                               variableSymbol);
         }
       }

@@ -18,11 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 #include <cstdlib>
@@ -32,6 +34,27 @@
 
 namespace cxx {
 namespace {
+[[nodiscard]] auto appendNestedNameSpecifier(
+    TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId) -> NestedNameSpecifierAST* {
+  if (auto nameId = ast_cast<NameIdAST>(unqualifiedId)) {
+    auto result = SimpleNestedNameSpecifierAST::create(unit->arena());
+    result->nestedNameSpecifier = nestedNameSpecifier;
+    result->identifierLoc = nameId->identifierLoc;
+    result->identifier = nameId->identifier;
+    return result;
+  }
+
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {
+    auto result = TemplateNestedNameSpecifierAST::create(unit->arena());
+    result->nestedNameSpecifier = nestedNameSpecifier;
+    result->templateId = templateId;
+    return result;
+  }
+
+  return nullptr;
+}
+
 template <typename Literal>
 struct LiteralHash {
   using is_transparent = void;
@@ -509,6 +532,10 @@ auto Control::getMemberFunctionPointerType(const ClassType* classType,
   return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
 }
 
+auto Control::getDependentType() -> const TypeParameterType* {
+  return getTypeParameterType(0, 0, false);
+}
+
 auto Control::getTypeParameterType(int index, int depth, bool isParameterPack)
     -> const TypeParameterType* {
   return &*d->typeParameterTypes.emplace(index, depth, isParameterPack).first;
@@ -527,6 +554,17 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
                                     NestedNameSpecifierAST* nestedNameSpecifier,
                                     UnqualifiedIdAST* unqualifiedId)
     -> const UnresolvedNameType* {
+  while (nestedNameSpecifier) {
+    auto alias = symbol_cast<TypeAliasSymbol>(nestedNameSpecifier->symbol);
+    auto expansion =
+        alias ? type_cast<UnresolvedNameType>(alias->type()) : nullptr;
+    if (!expansion) break;
+    auto expandedQualifier = appendNestedNameSpecifier(
+        unit, expansion->nestedNameSpecifier(), expansion->unqualifiedId());
+    if (!expandedQualifier) break;
+    nestedNameSpecifier = expandedQualifier;
+  }
+
   return &*d->unresolvedNameTypes
                .emplace(unit, nestedNameSpecifier, unqualifiedId)
                .first;

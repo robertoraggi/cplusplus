@@ -25,22 +25,22 @@ struct Codegen {
 // CHECK-NEXT:      class BasicBlock
 // CHECK-NEXT:    class Codegen
 // CHECK-NEXT:      constructor defaulted void Codegen()
-// CHECK-NEXT:      constructor defaulted void Codegen(const cxx::Codegen&)
+// CHECK-NEXT:      constructor defaulted void Codegen(const ::cxx::Codegen&)
 // CHECK-NEXT:        parameters
-// CHECK-NEXT:          parameter const cxx::Codegen&
-// CHECK-NEXT:      constructor defaulted void Codegen(cxx::Codegen&&)
+// CHECK-NEXT:          parameter const ::cxx::Codegen&
+// CHECK-NEXT:      constructor defaulted void Codegen(::cxx::Codegen&&)
 // CHECK-NEXT:        parameters
-// CHECK-NEXT:          parameter cxx::Codegen&&
+// CHECK-NEXT:          parameter ::cxx::Codegen&&
 // CHECK-NEXT:      injected class name Codegen
-// CHECK-NEXT:      function void cg_condition(cxx::ExpressionAST*, ir::BasicBlock*, ir::BasicBlock*)
+// CHECK-NEXT:      function void cg_condition(::cxx::ExpressionAST*, ::cxx::ir::BasicBlock*, ::cxx::ir::BasicBlock*)
 // CHECK-NEXT:        parameters
-// CHECK-NEXT:          parameter cxx::ExpressionAST* ast
-// CHECK-NEXT:          parameter ir::BasicBlock* iftrue
-// CHECK-NEXT:          parameter ir::BasicBlock* iffalse
-// CHECK-NEXT:      function defaulted cxx::Codegen& operator =(const cxx::Codegen&)
+// CHECK-NEXT:          parameter ::cxx::ExpressionAST* ast
+// CHECK-NEXT:          parameter ::cxx::ir::BasicBlock* iftrue
+// CHECK-NEXT:          parameter ::cxx::ir::BasicBlock* iffalse
+// CHECK-NEXT:      function defaulted ::cxx::Codegen& operator =(const ::cxx::Codegen&)
 // CHECK-NEXT:        parameters
-// CHECK-NEXT:          parameter const cxx::Codegen&
-// CHECK-NEXT:      function defaulted cxx::Codegen& operator =(cxx::Codegen&&)
+// CHECK-NEXT:          parameter const ::cxx::Codegen&
+// CHECK-NEXT:      function defaulted ::cxx::Codegen& operator =(::cxx::Codegen&&)
 // CHECK-NEXT:        parameters
-// CHECK-NEXT:          parameter cxx::Codegen&&
+// CHECK-NEXT:          parameter ::cxx::Codegen&&
 // CHECK-NEXT:      function defaulted void ~Codegen()

@@ -44,9 +44,10 @@ struct ASTRewriter::ConstraintSubsumption {
     ExpressionAST* expression = nullptr;
     std::vector<TemplateArgument> parameterMapping;
 
-    [[nodiscard]] auto isIdenticalTo(const Atom& other) const -> bool {
+    [[nodiscard]] auto isIdenticalTo(TranslationUnit* unit,
+                                     const Atom& other) const -> bool {
       if (expression != other.expression) return false;
-      return compare_args(parameterMapping, other.parameterMapping);
+      return compare_args(unit, parameterMapping, other.parameterMapping);
     }
   };
 
@@ -88,15 +89,15 @@ struct ASTRewriter::ConstraintSubsumption {
                                        const NormalForm& rhs)
       -> std::optional<NormalForm>;
 
-  [[nodiscard]] static auto subsumes(const std::optional<Constraint>& lhs,
-                                     const std::optional<Constraint>& rhs)
+  [[nodiscard]] auto subsumes(const std::optional<Constraint>& lhs,
+                              const std::optional<Constraint>& rhs) const
       -> std::optional<bool>;
 
-  [[nodiscard]] static auto clauseSubsumes(const Clause& lhs, const Clause& rhs)
+  [[nodiscard]] auto clauseSubsumes(const Clause& lhs, const Clause& rhs) const
       -> bool;
 
-  [[nodiscard]] static auto leafSubsumes(const Constraint& lhs,
-                                         const Constraint& rhs) -> bool;
+  [[nodiscard]] auto leafSubsumes(const Constraint& lhs,
+                                  const Constraint& rhs) const -> bool;
 
   [[nodiscard]] static auto containsConceptDependent(
       const Constraint& constraint) -> bool;
@@ -335,7 +336,7 @@ auto ASTRewriter::ConstraintSubsumption::normalizeFold(
 
 auto ASTRewriter::ConstraintSubsumption::normalizeAssociatedConstraints(
     Symbol* symbol) -> std::optional<Constraint> {
-  auto parentScope = symbol->enclosingNonTemplateParametersScope();
+  auto parentScope = symbol->parent();
   auto templateDeclaration = template_declaration_of(symbol);
   const int depth = templateDeclaration ? templateDeclaration->depth : 0;
 
@@ -401,7 +402,7 @@ auto ASTRewriter::ConstraintSubsumption::normalForm(
 }
 
 auto ASTRewriter::ConstraintSubsumption::clauseSubsumes(const Clause& lhs,
-                                                        const Clause& rhs)
+                                                        const Clause& rhs) const
     -> bool {
   return std::ranges::any_of(lhs, [&](const Constraint* leaf) {
     return std::ranges::any_of(rhs, [&](const Constraint* other) {
@@ -410,12 +411,11 @@ auto ASTRewriter::ConstraintSubsumption::clauseSubsumes(const Clause& lhs,
   });
 }
 
-auto ASTRewriter::ConstraintSubsumption::leafSubsumes(const Constraint& lhs,
-                                                      const Constraint& rhs)
-    -> bool {
+auto ASTRewriter::ConstraintSubsumption::leafSubsumes(
+    const Constraint& lhs, const Constraint& rhs) const -> bool {
   if (lhs.form == Constraint::Form::kAtomic &&
       rhs.form == Constraint::Form::kAtomic)
-    return lhs.atom.isIdenticalTo(rhs.atom);
+    return lhs.atom.isIdenticalTo(unit, rhs.atom);
 
   if (lhs.form != Constraint::Form::kFoldExpanded ||
       rhs.form != Constraint::Form::kFoldExpanded)
@@ -441,8 +441,8 @@ auto ASTRewriter::ConstraintSubsumption::containsConceptDependent(
 }
 
 auto ASTRewriter::ConstraintSubsumption::subsumes(
-    const std::optional<Constraint>& lhs, const std::optional<Constraint>& rhs)
-    -> std::optional<bool> {
+    const std::optional<Constraint>& lhs,
+    const std::optional<Constraint>& rhs) const -> std::optional<bool> {
   if (!rhs.has_value()) return true;
   if (!lhs.has_value()) return false;
 
@@ -470,8 +470,8 @@ auto ASTRewriter::ConstraintSubsumption::isMoreConstrained(Symbol* symbol,
 
   (void)unit->changeDiagnosticsClient(saved);
 
-  auto atLeastAsConstrained = [](const std::optional<Constraint>& first,
-                                 const std::optional<Constraint>& second) {
+  auto atLeastAsConstrained = [this](const std::optional<Constraint>& first,
+                                     const std::optional<Constraint>& second) {
     if (!second) return true;
     if (!first || containsConceptDependent(*first)) return false;
     return subsumes(first, second).value_or(false);

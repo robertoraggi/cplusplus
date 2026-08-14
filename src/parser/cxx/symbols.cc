@@ -23,6 +23,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/types.h>
 #include <cxx/util.h>
 #include <cxx/views/symbols.h>
@@ -43,9 +44,29 @@ namespace {
          lhsType->refQualifier() == rhsType->refQualifier();
 }
 
-auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
+struct NonTypeParameterIdentity {
+  int depth;
+  int index;
+  bool isPack;
+
+  auto operator==(const NonTypeParameterIdentity&) const -> bool = default;
+};
+
+auto nonTypeParameterIdentity(Symbol* symbol)
+    -> std::optional<NonTypeParameterIdentity> {
+  auto parameter = symbol_cast<NonTypeParameterSymbol>(symbol);
+  if (!parameter) return std::nullopt;
+  return NonTypeParameterIdentity{parameter->depth(), parameter->index(),
+                                  parameter->isParameterPack()};
+}
+
+auto compare_symbols(TranslationUnit* unit, Symbol* lhs, Symbol* rhs) -> bool {
   if (lhs == rhs) return true;
   if (!lhs || !rhs) return false;
+
+  auto lhsParameter = nonTypeParameterIdentity(lhs);
+  auto rhsParameter = nonTypeParameterIdentity(rhs);
+  if (lhsParameter || rhsParameter) return lhsParameter == rhsParameter;
 
   auto lhsPack = symbol_cast<ParameterPackSymbol>(lhs);
   auto rhsPack = symbol_cast<ParameterPackSymbol>(rhs);
@@ -53,7 +74,8 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
     if (!lhsPack || !rhsPack) return false;
     if (lhsPack->elements().size() != rhsPack->elements().size()) return false;
     for (size_t i = 0; i < lhsPack->elements().size(); ++i) {
-      if (!compare_symbols(lhsPack->elements()[i], rhsPack->elements()[i])) {
+      if (!compare_symbols(unit, lhsPack->elements()[i],
+                           rhsPack->elements()[i])) {
         return false;
       }
     }
@@ -72,8 +94,11 @@ auto compare_symbols(Symbol* lhs, Symbol* rhs) -> bool {
     if (lhsVar->constValue().has_value() != rhsVar->constValue().has_value())
       return false;
 
-    if (lhsVar->constValue().has_value() &&
-        lhsVar->constValue().value() != rhsVar->constValue().value()) {
+    if (lhsVar->constValue().has_value()) {
+      if (lhsVar->constValue().value() != rhsVar->constValue().value())
+        return false;
+    } else if (!areExpressionsEquivalent(unit, lhsVar->initializer(),
+                                         rhsVar->initializer())) {
       return false;
     }
   }
@@ -94,7 +119,9 @@ auto compare_symbol_and_const(Symbol* symbol, const ConstValue& value) -> bool {
   return variable->constValue().value() == value;
 }
 
-auto compare_single_arg(const TemplateArgument& lhs,
+}  // namespace
+
+auto compare_single_arg(TranslationUnit* unit, const TemplateArgument& lhs,
                         const TemplateArgument& rhs) -> bool {
   if (auto lhsType = std::get_if<const Type*>(&lhs)) {
     if (auto rhsType = std::get_if<const Type*>(&rhs)) {
@@ -108,7 +135,7 @@ auto compare_single_arg(const TemplateArgument& lhs,
 
   if (auto lhsSymbol = std::get_if<Symbol*>(&lhs)) {
     if (auto rhsSymbol = std::get_if<Symbol*>(&rhs)) {
-      return compare_symbols(*lhsSymbol, *rhsSymbol);
+      return compare_symbols(unit, *lhsSymbol, *rhsSymbol);
     }
     if (auto rhsType = std::get_if<const Type*>(&rhs)) {
       return compare_symbol_and_type(*lhsSymbol, *rhsType);
@@ -132,19 +159,20 @@ auto compare_single_arg(const TemplateArgument& lhs,
   if (auto lhsExpr = std::get_if<ExpressionAST*>(&lhs)) {
     auto rhsExpr = std::get_if<ExpressionAST*>(&rhs);
     if (!rhsExpr) return false;
-    return *lhsExpr == *rhsExpr;
+    if (*lhsExpr == *rhsExpr) return true;
+    return areExpressionsEquivalent(unit, *lhsExpr, *rhsExpr);
   }
 
   return false;
 }
-}  // namespace
 
-auto compare_args(const std::vector<TemplateArgument>& args1,
+auto compare_args(TranslationUnit* unit,
+                  const std::vector<TemplateArgument>& args1,
                   const std::vector<TemplateArgument>& args2) -> bool {
   if (args1.size() != args2.size()) return false;
 
   for (size_t i = 0; i < args1.size(); ++i) {
-    if (!compare_single_arg(args1[i], args2[i])) return false;
+    if (!compare_single_arg(unit, args1[i], args2[i])) return false;
   }
 
   return true;
@@ -335,16 +363,6 @@ auto Symbol::enclosingFunction() const -> FunctionSymbol* {
   return nullptr;
 }
 
-auto Symbol::enclosingNonTemplateParametersScope() const -> ScopeSymbol* {
-  auto scope = parent();
-
-  while (scope && scope->isTemplateParameters()) {
-    scope = scope->parent();
-  }
-
-  return scope;
-}
-
 auto Symbol::canonical() const -> Symbol* {
   switch (kind()) {
     case SymbolKind::kClass:
@@ -477,8 +495,66 @@ auto template_parameter_info(Symbol* symbol) -> std::optional<TypeParamInfo> {
 
 auto is_member_template(Symbol* symbol) -> bool {
   if (!template_declaration_of(symbol)) return false;
-  return symbol_cast<ClassSymbol>(
-             symbol->enclosingNonTemplateParametersScope()) != nullptr;
+  return symbol_cast<ClassSymbol>(symbol->parent()) != nullptr;
+}
+
+namespace {
+auto is_equivalent_to_template_parameter(TemplateArgumentAST* argument,
+                                         Symbol* parameter) -> bool {
+  if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument)) {
+    if (!typeArgument->typeId) return false;
+    return typeArgument->typeId->type == parameter->type();
+  }
+
+  if (auto expressionArgument =
+          ast_cast<ExpressionTemplateArgumentAST>(argument)) {
+    auto expression = expressionArgument->expression;
+    if (auto pack = ast_cast<PackExpansionExpressionAST>(expression))
+      expression = pack->expression;
+    auto idExpression = ast_cast<IdExpressionAST>(expression);
+    return idExpression && idExpression->symbol == parameter;
+  }
+
+  return false;
+}
+}  // namespace
+
+auto names_template_head_parameters(SimpleTemplateIdAST* templateId,
+                                    ClassSymbol* classSymbol) -> bool {
+  auto templateParameters = classSymbol->templateParameters();
+  if (!templateParameters) return false;
+
+  const auto& parameters = templateParameters->members();
+
+  std::size_t index = 0;
+  for (auto argument : ListView{templateId->templateArgumentList}) {
+    if (index >= parameters.size()) return false;
+    if (!is_equivalent_to_template_parameter(argument, parameters[index]))
+      return false;
+    ++index;
+  }
+
+  return index == parameters.size();
+}
+
+auto names_current_instantiation(ClassSymbol* classSymbol, ScopeSymbol* scope)
+    -> bool {
+  if (!classSymbol) return false;
+
+  auto primary = classSymbol->resolvedDefinition();
+
+  for (auto enclosing = scope; enclosing; enclosing = enclosing->parent()) {
+    auto enclosingClass = symbol_cast<ClassSymbol>(enclosing);
+    if (!enclosingClass) continue;
+
+    auto candidate = enclosingClass->isSpecialization()
+                         ? enclosingClass->primaryTemplateSymbol()
+                         : enclosingClass;
+    if (!candidate) continue;
+    if (candidate->resolvedDefinition() == primary) return true;
+  }
+
+  return false;
 }
 
 auto Symbol::definition() const -> Symbol* {
@@ -1197,8 +1273,7 @@ auto FunctionSymbol::isFriend() const -> bool { return isFriend_; }
 void FunctionSymbol::setFriend(bool isFriend) { isFriend_ = isFriend; }
 
 auto FunctionSymbol::isImplicitObjectMemberFunction() const -> bool {
-  return !isStatic() && !isFriend() &&
-         symbol_cast<ClassSymbol>(enclosingNonTemplateParametersScope());
+  return !isStatic() && !isFriend() && symbol_cast<ClassSymbol>(parent());
 }
 
 auto FunctionSymbol::isConstexpr() const -> bool { return isConstexpr_; }
@@ -1271,11 +1346,7 @@ void FunctionSymbol::setTrailingRequiresClause(
 }
 
 auto FunctionSymbol::isConstructor() const -> bool {
-  ScopeSymbol* enclosing = parent();
-  if (enclosing && enclosing->isTemplateParameters()) {
-    enclosing = enclosing->enclosingNonTemplateParametersScope();
-  }
-  auto p = symbol_cast<ClassSymbol>(enclosing);
+  auto p = symbol_cast<ClassSymbol>(parent());
   if (!p) return false;
 
   auto functionType = type_cast<FunctionType>(type());
@@ -1675,6 +1746,10 @@ auto ParameterPackSymbol::elements() const -> const std::vector<Symbol*>& {
 }
 
 void ParameterPackSymbol::addElement(Symbol* element) {
+  if (auto pack = symbol_cast<ParameterPackSymbol>(element)) {
+    for (auto nested : pack->elements()) addElement(nested);
+    return;
+  }
   elements_.push_back(element);
 }
 
@@ -1797,5 +1872,26 @@ bool is_type(Symbol* symbol) {
     default:
       return false;
   }
+}
+
+auto isDeclaredConstant(Symbol* symbol) -> bool {
+  auto isConstQualified = [](const Type* type) {
+    auto qualType = type_cast<QualType>(type);
+    return qualType && qualType->isConst();
+  };
+
+  if (auto var = symbol_cast<VariableSymbol>(symbol))
+    return var->isConstexpr() || isConstQualified(var->type());
+
+  if (auto field = symbol_cast<FieldSymbol>(symbol))
+    return field->isConstexpr() || isConstQualified(field->type());
+
+  return false;
+}
+
+auto isUsableInConstantExpressions(Symbol* symbol) -> bool {
+  auto var = symbol_cast<VariableSymbol>(symbol);
+  if (!var || !var->constValue().has_value()) return false;
+  return isDeclaredConstant(var);
 }
 }  // namespace cxx

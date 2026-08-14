@@ -129,8 +129,6 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
 
     if (!substituted || !substituted->type ||
         type_cast<UnresolvedNameType>(substituted->type)) {
-      subst.maybeReportMalformedTemplateArgument(
-          parameter->firstSourceLocation());
       return std::nullopt;
     }
 
@@ -266,11 +264,11 @@ auto Substitution::CollectRawTemplateArgument::operator()(
 
       if (auto idExpr = ast_cast<IdExpressionAST>(expandedPattern)) {
         if (auto nttp = symbol_cast<NonTypeParameterSymbol>(idExpr->symbol)) {
-          auto templateArgument = control->newVariableSymbol(nullptr, {});
-          auto paramType = control->getTypeParameterType(
-              nttp->index(), nttp->depth(), nttp->isParameterPack());
-          templateArgument->setType(paramType);
-          return templateArgument;
+          return nttp;
+        }
+        if (auto var = symbol_cast<VariableSymbol>(idExpr->symbol);
+            var && !var->parent()) {
+          return var;
         }
       }
       auto templateArgument = control->newVariableSymbol(nullptr, {});
@@ -334,12 +332,6 @@ auto Substitution::CollectRawTemplateArgument::operator()(
             symbol_cast<TemplateTypeParameterSymbol>(named->symbol)) {
       return templateParameter;
     }
-    if (auto nttp = symbol_cast<NonTypeParameterSymbol>(named->symbol)) {
-      auto templateArgument = control->newVariableSymbol(nullptr, {});
-      templateArgument->setType(control->getTypeParameterType(
-          nttp->index(), nttp->depth(), nttp->isParameterPack()));
-      return templateArgument;
-    }
     break;
   }
 
@@ -360,11 +352,12 @@ auto Substitution::CollectRawTemplateArgument::operator()(
 Substitution::Substitution(TranslationUnit* unit,
                            TemplateDeclarationAST* templateDecl,
                            List<TemplateArgumentAST*>* templateArgumentList,
-                           bool argsComplete)
+                           bool argsComplete, bool fillDefaults)
     : unit_(unit),
       templateDecl_(templateDecl),
       templateArgumentList_(templateArgumentList),
-      argsComplete_(argsComplete) {
+      argsComplete_(argsComplete),
+      fillDefaults_(fillDefaults) {
   doMake();
 }
 
@@ -373,6 +366,15 @@ auto Substitution::make(TranslationUnit* unit,
                         List<TemplateArgumentAST*>* templateArgumentList,
                         bool argsComplete) -> std::optional<Substitution> {
   Substitution subst{unit, templateDecl, templateArgumentList, argsComplete};
+  if (subst.hadError_) return std::nullopt;
+  return std::optional<Substitution>{std::move(subst)};
+}
+
+auto Substitution::makePartial(TranslationUnit* unit,
+                               TemplateDeclarationAST* templateDecl,
+                               List<TemplateArgumentAST*>* templateArgumentList)
+    -> std::optional<Substitution> {
+  Substitution subst{unit, templateDecl, templateArgumentList, false, false};
   if (subst.hadError_) return std::nullopt;
   return std::optional<Substitution>{std::move(subst)};
 }
@@ -466,6 +468,8 @@ void Substitution::doMake() {
       templateArguments_.push_back(symbol);
       continue;
     }
+
+    if (!fillDefaults_) break;
 
     if (auto defaultArg = getDefaultTemplateArgument(parameter)) {
       templateArguments_.push_back(defaultArg.value());

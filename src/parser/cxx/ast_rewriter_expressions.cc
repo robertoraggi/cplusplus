@@ -480,10 +480,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(PackIndexExpressionAST* ast)
 
       if (idx >= 0 && idx < packSize) {
         ExpressionAST* result = nullptr;
-        std::swap(rewrite.parameterPack_, parameterPack);
         rewrite.expandPackElement(
             idx, [&] { result = rewrite.expression(ast->packExpression); });
-        std::swap(rewrite.parameterPack_, parameterPack);
 
         return result;
       }
@@ -594,9 +592,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
           return literal;
 
         if (auto initializer = var->initializer()) {
-          if (rewrite.retainsEnclosingTemplateLevels())
-            return initializer->clone(arena());
-          return rewrite.expression(initializer);
+          return initializer->clone(arena());
         }
       }
     }
@@ -791,7 +787,12 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
       }
 
       rewrite.pushLambdaCaptureFields(std::move(captureFields));
-      copy->statement = rewrite.lambdaBody(ast->statement);
+      {
+        auto bodyScopeGuard = Binder::ScopeGuard(binder());
+        if (auto lambdaSymbol = symbol_cast<LambdaSymbol>(copy->symbol))
+          binder()->setScope(lambdaSymbol);
+        copy->statement = rewrite.lambdaBody(ast->statement);
+      }
       rewrite.popLambdaCaptureFields();
 
       binder()->completeLambdaBody(copy);
@@ -815,7 +816,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
           rewrite.findReferencedParameterPack(ast->leftExpression)) {
     ExpressionAST* current = nullptr;
 
-    rewrite.forEachPackElement(parameterPack, [&] {
+    rewrite.forEachPackElement(ast->leftExpression, ast->ellipsisLoc, [&] {
       auto expression = rewrite.expression(ast->leftExpression);
       if (!current) {
         current = expression;
@@ -851,22 +852,23 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
           rewrite.findReferencedParameterPack(ast->rightExpression)) {
     ExpressionAST* current = nullptr;
 
-    rewrite.forEachPackElementReversed(parameterPack, [&] {
-      auto expression = rewrite.expression(ast->rightExpression);
-      if (!current) {
-        current = expression;
-      } else {
-        auto binop = BinaryExpressionAST::create(arena());
-        binop->valueCategory = current->valueCategory;
-        binop->type = current->type;
-        binop->leftExpression = expression;
-        binop->op = ast->foldOp;
-        binop->opLoc = ast->foldOpLoc;
-        binop->rightExpression = current;
-        rewrite.check(binop);
-        current = binop;
-      }
-    });
+    rewrite.forEachPackElementReversed(
+        ast->rightExpression, ast->ellipsisLoc, [&] {
+          auto expression = rewrite.expression(ast->rightExpression);
+          if (!current) {
+            current = expression;
+          } else {
+            auto binop = BinaryExpressionAST::create(arena());
+            binop->valueCategory = current->valueCategory;
+            binop->type = current->type;
+            binop->leftExpression = expression;
+            binop->op = ast->foldOp;
+            binop->opLoc = ast->foldOpLoc;
+            binop->rightExpression = current;
+            rewrite.check(binop);
+            current = binop;
+          }
+        });
 
     if (current) {
       auto init = rewrite.expression(ast->leftExpression);
@@ -906,7 +908,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
           rewrite.findReferencedParameterPack(ast->expression)) {
     ExpressionAST* current = nullptr;
 
-    rewrite.forEachPackElementReversed(parameterPack, [&] {
+    rewrite.forEachPackElementReversed(ast->expression, ast->ellipsisLoc, [&] {
       auto expression = rewrite.expression(ast->expression);
       if (!current) {
         current = expression;
@@ -948,7 +950,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
           rewrite.findReferencedParameterPack(ast->expression)) {
     ExpressionAST* current = nullptr;
 
-    rewrite.forEachPackElement(parameterPack, [&] {
+    rewrite.forEachPackElement(ast->expression, ast->ellipsisLoc, [&] {
       auto expression = rewrite.expression(ast->expression);
       if (!current) {
         current = expression;
@@ -1059,11 +1061,14 @@ auto ASTRewriter::rewriteExpressionList(List<ExpressionAST*>* source)
         packExpansion && !elementIndex_.has_value()) {
       if (auto parameterPack =
               findReferencedParameterPack(packExpansion->expression)) {
-        forEachPackElement(parameterPack, [&] {
-          auto value = expression(packExpansion->expression);
-          *out = make_list_node(arena(), value);
-          out = &(*out)->next;
-        });
+        forEachPackElement(
+            packExpansion->expression, packExpansion->ellipsisLoc,
+            [&] {
+              auto value = expression(packExpansion->expression);
+              *out = make_list_node(arena(), value);
+              out = &(*out)->next;
+            },
+            parameterPack);
         continue;
       }
     }
@@ -1111,6 +1116,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   copy->rparenLoc = ast->rparenLoc;
 
+  rewrite.check(copy);
   return copy;
 }
 
@@ -1504,17 +1510,20 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     -> ExpressionAST* {
-  for (const auto& arg : rewrite.templateArguments_) {
-    if (auto sym = std::get_if<Symbol*>(&arg)) {
-      if (auto pack = symbol_cast<ParameterPackSymbol>(*sym)) {
-        auto packSize = pack->elements().size();
-        auto literal = control()->integerLiteral(std::to_string(packSize));
-        auto sizeType = control()->getSizeType();
-        auto result = IntLiteralExpressionAST::create(
-            arena(), literal, ValueCategory::kPrValue, sizeType);
-        return result;
-      }
-    }
+  if (auto pack = rewrite.parameterPackFor(ast->symbol)) {
+    auto packSize = pack->elements().size();
+    auto literal = control()->integerLiteral(std::to_string(packSize));
+    auto sizeType = control()->getSizeType();
+    return IntLiteralExpressionAST::create(arena(), literal,
+                                           ValueCategory::kPrValue, sizeType);
+  }
+
+  if (auto pack = rewrite.functionParameterPackFor(ast->symbol)) {
+    auto packSize = pack->elements().size();
+    auto literal = control()->integerLiteral(std::to_string(packSize));
+    auto sizeType = control()->getSizeType();
+    return IntLiteralExpressionAST::create(arena(), literal,
+                                           ValueCategory::kPrValue, sizeType);
   }
 
   auto copy = SizeofPackExpressionAST::create(arena());
@@ -1527,6 +1536,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
   copy->identifierLoc = ast->identifierLoc;
   copy->rparenLoc = ast->rparenLoc;
   copy->identifier = ast->identifier;
+  copy->symbol = rewrite.remapSymbol(ast->symbol);
 
   return copy;
 }
@@ -1822,10 +1832,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
   for (auto typeIdList = &copy->typeIdList;
        auto node : ListView{ast->typeIdList}) {
     if (auto pack = rewrite.expandedParameterPack(node)) {
-      rewrite.forEachPackElement(pack, [&] {
-        *typeIdList = make_list_node(arena(), rewrite.typeId(node));
-        typeIdList = &(*typeIdList)->next;
-      });
+      rewrite.forEachPackElement(
+          node, node->firstSourceLocation(),
+          [&] {
+            *typeIdList = make_list_node(arena(), rewrite.typeId(node));
+            typeIdList = &(*typeIdList)->next;
+          },
+          pack);
       continue;
     }
 

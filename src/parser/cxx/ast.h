@@ -4375,6 +4375,7 @@ class SizeofPackExpressionAST final : public ExpressionAST {
   SourceLocation identifierLoc;
   SourceLocation rparenLoc;
   const Identifier* identifier = nullptr;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4388,12 +4389,12 @@ class SizeofPackExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(
       Arena* arena, SourceLocation sizeofLoc, SourceLocation ellipsisLoc,
       SourceLocation lparenLoc, SourceLocation identifierLoc,
-      SourceLocation rparenLoc, const Identifier* identifier,
+      SourceLocation rparenLoc, const Identifier* identifier, Symbol* symbol,
       ValueCategory valueCategory, const Type* type)
       -> SizeofPackExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, const Identifier* identifier,
-                                   ValueCategory valueCategory,
+                                   Symbol* symbol, ValueCategory valueCategory,
                                    const Type* type)
       -> SizeofPackExpressionAST*;
 
@@ -6453,6 +6454,7 @@ class TypenameSpecifierAST final : public SpecifierAST {
   SourceLocation templateLoc;
   UnqualifiedIdAST* unqualifiedId = nullptr;
   bool isTemplateIntroduced = false;
+  Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -6467,13 +6469,13 @@ class TypenameSpecifierAST final : public SpecifierAST {
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    SourceLocation templateLoc,
                                    UnqualifiedIdAST* unqualifiedId,
-                                   bool isTemplateIntroduced)
+                                   bool isTemplateIntroduced, Symbol* symbol)
       -> TypenameSpecifierAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
-                                   bool isTemplateIntroduced)
+                                   bool isTemplateIntroduced, Symbol* symbol)
       -> TypenameSpecifierAST*;
 
  protected:

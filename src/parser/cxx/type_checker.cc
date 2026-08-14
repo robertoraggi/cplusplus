@@ -55,6 +55,17 @@ namespace cxx {
 namespace {
 constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
 
+[[nodiscard]] auto operatorSpelling(TokenKind op) -> std::string_view {
+  switch (op) {
+    case TokenKind::T_LPAREN:
+      return "()";
+    case TokenKind::T_LBRACKET:
+      return "[]";
+    default:
+      return Token::spell(op);
+  }
+}
+
 [[nodiscard]] auto describe_scope(Symbol* symbol) -> std::string {
   const auto name = to_string(symbol->name());
 
@@ -334,11 +345,11 @@ struct TypeChecker::Visitor {
   }
 
   [[nodiscard]] auto dependent_type() const -> const Type* {
-    return control()->getTypeParameterType(0, 0, false);
+    return control()->getDependentType();
   }
 
   [[nodiscard]] auto in_template() const -> bool {
-    return isEnclosedInDependentTemplate(check.unit_, scope());
+    return isEnclosedInDependentTemplate(check.unit_, scope(), true);
   }
 
   [[nodiscard]] auto require_complete_for_sizeof(SourceLocation loc,
@@ -997,10 +1008,16 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
 
   ast->valueCategory = ValueCategory::kLValue;
 
-  if (ast->nestedNameSpecifier) return;
-
   auto field = symbol_cast<FieldSymbol>(ast->symbol);
-  if (!field || field->isStatic()) return;
+  if (!field) return;
+
+  if (field->isStatic()) {
+    if (!check.hasConstantValue(field))
+      ASTRewriter::requireFieldDefinition(check.unit_, field);
+    return;
+  }
+
+  if (ast->nestedNameSpecifier) return;
 
   ast->type = add_implicit_object_cv(ast->type, field);
 }
@@ -1130,21 +1147,18 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
     return;
   }
 
-  if (auto operatorFunc =
-          check.lookupOperator(ast->baseExpression->type, TokenKind::T_LBRACKET,
-                               ast->indexExpression->type)) {
+  FunctionSymbol* operatorFunc = nullptr;
+  if (resolve_operator_overload(ast->baseExpression->type,
+                                TokenKind::T_LBRACKET, ast->lbracketLoc,
+                                ast->indexExpression->type, operatorFunc,
+                                ast->baseExpression, ast->indexExpression)) {
+    if (!operatorFunc) return;
     ast->symbol = operatorFunc;
     apply_operator_argument_conversions(operatorFunc, ast->baseExpression,
                                         ast->indexExpression);
     ast->isVirtualDispatch =
         is_virtual_member_operator_dispatch(operatorFunc, ast->baseExpression);
     setResultTypeAndValueCategory(ast, operatorFunc);
-    return;
-  }
-
-  if (check.wasLastOperatorLookupAmbiguous()) {
-    error(ast->firstSourceLocation(),
-          "call to overloaded operator '[]' is ambiguous");
     return;
   }
 
@@ -1329,6 +1343,13 @@ auto TypeChecker::Visitor::resolve_call_overload(
       explicit_template_arguments(ast->baseExpression);
 
   bool hasDependentTemplateCandidate = false;
+
+  for (auto arg : ListView{ast->expressionList}) {
+    if (arg->type && isDependent(check.unit_, arg->type)) {
+      hasDependentTemplateCandidate = true;
+      break;
+    }
+  }
 
   std::vector<std::pair<FunctionSymbol*, std::string>> rejected;
   auto reject = [&](FunctionSymbol* func, std::string reason) {
@@ -1819,7 +1840,7 @@ void TypeChecker::Visitor::check_function_arguments(
       continue;
     }
 
-    check.reportDeletedConversion(it->value);
+    check.useConversionFunction(it->value);
   }
 }
 
@@ -2296,8 +2317,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
 
   if (auto funcSym =
           symbol_cast<FunctionSymbol>(base_symbol(ast->baseExpression))) {
-    check.reportDeletedFunction(funcSym, ast->firstSourceLocation());
-    check.requireFunctionDefinition(funcSym);
+    check.useFunction(funcSym, ast->firstSourceLocation());
 
     int argCount = 0;
     for (auto it = ast->expressionList; it; it = it->next) ++argCount;
@@ -2592,20 +2612,16 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   }
 
   if (traits.is_class(ast->baseExpression->type)) {
-    if (auto operatorFunc = check.lookupOperator(
-            ast->baseExpression->type, ast->op, control()->getIntType())) {
+    FunctionSymbol* operatorFunc = nullptr;
+    if (resolve_operator_overload(ast->baseExpression->type, ast->op,
+                                  ast->opLoc, control()->getIntType(),
+                                  operatorFunc)) {
+      if (!operatorFunc) return;
       ast->symbol = operatorFunc;
       adjust_member_operator_object_argument(operatorFunc, ast->baseExpression);
       ast->isVirtualDispatch = is_virtual_member_operator_dispatch(
           operatorFunc, ast->baseExpression);
       setResultTypeAndValueCategory(ast, operatorFunc);
-      return;
-    }
-
-    if (check.wasLastOperatorLookupAmbiguous()) {
-      error(ast->opLoc,
-            std::format("call to overloaded operator '{}' is ambiguous",
-                        Token::spell(ast->op)));
       return;
     }
   }
@@ -3401,8 +3417,10 @@ void TypeChecker::Visitor::check_address_of(UnaryExpressionAST* ast) {
   if (idExpr) {
     if (auto function = designatedFunction(idExpr->symbol)) {
       idExpr->symbol = function;
-      check.requireFunctionDefinition(function);
+      check.useFunction(function, ast->firstSourceLocation());
     }
+    ASTRewriter::requireFieldDefinition(
+        check.unit_, symbol_cast<FieldSymbol>(idExpr->symbol));
   }
   if (idExpr && idExpr->nestedNameSpecifier) {
     auto symbol = idExpr->symbol;
@@ -3997,6 +4015,12 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
       type_cast<AutoType>(traits.remove_cvref(rightType)))
     return;
 
+  if (ast->op == TokenKind::T_COMMA) {
+    ast->type = rightType;
+    ast->valueCategory = ast->rightExpression->valueCategory;
+    return;
+  }
+
   if (is_dependent_type(leftType) || is_dependent_type(rightType)) {
     ast->type = dependent_type();
     ast->valueCategory = ValueCategory::kPrValue;
@@ -4084,13 +4108,6 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
       }
 
       ast->type = control()->getBoolType();
-      break;
-
-    case TokenKind::T_COMMA:
-      if (ast->rightExpression) {
-        ast->type = ast->rightExpression->type;
-        ast->valueCategory = ast->rightExpression->valueCategory;
-      }
       break;
 
     default:
@@ -5213,6 +5230,9 @@ void TypeChecker::check_mem_initializers(
 
   ast->memInitializerList = newList;
 
+  for (auto memInit : ListView{ast->memInitializerList})
+    requireFunctionDefinition(memInit->constructor);
+
   int lastPosition = -1;
   for (auto node : writtenOrder) {
     auto it = canonicalPos.find(node);
@@ -5474,14 +5494,13 @@ auto TypeChecker::Visitor::resolve_operator_overload(
   if (auto symbol =
           check.lookupOperator(leftType, op, rightType, leftExpr, rightExpr)) {
     symbolOut = symbol;
-    check.reportDeletedFunction(symbol, opLoc);
-    check.requireFunctionDefinition(symbol);
+    check.useFunction(symbol, opLoc);
     return true;
   }
 
   if (check.wasLastOperatorLookupAmbiguous()) {
     error(opLoc, std::format("call to overloaded operator '{}' is ambiguous",
-                             Token::spell(op)));
+                             operatorSpelling(op)));
     return true;
   }
 
@@ -5941,7 +5960,7 @@ void TypeChecker::check_return_statement(ReturnStatementAST* ast) {
 
   auto seq = checkImplicitConversion(ast->expression, targetType);
   applyImplicitConversion(seq, ast->expression);
-  reportDeletedConversion(ast->expression);
+  useConversionFunction(ast->expression);
 }
 
 auto TypeChecker::isMoveEligibleOperand(ExpressionAST* expr,
@@ -6044,16 +6063,19 @@ void TypeChecker::check_integral_condition(ExpressionAST*& expr) {
   (void)visitor.stdconv_.integralPromotion(expr);
 }
 
-void TypeChecker::reportDeletedConversion(ExpressionAST* expr) {
+void TypeChecker::useConversionFunction(ExpressionAST* expr) {
   auto cast = ast_cast<ImplicitCastExpressionAST>(expr);
   if (!cast) return;
   if (cast->castKind != ImplicitCastKind::kUserDefinedConversion) return;
-  reportDeletedFunction(cast->conversionFunction, expr->firstSourceLocation());
+  useFunction(cast->conversionFunction, expr->firstSourceLocation());
 }
 
-void TypeChecker::reportDeletedFunction(FunctionSymbol* function,
-                                        SourceLocation loc) {
-  if (!function || !function->isDeleted()) return;
+void TypeChecker::useFunction(FunctionSymbol* function, SourceLocation loc) {
+  if (!function) return;
+
+  requireFunctionDefinition(function);
+
+  if (!function->isDeleted()) return;
 
   if (function->isDefaulted() && function->isConstructor()) {
     auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
@@ -6157,8 +6179,13 @@ auto TypeChecker::lookupOperator(const Type* type, TokenKind op,
 }
 
 void TypeChecker::requireFunctionDefinition(FunctionSymbol* function) {
-  if (!potentiallyEvaluated_) return;
   ASTRewriter::requireFunctionDefinition(unit_, function);
+}
+
+auto TypeChecker::hasConstantValue(FieldSymbol* field) -> bool {
+  if (!field->initializer()) return false;
+  if (!isDeclaredConstant(field)) return false;
+  return ASTInterpreter{unit_}.evaluate(field->initializer()).has_value();
 }
 
 auto TypeChecker::as_pointer(const Type* type) const -> const PointerType* {

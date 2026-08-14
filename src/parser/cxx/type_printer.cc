@@ -303,18 +303,20 @@ class TypePrinter {
     accept(type->returnType());
   }
 
-  void operator()(const ClassType* type) {
-    std::string out;
-
-    if (auto parent = type->symbol()->parent()) {
-      while (symbol_cast<TemplateParametersSymbol>(parent)) {
-        parent = parent->parent();
-      }
-      accept(parent->type());
-      out += "::";
+  void appendEnclosingScope(Symbol* symbol) {
+    auto parent = symbol->parent();
+    if (!parent) return;
+    while (symbol_cast<TemplateParametersSymbol>(parent)) {
+      parent = parent->parent();
     }
+    accept(parent->type());
+    specifiers_.append("::");
+  }
 
-    out += to_string(type->symbol()->name());
+  void operator()(const ClassType* type) {
+    appendEnclosingScope(type->symbol());
+
+    std::string out = to_string(type->symbol()->name());
 
     if (type->symbol()->isSpecialization()) {
       out += '<';
@@ -340,6 +342,7 @@ class TypePrinter {
   }
 
   void operator()(const NamespaceType* type) {
+    appendEnclosingScope(type->symbol());
     specifiers_.append(to_string(type->symbol()->name()));
   }
 
@@ -354,10 +357,12 @@ class TypePrinter {
   }
 
   void operator()(const EnumType* type) {
+    appendEnclosingScope(type->symbol());
     specifiers_.append(to_string(type->symbol()->name()));
   }
 
   void operator()(const ScopedEnumType* type) {
+    appendEnclosingScope(type->symbol());
     specifiers_.append(to_string(type->symbol()->name()));
   }
 

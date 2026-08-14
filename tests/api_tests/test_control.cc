@@ -19,9 +19,11 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 
@@ -174,16 +176,20 @@ TEST(Control, overload_set_dedup_by_canonical) {
 }
 
 TEST(Control, compare_args_with_type_arguments) {
-  Control control;
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit{&diagnosticsClient};
+  auto& control = *unit.control();
 
   std::vector<TemplateArgument> lhs{control.getIntType()};
   std::vector<TemplateArgument> rhs{control.getIntType()};
 
-  EXPECT_TRUE(compare_args(lhs, rhs));
+  EXPECT_TRUE(compare_args(&unit, lhs, rhs));
 }
 
 TEST(Control, compare_args_symbol_and_type_equivalent) {
-  Control control;
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit{&diagnosticsClient};
+  auto& control = *unit.control();
 
   auto global = control.newNamespaceSymbol(nullptr, {});
   auto typeAlias = control.newTypeAliasSymbol(global, {});
@@ -193,11 +199,13 @@ TEST(Control, compare_args_symbol_and_type_equivalent) {
   std::vector<TemplateArgument> lhs{static_cast<Symbol*>(typeAlias)};
   std::vector<TemplateArgument> rhs{control.getIntType()};
 
-  EXPECT_TRUE(compare_args(lhs, rhs));
+  EXPECT_TRUE(compare_args(&unit, lhs, rhs));
 }
 
 TEST(Control, compare_args_parameter_pack_equivalent) {
-  Control control;
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit{&diagnosticsClient};
+  auto& control = *unit.control();
 
   auto global = control.newNamespaceSymbol(nullptr, {});
 
@@ -220,11 +228,13 @@ TEST(Control, compare_args_parameter_pack_equivalent) {
   std::vector<TemplateArgument> lhs{static_cast<Symbol*>(packL)};
   std::vector<TemplateArgument> rhs{static_cast<Symbol*>(packR)};
 
-  EXPECT_TRUE(compare_args(lhs, rhs));
+  EXPECT_TRUE(compare_args(&unit, lhs, rhs));
 }
 
 TEST(Control, compare_args_parameter_pack_order_matters) {
-  Control control;
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit{&diagnosticsClient};
+  auto& control = *unit.control();
 
   auto global = control.newNamespaceSymbol(nullptr, {});
 
@@ -247,5 +257,5 @@ TEST(Control, compare_args_parameter_pack_order_matters) {
   std::vector<TemplateArgument> lhs{static_cast<Symbol*>(packL)};
   std::vector<TemplateArgument> rhs{static_cast<Symbol*>(packR)};
 
-  EXPECT_FALSE(compare_args(lhs, rhs));
+  EXPECT_FALSE(compare_args(&unit, lhs, rhs));
 }

@@ -515,8 +515,7 @@ auto Parser::parse_type_name(UnqualifiedIdAST*& yyast,
     LookaheadParser lookahead{this};
     SimpleTemplateIdAST* templateId = nullptr;
     if (!parse_simple_template_id(templateId, nestedNameSpecifier,
-                                  isTemplateIntroduced, MemberAccessKind::kNone,
-                                  context))
+                                  isTemplateIntroduced, {}, context))
       return false;
     yyast = templateId;
     lookahead.commit();
@@ -1104,20 +1103,32 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
   return true;
 }
 
-auto Parser::objectAccessKind(ExpressionAST* objectExpression)
-    -> MemberAccessKind {
-  if (!objectExpression) return MemberAccessKind::kObject;
-  if (!config().checkTypes) return MemberAccessKind::kObject;
-  if (isDependent(unit_, objectExpression->type))
-    return MemberAccessKind::kDependentObject;
-  return MemberAccessKind::kObject;
+auto Parser::memberAccess(ExpressionAST* objectExpression, TokenKind accessOp)
+    -> MemberAccess {
+  MemberAccess access;
+  access.isMember = true;
+  if (!objectExpression || !config().checkTypes) return access;
+
+  auto traits = unit_->typeTraits();
+  access.isDependent = isDependent(unit_, objectExpression->type);
+
+  auto objectType = traits.remove_cvref(objectExpression->type);
+  if (accessOp == TokenKind::T_MINUS_GREATER) {
+    auto pointerType = type_cast<PointerType>(objectType);
+    if (!pointerType) return access;
+    objectType = traits.remove_cv(pointerType->elementType());
+  }
+
+  auto classType = type_cast<ClassType>(objectType);
+  if (classType) access.lookupScope = classType->symbol();
+  return access;
 }
 
 auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
                                   NestedNameSpecifierAST* nestedNameSpecifier,
                                   bool isTemplateIntroduced,
                                   bool inRequiresClause,
-                                  MemberAccessKind memberAccess) -> bool {
+                                  MemberAccess memberAccess) -> bool {
   if (isCxx()) {
     if (SourceLocation tildeLoc; match(TokenKind::T_TILDE, tildeLoc)) {
       if (DecltypeSpecifierAST* decltypeSpecifier = nullptr;
@@ -1355,11 +1366,9 @@ auto Parser::parse_template_nested_name_specifier(
                                      classSymbol, templateId->identifierLoc);
 
         ast->symbol = symbol_cast<ClassSymbol>(instance);
-      } else if (auto typeAliasSymbol =
-                     symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
-        auto instance = ASTRewriter::instantiate(
-            unit_, templateId->templateArgumentList, typeAliasSymbol,
-            templateId->identifierLoc);
+      } else if (symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
+        auto instance =
+            binder_.resolve(ast->nestedNameSpecifier, templateId, true);
 
         if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
           if (auto classType =
@@ -1377,7 +1386,9 @@ auto Parser::parse_template_nested_name_specifier(
       if (auto cls = symbol_cast<ClassSymbol>(ast->symbol)) {
         traits.requireCompleteClass(cls);
       }
-    } else {
+    }
+
+    if (hasDependentArgs && !ast->symbol) {
       if (auto classSymbol = symbol_cast<ClassSymbol>(templateId->symbol)) {
         ast->symbol = classSymbol;
 
@@ -2322,7 +2333,7 @@ auto Parser::parse_member_expression(ExpressionAST*& yyast) -> bool {
   if (!parse_unqualified_id(ast->unqualifiedId, ast->nestedNameSpecifier,
                             ast->isTemplateIntroduced,
                             /*inRequiresClause*/ false,
-                            objectAccessKind(ast->baseExpression)))
+                            memberAccess(ast->baseExpression, ast->accessOp)))
     parse_error("expected an unqualified id");
 
   check(ast);
@@ -2932,6 +2943,7 @@ auto Parser::parse_sizeof_expression(ExpressionAST*& yyast,
 
     expect(TokenKind::T_IDENTIFIER, ast->identifierLoc);
     ast->identifier = unit_->identifier(ast->identifierLoc);
+    ast->symbol = unqualifiedLookup(lexicalScope(), ast->identifier);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -4844,9 +4856,20 @@ auto Parser::parse_simple_declaration(
 
     if (auto scope = decl.getScope()) {
       enterScopeChain(scope);
+      auto currentInstantiation = binder_.currentInstantiationOf(scope);
+      if (binder_.resolveMembersOfCurrentInstantiation(declSpecifierList,
+                                                       currentInstantiation)) {
+        DeclSpecs rebound{unit_};
+        for (auto specifier : ListView{declSpecifierList}) {
+          rebound.accept(specifier);
+        }
+        rebound.finish();
+        decl.specs.setType(rebound.type());
+        functionType = getDeclaratorType(unit_, declarator, rebound.type());
+      }
       functionType =
           type_cast<FunctionType>(binder_.resolveMemberOfCurrentInstantiation(
-              functionType, binder_.currentInstantiationOf(scope)));
+              functionType, currentInstantiation));
     } else if (q) {
       type_error(q->firstSourceLocation(),
                  std::format("unresolved class or namespace"));
@@ -6417,7 +6440,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                   Substitution(unit_, candidate->templateDeclaration(),
                                templateId->templateArgumentList)
                       .templateArguments();
-              candidate->addSpecialization(std::move(templateArguments),
+              candidate->addSpecialization(unit_, std::move(templateArguments),
                                            variableSymbol);
               break;
             }
@@ -10359,7 +10382,7 @@ auto Parser::parse_simple_template_id(SimpleTemplateIdAST*& yyast) -> bool {
 
 auto Parser::parse_simple_template_id(
     SimpleTemplateIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-    bool isTemplateIntroduced, MemberAccessKind memberAccess,
+    bool isTemplateIntroduced, MemberAccess memberAccess,
     TypeNameContext context) -> bool {
   LookaheadParser lookahead{this};
 
@@ -10368,15 +10391,14 @@ auto Parser::parse_simple_template_id(
   if (!templateId->greaterLoc) return false;
 
   const auto dependentQualifier =
-      memberAccess == MemberAccessKind::kDependentObject ||
+      memberAccess.isDependent ||
       isDependentNestedNameSpecifier(nestedNameSpecifier);
 
-  if (!isTemplateIntroduced && context != TypeNameContext::kTypeOnly &&
-      dependentQualifier)
-    return false;
-
   auto lookupCandidate = [&]() -> Symbol* {
-    if (memberAccess != MemberAccessKind::kNone) return nullptr;
+    if (memberAccess.isMember) {
+      if (!memberAccess.lookupScope) return nullptr;
+      return qualifiedLookup(memberAccess.lookupScope, templateId->identifier);
+    }
     if (nestedNameSpecifier) {
       if (!nestedNameSpecifier->symbol) return nullptr;
       return qualifiedLookup(nestedNameSpecifier->symbol,
@@ -10391,6 +10413,10 @@ auto Parser::parse_simple_template_id(
 
   auto primaryTemplateSymbol =
       findTemplatedSymbolInLookupScope(candidate, templateId->identifier);
+
+  if (!isTemplateIntroduced && context != TypeNameContext::kTypeOnly &&
+      dependentQualifier && !primaryTemplateSymbol)
+    return false;
 
   if (candidate && !primaryTemplateSymbol && !isTemplateIntroduced)
     return false;
@@ -10463,7 +10489,7 @@ auto Parser::parse_function_operator_template_id(
 auto Parser::parse_template_id(UnqualifiedIdAST*& yyast,
                                NestedNameSpecifierAST* nestedNameSpecifier,
                                bool isTemplateIntroduced,
-                               MemberAccessKind memberAccess) -> bool {
+                               MemberAccess memberAccess) -> bool {
   if (!isCxx()) return false;
 
   if (LiteralOperatorTemplateIdAST* templateName = nullptr;
@@ -10527,6 +10553,25 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
   auto check = [&]() -> bool {
     return LA().isOneOf(TokenKind::T_COMMA, TokenKind::T_GREATER,
                         TokenKind::T_DOT_DOT_DOT);
+  };
+
+  auto templateArgumentName = [&]() -> Symbol* {
+    if (LA().isNot(TokenKind::T_IDENTIFIER)) return nullptr;
+    if (!LA(1).isOneOf(TokenKind::T_COMMA, TokenKind::T_GREATER,
+                       TokenKind::T_DOT_DOT_DOT)) {
+      return nullptr;
+    }
+    return unqualifiedLookup(lexicalScope(),
+                             unit_->identifier(currentLocation()));
+  };
+
+  auto startsDependentQualifiedName = [&]() -> bool {
+    LookaheadParser lookahead{this};
+    NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
+    parse_optional_nested_name_specifier(
+        nestedNameSpecifier, NestedNameSpecifierContext::kNonDeclarative);
+    return nestedNameSpecifier && lookat(TokenKind::T_IDENTIFIER) &&
+           isDependent(unit_, nestedNameSpecifier);
   };
 
   auto lookat_type_id = [&] {
@@ -10618,8 +10663,17 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
     return true;
   };
 
-  if (lookat_type_id() || lookat_template_name() ||
-      lookat_template_argument_constant_expression()) {
+  const auto name = templateArgumentName();
+  bool parsed = false;
+  if (startsDependentQualifiedName() || (name && !is_type(name))) {
+    parsed = lookat_template_argument_constant_expression() ||
+             lookat_type_id() || lookat_template_name();
+  } else {
+    parsed = lookat_type_id() || lookat_template_name() ||
+             lookat_template_argument_constant_expression();
+  }
+
+  if (parsed) {
     template_arguments_.set(start, currentLocation(), yyast, true);
 
     return true;
@@ -10785,7 +10839,7 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   SimpleTemplateIdAST* templateId = nullptr;
   if (parse_simple_template_id(templateId, nestedNameSpecifier,
-                               isTemplateIntroduced, MemberAccessKind::kNone,
+                               isTemplateIntroduced, {},
                                TypeNameContext::kTypeOnly)) {
     unqualifiedId = templateId;
   } else {
@@ -10802,6 +10856,10 @@ auto Parser::parse_typename_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->templateLoc = templateLoc;
   ast->unqualifiedId = unqualifiedId;
   ast->isTemplateIntroduced = isTemplateIntroduced;
+
+  ast->symbol = binder_.resolveMemberOfCurrentInstantiation(
+      nestedNameSpecifier, unqualifiedId,
+      binder_.currentInstantiationOf(binder_.scope()));
 
   specs.accept(ast);
 
@@ -11431,10 +11489,11 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
 
 void Parser::check(ExpressionAST* ast) {
   if (uncheckedInitializerDepth_) return;
+  TranslationUnit::PotentiallyEvaluatedScope evaluated{
+      unit_, unevaluatedOperandDepth_ == 0};
   TypeChecker check{unit_};
   check.setScope(scope());
   check.setReportErrors(config().checkTypes);
-  check.setPotentiallyEvaluated(unevaluatedOperandDepth_ == 0);
   check(ast);
 }
 

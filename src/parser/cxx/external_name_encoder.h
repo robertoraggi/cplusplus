@@ -27,7 +27,7 @@
 #include <cxx/types_fwd.h>
 
 #include <string>
-#include <unordered_map>
+#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -35,7 +35,7 @@ class ExternalNameEncoder {
  public:
   enum class StructorVariant { Complete, Base, Deleting };
 
-  ExternalNameEncoder();
+  explicit ExternalNameEncoder(TranslationUnit* unit);
 
   void setStructorVariant(StructorVariant variant) {
     structorVariant_ = variant;
@@ -71,7 +71,13 @@ class ExternalNameEncoder {
   void encodeType(const Type* type);
   [[nodiscard]] auto encodeDependentName(NestedNameSpecifierAST* nns,
                                          UnqualifiedIdAST* id) -> bool;
+  [[nodiscard]] auto encodeDependentQualifier(NestedNameSpecifierAST* nns)
+      -> bool;
+  [[nodiscard]] auto encodeUnresolvedQualifier(NestedNameSpecifierAST* nns)
+      -> bool;
   [[nodiscard]] auto encodeExpression(ExpressionAST* expr) -> bool;
+  [[nodiscard]] auto encodeTemplateArgumentList(
+      List<TemplateArgumentAST*>* arguments) -> bool;
   void encodeTemplateParamValue(int index);
   void encodeConstValue(const Type* type, const ConstValue& value);
   void encodeBareFunctionType(const FunctionType* functionType,
@@ -80,9 +86,15 @@ class ExternalNameEncoder {
   void encodeAbiTags(Symbol* symbol);
 
   [[nodiscard]] auto encodeTemplateNameSubstitution(Symbol* symbol) -> bool;
-  [[nodiscard]] auto encodeSubstitution(const void* key) -> bool;
+  [[nodiscard]] auto encodeSubstitution(const Type* type) -> bool;
+  [[nodiscard]] auto encodeSubstitution(Symbol* symbol) -> bool;
+  [[nodiscard]] auto encodeTemplatePrefixSubstitution(
+      Symbol* templateSymbol, List<TemplateArgumentAST*>* arguments) -> bool;
   [[nodiscard]] static auto encodeSeqId(int id) -> std::string;
-  void enterSubstitution(const void* key);
+  void enterSubstitution(const Type* type);
+  void enterSubstitution(Symbol* symbol);
+  void enterTemplatePrefixSubstitution(Symbol* templateSymbol,
+                                       List<TemplateArgumentAST*>* arguments);
 
   void out(std::string_view str) { out_.append(str); }
 
@@ -90,11 +102,19 @@ class ExternalNameEncoder {
   struct EncodeUnqualifiedName;
 
  private:
-  std::unordered_map<const void*, int> substs_;
+  struct TemplatePrefixSubstitution {
+    Symbol* templateSymbol = nullptr;
+    List<TemplateArgumentAST*>* arguments = nullptr;
+  };
+
+  using Substitution =
+      std::variant<const Type*, Symbol*, TemplatePrefixSubstitution>;
+  std::vector<Substitution> substs_;
   std::string out_;
-  int substCount_ = 0;
   StructorVariant structorVariant_ = StructorVariant::Complete;
   Symbol* templateNameOnly_ = nullptr;
+  TranslationUnit* unit_ = nullptr;
+  Symbol* encodingSymbol_ = nullptr;
   bool hasExplicitStructorVariant_ = false;
 };
 }  // namespace cxx

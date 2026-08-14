@@ -19,10 +19,15 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/binder.h>
+#include <cxx/dependent_types.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
+#include <cxx/translation_unit.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <algorithm>
@@ -44,6 +49,22 @@ namespace {
 [[nodiscard]] auto is_unmangled_main(FunctionSymbol* function) -> bool {
   auto id = name_cast<Identifier>(function->name());
   return id && id->name() == "main" && is_global_namespace(function->parent());
+}
+
+[[nodiscard]] auto has_global_qualifier(NestedNameSpecifierAST* nns) -> bool {
+  while (nns) {
+    if (ast_cast<GlobalNestedNameSpecifierAST>(nns)) return true;
+    if (auto simple = ast_cast<SimpleNestedNameSpecifierAST>(nns)) {
+      nns = simple->nestedNameSpecifier;
+      continue;
+    }
+    if (auto templ = ast_cast<TemplateNestedNameSpecifierAST>(nns)) {
+      nns = templ->nestedNameSpecifier;
+      continue;
+    }
+    return false;
+  }
+  return false;
 }
 
 [[nodiscard]] auto encodes_return_type(FunctionSymbol* function) -> bool {
@@ -91,6 +112,19 @@ namespace {
   return false;
 }
 
+[[nodiscard]] auto unary_builtin_name(UnaryBuiltinTypeKind kind)
+    -> std::string_view {
+  switch (kind) {
+#define PROCESS_UNARY_BUILTIN(id, name) \
+  case UnaryBuiltinTypeKind::T_##id:    \
+    return name;
+    FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(PROCESS_UNARY_BUILTIN)
+#undef PROCESS_UNARY_BUILTIN
+    default:
+      return {};
+  }
+}
+
 [[nodiscard]] auto has_complete_signature(const FunctionType* type) -> bool {
   if (!type) return false;
   if (!type->returnType()) return false;
@@ -102,6 +136,18 @@ namespace {
 
 [[nodiscard]] auto signature_type(FunctionSymbol* function)
     -> const FunctionType* {
+  if (auto inherited = function->inheritedConstructorOrigin()) {
+    if (auto primary = inherited->primaryTemplateSymbol()) {
+      if (auto primaryType = type_cast<FunctionType>(primary->type());
+          primaryType && has_complete_signature(primaryType)) {
+        return primaryType;
+      }
+    }
+    if (auto inheritedType = type_cast<FunctionType>(inherited->type());
+        inheritedType && has_complete_signature(inheritedType)) {
+      return inheritedType;
+    }
+  }
   if (function->isSpecialization()) {
     if (auto primary = function->primaryTemplateSymbol()) {
       if (auto primaryType = type_cast<FunctionType>(primary->type());
@@ -432,22 +478,12 @@ struct ExternalNameEncoder::EncodeType {
   auto operator()(const NamespaceType* type) -> bool { return false; }
 
   auto operator()(const TypeParameterType* type) -> bool {
-    if (type->index() == 0) {
-      encoder.out("T_");
-      return true;
-    }
-
-    encoder.out(std::format("T{}_", type->index() - 1));
+    encoder.encodeTemplateParamValue(type->index());
     return true;
   }
 
   auto operator()(const TemplateTypeParameterType* type) -> bool {
-    if (type->index() == 0) {
-      encoder.out("T_");
-      return true;
-    }
-
-    encoder.out(std::format("T{}_", type->index() - 1));
+    encoder.encodeTemplateParamValue(type->index());
     return true;
   }
 
@@ -456,8 +492,8 @@ struct ExternalNameEncoder::EncodeType {
                                     type->unqualifiedId())) {
       return true;
     }
-    encoder.out("u8__dep_ty");
-    return true;
+    cxx_runtime_error(std::format("cannot mangle unresolved name type '{}'",
+                                  to_string(type)));
   }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
@@ -466,12 +502,19 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const UnresolvedUnderlyingType* type) -> bool {
-    encoder.out("u8__dep_ut");
-    return true;
+    cxx_runtime_error(std::format(
+        "cannot mangle unresolved underlying type '{}'", to_string(type)));
   }
 
   auto operator()(const UnresolvedBuiltinType* type) -> bool {
-    encoder.out("u8__dep_bt");
+    auto name = unary_builtin_name(type->builtinKind());
+    auto typeId = type->typeId();
+    if (name.empty() || !typeId || !typeId->type) {
+      cxx_runtime_error("cannot mangle unresolved builtin type");
+    }
+    encoder.out(std::format("u{}{}I", name.size(), name));
+    encoder.encodeType(typeId->type);
+    encoder.out("E");
     return true;
   }
 
@@ -501,8 +544,8 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const UnresolvedBitIntType* type) -> bool {
-    encoder.out("u8__dep_bi");
-    return true;
+    cxx_runtime_error(std::format("cannot mangle unresolved bit-int type '{}'",
+                                  to_string(type)));
   }
 };
 
@@ -510,11 +553,9 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   ExternalNameEncoder& encoder;
   Symbol* symbol = nullptr;
 
-  void encodeAbiTagsAndTemplateArguments(Symbol* symbol) {
+  void encodeTemplateArguments(Symbol* symbol) {
     if (!symbol) return;
     if (symbol == encoder.templateNameOnly_) return;
-
-    encoder.encodeAbiTags(symbol);
 
     std::span<const TemplateArgument> args;
     Symbol* templateName = nullptr;
@@ -543,7 +584,32 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
     encoder.out("I");
 
-    for (const auto& arg : args) {
+    std::vector<TemplateParameterAST*> parameters;
+    if (auto declaration =
+            template_declaration_of(templateName ? templateName : symbol)) {
+      for (auto parameter : ListView{declaration->templateParameterList}) {
+        parameters.push_back(parameter);
+      }
+    }
+
+    const bool isOverloadableTemplate = symbol_cast<FunctionSymbol>(symbol);
+
+    for (std::size_t index = 0; index < args.size(); ++index) {
+      const auto& arg = args[index];
+      if (isOverloadableTemplate && index < parameters.size()) {
+        if (auto parameter =
+                ast_cast<NonTypeTemplateParameterAST>(parameters[index])) {
+          auto declaration = parameter->declaration;
+          auto declaredType = declaration ? declaration->type : nullptr;
+          if (declaredType && encoder.unit_ &&
+              isDependent(encoder.unit_, declaredType)) {
+            if (declaration->isPack) encoder.out("Tp");
+            encoder.out("Tn");
+            encoder.encodeType(declaredType);
+          }
+        }
+      }
+
       if (auto sym = std::get_if<Symbol*>(&arg)) {
         encodeTemplateArgumentSymbol(*sym);
       } else if (auto type = std::get_if<const Type*>(&arg)) {
@@ -557,6 +623,12 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
     }
 
     encoder.out("E");
+  }
+
+  void encodeAbiTagsAndTemplateArguments(Symbol* symbol) {
+    if (!symbol) return;
+    encoder.encodeAbiTags(symbol);
+    encodeTemplateArguments(symbol);
   }
 
   void encodeTemplateArgumentSymbol(Symbol* sym) {
@@ -596,6 +668,17 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
       encoder.out("E");
       return;
     }
+    if (expression && encoder.unit_) {
+      encoder.unit_->error(
+          expression->firstSourceLocation(),
+          std::format(
+              "cannot mangle dependent template argument expression "
+              "while encoding '{}'",
+              encoder.encodingSymbol_
+                  ? to_string(encoder.encodingSymbol_->type(),
+                              to_string(encoder.encodingSymbol_->name()))
+                  : std::string{}));
+    }
     cxx_runtime_error("cannot mangle dependent template argument expression");
   }
 
@@ -605,17 +688,30 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
     encoder.out("I");
 
     for (auto member : classSymbol->templateParameters()->members()) {
-      if (auto typeParameter = symbol_cast<TypeParameterSymbol>(member)) {
-        encoder.encodeType(typeParameter->type());
-      } else if (auto nonTypeParameter =
-                     symbol_cast<NonTypeParameterSymbol>(member)) {
+      if (auto nonTypeParameter = symbol_cast<NonTypeParameterSymbol>(member)) {
+        if (nonTypeParameter->isParameterPack()) {
+          encoder.out("JXsp");
+          encoder.encodeTemplateParamValue(nonTypeParameter->index());
+          encoder.out("EE");
+          continue;
+        }
         encoder.out("X");
         encoder.encodeTemplateParamValue(nonTypeParameter->index());
         encoder.out("E");
-      } else if (auto templateParameter =
-                     symbol_cast<TemplateTypeParameterSymbol>(member)) {
-        encoder.encodeType(templateParameter->type());
+        continue;
       }
+
+      auto parameterType = member->type();
+      if (!parameterType) continue;
+
+      if (isParameterPackExpansion(parameterType)) {
+        encoder.out("JDp");
+        encoder.encodeType(parameterType);
+        encoder.out("E");
+        continue;
+      }
+
+      encoder.encodeType(parameterType);
     }
 
     encoder.out("E");
@@ -624,7 +720,23 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   void operator()(const Identifier* id) {
     if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
       if (function->isConstructor()) {
-        out(encoder.structorVariant_ == StructorVariant::Base ? "C2" : "C1");
+        if (auto inherited = function->inheritedConstructorOrigin()) {
+          if (encoder.structorVariant_ == StructorVariant::Base)
+            out("CI2");
+          else
+            out("CI1");
+          auto base = enclosing_class_or_namespace(inherited);
+          if (!base || !base->type()) {
+            cxx_runtime_error("cannot mangle inherited constructor");
+          }
+          encoder.encodeType(base->type());
+          encodeTemplateArguments(inherited);
+          return;
+        }
+        if (encoder.structorVariant_ == StructorVariant::Base)
+          out("C2");
+        else
+          out("C1");
         encodeAbiTagsAndTemplateArguments(symbol);
         return;
       }
@@ -724,10 +836,11 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   void out(std::string_view str) { encoder.out(str); }
 };
 
-ExternalNameEncoder::ExternalNameEncoder() {}
+ExternalNameEncoder::ExternalNameEncoder(TranslationUnit* unit) : unit_(unit) {}
 
 auto ExternalNameEncoder::encode(Symbol* symbol, std::string_view suffix)
     -> std::string {
+  encodingSymbol_ = symbol;
   std::string result;
   if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
     if (!hasExplicitStructorVariant_) {
@@ -980,33 +1093,116 @@ auto ExternalNameEncoder::encodeDependentName(NestedNameSpecifierAST* nns,
   auto nameId = ast_cast<NameIdAST>(id);
   if (!nameId || !nameId->identifier) return false;
 
-  const auto encodeName = [&] {
-    const auto name = nameId->identifier->name();
-    out(std::format("{}{}", name.length(), name));
-  };
+  out("N");
+  if (!encodeDependentQualifier(nns)) return false;
+  const auto name = nameId->identifier->name();
+  out(std::format("{}{}E", name.length(), name));
+  return true;
+}
 
-  if (auto param = dependent_prefix_type_param(nns);
-      param && type_cast<TypeParameterType>(param->type())) {
-    out("N");
-    encodeType(param->type());
-    encodeName();
-    out("E");
+auto ExternalNameEncoder::encodeDependentQualifier(NestedNameSpecifierAST* nns)
+    -> bool {
+  if (!nns) return false;
+
+  if (ast_cast<GlobalNestedNameSpecifierAST>(nns)) return true;
+
+  if (auto simple = ast_cast<SimpleNestedNameSpecifierAST>(nns)) {
+    if (simple->nestedNameSpecifier) {
+      if (!encodeDependentQualifier(simple->nestedNameSpecifier)) return false;
+    } else if (auto param = dependent_prefix_type_param(simple);
+               param && type_cast<TypeParameterType>(param->type())) {
+      encodeType(param->type());
+      return true;
+    }
+    if (!simple->identifier) return false;
+    const auto name = simple->identifier->name();
+    out(std::format("{}{}", name.length(), name));
     return true;
   }
 
   if (auto tmplNns = ast_cast<TemplateNestedNameSpecifierAST>(nns)) {
-    auto classSymbol = symbol_cast<ClassSymbol>(
-        tmplNns->templateId ? tmplNns->templateId->symbol : tmplNns->symbol);
-    if (classSymbol && classSymbol->templateParameters()) {
-      out("N");
-      encodePrefix(classSymbol);
-      encodeName();
-      out("E");
+    auto qualifierSymbol =
+        tmplNns->templateId ? tmplNns->templateId->symbol : tmplNns->symbol;
+    Symbol* templateName = nullptr;
+    if (auto classSymbol = symbol_cast<ClassSymbol>(qualifierSymbol)) {
+      if (classSymbol->isSpecialization())
+        templateName = classSymbol->primaryTemplateSymbol();
+      else if (classSymbol->templateParameters())
+        templateName = classSymbol;
+    } else if (auto alias = symbol_cast<TypeAliasSymbol>(qualifierSymbol)) {
+      if (alias->isSpecialization())
+        templateName = alias->primaryTemplateSymbol();
+      else if (alias->templateParameters())
+        templateName = alias;
+    }
+    if (templateName && tmplNns->templateId) {
+      if (encodeTemplatePrefixSubstitution(
+              templateName, tmplNns->templateId->templateArgumentList)) {
+        return true;
+      }
+      if (tmplNns->nestedNameSpecifier) {
+        if (!encodeDependentQualifier(tmplNns->nestedNameSpecifier)) {
+          return false;
+        }
+      } else if (!encodeSubstitution(templateName)) {
+        if (auto parent = enclosing_class_or_namespace(templateName);
+            parent && !is_global_namespace(parent)) {
+          encodePrefix(parent);
+        }
+        auto savedTemplateName = std::exchange(templateNameOnly_, templateName);
+        encodeUnqualifiedName(templateName);
+        templateNameOnly_ = savedTemplateName;
+        enterSubstitution(templateName);
+      }
+      if (!encodeTemplateArgumentList(
+              tmplNns->templateId->templateArgumentList)) {
+        return false;
+      }
+      enterTemplatePrefixSubstitution(
+          templateName, tmplNns->templateId->templateArgumentList);
       return true;
+    }
+    if (tmplNns->templateId && tmplNns->templateId->identifier) {
+      if (tmplNns->nestedNameSpecifier &&
+          !encodeDependentQualifier(tmplNns->nestedNameSpecifier)) {
+        return false;
+      }
+      const auto name = tmplNns->templateId->identifier->name();
+      out(std::format("{}{}", name.length(), name));
+      return encodeTemplateArgumentList(
+          tmplNns->templateId->templateArgumentList);
     }
   }
 
   return false;
+}
+
+auto ExternalNameEncoder::encodeUnresolvedQualifier(NestedNameSpecifierAST* nns)
+    -> bool {
+  if (ast_cast<GlobalNestedNameSpecifierAST>(nns)) return true;
+
+  if (auto simple = ast_cast<SimpleNestedNameSpecifierAST>(nns)) {
+    if (simple->nestedNameSpecifier &&
+        !encodeUnresolvedQualifier(simple->nestedNameSpecifier)) {
+      return false;
+    }
+    if (!simple->identifier) return false;
+    const auto name = simple->identifier->name();
+    out(std::format("{}{}", name.size(), name));
+    return true;
+  }
+
+  auto templ = ast_cast<TemplateNestedNameSpecifierAST>(nns);
+  if (!templ || !templ->templateId || !templ->templateId->identifier) {
+    return false;
+  }
+  if (templ->nestedNameSpecifier &&
+      !encodeUnresolvedQualifier(templ->nestedNameSpecifier)) {
+    return false;
+  }
+  const auto name = templ->templateId->identifier->name();
+  out(std::format("{}{}", name.size(), name));
+  return encodeTemplateArgumentList(templ->templateId->templateArgumentList);
 }
 
 auto ExternalNameEncoder::encodeOperatorName(TokenKind op, bool isUnary)
@@ -1121,17 +1317,24 @@ auto ExternalNameEncoder::encodeExpression(ExpressionAST* expr) -> bool {
 
   const auto outMark = out_.size();
   const auto substsSnapshot = substs_;
-  const auto substCountSnapshot = substCount_;
 
   const auto rollback = [&] {
     out_.resize(outMark);
     substs_ = substsSnapshot;
-    substCount_ = substCountSnapshot;
     return false;
   };
 
   if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
     return encodeExpression(nested->expression);
+  }
+
+  if (auto pack = ast_cast<PackExpansionExpressionAST>(expr)) {
+    out("sp");
+    return encodeExpression(pack->expression);
+  }
+
+  if (auto implicitCast = ast_cast<ImplicitCastExpressionAST>(expr)) {
+    return encodeExpression(implicitCast->expression);
   }
 
   if (auto boolLit = ast_cast<BoolLiteralExpressionAST>(expr)) {
@@ -1148,6 +1351,25 @@ auto ExternalNameEncoder::encodeExpression(ExpressionAST* expr) -> bool {
     return true;
   }
 
+  if (auto sizeofPack = ast_cast<SizeofPackExpressionAST>(expr)) {
+    auto parameter = template_parameter_info(sizeofPack->symbol);
+    if (!parameter) return rollback();
+    out("sZ");
+    encodeTemplateParamValue(parameter->index);
+    return true;
+  }
+
+  if (auto typeTrait = ast_cast<TypeTraitExpressionAST>(expr)) {
+    const auto name = unit_->tokenText(typeTrait->typeTraitLoc);
+    out(std::format("u{}{}", name.length(), name));
+    for (auto typeId : ListView{typeTrait->typeIdList}) {
+      if (!typeId || !typeId->type) return rollback();
+      encodeType(typeId->type);
+    }
+    out("E");
+    return true;
+  }
+
   if (auto unary = ast_cast<UnaryExpressionAST>(expr)) {
     out(encodeOperatorName(unary->op, /*isUnary=*/true));
     if (!encodeExpression(unary->expression)) return rollback();
@@ -1161,6 +1383,16 @@ auto ExternalNameEncoder::encodeExpression(ExpressionAST* expr) -> bool {
     return true;
   }
 
+  if (auto call = ast_cast<CallExpressionAST>(expr)) {
+    out("cl");
+    if (!encodeExpression(call->baseExpression)) return rollback();
+    for (auto argument : ListView{call->expressionList}) {
+      if (!encodeExpression(argument)) return rollback();
+    }
+    out("E");
+    return true;
+  }
+
   if (auto idExpr = ast_cast<IdExpressionAST>(expr)) {
     if (auto param = symbol_cast<NonTypeParameterSymbol>(idExpr->symbol)) {
       encodeTemplateParamValue(param->index());
@@ -1168,27 +1400,63 @@ auto ExternalNameEncoder::encodeExpression(ExpressionAST* expr) -> bool {
     }
 
     if (auto templateId = ast_cast<SimpleTemplateIdAST>(idExpr->unqualifiedId);
-        templateId && templateId->identifier && !idExpr->nestedNameSpecifier) {
-      const auto name = templateId->identifier->name();
-      out(std::format("{}{}", name.length(), name));
-      out("I");
-      for (auto arg : ListView{templateId->templateArgumentList}) {
-        if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-          if (!typeArg->typeId || !typeArg->typeId->type) return rollback();
-          encodeType(typeArg->typeId->type);
-        } else if (auto exprArg =
-                       ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-          if (!encodeExpression(exprArg->expression)) return rollback();
-        } else {
+        templateId && templateId->identifier) {
+      if (idExpr->nestedNameSpecifier) {
+        if (has_global_qualifier(idExpr->nestedNameSpecifier)) out("gs");
+        out("sr");
+        if (!encodeUnresolvedQualifier(idExpr->nestedNameSpecifier)) {
           return rollback();
         }
+        out("E");
+      }
+      const auto name = templateId->identifier->name();
+      out(std::format("{}{}", name.length(), name));
+      if (!encodeTemplateArgumentList(templateId->templateArgumentList))
+        return rollback();
+      return true;
+    }
+
+    auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId);
+    if (nameId && nameId->identifier && idExpr->nestedNameSpecifier) {
+      if (has_global_qualifier(idExpr->nestedNameSpecifier)) out("gs");
+      out("sr");
+      if (!encodeUnresolvedQualifier(idExpr->nestedNameSpecifier)) {
+        return rollback();
       }
       out("E");
+      const auto name = nameId->identifier->name();
+      out(std::format("{}{}", name.size(), name));
       return true;
     }
   }
 
   return rollback();
+}
+
+auto ExternalNameEncoder::encodeTemplateArgumentList(
+    List<TemplateArgumentAST*>* arguments) -> bool {
+  out("I");
+  for (auto argument : ListView{arguments}) {
+    if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument)) {
+      if (!typeArgument->typeId || !typeArgument->typeId->type) return false;
+      encodeType(typeArgument->typeId->type);
+      continue;
+    }
+    if (auto expressionArgument =
+            ast_cast<ExpressionTemplateArgumentAST>(argument)) {
+      const bool isPackExpansion =
+          ast_cast<PackExpansionExpressionAST>(expressionArgument->expression);
+      if (isPackExpansion) out("J");
+      out("X");
+      if (!encodeExpression(expressionArgument->expression)) return false;
+      out("E");
+      if (isPackExpansion) out("E");
+      continue;
+    }
+    return false;
+  }
+  out("E");
+  return true;
 }
 
 void ExternalNameEncoder::encodeConstValue(const Type* type,
@@ -1358,11 +1626,55 @@ auto ExternalNameEncoder::encodeTemplateNameSubstitution(Symbol* symbol)
   return true;
 }
 
-auto ExternalNameEncoder::encodeSubstitution(const void* key) -> bool {
-  auto it = substs_.find(key);
+auto ExternalNameEncoder::encodeSubstitution(const Type* type) -> bool {
+  auto sameType = [&](const Substitution& substitution) {
+    auto candidate = std::get_if<const Type*>(&substitution);
+    if (!candidate) return false;
+    if (*candidate == type) return true;
+    return unit_ && TypeTraits{unit_}.is_same(*candidate, type);
+  };
+  auto it = std::ranges::find_if(substs_, sameType);
   if (it == substs_.end()) return false;
+  const auto index = static_cast<int>(std::distance(substs_.begin(), it));
 
-  const auto index = it->second;
+  if (index == 0) {
+    out("S_");
+    return true;
+  }
+
+  out(std::format("S{}_", encodeSeqId(index - 1)));
+  return true;
+}
+
+auto ExternalNameEncoder::encodeSubstitution(Symbol* symbol) -> bool {
+  auto matches = [&](const Substitution& substitution) {
+    auto candidate = std::get_if<Symbol*>(&substitution);
+    return candidate && *candidate == symbol;
+  };
+  auto it = std::ranges::find_if(substs_, matches);
+  if (it == substs_.end()) return false;
+  const auto index = static_cast<int>(std::distance(substs_.begin(), it));
+
+  if (index == 0) {
+    out("S_");
+    return true;
+  }
+
+  out(std::format("S{}_", encodeSeqId(index - 1)));
+  return true;
+}
+
+auto ExternalNameEncoder::encodeTemplatePrefixSubstitution(
+    Symbol* templateSymbol, List<TemplateArgumentAST*>* arguments) -> bool {
+  auto sameTemplateId = [&](const Substitution& substitution) {
+    auto candidate = std::get_if<TemplatePrefixSubstitution>(&substitution);
+    if (!candidate || candidate->templateSymbol != templateSymbol) return false;
+    return unit_ && areTemplateArgumentListsSyntacticallyEquivalent(
+                        unit_, candidate->arguments, arguments);
+  };
+  auto it = std::ranges::find_if(substs_, sameTemplateId);
+  if (it == substs_.end()) return false;
+  const auto index = static_cast<int>(std::distance(substs_.begin(), it));
 
   if (index == 0) {
     out("S_");
@@ -1383,12 +1695,36 @@ auto ExternalNameEncoder::encodeSeqId(int id) -> std::string {
   return result;
 }
 
-void ExternalNameEncoder::enterSubstitution(const void* key) {
-  if (substs_.contains(key)) return;
-
-  const auto index = substCount_;
-  ++substCount_;
-
-  substs_.emplace(key, index);
+void ExternalNameEncoder::enterSubstitution(const Type* type) {
+  auto sameType = [&](const Substitution& substitution) {
+    auto candidate = std::get_if<const Type*>(&substitution);
+    if (!candidate) return false;
+    if (*candidate == type) return true;
+    return unit_ && TypeTraits{unit_}.is_same(*candidate, type);
+  };
+  if (std::ranges::any_of(substs_, sameType)) return;
+  substs_.emplace_back(type);
 }
+
+void ExternalNameEncoder::enterSubstitution(Symbol* symbol) {
+  auto matches = [&](const Substitution& substitution) {
+    auto candidate = std::get_if<Symbol*>(&substitution);
+    return candidate && *candidate == symbol;
+  };
+  if (std::ranges::any_of(substs_, matches)) return;
+  substs_.emplace_back(symbol);
+}
+
+void ExternalNameEncoder::enterTemplatePrefixSubstitution(
+    Symbol* templateSymbol, List<TemplateArgumentAST*>* arguments) {
+  auto sameTemplateId = [&](const Substitution& substitution) {
+    auto candidate = std::get_if<TemplatePrefixSubstitution>(&substitution);
+    if (!candidate || candidate->templateSymbol != templateSymbol) return false;
+    return unit_ && areTemplateArgumentListsSyntacticallyEquivalent(
+                        unit_, candidate->arguments, arguments);
+  };
+  if (std::ranges::any_of(substs_, sameTemplateId)) return;
+  substs_.push_back(TemplatePrefixSubstitution{templateSymbol, arguments});
+}
+
 }  // namespace cxx

@@ -27,26 +27,25 @@
 #include <cxx/types.h>
 
 namespace cxx {
-struct FindReferencedParameterPack final : ASTVisitor {
+struct CollectReferencedParameterPacks final : ASTVisitor {
   const ASTRewriter& rewriter;
-  ParameterPackSymbol* exprPack = nullptr;
-  ParameterPackSymbol* typePack = nullptr;
+  std::vector<ParameterPackSymbol*> packs;
 
-  explicit FindReferencedParameterPack(const ASTRewriter& r) : rewriter(r) {}
+  explicit CollectReferencedParameterPacks(const ASTRewriter& r)
+      : rewriter(r) {}
 
-  auto preVisit(AST*) -> bool override { return !exprPack; }
+  void add(ParameterPackSymbol* pack) {
+    if (!pack) return;
+    if (std::ranges::find(packs, pack) == packs.end()) packs.push_back(pack);
+  }
 
   void visit(IdExpressionAST* ast) override {
-    if (exprPack) return;
-
     if (auto pack = rewriter.functionParameterPackFor(ast->symbol)) {
-      exprPack = pack;
-      return;
+      add(pack);
     }
 
     if (auto pack = rewriter.parameterPackFor(ast->symbol)) {
-      exprPack = pack;
-      return;
+      add(pack);
     }
 
     if (ast->unqualifiedId) accept(ast->unqualifiedId);
@@ -54,11 +53,8 @@ struct FindReferencedParameterPack final : ASTVisitor {
   }
 
   void visit(NamedTypeSpecifierAST* ast) override {
-    if (typePack) return;
-
     if (auto pack = rewriter.parameterPackFor(ast->symbol)) {
-      typePack = pack;
-      return;
+      add(pack);
     }
 
     if (ast->nestedNameSpecifier) accept(ast->nestedNameSpecifier);
@@ -66,21 +62,19 @@ struct FindReferencedParameterPack final : ASTVisitor {
   }
 
   void visit(SimpleNestedNameSpecifierAST* ast) override {
-    if (typePack) return;
-
     if (auto pack = rewriter.parameterPackFor(ast->symbol)) {
-      typePack = pack;
-      return;
+      add(pack);
     }
 
     if (ast->nestedNameSpecifier) accept(ast->nestedNameSpecifier);
   }
 
   void visit(TemplateNestedNameSpecifierAST* ast) override {
-    if (typePack) return;
     if (ast->templateId) accept(ast->templateId);
     if (ast->nestedNameSpecifier) accept(ast->nestedNameSpecifier);
   }
+
+  void visit(PackExpansionExpressionAST*) override {}
 };
 
 struct FindUnresolvedParameterPack final : ASTVisitor {
@@ -271,10 +265,6 @@ auto ASTRewriter::packElementAt(ParameterPackSymbol* pack) const -> Symbol* {
   return pack->elements()[*elementIndex_];
 }
 
-auto ASTRewriter::packElementCount(ParameterPackSymbol* pack) const -> int {
-  return static_cast<int>(pack->elements().size());
-}
-
 auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) const
     -> Symbol* {
   auto typeParam = symbol_cast<TypeParameterSymbol>(symbol);
@@ -295,11 +285,40 @@ auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) const
   return nullptr;
 }
 
+auto ASTRewriter::referencedParameterPacks(AST* ast) const
+    -> std::vector<ParameterPackSymbol*> {
+  CollectReferencedParameterPacks collector{*this};
+  collector.accept(ast);
+  return collector.packs;
+}
+
 auto ASTRewriter::findReferencedParameterPack(AST* ast) const
     -> ParameterPackSymbol* {
-  FindReferencedParameterPack finder{*this};
-  finder.accept(ast);
-  return finder.exprPack ? finder.exprPack : finder.typePack;
+  if (hasUnresolvedParameterPack(ast)) return nullptr;
+  auto packs = referencedParameterPacks(ast);
+  if (packs.empty()) return nullptr;
+  return packs.front();
+}
+
+auto ASTRewriter::packExpansionSize(AST* pattern, SourceLocation expansionLoc,
+                                    ParameterPackSymbol* additionalPack)
+    -> std::optional<int> {
+  if (hasUnresolvedParameterPack(pattern)) return std::nullopt;
+  auto packs = referencedParameterPacks(pattern);
+  if (additionalPack &&
+      std::ranges::find(packs, additionalPack) == packs.end()) {
+    packs.push_back(additionalPack);
+  }
+  if (packs.empty()) return std::nullopt;
+
+  const auto size = static_cast<int>(packs.front()->elements().size());
+  for (auto pack : packs | std::views::drop(1)) {
+    if (static_cast<int>(pack->elements().size()) == size) continue;
+    error(expansionLoc,
+          "pack expansion contains parameter packs of different lengths");
+    return 0;
+  }
+  return size;
 }
 
 auto ASTRewriter::expandedParameterPack(TypeIdAST* typeId) const

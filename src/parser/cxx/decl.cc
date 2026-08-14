@@ -434,7 +434,7 @@ auto Decl::getReturnType(ScopeSymbol* currentScope) const -> const Type* {
       // Look through to find the enclosing class.
       auto classScope = currentScope;
       if (classScope && classScope->isTemplateParameters()) {
-        classScope = classScope->enclosingNonTemplateParametersScope();
+        classScope = classScope->parent();
       }
       if (id && classScope && classScope->isClass()) {
         bool isCtor = (id == classScope->name());

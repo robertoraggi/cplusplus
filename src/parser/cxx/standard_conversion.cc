@@ -263,11 +263,11 @@ auto StandardConversion::mergeCv(CvQualifiers cv1, CvQualifiers cv2) const
 auto StandardConversion::isReferenceCompatible(const Type* targetType,
                                                const Type* sourceType) const
     -> bool {
+  if (isQualificationConversion(sourceType, targetType, 0)) return true;
+
   auto targetUnqual = traits.remove_cv(targetType);
   auto sourceUnqual = traits.remove_cv(sourceType);
-  if (!traits.is_same(targetUnqual, sourceUnqual) &&
-      !traits.is_base_of(targetUnqual, sourceUnqual))
-    return false;
+  if (!traits.is_base_of(targetUnqual, sourceUnqual)) return false;
   return checkCvQualifiers(traits.get_cv_qualifiers(targetType),
                            traits.get_cv_qualifiers(sourceType));
 }
@@ -1084,16 +1084,19 @@ auto StandardConversion::computeConversionSequenceImpl(
       }
 
       if (bindsDirectly) {
-        auto sameUnqual = traits.is_same(traits.remove_cv(sourceRefRemoved),
-                                         traits.remove_cv(inner));
         auto sourceCv = traits.get_cv_qualifiers(sourceRefRemoved);
         auto targetCv = traits.get_cv_qualifiers(inner);
+        auto derivedToBase =
+            !traits.is_same(traits.remove_cv(inner),
+                            traits.remove_cv(sourceRefRemoved)) &&
+            traits.is_base_of(traits.remove_cv(inner),
+                              traits.remove_cv(sourceRefRemoved));
 
         seq.bindsToReference = true;
         seq.referenceCv = targetCv;
-        seq.rank = sameUnqual ? ConversionRank::kExactMatch
-                              : ConversionRank::kConversion;
-        addStep(!sameUnqual ? ImplicitCastKind::kDerivedToBaseConversion
+        seq.rank = derivedToBase ? ConversionRank::kConversion
+                                 : ConversionRank::kExactMatch;
+        addStep(derivedToBase ? ImplicitCastKind::kDerivedToBaseConversion
                 : sourceCv != targetCv
                     ? ImplicitCastKind::kQualificationConversion
                     : ImplicitCastKind::kIdentity,
@@ -1562,6 +1565,7 @@ void StandardConversion::applyConversionSequence(
         !traits.is_array(expr->type)) {
       (void)temporaryMaterialization(expr);
     }
+    requireDefinitionOfDesignatedField(expr);
     return;
   }
 
@@ -1749,11 +1753,32 @@ void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
   }
 }
 
+void StandardConversion::requireDefinitionOfDesignatedField(
+    ExpressionAST* expr) {
+  while (expr) {
+    if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
+      expr = nested->expression;
+      continue;
+    }
+    if (auto cast = ast_cast<ImplicitCastExpressionAST>(expr)) {
+      expr = cast->expression;
+      continue;
+    }
+    break;
+  }
+
+  auto id = ast_cast<IdExpressionAST>(expr);
+  if (!id) return;
+  ASTRewriter::requireFieldDefinition(unit_,
+                                      symbol_cast<FieldSymbol>(id->symbol));
+}
+
 void StandardConversion::recordUserDefinedConversion(
     ImplicitCastExpressionAST* cast, FunctionSymbol* function) {
   if (!function) return;
 
   cast->conversionFunction = function;
+  ASTRewriter::requireFunctionDefinition(unit_, function);
 
   if (function->isConstructor()) {
     materializeConstructorArguments(cast, function);

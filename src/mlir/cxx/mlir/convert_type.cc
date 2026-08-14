@@ -306,7 +306,7 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
   }
 
   if (!classSymbol->templateArguments().empty()) {
-    ExternalNameEncoder encoder;
+    ExternalNameEncoder encoder{gen.translationUnit()};
     name = encoder.encode(type);
   }
 
