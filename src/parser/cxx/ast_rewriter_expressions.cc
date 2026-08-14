@@ -1116,7 +1116,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   copy->rparenLoc = ast->rparenLoc;
 
-  rewrite.check(copy);
   return copy;
 }
 
@@ -1629,8 +1628,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
   copy->expression = rewrite.expression(ast->expression);
   copy->symbol = ast->symbol;
 
-  rewrite.check(copy);
-
   return copy;
 }
 
@@ -1687,10 +1684,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
   }
   copy->op = ast->op;
 
-  if (!copy->type || isDependent(rewrite.unit_, copy->type)) {
-    rewrite.check(copy);
-  }
-
   return copy;
 }
 
@@ -1706,9 +1699,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
   copy->colonLoc = ast->colonLoc;
   copy->iffalseExpression = rewrite.expression(ast->iffalseExpression);
 
-  if (!copy->type || isDependent(rewrite.unit_, copy->type)) {
-    rewrite.check(copy);
-  }
   return copy;
 }
 
